@@ -1,10 +1,27 @@
-import { Check, X, Zap, Building, Rocket } from "lucide-react";
+import { Check, X, Zap, Building, Rocket, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 const tiers = [
+  {
+    name: "Free",
+    price: 0,
+    description: "Try it out and see real results",
+    icon: Gift,
+    features: [
+      { text: "5 GMB searches per day", included: true },
+      { text: "3 Platform searches per day", included: true },
+      { text: "Basic lead info (name, phone, website)", included: true },
+      { text: "WordPress detection", included: true },
+      { text: "Community support", included: true },
+      { text: "Email extraction", included: false },
+      { text: "Priority platform detection", included: false },
+      { text: "Exclusive territories", included: false },
+      { text: "API access", included: false },
+    ],
+  },
   {
     name: "Basic",
     price: 49,
@@ -86,7 +103,7 @@ const Pricing = () => {
         <section className="py-20 md:py-28">
           <div className="container px-4">
             <div className="max-w-6xl mx-auto">
-              <div className="grid md:grid-cols-3 gap-6">
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {tiers.map((tier) => (
                   <div
                     key={tier.name}
@@ -116,8 +133,14 @@ const Pricing = () => {
 
                     {/* Price */}
                     <div className="mb-4">
-                      <span className="text-4xl font-bold text-foreground">${tier.price}</span>
-                      <span className="text-muted-foreground">/month</span>
+                      {tier.price === 0 ? (
+                        <span className="text-4xl font-bold text-foreground">Free</span>
+                      ) : (
+                        <>
+                          <span className="text-4xl font-bold text-foreground">${tier.price}</span>
+                          <span className="text-muted-foreground">/month</span>
+                        </>
+                      )}
                     </div>
 
                     {/* Description */}
