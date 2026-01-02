@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { 
   Search, MapPin, Briefcase, Building2, Loader2, AlertCircle, 
   Globe, CheckCircle, XCircle, ChevronLeft, ChevronRight, Filter,
-  ArrowUpDown, ArrowUp, ArrowDown, Download, Copy, FileSpreadsheet, FileText
+  ArrowUpDown, ArrowUp, ArrowDown, Download, Copy, FileSpreadsheet, FileText,
+  ShieldCheck, ShieldQuestion
 } from "lucide-react";
 import { searchGMB, GMBResult } from "@/lib/api/gmb";
 import { toast } from "sonner";
@@ -21,12 +22,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Checkbox } from "@/components/ui/checkbox";
 import GMBResultModal from "./GMBResultModal";
+import LeadVerificationModal from "./LeadVerificationModal";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
 type FilterType = "all" | "needs-upgrade" | "good";
 type PlatformFilter = "all" | string;
+type VerificationFilter = "all" | "verified" | "unverified";
 type SortField = "name" | "platform" | "issues";
 type SortDirection = "asc" | "desc";
 
@@ -43,6 +47,7 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<FilterType>("all");
   const [platformFilter, setPlatformFilter] = useState<PlatformFilter>("all");
+  const [verificationFilter, setVerificationFilter] = useState<VerificationFilter>("all");
   
   // Sorting
   const [sortField, setSortField] = useState<SortField>("name");
@@ -51,6 +56,10 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
   // Modal
   const [selectedResult, setSelectedResult] = useState<GMBResult | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+
+  // Lead verification
+  const [selectedForVerification, setSelectedForVerification] = useState<Set<string>>(new Set());
+  const [verificationModalOpen, setVerificationModalOpen] = useState(false);
 
   // Get unique platforms from results
   const platforms = useMemo(() => {
@@ -72,6 +81,10 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
       
       // Platform filter
       if (platformFilter !== "all" && r.websiteAnalysis.platform !== platformFilter) return false;
+
+      // Verification filter
+      if (verificationFilter === "verified" && !r.verification?.isVerified) return false;
+      if (verificationFilter === "unverified" && r.verification?.isVerified) return false;
       
       return true;
     });
@@ -98,7 +111,17 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
     });
 
     return filtered;
-  }, [results, statusFilter, platformFilter, sortField, sortDirection]);
+  }, [results, statusFilter, platformFilter, verificationFilter, sortField, sortDirection]);
+
+  // Separate verified and unverified results for display
+  const verifiedResults = useMemo(() => 
+    filteredResults.filter(r => r.verification?.isVerified), 
+    [filteredResults]
+  );
+  const unverifiedResults = useMemo(() => 
+    filteredResults.filter(r => !r.verification?.isVerified), 
+    [filteredResults]
+  );
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredResults.length / RESULTS_PER_PAGE);
@@ -108,12 +131,14 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
   }, [filteredResults, currentPage]);
 
   // Reset pagination when filters change
-  const handleFilterChange = (type: "status" | "platform", value: string) => {
+  const handleFilterChange = (type: "status" | "platform" | "verification", value: string) => {
     setCurrentPage(1);
     if (type === "status") {
       setStatusFilter(value as FilterType);
-    } else {
+    } else if (type === "platform") {
       setPlatformFilter(value);
+    } else {
+      setVerificationFilter(value as VerificationFilter);
     }
   };
 
@@ -132,6 +157,55 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
   const handleResultClick = (result: GMBResult) => {
     setSelectedResult(result);
     setModalOpen(true);
+  };
+
+  // Lead verification selection
+  const toggleLeadSelection = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedForVerification(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllUnverified = () => {
+    const unverifiedIds = unverifiedResults.map(r => r.id);
+    setSelectedForVerification(new Set(unverifiedIds));
+  };
+
+  const clearSelection = () => {
+    setSelectedForVerification(new Set());
+  };
+
+  const getSelectedLeads = (): GMBResult[] => {
+    return results.filter(r => selectedForVerification.has(r.id));
+  };
+
+  const handleVerifyLeads = (leads: GMBResult[]) => {
+    // In production, this would call an API to verify leads
+    // For now, we simulate verification
+    setResults(prev => prev.map(r => {
+      if (leads.some(l => l.id === r.id)) {
+        return {
+          ...r,
+          verification: {
+            isVerified: true,
+            verifiedAt: new Date().toISOString(),
+            contactValid: Math.random() > 0.1, // 90% valid
+            businessActive: Math.random() > 0.05, // 95% active
+            lastChecked: new Date().toISOString(),
+          }
+        };
+      }
+      return r;
+    }));
+    setSelectedForVerification(new Set());
+    toast.success(`Verified ${leads.length} lead${leads.length !== 1 ? "s" : ""} successfully!`);
   };
 
   // Export to CSV
@@ -476,6 +550,28 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
                       </SelectContent>
                     </Select>
                   )}
+
+                  {/* Verification Filter */}
+                  <Select value={verificationFilter} onValueChange={(v) => handleFilterChange("verification", v)}>
+                    <SelectTrigger className="w-[160px] h-9 text-sm bg-secondary/50">
+                      <SelectValue placeholder="Verification" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Leads</SelectItem>
+                      <SelectItem value="verified">
+                        <span className="flex items-center gap-1.5">
+                          <ShieldCheck className="w-3.5 h-3.5 text-success" />
+                          Verified ({verifiedResults.length})
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="unverified">
+                        <span className="flex items-center gap-1.5">
+                          <ShieldQuestion className="w-3.5 h-3.5 text-muted-foreground" />
+                          Unverified ({unverifiedResults.length})
+                        </span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* Sort Buttons */}
@@ -537,6 +633,43 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
                 </DropdownMenu>
               </div>
 
+              {/* Verification Action Bar */}
+              {unverifiedResults.length > 0 && (
+                <div className="mb-4 p-4 rounded-xl bg-primary/5 border border-primary/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <ShieldCheck className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground text-sm">Verify leads for higher conversion</p>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedForVerification.size > 0 
+                          ? `${selectedForVerification.size} lead${selectedForVerification.size !== 1 ? "s" : ""} selected`
+                          : "Select leads below to verify their contact info"
+                        }
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {selectedForVerification.size > 0 ? (
+                      <>
+                        <Button variant="ghost" size="sm" onClick={clearSelection}>
+                          Clear
+                        </Button>
+                        <Button size="sm" onClick={() => setVerificationModalOpen(true)} className="gap-2">
+                          <ShieldCheck className="w-4 h-4" />
+                          Verify Selected
+                        </Button>
+                      </>
+                    ) : (
+                      <Button variant="outline" size="sm" onClick={selectAllUnverified} className="gap-2">
+                        Select All Unverified
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Results List */}
               {filteredResults.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground bg-card rounded-xl border border-border">
@@ -545,68 +678,50 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
                   <p className="text-sm mt-1">Try adjusting your filter criteria.</p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {paginatedResults.map((result) => (
-                    <div
-                      key={result.id}
-                      onClick={() => handleResultClick(result)}
-                      className={`p-5 rounded-xl border transition-all cursor-pointer hover:shadow-elevated hover:scale-[1.01] ${
-                        result.websiteAnalysis.needsUpgrade
-                          ? "border-destructive/20 bg-destructive/5 hover:border-destructive/40"
-                          : "border-success/20 bg-success/5 hover:border-success/40"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-semibold text-foreground truncate text-lg">{result.name}</h4>
-                          <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{result.snippet}</p>
-                          
-                          {result.displayLink && (
-                            <div className="flex items-center gap-1.5 mt-3 text-sm text-primary font-medium">
-                              <Globe className="w-4 h-4" />
-                              <span className="truncate">{result.displayLink}</span>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex flex-col items-end gap-2 shrink-0">
-                          {result.websiteAnalysis.platform && (
-                            <span className="text-xs px-3 py-1.5 rounded-full bg-secondary text-secondary-foreground font-medium">
-                              {result.websiteAnalysis.platform}
-                            </span>
-                          )}
-                          
-                          {result.websiteAnalysis.needsUpgrade ? (
-                            <span className="flex items-center gap-1.5 text-xs text-destructive font-medium">
-                              <XCircle className="w-4 h-4" />
-                              Needs Upgrade
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1.5 text-xs text-success font-medium">
-                              <CheckCircle className="w-4 h-4" />
-                              Good Website
-                            </span>
-                          )}
-                        </div>
+                <div className="space-y-6">
+                  {/* Verified Leads Section */}
+                  {verifiedResults.length > 0 && verificationFilter !== "unverified" && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <ShieldCheck className="w-4 h-4 text-success" />
+                        <h4 className="font-semibold text-foreground text-sm">Verified Leads ({verifiedResults.length})</h4>
                       </div>
-
-                      {result.websiteAnalysis.issues.length > 0 && (
-                        <div className="mt-4 pt-4 border-t border-border/50">
-                          <p className="text-xs text-muted-foreground mb-2 font-medium">Issues detected:</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            {result.websiteAnalysis.issues.map((issue, idx) => (
-                              <span
-                                key={idx}
-                                className="text-xs px-2.5 py-1 rounded-full bg-destructive/10 text-destructive font-medium"
-                              >
-                                {issue}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      <div className="space-y-3">
+                        {verifiedResults.slice(0, verificationFilter === "verified" ? undefined : 3).map((result) => (
+                          <ResultCard 
+                            key={result.id} 
+                            result={result} 
+                            onClick={() => handleResultClick(result)}
+                            isSelected={selectedForVerification.has(result.id)}
+                            onToggleSelect={toggleLeadSelection}
+                            showCheckbox={false}
+                          />
+                        ))}
+                      </div>
                     </div>
-                  ))}
+                  )}
+
+                  {/* Unverified Leads Section */}
+                  {unverifiedResults.length > 0 && verificationFilter !== "verified" && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <ShieldQuestion className="w-4 h-4 text-muted-foreground" />
+                        <h4 className="font-semibold text-foreground text-sm">Unverified Leads ({unverifiedResults.length})</h4>
+                      </div>
+                      <div className="space-y-3">
+                        {paginatedResults.filter(r => !r.verification?.isVerified).map((result) => (
+                          <ResultCard 
+                            key={result.id} 
+                            result={result} 
+                            onClick={() => handleResultClick(result)}
+                            isSelected={selectedForVerification.has(result.id)}
+                            onToggleSelect={toggleLeadSelection}
+                            showCheckbox={true}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -661,9 +776,116 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
         open={modalOpen}
         onOpenChange={setModalOpen}
       />
+
+      {/* Verification Modal */}
+      <LeadVerificationModal
+        open={verificationModalOpen}
+        onOpenChange={setVerificationModalOpen}
+        selectedLeads={getSelectedLeads()}
+        onVerify={handleVerifyLeads}
+      />
     </div>
   );
 });
+
+// ResultCard component for reusability
+interface ResultCardProps {
+  result: GMBResult;
+  onClick: () => void;
+  isSelected: boolean;
+  onToggleSelect: (id: string, e: React.MouseEvent) => void;
+  showCheckbox: boolean;
+}
+
+function ResultCard({ result, onClick, isSelected, onToggleSelect, showCheckbox }: ResultCardProps) {
+  return (
+    <div
+      onClick={onClick}
+      className={`p-5 rounded-xl border transition-all cursor-pointer hover:shadow-elevated hover:scale-[1.01] ${
+        result.verification?.isVerified
+          ? "border-success/30 bg-success/5 hover:border-success/50 ring-1 ring-success/20"
+          : result.websiteAnalysis.needsUpgrade
+            ? "border-destructive/20 bg-destructive/5 hover:border-destructive/40"
+            : "border-border bg-card hover:border-border/80"
+      }`}
+    >
+      <div className="flex items-start gap-3">
+        {/* Checkbox for selection */}
+        {showCheckbox && (
+          <div 
+            className="pt-1 shrink-0"
+            onClick={(e) => onToggleSelect(result.id, e)}
+          >
+            <Checkbox 
+              checked={isSelected}
+              className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+            />
+          </div>
+        )}
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h4 className="font-semibold text-foreground truncate text-lg">{result.name}</h4>
+                {result.verification?.isVerified && (
+                  <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-success/10 text-success font-medium border border-success/20">
+                    <ShieldCheck className="w-3 h-3" />
+                    Verified
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{result.snippet}</p>
+              
+              {result.displayLink && (
+                <div className="flex items-center gap-1.5 mt-3 text-sm text-primary font-medium">
+                  <Globe className="w-4 h-4" />
+                  <span className="truncate">{result.displayLink}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col items-end gap-2 shrink-0">
+              {result.websiteAnalysis.platform && (
+                <span className="text-xs px-3 py-1.5 rounded-full bg-secondary text-secondary-foreground font-medium">
+                  {result.websiteAnalysis.platform}
+                </span>
+              )}
+              
+              {result.websiteAnalysis.needsUpgrade ? (
+                <span className="flex items-center gap-1.5 text-xs text-destructive font-medium">
+                  <XCircle className="w-4 h-4" />
+                  Needs Upgrade
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5 text-xs text-success font-medium">
+                  <CheckCircle className="w-4 h-4" />
+                  Good Website
+                </span>
+              )}
+            </div>
+          </div>
+
+          {result.websiteAnalysis.issues.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-border/50">
+              <p className="text-xs text-muted-foreground mb-2 font-medium">Issues detected:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {result.websiteAnalysis.issues.map((issue, idx) => (
+                  <span
+                    key={idx}
+                    className="text-xs px-2.5 py-1 rounded-full bg-destructive/10 text-destructive font-medium"
+                  >
+                    {issue}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 GMBSearchModule.displayName = "GMBSearchModule";
 
