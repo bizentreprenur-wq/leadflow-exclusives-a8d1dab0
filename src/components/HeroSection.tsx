@@ -1,4 +1,6 @@
+import { Link } from "react-router-dom";
 import SearchModule from "@/components/SearchModule";
+import { Button } from "@/components/ui/button";
 import { ChevronDown } from "lucide-react";
 
 const HeroSection = () => {
@@ -35,6 +37,15 @@ const HeroSection = () => {
           {/* Search Module */}
           <div className="animate-slide-up" style={{ animationDelay: '0.3s' }}>
             <SearchModule />
+          </div>
+
+          {/* Pricing link */}
+          <div className="text-center mt-8 animate-slide-up" style={{ animationDelay: '0.4s' }}>
+            <Link to="/pricing">
+              <Button variant="link" className="text-muted-foreground hover:text-primary">
+                View Pricing Plans →
+              </Button>
+            </Link>
           </div>
         </div>
 
