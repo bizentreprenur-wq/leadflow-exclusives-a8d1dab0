@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { 
   Search, MapPin, Briefcase, Building2, Loader2, AlertCircle, 
   Globe, CheckCircle, XCircle, ChevronLeft, ChevronRight, Filter,
-  ArrowUpDown, ArrowUp, ArrowDown, Download, Copy, FileSpreadsheet
+  ArrowUpDown, ArrowUp, ArrowDown, Download, Copy, FileSpreadsheet, FileText
 } from "lucide-react";
 import { searchGMB, GMBResult } from "@/lib/api/gmb";
 import { toast } from "sonner";
@@ -22,6 +22,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import GMBResultModal from "./GMBResultModal";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 type FilterType = "all" | "needs-upgrade" | "good";
 type PlatformFilter = "all" | string;
@@ -188,6 +190,152 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
     } catch {
       toast.error("Failed to copy to clipboard");
     }
+  };
+
+  // Export to PDF
+  const exportToPDF = () => {
+    if (filteredResults.length === 0) {
+      toast.error("No results to export");
+      return;
+    }
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Header
+    doc.setFontSize(20);
+    doc.setTextColor(59, 130, 246); // Primary blue
+    doc.text("Lead Report", 14, 20);
+    
+    // Subtitle with date and search info
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Generated: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`, 14, 28);
+    doc.text(`Search: "${service}" in "${location}"`, 14, 34);
+    
+    // Summary stats
+    const upgradeCount = filteredResults.filter(r => r.websiteAnalysis.needsUpgrade).length;
+    doc.setFontSize(11);
+    doc.setTextColor(40, 40, 40);
+    doc.text(`Total Leads: ${filteredResults.length}  |  Needs Upgrade: ${upgradeCount}  |  Good: ${filteredResults.length - upgradeCount}`, 14, 44);
+
+    // Divider line
+    doc.setDrawColor(200, 200, 200);
+    doc.line(14, 48, pageWidth - 14, 48);
+
+    // Table with business details
+    const tableData = filteredResults.map(r => [
+      r.name,
+      r.phone || "N/A",
+      r.websiteAnalysis.platform || "Unknown",
+      r.websiteAnalysis.needsUpgrade ? "Yes" : "No",
+      r.websiteAnalysis.mobileScore ? `${r.websiteAnalysis.mobileScore}%` : "N/A",
+      r.websiteAnalysis.issues.length > 0 ? r.websiteAnalysis.issues.slice(0, 2).join(", ") : "None"
+    ]);
+
+    autoTable(doc, {
+      startY: 52,
+      head: [["Business Name", "Phone", "Platform", "Needs Upgrade", "Mobile Score", "Top Issues"]],
+      body: tableData,
+      headStyles: {
+        fillColor: [59, 130, 246],
+        textColor: 255,
+        fontStyle: "bold",
+        fontSize: 9
+      },
+      bodyStyles: {
+        fontSize: 8,
+        cellPadding: 3
+      },
+      alternateRowStyles: {
+        fillColor: [245, 247, 250]
+      },
+      columnStyles: {
+        0: { cellWidth: 45 },
+        1: { cellWidth: 28 },
+        2: { cellWidth: 25 },
+        3: { cellWidth: 20 },
+        4: { cellWidth: 18 },
+        5: { cellWidth: 45 }
+      },
+      margin: { left: 14, right: 14 }
+    });
+
+    // Detailed breakdown for each lead (new page)
+    doc.addPage();
+    doc.setFontSize(16);
+    doc.setTextColor(59, 130, 246);
+    doc.text("Detailed Lead Analysis", 14, 20);
+    
+    let yPosition = 32;
+    const lineHeight = 6;
+    const maxY = doc.internal.pageSize.getHeight() - 20;
+
+    filteredResults.forEach((result, index) => {
+      // Check if we need a new page
+      if (yPosition > maxY - 50) {
+        doc.addPage();
+        yPosition = 20;
+      }
+
+      // Business name header
+      doc.setFontSize(11);
+      doc.setTextColor(40, 40, 40);
+      doc.setFont("helvetica", "bold");
+      doc.text(`${index + 1}. ${result.name}`, 14, yPosition);
+      yPosition += lineHeight;
+
+      // Details
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(80, 80, 80);
+      
+      if (result.url) {
+        doc.text(`Website: ${result.url}`, 18, yPosition);
+        yPosition += lineHeight - 1;
+      }
+      if (result.phone) {
+        doc.text(`Phone: ${result.phone}`, 18, yPosition);
+        yPosition += lineHeight - 1;
+      }
+      if (result.address) {
+        doc.text(`Address: ${result.address}`, 18, yPosition);
+        yPosition += lineHeight - 1;
+      }
+      
+      doc.text(`Platform: ${result.websiteAnalysis.platform || "Unknown"}`, 18, yPosition);
+      yPosition += lineHeight - 1;
+      
+      doc.text(`Mobile Score: ${result.websiteAnalysis.mobileScore ? result.websiteAnalysis.mobileScore + "%" : "N/A"}`, 18, yPosition);
+      yPosition += lineHeight - 1;
+
+      // Status with color
+      const status = result.websiteAnalysis.needsUpgrade ? "Needs Upgrade" : "Good Website";
+      doc.setTextColor(result.websiteAnalysis.needsUpgrade ? 220 : 34, result.websiteAnalysis.needsUpgrade ? 38 : 197, result.websiteAnalysis.needsUpgrade ? 38 : 94);
+      doc.text(`Status: ${status}`, 18, yPosition);
+      yPosition += lineHeight - 1;
+
+      // Issues
+      if (result.websiteAnalysis.issues.length > 0) {
+        doc.setTextColor(80, 80, 80);
+        doc.text(`Issues: ${result.websiteAnalysis.issues.join(", ")}`, 18, yPosition);
+        yPosition += lineHeight - 1;
+      }
+
+      yPosition += 6; // Space between entries
+    });
+
+    // Footer on last page
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text(`Page ${i} of ${pageCount}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: "center" });
+    }
+
+    doc.save(`lead-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    toast.success(`Exported ${filteredResults.length} leads to PDF`);
   };
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -372,10 +520,14 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
                       Export
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={exportToCSV} className="gap-2 cursor-pointer">
                       <FileSpreadsheet className="w-4 h-4" />
                       Download CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={exportToPDF} className="gap-2 cursor-pointer">
+                      <FileText className="w-4 h-4" />
+                      Download PDF Report
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={copyToClipboard} className="gap-2 cursor-pointer">
                       <Copy className="w-4 h-4" />
