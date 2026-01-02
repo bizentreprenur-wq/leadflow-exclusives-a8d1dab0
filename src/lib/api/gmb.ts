@@ -18,6 +18,14 @@ export interface WebsiteAnalysis {
   mobileScore: number | null;
 }
 
+export interface LeadVerification {
+  isVerified: boolean;
+  verifiedAt?: string;
+  contactValid?: boolean;
+  businessActive?: boolean;
+  lastChecked?: string;
+}
+
 export interface GMBResult {
   id: string;
   name: string;
@@ -29,6 +37,7 @@ export interface GMBResult {
   rating?: number;
   reviewCount?: number;
   websiteAnalysis: WebsiteAnalysis;
+  verification?: LeadVerification;
 }
 
 export interface GMBSearchResponse {
@@ -91,6 +100,11 @@ function generateMockResults(service: string, location: string): GMBResult[] {
         needsUpgrade: !hasWebsite || issues.length >= 2 || platform === 'WordPress',
         issues,
         mobileScore: hasWebsite ? Math.floor(Math.random() * 60) + 40 : null,
+      },
+      verification: {
+        isVerified: false,
+        contactValid: undefined,
+        businessActive: undefined,
       },
     };
   });
