@@ -1,20 +1,81 @@
-const Footer = () => {
-  return (
-    <footer className="py-12 border-t border-border">
-      <div className="container px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          {/* Tagline */}
-          <p className="text-2xl md:text-3xl font-display font-bold mb-4">
-            <span className="text-gradient">Stop guessing.</span>
-          </p>
-          <p className="text-lg text-muted-foreground mb-8">
-            Find businesses that need your service — now.
-          </p>
+import { Link } from "react-router-dom";
+import { Search } from "lucide-react";
 
-          {/* Copyright */}
-          <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} All rights reserved.
-          </p>
+const Footer = () => {
+  const footerLinks = {
+    product: [
+      { label: "Features", href: "/features" },
+      { label: "Pricing", href: "/pricing" },
+    ],
+    company: [
+      { label: "About", href: "/about" },
+      { label: "Contact", href: "/contact" },
+    ],
+  };
+
+  return (
+    <footer className="py-16 border-t border-border bg-secondary/20">
+      <div className="container px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-4 gap-12 mb-12">
+            {/* Brand */}
+            <div className="md:col-span-2">
+              <Link to="/" className="flex items-center gap-2 mb-4">
+                <div className="p-1.5 rounded-lg bg-primary">
+                  <Search className="w-5 h-5 text-primary-foreground" />
+                </div>
+                <span className="font-display font-bold text-xl text-foreground">LeadFinder</span>
+              </Link>
+              <p className="text-muted-foreground max-w-sm">
+                Find businesses that need your web design services. Stop guessing, start closing.
+              </p>
+            </div>
+
+            {/* Product Links */}
+            <div>
+              <h4 className="font-display font-semibold text-foreground mb-4">Product</h4>
+              <ul className="space-y-3">
+                {footerLinks.product.map((link) => (
+                  <li key={link.href}>
+                    <Link
+                      to={link.href}
+                      className="text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Company Links */}
+            <div>
+              <h4 className="font-display font-semibold text-foreground mb-4">Company</h4>
+              <ul className="space-y-3">
+                {footerLinks.company.map((link) => (
+                  <li key={link.href}>
+                    <Link
+                      to={link.href}
+                      className="text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* Bottom */}
+          <div className="pt-8 border-t border-border flex flex-col sm:flex-row justify-between items-center gap-4">
+            <p className="text-sm text-muted-foreground">
+              © {new Date().getFullYear()} LeadFinder. All rights reserved.
+            </p>
+            <div className="flex gap-6 text-sm text-muted-foreground">
+              <Link to="#" className="hover:text-primary transition-colors">Privacy Policy</Link>
+              <Link to="#" className="hover:text-primary transition-colors">Terms of Service</Link>
+            </div>
+          </div>
         </div>
       </div>
     </footer>
