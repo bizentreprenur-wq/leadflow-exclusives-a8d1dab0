@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { 
   Search, MapPin, Briefcase, Building2, Loader2, AlertCircle, 
   Globe, CheckCircle, XCircle, ChevronLeft, ChevronRight, Filter,
-  ArrowUpDown, ArrowUp, ArrowDown
+  ArrowUpDown, ArrowUp, ArrowDown, Download, Copy, FileSpreadsheet
 } from "lucide-react";
 import { searchGMB, GMBResult } from "@/lib/api/gmb";
 import { toast } from "sonner";
@@ -15,6 +15,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import GMBResultModal from "./GMBResultModal";
 
 type FilterType = "all" | "needs-upgrade" | "good";
@@ -124,6 +130,64 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
   const handleResultClick = (result: GMBResult) => {
     setSelectedResult(result);
     setModalOpen(true);
+  };
+
+  // Export to CSV
+  const exportToCSV = () => {
+    if (filteredResults.length === 0) {
+      toast.error("No results to export");
+      return;
+    }
+
+    const headers = ["Name", "Website", "Phone", "Address", "Platform", "Needs Upgrade", "Issues", "Mobile Score"];
+    const csvRows = [
+      headers.join(","),
+      ...filteredResults.map(r => [
+        `"${r.name.replace(/"/g, '""')}"`,
+        `"${r.url || ''}"`,
+        `"${r.phone || ''}"`,
+        `"${r.address || ''}"`,
+        `"${r.websiteAnalysis.platform || 'Unknown'}"`,
+        r.websiteAnalysis.needsUpgrade ? "Yes" : "No",
+        `"${r.websiteAnalysis.issues.join('; ')}"`,
+        r.websiteAnalysis.mobileScore || "N/A"
+      ].join(","))
+    ];
+
+    const csvContent = csvRows.join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `leads-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast.success(`Exported ${filteredResults.length} leads to CSV`);
+  };
+
+  // Copy to clipboard (for Google Docs paste)
+  const copyToClipboard = async () => {
+    if (filteredResults.length === 0) {
+      toast.error("No results to copy");
+      return;
+    }
+
+    const textRows = filteredResults.map(r => 
+      `${r.name}\t${r.url || 'No website'}\t${r.phone || 'N/A'}\t${r.websiteAnalysis.platform || 'Unknown'}\t${r.websiteAnalysis.needsUpgrade ? 'Needs Upgrade' : 'Good'}`
+    );
+    
+    const header = "Name\tWebsite\tPhone\tPlatform\tStatus";
+    const textContent = [header, ...textRows].join("\n");
+
+    try {
+      await navigator.clipboard.writeText(textContent);
+      toast.success("Copied to clipboard! Paste into Google Docs or Sheets");
+    } catch {
+      toast.error("Failed to copy to clipboard");
+    }
   };
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -299,6 +363,26 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
                 <div className="text-sm text-muted-foreground self-center font-medium">
                   {filteredResults.length} result{filteredResults.length !== 1 ? "s" : ""}
                 </div>
+
+                {/* Export Dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="h-9 gap-2">
+                      <Download className="w-4 h-4" />
+                      Export
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={exportToCSV} className="gap-2 cursor-pointer">
+                      <FileSpreadsheet className="w-4 h-4" />
+                      Download CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={copyToClipboard} className="gap-2 cursor-pointer">
+                      <Copy className="w-4 h-4" />
+                      Copy for Google Docs
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               {/* Results List */}
