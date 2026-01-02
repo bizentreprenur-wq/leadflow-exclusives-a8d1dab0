@@ -1,22 +1,11 @@
-import { Home, Wrench, Briefcase, Building2 } from "lucide-react";
+import { Palette, Search, Megaphone, User, Database } from "lucide-react";
 
 const audiences = [
-  {
-    icon: Building2,
-    text: "Local service businesses",
-  },
-  {
-    icon: Home,
-    text: "Home service providers",
-  },
-  {
-    icon: Wrench,
-    text: "Contractors and professionals",
-  },
-  {
-    icon: Briefcase,
-    text: "Businesses that want predictable inbound leads",
-  },
+  { icon: Palette, text: "Website designers" },
+  { icon: Search, text: "SEO professionals" },
+  { icon: Megaphone, text: "Marketing agencies" },
+  { icon: User, text: "Freelancers" },
+  { icon: Database, text: "Lead generation businesses" },
 ];
 
 const WhoThisIsForSection = () => {
@@ -30,12 +19,12 @@ const WhoThisIsForSection = () => {
               Who This Is For
             </p>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6">
-              This works best for
+              Built for digital service providers
             </h2>
           </div>
 
-          {/* Audience grid */}
-          <div className="grid sm:grid-cols-2 gap-6 mb-12">
+          {/* Audience list */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
             {audiences.map((audience, index) => (
               <div
                 key={index}
@@ -44,9 +33,7 @@ const WhoThisIsForSection = () => {
                 <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
                   <audience.icon className="w-6 h-6 text-primary" />
                 </div>
-                <p className="text-lg font-medium text-foreground">
-                  {audience.text}
-                </p>
+                <p className="text-lg font-medium text-foreground">{audience.text}</p>
               </div>
             ))}
           </div>
@@ -54,7 +41,7 @@ const WhoThisIsForSection = () => {
           {/* Bottom message */}
           <div className="text-center p-8 rounded-2xl border border-primary/20 bg-primary/5">
             <p className="text-xl md:text-2xl font-display font-semibold text-foreground">
-              If customers search for your service on Google, this system works.
+              If you sell websites or digital services, this tool removes hours of manual research.
             </p>
           </div>
         </div>
