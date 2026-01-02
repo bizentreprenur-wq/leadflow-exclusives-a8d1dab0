@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import GMBResultModal from "./GMBResultModal";
 
 type FilterType = "all" | "needs-upgrade" | "good";
 type PlatformFilter = "all" | string;
@@ -38,6 +39,10 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
   // Sorting
   const [sortField, setSortField] = useState<SortField>("name");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+
+  // Modal
+  const [selectedResult, setSelectedResult] = useState<GMBResult | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
 
   // Get unique platforms from results
   const platforms = useMemo(() => {
@@ -113,6 +118,12 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
       setSortDirection("asc");
     }
     setCurrentPage(1);
+  };
+
+  // Handle result click
+  const handleResultClick = (result: GMBResult) => {
+    setSelectedResult(result);
+    setModalOpen(true);
   };
 
   const handleSearch = async (e: React.FormEvent) => {
@@ -302,10 +313,11 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
                   {paginatedResults.map((result) => (
                     <div
                       key={result.id}
-                      className={`p-5 rounded-xl border transition-all hover:shadow-elevated ${
+                      onClick={() => handleResultClick(result)}
+                      className={`p-5 rounded-xl border transition-all cursor-pointer hover:shadow-elevated hover:scale-[1.01] ${
                         result.websiteAnalysis.needsUpgrade
-                          ? "border-destructive/20 bg-destructive/5"
-                          : "border-success/20 bg-success/5"
+                          ? "border-destructive/20 bg-destructive/5 hover:border-destructive/40"
+                          : "border-success/20 bg-success/5 hover:border-success/40"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-4">
@@ -406,6 +418,13 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
           )}
         </div>
       )}
+
+      {/* Detail Modal */}
+      <GMBResultModal
+        result={selectedResult}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+      />
     </div>
   );
 });
