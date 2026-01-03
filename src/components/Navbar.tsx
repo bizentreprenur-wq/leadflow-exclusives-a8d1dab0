@@ -27,7 +27,7 @@ const Navbar = () => {
             <img 
               src={mascotLogo} 
               alt="BamLead Mascot" 
-              className="h-12 w-auto object-contain group-hover:animate-impact transition-transform"
+              className="h-14 w-auto object-contain group-hover:animate-impact transition-transform"
             />
             <span className="font-display font-bold text-xl text-foreground">
               Bam<span className="text-primary">Lead</span>
