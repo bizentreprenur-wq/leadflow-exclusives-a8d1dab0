@@ -103,7 +103,7 @@ export default function Auth() {
               <img 
                 src={mascotLogo} 
                 alt="BamLead Mascot" 
-                className="h-20 w-auto object-contain mx-auto animate-bat-swing"
+                className="h-20 w-auto object-contain mx-auto animate-mascot-bounce"
               />
             </div>
             <CardTitle className="text-2xl font-bold">Welcome to BamLead</CardTitle>
