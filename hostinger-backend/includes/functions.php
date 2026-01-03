@@ -3,6 +3,8 @@
  * Shared helper functions for BamLead API
  */
 
+require_once __DIR__ . '/../config.php';
+
 /**
  * Set CORS headers for API responses
  */

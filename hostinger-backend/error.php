@@ -3,9 +3,10 @@
  * Error Handler for BamLead API
  */
 
-require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/includes/functions.php';
 
-handleCors();
+setCorsHeaders();
+handlePreflight();
 
 $statusCode = http_response_code();
 
