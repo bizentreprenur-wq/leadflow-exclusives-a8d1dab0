@@ -35,6 +35,24 @@ define('GOOGLE_SEARCH_ENGINE_ID', '');
 define('BING_API_KEY', '');
 
 // =====================================
+// EMAIL SETTINGS
+// =====================================
+// Basic email settings (uses PHP mail() function)
+define('MAIL_FROM_ADDRESS', 'noreply@yourdomain.com');
+define('MAIL_FROM_NAME', 'BamLead');
+
+// SMTP Settings (optional - for better deliverability)
+// Leave SMTP_HOST empty to use PHP's mail() function
+define('SMTP_HOST', ''); // e.g., 'smtp.gmail.com' or your Hostinger SMTP
+define('SMTP_PORT', 587);
+define('SMTP_USER', '');
+define('SMTP_PASS', '');
+define('SMTP_SECURE', 'tls'); // 'tls' or 'ssl'
+
+// Frontend URL (for email links)
+define('FRONTEND_URL', 'https://yourdomain.com'); // UPDATE THIS!
+
+// =====================================
 // OPENAI API (For AI Features)
 // =====================================
 // Get from: https://platform.openai.com/api-keys
