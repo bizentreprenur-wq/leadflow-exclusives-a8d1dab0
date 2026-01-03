@@ -1,102 +1,181 @@
-# GMB Search Backend for Hostinger
+# BamLead API Backend for Hostinger
 
-This PHP backend powers the Google My Business search functionality.
+Complete PHP backend for the BamLead lead generation platform.
 
-## Setup Instructions
+## Quick Setup
 
-### 1. Upload Files to Hostinger
+1. **Upload to Hostinger**
+   - Upload this entire `hostinger-backend` folder to your Hostinger hosting
+   - Recommended location: `public_html/api/`
 
-Upload the entire `hostinger-backend` folder to your Hostinger hosting via:
-- File Manager in hPanel
-- FTP client (FileZilla, etc.)
+2. **Configure API Keys**
+   - Open `config.php` and add your API keys:
+   - Get Google Custom Search API key from: https://console.cloud.google.com/
+   - Create Search Engine at: https://programmablesearchengine.google.com/
+   - (Optional) Get Bing API key from: https://portal.azure.com/
 
-Your folder structure should look like:
+3. **Set Permissions**
+   ```bash
+   chmod 755 api/
+   chmod 644 api/*.php
+   chmod 755 cache/
+   chmod 644 config.php
+   chmod 755 includes/
+   ```
+
+4. **Update CORS Origins**
+   - Edit `config.php` and add your frontend domain to `ALLOWED_ORIGINS`
+
+## File Structure
+
 ```
-public_html/
+hostinger-backend/
 ├── api/
-│   └── gmb-search.php
-├── config.php
-└── .htaccess
+│   ├── gmb-search.php        # GMB search endpoint
+│   ├── platform-search.php   # Platform detection search
+│   ├── verify-lead.php       # Lead verification
+│   └── analyze-website.php   # Single website analysis
+├── includes/
+│   └── functions.php         # Shared helper functions
+├── cache/                    # Cache directory (auto-created)
+├── config.php               # Configuration file
+├── .htaccess                # Apache configuration
+└── README.md                # This file
 ```
 
-### 2. Configure API Keys
+## API Endpoints
 
-Edit `config.php` and add your Google API credentials:
+### GMB Search
+Search Google My Business listings.
 
-1. **Get Google Custom Search API Key:**
-   - Go to [Google Cloud Console](https://console.cloud.google.com/)
-   - Create a new project or select existing
-   - Enable "Custom Search API"
-   - Create credentials → API Key
-
-2. **Create Custom Search Engine:**
-   - Go to [Programmable Search Engine](https://programmablesearchengine.google.com/)
-   - Create a new search engine
-   - Set "Search the entire web" option
-   - Copy the Search Engine ID (cx parameter)
-
-3. **Update config.php:**
-```php
-define('GOOGLE_API_KEY', 'your-api-key-here');
-define('GOOGLE_SEARCH_ENGINE_ID', 'your-search-engine-id');
 ```
+POST /api/gmb-search.php
 
-### 3. Update Frontend API URL
+Request:
+{
+  "service": "plumber",
+  "location": "Austin, TX"
+}
 
-In your Lovable app, update the API endpoint in `src/lib/api/gmb.ts`:
-
-```typescript
-const API_BASE_URL = 'https://yourdomain.com/api';
-```
-
-### 4. Test the API
-
-You can test the API with curl:
-
-```bash
-curl -X POST https://yourdomain.com/api/gmb-search.php \
-  -H "Content-Type: application/json" \
-  -d '{"service": "plumber", "location": "Austin, TX"}'
-```
-
-## Features
-
-- ✅ Searches for businesses by service type and location
-- ✅ Analyzes websites for platform detection (WordPress, Wix, etc.)
-- ✅ Identifies website issues (mobile responsiveness, SEO, etc.)
-- ✅ Flags businesses that need website upgrades
-- ✅ Returns mock data when API keys not configured (for testing)
-
-## API Response Format
-
-```json
+Response:
 {
   "success": true,
-  "data": [
-    {
-      "id": "gmb_abc123",
-      "name": "Business Name",
-      "url": "https://business-website.com",
-      "snippet": "Description from search results",
-      "displayLink": "business-website.com",
-      "websiteAnalysis": {
-        "hasWebsite": true,
-        "platform": "WordPress",
-        "needsUpgrade": true,
-        "issues": ["Not mobile responsive", "Missing meta description"],
-        "mobileScore": null
-      }
-    }
-  ],
-  "query": {
-    "service": "plumber",
-    "location": "Austin, TX"
+  "data": [...],
+  "query": { "service": "...", "location": "..." }
+}
+```
+
+### Platform Search
+Search for websites using specific platforms (WordPress, Wix, etc.).
+
+```
+POST /api/platform-search.php
+
+Request:
+{
+  "service": "dentist",
+  "location": "Denver, CO",
+  "platforms": ["wordpress", "wix", "weebly"]
+}
+
+Response:
+{
+  "success": true,
+  "data": [...],
+  "query": { "service": "...", "location": "...", "platforms": [...] }
+}
+```
+
+### Lead Verification
+Verify and enrich lead data from a website.
+
+```
+POST /api/verify-lead.php
+
+Request:
+{
+  "url": "https://example-business.com",
+  "leadId": "lead_123"
+}
+
+Response:
+{
+  "success": true,
+  "data": {
+    "isAccessible": true,
+    "contactInfo": { "phones": [...], "emails": [...] },
+    "businessInfo": { "name": "...", "socialLinks": {...} },
+    "websiteAnalysis": {...}
   }
 }
 ```
 
+### Analyze Website
+Analyze a single website for platform and issues.
+
+```
+GET /api/analyze-website.php?url=https://example.com
+POST /api/analyze-website.php
+{ "url": "https://example.com" }
+
+Response:
+{
+  "success": true,
+  "data": {
+    "platform": "WordPress",
+    "issues": [...],
+    "mobileScore": 65,
+    "needsUpgrade": true
+  }
+}
+```
+
+## Frontend Configuration
+
+Update your frontend to point to the API:
+
+```javascript
+// In your .env or environment config
+VITE_API_URL=https://yourdomain.com/api
+```
+
+Or directly in code:
+```javascript
+const API_BASE_URL = 'https://yourdomain.com/api';
+```
+
+## Testing
+
+Without API keys configured, the endpoints return mock data for testing.
+
+Test with curl:
+```bash
+curl -X POST https://yourdomain.com/api/gmb-search.php \
+  -H "Content-Type: application/json" \
+  -d '{"service":"plumber","location":"Austin TX"}'
+```
+
+## Features
+
+- ✅ GMB Business Search
+- ✅ Platform Detection (WordPress, Wix, Squarespace, etc.)
+- ✅ Website Quality Analysis
+- ✅ Lead Verification & Enrichment
+- ✅ Contact Info Extraction (phones, emails)
+- ✅ Social Media Link Detection
+- ✅ Response Caching
+- ✅ Mock Data for Testing
+
+## Troubleshooting
+
+1. **500 errors**: Check PHP error logs, ensure all files uploaded correctly
+2. **CORS errors**: Verify your domain is in ALLOWED_ORIGINS in config.php
+3. **Empty results**: Check if API keys are configured (mock data returns if not)
+4. **Cache issues**: Delete files in `cache/` directory
+
 ## Security Notes
 
-- The `config.php` file is protected from direct access via `.htaccess`
-- Input is sanitized and length-limited
-- CORS headers allow cross-origin requests from your frontend
+- Keep `config.php` secure - contains API keys
+- The `includes/` and `cache/` directories are protected via .htaccess
+- Rate limiting is configured but not fully implemented (add Redis for production)
+- Consider adding authentication for production use

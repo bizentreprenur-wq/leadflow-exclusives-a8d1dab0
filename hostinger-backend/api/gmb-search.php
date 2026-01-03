@@ -2,70 +2,60 @@
 /**
  * GMB Search API Endpoint
  * Searches for businesses using Google Custom Search API
- * 
- * Deploy this to your Hostinger hosting at: yourdomain.com/api/gmb-search.php
  */
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-
-// Handle preflight
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit();
-}
-
-// Load config
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../includes/functions.php';
+
+header('Content-Type: application/json');
+setCorsHeaders();
+handlePreflight();
 
 // Only allow POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['success' => false, 'error' => 'Method not allowed']);
-    exit();
+    sendError('Method not allowed', 405);
 }
 
-// Get JSON input
-$input = json_decode(file_get_contents('php://input'), true);
-
+// Get and validate input
+$input = getJsonInput();
 if (!$input) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Invalid JSON input']);
-    exit();
+    sendError('Invalid JSON input');
 }
 
-// Validate input
-$service = isset($input['service']) ? trim($input['service']) : '';
-$location = isset($input['location']) ? trim($input['location']) : '';
+$service = sanitizeInput($input['service'] ?? '');
+$location = sanitizeInput($input['location'] ?? '');
 
 if (empty($service)) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Service type is required']);
-    exit();
+    sendError('Service type is required');
 }
 
 if (empty($location)) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Location is required']);
-    exit();
-}
-
-// Sanitize inputs
-$service = htmlspecialchars($service, ENT_QUOTES, 'UTF-8');
-$location = htmlspecialchars($location, ENT_QUOTES, 'UTF-8');
-
-// Limit input lengths
-if (strlen($service) > 100 || strlen($location) > 100) {
-    http_response_code(400);
-    echo json_encode(['success' => false, 'error' => 'Input too long']);
-    exit();
+    sendError('Location is required');
 }
 
 try {
+    $cacheKey = "gmb_search_{$service}_{$location}";
+    
+    // Check cache
+    $cached = getCache($cacheKey);
+    if ($cached !== null) {
+        sendJson([
+            'success' => true,
+            'data' => $cached,
+            'query' => [
+                'service' => $service,
+                'location' => $location
+            ],
+            'cached' => true
+        ]);
+    }
+    
     $results = searchGMBListings($service, $location);
-    echo json_encode([
+    
+    // Cache results
+    setCache($cacheKey, $results);
+    
+    sendJson([
         'success' => true,
         'data' => $results,
         'query' => [
@@ -74,42 +64,41 @@ try {
         ]
     ]);
 } catch (Exception $e) {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    if (defined('DEBUG_MODE') && DEBUG_MODE) {
+        sendError($e->getMessage(), 500);
+    } else {
+        sendError('An error occurred while searching', 500);
+    }
 }
 
 /**
  * Search for GMB listings using Google Custom Search API
  */
 function searchGMBListings($service, $location) {
-    $query = urlencode("$service in $location site:google.com/maps");
-    
     // Use Google Custom Search API
-    $apiKey = GOOGLE_API_KEY;
-    $searchEngineId = GOOGLE_SEARCH_ENGINE_ID;
+    $apiKey = defined('GOOGLE_API_KEY') ? GOOGLE_API_KEY : '';
+    $searchEngineId = defined('GOOGLE_SEARCH_ENGINE_ID') ? GOOGLE_SEARCH_ENGINE_ID : '';
     
     if (empty($apiKey) || empty($searchEngineId)) {
         // Return mock data if API not configured
         return getMockResults($service, $location);
     }
     
-    $url = "https://www.googleapis.com/customsearch/v1?key=$apiKey&cx=$searchEngineId&q=$query&num=10";
+    $query = "$service in $location site:google.com/maps";
+    $url = "https://www.googleapis.com/customsearch/v1?" . http_build_query([
+        'key' => $apiKey,
+        'cx' => $searchEngineId,
+        'q' => $query,
+        'num' => defined('RESULTS_PER_PAGE') ? RESULTS_PER_PAGE : 10
+    ]);
     
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+    $response = curlRequest($url);
     
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    
-    if ($httpCode !== 200) {
+    if ($response['httpCode'] !== 200) {
         throw new Exception('Failed to fetch search results');
     }
     
-    $data = json_decode($response, true);
+    $data = json_decode($response['response'], true);
     
     if (!isset($data['items'])) {
         return [];
@@ -117,17 +106,20 @@ function searchGMBListings($service, $location) {
     
     $results = [];
     foreach ($data['items'] as $item) {
-        $results[] = [
-            'id' => uniqid('gmb_'),
+        $business = [
+            'id' => generateId('gmb_'),
             'name' => $item['title'] ?? 'Unknown Business',
             'url' => $item['link'] ?? '',
             'snippet' => $item['snippet'] ?? '',
             'displayLink' => $item['displayLink'] ?? '',
         ];
+        
+        // Analyze website
+        $business['websiteAnalysis'] = analyzeWebsite($business['url']);
+        $results[] = $business;
     }
     
-    // Analyze each result for website quality
-    return array_map('analyzeBusinessWebsite', $results);
+    return $results;
 }
 
 /**

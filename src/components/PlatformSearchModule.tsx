@@ -2,7 +2,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, MapPin, Briefcase, Globe, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, MapPin, Briefcase, Globe, ChevronDown, ChevronUp, Loader2, ExternalLink, AlertTriangle, CheckCircle } from "lucide-react";
+import { searchPlatforms, PlatformResult } from "@/lib/api/platforms";
+import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 const platforms = [
   { id: "wordpress", label: "WordPress", category: "CMS" },
@@ -28,10 +31,60 @@ const PlatformSearchModule = () => {
   const [location, setLocation] = useState("");
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["wordpress", "wix", "weebly"]);
   const [showAllPlatforms, setShowAllPlatforms] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [results, setResults] = useState<PlatformResult[]>([]);
+  const [hasSearched, setHasSearched] = useState(false);
+  const { toast } = useToast();
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Platform Search:", { service, location, platforms: selectedPlatforms });
+    
+    if (!service.trim() || !location.trim()) {
+      toast({
+        title: "Missing information",
+        description: "Please enter both service type and location",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (selectedPlatforms.length === 0) {
+      toast({
+        title: "No platforms selected",
+        description: "Please select at least one platform to search for",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    setHasSearched(true);
+
+    try {
+      const response = await searchPlatforms(service, location, selectedPlatforms);
+      
+      if (response.success && response.data) {
+        setResults(response.data);
+        toast({
+          title: "Search complete",
+          description: `Found ${response.data.length} results`,
+        });
+      } else {
+        toast({
+          title: "Search failed",
+          description: response.error || "An error occurred",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to perform search",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const togglePlatform = (platformId: string) => {
@@ -77,6 +130,7 @@ const PlatformSearchModule = () => {
                 onChange={(e) => setService(e.target.value)}
                 placeholder="e.g. plumber, roofer, dentist"
                 className="pl-12 h-12 bg-secondary/50 border-0 text-base placeholder:text-muted-foreground/60 focus-visible:ring-primary"
+                disabled={isLoading}
               />
             </div>
 
@@ -88,12 +142,27 @@ const PlatformSearchModule = () => {
                 onChange={(e) => setLocation(e.target.value)}
                 placeholder="City, State or ZIP code"
                 className="pl-12 h-12 bg-secondary/50 border-0 text-base placeholder:text-muted-foreground/60 focus-visible:ring-primary"
+                disabled={isLoading}
               />
             </div>
 
-            <Button type="submit" variant="hero" className="md:w-auto w-full" disabled={selectedPlatforms.length === 0}>
-              <Search className="w-5 h-5" />
-              <span>Search Platforms</span>
+            <Button 
+              type="submit" 
+              variant="hero" 
+              className="md:w-auto w-full" 
+              disabled={selectedPlatforms.length === 0 || isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Searching...</span>
+                </>
+              ) : (
+                <>
+                  <Search className="w-5 h-5" />
+                  <span>Search Platforms</span>
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -171,6 +240,104 @@ const PlatformSearchModule = () => {
           </div>
         </div>
       </form>
+
+      {/* Results */}
+      {hasSearched && (
+        <div className="mt-6">
+          <h4 className="font-display font-semibold text-foreground mb-4">
+            {isLoading ? "Searching..." : `Results (${results.length})`}
+          </h4>
+          
+          {!isLoading && results.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              No results found. Try different search terms or platforms.
+            </div>
+          )}
+
+          <div className="space-y-3">
+            {results.map((result) => (
+              <div
+                key={result.id}
+                className="p-4 rounded-xl border border-border bg-card/50 hover:bg-card/80 transition-colors"
+              >
+                <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h5 className="font-medium text-foreground truncate">{result.name}</h5>
+                      {result.websiteAnalysis.needsUpgrade ? (
+                        <Badge variant="destructive" className="shrink-0">
+                          <AlertTriangle className="w-3 h-3 mr-1" />
+                          Needs Upgrade
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="shrink-0">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Good
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+                      {result.snippet}
+                    </p>
+
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      {result.websiteAnalysis.platform && (
+                        <Badge variant="outline">{result.websiteAnalysis.platform}</Badge>
+                      )}
+                      {result.websiteAnalysis.mobileScore !== null && (
+                        <Badge 
+                          variant="outline" 
+                          className={result.websiteAnalysis.mobileScore < 60 ? "border-destructive text-destructive" : ""}
+                        >
+                          Mobile: {result.websiteAnalysis.mobileScore}%
+                        </Badge>
+                      )}
+                      {result.websiteAnalysis.loadTime && (
+                        <Badge 
+                          variant="outline"
+                          className={result.websiteAnalysis.loadTime > 3000 ? "border-destructive text-destructive" : ""}
+                        >
+                          {(result.websiteAnalysis.loadTime / 1000).toFixed(1)}s load
+                        </Badge>
+                      )}
+                    </div>
+
+                    {result.websiteAnalysis.issues.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {result.websiteAnalysis.issues.slice(0, 3).map((issue, i) => (
+                          <span key={i} className="text-xs text-destructive bg-destructive/10 px-2 py-0.5 rounded">
+                            {issue}
+                          </span>
+                        ))}
+                        {result.websiteAnalysis.issues.length > 3 && (
+                          <span className="text-xs text-muted-foreground">
+                            +{result.websiteAnalysis.issues.length - 3} more
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    {result.url && (
+                      <a
+                        href={result.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                        Visit Site
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
