@@ -154,9 +154,17 @@ export default function Auth() {
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? 'Signing in...' : 'Sign In'}
-                  </Button>
+                  <div className="flex items-center justify-between">
+                    <Button type="submit" className="flex-1" disabled={isLoading}>
+                      {isLoading ? 'Signing in...' : 'Sign In'}
+                    </Button>
+                  </div>
+
+                  <div className="text-center">
+                    <Link to="/forgot-password" className="text-sm text-primary hover:underline">
+                      Forgot your password?
+                    </Link>
+                  </div>
                 </form>
               </TabsContent>
 
