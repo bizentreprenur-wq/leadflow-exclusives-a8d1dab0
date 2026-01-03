@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 import mascotLogo from '@/assets/bamlead-mascot.png';
+import { BackendStatus } from '@/components/BackendStatus';
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
@@ -262,6 +263,11 @@ export default function Auth() {
             </Tabs>
           </CardContent>
         </Card>
+
+        {/* Backend Status Panel */}
+        <div className="w-full max-w-md mt-6">
+          <BackendStatus />
+        </div>
       </div>
     </div>
   );
