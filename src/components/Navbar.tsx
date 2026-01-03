@@ -1,12 +1,14 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogIn, LayoutDashboard } from "lucide-react";
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 import mascotLogo from "@/assets/bamlead-mascot.png";
 
 const Navbar = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { isAuthenticated, isLoading } = useAuth();
 
   const navLinks = [
     { href: "/", label: "Home" },
@@ -50,10 +52,29 @@ const Navbar = () => {
           </div>
 
           {/* CTA Button */}
-          <div className="hidden md:block">
-            <Link to="/pricing">
-              <Button size="sm">Get Started</Button>
-            </Link>
+          <div className="hidden md:flex items-center gap-2">
+            {!isLoading && (
+              isAuthenticated ? (
+                <Link to="/dashboard">
+                  <Button size="sm" className="gap-2">
+                    <LayoutDashboard className="w-4 h-4" />
+                    Dashboard
+                  </Button>
+                </Link>
+              ) : (
+                <>
+                  <Link to="/auth">
+                    <Button variant="ghost" size="sm" className="gap-2">
+                      <LogIn className="w-4 h-4" />
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link to="/pricing">
+                    <Button size="sm">Get Started</Button>
+                  </Link>
+                </>
+              )
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -85,9 +106,28 @@ const Navbar = () => {
                   </Button>
                 </Link>
               ))}
-              <Link to="/pricing" onClick={() => setMobileMenuOpen(false)}>
-                <Button className="w-full mt-2">Get Started</Button>
-              </Link>
+              {!isLoading && (
+                isAuthenticated ? (
+                  <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
+                    <Button className="w-full mt-2 gap-2">
+                      <LayoutDashboard className="w-4 h-4" />
+                      Dashboard
+                    </Button>
+                  </Link>
+                ) : (
+                  <>
+                    <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="outline" className="w-full mt-2 gap-2">
+                        <LogIn className="w-4 h-4" />
+                        Sign In
+                      </Button>
+                    </Link>
+                    <Link to="/pricing" onClick={() => setMobileMenuOpen(false)}>
+                      <Button className="w-full mt-2">Get Started</Button>
+                    </Link>
+                  </>
+                )
+              )}
             </div>
           </div>
         )}

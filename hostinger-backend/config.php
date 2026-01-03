@@ -8,7 +8,17 @@
  * 3. Get a Google Custom Search API key from: https://console.cloud.google.com/
  * 4. Create a Custom Search Engine at: https://programmablesearchengine.google.com/
  * 5. Update ALLOWED_ORIGINS with your production domain
+ * 6. Configure your MySQL database credentials below
  */
+
+// =====================================
+// DATABASE CONFIGURATION (Hostinger MySQL)
+// =====================================
+// Find these in Hostinger hPanel -> Databases -> MySQL Databases
+define('DB_HOST', 'localhost'); // Usually 'localhost' on Hostinger
+define('DB_NAME', 'your_database_name'); // Your database name
+define('DB_USER', 'your_database_user'); // Your database username
+define('DB_PASS', 'your_database_password'); // Your database password
 
 // =====================================
 // GOOGLE CUSTOM SEARCH API
@@ -23,6 +33,18 @@ define('GOOGLE_SEARCH_ENGINE_ID', '');
 // =====================================
 // Get from: https://portal.azure.com/ -> Cognitive Services -> Bing Search
 define('BING_API_KEY', '');
+
+// =====================================
+// OPENAI API (For AI Features)
+// =====================================
+// Get from: https://platform.openai.com/api-keys
+define('OPENAI_API_KEY', '');
+
+// =====================================
+// JWT SECRET (For Token Authentication)
+// =====================================
+// Generate a random string: https://randomkeygen.com/
+define('JWT_SECRET', 'change-this-to-a-random-secret-key-at-least-32-characters');
 
 // =====================================
 // CORS SETTINGS
@@ -52,6 +74,18 @@ define('CACHE_DURATION', 300); // 5 minutes
 // Enable file-based caching
 define('ENABLE_CACHE', true);
 define('CACHE_DIR', __DIR__ . '/cache');
+
+// =====================================
+// SESSION SETTINGS
+// =====================================
+define('SESSION_LIFETIME', 604800); // 7 days in seconds
+
+// =====================================
+// SUBSCRIPTION SETTINGS
+// =====================================
+define('TRIAL_DAYS', 14);
+define('FREE_SEARCHES_PER_DAY', 5);
+define('PAID_SEARCHES_PER_DAY', 100);
 
 // =====================================
 // WEBSITE ANALYSIS SETTINGS
