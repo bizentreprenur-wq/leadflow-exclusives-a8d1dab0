@@ -4,6 +4,9 @@
 // Detect if we're in development or production
 const isDev = import.meta.env.DEV;
 
+// Set to true to use mock data when backend is unavailable
+export const USE_MOCK_AUTH = true; // Set to false once your Hostinger backend is configured
+
 // API Base URL - Update this with your Hostinger domain
 export const API_BASE_URL = isDev 
   ? 'http://localhost/bamlead-backend/api'  // Local development

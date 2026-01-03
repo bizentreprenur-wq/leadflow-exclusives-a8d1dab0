@@ -4,17 +4,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { 
   ArrowLeft, Users, Search, TrendingUp, Crown, 
-  Gift, Trash2, Edit, RefreshCw
+  Gift, RefreshCw, AlertCircle
 } from 'lucide-react';
-import { ADMIN_ENDPOINTS, getAuthHeaders } from '@/lib/api/config';
+import { ADMIN_ENDPOINTS, getAuthHeaders, USE_MOCK_AUTH } from '@/lib/api/config';
 
 interface AdminUser {
   id: number;
@@ -39,6 +37,44 @@ interface Stats {
   searches_today: number;
 }
 
+// Mock data for testing
+const MOCK_USERS: AdminUser[] = [
+  {
+    id: 1,
+    email: 'admin@bamlead.com',
+    name: 'Admin User',
+    role: 'admin',
+    subscription_status: 'active',
+    subscription_plan: 'owner',
+    trial_ends_at: null,
+    is_owner: true,
+    created_at: new Date().toISOString(),
+    last_login_at: new Date().toISOString(),
+  },
+  {
+    id: 2,
+    email: 'demo@example.com',
+    name: 'Demo User',
+    role: 'user',
+    subscription_status: 'trial',
+    subscription_plan: null,
+    trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    is_owner: false,
+    created_at: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    last_login_at: new Date().toISOString(),
+  },
+];
+
+const MOCK_STATS: Stats = {
+  total_users: 2,
+  active_subscriptions: 1,
+  trial_users: 1,
+  total_leads: 15,
+  total_searches: 42,
+  users_today: 1,
+  searches_today: 8,
+};
+
 export default function Admin() {
   const { user } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -50,8 +86,17 @@ export default function Admin() {
 
   const fetchData = async () => {
     setIsLoading(true);
+    
+    if (USE_MOCK_AUTH) {
+      // Use mock data
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setUsers(MOCK_USERS);
+      setStats(MOCK_STATS);
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      // Fetch users and stats in parallel
       const [usersRes, statsRes] = await Promise.all([
         fetch(ADMIN_ENDPOINTS.users, { headers: getAuthHeaders() }),
         fetch(ADMIN_ENDPOINTS.stats, { headers: getAuthHeaders() })
@@ -80,6 +125,15 @@ export default function Admin() {
     }
 
     setIsGranting(true);
+    
+    if (USE_MOCK_AUTH) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      toast.success(`Free account granted to ${grantEmail} (mock mode)`);
+      setGrantEmail('');
+      setIsGranting(false);
+      return;
+    }
+
     try {
       const response = await fetch(ADMIN_ENDPOINTS.grantFree, {
         method: 'POST',
@@ -104,6 +158,12 @@ export default function Admin() {
   };
 
   const handleUpdateUser = async (userId: number, updates: Partial<AdminUser>) => {
+    if (USE_MOCK_AUTH) {
+      toast.success('User updated (mock mode)');
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updates } : u));
+      return;
+    }
+
     try {
       const response = await fetch(ADMIN_ENDPOINTS.user(userId), {
         method: 'PATCH',
@@ -154,6 +214,23 @@ export default function Admin() {
       </header>
 
       <main className="container mx-auto px-4 py-8 space-y-8">
+        {/* Mock Mode Notice */}
+        {USE_MOCK_AUTH && (
+          <Card className="border-amber-500/50 bg-amber-500/5">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-500" />
+                <div>
+                  <p className="font-medium text-amber-500">Demo Mode Active</p>
+                  <p className="text-sm text-muted-foreground">
+                    Using mock data. Configure your Hostinger backend and set USE_MOCK_AUTH to false in src/lib/api/config.ts
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Stats */}
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -260,59 +337,67 @@ export default function Admin() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUsers.map((u) => (
-                    <TableRow key={u.id}>
-                      <TableCell className="font-medium">
-                        {u.email}
-                        {u.is_owner && (
-                          <Badge variant="secondary" className="ml-2">Owner</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>{u.name || '-'}</TableCell>
-                      <TableCell>
-                        <Select
-                          value={u.role}
-                          onValueChange={(value) => handleUpdateUser(u.id, { role: value as 'admin' | 'user' })}
-                          disabled={u.is_owner}
-                        >
-                          <SelectTrigger className="w-24">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="user">User</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </TableCell>
-                      <TableCell>
-                        <Badge 
-                          variant={u.subscription_status === 'active' ? 'default' : 'secondary'}
-                          className={
-                            u.subscription_status === 'active' ? 'bg-emerald-500' :
-                            u.subscription_status === 'trial' ? 'bg-amber-500' : ''
-                          }
-                        >
-                          {u.subscription_status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {new Date(u.created_at).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-2">
-                          {!u.is_owner && u.subscription_status !== 'active' && (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => handleUpdateUser(u.id, { subscription_status: 'active', subscription_plan: 'free_granted' })}
-                            >
-                              <Gift className="w-4 h-4" />
-                            </Button>
-                          )}
-                        </div>
+                  {filteredUsers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        {isLoading ? 'Loading...' : 'No users found'}
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    filteredUsers.map((u) => (
+                      <TableRow key={u.id}>
+                        <TableCell className="font-medium">
+                          {u.email}
+                          {u.is_owner && (
+                            <Badge variant="secondary" className="ml-2">Owner</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>{u.name || '-'}</TableCell>
+                        <TableCell>
+                          <Select
+                            value={u.role}
+                            onValueChange={(value) => handleUpdateUser(u.id, { role: value as 'admin' | 'user' })}
+                            disabled={u.is_owner}
+                          >
+                            <SelectTrigger className="w-24">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="user">User</SelectItem>
+                              <SelectItem value="admin">Admin</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={u.subscription_status === 'active' ? 'default' : 'secondary'}
+                            className={
+                              u.subscription_status === 'active' ? 'bg-emerald-500' :
+                              u.subscription_status === 'trial' ? 'bg-amber-500' : ''
+                            }
+                          >
+                            {u.subscription_status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {new Date(u.created_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            {!u.is_owner && u.subscription_status !== 'active' && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleUpdateUser(u.id, { subscription_status: 'active', subscription_plan: 'free_granted' })}
+                              >
+                                <Gift className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>

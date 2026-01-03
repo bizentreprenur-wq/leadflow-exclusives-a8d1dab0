@@ -1,4 +1,4 @@
-import { AUTH_ENDPOINTS, apiRequest } from './config';
+import { AUTH_ENDPOINTS, apiRequest, USE_MOCK_AUTH } from './config';
 
 export interface User {
   id: number;
@@ -33,8 +33,62 @@ export interface LoginData {
   password: string;
 }
 
+// Mock user for testing when backend is not available
+const MOCK_STORAGE_KEY = 'mock_user';
+
+function getMockUser(): User | null {
+  const stored = localStorage.getItem(MOCK_STORAGE_KEY);
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function setMockUser(user: User | null) {
+  if (user) {
+    localStorage.setItem(MOCK_STORAGE_KEY, JSON.stringify(user));
+    localStorage.setItem('auth_token', 'mock_token_' + user.id);
+  } else {
+    localStorage.removeItem(MOCK_STORAGE_KEY);
+    localStorage.removeItem('auth_token');
+  }
+}
+
+function createMockUser(email: string, name?: string, isAdmin = false): User {
+  const isOwner = email === 'admin@bamlead.com';
+  return {
+    id: Math.floor(Math.random() * 10000),
+    email,
+    name: name || email.split('@')[0],
+    role: isOwner || isAdmin ? 'admin' : 'user',
+    subscription_status: isOwner ? 'active' : 'trial',
+    subscription_plan: isOwner ? 'free_granted' : null,
+    trial_ends_at: isOwner ? null : new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    subscription_ends_at: null,
+    is_owner: isOwner,
+    has_active_subscription: true,
+    created_at: new Date().toISOString(),
+  };
+}
+
 // Register a new user
 export async function register(data: RegisterData): Promise<AuthResponse> {
+  if (USE_MOCK_AUTH) {
+    const user = createMockUser(data.email, data.name);
+    setMockUser(user);
+    return {
+      success: true,
+      user,
+      token: 'mock_token_' + user.id,
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      message: 'Account created (mock mode)',
+    };
+  }
+
   const response = await apiRequest<AuthResponse>(AUTH_ENDPOINTS.register, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -49,6 +103,25 @@ export async function register(data: RegisterData): Promise<AuthResponse> {
 
 // Login user
 export async function login(data: LoginData): Promise<AuthResponse> {
+  if (USE_MOCK_AUTH) {
+    // Demo accounts for testing
+    const isAdmin = data.email === 'admin@bamlead.com' && data.password === 'admin123';
+    const isValidUser = data.password.length >= 6;
+    
+    if (!isValidUser && !isAdmin) {
+      throw new Error('Invalid email or password');
+    }
+    
+    const user = createMockUser(data.email, undefined, isAdmin);
+    setMockUser(user);
+    return {
+      success: true,
+      user,
+      token: 'mock_token_' + user.id,
+      expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    };
+  }
+
   const response = await apiRequest<AuthResponse>(AUTH_ENDPOINTS.login, {
     method: 'POST',
     body: JSON.stringify(data),
@@ -63,6 +136,11 @@ export async function login(data: LoginData): Promise<AuthResponse> {
 
 // Logout user
 export async function logout(): Promise<void> {
+  if (USE_MOCK_AUTH) {
+    setMockUser(null);
+    return;
+  }
+
   try {
     await apiRequest(AUTH_ENDPOINTS.logout, {
       method: 'POST',
@@ -79,6 +157,10 @@ export async function getCurrentUser(): Promise<User | null> {
   if (!token) {
     return null;
   }
+
+  if (USE_MOCK_AUTH) {
+    return getMockUser();
+  }
   
   try {
     const response = await apiRequest<{ success: boolean; user: User }>(AUTH_ENDPOINTS.me);
@@ -91,6 +173,17 @@ export async function getCurrentUser(): Promise<User | null> {
 
 // Refresh session
 export async function refreshSession(): Promise<{ token: string; expires_at: string } | null> {
+  if (USE_MOCK_AUTH) {
+    const user = getMockUser();
+    if (user) {
+      return {
+        token: 'mock_token_' + user.id,
+        expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      };
+    }
+    return null;
+  }
+
   try {
     const response = await apiRequest<{ success: boolean; token: string; expires_at: string }>(
       AUTH_ENDPOINTS.refresh,
