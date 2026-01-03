@@ -24,7 +24,7 @@ const Footer = () => {
                 <img 
                   src={mascotLogo} 
                   alt="BamLead Mascot" 
-                  className="h-16 w-auto object-contain"
+                  className="h-16 w-auto object-contain animate-mascot-bounce"
                 />
                 <span className="font-display font-bold text-xl text-foreground">
                   Bam<span className="text-primary">Lead</span>
