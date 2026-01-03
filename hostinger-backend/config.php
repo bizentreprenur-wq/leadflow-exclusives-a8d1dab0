@@ -15,96 +15,87 @@
 // DATABASE CONFIGURATION (Hostinger MySQL)
 // =====================================
 // Find these in Hostinger hPanel -> Databases -> MySQL Databases
-define('DB_HOST', 'localhost'); // Usually 'localhost' on Hostinger
-define('DB_NAME', 'your_database_name'); // Your database name
-define('DB_USER', 'your_database_user'); // Your database username
-define('DB_PASS', 'your_database_password'); // Your database password
+define('DB_HOST', 'localhost');
+define('DB_NAME', 'u497238762_bamlead');
+define('DB_USER', 'u497238762_bamlead');
+define('DB_PASS', 'YOUR_DATABASE_PASSWORD_HERE'); // <-- REPLACE THIS
 
 // =====================================
-// GOOGLE CUSTOM SEARCH API
+// SERPAPI (Required for GMB Search)
 // =====================================
-// Get your API key from: https://console.cloud.google.com/apis/credentials
-// Create Search Engine at: https://programmablesearchengine.google.com/
+// Get from: https://serpapi.com/manage-api-key
+define('SERPAPI_KEY', 'YOUR_SERPAPI_KEY_HERE'); // <-- REPLACE THIS
+
+// =====================================
+// GOOGLE CUSTOM SEARCH API (Optional)
+// =====================================
 define('GOOGLE_API_KEY', '');
 define('GOOGLE_SEARCH_ENGINE_ID', '');
 
 // =====================================
-// SERPAPI (Recommended for GMB Search)
-// =====================================
-// Get from: https://serpapi.com/manage-api-key
-define('SERPAPI_KEY', '');
-
-// =====================================
 // BING SEARCH API (Optional)
 // =====================================
-// Get from: https://portal.azure.com/ -> Cognitive Services -> Bing Search
 define('BING_API_KEY', '');
 
 // =====================================
 // EMAIL SETTINGS
 // =====================================
-// Basic email settings (uses PHP mail() function)
-define('MAIL_FROM_ADDRESS', 'noreply@yourdomain.com');
+define('MAIL_FROM_ADDRESS', 'noreply@bamlead.com');
 define('MAIL_FROM_NAME', 'BamLead');
 
-// SMTP Settings (optional - for better deliverability)
-// Leave SMTP_HOST empty to use PHP's mail() function
-define('SMTP_HOST', ''); // e.g., 'smtp.gmail.com' or your Hostinger SMTP
-define('SMTP_PORT', 587);
-define('SMTP_USER', '');
-define('SMTP_PASS', '');
-define('SMTP_SECURE', 'tls'); // 'tls' or 'ssl'
+// SMTP Settings (for email verification)
+define('SMTP_HOST', 'smtp.hostinger.com');
+define('SMTP_PORT', 465);
+define('SMTP_USER', 'YOUR_SMTP_EMAIL_HERE'); // <-- REPLACE THIS
+define('SMTP_PASS', 'YOUR_SMTP_PASSWORD_HERE'); // <-- REPLACE THIS
+define('SMTP_SECURE', 'ssl');
 
 // Frontend URL (for email links)
-define('FRONTEND_URL', 'https://yourdomain.com'); // UPDATE THIS!
+define('FRONTEND_URL', 'https://bamlead.com');
 
 // =====================================
 // STRIPE SETTINGS
 // =====================================
 // Get from: https://dashboard.stripe.com/apikeys
-define('STRIPE_SECRET_KEY', ''); // sk_test_... or sk_live_...
-define('STRIPE_PUBLISHABLE_KEY', ''); // pk_test_... or pk_live_...
-define('STRIPE_WEBHOOK_SECRET', ''); // whsec_... from webhook settings
+define('STRIPE_SECRET_KEY', 'sk_live_YOUR_KEY_HERE'); // <-- REPLACE THIS
+define('STRIPE_PUBLISHABLE_KEY', 'pk_live_YOUR_KEY_HERE'); // <-- REPLACE THIS
+define('STRIPE_WEBHOOK_SECRET', 'whsec_YOUR_SECRET_HERE'); // <-- REPLACE THIS
 
-// Stripe Price IDs (create these in Stripe Dashboard -> Products)
+// Stripe Price IDs (create in Stripe Dashboard -> Products)
 define('STRIPE_PRICES', [
     'basic' => [
-        'monthly' => '', // price_... for Basic Monthly $49
-        'yearly' => '',  // price_... for Basic Yearly $470 (20% off)
+        'monthly' => 'price_BASIC_MONTHLY', // <-- REPLACE
+        'yearly' => 'price_BASIC_YEARLY',
     ],
     'pro' => [
-        'monthly' => '', // price_... for Pro Monthly $99
-        'yearly' => '',  // price_... for Pro Yearly $950 (20% off)
+        'monthly' => 'price_PRO_MONTHLY', // <-- REPLACE
+        'yearly' => 'price_PRO_YEARLY',
     ],
     'agency' => [
-        'monthly' => '', // price_... for Agency Monthly $249
-        'yearly' => '',  // price_... for Agency Yearly $2390 (20% off)
+        'monthly' => 'price_AGENCY_MONTHLY', // <-- REPLACE
+        'yearly' => 'price_AGENCY_YEARLY',
     ],
 ]);
 
 // =====================================
 // OPENAI API (For AI Features)
 // =====================================
-// Get from: https://platform.openai.com/api-keys
-define('OPENAI_API_KEY', '');
+define('OPENAI_API_KEY', 'sk-YOUR_OPENAI_KEY_HERE'); // <-- REPLACE THIS
 
 // =====================================
 // JWT SECRET (For Token Authentication)
 // =====================================
-// Generate a random string: https://randomkeygen.com/
-define('JWT_SECRET', 'change-this-to-a-random-secret-key-at-least-32-characters');
+// Generate at: https://randomkeygen.com/
+define('JWT_SECRET', 'REPLACE_WITH_RANDOM_32_CHAR_STRING'); // <-- REPLACE THIS
 
 // =====================================
 // CORS SETTINGS
 // =====================================
-// Add your frontend domains here
 define('ALLOWED_ORIGINS', [
+    'https://bamlead.com',
+    'https://www.bamlead.com',
     'http://localhost:5173',
-    'http://localhost:3000',
     'http://localhost:8080',
-    'https://your-lovable-app.lovable.app',
-    // Add your production domain here
-    // 'https://yourdomain.com',
 ]);
 
 // =====================================
