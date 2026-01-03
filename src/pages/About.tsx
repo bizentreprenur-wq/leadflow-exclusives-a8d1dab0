@@ -38,7 +38,7 @@ const About = () => {
           <div className="container px-4">
             <div className="max-w-3xl mx-auto text-center">
               <h1 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-6">
-                About LeadFinder
+                About BamLead
               </h1>
               <p className="text-lg text-muted-foreground">
                 We're on a mission to help web designers and agencies find clients who actually need their services.
@@ -56,7 +56,7 @@ const About = () => {
               </h2>
               <div className="prose prose-lg text-muted-foreground space-y-4">
                 <p>
-                  LeadFinder was born from frustration. As web designers and developers, we spent countless hours 
+                  BamLead was born from frustration. As web designers and developers, we spent countless hours 
                   doing cold outreach to businesses, only to find that most of them already had modern, 
                   well-designed websites or weren't interested in upgrading.
                 </p>
@@ -66,7 +66,7 @@ const About = () => {
                   WordPress sites, missing mobile responsiveness, or poor SEO?
                 </p>
                 <p>
-                  That's exactly what LeadFinder does. By analyzing Google My Business listings and their 
+                  That's exactly what BamLead does. By analyzing Google My Business listings and their 
                   associated websites, we help you find businesses that are prime candidates for your services. 
                   No more wasted time on cold leads.
                 </p>
@@ -113,7 +113,7 @@ const About = () => {
                 Ready to Get Started?
               </h2>
               <p className="text-lg text-muted-foreground mb-8">
-                Join thousands of web professionals who use LeadFinder to grow their business.
+                Join thousands of web professionals who use BamLead to grow their business.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link to="/pricing">

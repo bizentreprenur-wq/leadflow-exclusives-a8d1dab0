@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Search, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useState } from "react";
 
 const Navbar = () => {
@@ -21,12 +21,17 @@ const Navbar = () => {
     <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
       <div className="container px-4">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-primary">
-              <Search className="w-5 h-5 text-primary-foreground" />
+          {/* Logo - Ready for mascot */}
+          <Link to="/" className="flex items-center gap-2.5 group">
+            {/* Mascot placeholder - energetic circle with impact styling */}
+            <div className="relative w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-glow group-hover:animate-impact transition-transform">
+              <span className="text-primary-foreground font-bold text-lg">B</span>
+              {/* Impact accent */}
+              <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-accent rounded-full border-2 border-background" />
             </div>
-            <span className="font-display font-bold text-xl text-foreground">LeadFinder</span>
+            <span className="font-display font-bold text-xl text-foreground">
+              Bam<span className="text-primary">Lead</span>
+            </span>
           </Link>
 
           {/* Desktop Nav */}
