@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft } from 'lucide-react';
+import mascotLogo from '@/assets/bamlead-mascot.png';
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
@@ -98,8 +99,12 @@ export default function Auth() {
       <div className="flex-1 flex items-center justify-center p-6">
         <Card className="w-full max-w-md border-border/50 shadow-xl">
           <CardHeader className="text-center space-y-2">
-            <div className="mx-auto w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-2">
-              <span className="text-3xl font-bold text-primary">B</span>
+            <div className="mx-auto mb-2">
+              <img 
+                src={mascotLogo} 
+                alt="BamLead Mascot" 
+                className="h-20 w-auto object-contain mx-auto animate-mascot-bounce"
+              />
             </div>
             <CardTitle className="text-2xl font-bold">Welcome to BamLead</CardTitle>
             <CardDescription>
