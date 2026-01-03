@@ -99,11 +99,11 @@ export default function Auth() {
       <div className="flex-1 flex items-center justify-center p-6">
         <Card className="w-full max-w-md border-border/50 shadow-xl">
           <CardHeader className="text-center space-y-2">
-            <div className="mx-auto mb-2 group cursor-pointer">
+            <div className="mx-auto mb-2">
               <img 
                 src={mascotLogo} 
                 alt="BamLead Mascot" 
-                className="h-20 w-auto object-contain mx-auto animate-mascot-bounce group-hover:animate-bat-swing transition-transform origin-bottom"
+                className="h-20 w-auto object-contain mx-auto"
               />
             </div>
             <CardTitle className="text-2xl font-bold">Welcome to BamLead</CardTitle>
