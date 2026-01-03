@@ -1,13 +1,21 @@
+import { useState } from "react";
 import { Check, X, Zap, Building, Rocket, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { useAuth } from "@/contexts/AuthContext";
+import { createCheckoutSession } from "@/lib/api/stripe";
 
 const tiers = [
   {
+    id: "free",
     name: "Free",
-    price: 0,
+    monthlyPrice: 0,
+    yearlyPrice: 0,
     description: "Try it out and see real results",
     icon: Gift,
     features: [
@@ -23,14 +31,16 @@ const tiers = [
     ],
   },
   {
+    id: "basic",
     name: "Basic",
-    price: 49,
+    monthlyPrice: 49,
+    yearlyPrice: 470,
     description: "Perfect for freelancers getting started",
     icon: Zap,
     features: [
-      { text: "25 GMB searches per day", included: true },
-      { text: "10 Platform searches per day", included: true },
-      { text: "Basic lead info (name, phone, website)", included: true },
+      { text: "50 searches per day", included: true },
+      { text: "Basic lead verification", included: true },
+      { text: "CSV export", included: true },
       { text: "WordPress detection", included: true },
       { text: "Email support", included: true },
       { text: "Priority platform detection", included: false },
@@ -40,43 +50,91 @@ const tiers = [
     ],
   },
   {
+    id: "pro",
     name: "Pro",
-    price: 99,
+    monthlyPrice: 99,
+    yearlyPrice: 950,
     description: "For professionals who want more leads",
     icon: Building,
     popular: true,
     features: [
-      { text: "100 GMB searches per day", included: true },
-      { text: "50 Platform searches per day", included: true },
-      { text: "Full lead info + emails", included: true },
+      { text: "200 searches per day", included: true },
+      { text: "Advanced lead verification", included: true },
+      { text: "CRM integrations", included: true },
       { text: "All 16 platform detections", included: true },
       { text: "Priority support", included: true },
+      { text: "Team collaboration (3 users)", included: true },
       { text: "Website quality scoring", included: true },
-      { text: "Mobile performance flags", included: true },
       { text: "Exclusive territories", included: false },
       { text: "API access", included: false },
     ],
   },
   {
+    id: "agency",
     name: "Agency",
-    price: 249,
+    monthlyPrice: 249,
+    yearlyPrice: 2390,
     description: "For teams and agencies at scale",
     icon: Rocket,
     features: [
-      { text: "Unlimited GMB searches", included: true },
-      { text: "Unlimited Platform searches", included: true },
-      { text: "Full lead info + verified emails", included: true },
+      { text: "Unlimited searches", included: true },
+      { text: "Full lead verification", included: true },
+      { text: "White-label exports", included: true },
       { text: "All 16 platform detections", included: true },
       { text: "Dedicated account manager", included: true },
-      { text: "Advanced quality scoring", included: true },
-      { text: "SEO health analysis", included: true },
-      { text: "Exclusive territories (3 included)", included: true },
+      { text: "Unlimited team members", included: true },
       { text: "API access + webhooks", included: true },
+      { text: "Exclusive territories (3 included)", included: true },
+      { text: "Custom integrations", included: true },
     ],
   },
 ];
 
 const Pricing = () => {
+  const [searchParams] = useSearchParams();
+  const { isAuthenticated } = useAuth();
+  const [isYearly, setIsYearly] = useState(false);
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+
+  // Show message if redirected from payment
+  const paymentStatus = searchParams.get('payment');
+  if (paymentStatus === 'canceled') {
+    toast.info('Payment was canceled');
+  }
+
+  const handleSubscribe = async (planId: string) => {
+    if (planId === 'free') {
+      // Redirect to signup
+      window.location.href = '/auth';
+      return;
+    }
+
+    if (!isAuthenticated) {
+      toast.info('Please sign in first');
+      window.location.href = '/auth';
+      return;
+    }
+
+    setLoadingPlan(planId);
+    try {
+      const { checkout_url } = await createCheckoutSession(
+        planId as 'basic' | 'pro' | 'agency',
+        isYearly ? 'yearly' : 'monthly'
+      );
+      window.location.href = checkout_url;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to start checkout');
+    } finally {
+      setLoadingPlan(null);
+    }
+  };
+
+  const yearlySavings = (monthly: number, yearly: number) => {
+    if (monthly === 0) return 0;
+    const monthlyTotal = monthly * 12;
+    return Math.round(((monthlyTotal - yearly) / monthlyTotal) * 100);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -92,9 +150,27 @@ const Pricing = () => {
               <h1 className="font-display text-4xl md:text-5xl font-bold text-foreground mb-6">
                 Choose Your Plan
               </h1>
-              <p className="text-lg text-muted-foreground">
+              <p className="text-lg text-muted-foreground mb-8">
                 No contracts. No hidden fees. Cancel anytime. Start finding qualified leads today.
               </p>
+
+              {/* Billing toggle */}
+              <div className="flex items-center justify-center gap-4">
+                <Label htmlFor="billing-toggle" className={!isYearly ? 'font-medium' : 'text-muted-foreground'}>
+                  Monthly
+                </Label>
+                <Switch
+                  id="billing-toggle"
+                  checked={isYearly}
+                  onCheckedChange={setIsYearly}
+                />
+                <Label htmlFor="billing-toggle" className={isYearly ? 'font-medium' : 'text-muted-foreground'}>
+                  Yearly
+                  <span className="ml-2 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-medium">
+                    Save 20%
+                  </span>
+                </Label>
+              </div>
             </div>
           </div>
         </section>
@@ -104,80 +180,92 @@ const Pricing = () => {
           <div className="container px-4">
             <div className="max-w-6xl mx-auto">
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {tiers.map((tier) => (
-                  <div
-                    key={tier.name}
-                    className={`relative rounded-2xl border ${
-                      tier.popular
-                        ? "border-primary shadow-elevated bg-card"
-                        : "border-border bg-card/80"
-                    } p-8 flex flex-col`}
-                  >
-                    {tier.popular && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                        <span className="px-4 py-1 rounded-full bg-primary text-primary-foreground text-sm font-medium">
-                          Most Popular
-                        </span>
-                      </div>
-                    )}
+                {tiers.map((tier) => {
+                  const price = isYearly ? tier.yearlyPrice : tier.monthlyPrice;
+                  const savings = yearlySavings(tier.monthlyPrice, tier.yearlyPrice);
 
-                    {/* Icon and name */}
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="p-2.5 rounded-xl bg-primary/10">
-                        <tier.icon className="w-6 h-6 text-primary" />
-                      </div>
-                      <h3 className="font-display text-2xl font-bold text-foreground">
-                        {tier.name}
-                      </h3>
-                    </div>
-
-                    {/* Price */}
-                    <div className="mb-4">
-                      {tier.price === 0 ? (
-                        <span className="text-4xl font-bold text-foreground">Free</span>
-                      ) : (
-                        <>
-                          <span className="text-4xl font-bold text-foreground">${tier.price}</span>
-                          <span className="text-muted-foreground">/month</span>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Description */}
-                    <p className="text-muted-foreground mb-6">{tier.description}</p>
-
-                    {/* CTA */}
-                    <Button
-                      variant={tier.popular ? "default" : "outline"}
-                      className="w-full mb-8"
-                      size="lg"
+                  return (
+                    <div
+                      key={tier.id}
+                      className={`relative rounded-2xl border ${
+                        tier.popular
+                          ? "border-primary shadow-elevated bg-card"
+                          : "border-border bg-card/80"
+                      } p-8 flex flex-col`}
                     >
-                      Get Started
-                    </Button>
-
-                    {/* Features */}
-                    <div className="space-y-3 flex-1">
-                      {tier.features.map((feature, idx) => (
-                        <div key={idx} className="flex items-start gap-3">
-                          {feature.included ? (
-                            <Check className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                          ) : (
-                            <X className="w-5 h-5 text-muted-foreground/40 flex-shrink-0 mt-0.5" />
-                          )}
-                          <span
-                            className={
-                              feature.included
-                                ? "text-foreground"
-                                : "text-muted-foreground/60"
-                            }
-                          >
-                            {feature.text}
+                      {tier.popular && (
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                          <span className="px-4 py-1 rounded-full bg-primary text-primary-foreground text-sm font-medium">
+                            Most Popular
                           </span>
                         </div>
-                      ))}
+                      )}
+
+                      {/* Icon and name */}
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="p-2.5 rounded-xl bg-primary/10">
+                          <tier.icon className="w-6 h-6 text-primary" />
+                        </div>
+                        <h3 className="font-display text-2xl font-bold text-foreground">
+                          {tier.name}
+                        </h3>
+                      </div>
+
+                      {/* Price */}
+                      <div className="mb-4">
+                        {price === 0 ? (
+                          <span className="text-4xl font-bold text-foreground">Free</span>
+                        ) : (
+                          <>
+                            <span className="text-4xl font-bold text-foreground">${price}</span>
+                            <span className="text-muted-foreground">/{isYearly ? 'year' : 'month'}</span>
+                            {isYearly && savings > 0 && (
+                              <div className="mt-1 text-sm text-emerald-500">
+                                Save {savings}% vs monthly
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+
+                      {/* Description */}
+                      <p className="text-muted-foreground mb-6">{tier.description}</p>
+
+                      {/* CTA */}
+                      <Button
+                        variant={tier.popular ? "default" : "outline"}
+                        className="w-full mb-8"
+                        size="lg"
+                        onClick={() => handleSubscribe(tier.id)}
+                        disabled={loadingPlan === tier.id}
+                      >
+                        {loadingPlan === tier.id ? 'Loading...' : tier.id === 'free' ? 'Get Started' : 'Subscribe'}
+                      </Button>
+
+                      {/* Features */}
+                      <div className="space-y-3 flex-1">
+                        {tier.features.map((feature, idx) => (
+                          <div key={idx} className="flex items-start gap-3">
+                            {feature.included ? (
+                              <Check className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                            ) : (
+                              <X className="w-5 h-5 text-muted-foreground/40 flex-shrink-0 mt-0.5" />
+                            )}
+                            <span
+                              className={
+                                feature.included
+                                  ? "text-foreground"
+                                  : "text-muted-foreground/60"
+                              }
+                            >
+                              {feature.text}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
