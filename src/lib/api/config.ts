@@ -53,11 +53,30 @@ export async function apiRequest<T>(
     },
   });
 
-  const data = await response.json();
+  const contentType = response.headers.get('content-type') || '';
+  let data: any = null;
 
-  if (!response.ok) {
-    throw new Error(data.error || data.message || 'Request failed');
+  if (contentType.includes('application/json')) {
+    data = await response.json().catch(() => null);
+  } else {
+    const text = await response.text();
+    // Some hosts return HTML error pages (404/500) which break JSON parsing.
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = null;
+    }
+
+    if (!response.ok || !data) {
+      throw new Error(
+        `Backend returned non-JSON (likely an HTML 404 page). Make sure your Hostinger API exists at ${API_BASE_URL} (e.g. ${API_BASE_URL}/auth.php).`
+      );
+    }
   }
 
-  return data;
+  if (!response.ok) {
+    throw new Error(data?.error || data?.message || `Request failed (${response.status})`);
+  }
+
+  return data as T;
 }
