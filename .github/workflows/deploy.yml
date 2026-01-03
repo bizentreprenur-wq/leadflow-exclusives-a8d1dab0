@@ -30,7 +30,7 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/
-          server-dir: /public_html/
+          server-dir: /
 
       - name: Deploy Backend to Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -39,4 +39,4 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./hostinger-backend/
-          server-dir: /public_html/api/
+          server-dir: /api/
