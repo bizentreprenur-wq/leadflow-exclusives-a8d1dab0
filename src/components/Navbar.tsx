@@ -31,7 +31,7 @@ const Navbar = () => {
               className="h-12 w-auto object-contain animate-mascot-bounce group-hover:scale-110 transition-transform"
             />
             <span className="font-display font-bold text-xl text-foreground">
-              bam<span className="text-primary">lead</span>.io
+              Bam<span className="text-primary">Lead</span>
             </span>
           </Link>
 
