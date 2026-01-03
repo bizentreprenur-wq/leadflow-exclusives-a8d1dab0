@@ -1,11 +1,11 @@
 <?php
 /**
  * GMB Search API Endpoint
- * Searches for businesses using Google Custom Search API
+ * Searches for businesses using SerpAPI Google Maps
  */
 
-require_once __DIR__ . '/../config.php';
-require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/includes/functions.php';
 
 header('Content-Type: application/json');
 setCorsHeaders();
@@ -138,136 +138,6 @@ function searchGMBListings($service, $location) {
 }
 
 /**
- * Analyze a business website for quality indicators
- */
-function analyzeBusinessWebsite($business) {
-    if (empty($business['url'])) {
-        $business['websiteAnalysis'] = [
-            'hasWebsite' => false,
-            'platform' => null,
-            'needsUpgrade' => true,
-            'issues' => ['No website found']
-        ];
-        return $business;
-    }
-    
-    // Try to fetch the website
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $business['url']);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_USERAGENT, 'Mozilla/5.0 (compatible; WebsiteAnalyzer/1.0)');
-    
-    $html = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    
-    $analysis = [
-        'hasWebsite' => $httpCode === 200,
-        'platform' => null,
-        'needsUpgrade' => false,
-        'issues' => [],
-        'mobileScore' => null
-    ];
-    
-    if ($httpCode !== 200 || empty($html)) {
-        $analysis['hasWebsite'] = false;
-        $analysis['needsUpgrade'] = true;
-        $analysis['issues'][] = 'Website not accessible';
-        $business['websiteAnalysis'] = $analysis;
-        return $business;
-    }
-    
-    // Detect platform
-    $analysis['platform'] = detectPlatform($html);
-    
-    // Check for common issues
-    $analysis['issues'] = detectIssues($html);
-    
-    // Determine if needs upgrade
-    $analysis['needsUpgrade'] = count($analysis['issues']) >= 2 || 
-                                 $analysis['platform'] === 'outdated' ||
-                                 strpos($html, 'viewport') === false;
-    
-    $business['websiteAnalysis'] = $analysis;
-    return $business;
-}
-
-/**
- * Detect the website platform
- */
-function detectPlatform($html) {
-    $html = strtolower($html);
-    
-    if (strpos($html, 'wp-content') !== false || strpos($html, 'wordpress') !== false) {
-        return 'WordPress';
-    }
-    if (strpos($html, 'wix.com') !== false) {
-        return 'Wix';
-    }
-    if (strpos($html, 'squarespace') !== false) {
-        return 'Squarespace';
-    }
-    if (strpos($html, 'shopify') !== false) {
-        return 'Shopify';
-    }
-    if (strpos($html, 'webflow') !== false) {
-        return 'Webflow';
-    }
-    if (strpos($html, 'godaddy') !== false) {
-        return 'GoDaddy';
-    }
-    if (strpos($html, 'weebly') !== false) {
-        return 'Weebly';
-    }
-    
-    return 'Custom/Unknown';
-}
-
-/**
- * Detect common website issues
- */
-function detectIssues($html) {
-    $issues = [];
-    
-    // Check for mobile responsiveness
-    if (strpos($html, 'viewport') === false) {
-        $issues[] = 'Not mobile responsive';
-    }
-    
-    // Check for HTTPS (already handled by curl follow redirect)
-    
-    // Check for slow-loading indicators
-    if (strlen($html) > 500000) {
-        $issues[] = 'Large page size (slow loading)';
-    }
-    
-    // Check for outdated HTML
-    if (strpos($html, '<!doctype html>') === false && strpos($html, '<!DOCTYPE html>') === false) {
-        $issues[] = 'Outdated HTML structure';
-    }
-    
-    // Check for missing meta description
-    if (strpos($html, 'meta name="description"') === false && strpos($html, "meta name='description'") === false) {
-        $issues[] = 'Missing meta description (bad SEO)';
-    }
-    
-    // Check for old jQuery
-    if (preg_match('/jquery[.-]?1\.[0-9]/', strtolower($html))) {
-        $issues[] = 'Outdated jQuery version';
-    }
-    
-    // Check for Flash content
-    if (strpos($html, 'swfobject') !== false || strpos($html, '.swf') !== false) {
-        $issues[] = 'Uses Flash (deprecated)';
-    }
-    
-    return $issues;
-}
-
-/**
  * Return mock results when API is not configured
  */
 function getMockResults($service, $location) {
@@ -278,6 +148,10 @@ function getMockResults($service, $location) {
             'url' => 'https://example-business.com',
             'snippet' => "Top rated $service in $location area",
             'displayLink' => 'example-business.com',
+            'address' => "123 Main St, $location",
+            'phone' => '(555) 123-4567',
+            'rating' => 4.5,
+            'reviews' => 42,
             'websiteAnalysis' => [
                 'hasWebsite' => true,
                 'platform' => 'WordPress',
@@ -292,6 +166,10 @@ function getMockResults($service, $location) {
             'url' => 'https://example-pros.com',
             'snippet' => "Professional $service services in $location",
             'displayLink' => 'example-pros.com',
+            'address' => "456 Oak Ave, $location",
+            'phone' => '(555) 987-6543',
+            'rating' => 4.8,
+            'reviews' => 127,
             'websiteAnalysis' => [
                 'hasWebsite' => true,
                 'platform' => 'Wix',
@@ -306,6 +184,10 @@ function getMockResults($service, $location) {
             'url' => '',
             'snippet' => "Fast and reliable $service",
             'displayLink' => '',
+            'address' => "789 Elm St, $location",
+            'phone' => '(555) 456-7890',
+            'rating' => 4.2,
+            'reviews' => 18,
             'websiteAnalysis' => [
                 'hasWebsite' => false,
                 'platform' => null,

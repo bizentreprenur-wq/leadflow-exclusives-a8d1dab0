@@ -4,9 +4,9 @@
  * Handles checkout, portal, and subscription management
  */
 
-require_once __DIR__ . '/../includes/functions.php';
-require_once __DIR__ . '/../includes/auth.php';
-require_once __DIR__ . '/../includes/stripe.php';
+require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/stripe.php';
 
 // Handle CORS
 setCorsHeaders();

@@ -4,10 +4,10 @@
  * Receives events from Stripe and updates subscription status
  */
 
-require_once __DIR__ . '/../config.php';
-require_once __DIR__ . '/../includes/functions.php';
-require_once __DIR__ . '/../includes/database.php';
-require_once __DIR__ . '/../includes/stripe.php';
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/database.php';
+require_once __DIR__ . '/includes/stripe.php';
 
 // Stripe webhooks don't use our normal CORS
 header('Content-Type: application/json');
