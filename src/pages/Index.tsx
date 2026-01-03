@@ -6,6 +6,7 @@ import AgentCardsSection from "@/components/AgentCardsSection";
 import HowItWorksSection from "@/components/HowItWorksSection";
 import WhoThisIsForSection from "@/components/WhoThisIsForSection";
 import WhyItWorksSection from "@/components/WhyItWorksSection";
+import FAQSection from "@/components/FAQSection";
 import CTASection from "@/components/CTASection";
 import Footer from "@/components/Footer";
 
@@ -21,6 +22,7 @@ const Index = () => {
         <HowItWorksSection />
         <WhoThisIsForSection />
         <WhyItWorksSection />
+        <FAQSection />
         <CTASection />
       </main>
       <Footer />
