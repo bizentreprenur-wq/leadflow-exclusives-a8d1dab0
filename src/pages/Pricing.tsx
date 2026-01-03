@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Check, X, Zap, Building, Rocket, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
@@ -92,6 +92,7 @@ const tiers = [
 
 const Pricing = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const [isYearly, setIsYearly] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
@@ -104,14 +105,14 @@ const Pricing = () => {
 
   const handleSubscribe = async (planId: string) => {
     if (planId === 'free') {
-      // Redirect to signup
-      window.location.href = '/auth';
+      // Redirect to signup (client-side navigation)
+      navigate('/auth');
       return;
     }
 
     if (!isAuthenticated) {
       toast.info('Please sign in first');
-      window.location.href = '/auth';
+      navigate('/auth');
       return;
     }
 

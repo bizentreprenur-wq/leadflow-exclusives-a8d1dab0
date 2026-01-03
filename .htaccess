@@ -1,0 +1,18 @@
+# BamLead SPA routing for Hostinger (Apache)
+# Ensures /pricing, /auth, etc. load index.html instead of a server 404
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Allow the PHP API to work normally
+  RewriteRule ^api/ - [L]
+
+  # Don't rewrite existing files or directories
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # SPA fallback
+  RewriteRule ^ index.html [L]
+</IfModule>
