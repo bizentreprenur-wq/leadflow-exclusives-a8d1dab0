@@ -1,16 +1,10 @@
 // API configuration for Hostinger backend
-// Update this URL to match your Hostinger domain
-
-// Detect if we're in development or production
-const isDev = import.meta.env.DEV;
 
 // Set to true to use mock data when backend is unavailable
 export const USE_MOCK_AUTH = false; // Backend is configured
 
-// API Base URL
-export const API_BASE_URL = isDev 
-  ? 'http://localhost/bamlead-backend/api'  // Local development
-  : 'https://bamlead.com/api';               // Production
+// API Base URL - Always use production since Lovable preview needs to hit the real API
+export const API_BASE_URL = 'https://bamlead.com/api';
 
 // Auth endpoints
 export const AUTH_ENDPOINTS = {
