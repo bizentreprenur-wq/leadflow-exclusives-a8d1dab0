@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, LogIn, LayoutDashboard } from "lucide-react";
+import { Menu, X, LogIn, LayoutDashboard, ChevronDown } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import mascotLogo from "@/assets/bamlead-mascot.png";
@@ -11,39 +11,42 @@ const Navbar = () => {
   const { isAuthenticated, isLoading } = useAuth();
 
   const navLinks = [
-    { href: "/", label: "Home" },
     { href: "/features", label: "Features" },
     { href: "/pricing", label: "Pricing" },
-    { href: "/about", label: "About" },
+    { href: "/about", label: "About Us" },
     { href: "/contact", label: "Contact" },
   ];
 
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
+    <nav className="sticky top-0 z-50 bg-card/95 backdrop-blur-md border-b border-border">
       <div className="container px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo with Mascot */}
-          <Link to="/" className="flex items-center gap-1 group">
+          <Link to="/" className="flex items-center gap-1.5 group">
             <img 
               src={mascotLogo} 
               alt="BamLead Mascot" 
-              className="h-14 w-auto object-contain animate-mascot-bounce group-hover:scale-110 transition-transform"
+              className="h-12 w-auto object-contain animate-mascot-bounce group-hover:scale-110 transition-transform"
             />
             <span className="font-display font-bold text-xl text-foreground">
-              Bam<span className="text-primary">Lead</span>
+              bam<span className="text-primary">lead</span>.io
             </span>
           </Link>
 
-          {/* Desktop Nav */}
+          {/* Desktop Nav - Center */}
           <div className="hidden md:flex items-center gap-1">
             {navLinks.map((link) => (
               <Link key={link.href} to={link.href}>
                 <Button
-                  variant={isActive(link.href) ? "secondary" : "ghost"}
+                  variant="ghost"
                   size="sm"
-                  className="px-4"
+                  className={`px-4 font-medium ${
+                    isActive(link.href) 
+                      ? "text-foreground" 
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
                 >
                   {link.label}
                 </Button>
@@ -51,12 +54,12 @@ const Navbar = () => {
             ))}
           </div>
 
-          {/* CTA Button */}
-          <div className="hidden md:flex items-center gap-2">
+          {/* CTA Button - Right */}
+          <div className="hidden md:flex items-center gap-3">
             {!isLoading && (
               isAuthenticated ? (
                 <Link to="/dashboard">
-                  <Button size="sm" className="gap-2">
+                  <Button className="gap-2 rounded-full px-5 font-semibold">
                     <LayoutDashboard className="w-4 h-4" />
                     Dashboard
                   </Button>
@@ -64,13 +67,14 @@ const Navbar = () => {
               ) : (
                 <>
                   <Link to="/auth">
-                    <Button variant="ghost" size="sm" className="gap-2">
-                      <LogIn className="w-4 h-4" />
+                    <Button variant="ghost" size="sm" className="font-medium text-muted-foreground hover:text-foreground">
                       Sign In
                     </Button>
                   </Link>
                   <Link to="/pricing">
-                    <Button size="sm">Get Started</Button>
+                    <Button className="rounded-full px-5 font-semibold">
+                      Start here
+                    </Button>
                   </Link>
                 </>
               )
@@ -109,7 +113,7 @@ const Navbar = () => {
               {!isLoading && (
                 isAuthenticated ? (
                   <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
-                    <Button className="w-full mt-2 gap-2">
+                    <Button className="w-full mt-2 gap-2 rounded-full">
                       <LayoutDashboard className="w-4 h-4" />
                       Dashboard
                     </Button>
@@ -123,7 +127,7 @@ const Navbar = () => {
                       </Button>
                     </Link>
                     <Link to="/pricing" onClick={() => setMobileMenuOpen(false)}>
-                      <Button className="w-full mt-2">Get Started</Button>
+                      <Button className="w-full mt-2 rounded-full">Start here</Button>
                     </Link>
                   </>
                 )

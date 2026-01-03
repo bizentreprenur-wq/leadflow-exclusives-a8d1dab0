@@ -1,5 +1,7 @@
+import AnnouncementBar from "@/components/AnnouncementBar";
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
+import AgentCardsSection from "@/components/AgentCardsSection";
 import WhatSearchDoesSection from "@/components/WhatSearchDoesSection";
 import WhyThisMattersSection from "@/components/WhyThisMattersSection";
 import ResultsPreviewSection from "@/components/ResultsPreviewSection";
@@ -14,9 +16,11 @@ import Footer from "@/components/Footer";
 const Index = () => {
   return (
     <div className="min-h-screen bg-background">
+      <AnnouncementBar />
       <Navbar />
       <main>
         <HeroSection />
+        <AgentCardsSection />
         <WhatSearchDoesSection />
         <WhyThisMattersSection />
         <ResultsPreviewSection />

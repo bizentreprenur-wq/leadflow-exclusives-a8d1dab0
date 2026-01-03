@@ -1,57 +1,89 @@
 import { Link } from "react-router-dom";
-import SearchModule from "@/components/SearchModule";
 import { Button } from "@/components/ui/button";
-import { ChevronDown } from "lucide-react";
+import { ArrowRight, Search, Globe, TrendingUp } from "lucide-react";
+import mascotLogo from "@/assets/bamlead-mascot.png";
 
 const HeroSection = () => {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-hero">
-      {/* Ambient glow effects */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-gradient-glow pointer-events-none" />
-      <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
-      
-      <div className="container relative z-10 px-4 py-20 md:py-32">
-        <div className="max-w-5xl mx-auto">
-          {/* Content */}
-          <div className="text-center mb-12">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-secondary/50 mb-8 animate-fade-in">
-              <span className="w-2 h-2 rounded-full bg-primary animate-pulse-slow" />
-              <span className="text-sm text-muted-foreground font-medium">
-                Live data from Google My Business + Search Results
-              </span>
-            </div>
-
-            {/* Headline */}
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-              Find Businesses That Actually Need
-              <span className="block text-gradient">a New Website — Instantly</span>
+    <section className="relative bg-card overflow-hidden">
+      <div className="container px-4 py-16 md:py-24 lg:py-32">
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          {/* Left Content */}
+          <div className="space-y-8">
+            {/* Headline with gradient text */}
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold leading-[1.1] tracking-tight">
+              <span className="text-primary">Find businesses</span>
+              <br />
+              <span className="text-primary">that need a website</span>
+              <br />
+              <span className="text-foreground">instantly — every day</span>
             </h1>
 
             {/* Subheadline */}
-            <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-12 animate-slide-up" style={{ animationDelay: '0.2s' }}>
-              Search Google My Business and live Google/Bing results to uncover businesses with outdated or WordPress-based websites that are losing customers.
+            <p className="text-lg md:text-xl text-muted-foreground max-w-lg leading-relaxed">
+              Search Google My Business and live search results to uncover businesses with outdated or WordPress-based websites — fully automated and ready to prospect.
             </p>
+
+            {/* CTA Button */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Link to="/pricing">
+                <Button 
+                  size="lg" 
+                  className="rounded-full px-8 py-6 text-base font-semibold gap-2 shadow-lg hover:shadow-xl transition-all"
+                >
+                  Start finding leads
+                  <ArrowRight className="w-5 h-5" />
+                </Button>
+              </Link>
+            </div>
           </div>
 
-          {/* Search Module */}
-          <div className="animate-slide-up" style={{ animationDelay: '0.3s' }}>
-            <SearchModule />
-          </div>
+          {/* Right Visual - Stylized Card Interface */}
+          <div className="relative">
+            {/* Main Card */}
+            <div className="relative bg-card rounded-3xl border border-border shadow-elevated p-6 md:p-8">
+              {/* Card Header */}
+              <div className="text-center mb-6">
+                <p className="text-sm text-muted-foreground font-medium">Scanning for leads</p>
+                <p className="text-xs text-muted-foreground/70">Find your next client</p>
+              </div>
 
-          {/* Pricing link */}
-          <div className="text-center mt-8 animate-slide-up" style={{ animationDelay: '0.4s' }}>
-            <Link to="/pricing">
-              <Button variant="link" className="text-muted-foreground hover:text-primary">
-                View Pricing Plans →
-              </Button>
-            </Link>
-          </div>
-        </div>
+              {/* Mascot Ring */}
+              <div className="relative mx-auto w-48 h-48 md:w-56 md:h-56">
+                {/* Gradient ring */}
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/30 via-primary/10 to-transparent animate-pulse-slow" />
+                <div className="absolute inset-2 rounded-full bg-gradient-to-tr from-primary/20 via-transparent to-accent/20" />
+                
+                {/* Mascot */}
+                <div className="absolute inset-4 flex items-center justify-center">
+                  <img 
+                    src={mascotLogo} 
+                    alt="BamLead Mascot" 
+                    className="w-full h-full object-contain drop-shadow-lg"
+                  />
+                </div>
+              </div>
 
-        {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-float">
-          <ChevronDown className="w-6 h-6 text-muted-foreground" />
+              {/* Action Button */}
+              <div className="mt-6 flex justify-center">
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary border border-border">
+                  <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                  <span className="text-sm font-medium text-foreground">Find leads now</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Floating Elements */}
+            <div className="absolute -top-4 -right-4 p-3 bg-card rounded-xl border border-border shadow-card animate-float">
+              <Search className="w-5 h-5 text-primary" />
+            </div>
+            <div className="absolute -bottom-4 -left-4 p-3 bg-card rounded-xl border border-border shadow-card animate-float" style={{ animationDelay: '1s' }}>
+              <Globe className="w-5 h-5 text-accent" />
+            </div>
+            <div className="absolute top-1/2 -right-6 p-3 bg-card rounded-xl border border-border shadow-card animate-float" style={{ animationDelay: '2s' }}>
+              <TrendingUp className="w-5 h-5 text-success" />
+            </div>
+          </div>
         </div>
       </div>
     </section>
