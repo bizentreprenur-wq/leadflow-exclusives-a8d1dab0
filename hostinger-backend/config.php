@@ -29,6 +29,12 @@ define('GOOGLE_API_KEY', '');
 define('GOOGLE_SEARCH_ENGINE_ID', '');
 
 // =====================================
+// SERPAPI (Recommended for GMB Search)
+// =====================================
+// Get from: https://serpapi.com/manage-api-key
+define('SERPAPI_KEY', '');
+
+// =====================================
 // BING SEARCH API (Optional)
 // =====================================
 // Get from: https://portal.azure.com/ -> Cognitive Services -> Bing Search
