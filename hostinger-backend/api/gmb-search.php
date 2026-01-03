@@ -72,50 +72,65 @@ try {
 }
 
 /**
- * Search for GMB listings using Google Custom Search API
+ * Search for GMB listings using SerpAPI Google Maps
  */
 function searchGMBListings($service, $location) {
-    // Use Google Custom Search API
-    $apiKey = defined('GOOGLE_API_KEY') ? GOOGLE_API_KEY : '';
-    $searchEngineId = defined('GOOGLE_SEARCH_ENGINE_ID') ? GOOGLE_SEARCH_ENGINE_ID : '';
+    $apiKey = defined('SERPAPI_KEY') ? SERPAPI_KEY : '';
     
-    if (empty($apiKey) || empty($searchEngineId)) {
+    if (empty($apiKey)) {
         // Return mock data if API not configured
         return getMockResults($service, $location);
     }
     
-    $query = "$service in $location site:google.com/maps";
-    $url = "https://www.googleapis.com/customsearch/v1?" . http_build_query([
-        'key' => $apiKey,
-        'cx' => $searchEngineId,
+    $query = "$service in $location";
+    $url = "https://serpapi.com/search.json?" . http_build_query([
+        'engine' => 'google_maps',
         'q' => $query,
-        'num' => defined('RESULTS_PER_PAGE') ? RESULTS_PER_PAGE : 10
+        'type' => 'search',
+        'api_key' => $apiKey
     ]);
     
     $response = curlRequest($url);
     
     if ($response['httpCode'] !== 200) {
-        throw new Exception('Failed to fetch search results');
+        throw new Exception('Failed to fetch search results from SerpAPI');
     }
     
     $data = json_decode($response['response'], true);
     
-    if (!isset($data['items'])) {
+    if (!isset($data['local_results'])) {
         return [];
     }
     
     $results = [];
-    foreach ($data['items'] as $item) {
+    foreach ($data['local_results'] as $item) {
+        $websiteUrl = $item['website'] ?? '';
+        
         $business = [
             'id' => generateId('gmb_'),
             'name' => $item['title'] ?? 'Unknown Business',
-            'url' => $item['link'] ?? '',
-            'snippet' => $item['snippet'] ?? '',
-            'displayLink' => $item['displayLink'] ?? '',
+            'url' => $websiteUrl,
+            'snippet' => $item['description'] ?? ($item['type'] ?? ''),
+            'displayLink' => parse_url($websiteUrl, PHP_URL_HOST) ?? '',
+            'address' => $item['address'] ?? '',
+            'phone' => $item['phone'] ?? '',
+            'rating' => $item['rating'] ?? null,
+            'reviews' => $item['reviews'] ?? null,
+            'placeId' => $item['place_id'] ?? '',
         ];
         
-        // Analyze website
-        $business['websiteAnalysis'] = analyzeWebsite($business['url']);
+        // Analyze website if exists
+        if (!empty($websiteUrl)) {
+            $business['websiteAnalysis'] = analyzeWebsite($websiteUrl);
+        } else {
+            $business['websiteAnalysis'] = [
+                'hasWebsite' => false,
+                'platform' => null,
+                'needsUpgrade' => true,
+                'issues' => ['No website found']
+            ];
+        }
+        
         $results[] = $business;
     }
     
