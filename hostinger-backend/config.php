@@ -53,6 +53,30 @@ define('SMTP_SECURE', 'tls'); // 'tls' or 'ssl'
 define('FRONTEND_URL', 'https://yourdomain.com'); // UPDATE THIS!
 
 // =====================================
+// STRIPE SETTINGS
+// =====================================
+// Get from: https://dashboard.stripe.com/apikeys
+define('STRIPE_SECRET_KEY', ''); // sk_test_... or sk_live_...
+define('STRIPE_PUBLISHABLE_KEY', ''); // pk_test_... or pk_live_...
+define('STRIPE_WEBHOOK_SECRET', ''); // whsec_... from webhook settings
+
+// Stripe Price IDs (create these in Stripe Dashboard -> Products)
+define('STRIPE_PRICES', [
+    'basic' => [
+        'monthly' => '', // price_... for Basic Monthly $49
+        'yearly' => '',  // price_... for Basic Yearly $470 (20% off)
+    ],
+    'pro' => [
+        'monthly' => '', // price_... for Pro Monthly $99
+        'yearly' => '',  // price_... for Pro Yearly $950 (20% off)
+    ],
+    'agency' => [
+        'monthly' => '', // price_... for Agency Monthly $249
+        'yearly' => '',  // price_... for Agency Yearly $2390 (20% off)
+    ],
+]);
+
+// =====================================
 // OPENAI API (For AI Features)
 // =====================================
 // Get from: https://platform.openai.com/api-keys

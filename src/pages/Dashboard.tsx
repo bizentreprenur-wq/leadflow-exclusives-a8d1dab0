@@ -1,21 +1,35 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { toast } from 'sonner';
 import { 
   Search, Building2, Globe, Settings, LogOut, User, 
-  Crown, ChevronRight, TrendingUp, Clock, Star
+  Crown, ChevronRight, TrendingUp, Clock, Star, CreditCard
 } from 'lucide-react';
 import GMBSearchModule from '@/components/GMBSearchModule';
 import PlatformSearchModule from '@/components/PlatformSearchModule';
+import { createPortalSession } from '@/lib/api/stripe';
 
 export default function Dashboard() {
-  const { user, logout, isLoading } = useAuth();
+  const { user, logout, isLoading, refreshUser } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('search');
+
+  // Check for payment success
+  useEffect(() => {
+    const paymentStatus = searchParams.get('payment');
+    if (paymentStatus === 'success') {
+      toast.success('Payment successful! Your subscription is now active.');
+      refreshUser();
+      // Clean URL
+      window.history.replaceState({}, '', '/dashboard');
+    }
+  }, [searchParams, refreshUser]);
 
   // Calculate trial days remaining
   const trialDaysRemaining = user?.trial_ends_at 
@@ -61,6 +75,26 @@ export default function Dashboard() {
                 <Star className="w-3 h-3" />
                 Pro
               </Badge>
+            )}
+
+            {/* Manage subscription button for paid users */}
+            {user?.subscription_status === 'active' && !user?.is_owner && user?.subscription_plan !== 'free_granted' && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="gap-2 hidden sm:flex"
+                onClick={async () => {
+                  try {
+                    const { portal_url } = await createPortalSession();
+                    window.location.href = portal_url;
+                  } catch (error) {
+                    toast.error('Could not open billing portal');
+                  }
+                }}
+              >
+                <CreditCard className="w-4 h-4" />
+                Billing
+              </Button>
             )}
 
             {(user?.role === 'admin' || user?.is_owner) && (
