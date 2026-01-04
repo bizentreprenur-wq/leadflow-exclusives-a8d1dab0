@@ -13,6 +13,7 @@ import {
   Gift, RefreshCw, AlertCircle
 } from 'lucide-react';
 import { ADMIN_ENDPOINTS, getAuthHeaders, USE_MOCK_AUTH } from '@/lib/api/config';
+import SystemStatus from '@/components/SystemStatus';
 
 interface AdminUser {
   id: number;
@@ -283,6 +284,9 @@ export default function Admin() {
             </Card>
           </div>
         )}
+
+        {/* System Status */}
+        <SystemStatus />
 
         {/* Grant Free Account */}
         <Card className="border-border/50">
