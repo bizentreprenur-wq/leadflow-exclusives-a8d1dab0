@@ -31,6 +31,10 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/
           server-dir: /
+          state-name: .ftp-deploy-frontend-state.json
+          # IMPORTANT: keep the backend folder (and its config) intact
+          exclude: |
+            api/**
 
       - name: Deploy Backend to Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -40,3 +44,7 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./hostinger-backend/
           server-dir: /api/
+          state-name: .ftp-deploy-backend-state.json
+          # config.php is managed on the server (contains secrets) — don't overwrite/delete it
+          exclude: |
+            config.php
