@@ -54,5 +54,31 @@ jobs:
             api/cache/**
             api/cache
 
+      - name: Wait for deployment to propagate
+        run: sleep 15
 
+      - name: Verify API health
+        run: |
+          echo "Checking https://bamlead.com/api/health.php ..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" https://bamlead.com/api/health.php)
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+          
+          # Check HTTP status
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "❌ Health check failed: HTTP $HTTP_CODE"
+            exit 1
+          fi
+          
+          # Verify JSON response (should contain "status")
+          if echo "$BODY" | grep -q '"status"'; then
+            echo "✅ API health check passed"
+          else
+            echo "❌ Health check failed: Response is not valid JSON"
+            echo "This usually means the API folder is missing or PHP errored"
+            exit 1
+          fi
 
