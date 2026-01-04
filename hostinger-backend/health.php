@@ -2,6 +2,7 @@
 /**
  * Health Check Endpoint
  * Returns JSON status to verify API is reachable and configured correctly
+ * Deployed: 2025-01-04
  */
 
 header('Content-Type: application/json');
