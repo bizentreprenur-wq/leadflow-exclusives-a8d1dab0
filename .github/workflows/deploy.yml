@@ -35,12 +35,15 @@ jobs:
           local-dir: ./dist/
           server-dir: /
           state-name: .ftp-deploy-frontend-state.json
+          dangerous-clean-slate: false
           # IMPORTANT: keep the backend folder (and its config) intact
           # Use ** prefix to ensure pattern matches at any depth and prevents deletion
           exclude: |
             **/api/**
+            **/api
             api/**
             api/
+            api
 
       - name: Deploy Backend to Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
