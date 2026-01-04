@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 import mascotLogo from '@/assets/bamlead-mascot.png';
+import { BackendStatus } from '@/components/BackendStatus';
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
@@ -260,6 +261,15 @@ export default function Auth() {
                 </form>
               </TabsContent>
             </Tabs>
+
+            <details className="mt-6">
+              <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
+                Having trouble? Test backend connection
+              </summary>
+              <div className="mt-3">
+                <BackendStatus />
+              </div>
+            </details>
           </CardContent>
         </Card>
       </div>
