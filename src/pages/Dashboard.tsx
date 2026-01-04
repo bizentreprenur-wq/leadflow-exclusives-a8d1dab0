@@ -8,17 +8,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { 
   Search, Building2, Globe, Settings, LogOut, User, 
-  Crown, ChevronRight, TrendingUp, Clock, Star, CreditCard
+  Crown, ChevronRight, TrendingUp, Clock, Star, CreditCard, Mail
 } from 'lucide-react';
 import GMBSearchModule from '@/components/GMBSearchModule';
 import PlatformSearchModule from '@/components/PlatformSearchModule';
+import EmailOutreachModule from '@/components/EmailOutreachModule';
 import { createPortalSession } from '@/lib/api/stripe';
+import { LeadForEmail } from '@/lib/api/email';
 
 export default function Dashboard() {
   const { user, logout, isLoading, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('search');
+  const [emailLeads, setEmailLeads] = useState<LeadForEmail[]>([]);
 
   // Check for payment success
   useEffect(() => {
@@ -182,7 +185,7 @@ export default function Dashboard() {
 
         {/* Search tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsList className="grid w-full grid-cols-3 max-w-lg">
             <TabsTrigger value="search" className="gap-2">
               <Building2 className="w-4 h-4" />
               GMB Search
@@ -190,6 +193,10 @@ export default function Dashboard() {
             <TabsTrigger value="platform" className="gap-2">
               <Globe className="w-4 h-4" />
               Platform Search
+            </TabsTrigger>
+            <TabsTrigger value="email" className="gap-2">
+              <Mail className="w-4 h-4" />
+              Email Outreach
             </TabsTrigger>
           </TabsList>
 
@@ -223,6 +230,26 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 <PlatformSearchModule />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="email" className="space-y-6">
+            <Card className="border-border/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="w-5 h-5 text-primary" />
+                  Email Outreach
+                </CardTitle>
+                <CardDescription>
+                  Send personalized emails to your leads with tracking
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <EmailOutreachModule 
+                  selectedLeads={emailLeads}
+                  onClearSelection={() => setEmailLeads([])}
+                />
               </CardContent>
             </Card>
           </TabsContent>
