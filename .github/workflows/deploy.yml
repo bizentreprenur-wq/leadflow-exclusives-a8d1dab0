@@ -54,6 +54,23 @@ jobs:
             api/cache/**
             api/cache
 
+      - name: Deploy Backend to Hostinger (/api)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./dist/api/
+          server-dir: /api/
+          state-name: .ftp-deploy-backend-state-v2.json
+          dangerous-clean-slate: false
+          # IMPORTANT: keep server-managed backend secrets & cache intact
+          exclude: |
+            config.php
+            config.example.php
+            cache/**
+            cache
+
       - name: Wait for deployment to propagate
         run: sleep 15
 
