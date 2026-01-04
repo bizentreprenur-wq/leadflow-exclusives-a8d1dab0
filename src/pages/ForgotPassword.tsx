@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 import { ArrowLeft, Mail, CheckCircle } from 'lucide-react';
 import { forgotPassword } from '@/lib/api/password';
-import { BackendStatus } from '@/components/BackendStatus';
+
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -109,10 +109,6 @@ export default function ForgotPassword() {
             )}
           </CardContent>
         </Card>
-
-        <div className="mt-8 w-full max-w-md">
-          <BackendStatus />
-        </div>
       </div>
     </div>
   );
