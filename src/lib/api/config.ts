@@ -54,28 +54,36 @@ export async function apiRequest<T>(
   });
 
   const contentType = response.headers.get('content-type') || '';
+  const rawBody = await response.text();
+
   let data: any = null;
+  try {
+    data = rawBody ? JSON.parse(rawBody) : null;
+  } catch {
+    data = null;
+  }
 
-  if (contentType.includes('application/json')) {
-    data = await response.json().catch(() => null);
-  } else {
-    const text = await response.text();
-    // Some hosts return HTML error pages (404/500) which break JSON parsing.
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = null;
-    }
+  // If we couldn't parse JSON, surface a helpful error (most commonly an HTML 404/500 page or PHP warnings)
+  if (data === null) {
+    const snippet = rawBody
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 220);
 
-    if (!response.ok || !data) {
-      throw new Error(
-        `Backend returned non-JSON (likely an HTML 404 page). Make sure your Hostinger API exists at ${API_BASE_URL} (e.g. ${API_BASE_URL}/auth.php).`
-      );
-    }
+    throw new Error(
+      `Backend response is not valid JSON (${response.status}) from ${url}. ` +
+        `This usually means /api is missing or PHP is erroring. ` +
+        `${snippet ? `Response starts with: "${snippet}"` : ''}`
+    );
   }
 
   if (!response.ok) {
     throw new Error(data?.error || data?.message || `Request failed (${response.status})`);
+  }
+
+  // Extra safety: some hosts send JSON with wrong content-type; we accept it as long as it parses.
+  if (!contentType.includes('application/json')) {
+    // no-op
   }
 
   return data as T;
