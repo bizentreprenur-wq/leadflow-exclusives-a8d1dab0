@@ -49,10 +49,7 @@ jobs:
             **/.git*
             **/.git*/**
             **/node_modules/**
-            api/config.php
-            api/config.example.php
-            api/cache/**
-            api/cache
+            api/**
 
       - name: Deploy Backend to Hostinger (/api)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
