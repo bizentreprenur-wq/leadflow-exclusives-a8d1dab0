@@ -2,7 +2,8 @@
 /**
  * Health Check Endpoint
  * Returns JSON status to verify API is reachable and configured correctly
- * Deployed: 2025-01-04
+ * Deployed: 2025-01-04 v2
+ * Force redeploy trigger
  */
 
 header('Content-Type: application/json');
@@ -51,6 +52,7 @@ $allGood = $checks['includes_exists'] && $checks['auth_exists'] && $checks['data
 
 echo json_encode([
     'status' => $allGood ? 'ok' : 'degraded',
-    'version' => '1.0.1',
+    'version' => '1.0.2',
+    'deployed' => '2025-01-04T06:00:00Z',
     'checks' => $checks,
 ], JSON_PRETTY_PRINT);
