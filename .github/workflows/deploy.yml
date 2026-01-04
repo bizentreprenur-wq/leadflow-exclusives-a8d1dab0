@@ -52,5 +52,7 @@ jobs:
           server-dir: /api/
           state-name: .ftp-deploy-backend-state.json
           # config.php is managed on the server (contains secrets) — don't overwrite/delete it
+          # config.example.php is for reference only
           exclude: |
             config.php
+            config.example.php
