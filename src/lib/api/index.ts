@@ -21,6 +21,30 @@ export type {
   BusinessInfo 
 } from './verification';
 
+// Email Outreach
+export {
+  getTemplates,
+  getTemplate,
+  createTemplate,
+  updateTemplate,
+  deleteTemplate,
+  getCampaigns,
+  createCampaign,
+  sendEmail,
+  sendBulkEmails,
+  getSends,
+  getEmailStats,
+  personalizeTemplate,
+} from './email';
+export type {
+  EmailTemplate,
+  EmailCampaign,
+  EmailSend,
+  EmailStats,
+  LeadForEmail,
+  BulkSendResult,
+} from './email';
+
 // API Configuration
 export const API_CONFIG = {
   baseUrl: import.meta.env.VITE_API_URL || '',
@@ -30,5 +54,6 @@ export const API_CONFIG = {
     platformSearch: '/platform-search.php',
     verifyLead: '/verify-lead.php',
     analyzeWebsite: '/analyze-website.php',
+    emailOutreach: '/email-outreach.php',
   },
 };
