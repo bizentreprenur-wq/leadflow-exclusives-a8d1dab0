@@ -33,8 +33,10 @@ if ($checks['config_exists'] && $checks['database_exists']) {
     try {
         require_once __DIR__ . '/config.php';
         require_once __DIR__ . '/includes/database.php';
-        $pdo = getDbConnection();
-        $checks['database_connected'] = $pdo !== null;
+
+        $db = getDB();
+        $pdo = $db->getConnection();
+        $checks['database_connected'] = $pdo instanceof PDO;
     } catch (Exception $e) {
         $checks['database_connected'] = false;
         $checks['database_error'] = $e->getMessage();
