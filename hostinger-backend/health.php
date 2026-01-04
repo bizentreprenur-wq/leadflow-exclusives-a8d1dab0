@@ -51,6 +51,6 @@ $allGood = $checks['includes_exists'] && $checks['auth_exists'] && $checks['data
 
 echo json_encode([
     'status' => $allGood ? 'ok' : 'degraded',
-    'version' => '1.0.0',
+    'version' => '1.0.1',
     'checks' => $checks,
 ], JSON_PRETTY_PRINT);
