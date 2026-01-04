@@ -26,6 +26,14 @@ jobs:
           # Ensure Hostinger SPA routing file is deployed (our deploy uploads ./dist only)
           cp .htaccess dist/.htaccess
 
+          # Bundle PHP backend into /dist/api so it gets deployed together with the frontend
+          rm -rf dist/api
+          mkdir -p dist/api
+          cp -a hostinger-backend/. dist/api/
+          # Server-managed secrets must never be deployed from git
+          rm -f dist/api/config.php dist/api/config.example.php
+
+
       - name: Deploy Frontend to Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -36,26 +44,15 @@ jobs:
           server-dir: /
           state-name: .ftp-deploy-frontend-state.json
           dangerous-clean-slate: false
-          # IMPORTANT: keep the backend folder (and its config) intact
-          # Use ** prefix to ensure pattern matches at any depth and prevents deletion
+          # IMPORTANT: keep server-managed backend secrets intact
           exclude: |
-            **/api/**
-            **/api
-            api/**
-            api/
-            api
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            api/config.php
+            api/config.example.php
+            api/cache/**
+            api/cache
 
-      - name: Deploy Backend to Hostinger
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./hostinger-backend/
-          server-dir: /api/
-          state-name: .ftp-deploy-backend-state.json
-          # config.php is managed on the server (contains secrets) — don't overwrite/delete it
-          # config.example.php is for reference only
-          exclude: |
-            config.php
-            config.example.php
+
+
