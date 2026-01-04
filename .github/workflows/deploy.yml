@@ -42,7 +42,7 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/
           server-dir: /
-          state-name: .ftp-deploy-frontend-state.json
+          state-name: .ftp-deploy-frontend-state-v2.json
           dangerous-clean-slate: false
           # IMPORTANT: keep server-managed backend secrets intact
           exclude: |
