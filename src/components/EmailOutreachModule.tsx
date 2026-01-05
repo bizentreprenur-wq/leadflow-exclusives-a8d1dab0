@@ -5,6 +5,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Dialog,
   DialogContent,
@@ -25,7 +27,7 @@ import { toast } from 'sonner';
 import {
   Mail, Send, FileText, BarChart3, Loader2, Plus, Trash2,
   Edit, Eye, Users, CheckCircle, AlertCircle, Clock, MousePointer,
-  Reply, XCircle, Sparkles
+  Reply, XCircle, Sparkles, Database, RefreshCw, Star, Building2
 } from 'lucide-react';
 import {
   getTemplates,
@@ -41,6 +43,7 @@ import {
   EmailStats,
   LeadForEmail,
 } from '@/lib/api/email';
+import { fetchVerifiedLeads, type SavedLead } from '@/lib/api/verifiedLeads';
 
 interface EmailOutreachModuleProps {
   selectedLeads?: LeadForEmail[];
@@ -63,6 +66,16 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   
   // Send state
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  
+  // Saved leads picker state
+  const [savedLeads, setSavedLeads] = useState<SavedLead[]>([]);
+  const [isLoadingSavedLeads, setIsLoadingSavedLeads] = useState(false);
+  const [savedLeadPickerOpen, setSavedLeadPickerOpen] = useState(false);
+  const [selectedSavedLeadIds, setSelectedSavedLeadIds] = useState<Set<string>>(new Set());
+  const [leadsFromPicker, setLeadsFromPicker] = useState<LeadForEmail[]>([]);
+
+  // Merge selected leads from props and picker
+  const allSelectedLeads = [...selectedLeads, ...leadsFromPicker];
 
   useEffect(() => {
     loadData();
@@ -84,6 +97,67 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
       console.error('Failed to load email data:', error);
     }
     setIsLoading(false);
+  };
+
+  const loadSavedLeads = async () => {
+    setIsLoadingSavedLeads(true);
+    try {
+      const response = await fetchVerifiedLeads(1, 200, { emailValid: true });
+      if (response.success && response.data) {
+        setSavedLeads(response.data.leads);
+      }
+    } catch (error) {
+      console.error('Failed to load saved leads:', error);
+    }
+    setIsLoadingSavedLeads(false);
+  };
+
+  const handleOpenLeadPicker = () => {
+    loadSavedLeads();
+    setSavedLeadPickerOpen(true);
+  };
+
+  const handleToggleSavedLead = (leadId: string) => {
+    setSelectedSavedLeadIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(leadId)) {
+        newSet.delete(leadId);
+      } else {
+        newSet.add(leadId);
+      }
+      return newSet;
+    });
+  };
+
+  const handleSelectAllSavedLeads = (checked: boolean) => {
+    if (checked) {
+      setSelectedSavedLeadIds(new Set(savedLeads.map(l => l.id)));
+    } else {
+      setSelectedSavedLeadIds(new Set());
+    }
+  };
+
+  const handleConfirmLeadSelection = () => {
+    const selected = savedLeads.filter(l => selectedSavedLeadIds.has(l.id));
+    const converted: LeadForEmail[] = selected.map(l => ({
+      id: l.dbId,
+      email: l.email,
+      business_name: l.business_name,
+      contact_name: l.contact_name,
+      website: l.website,
+      platform: l.platform,
+      issues: l.issues,
+      phone: l.phone,
+    }));
+    setLeadsFromPicker(converted);
+    setSavedLeadPickerOpen(false);
+    toast.success(`Added ${converted.length} leads from database`);
+  };
+
+  const handleClearAllLeads = () => {
+    onClearSelection?.();
+    setLeadsFromPicker([]);
+    setSelectedSavedLeadIds(new Set());
   };
 
   const handleSaveTemplate = async () => {
@@ -141,12 +215,12 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
       return;
     }
     
-    if (selectedLeads.length === 0) {
+    if (allSelectedLeads.length === 0) {
       toast.error('No leads selected');
       return;
     }
 
-    const leadsWithEmail = selectedLeads.filter(l => l.email);
+    const leadsWithEmail = allSelectedLeads.filter(l => l.email);
     if (leadsWithEmail.length === 0) {
       toast.error('None of the selected leads have email addresses');
       return;
@@ -162,7 +236,7 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
       if (result.success && result.results) {
         const { sent, failed, skipped } = result.results;
         toast.success(`Sent: ${sent}, Failed: ${failed}, Skipped: ${skipped}`);
-        onClearSelection?.();
+        handleClearAllLeads();
         loadData();
       } else {
         toast.error(result.error || 'Failed to send emails');
@@ -326,24 +400,40 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
             <CardContent className="space-y-4">
               {/* Selected leads indicator */}
               <div className="p-4 bg-secondary/50 rounded-lg border border-border/50">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-primary/10 rounded-lg">
                       <Users className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                      <p className="font-medium">{selectedLeads.length} leads selected</p>
+                      <p className="font-medium">{allSelectedLeads.length} leads selected</p>
                       <p className="text-sm text-muted-foreground">
-                        {selectedLeads.filter(l => l.email).length} with email addresses
+                        {allSelectedLeads.filter(l => l.email).length} with email addresses
+                        {selectedLeads.length > 0 && leadsFromPicker.length > 0 && (
+                          <span className="ml-1">
+                            ({selectedLeads.length} from verification, {leadsFromPicker.length} from database)
+                          </span>
+                        )}
                       </p>
                     </div>
                   </div>
-                  {selectedLeads.length > 0 && (
-                    <Button variant="ghost" size="sm" onClick={onClearSelection}>
-                      Clear
+                  {allSelectedLeads.length > 0 && (
+                    <Button variant="ghost" size="sm" onClick={handleClearAllLeads}>
+                      Clear All
                     </Button>
                   )}
                 </div>
+                
+                {/* Add from saved leads button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleOpenLeadPicker}
+                  className="w-full gap-2"
+                >
+                  <Database className="w-4 h-4" />
+                  Select from Saved Leads
+                </Button>
               </div>
 
               {/* Template selector */}
@@ -404,7 +494,7 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
 
               <Button
                 onClick={handleSendEmails}
-                disabled={isSending || !selectedTemplateId || selectedLeads.length === 0}
+                disabled={isSending || !selectedTemplateId || allSelectedLeads.length === 0}
                 className="w-full"
               >
                 {isSending ? (
@@ -415,7 +505,7 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
                 ) : (
                   <>
                     <Send className="w-4 h-4 mr-2" />
-                    Send to {selectedLeads.filter(l => l.email).length} Leads
+                    Send to {allSelectedLeads.filter(l => l.email).length} Leads
                   </>
                 )}
               </Button>
@@ -664,6 +754,129 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
 
           <DialogFooter>
             <Button onClick={() => setPreviewDialogOpen(false)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Saved Leads Picker Dialog */}
+      <Dialog open={savedLeadPickerOpen} onOpenChange={setSavedLeadPickerOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Database className="w-5 h-5 text-primary" />
+              Select Leads from Database
+            </DialogTitle>
+            <DialogDescription>
+              Choose verified leads to add to your email campaign
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Actions bar */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="select-all-saved"
+                  checked={selectedSavedLeadIds.size === savedLeads.length && savedLeads.length > 0}
+                  onCheckedChange={(checked) => handleSelectAllSavedLeads(checked as boolean)}
+                />
+                <label htmlFor="select-all-saved" className="text-sm font-medium cursor-pointer">
+                  Select All ({savedLeads.length})
+                </label>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={loadSavedLeads}
+                disabled={isLoadingSavedLeads}
+              >
+                <RefreshCw className={`w-4 h-4 mr-1 ${isLoadingSavedLeads ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+
+            {/* Selected count */}
+            {selectedSavedLeadIds.size > 0 && (
+              <div className="p-2 bg-primary/10 rounded-lg text-sm text-center">
+                <span className="font-medium">{selectedSavedLeadIds.size}</span> leads selected
+              </div>
+            )}
+
+            {/* Leads list */}
+            <ScrollArea className="h-[400px] pr-4">
+              {isLoadingSavedLeads ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : savedLeads.length === 0 ? (
+                <div className="text-center py-12">
+                  <Database className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">No verified leads saved yet</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Verify leads and save them to see them here
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {savedLeads.map((lead) => (
+                    <div
+                      key={lead.id}
+                      className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                        selectedSavedLeadIds.has(lead.id)
+                          ? 'border-primary/50 bg-primary/5'
+                          : 'border-border/50 hover:border-border'
+                      }`}
+                      onClick={() => handleToggleSavedLead(lead.id)}
+                    >
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          checked={selectedSavedLeadIds.has(lead.id)}
+                          onCheckedChange={() => handleToggleSavedLead(lead.id)}
+                          className="mt-1"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
+                            <span className="font-medium truncate">{lead.business_name}</span>
+                            {lead.leadScore >= 80 && (
+                              <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 shrink-0">
+                                <Star className="w-3 h-3 mr-1" />
+                                {lead.leadScore}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate mt-1">
+                            <Mail className="w-3 h-3 inline mr-1" />
+                            {lead.email}
+                          </p>
+                          {lead.platform && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Platform: {lead.platform}
+                            </p>
+                          )}
+                        </div>
+                        {lead.emailValid && (
+                          <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSavedLeadPickerOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmLeadSelection}
+              disabled={selectedSavedLeadIds.size === 0}
+            >
+              <Users className="w-4 h-4 mr-2" />
+              Add {selectedSavedLeadIds.size} Leads
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
