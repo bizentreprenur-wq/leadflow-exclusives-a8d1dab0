@@ -115,8 +115,26 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   };
 
   // Filter out already-emailed leads
-  const availableLeads = savedLeads.filter(l => l.outreachStatus !== 'sent' && l.outreachStatus !== 'replied' && l.outreachStatus !== 'converted');
-  const emailedLeads = savedLeads.filter(l => l.outreachStatus === 'sent' || l.outreachStatus === 'replied' || l.outreachStatus === 'converted');
+  const availableLeads = savedLeads.filter(l => l.outreachStatus !== 'sent' && l.outreachStatus !== 'replied' && l.outreachStatus !== 'converted' && l.outreachStatus !== 'bounced');
+  const emailedLeads = savedLeads.filter(l => l.outreachStatus === 'sent' || l.outreachStatus === 'replied' || l.outreachStatus === 'converted' || l.outreachStatus === 'bounced');
+  
+  // Calculate outreach metrics from saved leads
+  const outreachMetrics = {
+    totalSent: emailedLeads.length,
+    replied: savedLeads.filter(l => l.outreachStatus === 'replied').length,
+    converted: savedLeads.filter(l => l.outreachStatus === 'converted').length,
+    bounced: savedLeads.filter(l => l.outreachStatus === 'bounced').length,
+    pending: savedLeads.filter(l => l.outreachStatus === 'sent').length,
+    replyRate: emailedLeads.length > 0 
+      ? Math.round((savedLeads.filter(l => l.outreachStatus === 'replied').length / emailedLeads.length) * 100) 
+      : 0,
+    conversionRate: emailedLeads.length > 0 
+      ? Math.round((savedLeads.filter(l => l.outreachStatus === 'converted').length / emailedLeads.length) * 100) 
+      : 0,
+    bounceRate: emailedLeads.length > 0 
+      ? Math.round((savedLeads.filter(l => l.outreachStatus === 'bounced').length / emailedLeads.length) * 100) 
+      : 0,
+  };
 
   const handleOpenLeadPicker = () => {
     loadSavedLeads();
@@ -346,7 +364,60 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
 
   return (
     <div className="space-y-6">
-      {/* Stats Overview */}
+      {/* Outreach Conversion Metrics */}
+      {outreachMetrics.totalSent > 0 && (
+        <Card className="border-border/50 bg-gradient-to-br from-primary/5 to-transparent">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-primary" />
+              Outreach Performance
+            </CardTitle>
+            <CardDescription>
+              Campaign metrics from {outreachMetrics.totalSent} leads contacted
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                <div className="flex items-center gap-2 mb-1">
+                  <Send className="w-4 h-4 text-blue-500" />
+                  <span className="text-xs text-muted-foreground">Awaiting Reply</span>
+                </div>
+                <p className="text-2xl font-bold text-blue-600">{outreachMetrics.pending}</p>
+              </div>
+              
+              <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                <div className="flex items-center gap-2 mb-1">
+                  <Reply className="w-4 h-4 text-green-500" />
+                  <span className="text-xs text-muted-foreground">Reply Rate</span>
+                </div>
+                <p className="text-2xl font-bold text-green-600">{outreachMetrics.replyRate}%</p>
+                <p className="text-xs text-muted-foreground">{outreachMetrics.replied} replies</p>
+              </div>
+              
+              <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+                <div className="flex items-center gap-2 mb-1">
+                  <Star className="w-4 h-4 text-purple-500" />
+                  <span className="text-xs text-muted-foreground">Conversion Rate</span>
+                </div>
+                <p className="text-2xl font-bold text-purple-600">{outreachMetrics.conversionRate}%</p>
+                <p className="text-xs text-muted-foreground">{outreachMetrics.converted} converted</p>
+              </div>
+              
+              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                <div className="flex items-center gap-2 mb-1">
+                  <XCircle className="w-4 h-4 text-red-500" />
+                  <span className="text-xs text-muted-foreground">Bounce Rate</span>
+                </div>
+                <p className="text-2xl font-bold text-red-600">{outreachMetrics.bounceRate}%</p>
+                <p className="text-xs text-muted-foreground">{outreachMetrics.bounced} bounced</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Email Stats Overview */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="border-border/50">
