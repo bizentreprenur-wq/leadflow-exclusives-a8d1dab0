@@ -22,12 +22,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import {
   Mail, Send, FileText, BarChart3, Loader2, Plus, Trash2,
   Edit, Eye, Users, CheckCircle, AlertCircle, Clock, MousePointer,
-  Reply, XCircle, Sparkles, Database, RefreshCw, Star, Building2, RotateCcw, Calendar, Timer
+  Reply, XCircle, Sparkles, Database, RefreshCw, Star, Building2, 
+  RotateCcw, Calendar, Timer, ArrowRight, ArrowLeft, PartyPopper,
+  Zap, CheckCheck, ChevronRight
 } from 'lucide-react';
 import {
   getTemplates,
@@ -53,15 +54,19 @@ interface EmailOutreachModuleProps {
   onClearSelection?: () => void;
 }
 
+type WizardStep = 'start' | 'select-leads' | 'choose-template' | 'schedule' | 'review' | 'success';
+
 export default function EmailOutreachModule({ selectedLeads = [], onClearSelection }: EmailOutreachModuleProps) {
-  const [activeTab, setActiveTab] = useState('send');
+  // Wizard state
+  const [currentStep, setCurrentStep] = useState<WizardStep>('start');
+  
+  // Data state
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [sends, setSends] = useState<EmailSend[]>([]);
   const [scheduledEmails, setScheduledEmails] = useState<ScheduledEmail[]>([]);
   const [stats, setStats] = useState<EmailStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
-  const [isCancelling, setIsCancelling] = useState<number | null>(null);
   
   // Template editor state
   const [editingTemplate, setEditingTemplate] = useState<Partial<EmailTemplate> | null>(null);
@@ -69,32 +74,43 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [previewContent, setPreviewContent] = useState({ subject: '', body: '' });
   
-  // Send state
+  // Selection state
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
-  
-  // Saved leads picker state
   const [savedLeads, setSavedLeads] = useState<SavedLead[]>([]);
   const [isLoadingSavedLeads, setIsLoadingSavedLeads] = useState(false);
-  const [savedLeadPickerOpen, setSavedLeadPickerOpen] = useState(false);
   const [selectedSavedLeadIds, setSelectedSavedLeadIds] = useState<Set<string>>(new Set());
   const [leadsFromPicker, setLeadsFromPicker] = useState<LeadForEmail[]>([]);
-  const [showSentLeads, setShowSentLeads] = useState(false);
-  const [updatingLeadId, setUpdatingLeadId] = useState<number | null>(null);
-  const [resendDialogOpen, setResendDialogOpen] = useState(false);
-  const [resendLead, setResendLead] = useState<SavedLead | null>(null);
-  const [newEmailAddress, setNewEmailAddress] = useState('');
   
   // Scheduling state
   const [scheduleMode, setScheduleMode] = useState<'now' | 'optimal' | 'custom'>('now');
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('09:00');
+  
+  // Success state
+  const [lastSendResult, setLastSendResult] = useState<{ sent: number; failed: number; scheduled?: string } | null>(null);
 
   // Merge selected leads from props and picker
   const allSelectedLeads = [...selectedLeads, ...leadsFromPicker];
+  const leadsWithEmail = allSelectedLeads.filter(l => l.email);
+  
+  // Filter out already-emailed leads
+  const availableLeads = savedLeads.filter(l => 
+    l.outreachStatus !== 'sent' && 
+    l.outreachStatus !== 'replied' && 
+    l.outreachStatus !== 'converted' && 
+    l.outreachStatus !== 'bounced'
+  );
 
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    // If leads are passed from verification, go straight to template selection
+    if (selectedLeads.length > 0 && currentStep === 'start') {
+      setCurrentStep('choose-template');
+    }
+  }, [selectedLeads]);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -116,22 +132,6 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
     setIsLoading(false);
   };
 
-  const handleCancelScheduled = async (id: number) => {
-    setIsCancelling(id);
-    try {
-      const result = await cancelScheduledEmail(id);
-      if (result.success) {
-        toast.success('Scheduled email cancelled');
-        setScheduledEmails(prev => prev.filter(e => e.id !== id));
-      } else {
-        toast.error(result.error || 'Failed to cancel email');
-      }
-    } catch (error) {
-      toast.error('Failed to cancel scheduled email');
-    }
-    setIsCancelling(null);
-  };
-
   const loadSavedLeads = async () => {
     setIsLoadingSavedLeads(true);
     try {
@@ -143,33 +143,6 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
       console.error('Failed to load saved leads:', error);
     }
     setIsLoadingSavedLeads(false);
-  };
-
-  // Filter out already-emailed leads
-  const availableLeads = savedLeads.filter(l => l.outreachStatus !== 'sent' && l.outreachStatus !== 'replied' && l.outreachStatus !== 'converted' && l.outreachStatus !== 'bounced');
-  const emailedLeads = savedLeads.filter(l => l.outreachStatus === 'sent' || l.outreachStatus === 'replied' || l.outreachStatus === 'converted' || l.outreachStatus === 'bounced');
-  
-  // Calculate outreach metrics from saved leads
-  const outreachMetrics = {
-    totalSent: emailedLeads.length,
-    replied: savedLeads.filter(l => l.outreachStatus === 'replied').length,
-    converted: savedLeads.filter(l => l.outreachStatus === 'converted').length,
-    bounced: savedLeads.filter(l => l.outreachStatus === 'bounced').length,
-    pending: savedLeads.filter(l => l.outreachStatus === 'sent').length,
-    replyRate: emailedLeads.length > 0 
-      ? Math.round((savedLeads.filter(l => l.outreachStatus === 'replied').length / emailedLeads.length) * 100) 
-      : 0,
-    conversionRate: emailedLeads.length > 0 
-      ? Math.round((savedLeads.filter(l => l.outreachStatus === 'converted').length / emailedLeads.length) * 100) 
-      : 0,
-    bounceRate: emailedLeads.length > 0 
-      ? Math.round((savedLeads.filter(l => l.outreachStatus === 'bounced').length / emailedLeads.length) * 100) 
-      : 0,
-  };
-
-  const handleOpenLeadPicker = () => {
-    loadSavedLeads();
-    setSavedLeadPickerOpen(true);
   };
 
   const handleToggleSavedLead = (leadId: string) => {
@@ -184,16 +157,7 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
     });
   };
 
-  const handleSelectAllSavedLeads = (checked: boolean) => {
-    if (checked) {
-      setSelectedSavedLeadIds(new Set(savedLeads.map(l => l.id)));
-    } else {
-      setSelectedSavedLeadIds(new Set());
-    }
-  };
-
   const handleConfirmLeadSelection = () => {
-    // Only select from available (not already emailed) leads
     const selected = availableLeads.filter(l => selectedSavedLeadIds.has(l.id));
     const converted: LeadForEmail[] = selected.map(l => ({
       id: l.dbId,
@@ -206,70 +170,13 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
       phone: l.phone,
     }));
     setLeadsFromPicker(converted);
-    setSavedLeadPickerOpen(false);
-    toast.success(`Added ${converted.length} leads from database`);
+    setCurrentStep('choose-template');
   };
 
   const handleClearAllLeads = () => {
     onClearSelection?.();
     setLeadsFromPicker([]);
     setSelectedSavedLeadIds(new Set());
-  };
-
-  const handleUpdateLeadOutreachStatus = async (leadDbId: number, newStatus: 'sent' | 'replied' | 'converted' | 'bounced') => {
-    setUpdatingLeadId(leadDbId);
-    try {
-      const result = await updateLeadStatus(leadDbId, { outreachStatus: newStatus });
-      if (result.success) {
-        toast.success(`Lead marked as ${newStatus}`);
-        // Update local state
-        setSavedLeads(prev => prev.map(lead => 
-          lead.dbId === leadDbId ? { ...lead, outreachStatus: newStatus } : lead
-        ));
-      } else {
-        toast.error(result.error || 'Failed to update status');
-      }
-    } catch (error) {
-      toast.error('Failed to update lead status');
-    }
-    setUpdatingLeadId(null);
-  };
-
-  const handleOpenResendDialog = (lead: SavedLead) => {
-    setResendLead(lead);
-    setNewEmailAddress(lead.email);
-    setResendDialogOpen(true);
-  };
-
-  const handleResendWithNewEmail = async () => {
-    if (!resendLead?.dbId || !newEmailAddress) return;
-    
-    setUpdatingLeadId(resendLead.dbId);
-    try {
-      // Update email and reset status to pending
-      const result = await updateLeadStatus(resendLead.dbId, { 
-        email: newEmailAddress,
-        outreachStatus: 'pending'
-      });
-      
-      if (result.success) {
-        toast.success('Email updated - lead is now available for resending');
-        // Update local state
-        setSavedLeads(prev => prev.map(lead => 
-          lead.dbId === resendLead.dbId 
-            ? { ...lead, email: newEmailAddress, outreachStatus: 'pending' } 
-            : lead
-        ));
-        setResendDialogOpen(false);
-        setResendLead(null);
-        setNewEmailAddress('');
-      } else {
-        toast.error(result.error || 'Failed to update email');
-      }
-    } catch (error) {
-      toast.error('Failed to update lead');
-    }
-    setUpdatingLeadId(null);
   };
 
   const handleSaveTemplate = async () => {
@@ -282,7 +189,7 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
       if (editingTemplate.id) {
         const result = await updateTemplate(editingTemplate.id, editingTemplate);
         if (result.success) {
-          toast.success('Template updated');
+          toast.success('Template updated!');
           setTemplateDialogOpen(false);
           loadData();
         } else {
@@ -297,7 +204,7 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
           is_default: editingTemplate.is_default || false,
         });
         if (result.success) {
-          toast.success('Template created');
+          toast.success('Template created!');
           setTemplateDialogOpen(false);
           loadData();
         } else {
@@ -310,7 +217,7 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   };
 
   const handleDeleteTemplate = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this template?')) return;
+    if (!confirm('Delete this template?')) return;
     
     const result = await deleteTemplate(id);
     if (result.success) {
@@ -321,33 +228,38 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
     }
   };
 
-  const handleSendEmails = async () => {
-    if (!selectedTemplateId) {
-      toast.error('Please select a template');
-      return;
+  const getNextOptimalTime = (): string => {
+    const now = new Date();
+    const optimalHours = [10, 14];
+    const optimalDays = [2, 3, 4];
+    
+    for (let i = 0; i < 7; i++) {
+      const checkDate = new Date(now);
+      checkDate.setDate(now.getDate() + i);
+      const dayOfWeek = checkDate.getDay();
+      
+      if (optimalDays.includes(dayOfWeek)) {
+        for (const hour of optimalHours) {
+          const slotTime = new Date(checkDate);
+          slotTime.setHours(hour, 0, 0, 0);
+          
+          if (slotTime > now) {
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            return `${dayNames[slotTime.getDay()]}, ${slotTime.toLocaleDateString()} at ${slotTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+          }
+        }
+      }
     }
     
-    if (allSelectedLeads.length === 0) {
-      toast.error('No leads selected');
-      return;
-    }
+    return 'Next Tuesday at 10:00 AM';
+  };
 
-    const leadsWithEmail = allSelectedLeads.filter(l => l.email);
-    if (leadsWithEmail.length === 0) {
-      toast.error('None of the selected leads have email addresses');
-      return;
-    }
-
-    // Validate custom schedule
-    if (scheduleMode === 'custom' && !scheduledDate) {
-      toast.error('Please select a date for scheduled sending');
-      return;
-    }
+  const handleSendEmails = async () => {
+    if (!selectedTemplateId || leadsWithEmail.length === 0) return;
 
     // Calculate scheduled time
     let scheduledFor: string | undefined;
     if (scheduleMode === 'optimal') {
-      // Calculate next optimal time
       const now = new Date();
       const optimalHours = [10, 14];
       const optimalDays = [2, 3, 4];
@@ -383,18 +295,17 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
       });
       
       if (result.success && result.results) {
-        const { sent, failed, skipped } = result.results;
+        const { sent, failed } = result.results;
         
-        if (scheduleMode === 'now') {
-          toast.success(`Sent: ${sent}, Failed: ${failed}, Skipped: ${skipped}`);
-        } else {
-          toast.success(`Scheduled ${sent} emails for ${new Date(scheduledFor!).toLocaleString()}`);
-        }
+        setLastSendResult({
+          sent,
+          failed,
+          scheduled: scheduledFor ? new Date(scheduledFor).toLocaleString() : undefined
+        });
         
-        // Update outreach status for successfully sent leads from picker
-        const leadsFromPickerWithEmail = leadsFromPicker.filter(l => l.email);
-        for (const lead of leadsFromPickerWithEmail) {
-          if (lead.id) {
+        // Update outreach status for successfully sent leads
+        for (const lead of leadsFromPicker) {
+          if (lead.id && lead.email) {
             await updateLeadStatus(Number(lead.id), {
               outreachStatus: 'sent',
               sentAt: 'now'
@@ -402,7 +313,7 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
           }
         }
         
-        handleClearAllLeads();
+        setCurrentStep('success');
         loadData();
       } else {
         toast.error(result.error || 'Failed to send emails');
@@ -419,7 +330,7 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
       first_name: 'John',
       website: 'www.acmeplumbing.com',
       platform: 'WordPress',
-      issues: 'Slow loading, Not mobile-friendly, Missing SSL',
+      issues: 'Slow loading, Not mobile-friendly',
       phone: '(555) 123-4567',
       email: 'contact@acmeplumbing.com',
     };
@@ -431,696 +342,20 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
     setPreviewDialogOpen(true);
   };
 
-  const getStatusIcon = (status: EmailSend['status']) => {
-    switch (status) {
-      case 'sent':
-      case 'delivered':
-        return <CheckCircle className="w-4 h-4 text-emerald-500" />;
-      case 'opened':
-        return <Eye className="w-4 h-4 text-blue-500" />;
-      case 'clicked':
-        return <MousePointer className="w-4 h-4 text-purple-500" />;
-      case 'replied':
-        return <Reply className="w-4 h-4 text-green-500" />;
-      case 'bounced':
-      case 'failed':
-        return <XCircle className="w-4 h-4 text-red-500" />;
-      default:
-        return <Clock className="w-4 h-4 text-muted-foreground" />;
-    }
+  const handleStartOver = () => {
+    handleClearAllLeads();
+    setSelectedTemplateId('');
+    setScheduleMode('now');
+    setScheduledDate('');
+    setLastSendResult(null);
+    setCurrentStep('start');
   };
 
-  const getStatusBadge = (status: EmailSend['status']) => {
-    const variants: Record<string, string> = {
-      sent: 'bg-emerald-500/10 text-emerald-500',
-      delivered: 'bg-emerald-500/10 text-emerald-500',
-      opened: 'bg-blue-500/10 text-blue-500',
-      clicked: 'bg-purple-500/10 text-purple-500',
-      replied: 'bg-green-500/10 text-green-500',
-      bounced: 'bg-red-500/10 text-red-500',
-      failed: 'bg-red-500/10 text-red-500',
-      pending: 'bg-muted text-muted-foreground',
-    };
-    return variants[status] || variants.pending;
-  };
+  const selectedTemplate = templates.find(t => t.id.toString() === selectedTemplateId);
 
-  // Calculate next optimal send time (Tue-Thu at 10am or 2pm)
-  const getNextOptimalTime = (): string => {
-    const now = new Date();
-    const optimalHours = [10, 14]; // 10am and 2pm
-    const optimalDays = [2, 3, 4]; // Tue, Wed, Thu
-    
-    let nextDate = new Date(now);
-    
-    // Try to find next optimal slot within the next 7 days
-    for (let i = 0; i < 7; i++) {
-      const checkDate = new Date(now);
-      checkDate.setDate(now.getDate() + i);
-      const dayOfWeek = checkDate.getDay();
-      
-      if (optimalDays.includes(dayOfWeek)) {
-        for (const hour of optimalHours) {
-          const slotTime = new Date(checkDate);
-          slotTime.setHours(hour, 0, 0, 0);
-          
-          if (slotTime > now) {
-            nextDate = slotTime;
-            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-            return `${dayNames[nextDate.getDay()]}, ${nextDate.toLocaleDateString()} at ${nextDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-          }
-        }
-      }
-    }
-    
-    // Fallback to next Tuesday at 10am
-    const daysUntilTuesday = (2 - now.getDay() + 7) % 7 || 7;
-    nextDate.setDate(now.getDate() + daysUntilTuesday);
-    nextDate.setHours(10, 0, 0, 0);
-    return `Tue, ${nextDate.toLocaleDateString()} at 10:00 AM`;
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Outreach Conversion Metrics */}
-      {outreachMetrics.totalSent > 0 && (
-        <Card className="border-border/50 bg-gradient-to-br from-primary/5 to-transparent">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-primary" />
-              Outreach Performance
-            </CardTitle>
-            <CardDescription>
-              Campaign metrics from {outreachMetrics.totalSent} leads contacted
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                <div className="flex items-center gap-2 mb-1">
-                  <Send className="w-4 h-4 text-blue-500" />
-                  <span className="text-xs text-muted-foreground">Awaiting Reply</span>
-                </div>
-                <p className="text-2xl font-bold text-blue-600">{outreachMetrics.pending}</p>
-              </div>
-              
-              <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                <div className="flex items-center gap-2 mb-1">
-                  <Reply className="w-4 h-4 text-green-500" />
-                  <span className="text-xs text-muted-foreground">Reply Rate</span>
-                </div>
-                <p className="text-2xl font-bold text-green-600">{outreachMetrics.replyRate}%</p>
-                <p className="text-xs text-muted-foreground">{outreachMetrics.replied} replies</p>
-              </div>
-              
-              <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
-                <div className="flex items-center gap-2 mb-1">
-                  <Star className="w-4 h-4 text-purple-500" />
-                  <span className="text-xs text-muted-foreground">Conversion Rate</span>
-                </div>
-                <p className="text-2xl font-bold text-purple-600">{outreachMetrics.conversionRate}%</p>
-                <p className="text-xs text-muted-foreground">{outreachMetrics.converted} converted</p>
-              </div>
-              
-              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-                <div className="flex items-center gap-2 mb-1">
-                  <XCircle className="w-4 h-4 text-red-500" />
-                  <span className="text-xs text-muted-foreground">Bounce Rate</span>
-                </div>
-                <p className="text-2xl font-bold text-red-600">{outreachMetrics.bounceRate}%</p>
-                <p className="text-xs text-muted-foreground">{outreachMetrics.bounced} bounced</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Email Stats Overview */}
-      {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="border-border/50">
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-primary/10 rounded-lg">
-                  <Send className="w-4 h-4 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.total_sent}</p>
-                  <p className="text-xs text-muted-foreground">Emails Sent</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="border-border/50">
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-500/10 rounded-lg">
-                  <Eye className="w-4 h-4 text-blue-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.open_rate}%</p>
-                  <p className="text-xs text-muted-foreground">Open Rate</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="border-border/50">
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-500/10 rounded-lg">
-                  <MousePointer className="w-4 h-4 text-purple-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.click_rate}%</p>
-                  <p className="text-xs text-muted-foreground">Click Rate</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="border-border/50">
-            <CardContent className="pt-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-500/10 rounded-lg">
-                  <Reply className="w-4 h-4 text-green-500" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats.reply_rate}%</p>
-                  <p className="text-xs text-muted-foreground">Reply Rate</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4 max-w-xl">
-          <TabsTrigger value="send" className="gap-2">
-            <Send className="w-4 h-4" />
-            Send
-          </TabsTrigger>
-          <TabsTrigger value="scheduled" className="gap-2">
-            <Clock className="w-4 h-4" />
-            Scheduled
-            {scheduledEmails.length > 0 && (
-              <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1 text-xs">
-                {scheduledEmails.length}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="templates" className="gap-2">
-            <FileText className="w-4 h-4" />
-            Templates
-          </TabsTrigger>
-          <TabsTrigger value="history" className="gap-2">
-            <BarChart3 className="w-4 h-4" />
-            History
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Send Tab */}
-        <TabsContent value="send" className="space-y-4 mt-6">
-          <Card className="border-border/50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Mail className="w-5 h-5 text-primary" />
-                Send Emails to Leads
-              </CardTitle>
-              <CardDescription>
-                Select a template and send personalized emails to your selected leads
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Selected leads indicator */}
-              <div className="p-4 bg-secondary/50 rounded-lg border border-border/50">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-primary/10 rounded-lg">
-                      <Users className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{allSelectedLeads.length} leads selected</p>
-                      <p className="text-sm text-muted-foreground">
-                        {allSelectedLeads.filter(l => l.email).length} with email addresses
-                        {selectedLeads.length > 0 && leadsFromPicker.length > 0 && (
-                          <span className="ml-1">
-                            ({selectedLeads.length} from verification, {leadsFromPicker.length} from database)
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                  {allSelectedLeads.length > 0 && (
-                    <Button variant="ghost" size="sm" onClick={handleClearAllLeads}>
-                      Clear All
-                    </Button>
-                  )}
-                </div>
-                
-                {/* Add from saved leads button */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleOpenLeadPicker}
-                  className="w-full gap-2"
-                >
-                  <Database className="w-4 h-4" />
-                  Select from Saved Leads
-                </Button>
-              </div>
-
-              {/* Template selector */}
-              <div className="space-y-2">
-                <Label>Email Template</Label>
-                <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a template" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {templates.map(template => (
-                      <SelectItem key={template.id} value={template.id.toString()}>
-                        {template.name}
-                        {template.is_default && (
-                          <Badge variant="secondary" className="ml-2 text-xs">Default</Badge>
-                        )}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Preview selected template */}
-              {selectedTemplateId && (
-                <div className="p-4 bg-muted/50 rounded-lg border border-border/50">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium">Template Preview</p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        const template = templates.find(t => t.id.toString() === selectedTemplateId);
-                        if (template) handlePreview(template);
-                      }}
-                    >
-                      <Eye className="w-4 h-4 mr-1" />
-                      Full Preview
-                    </Button>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Subject: {templates.find(t => t.id.toString() === selectedTemplateId)?.subject}
-                  </p>
-                </div>
-              )}
-
-              {/* Personalization tokens info */}
-              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-500 mt-0.5" />
-                  <div>
-                    <p className="text-sm font-medium text-amber-700 dark:text-amber-400">Personalization Tokens</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Available: {'{{business_name}}'}, {'{{first_name}}'}, {'{{website}}'}, {'{{platform}}'}, {'{{issues}}'}, {'{{phone}}'}, {'{{email}}'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Email Scheduling */}
-              <div className="space-y-3">
-                <Label className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  Send Schedule
-                </Label>
-                
-                <div className="grid grid-cols-3 gap-2">
-                  <Button
-                    type="button"
-                    variant={scheduleMode === 'now' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setScheduleMode('now')}
-                    className="w-full"
-                  >
-                    <Send className="w-3 h-3 mr-1" />
-                    Send Now
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={scheduleMode === 'optimal' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setScheduleMode('optimal')}
-                    className="w-full"
-                  >
-                    <Timer className="w-3 h-3 mr-1" />
-                    Optimal Time
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={scheduleMode === 'custom' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setScheduleMode('custom')}
-                    className="w-full"
-                  >
-                    <Calendar className="w-3 h-3 mr-1" />
-                    Custom
-                  </Button>
-                </div>
-
-                {scheduleMode === 'optimal' && (
-                  <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                    <div className="flex items-start gap-2">
-                      <Timer className="w-4 h-4 text-primary mt-0.5" />
-                      <div>
-                        <p className="text-sm font-medium">Optimal Send Times</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Emails will be scheduled for the next optimal window:
-                        </p>
-                        <ul className="text-xs text-muted-foreground mt-2 space-y-1">
-                          <li>• <strong>Tuesday-Thursday</strong> at <strong>10:00 AM</strong> (highest open rates)</li>
-                          <li>• <strong>Tuesday-Thursday</strong> at <strong>2:00 PM</strong> (post-lunch engagement)</li>
-                        </ul>
-                        <p className="text-xs text-primary mt-2 font-medium">
-                          Next optimal: {getNextOptimalTime()}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {scheduleMode === 'custom' && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="schedule-date" className="text-xs">Date</Label>
-                      <Input
-                        id="schedule-date"
-                        type="date"
-                        value={scheduledDate}
-                        onChange={(e) => setScheduledDate(e.target.value)}
-                        min={new Date().toISOString().split('T')[0]}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="schedule-time" className="text-xs">Time</Label>
-                      <Input
-                        id="schedule-time"
-                        type="time"
-                        value={scheduledTime}
-                        onChange={(e) => setScheduledTime(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <Button
-                onClick={handleSendEmails}
-                disabled={isSending || !selectedTemplateId || allSelectedLeads.length === 0 || (scheduleMode === 'custom' && !scheduledDate)}
-                className="w-full"
-              >
-                {isSending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    {scheduleMode === 'now' ? 'Sending...' : 'Scheduling...'}
-                  </>
-                ) : (
-                  <>
-                    {scheduleMode === 'now' ? (
-                      <Send className="w-4 h-4 mr-2" />
-                    ) : (
-                      <Calendar className="w-4 h-4 mr-2" />
-                    )}
-                    {scheduleMode === 'now' 
-                      ? `Send to ${allSelectedLeads.filter(l => l.email).length} Leads` 
-                      : `Schedule for ${allSelectedLeads.filter(l => l.email).length} Leads`}
-                  </>
-                )}
-              </Button>
-
-              {scheduleMode !== 'now' && (
-                <p className="text-xs text-center text-muted-foreground">
-                  {scheduleMode === 'optimal' 
-                    ? `Scheduled for: ${getNextOptimalTime()}`
-                    : scheduledDate && scheduledTime 
-                      ? `Scheduled for: ${new Date(scheduledDate + 'T' + scheduledTime).toLocaleString()}`
-                      : 'Select a date and time'}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Scheduled Tab */}
-        <TabsContent value="scheduled" className="space-y-4 mt-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Clock className="w-5 h-5 text-primary" />
-              Scheduled Emails Queue
-            </h3>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={loadData}
-              disabled={isLoading}
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-          </div>
-
-          {scheduledEmails.length > 0 ? (
-            <div className="space-y-3">
-              {scheduledEmails.map((email) => {
-                const scheduledDate = new Date(email.scheduled_for);
-                const isToday = scheduledDate.toDateString() === new Date().toDateString();
-                const isPast = scheduledDate < new Date();
-                
-                return (
-                  <Card key={email.id} className={`border-border/50 ${isPast ? 'opacity-60' : ''}`}>
-                    <CardContent className="py-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex items-start gap-3 flex-1 min-w-0">
-                          <div className={`p-2 rounded-lg ${isToday ? 'bg-amber-500/10' : 'bg-primary/10'}`}>
-                            <Calendar className={`w-4 h-4 ${isToday ? 'text-amber-500' : 'text-primary'}`} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-medium truncate">
-                                {email.business_name || email.recipient_name || email.recipient_email}
-                              </span>
-                              {isToday && (
-                                <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 shrink-0">
-                                  Today
-                                </Badge>
-                              )}
-                              {isPast && (
-                                <Badge className="bg-muted text-muted-foreground shrink-0">
-                                  Processing
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-sm text-muted-foreground truncate mt-0.5">
-                              {email.subject}
-                            </p>
-                            <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <Mail className="w-3 h-3" />
-                                {email.recipient_email}
-                              </span>
-                              {email.template_name && (
-                                <span className="flex items-center gap-1">
-                                  <FileText className="w-3 h-3" />
-                                  {email.template_name}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-3 shrink-0">
-                          <div className="text-right">
-                            <p className="text-sm font-medium">
-                              {scheduledDate.toLocaleDateString()}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {scheduledDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </p>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:bg-destructive/10"
-                            onClick={() => handleCancelScheduled(email.id)}
-                            disabled={isCancelling === email.id}
-                          >
-                            {isCancelling === email.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <XCircle className="w-4 h-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          ) : (
-            <Card className="border-border/50 border-dashed">
-              <CardContent className="py-12 text-center">
-                <Calendar className="w-12 h-12 mx-auto text-muted-foreground/50" />
-                <p className="mt-4 text-muted-foreground font-medium">No scheduled emails</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Schedule emails from the Send tab using "Optimal Time" or "Custom" scheduling
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        {/* Templates Tab */}
-        <TabsContent value="templates" className="space-y-4 mt-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold">Email Templates</h3>
-            <Button
-              onClick={() => {
-                setEditingTemplate({
-                  name: '',
-                  subject: '',
-                  body_html: '',
-                  is_default: false,
-                });
-                setTemplateDialogOpen(true);
-              }}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              New Template
-            </Button>
-          </div>
-
-          <div className="grid gap-4">
-            {templates.map(template => (
-              <Card key={template.id} className="border-border/50">
-                <CardContent className="pt-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-medium">{template.name}</h4>
-                        {template.is_default && (
-                          <Badge variant="secondary" className="text-xs">Default</Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Subject: {template.subject}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handlePreview(template)}
-                      >
-                        <Eye className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          setEditingTemplate(template);
-                          setTemplateDialogOpen(true);
-                        }}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDeleteTemplate(template.id)}
-                      >
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-
-            {templates.length === 0 && (
-              <Card className="border-border/50 border-dashed">
-                <CardContent className="py-8 text-center">
-                  <FileText className="w-12 h-12 mx-auto text-muted-foreground/50" />
-                  <p className="mt-4 text-muted-foreground">No templates yet</p>
-                  <Button
-                    variant="outline"
-                    className="mt-4"
-                    onClick={() => {
-                      setEditingTemplate({
-                        name: '',
-                        subject: '',
-                        body_html: '',
-                        is_default: false,
-                      });
-                      setTemplateDialogOpen(true);
-                    }}
-                  >
-                    Create your first template
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </TabsContent>
-
-        {/* History Tab */}
-        <TabsContent value="history" className="space-y-4 mt-6">
-          <h3 className="text-lg font-semibold">Email History</h3>
-          
-          <div className="space-y-2">
-            {sends.map(send => (
-              <Card key={send.id} className="border-border/50">
-                <CardContent className="py-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {getStatusIcon(send.status)}
-                      <div>
-                        <p className="font-medium text-sm">{send.business_name || send.recipient_email}</p>
-                        <p className="text-xs text-muted-foreground">{send.subject}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge className={getStatusBadge(send.status)}>
-                        {send.status}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {send.sent_at ? new Date(send.sent_at).toLocaleDateString() : 'Pending'}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-
-            {sends.length === 0 && (
-              <Card className="border-border/50 border-dashed">
-                <CardContent className="py-8 text-center">
-                  <Mail className="w-12 h-12 mx-auto text-muted-foreground/50" />
-                  <p className="mt-4 text-muted-foreground">No emails sent yet</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </TabsContent>
-      </Tabs>
-
+  // Template editor and preview dialogs (always rendered)
+  const dialogs = (
+    <>
       {/* Template Editor Dialog */}
       <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -1129,7 +364,7 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
               {editingTemplate?.id ? 'Edit Template' : 'Create Template'}
             </DialogTitle>
             <DialogDescription>
-              Create a reusable email template with personalization tokens
+              Create a reusable email template
             </DialogDescription>
           </DialogHeader>
 
@@ -1150,40 +385,29 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
                 id="template-subject"
                 value={editingTemplate?.subject || ''}
                 onChange={e => setEditingTemplate(prev => ({ ...prev, subject: e.target.value }))}
-                placeholder="e.g., I noticed your website could use some improvements"
+                placeholder="e.g., Quick question about your website"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="template-body">Email Body (HTML)</Label>
+              <Label htmlFor="template-body">Email Body</Label>
               <Textarea
                 id="template-body"
                 value={editingTemplate?.body_html || ''}
                 onChange={e => setEditingTemplate(prev => ({ ...prev, body_html: e.target.value }))}
-                placeholder="Write your email content here. Use tokens like {{business_name}} for personalization."
-                className="min-h-[200px] font-mono text-sm"
+                placeholder="Write your email content here..."
+                className="min-h-[200px]"
               />
             </div>
 
-            <div className="p-3 bg-muted rounded-lg">
-              <p className="text-sm font-medium mb-2">Available Personalization Tokens:</p>
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-400 mb-2">
+                <Sparkles className="w-4 h-4 inline mr-1" />
+                Personalization tokens you can use:
+              </p>
               <div className="flex flex-wrap gap-2">
-                {['{{business_name}}', '{{first_name}}', '{{website}}', '{{platform}}', '{{issues}}', '{{phone}}', '{{email}}'].map(token => (
-                  <Badge
-                    key={token}
-                    variant="outline"
-                    className="cursor-pointer hover:bg-primary/10"
-                    onClick={() => {
-                      const textarea = document.getElementById('template-body') as HTMLTextAreaElement;
-                      if (textarea) {
-                        const start = textarea.selectionStart;
-                        const end = textarea.selectionEnd;
-                        const currentValue = editingTemplate?.body_html || '';
-                        const newValue = currentValue.substring(0, start) + token + currentValue.substring(end);
-                        setEditingTemplate(prev => ({ ...prev, body_html: newValue }));
-                      }
-                    }}
-                  >
+                {['{{business_name}}', '{{first_name}}', '{{website}}', '{{email}}'].map(token => (
+                  <Badge key={token} variant="outline" className="text-xs">
                     {token}
                   </Badge>
                 ))}
@@ -1196,7 +420,7 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
               Cancel
             </Button>
             <Button onClick={handleSaveTemplate}>
-              {editingTemplate?.id ? 'Update Template' : 'Create Template'}
+              {editingTemplate?.id ? 'Update' : 'Create'} Template
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1207,9 +431,7 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Email Preview</DialogTitle>
-            <DialogDescription>
-              Preview with sample data
-            </DialogDescription>
+            <DialogDescription>This is how your email will look</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -1231,364 +453,651 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </>
+  );
 
-      {/* Saved Leads Picker Dialog */}
-      <Dialog open={savedLeadPickerOpen} onOpenChange={setSavedLeadPickerOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Database className="w-5 h-5 text-primary" />
-              Select Leads from Database
-            </DialogTitle>
-            <DialogDescription>
-              Choose verified leads to add to your email campaign
-            </DialogDescription>
-          </DialogHeader>
+  if (isLoading) {
+    return (
+      <>
+        {dialogs}
+        <div className="flex flex-col items-center justify-center py-16">
+          <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
+          <p className="text-muted-foreground">Loading your email tools...</p>
+        </div>
+      </>
+    );
+  }
 
-          <div className="space-y-4">
-            {/* Toggle between available and sent leads */}
-            <div className="flex gap-2 p-1 bg-muted rounded-lg">
-              <Button
-                variant={!showSentLeads ? "secondary" : "ghost"}
-                size="sm"
-                className="flex-1"
-                onClick={() => setShowSentLeads(false)}
-              >
-                <Users className="w-4 h-4 mr-2" />
-                Available ({availableLeads.length})
-              </Button>
-              <Button
-                variant={showSentLeads ? "secondary" : "ghost"}
-                size="sm"
-                className="flex-1"
-                onClick={() => setShowSentLeads(true)}
-              >
-                <Send className="w-4 h-4 mr-2" />
-                Already Sent ({emailedLeads.length})
-              </Button>
-            </div>
-
-            {!showSentLeads ? (
-              <>
-                {/* Actions bar for available leads */}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="select-all-saved"
-                      checked={selectedSavedLeadIds.size === availableLeads.length && availableLeads.length > 0}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setSelectedSavedLeadIds(new Set(availableLeads.map(l => l.id)));
-                        } else {
-                          setSelectedSavedLeadIds(new Set());
-                        }
-                      }}
-                    />
-                    <label htmlFor="select-all-saved" className="text-sm font-medium cursor-pointer">
-                      Select All
-                    </label>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={loadSavedLeads}
-                    disabled={isLoadingSavedLeads}
-                  >
-                    <RefreshCw className={`w-4 h-4 mr-1 ${isLoadingSavedLeads ? 'animate-spin' : ''}`} />
-                    Refresh
-                  </Button>
-                </div>
-
-                {/* Selected count */}
-                {selectedSavedLeadIds.size > 0 && (
-                  <div className="p-2 bg-primary/10 rounded-lg text-sm text-center">
-                    <span className="font-medium">{selectedSavedLeadIds.size}</span> leads selected
-                  </div>
-                )}
-
-                {/* Available leads list */}
-                <ScrollArea className="h-[350px] pr-4">
-                  {isLoadingSavedLeads ? (
-                    <div className="flex items-center justify-center py-12">
-                      <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                    </div>
-                  ) : availableLeads.length === 0 ? (
-                    <div className="text-center py-12">
-                      <Database className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground">
-                        {savedLeads.length === 0 ? 'No verified leads saved yet' : 'All leads have been emailed'}
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {savedLeads.length === 0 ? 'Verify leads and save them to see them here' : 'Add new leads to continue outreach'}
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {availableLeads.map((lead) => (
-                        <div
-                          key={lead.id}
-                          className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                            selectedSavedLeadIds.has(lead.id)
-                              ? 'border-primary/50 bg-primary/5'
-                              : 'border-border/50 hover:border-border'
-                          }`}
-                          onClick={() => handleToggleSavedLead(lead.id)}
-                        >
-                          <div className="flex items-start gap-3">
-                            <Checkbox
-                              checked={selectedSavedLeadIds.has(lead.id)}
-                              onCheckedChange={() => handleToggleSavedLead(lead.id)}
-                              className="mt-1"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
-                                <span className="font-medium truncate">{lead.business_name}</span>
-                                {lead.leadScore >= 80 && (
-                                  <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 shrink-0">
-                                    <Star className="w-3 h-3 mr-1" />
-                                    {lead.leadScore}
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="text-sm text-muted-foreground truncate mt-1">
-                                <Mail className="w-3 h-3 inline mr-1" />
-                                {lead.email}
-                              </p>
-                              {lead.platform && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Platform: {lead.platform}
-                                </p>
-                              )}
-                            </div>
-                            {lead.emailValid && (
-                              <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </ScrollArea>
-              </>
-            ) : (
-              <>
-                {/* Sent leads header */}
-                <div className="flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">
-                    View leads that have already been emailed
-                  </p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={loadSavedLeads}
-                    disabled={isLoadingSavedLeads}
-                  >
-                    <RefreshCw className={`w-4 h-4 mr-1 ${isLoadingSavedLeads ? 'animate-spin' : ''}`} />
-                    Refresh
-                  </Button>
-                </div>
-
-                {/* Sent leads list */}
-                <ScrollArea className="h-[400px] pr-4">
-                  {isLoadingSavedLeads ? (
-                    <div className="flex items-center justify-center py-12">
-                      <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                    </div>
-                  ) : emailedLeads.length === 0 ? (
-                    <div className="text-center py-12">
-                      <Send className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground">No emails sent yet</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Sent leads will appear here
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {emailedLeads.map((lead) => (
-                        <div
-                          key={lead.id}
-                          className="p-3 rounded-lg border border-border/50 bg-muted/30"
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="p-1.5 bg-emerald-500/10 rounded-full mt-0.5">
-                              <CheckCircle className="w-3 h-3 text-emerald-500" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
-                                <span className="font-medium truncate">{lead.business_name}</span>
-                                <Badge 
-                                  className={`shrink-0 ${
-                                    lead.outreachStatus === 'replied' 
-                                      ? 'bg-green-500/10 text-green-600 border-green-500/20'
-                                      : lead.outreachStatus === 'converted'
-                                      ? 'bg-purple-500/10 text-purple-600 border-purple-500/20'
-                                      : lead.outreachStatus === 'bounced'
-                                      ? 'bg-red-500/10 text-red-600 border-red-500/20'
-                                      : 'bg-blue-500/10 text-blue-600 border-blue-500/20'
-                                  }`}
-                                >
-                                  {lead.outreachStatus === 'replied' && <Reply className="w-3 h-3 mr-1" />}
-                                  {lead.outreachStatus === 'converted' && <Star className="w-3 h-3 mr-1" />}
-                                  {lead.outreachStatus === 'bounced' && <XCircle className="w-3 h-3 mr-1" />}
-                                  {lead.outreachStatus === 'sent' && <Send className="w-3 h-3 mr-1" />}
-                                  {lead.outreachStatus}
-                                </Badge>
-                              </div>
-                              <p className="text-sm text-muted-foreground truncate mt-1">
-                                <Mail className="w-3 h-3 inline mr-1" />
-                                {lead.email}
-                              </p>
-                              {lead.sentAt && (
-                                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                                  <Clock className="w-3 h-3" />
-                                  Sent: {new Date(lead.sentAt).toLocaleDateString()} at {new Date(lead.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </p>
-                              )}
-                              
-                              {/* Status update buttons */}
-                              <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-border/30">
-                                <span className="text-xs text-muted-foreground mr-1">Update:</span>
-                                {lead.outreachStatus !== 'replied' && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 px-2 text-xs bg-green-500/10 hover:bg-green-500/20 text-green-600"
-                                    onClick={() => lead.dbId && handleUpdateLeadOutreachStatus(lead.dbId, 'replied')}
-                                    disabled={updatingLeadId === lead.dbId}
-                                  >
-                                    {updatingLeadId === lead.dbId ? <Loader2 className="w-3 h-3 animate-spin" /> : <Reply className="w-3 h-3 mr-1" />}
-                                    Replied
-                                  </Button>
-                                )}
-                                {lead.outreachStatus !== 'converted' && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 px-2 text-xs bg-purple-500/10 hover:bg-purple-500/20 text-purple-600"
-                                    onClick={() => lead.dbId && handleUpdateLeadOutreachStatus(lead.dbId, 'converted')}
-                                    disabled={updatingLeadId === lead.dbId}
-                                  >
-                                    {updatingLeadId === lead.dbId ? <Loader2 className="w-3 h-3 animate-spin" /> : <Star className="w-3 h-3 mr-1" />}
-                                    Converted
-                                  </Button>
-                                )}
-                                {lead.outreachStatus !== 'bounced' && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 px-2 text-xs bg-red-500/10 hover:bg-red-500/20 text-red-600"
-                                    onClick={() => lead.dbId && handleUpdateLeadOutreachStatus(lead.dbId, 'bounced')}
-                                    disabled={updatingLeadId === lead.dbId}
-                                  >
-                                    {updatingLeadId === lead.dbId ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3 mr-1" />}
-                                    Bounced
-                                  </Button>
-                                )}
-                                {lead.outreachStatus === 'bounced' && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 px-2 text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-600"
-                                    onClick={() => handleOpenResendDialog(lead)}
-                                  >
-                                    <RotateCcw className="w-3 h-3 mr-1" />
-                                    Resend
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </ScrollArea>
-              </>
-            )}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSavedLeadPickerOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleConfirmLeadSelection}
-              disabled={selectedSavedLeadIds.size === 0}
-            >
-              <Users className="w-4 h-4 mr-2" />
-              Add {selectedSavedLeadIds.size} Leads
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Resend Email Dialog */}
-      <Dialog open={resendDialogOpen} onOpenChange={setResendDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <RotateCcw className="w-5 h-5 text-amber-500" />
-              Resend to Bounced Lead
-            </DialogTitle>
-            <DialogDescription>
-              Update the email address and make this lead available for resending
-            </DialogDescription>
-          </DialogHeader>
-
-          {resendLead && (
-            <div className="space-y-4">
-              <div className="p-3 bg-muted/50 rounded-lg">
-                <div className="flex items-center gap-2 mb-2">
-                  <Building2 className="w-4 h-4 text-muted-foreground" />
-                  <span className="font-medium">{resendLead.business_name}</span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Original email bounced: <span className="line-through">{resendLead.email}</span>
-                </p>
+  // ============================================
+  // STEP: START - Welcome screen
+  // ============================================
+  if (currentStep === 'start') {
+    return (
+      <>
+        {dialogs}
+        <div className="max-w-2xl mx-auto space-y-6">
+          {/* Welcome Card */}
+          <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+            <CardContent className="pt-8 pb-8 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+                <Mail className="w-8 h-8 text-primary" />
               </div>
+              <h2 className="text-2xl font-bold mb-2">Send Emails to Your Leads</h2>
+              <p className="text-muted-foreground max-w-md mx-auto">
+                Ready to reach out? Let's do it step by step — super easy!
+              </p>
+            </CardContent>
+          </Card>
 
-              <div className="space-y-2">
-                <Label htmlFor="new-email">New Email Address</Label>
-                <Input
-                  id="new-email"
-                  type="email"
-                  value={newEmailAddress}
-                  onChange={(e) => setNewEmailAddress(e.target.value)}
-                  placeholder="Enter new email address"
-                />
-              </div>
-
-              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5" />
-                  <p className="text-sm text-muted-foreground">
-                    This will reset the lead status and make it available in the "Available" tab for your next campaign.
-                  </p>
-                </div>
-              </div>
+          {/* Quick Stats */}
+          {stats && stats.total_sent > 0 && (
+            <div className="grid grid-cols-3 gap-4">
+              <Card className="border-border/50">
+                <CardContent className="pt-4 text-center">
+                  <p className="text-2xl font-bold text-primary">{stats.total_sent}</p>
+                  <p className="text-xs text-muted-foreground">Emails Sent</p>
+                </CardContent>
+              </Card>
+              <Card className="border-border/50">
+                <CardContent className="pt-4 text-center">
+                  <p className="text-2xl font-bold text-green-600">{stats.open_rate}%</p>
+                  <p className="text-xs text-muted-foreground">Opened</p>
+                </CardContent>
+              </Card>
+              <Card className="border-border/50">
+                <CardContent className="pt-4 text-center">
+                  <p className="text-2xl font-bold text-purple-600">{stats.reply_rate}%</p>
+                  <p className="text-xs text-muted-foreground">Replied</p>
+                </CardContent>
+              </Card>
             </div>
           )}
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setResendDialogOpen(false)}>
-              Cancel
-            </Button>
+          {/* Main Actions */}
+          <div className="space-y-3">
             <Button
-              onClick={handleResendWithNewEmail}
-              disabled={!newEmailAddress || updatingLeadId === resendLead?.dbId}
+              size="lg"
+              className="w-full h-16 text-lg gap-3"
+              onClick={() => {
+                loadSavedLeads();
+                setCurrentStep('select-leads');
+              }}
             >
-              {updatingLeadId === resendLead?.dbId ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <RotateCcw className="w-4 h-4 mr-2" />
-              )}
-              Update & Make Available
+              <Zap className="w-5 h-5" />
+              Start Sending Emails
+              <ArrowRight className="w-5 h-5 ml-auto" />
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant="outline"
+                className="h-14 gap-2"
+                onClick={() => {
+                  setEditingTemplate({ name: '', subject: '', body_html: '', is_default: false });
+                  setTemplateDialogOpen(true);
+                }}
+              >
+                <Plus className="w-4 h-4" />
+                Create Template
+              </Button>
+              <Button
+                variant="outline"
+                className="h-14 gap-2"
+                onClick={() => {
+                  loadSavedLeads();
+                  setCurrentStep('select-leads');
+                }}
+              >
+                <FileText className="w-4 h-4" />
+                View Templates ({templates.length})
+              </Button>
+            </div>
+          </div>
+
+          {/* Scheduled emails reminder */}
+          {scheduledEmails.length > 0 && (
+            <Card className="border-amber-500/30 bg-amber-500/5">
+              <CardContent className="py-4">
+                <div className="flex items-center gap-3">
+                  <Clock className="w-5 h-5 text-amber-500" />
+                  <div className="flex-1">
+                    <p className="font-medium">You have {scheduledEmails.length} scheduled email{scheduledEmails.length > 1 ? 's' : ''}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Next send: {new Date(scheduledEmails[0].scheduled_for).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </>
+    );
+  }
+
+  // ============================================
+  // STEP: SELECT LEADS
+  // ============================================
+  if (currentStep === 'select-leads') {
+    return (
+      <>
+        {dialogs}
+        <div className="max-w-2xl mx-auto space-y-6">
+          {/* Progress indicator */}
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <span className="flex items-center gap-1 text-primary font-medium">
+              <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs">1</span>
+              Pick Leads
+            </span>
+            <ChevronRight className="w-4 h-4" />
+            <span className="flex items-center gap-1">
+              <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs">2</span>
+              Template
+            </span>
+            <ChevronRight className="w-4 h-4" />
+            <span className="flex items-center gap-1">
+              <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs">3</span>
+              Send
+            </span>
+          </div>
+
+          <Card className="border-2 border-primary/20">
+            <CardHeader className="text-center pb-4">
+              <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center">
+                <Users className="w-6 h-6 text-primary" />
+              </div>
+              <CardTitle>Who do you want to email?</CardTitle>
+              <CardDescription>Select the leads you'd like to reach out to</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Selection actions */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="select-all"
+                    checked={selectedSavedLeadIds.size === availableLeads.length && availableLeads.length > 0}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setSelectedSavedLeadIds(new Set(availableLeads.map(l => l.id)));
+                      } else {
+                        setSelectedSavedLeadIds(new Set());
+                      }
+                    }}
+                  />
+                  <label htmlFor="select-all" className="text-sm cursor-pointer">
+                    Select All ({availableLeads.length} available)
+                  </label>
+                </div>
+                <Button variant="ghost" size="sm" onClick={loadSavedLeads} disabled={isLoadingSavedLeads}>
+                  <RefreshCw className={`w-4 h-4 mr-1 ${isLoadingSavedLeads ? 'animate-spin' : ''}`} />
+                  Refresh
+                </Button>
+              </div>
+
+              {/* Selected count */}
+              {selectedSavedLeadIds.size > 0 && (
+                <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-center">
+                  <CheckCircle className="w-5 h-5 text-green-500 mx-auto mb-1" />
+                  <p className="font-medium text-green-700 dark:text-green-400">
+                    {selectedSavedLeadIds.size} lead{selectedSavedLeadIds.size > 1 ? 's' : ''} selected!
+                  </p>
+                </div>
+              )}
+
+              {/* Leads list */}
+              <ScrollArea className="h-[300px] pr-4 border rounded-lg">
+                {isLoadingSavedLeads ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  </div>
+                ) : availableLeads.length === 0 ? (
+                  <div className="text-center py-12 px-4">
+                    <Database className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="font-medium">No leads available</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Search for leads and verify them first
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-2 space-y-2">
+                    {availableLeads.map((lead, index) => (
+                      <div
+                        key={lead.id}
+                        className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                          selectedSavedLeadIds.has(lead.id)
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border/50 hover:border-border'
+                        }`}
+                        onClick={() => handleToggleSavedLead(lead.id)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Checkbox
+                            checked={selectedSavedLeadIds.has(lead.id)}
+                            className="pointer-events-none"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground">#{index + 1}</span>
+                              <span className="font-medium truncate">{lead.business_name}</span>
+                              {lead.leadScore >= 80 && (
+                                <Badge className="bg-emerald-500/10 text-emerald-600 text-xs">
+                                  <Star className="w-3 h-3 mr-1" />
+                                  Hot
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground truncate">
+                              {lead.email}
+                            </p>
+                          </div>
+                          <CheckCircle className={`w-5 h-5 transition-opacity ${
+                            selectedSavedLeadIds.has(lead.id) ? 'text-primary opacity-100' : 'opacity-0'
+                          }`} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+
+              {/* Navigation */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentStep('start')}
+                  className="gap-2"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back
+                </Button>
+                <Button
+                  className="flex-1 gap-2"
+                  onClick={handleConfirmLeadSelection}
+                  disabled={selectedSavedLeadIds.size === 0}
+                >
+                  Continue with {selectedSavedLeadIds.size} Lead{selectedSavedLeadIds.size !== 1 ? 's' : ''}
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </>
+    );
+  }
+
+  // ============================================
+  // STEP: CHOOSE TEMPLATE
+  // ============================================
+  if (currentStep === 'choose-template') {
+    return (
+      <>
+        {dialogs}
+        <div className="max-w-2xl mx-auto space-y-6">
+        {/* Progress indicator */}
+        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+          <span className="flex items-center gap-1 text-green-600">
+            <CheckCheck className="w-5 h-5" />
+            {allSelectedLeads.length} Leads
+          </span>
+          <ChevronRight className="w-4 h-4" />
+          <span className="flex items-center gap-1 text-primary font-medium">
+            <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs">2</span>
+            Template
+          </span>
+          <ChevronRight className="w-4 h-4" />
+          <span className="flex items-center gap-1">
+            <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs">3</span>
+            Send
+          </span>
+        </div>
+
+        <Card className="border-2 border-primary/20">
+          <CardHeader className="text-center pb-4">
+            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center">
+              <FileText className="w-6 h-6 text-primary" />
+            </div>
+            <CardTitle>Pick an email template</CardTitle>
+            <CardDescription>What message would you like to send?</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {templates.length === 0 ? (
+              <div className="text-center py-8">
+                <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <p className="font-medium mb-2">No templates yet!</p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Create your first email template to get started
+                </p>
+                <Button
+                  onClick={() => {
+                    setEditingTemplate({ name: '', subject: '', body_html: '', is_default: false });
+                    setTemplateDialogOpen(true);
+                  }}
+                  className="gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Template
+                </Button>
+              </div>
+            ) : (
+              <>
+                {/* Template selection */}
+                <div className="space-y-3">
+                  {templates.map(template => (
+                    <div
+                      key={template.id}
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        selectedTemplateId === template.id.toString()
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border/50 hover:border-border'
+                      }`}
+                      onClick={() => setSelectedTemplateId(template.id.toString())}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-medium">{template.name}</h4>
+                            {template.is_default && (
+                              <Badge variant="secondary" className="text-xs">Default</Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
+                            Subject: {template.subject}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePreview(template);
+                            }}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          {selectedTemplateId === template.id.toString() && (
+                            <CheckCircle className="w-5 h-5 text-primary" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Create new template button */}
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => {
+                    setEditingTemplate({ name: '', subject: '', body_html: '', is_default: false });
+                    setTemplateDialogOpen(true);
+                  }}
+                >
+                  <Plus className="w-4 h-4" />
+                  Create New Template
+                </Button>
+              </>
+            )}
+
+            {/* Navigation */}
+            <div className="flex gap-3 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setCurrentStep('select-leads')}
+                className="gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </Button>
+              <Button
+                className="flex-1 gap-2"
+                onClick={() => setCurrentStep('schedule')}
+                disabled={!selectedTemplateId}
+              >
+                Continue
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        </div>
+      </>
+    );
+  }
+
+  // ============================================
+  // STEP: SCHEDULE
+  // ============================================
+  if (currentStep === 'schedule') {
+    return (
+      <>
+        {dialogs}
+        <div className="max-w-2xl mx-auto space-y-6">
+        {/* Progress indicator */}
+        <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+          <span className="flex items-center gap-1 text-green-600">
+            <CheckCheck className="w-5 h-5" />
+            {allSelectedLeads.length} Leads
+          </span>
+          <ChevronRight className="w-4 h-4" />
+          <span className="flex items-center gap-1 text-green-600">
+            <CheckCheck className="w-5 h-5" />
+            Template
+          </span>
+          <ChevronRight className="w-4 h-4" />
+          <span className="flex items-center gap-1 text-primary font-medium">
+            <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs">3</span>
+            Send
+          </span>
+        </div>
+
+        <Card className="border-2 border-primary/20">
+          <CardHeader className="text-center pb-4">
+            <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center">
+              <Send className="w-6 h-6 text-primary" />
+            </div>
+            <CardTitle>When should we send?</CardTitle>
+            <CardDescription>Choose the best time to reach your leads</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Schedule options */}
+            <div className="grid gap-3">
+              <div
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                  scheduleMode === 'now' ? 'border-primary bg-primary/5' : 'border-border/50 hover:border-border'
+                }`}
+                onClick={() => setScheduleMode('now')}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
+                    <Zap className="w-5 h-5 text-green-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium">Send Now</p>
+                    <p className="text-sm text-muted-foreground">Emails go out immediately</p>
+                  </div>
+                  {scheduleMode === 'now' && <CheckCircle className="w-5 h-5 text-primary" />}
+                </div>
+              </div>
+
+              <div
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                  scheduleMode === 'optimal' ? 'border-primary bg-primary/5' : 'border-border/50 hover:border-border'
+                }`}
+                onClick={() => setScheduleMode('optimal')}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+                    <Timer className="w-5 h-5 text-blue-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium">Best Time (Recommended)</p>
+                    <p className="text-sm text-muted-foreground">
+                      {getNextOptimalTime()}
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">Tue-Thu at 10AM or 2PM = highest open rates!</p>
+                  </div>
+                  {scheduleMode === 'optimal' && <CheckCircle className="w-5 h-5 text-primary" />}
+                </div>
+              </div>
+
+              <div
+                className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                  scheduleMode === 'custom' ? 'border-primary bg-primary/5' : 'border-border/50 hover:border-border'
+                }`}
+                onClick={() => setScheduleMode('custom')}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center">
+                    <Calendar className="w-5 h-5 text-purple-500" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium">Pick a Time</p>
+                    <p className="text-sm text-muted-foreground">Choose your own date & time</p>
+                  </div>
+                  {scheduleMode === 'custom' && <CheckCircle className="w-5 h-5 text-primary" />}
+                </div>
+              </div>
+            </div>
+
+            {/* Custom date/time picker */}
+            {scheduleMode === 'custom' && (
+              <div className="grid grid-cols-2 gap-3 p-4 bg-muted/50 rounded-lg">
+                <div className="space-y-2">
+                  <Label htmlFor="schedule-date">Date</Label>
+                  <Input
+                    id="schedule-date"
+                    type="date"
+                    value={scheduledDate}
+                    onChange={(e) => setScheduledDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="schedule-time">Time</Label>
+                  <Input
+                    id="schedule-time"
+                    type="time"
+                    value={scheduledTime}
+                    onChange={(e) => setScheduledTime(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Summary */}
+            <div className="p-4 bg-muted/50 rounded-lg space-y-2">
+              <p className="text-sm font-medium">Summary</p>
+              <div className="text-sm text-muted-foreground space-y-1">
+                <p>• <strong>{leadsWithEmail.length}</strong> leads will receive emails</p>
+                <p>• Using template: <strong>{selectedTemplate?.name}</strong></p>
+                <p>• Sending: <strong>{
+                  scheduleMode === 'now' 
+                    ? 'Immediately' 
+                    : scheduleMode === 'optimal'
+                      ? getNextOptimalTime()
+                      : scheduledDate 
+                        ? new Date(`${scheduledDate}T${scheduledTime}`).toLocaleString()
+                        : 'Select a date'
+                }</strong></p>
+              </div>
+            </div>
+
+            {/* Navigation */}
+            <div className="flex gap-3 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setCurrentStep('choose-template')}
+                className="gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </Button>
+              <Button
+                className="flex-1 gap-2"
+                onClick={handleSendEmails}
+                disabled={isSending || (scheduleMode === 'custom' && !scheduledDate)}
+              >
+                {isSending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    {scheduleMode === 'now' ? 'Sending...' : 'Scheduling...'}
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    {scheduleMode === 'now' ? 'Send Now' : 'Schedule Emails'}
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        </div>
+      </>
+    );
+  }
+
+  // ============================================
+  // STEP: SUCCESS
+  // ============================================
+  if (currentStep === 'success') {
+    return (
+      <>
+        {dialogs}
+        <div className="max-w-2xl mx-auto">
+        <Card className="border-2 border-green-500/30 bg-gradient-to-br from-green-500/5 to-transparent">
+          <CardContent className="pt-12 pb-10 text-center">
+            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-green-500/10 flex items-center justify-center animate-pulse">
+              <PartyPopper className="w-10 h-10 text-green-500" />
+            </div>
+            
+            <h2 className="text-2xl font-bold mb-2 text-green-700 dark:text-green-400">
+              {lastSendResult?.scheduled ? 'Emails Scheduled!' : 'Emails Sent!'}
+            </h2>
+            
+            <p className="text-muted-foreground mb-6">
+              {lastSendResult?.scheduled 
+                ? `${lastSendResult.sent} emails scheduled for ${lastSendResult.scheduled}`
+                : `Successfully sent ${lastSendResult?.sent || 0} emails`
+              }
+            </p>
+
+            {lastSendResult?.failed && lastSendResult.failed > 0 && (
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg mb-6 inline-block">
+                <p className="text-sm text-amber-700 dark:text-amber-400">
+                  <AlertCircle className="w-4 h-4 inline mr-1" />
+                  {lastSendResult.failed} email{lastSendResult.failed > 1 ? 's' : ''} couldn't be sent
+                </p>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button
+                size="lg"
+                onClick={handleStartOver}
+                className="gap-2"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Send More Emails
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={() => setCurrentStep('start')}
+                className="gap-2"
+              >
+                Back to Dashboard
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        </div>
+      </>
+    );
+  }
+
+  // Fallback - should never reach here
+  return <>{dialogs}</>;
 }
