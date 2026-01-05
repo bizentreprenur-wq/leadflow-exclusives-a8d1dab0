@@ -27,7 +27,7 @@ import { toast } from 'sonner';
 import {
   Mail, Send, FileText, BarChart3, Loader2, Plus, Trash2,
   Edit, Eye, Users, CheckCircle, AlertCircle, Clock, MousePointer,
-  Reply, XCircle, Sparkles, Database, RefreshCw, Star, Building2, RotateCcw
+  Reply, XCircle, Sparkles, Database, RefreshCw, Star, Building2, RotateCcw, Calendar, Timer
 } from 'lucide-react';
 import {
   getTemplates,
@@ -78,6 +78,11 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   const [resendDialogOpen, setResendDialogOpen] = useState(false);
   const [resendLead, setResendLead] = useState<SavedLead | null>(null);
   const [newEmailAddress, setNewEmailAddress] = useState('');
+  
+  // Scheduling state
+  const [scheduleMode, setScheduleMode] = useState<'now' | 'optimal' | 'custom'>('now');
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('09:00');
 
   // Merge selected leads from props and picker
   const allSelectedLeads = [...selectedLeads, ...leadsFromPicker];
@@ -310,16 +315,58 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
       return;
     }
 
+    // Validate custom schedule
+    if (scheduleMode === 'custom' && !scheduledDate) {
+      toast.error('Please select a date for scheduled sending');
+      return;
+    }
+
+    // Calculate scheduled time
+    let scheduledFor: string | undefined;
+    if (scheduleMode === 'optimal') {
+      // Calculate next optimal time
+      const now = new Date();
+      const optimalHours = [10, 14];
+      const optimalDays = [2, 3, 4];
+      
+      for (let i = 0; i < 7; i++) {
+        const checkDate = new Date(now);
+        checkDate.setDate(now.getDate() + i);
+        const dayOfWeek = checkDate.getDay();
+        
+        if (optimalDays.includes(dayOfWeek)) {
+          for (const hour of optimalHours) {
+            const slotTime = new Date(checkDate);
+            slotTime.setHours(hour, 0, 0, 0);
+            
+            if (slotTime > now) {
+              scheduledFor = slotTime.toISOString();
+              break;
+            }
+          }
+          if (scheduledFor) break;
+        }
+      }
+    } else if (scheduleMode === 'custom' && scheduledDate) {
+      scheduledFor = new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
+    }
+
     setIsSending(true);
     try {
       const result = await sendBulkEmails({
         leads: leadsWithEmail,
         template_id: parseInt(selectedTemplateId),
+        scheduled_for: scheduledFor,
       });
       
       if (result.success && result.results) {
         const { sent, failed, skipped } = result.results;
-        toast.success(`Sent: ${sent}, Failed: ${failed}, Skipped: ${skipped}`);
+        
+        if (scheduleMode === 'now') {
+          toast.success(`Sent: ${sent}, Failed: ${failed}, Skipped: ${skipped}`);
+        } else {
+          toast.success(`Scheduled ${sent} emails for ${new Date(scheduledFor!).toLocaleString()}`);
+        }
         
         // Update outreach status for successfully sent leads from picker
         const leadsFromPickerWithEmail = leadsFromPicker.filter(l => l.email);
@@ -392,6 +439,41 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
       pending: 'bg-muted text-muted-foreground',
     };
     return variants[status] || variants.pending;
+  };
+
+  // Calculate next optimal send time (Tue-Thu at 10am or 2pm)
+  const getNextOptimalTime = (): string => {
+    const now = new Date();
+    const optimalHours = [10, 14]; // 10am and 2pm
+    const optimalDays = [2, 3, 4]; // Tue, Wed, Thu
+    
+    let nextDate = new Date(now);
+    
+    // Try to find next optimal slot within the next 7 days
+    for (let i = 0; i < 7; i++) {
+      const checkDate = new Date(now);
+      checkDate.setDate(now.getDate() + i);
+      const dayOfWeek = checkDate.getDay();
+      
+      if (optimalDays.includes(dayOfWeek)) {
+        for (const hour of optimalHours) {
+          const slotTime = new Date(checkDate);
+          slotTime.setHours(hour, 0, 0, 0);
+          
+          if (slotTime > now) {
+            nextDate = slotTime;
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            return `${dayNames[nextDate.getDay()]}, ${nextDate.toLocaleDateString()} at ${nextDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+          }
+        }
+      }
+    }
+    
+    // Fallback to next Tuesday at 10am
+    const daysUntilTuesday = (2 - now.getDay() + 7) % 7 || 7;
+    nextDate.setDate(now.getDate() + daysUntilTuesday);
+    nextDate.setHours(10, 0, 0, 0);
+    return `Tue, ${nextDate.toLocaleDateString()} at 10:00 AM`;
   };
 
   if (isLoading) {
@@ -641,23 +723,125 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
                 </div>
               </div>
 
+              {/* Email Scheduling */}
+              <div className="space-y-3">
+                <Label className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4" />
+                  Send Schedule
+                </Label>
+                
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    type="button"
+                    variant={scheduleMode === 'now' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setScheduleMode('now')}
+                    className="w-full"
+                  >
+                    <Send className="w-3 h-3 mr-1" />
+                    Send Now
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={scheduleMode === 'optimal' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setScheduleMode('optimal')}
+                    className="w-full"
+                  >
+                    <Timer className="w-3 h-3 mr-1" />
+                    Optimal Time
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={scheduleMode === 'custom' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setScheduleMode('custom')}
+                    className="w-full"
+                  >
+                    <Calendar className="w-3 h-3 mr-1" />
+                    Custom
+                  </Button>
+                </div>
+
+                {scheduleMode === 'optimal' && (
+                  <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <Timer className="w-4 h-4 text-primary mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium">Optimal Send Times</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Emails will be scheduled for the next optimal window:
+                        </p>
+                        <ul className="text-xs text-muted-foreground mt-2 space-y-1">
+                          <li>• <strong>Tuesday-Thursday</strong> at <strong>10:00 AM</strong> (highest open rates)</li>
+                          <li>• <strong>Tuesday-Thursday</strong> at <strong>2:00 PM</strong> (post-lunch engagement)</li>
+                        </ul>
+                        <p className="text-xs text-primary mt-2 font-medium">
+                          Next optimal: {getNextOptimalTime()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {scheduleMode === 'custom' && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="schedule-date" className="text-xs">Date</Label>
+                      <Input
+                        id="schedule-date"
+                        type="date"
+                        value={scheduledDate}
+                        onChange={(e) => setScheduledDate(e.target.value)}
+                        min={new Date().toISOString().split('T')[0]}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="schedule-time" className="text-xs">Time</Label>
+                      <Input
+                        id="schedule-time"
+                        type="time"
+                        value={scheduledTime}
+                        onChange={(e) => setScheduledTime(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <Button
                 onClick={handleSendEmails}
-                disabled={isSending || !selectedTemplateId || allSelectedLeads.length === 0}
+                disabled={isSending || !selectedTemplateId || allSelectedLeads.length === 0 || (scheduleMode === 'custom' && !scheduledDate)}
                 className="w-full"
               >
                 {isSending ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Sending...
+                    {scheduleMode === 'now' ? 'Sending...' : 'Scheduling...'}
                   </>
                 ) : (
                   <>
-                    <Send className="w-4 h-4 mr-2" />
-                    Send to {allSelectedLeads.filter(l => l.email).length} Leads
+                    {scheduleMode === 'now' ? (
+                      <Send className="w-4 h-4 mr-2" />
+                    ) : (
+                      <Calendar className="w-4 h-4 mr-2" />
+                    )}
+                    {scheduleMode === 'now' 
+                      ? `Send to ${allSelectedLeads.filter(l => l.email).length} Leads` 
+                      : `Schedule for ${allSelectedLeads.filter(l => l.email).length} Leads`}
                   </>
                 )}
               </Button>
+
+              {scheduleMode !== 'now' && (
+                <p className="text-xs text-center text-muted-foreground">
+                  {scheduleMode === 'optimal' 
+                    ? `Scheduled for: ${getNextOptimalTime()}`
+                    : scheduledDate && scheduledTime 
+                      ? `Scheduled for: ${new Date(scheduledDate + 'T' + scheduledTime).toLocaleString()}`
+                      : 'Select a date and time'}
+                </p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
