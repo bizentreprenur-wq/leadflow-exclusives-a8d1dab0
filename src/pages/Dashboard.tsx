@@ -5,13 +5,15 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import {
-  Search, Building2, Globe, Mail, Target, TrendingUp,
-  Zap, BarChart3, ArrowRight, Sparkles, Menu
+  Search, Globe, Mail, Target, TrendingUp,
+  Zap, BarChart3, ArrowRight, Sparkles, Menu,
+  CheckCircle2, Send,
 } from 'lucide-react';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import DashboardSidebar from '@/components/DashboardSidebar';
-import GMBSearchModule from '@/components/GMBSearchModule';
+import UnifiedSearchModule from '@/components/UnifiedSearchModule';
 import PlatformSearchModule from '@/components/PlatformSearchModule';
+import LeadVerificationModule, { VerifiedLead } from '@/components/LeadVerificationModule';
 import EmailOutreachModule from '@/components/EmailOutreachModule';
 import { LeadForEmail } from '@/lib/api/email';
 import bamMascot from '@/assets/bamlead-mascot.png';
@@ -20,7 +22,7 @@ export default function Dashboard() {
   const { user, logout, isLoading, refreshUser } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState('gmb');
+  const [activeTab, setActiveTab] = useState('search');
   const [emailLeads, setEmailLeads] = useState<LeadForEmail[]>([]);
 
   // Check for payment success
@@ -36,6 +38,19 @@ export default function Dashboard() {
   const handleLogout = async () => {
     await logout();
     navigate('/');
+  };
+
+  const handleSendToEmail = (leads: VerifiedLead[]) => {
+    // Convert VerifiedLead to LeadForEmail format
+    const convertedLeads: LeadForEmail[] = leads.map((l) => ({
+      email: l.email,
+      business_name: l.business_name,
+      contact_name: l.contact_name,
+      website: l.website,
+      phone: l.phone,
+    }));
+    setEmailLeads(convertedLeads);
+    setActiveTab('email');
   };
 
   if (isLoading) {
@@ -79,14 +94,14 @@ export default function Dashboard() {
 
   const getActiveToolConfig = () => {
     switch (activeTab) {
-      case 'gmb':
+      case 'search':
         return {
-          title: 'Google My Business Search',
-          description: 'Find local businesses and analyze their online presence',
-          icon: Building2,
+          title: 'Lead Search',
+          description: 'Search across Google My Business, Google, and Bing to find potential leads',
+          icon: Search,
           iconColor: 'text-primary',
           iconBg: 'bg-primary/10',
-          component: <GMBSearchModule />,
+          component: <UnifiedSearchModule />,
         };
       case 'platform':
         return {
@@ -97,11 +112,20 @@ export default function Dashboard() {
           iconBg: 'bg-violet-500/10',
           component: <PlatformSearchModule />,
         };
+      case 'verify':
+        return {
+          title: 'AI Lead Verification',
+          description: 'Validate emails, score leads, and generate personalized AI-drafted messages',
+          icon: CheckCircle2,
+          iconColor: 'text-amber-500',
+          iconBg: 'bg-amber-500/10',
+          component: <LeadVerificationModule onSendToEmail={handleSendToEmail} />,
+        };
       case 'email':
         return {
           title: 'Email Outreach',
-          description: 'Send personalized emails to your leads with tracking and analytics',
-          icon: Mail,
+          description: 'Send personalized emails to your verified leads with tracking and analytics',
+          icon: Send,
           iconColor: 'text-emerald-500',
           iconBg: 'bg-emerald-500/10',
           component: (
@@ -164,7 +188,7 @@ export default function Dashboard() {
                     Lead Generation Dashboard
                   </h1>
                   <p className="text-muted-foreground max-w-2xl">
-                    Use the tools in the sidebar to search, analyze, and reach out to potential clients.
+                    Search → Verify with AI → Send personalized emails. Use the sidebar to navigate between tools.
                   </p>
                 </div>
               </div>
@@ -232,9 +256,9 @@ export default function Dashboard() {
                         <BarChart3 className="w-6 h-6 text-primary" />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-foreground">Pro Tip</h3>
+                        <h3 className="font-semibold text-foreground">Workflow Tip</h3>
                         <p className="text-sm text-muted-foreground">
-                          Start with GMB Search to find local businesses, then use Platform Search to identify outdated websites that need your services.
+                          Start with Lead Search to find businesses, then use Verify Leads to validate emails and score them with AI. Finally, send personalized emails with AI-drafted messages.
                         </p>
                       </div>
                     </div>

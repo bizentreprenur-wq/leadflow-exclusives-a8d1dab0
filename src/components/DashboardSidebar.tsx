@@ -17,11 +17,10 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-  Building2,
+  Search,
   Globe,
   Mail,
   LayoutDashboard,
-  Settings,
   HelpCircle,
   Crown,
   LogOut,
@@ -30,7 +29,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  Sun,
+  Moon,
+  CheckCircle2,
+  Send,
 } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import bamMascot from '@/assets/bamlead-mascot.png';
 
 interface DashboardSidebarProps {
@@ -41,10 +45,10 @@ interface DashboardSidebarProps {
 
 const searchTools = [
   {
-    id: 'gmb',
-    title: 'GMB Search',
-    icon: Building2,
-    description: 'Google My Business',
+    id: 'search',
+    title: 'Lead Search',
+    icon: Search,
+    description: 'GMB, Google & Bing',
   },
   {
     id: 'platform',
@@ -52,11 +56,20 @@ const searchTools = [
     icon: Globe,
     description: 'Website platforms',
   },
+];
+
+const outreachTools = [
+  {
+    id: 'verify',
+    title: 'Verify Leads',
+    icon: CheckCircle2,
+    description: 'AI verification',
+  },
   {
     id: 'email',
-    title: 'Email Outreach',
-    icon: Mail,
-    description: 'Send campaigns',
+    title: 'Send Emails',
+    icon: Send,
+    description: 'Email campaigns',
   },
 ];
 
@@ -65,6 +78,37 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
   const location = useLocation();
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === 'collapsed';
+  const [isDark, setIsDark] = useState(false);
+
+  // Initialize theme from localStorage or system preference
+  useEffect(() => {
+    const stored = localStorage.getItem('theme');
+    if (stored === 'dark') {
+      setIsDark(true);
+      document.documentElement.classList.add('dark');
+    } else if (stored === 'light') {
+      setIsDark(false);
+      document.documentElement.classList.remove('dark');
+    } else {
+      // Use system preference
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setIsDark(prefersDark);
+      if (prefersDark) {
+        document.documentElement.classList.add('dark');
+      }
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const newIsDark = !isDark;
+    setIsDark(newIsDark);
+    localStorage.setItem('theme', newIsDark ? 'dark' : 'light');
+    if (newIsDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
 
   const trialDaysRemaining = user?.trial_ends_at
     ? Math.max(0, Math.ceil((new Date(user.trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
@@ -102,9 +146,9 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
-                isActive={location.pathname === '/dashboard'}
+                isActive={location.pathname === '/dashboard' && activeTab === 'search'}
                 tooltip="Dashboard"
-                onClick={() => onTabChange('gmb')}
+                onClick={() => onTabChange('search')}
               >
                 <LayoutDashboard className="w-4 h-4" />
                 <span>Dashboard</span>
@@ -119,11 +163,37 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
         <SidebarGroup>
           <SidebarGroupLabel>
             <Sparkles className="w-3 h-3 mr-2" />
-            Lead Tools
+            Find Leads
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {searchTools.map((tool) => (
+                <SidebarMenuItem key={tool.id}>
+                  <SidebarMenuButton
+                    isActive={activeTab === tool.id}
+                    tooltip={tool.title}
+                    onClick={() => onTabChange(tool.id)}
+                  >
+                    <tool.icon className="w-4 h-4" />
+                    <span>{tool.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        {/* Outreach Tools */}
+        <SidebarGroup>
+          <SidebarGroupLabel>
+            <Mail className="w-3 h-3 mr-2" />
+            Outreach
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {outreachTools.map((tool) => (
                 <SidebarMenuItem key={tool.id}>
                   <SidebarMenuButton
                     isActive={activeTab === tool.id}
@@ -199,6 +269,26 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
             )}
           </div>
         )}
+
+        {/* Theme Toggle */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start gap-2 text-muted-foreground hover:text-foreground mb-2"
+          onClick={toggleTheme}
+        >
+          {isDark ? (
+            <>
+              <Sun className="w-4 h-4" />
+              {!isCollapsed && <span>Light Mode</span>}
+            </>
+          ) : (
+            <>
+              <Moon className="w-4 h-4" />
+              {!isCollapsed && <span>Dark Mode</span>}
+            </>
+          )}
+        </Button>
 
         {/* User Info */}
         <div className="flex items-center gap-3 mb-3">
