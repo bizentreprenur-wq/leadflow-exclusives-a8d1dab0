@@ -200,6 +200,7 @@ export async function sendBulkEmails(params: {
   leads: LeadForEmail[];
   template_id: number;
   campaign_id?: number;
+  scheduled_for?: string;
 }): Promise<{ success: boolean; results?: BulkSendResult; error?: string }> {
   try {
     return await apiRequest(EMAIL_ENDPOINTS.sendBulk, {
