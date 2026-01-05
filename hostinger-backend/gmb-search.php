@@ -73,6 +73,7 @@ try {
 
 /**
  * Search for GMB listings using SerpAPI Google Maps
+ * Fetches multiple pages for more comprehensive results
  */
 function searchGMBListings($service, $location) {
     $apiKey = defined('SERPAPI_KEY') ? SERPAPI_KEY : '';
@@ -83,58 +84,85 @@ function searchGMBListings($service, $location) {
     }
     
     $query = "$service in $location";
-    $url = "https://serpapi.com/search.json?" . http_build_query([
-        'engine' => 'google_maps',
-        'q' => $query,
-        'type' => 'search',
-        'api_key' => $apiKey
-    ]);
+    $allResults = [];
+    $maxPages = 3; // Fetch up to 3 pages (60+ results)
+    $nextPageToken = null;
     
-    $response = curlRequest($url);
-    
-    if ($response['httpCode'] !== 200) {
-        throw new Exception('Failed to fetch search results from SerpAPI');
-    }
-    
-    $data = json_decode($response['response'], true);
-    
-    if (!isset($data['local_results'])) {
-        return [];
-    }
-    
-    $results = [];
-    foreach ($data['local_results'] as $item) {
-        $websiteUrl = $item['website'] ?? '';
-        
-        $business = [
-            'id' => generateId('gmb_'),
-            'name' => $item['title'] ?? 'Unknown Business',
-            'url' => $websiteUrl,
-            'snippet' => $item['description'] ?? ($item['type'] ?? ''),
-            'displayLink' => parse_url($websiteUrl, PHP_URL_HOST) ?? '',
-            'address' => $item['address'] ?? '',
-            'phone' => $item['phone'] ?? '',
-            'rating' => $item['rating'] ?? null,
-            'reviews' => $item['reviews'] ?? null,
-            'placeId' => $item['place_id'] ?? '',
+    for ($page = 0; $page < $maxPages; $page++) {
+        $params = [
+            'engine' => 'google_maps',
+            'q' => $query,
+            'type' => 'search',
+            'api_key' => $apiKey,
+            'll' => '@29.7604267,-95.3698028,11z', // Houston coordinates with zoom
         ];
         
-        // Analyze website if exists
-        if (!empty($websiteUrl)) {
-            $business['websiteAnalysis'] = analyzeWebsite($websiteUrl);
-        } else {
-            $business['websiteAnalysis'] = [
-                'hasWebsite' => false,
-                'platform' => null,
-                'needsUpgrade' => true,
-                'issues' => ['No website found']
-            ];
+        // Add pagination token if available
+        if ($nextPageToken) {
+            $params['start'] = $page * 20;
         }
         
-        $results[] = $business;
+        $url = "https://serpapi.com/search.json?" . http_build_query($params);
+        
+        $response = curlRequest($url);
+        
+        if ($response['httpCode'] !== 200) {
+            // If first page fails, throw error; otherwise just stop pagination
+            if ($page === 0) {
+                throw new Exception('Failed to fetch search results from SerpAPI');
+            }
+            break;
+        }
+        
+        $data = json_decode($response['response'], true);
+        
+        if (!isset($data['local_results']) || empty($data['local_results'])) {
+            break; // No more results
+        }
+        
+        foreach ($data['local_results'] as $item) {
+            $websiteUrl = $item['website'] ?? '';
+            
+            $business = [
+                'id' => generateId('gmb_'),
+                'name' => $item['title'] ?? 'Unknown Business',
+                'url' => $websiteUrl,
+                'snippet' => $item['description'] ?? ($item['type'] ?? ''),
+                'displayLink' => parse_url($websiteUrl, PHP_URL_HOST) ?? '',
+                'address' => $item['address'] ?? '',
+                'phone' => $item['phone'] ?? '',
+                'rating' => $item['rating'] ?? null,
+                'reviews' => $item['reviews'] ?? null,
+                'placeId' => $item['place_id'] ?? '',
+            ];
+            
+            // Analyze website if exists
+            if (!empty($websiteUrl)) {
+                $business['websiteAnalysis'] = analyzeWebsite($websiteUrl);
+            } else {
+                $business['websiteAnalysis'] = [
+                    'hasWebsite' => false,
+                    'platform' => null,
+                    'needsUpgrade' => true,
+                    'issues' => ['No website found']
+                ];
+            }
+            
+            $allResults[] = $business;
+        }
+        
+        // Check if there are more pages
+        if (!isset($data['serpapi_pagination']['next'])) {
+            break;
+        }
+        
+        $nextPageToken = true;
+        
+        // Small delay to avoid rate limiting
+        usleep(200000); // 200ms delay between requests
     }
     
-    return $results;
+    return $allResults;
 }
 
 /**
