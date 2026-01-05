@@ -12,16 +12,16 @@ const HeroSection = () => {
           <div className="space-y-8">
             {/* Headline with gradient text */}
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold leading-[1.1] tracking-tight">
-              <span className="text-primary">Find businesses</span>
+              <span className="text-primary">Find your next</span>
               <br />
-              <span className="text-primary">that need a website</span>
+              <span className="text-primary">high-value leads</span>
               <br />
               <span className="text-foreground">instantly — every day</span>
             </h1>
 
             {/* Subheadline */}
             <p className="text-lg md:text-xl text-muted-foreground max-w-lg leading-relaxed">
-              Search Google My Business and live search results to uncover businesses with outdated or WordPress-based websites — fully automated and ready to prospect.
+              AI-powered lead generation for B2B sales, recruiters, agencies, and SaaS teams. Find decision-makers, verify contacts, and launch outreach — all in one platform.
             </p>
 
             {/* CTA Button */}

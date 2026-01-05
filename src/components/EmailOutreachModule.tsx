@@ -29,7 +29,7 @@ import {
   Edit, Eye, Users, CheckCircle, AlertCircle, Clock, MousePointer,
   Reply, XCircle, Sparkles, Database, RefreshCw, Star, Building2, 
   RotateCcw, Calendar, Timer, ArrowRight, ArrowLeft, PartyPopper,
-  Zap, CheckCheck, ChevronRight, TrendingUp, PieChart
+  Zap, CheckCheck, ChevronRight, TrendingUp, PieChart, MailPlus
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart as RechartsPie, Pie
@@ -113,6 +113,14 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
     l.outreachStatus === 'bounced'
   );
 
+  // Leads eligible for follow-up (sent 3+ days ago, no reply)
+  const followUpEligible = sentLeads.filter(l => {
+    if (l.outreachStatus !== 'sent' || !l.sentAt) return false;
+    const sentDate = new Date(l.sentAt);
+    const daysSinceSent = Math.floor((Date.now() - sentDate.getTime()) / (1000 * 60 * 60 * 24));
+    return daysSinceSent >= 3;
+  });
+
   // Handle status update for sent leads
   const handleUpdateSentStatus = async (leadId: number, newStatus: SavedLead['outreachStatus']) => {
     const result = await updateLeadStatus(leadId, { outreachStatus: newStatus || 'pending' });
@@ -122,6 +130,25 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
     } else {
       toast.error(result.error || 'Failed to update status');
     }
+  };
+
+  // Handle creating a follow-up campaign
+  const handleCreateFollowUp = () => {
+    // Convert follow-up eligible leads to email format
+    const followUpLeadsForEmail: LeadForEmail[] = followUpEligible.map(l => ({
+      id: l.dbId,
+      email: l.email,
+      business_name: l.business_name,
+      contact_name: l.contact_name,
+      website: l.website,
+      platform: l.platform,
+      issues: l.issues,
+      phone: l.phone,
+    }));
+    
+    setLeadsFromPicker(followUpLeadsForEmail);
+    toast.success(`${followUpEligible.length} leads ready for follow-up!`);
+    setCurrentStep('choose-template');
   };
 
   // Get status badge styling
@@ -674,6 +701,28 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
               <p className="text-muted-foreground text-sm">
                 Track replies, conversions, and campaign success
               </p>
+              
+              {/* Follow-up Alert Banner */}
+              {followUpEligible.length > 0 && (
+                <div className="mt-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <MailPlus className="w-5 h-5 text-amber-600" />
+                    <span className="font-semibold text-amber-700 dark:text-amber-400">
+                      {followUpEligible.length} lead{followUpEligible.length > 1 ? 's' : ''} need{followUpEligible.length === 1 ? 's' : ''} a follow-up!
+                    </span>
+                  </div>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    These leads were contacted 3+ days ago with no reply
+                  </p>
+                  <Button 
+                    onClick={handleCreateFollowUp} 
+                    className="gap-2 bg-amber-600 hover:bg-amber-700"
+                  >
+                    <MailPlus className="w-4 h-4" />
+                    Send Follow-up to All
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -847,24 +896,39 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
                           const statusInfo = getStatusBadge(lead.outreachStatus);
                           const StatusIcon = statusInfo.icon;
                           
+                          // Calculate if this lead is eligible for follow-up
+                          const isFollowUpEligible = lead.outreachStatus === 'sent' && lead.sentAt && 
+                            Math.floor((Date.now() - new Date(lead.sentAt).getTime()) / (1000 * 60 * 60 * 24)) >= 3;
+                          
                           return (
                             <div
                               key={lead.id}
-                              className="p-4 rounded-lg border border-border/50 hover:border-border transition-colors"
+                              className={`p-4 rounded-lg border transition-colors ${
+                                isFollowUpEligible 
+                                  ? 'border-amber-500/50 bg-amber-500/5' 
+                                  : 'border-border/50 hover:border-border'
+                              }`}
                             >
                               <div className="flex items-start justify-between gap-3">
                                 <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
+                                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                                     <span className="font-medium truncate">{lead.business_name}</span>
                                     <Badge variant="outline" className={`text-xs ${statusInfo.className}`}>
                                       <StatusIcon className="w-3 h-3 mr-1" />
                                       {statusInfo.label}
                                     </Badge>
+                                    {isFollowUpEligible && (
+                                      <Badge className="text-xs bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30">
+                                        <Clock className="w-3 h-3 mr-1" />
+                                        Needs Follow-up
+                                      </Badge>
+                                    )}
                                   </div>
                                   <p className="text-sm text-muted-foreground truncate">{lead.email}</p>
                                   {lead.sentAt && (
                                     <p className="text-xs text-muted-foreground mt-1">
                                       Sent: {new Date(lead.sentAt).toLocaleDateString()}
+                                      {isFollowUpEligible && ' • 3+ days ago'}
                                     </p>
                                   )}
                                 </div>
