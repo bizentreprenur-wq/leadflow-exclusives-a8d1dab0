@@ -43,7 +43,7 @@ import {
   EmailStats,
   LeadForEmail,
 } from '@/lib/api/email';
-import { fetchVerifiedLeads, type SavedLead } from '@/lib/api/verifiedLeads';
+import { fetchVerifiedLeads, updateLeadStatus, type SavedLead } from '@/lib/api/verifiedLeads';
 
 interface EmailOutreachModuleProps {
   selectedLeads?: LeadForEmail[];
@@ -112,6 +112,10 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
     setIsLoadingSavedLeads(false);
   };
 
+  // Filter out already-emailed leads
+  const availableLeads = savedLeads.filter(l => l.outreachStatus !== 'sent' && l.outreachStatus !== 'replied' && l.outreachStatus !== 'converted');
+  const emailedLeads = savedLeads.filter(l => l.outreachStatus === 'sent' || l.outreachStatus === 'replied' || l.outreachStatus === 'converted');
+
   const handleOpenLeadPicker = () => {
     loadSavedLeads();
     setSavedLeadPickerOpen(true);
@@ -138,7 +142,8 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   };
 
   const handleConfirmLeadSelection = () => {
-    const selected = savedLeads.filter(l => selectedSavedLeadIds.has(l.id));
+    // Only select from available (not already emailed) leads
+    const selected = availableLeads.filter(l => selectedSavedLeadIds.has(l.id));
     const converted: LeadForEmail[] = selected.map(l => ({
       id: l.dbId,
       email: l.email,
@@ -236,6 +241,18 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
       if (result.success && result.results) {
         const { sent, failed, skipped } = result.results;
         toast.success(`Sent: ${sent}, Failed: ${failed}, Skipped: ${skipped}`);
+        
+        // Update outreach status for successfully sent leads from picker
+        const leadsFromPickerWithEmail = leadsFromPicker.filter(l => l.email);
+        for (const lead of leadsFromPickerWithEmail) {
+          if (lead.id) {
+            await updateLeadStatus(Number(lead.id), {
+              outreachStatus: 'sent',
+              sentAt: 'now'
+            });
+          }
+        }
+        
         handleClearAllLeads();
         loadData();
       } else {
@@ -772,16 +789,30 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
           </DialogHeader>
 
           <div className="space-y-4">
+            {/* Already emailed warning */}
+            {emailedLeads.length > 0 && (
+              <div className="p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-sm flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-500" />
+                <span>{emailedLeads.length} leads already emailed (hidden from selection)</span>
+              </div>
+            )}
+
             {/* Actions bar */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="select-all-saved"
-                  checked={selectedSavedLeadIds.size === savedLeads.length && savedLeads.length > 0}
-                  onCheckedChange={(checked) => handleSelectAllSavedLeads(checked as boolean)}
+                  checked={selectedSavedLeadIds.size === availableLeads.length && availableLeads.length > 0}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setSelectedSavedLeadIds(new Set(availableLeads.map(l => l.id)));
+                    } else {
+                      setSelectedSavedLeadIds(new Set());
+                    }
+                  }}
                 />
                 <label htmlFor="select-all-saved" className="text-sm font-medium cursor-pointer">
-                  Select All ({savedLeads.length})
+                  Select All ({availableLeads.length} available)
                 </label>
               </div>
               <Button
@@ -808,17 +839,19 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 </div>
-              ) : savedLeads.length === 0 ? (
+              ) : availableLeads.length === 0 ? (
                 <div className="text-center py-12">
                   <Database className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">No verified leads saved yet</p>
+                  <p className="text-muted-foreground">
+                    {savedLeads.length === 0 ? 'No verified leads saved yet' : 'All leads have been emailed'}
+                  </p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    Verify leads and save them to see them here
+                    {savedLeads.length === 0 ? 'Verify leads and save them to see them here' : 'Add new leads to continue outreach'}
                   </p>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {savedLeads.map((lead) => (
+                  {availableLeads.map((lead) => (
                     <div
                       key={lead.id}
                       className={`p-3 rounded-lg border cursor-pointer transition-all ${
