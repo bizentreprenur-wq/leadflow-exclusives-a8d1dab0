@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import {
   Search, Globe, Mail, Target, TrendingUp,
   Zap, BarChart3, ArrowRight, Sparkles, Menu,
-  CheckCircle2, Send,
+  CheckCircle2, Send, FileText, Chrome, Download,
 } from 'lucide-react';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import DashboardSidebar from '@/components/DashboardSidebar';
@@ -15,6 +15,7 @@ import UnifiedSearchModule from '@/components/UnifiedSearchModule';
 import PlatformSearchModule from '@/components/PlatformSearchModule';
 import LeadVerificationModule, { VerifiedLead } from '@/components/LeadVerificationModule';
 import EmailOutreachModule from '@/components/EmailOutreachModule';
+import EmailTemplateLibrary from '@/components/EmailTemplateLibrary';
 import { LeadForEmail } from '@/lib/api/email';
 import bamMascot from '@/assets/bamlead-mascot.png';
 
@@ -133,6 +134,39 @@ export default function Dashboard() {
               selectedLeads={emailLeads}
               onClearSelection={() => setEmailLeads([])}
             />
+          ),
+        };
+      case 'templates':
+        return {
+          title: 'Email Templates',
+          description: 'Pre-built email templates for every outreach scenario',
+          icon: FileText,
+          iconColor: 'text-purple-500',
+          iconBg: 'bg-purple-500/10',
+          component: <EmailTemplateLibrary />,
+        };
+      case 'extension':
+        return {
+          title: 'Chrome Extension',
+          description: 'Prospect leads from any website with our browser extension',
+          icon: Chrome,
+          iconColor: 'text-blue-500',
+          iconBg: 'bg-blue-500/10',
+          component: (
+            <div className="text-center py-12">
+              <Chrome className="w-16 h-16 mx-auto mb-4 text-blue-500" />
+              <h3 className="text-xl font-semibold mb-2">BamLead Chrome Extension</h3>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                Extract contact info, analyze websites, and save leads directly from any webpage.
+              </p>
+              <Button className="gap-2" onClick={() => toast.info('Download the extension from the chrome-extension folder in your project')}>
+                <Download className="w-4 h-4" />
+                Download Extension
+              </Button>
+              <p className="text-xs text-muted-foreground mt-4">
+                Load as unpacked extension in Chrome Developer Mode
+              </p>
+            </div>
           ),
         };
       default:

@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import {
   Search,
@@ -17,7 +18,31 @@ import {
   Mail,
   Star,
   CheckCircle2,
+  TrendingUp,
+  Megaphone,
+  Settings,
+  Rocket,
+  Users,
+  Heart,
+  Code,
+  DollarSign,
+  ShoppingBag,
+  Factory,
+  Building,
+  Briefcase,
+  GraduationCap,
+  Castle,
+  Filter,
+  X,
 } from 'lucide-react';
+import {
+  ROLE_FILTERS,
+  INDUSTRY_FILTERS,
+  COMPANY_TYPE_FILTERS,
+  type RoleFilter,
+  type IndustryFilter,
+  type CompanyTypeFilter,
+} from '@/lib/industryFilters';
 
 interface SearchResult {
   id: string;
@@ -27,8 +52,31 @@ interface SearchResult {
   website?: string;
   email?: string;
   rating?: number;
+  industry?: string;
+  companyType?: string;
   source: 'gmb' | 'google' | 'bing';
 }
+
+const getIconComponent = (iconName: string) => {
+  const icons: Record<string, React.ReactNode> = {
+    TrendingUp: <TrendingUp className="w-4 h-4" />,
+    Megaphone: <Megaphone className="w-4 h-4" />,
+    Settings: <Settings className="w-4 h-4" />,
+    Rocket: <Rocket className="w-4 h-4" />,
+    Users: <Users className="w-4 h-4" />,
+    Heart: <Heart className="w-4 h-4" />,
+    Code: <Code className="w-4 h-4" />,
+    DollarSign: <DollarSign className="w-4 h-4" />,
+    ShoppingBag: <ShoppingBag className="w-4 h-4" />,
+    Factory: <Factory className="w-4 h-4" />,
+    Building: <Building className="w-4 h-4" />,
+    Building2: <Building2 className="w-4 h-4" />,
+    Briefcase: <Briefcase className="w-4 h-4" />,
+    GraduationCap: <GraduationCap className="w-4 h-4" />,
+    Castle: <Castle className="w-4 h-4" />,
+  };
+  return icons[iconName] || <Building2 className="w-4 h-4" />;
+};
 
 export default function UnifiedSearchModule() {
   const [activeSource, setActiveSource] = useState<'gmb' | 'google' | 'bing'>('gmb');
@@ -37,6 +85,14 @@ export default function UnifiedSearchModule() {
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selectedResults, setSelectedResults] = useState<string[]>([]);
+  
+  // Filter states
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const [selectedIndustry, setSelectedIndustry] = useState<string | null>(null);
+  const [selectedCompanyType, setSelectedCompanyType] = useState<string | null>(null);
+
+  const activeFiltersCount = [selectedRole, selectedIndustry, selectedCompanyType].filter(Boolean).length;
 
   const handleSearch = async () => {
     if (!query.trim()) {
@@ -49,7 +105,10 @@ export default function UnifiedSearchModule() {
     // Simulate search - in production this would call the actual APIs
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    // Mock results
+    // Get industry context for mock data
+    const industryFilter = INDUSTRY_FILTERS.find(i => i.id === selectedIndustry);
+    
+    // Mock results with industry/company type data
     const mockResults: SearchResult[] = [
       {
         id: '1',
@@ -59,6 +118,8 @@ export default function UnifiedSearchModule() {
         website: 'https://sunriseplumbing.com',
         email: 'contact@sunriseplumbing.com',
         rating: 4.8,
+        industry: industryFilter?.name || 'Professional Services',
+        companyType: selectedCompanyType || 'mid-market',
         source: activeSource,
       },
       {
@@ -69,6 +130,8 @@ export default function UnifiedSearchModule() {
         website: 'https://eliteroofing.net',
         email: 'info@eliteroofing.net',
         rating: 4.5,
+        industry: industryFilter?.name || 'Professional Services',
+        companyType: selectedCompanyType || 'startup',
         source: activeSource,
       },
       {
@@ -79,6 +142,8 @@ export default function UnifiedSearchModule() {
         website: 'https://greengardenlandscape.com',
         email: 'hello@greengardenlandscape.com',
         rating: 4.9,
+        industry: industryFilter?.name || 'Retail & Goods',
+        companyType: selectedCompanyType || 'startup',
         source: activeSource,
       },
       {
@@ -88,6 +153,8 @@ export default function UnifiedSearchModule() {
         phone: '(555) 456-7890',
         website: 'https://quickfixhvac.com',
         rating: 4.2,
+        industry: industryFilter?.name || 'Professional Services',
+        companyType: selectedCompanyType || 'mid-market',
         source: activeSource,
       },
       {
@@ -98,6 +165,8 @@ export default function UnifiedSearchModule() {
         website: 'https://premierelectrical.com',
         email: 'service@premierelectrical.com',
         rating: 4.7,
+        industry: industryFilter?.name || 'Technology Services',
+        companyType: selectedCompanyType || 'enterprise',
         source: activeSource,
       },
     ];
@@ -120,6 +189,12 @@ export default function UnifiedSearchModule() {
     }
     toast.success(`${selectedResults.length} leads saved for verification`);
     setSelectedResults([]);
+  };
+
+  const clearFilters = () => {
+    setSelectedRole(null);
+    setSelectedIndustry(null);
+    setSelectedCompanyType(null);
   };
 
   const getSourceIcon = (source: string) => {
@@ -152,20 +227,119 @@ export default function UnifiedSearchModule() {
     <div className="space-y-6">
       {/* Search Source Tabs */}
       <Tabs value={activeSource} onValueChange={(v) => setActiveSource(v as any)}>
-        <TabsList className="grid w-full grid-cols-3 max-w-md">
-          <TabsTrigger value="gmb" className="gap-2">
-            <Building2 className="w-4 h-4" />
-            <span className="hidden sm:inline">GMB</span>
-          </TabsTrigger>
-          <TabsTrigger value="google" className="gap-2">
-            <Search className="w-4 h-4" />
-            <span className="hidden sm:inline">Google</span>
-          </TabsTrigger>
-          <TabsTrigger value="bing" className="gap-2">
-            <Globe className="w-4 h-4" />
-            <span className="hidden sm:inline">Bing</span>
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <TabsList className="grid w-full max-w-md grid-cols-3">
+            <TabsTrigger value="gmb" className="gap-2">
+              <Building2 className="w-4 h-4" />
+              <span className="hidden sm:inline">GMB</span>
+            </TabsTrigger>
+            <TabsTrigger value="google" className="gap-2">
+              <Search className="w-4 h-4" />
+              <span className="hidden sm:inline">Google</span>
+            </TabsTrigger>
+            <TabsTrigger value="bing" className="gap-2">
+              <Globe className="w-4 h-4" />
+              <span className="hidden sm:inline">Bing</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <Button
+            variant={showFilters ? 'secondary' : 'outline'}
+            size="sm"
+            className="gap-2"
+            onClick={() => setShowFilters(!showFilters)}
+          >
+            <Filter className="w-4 h-4" />
+            Filters
+            {activeFiltersCount > 0 && (
+              <Badge variant="default" className="ml-1 h-5 w-5 p-0 justify-center">
+                {activeFiltersCount}
+              </Badge>
+            )}
+          </Button>
+        </div>
+
+        {/* Filters Panel */}
+        {showFilters && (
+          <Card className="mt-4 border-dashed">
+            <CardContent className="p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-foreground">Filter Leads</h4>
+                {activeFiltersCount > 0 && (
+                  <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 text-muted-foreground">
+                    <X className="w-3 h-3" />
+                    Clear all
+                  </Button>
+                )}
+              </div>
+
+              {/* By Role */}
+              <div>
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider mb-2 block">
+                  By Role
+                </Label>
+                <div className="flex flex-wrap gap-2">
+                  {ROLE_FILTERS.map((role) => (
+                    <Button
+                      key={role.id}
+                      variant={selectedRole === role.id ? 'default' : 'outline'}
+                      size="sm"
+                      className="gap-1.5 h-8"
+                      onClick={() => setSelectedRole(selectedRole === role.id ? null : role.id)}
+                    >
+                      {getIconComponent(role.icon)}
+                      {role.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* By Industry */}
+              <div>
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider mb-2 block">
+                  By Industry
+                </Label>
+                <ScrollArea className="w-full">
+                  <div className="flex gap-2 pb-2">
+                    {INDUSTRY_FILTERS.map((industry) => (
+                      <Button
+                        key={industry.id}
+                        variant={selectedIndustry === industry.id ? 'default' : 'outline'}
+                        size="sm"
+                        className="gap-1.5 h-8 shrink-0"
+                        onClick={() => setSelectedIndustry(selectedIndustry === industry.id ? null : industry.id)}
+                      >
+                        {getIconComponent(industry.icon)}
+                        {industry.name}
+                      </Button>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+
+              {/* By Company Type */}
+              <div>
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider mb-2 block">
+                  By Company Type
+                </Label>
+                <div className="flex flex-wrap gap-2">
+                  {COMPANY_TYPE_FILTERS.map((type) => (
+                    <Button
+                      key={type.id}
+                      variant={selectedCompanyType === type.id ? 'default' : 'outline'}
+                      size="sm"
+                      className="gap-1.5 h-8"
+                      onClick={() => setSelectedCompanyType(selectedCompanyType === type.id ? null : type.id)}
+                    >
+                      {getIconComponent(type.icon)}
+                      {type.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <TabsContent value={activeSource} className="mt-6">
           {/* Search Form */}
@@ -216,6 +390,37 @@ export default function UnifiedSearchModule() {
         </TabsContent>
       </Tabs>
 
+      {/* Active Filters Display */}
+      {activeFiltersCount > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground">Active filters:</span>
+          {selectedRole && (
+            <Badge variant="secondary" className="gap-1">
+              {ROLE_FILTERS.find(r => r.id === selectedRole)?.name}
+              <button onClick={() => setSelectedRole(null)}>
+                <X className="w-3 h-3" />
+              </button>
+            </Badge>
+          )}
+          {selectedIndustry && (
+            <Badge variant="secondary" className="gap-1">
+              {INDUSTRY_FILTERS.find(i => i.id === selectedIndustry)?.name}
+              <button onClick={() => setSelectedIndustry(null)}>
+                <X className="w-3 h-3" />
+              </button>
+            </Badge>
+          )}
+          {selectedCompanyType && (
+            <Badge variant="secondary" className="gap-1">
+              {COMPANY_TYPE_FILTERS.find(c => c.id === selectedCompanyType)?.name}
+              <button onClick={() => setSelectedCompanyType(null)}>
+                <X className="w-3 h-3" />
+              </button>
+            </Badge>
+          )}
+        </div>
+      )}
+
       {/* Results Section */}
       {results.length > 0 && (
         <div className="space-y-4">
@@ -252,7 +457,7 @@ export default function UnifiedSearchModule() {
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h4 className="font-medium text-foreground truncate">
                           {result.name}
                         </h4>
@@ -264,6 +469,11 @@ export default function UnifiedSearchModule() {
                           <Badge variant="outline" className="gap-1">
                             <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                             {result.rating}
+                          </Badge>
+                        )}
+                        {result.industry && (
+                          <Badge variant="outline" className="text-[10px]">
+                            {result.industry}
                           </Badge>
                         )}
                       </div>
@@ -325,6 +535,7 @@ export default function UnifiedSearchModule() {
         <div className="text-center py-12 text-muted-foreground">
           <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
           <p>Enter a search query to find leads</p>
+          <p className="text-sm mt-1">Use filters to narrow down by role, industry, or company type</p>
         </div>
       )}
     </div>

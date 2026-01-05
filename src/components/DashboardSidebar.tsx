@@ -33,6 +33,8 @@ import {
   Moon,
   CheckCircle2,
   Send,
+  FileText,
+  Chrome,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import bamMascot from '@/assets/bamlead-mascot.png';
@@ -66,10 +68,25 @@ const outreachTools = [
     description: 'AI verification',
   },
   {
+    id: 'templates',
+    title: 'Email Templates',
+    icon: FileText,
+    description: 'Pre-built templates',
+  },
+  {
     id: 'email',
     title: 'Send Emails',
     icon: Send,
     description: 'Email campaigns',
+  },
+];
+
+const resourceTools = [
+  {
+    id: 'extension',
+    title: 'Chrome Extension',
+    icon: Chrome,
+    description: 'Prospect from any site',
   },
 ];
 
@@ -211,7 +228,32 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
 
         <SidebarSeparator />
 
-        {/* Admin Link (if applicable) */}
+        {/* Resources */}
+        <SidebarGroup>
+          <SidebarGroupLabel>
+            <Sparkles className="w-3 h-3 mr-2" />
+            Resources
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {resourceTools.map((tool) => (
+                <SidebarMenuItem key={tool.id}>
+                  <SidebarMenuButton
+                    isActive={activeTab === tool.id}
+                    tooltip={tool.title}
+                    onClick={() => onTabChange(tool.id)}
+                  >
+                    <tool.icon className="w-4 h-4" />
+                    <span>{tool.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
         {(user?.role === 'admin' || user?.is_owner) && (
           <SidebarGroup>
             <SidebarGroupLabel>Admin</SidebarGroupLabel>
