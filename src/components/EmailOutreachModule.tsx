@@ -73,6 +73,7 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   const [savedLeadPickerOpen, setSavedLeadPickerOpen] = useState(false);
   const [selectedSavedLeadIds, setSelectedSavedLeadIds] = useState<Set<string>>(new Set());
   const [leadsFromPicker, setLeadsFromPicker] = useState<LeadForEmail[]>([]);
+  const [showSentLeads, setShowSentLeads] = useState(false);
 
   // Merge selected leads from props and picker
   const allSelectedLeads = [...selectedLeads, ...leadsFromPicker];
@@ -789,114 +790,212 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
           </DialogHeader>
 
           <div className="space-y-4">
-            {/* Already emailed warning */}
-            {emailedLeads.length > 0 && (
-              <div className="p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg text-sm flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-amber-500" />
-                <span>{emailedLeads.length} leads already emailed (hidden from selection)</span>
-              </div>
-            )}
-
-            {/* Actions bar */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="select-all-saved"
-                  checked={selectedSavedLeadIds.size === availableLeads.length && availableLeads.length > 0}
-                  onCheckedChange={(checked) => {
-                    if (checked) {
-                      setSelectedSavedLeadIds(new Set(availableLeads.map(l => l.id)));
-                    } else {
-                      setSelectedSavedLeadIds(new Set());
-                    }
-                  }}
-                />
-                <label htmlFor="select-all-saved" className="text-sm font-medium cursor-pointer">
-                  Select All ({availableLeads.length} available)
-                </label>
-              </div>
+            {/* Toggle between available and sent leads */}
+            <div className="flex gap-2 p-1 bg-muted rounded-lg">
               <Button
-                variant="ghost"
+                variant={!showSentLeads ? "secondary" : "ghost"}
                 size="sm"
-                onClick={loadSavedLeads}
-                disabled={isLoadingSavedLeads}
+                className="flex-1"
+                onClick={() => setShowSentLeads(false)}
               >
-                <RefreshCw className={`w-4 h-4 mr-1 ${isLoadingSavedLeads ? 'animate-spin' : ''}`} />
-                Refresh
+                <Users className="w-4 h-4 mr-2" />
+                Available ({availableLeads.length})
+              </Button>
+              <Button
+                variant={showSentLeads ? "secondary" : "ghost"}
+                size="sm"
+                className="flex-1"
+                onClick={() => setShowSentLeads(true)}
+              >
+                <Send className="w-4 h-4 mr-2" />
+                Already Sent ({emailedLeads.length})
               </Button>
             </div>
 
-            {/* Selected count */}
-            {selectedSavedLeadIds.size > 0 && (
-              <div className="p-2 bg-primary/10 rounded-lg text-sm text-center">
-                <span className="font-medium">{selectedSavedLeadIds.size}</span> leads selected
-              </div>
-            )}
+            {!showSentLeads ? (
+              <>
+                {/* Actions bar for available leads */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="select-all-saved"
+                      checked={selectedSavedLeadIds.size === availableLeads.length && availableLeads.length > 0}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedSavedLeadIds(new Set(availableLeads.map(l => l.id)));
+                        } else {
+                          setSelectedSavedLeadIds(new Set());
+                        }
+                      }}
+                    />
+                    <label htmlFor="select-all-saved" className="text-sm font-medium cursor-pointer">
+                      Select All
+                    </label>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={loadSavedLeads}
+                    disabled={isLoadingSavedLeads}
+                  >
+                    <RefreshCw className={`w-4 h-4 mr-1 ${isLoadingSavedLeads ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                </div>
 
-            {/* Leads list */}
-            <ScrollArea className="h-[400px] pr-4">
-              {isLoadingSavedLeads ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                </div>
-              ) : availableLeads.length === 0 ? (
-                <div className="text-center py-12">
-                  <Database className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-muted-foreground">
-                    {savedLeads.length === 0 ? 'No verified leads saved yet' : 'All leads have been emailed'}
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {savedLeads.length === 0 ? 'Verify leads and save them to see them here' : 'Add new leads to continue outreach'}
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {availableLeads.map((lead) => (
-                    <div
-                      key={lead.id}
-                      className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                        selectedSavedLeadIds.has(lead.id)
-                          ? 'border-primary/50 bg-primary/5'
-                          : 'border-border/50 hover:border-border'
-                      }`}
-                      onClick={() => handleToggleSavedLead(lead.id)}
-                    >
-                      <div className="flex items-start gap-3">
-                        <Checkbox
-                          checked={selectedSavedLeadIds.has(lead.id)}
-                          onCheckedChange={() => handleToggleSavedLead(lead.id)}
-                          className="mt-1"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
-                            <span className="font-medium truncate">{lead.business_name}</span>
-                            {lead.leadScore >= 80 && (
-                              <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 shrink-0">
-                                <Star className="w-3 h-3 mr-1" />
-                                {lead.leadScore}
-                              </Badge>
+                {/* Selected count */}
+                {selectedSavedLeadIds.size > 0 && (
+                  <div className="p-2 bg-primary/10 rounded-lg text-sm text-center">
+                    <span className="font-medium">{selectedSavedLeadIds.size}</span> leads selected
+                  </div>
+                )}
+
+                {/* Available leads list */}
+                <ScrollArea className="h-[350px] pr-4">
+                  {isLoadingSavedLeads ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    </div>
+                  ) : availableLeads.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Database className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">
+                        {savedLeads.length === 0 ? 'No verified leads saved yet' : 'All leads have been emailed'}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {savedLeads.length === 0 ? 'Verify leads and save them to see them here' : 'Add new leads to continue outreach'}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {availableLeads.map((lead) => (
+                        <div
+                          key={lead.id}
+                          className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                            selectedSavedLeadIds.has(lead.id)
+                              ? 'border-primary/50 bg-primary/5'
+                              : 'border-border/50 hover:border-border'
+                          }`}
+                          onClick={() => handleToggleSavedLead(lead.id)}
+                        >
+                          <div className="flex items-start gap-3">
+                            <Checkbox
+                              checked={selectedSavedLeadIds.has(lead.id)}
+                              onCheckedChange={() => handleToggleSavedLead(lead.id)}
+                              className="mt-1"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
+                                <span className="font-medium truncate">{lead.business_name}</span>
+                                {lead.leadScore >= 80 && (
+                                  <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 shrink-0">
+                                    <Star className="w-3 h-3 mr-1" />
+                                    {lead.leadScore}
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground truncate mt-1">
+                                <Mail className="w-3 h-3 inline mr-1" />
+                                {lead.email}
+                              </p>
+                              {lead.platform && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Platform: {lead.platform}
+                                </p>
+                              )}
+                            </div>
+                            {lead.emailValid && (
+                              <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
                             )}
                           </div>
-                          <p className="text-sm text-muted-foreground truncate mt-1">
-                            <Mail className="w-3 h-3 inline mr-1" />
-                            {lead.email}
-                          </p>
-                          {lead.platform && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Platform: {lead.platform}
-                            </p>
-                          )}
                         </div>
-                        {lead.emailValid && (
-                          <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
-                        )}
-                      </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
+                </ScrollArea>
+              </>
+            ) : (
+              <>
+                {/* Sent leads header */}
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    View leads that have already been emailed
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={loadSavedLeads}
+                    disabled={isLoadingSavedLeads}
+                  >
+                    <RefreshCw className={`w-4 h-4 mr-1 ${isLoadingSavedLeads ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
                 </div>
-              )}
-            </ScrollArea>
+
+                {/* Sent leads list */}
+                <ScrollArea className="h-[400px] pr-4">
+                  {isLoadingSavedLeads ? (
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    </div>
+                  ) : emailedLeads.length === 0 ? (
+                    <div className="text-center py-12">
+                      <Send className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">No emails sent yet</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Sent leads will appear here
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {emailedLeads.map((lead) => (
+                        <div
+                          key={lead.id}
+                          className="p-3 rounded-lg border border-border/50 bg-muted/30"
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className="p-1.5 bg-emerald-500/10 rounded-full mt-0.5">
+                              <CheckCircle className="w-3 h-3 text-emerald-500" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
+                                <span className="font-medium truncate">{lead.business_name}</span>
+                                <Badge 
+                                  className={`shrink-0 ${
+                                    lead.outreachStatus === 'replied' 
+                                      ? 'bg-green-500/10 text-green-600 border-green-500/20'
+                                      : lead.outreachStatus === 'converted'
+                                      ? 'bg-purple-500/10 text-purple-600 border-purple-500/20'
+                                      : 'bg-blue-500/10 text-blue-600 border-blue-500/20'
+                                  }`}
+                                >
+                                  {lead.outreachStatus === 'replied' && <Reply className="w-3 h-3 mr-1" />}
+                                  {lead.outreachStatus === 'converted' && <Star className="w-3 h-3 mr-1" />}
+                                  {lead.outreachStatus === 'sent' && <Send className="w-3 h-3 mr-1" />}
+                                  {lead.outreachStatus}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground truncate mt-1">
+                                <Mail className="w-3 h-3 inline mr-1" />
+                                {lead.email}
+                              </p>
+                              {lead.sentAt && (
+                                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  Sent: {new Date(lead.sentAt).toLocaleDateString()} at {new Date(lead.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </>
+            )}
           </div>
 
           <DialogFooter>
