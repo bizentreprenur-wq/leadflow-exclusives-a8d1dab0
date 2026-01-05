@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, X, Zap, Building, Rocket, Gift } from "lucide-react";
+import { Check, X, Zap, Building, Rocket, Gift, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
@@ -18,15 +18,16 @@ const tiers = [
     yearlyPrice: 0,
     description: "Try it out and see real results",
     icon: Gift,
+    verificationCredits: 25,
     features: [
       { text: "5 GMB searches per day", included: true },
       { text: "3 Platform searches per day", included: true },
+      { text: "25 AI verification credits/month", included: true, highlight: true },
       { text: "Basic lead info (name, phone, website)", included: true },
       { text: "WordPress detection", included: true },
       { text: "Community support", included: true },
       { text: "Email extraction", included: false },
       { text: "Priority platform detection", included: false },
-      { text: "Exclusive territories", included: false },
       { text: "API access", included: false },
     ],
   },
@@ -37,8 +38,10 @@ const tiers = [
     yearlyPrice: 470,
     description: "Perfect for freelancers getting started",
     icon: Zap,
+    verificationCredits: 200,
     features: [
       { text: "50 searches per day", included: true },
+      { text: "200 AI verification credits/month", included: true, highlight: true },
       { text: "Basic lead verification", included: true },
       { text: "CSV export", included: true },
       { text: "WordPress detection", included: true },
@@ -46,7 +49,6 @@ const tiers = [
       { text: "Priority platform detection", included: false },
       { text: "Exclusive territories", included: false },
       { text: "API access", included: false },
-      { text: "White-label exports", included: false },
     ],
   },
   {
@@ -57,15 +59,16 @@ const tiers = [
     description: "For professionals who want more leads",
     icon: Building,
     popular: true,
+    verificationCredits: 500,
     features: [
       { text: "200 searches per day", included: true },
+      { text: "500 AI verification credits/month", included: true, highlight: true },
       { text: "Advanced lead verification", included: true },
       { text: "CRM integrations", included: true },
       { text: "All 16 platform detections", included: true },
       { text: "Priority support", included: true },
       { text: "Team collaboration (3 users)", included: true },
       { text: "Website quality scoring", included: true },
-      { text: "Exclusive territories", included: false },
       { text: "API access", included: false },
     ],
   },
@@ -76,8 +79,10 @@ const tiers = [
     yearlyPrice: 2390,
     description: "For teams and agencies at scale",
     icon: Rocket,
+    verificationCredits: 2000,
     features: [
       { text: "Unlimited searches", included: true },
+      { text: "2,000 AI verification credits/month", included: true, highlight: true },
       { text: "Full lead verification", included: true },
       { text: "White-label exports", included: true },
       { text: "All 16 platform detections", included: true },
@@ -85,7 +90,6 @@ const tiers = [
       { text: "Unlimited team members", included: true },
       { text: "API access + webhooks", included: true },
       { text: "Exclusive territories (3 included)", included: true },
-      { text: "Custom integrations", included: true },
     ],
   },
 ];
@@ -248,13 +252,19 @@ const Pricing = () => {
                         {tier.features.map((feature, idx) => (
                           <div key={idx} className="flex items-start gap-3">
                             {feature.included ? (
-                              <Check className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                              feature.highlight ? (
+                                <Sparkles className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                              ) : (
+                                <Check className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                              )
                             ) : (
                               <X className="w-5 h-5 text-muted-foreground/40 flex-shrink-0 mt-0.5" />
                             )}
                             <span
                               className={
-                                feature.included
+                                feature.highlight
+                                  ? "text-foreground font-medium"
+                                  : feature.included
                                   ? "text-foreground"
                                   : "text-muted-foreground/60"
                               }
