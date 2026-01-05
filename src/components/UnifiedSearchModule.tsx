@@ -43,6 +43,7 @@ import {
   type IndustryFilter,
   type CompanyTypeFilter,
 } from '@/lib/industryFilters';
+import LeadActionModal from './LeadActionModal';
 
 interface SearchResult {
   id: string;
@@ -91,6 +92,9 @@ export default function UnifiedSearchModule() {
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [selectedIndustry, setSelectedIndustry] = useState<string | null>(null);
   const [selectedCompanyType, setSelectedCompanyType] = useState<string | null>(null);
+  
+  // Lead action modal state
+  const [showLeadActionModal, setShowLeadActionModal] = useState(false);
 
   const activeFiltersCount = [selectedRole, selectedIndustry, selectedCompanyType].filter(Boolean).length;
 
@@ -174,6 +178,11 @@ export default function UnifiedSearchModule() {
     setResults(mockResults);
     setIsSearching(false);
     toast.success(`Found ${mockResults.length} results from ${activeSource.toUpperCase()}`);
+    
+    // Show lead action modal after search completes
+    if (mockResults.length > 0) {
+      setShowLeadActionModal(true);
+    }
   };
 
   const toggleSelect = (id: string) => {
@@ -189,6 +198,46 @@ export default function UnifiedSearchModule() {
     }
     toast.success(`${selectedResults.length} leads saved for verification`);
     setSelectedResults([]);
+  };
+
+  const handleVerifyWithAI = () => {
+    // Store leads in sessionStorage for verification module
+    sessionStorage.setItem('leadsToVerify', JSON.stringify(results));
+    toast.success('Leads ready for AI verification! Go to "AI Lead Verification" tab.');
+  };
+
+  const handleDownloadCSV = () => {
+    if (results.length === 0) return;
+    
+    const headers = ['Name', 'Address', 'Phone', 'Email', 'Website', 'Rating', 'Industry', 'Source'];
+    const csvContent = [
+      headers.join(','),
+      ...results.map(r => [
+        `"${r.name || ''}"`,
+        `"${r.address || ''}"`,
+        `"${r.phone || ''}"`,
+        `"${r.email || ''}"`,
+        `"${r.website || ''}"`,
+        r.rating || '',
+        `"${r.industry || ''}"`,
+        r.source || ''
+      ].join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `leads-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('CSV downloaded successfully!');
+  };
+
+  const handleSendToGoogleDrive = () => {
+    // Store leads for Google Sheets view
+    sessionStorage.setItem('googleSheetsLeads', JSON.stringify(results));
+    toast.info('Google Drive integration coming soon! For now, download as CSV.');
   };
 
   const clearFilters = () => {
@@ -538,6 +587,16 @@ export default function UnifiedSearchModule() {
           <p className="text-sm mt-1">Use filters to narrow down by role, industry, or company type</p>
         </div>
       )}
+
+      {/* Lead Action Modal */}
+      <LeadActionModal
+        open={showLeadActionModal}
+        onOpenChange={setShowLeadActionModal}
+        leadCount={results.length}
+        onVerifyWithAI={handleVerifyWithAI}
+        onDownload={handleDownloadCSV}
+        onSendToGoogleDrive={handleSendToGoogleDrive}
+      />
     </div>
   );
 }
