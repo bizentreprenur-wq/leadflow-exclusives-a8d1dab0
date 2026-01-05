@@ -100,6 +100,8 @@ const EMAIL_ENDPOINTS = {
   send: `${API_BASE_URL}/email-outreach.php?action=send`,
   sendBulk: `${API_BASE_URL}/email-outreach.php?action=send-bulk`,
   sends: `${API_BASE_URL}/email-outreach.php?action=sends`,
+  scheduled: `${API_BASE_URL}/email-outreach.php?action=scheduled`,
+  cancelScheduled: (id: number) => `${API_BASE_URL}/email-outreach.php?action=cancel-scheduled&id=${id}`,
   stats: (period?: number) => `${API_BASE_URL}/email-outreach.php?action=stats${period ? `&period=${period}` : ''}`,
 };
 
@@ -232,6 +234,36 @@ export async function getSends(params?: { limit?: number; offset?: number; statu
 export async function getEmailStats(period?: number): Promise<{ success: boolean; stats?: EmailStats; daily?: Array<{ date: string; sent: number; opened: number }>; error?: string }> {
   try {
     return await apiRequest(EMAIL_ENDPOINTS.stats(period));
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// Scheduled emails API
+export interface ScheduledEmail {
+  id: number;
+  recipient_email: string;
+  recipient_name?: string;
+  business_name?: string;
+  subject: string;
+  scheduled_for: string;
+  template_name?: string;
+  created_at: string;
+}
+
+export async function getScheduledEmails(): Promise<{ success: boolean; emails: ScheduledEmail[]; error?: string }> {
+  try {
+    return await apiRequest(EMAIL_ENDPOINTS.scheduled);
+  } catch (error: any) {
+    return { success: false, emails: [], error: error.message };
+  }
+}
+
+export async function cancelScheduledEmail(id: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    return await apiRequest(EMAIL_ENDPOINTS.cancelScheduled(id), {
+      method: 'DELETE',
+    });
   } catch (error: any) {
     return { success: false, error: error.message };
   }
