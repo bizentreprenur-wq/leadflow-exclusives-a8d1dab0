@@ -59,6 +59,16 @@
     /* Warning for highlights */
     --warning: 45 93% 47%;
     --warning-foreground: 222 47% 11%;
+
+    /* Sidebar tokens */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217 91% 60%;
   }
 
   .dark {
@@ -90,6 +100,16 @@
     /* Dark mode gradients */
     --gradient-hero: linear-gradient(180deg, hsl(222 47% 8%) 0%, hsl(222 40% 10%) 50%, hsl(222 47% 8%) 100%);
     --gradient-glow: radial-gradient(ellipse 60% 40% at 50% 0%, hsl(173 80% 40% / 0.2) 0%, transparent 70%);
+
+    /* Sidebar tokens - dark */
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 173 80% 50%;
+    --sidebar-primary-foreground: 222 47% 8%;
+    --sidebar-accent: 217 33% 17%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 217 33% 20%;
+    --sidebar-ring: 173 80% 50%;
   }
 }
 
