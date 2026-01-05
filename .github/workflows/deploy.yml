@@ -26,14 +26,12 @@ jobs:
           # Ensure Hostinger SPA routing file is deployed (our deploy uploads ./dist only)
           cp .htaccess dist/.htaccess
 
-          # Bundle PHP backend into /dist/api so it gets deployed together with the frontend
-          rm -rf dist/api
-          mkdir -p dist/api
-          cp -a hostinger-backend/. dist/api/
+          # Bundle PHP backend into a separate artifact so the frontend deploy never touches /api
+          rm -rf dist-api
+          mkdir -p dist-api
+          cp -a hostinger-backend/. dist-api/
           # Server-managed secrets must never be deployed from git
-          rm -f dist/api/config.php dist/api/config.example.php
-
-
+          rm -f dist-api/config.php dist-api/config.example.php
       - name: Deploy Frontend to Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -49,6 +47,7 @@ jobs:
             **/.git*
             **/.git*/**
             **/node_modules/**
+            api
             api/**
 
       - name: Deploy Backend to Hostinger (/api)
@@ -57,7 +56,7 @@ jobs:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./dist/api/
+          local-dir: ./dist-api/
           server-dir: /api/
           state-name: .ftp-deploy-backend-state-v3.json
           dangerous-clean-slate: false
