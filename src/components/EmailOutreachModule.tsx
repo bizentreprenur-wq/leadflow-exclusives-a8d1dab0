@@ -54,7 +54,7 @@ interface EmailOutreachModuleProps {
   onClearSelection?: () => void;
 }
 
-type WizardStep = 'start' | 'select-leads' | 'choose-template' | 'schedule' | 'review' | 'success';
+type WizardStep = 'start' | 'select-leads' | 'choose-template' | 'schedule' | 'review' | 'success' | 'sent-leads';
 
 export default function EmailOutreachModule({ selectedLeads = [], onClearSelection }: EmailOutreachModuleProps) {
   // Wizard state
@@ -100,6 +100,41 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
     l.outreachStatus !== 'converted' && 
     l.outreachStatus !== 'bounced'
   );
+
+  // Sent leads (for the 'View Sent' tab)
+  const sentLeads = savedLeads.filter(l => 
+    l.outreachStatus === 'sent' || 
+    l.outreachStatus === 'replied' || 
+    l.outreachStatus === 'converted' || 
+    l.outreachStatus === 'bounced'
+  );
+
+  // Handle status update for sent leads
+  const handleUpdateSentStatus = async (leadId: number, newStatus: SavedLead['outreachStatus']) => {
+    const result = await updateLeadStatus(leadId, { outreachStatus: newStatus || 'pending' });
+    if (result.success) {
+      toast.success(`Lead marked as ${newStatus}!`);
+      loadSavedLeads();
+    } else {
+      toast.error(result.error || 'Failed to update status');
+    }
+  };
+
+  // Get status badge styling
+  const getStatusBadge = (status: SavedLead['outreachStatus']) => {
+    switch (status) {
+      case 'sent':
+        return { icon: Send, label: 'Sent', className: 'bg-blue-500/10 text-blue-600 border-blue-500/20' };
+      case 'replied':
+        return { icon: Reply, label: 'Replied!', className: 'bg-green-500/10 text-green-600 border-green-500/20' };
+      case 'converted':
+        return { icon: CheckCircle, label: 'Converted!', className: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' };
+      case 'bounced':
+        return { icon: XCircle, label: 'Bounced', className: 'bg-red-500/10 text-red-600 border-red-500/20' };
+      default:
+        return { icon: Clock, label: 'Pending', className: 'bg-muted text-muted-foreground' };
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -554,6 +589,21 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
             </div>
           </div>
 
+          {/* View Sent Leads button */}
+          <Button
+            variant="outline"
+            size="lg"
+            className="w-full h-14 gap-3"
+            onClick={() => {
+              loadSavedLeads();
+              setCurrentStep('sent-leads');
+            }}
+          >
+            <BarChart3 className="w-5 h-5" />
+            View Sent Leads
+            <Badge variant="secondary" className="ml-auto">{sentLeads.length}</Badge>
+          </Button>
+
           {/* Scheduled emails reminder */}
           {scheduledEmails.length > 0 && (
             <Card className="border-amber-500/30 bg-amber-500/5">
@@ -570,6 +620,172 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
               </CardContent>
             </Card>
           )}
+        </div>
+      </>
+    );
+  }
+
+  // ============================================
+  // STEP: VIEW SENT LEADS
+  // ============================================
+  if (currentStep === 'sent-leads') {
+    const repliedCount = sentLeads.filter(l => l.outreachStatus === 'replied').length;
+    const convertedCount = sentLeads.filter(l => l.outreachStatus === 'converted').length;
+    const bouncedCount = sentLeads.filter(l => l.outreachStatus === 'bounced').length;
+    const awaitingCount = sentLeads.filter(l => l.outreachStatus === 'sent').length;
+
+    return (
+      <>
+        {dialogs}
+        <div className="max-w-2xl mx-auto space-y-6">
+          {/* Header */}
+          <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+            <CardContent className="pt-6 pb-6 text-center">
+              <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center">
+                <BarChart3 className="w-7 h-7 text-primary" />
+              </div>
+              <h2 className="text-xl font-bold mb-1">Your Sent Leads</h2>
+              <p className="text-muted-foreground text-sm">
+                Track who you've contacted and their responses
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Quick Stats */}
+          <div className="grid grid-cols-4 gap-3">
+            <Card className="border-border/50">
+              <CardContent className="pt-3 pb-3 text-center">
+                <p className="text-lg font-bold text-blue-600">{awaitingCount}</p>
+                <p className="text-xs text-muted-foreground">Awaiting</p>
+              </CardContent>
+            </Card>
+            <Card className="border-border/50">
+              <CardContent className="pt-3 pb-3 text-center">
+                <p className="text-lg font-bold text-green-600">{repliedCount}</p>
+                <p className="text-xs text-muted-foreground">Replied</p>
+              </CardContent>
+            </Card>
+            <Card className="border-border/50">
+              <CardContent className="pt-3 pb-3 text-center">
+                <p className="text-lg font-bold text-emerald-600">{convertedCount}</p>
+                <p className="text-xs text-muted-foreground">Converted</p>
+              </CardContent>
+            </Card>
+            <Card className="border-border/50">
+              <CardContent className="pt-3 pb-3 text-center">
+                <p className="text-lg font-bold text-red-600">{bouncedCount}</p>
+                <p className="text-xs text-muted-foreground">Bounced</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Sent Leads List */}
+          <Card className="border-border/50">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base">All Sent Leads</CardTitle>
+                <Button variant="ghost" size="sm" onClick={loadSavedLeads} disabled={isLoadingSavedLeads}>
+                  <RefreshCw className={`w-4 h-4 ${isLoadingSavedLeads ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[350px] pr-4">
+                {isLoadingSavedLeads ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                  </div>
+                ) : sentLeads.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Send className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="font-medium">No emails sent yet</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Start by sending some emails to your leads!
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {sentLeads.map((lead) => {
+                      const statusInfo = getStatusBadge(lead.outreachStatus);
+                      const StatusIcon = statusInfo.icon;
+                      
+                      return (
+                        <div
+                          key={lead.id}
+                          className="p-4 rounded-lg border border-border/50 hover:border-border transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-medium truncate">{lead.business_name}</span>
+                                <Badge variant="outline" className={`text-xs ${statusInfo.className}`}>
+                                  <StatusIcon className="w-3 h-3 mr-1" />
+                                  {statusInfo.label}
+                                </Badge>
+                              </div>
+                              <p className="text-sm text-muted-foreground truncate">{lead.email}</p>
+                              {lead.sentAt && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Sent: {new Date(lead.sentAt).toLocaleDateString()}
+                                </p>
+                              )}
+                            </div>
+                            
+                            {/* Quick Status Buttons */}
+                            <div className="flex gap-1 shrink-0">
+                              {lead.outreachStatus === 'sent' && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 px-2 text-green-600 hover:bg-green-500/10"
+                                    onClick={() => lead.dbId && handleUpdateSentStatus(lead.dbId, 'replied')}
+                                    title="Mark as replied"
+                                  >
+                                    <Reply className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 px-2 text-red-600 hover:bg-red-500/10"
+                                    onClick={() => lead.dbId && handleUpdateSentStatus(lead.dbId, 'bounced')}
+                                    title="Mark as bounced"
+                                  >
+                                    <XCircle className="w-4 h-4" />
+                                  </Button>
+                                </>
+                              )}
+                              {lead.outreachStatus === 'replied' && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 px-2 text-emerald-600 hover:bg-emerald-500/10"
+                                  onClick={() => lead.dbId && handleUpdateSentStatus(lead.dbId, 'converted')}
+                                  title="Mark as converted"
+                                >
+                                  <CheckCircle className="w-4 h-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          {/* Back Button */}
+          <Button
+            variant="outline"
+            onClick={() => setCurrentStep('start')}
+            className="gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Email Home
+          </Button>
         </div>
       </>
     );
