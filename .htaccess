@@ -1,18 +1,21 @@
-# BamLead SPA routing for Hostinger (Apache)
-# Ensures /pricing, /auth, etc. load index.html instead of a server 404
+# BamLead routing for Hostinger (Apache)
+# Split deploy:
+# - Backend PHP API lives in /public_html/api/
+# - Frontend build lives in /public_html/frontend/
 
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
 
-  # Allow the PHP API to work normally (located in /frontend/api/)
-  RewriteRule ^frontend/api/ - [L]
+  # Never rewrite API requests
+  RewriteRule ^api(/.*)?$ - [L]
 
   # Don't rewrite existing files or directories
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  # SPA fallback
-  RewriteRule ^ index.html [L]
+  # SPA fallback (everything else goes to the frontend app)
+  RewriteRule ^ frontend/index.html [L]
 </IfModule>
+
