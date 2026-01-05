@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -28,8 +29,11 @@ import {
   Edit, Eye, Users, CheckCircle, AlertCircle, Clock, MousePointer,
   Reply, XCircle, Sparkles, Database, RefreshCw, Star, Building2, 
   RotateCcw, Calendar, Timer, ArrowRight, ArrowLeft, PartyPopper,
-  Zap, CheckCheck, ChevronRight
+  Zap, CheckCheck, ChevronRight, TrendingUp, PieChart
 } from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart as RechartsPie, Pie
+} from 'recharts';
 import {
   getTemplates,
   createTemplate,
@@ -633,6 +637,28 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
     const convertedCount = sentLeads.filter(l => l.outreachStatus === 'converted').length;
     const bouncedCount = sentLeads.filter(l => l.outreachStatus === 'bounced').length;
     const awaitingCount = sentLeads.filter(l => l.outreachStatus === 'sent').length;
+    const totalSent = sentLeads.length;
+
+    // Calculate rates
+    const replyRate = totalSent > 0 ? Math.round(((repliedCount + convertedCount) / totalSent) * 100) : 0;
+    const conversionRate = (repliedCount + convertedCount) > 0 
+      ? Math.round((convertedCount / (repliedCount + convertedCount)) * 100) : 0;
+    const bounceRate = totalSent > 0 ? Math.round((bouncedCount / totalSent) * 100) : 0;
+
+    // Chart data for funnel
+    const funnelData = [
+      { name: 'Sent', value: totalSent, fill: '#3b82f6' },
+      { name: 'Replied', value: repliedCount + convertedCount, fill: '#22c55e' },
+      { name: 'Converted', value: convertedCount, fill: '#10b981' },
+    ];
+
+    // Pie chart data for status breakdown
+    const pieData = [
+      { name: 'Awaiting', value: awaitingCount, fill: '#3b82f6' },
+      { name: 'Replied', value: repliedCount, fill: '#22c55e' },
+      { name: 'Converted', value: convertedCount, fill: '#10b981' },
+      { name: 'Bounced', value: bouncedCount, fill: '#ef4444' },
+    ].filter(d => d.value > 0);
 
     return (
       <>
@@ -644,138 +670,252 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
               <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center">
                 <BarChart3 className="w-7 h-7 text-primary" />
               </div>
-              <h2 className="text-xl font-bold mb-1">Your Sent Leads</h2>
+              <h2 className="text-xl font-bold mb-1">Your Outreach Performance</h2>
               <p className="text-muted-foreground text-sm">
-                Track who you've contacted and their responses
+                Track replies, conversions, and campaign success
               </p>
             </CardContent>
           </Card>
 
-          {/* Quick Stats */}
-          <div className="grid grid-cols-4 gap-3">
-            <Card className="border-border/50">
-              <CardContent className="pt-3 pb-3 text-center">
-                <p className="text-lg font-bold text-blue-600">{awaitingCount}</p>
-                <p className="text-xs text-muted-foreground">Awaiting</p>
-              </CardContent>
-            </Card>
-            <Card className="border-border/50">
-              <CardContent className="pt-3 pb-3 text-center">
-                <p className="text-lg font-bold text-green-600">{repliedCount}</p>
-                <p className="text-xs text-muted-foreground">Replied</p>
-              </CardContent>
-            </Card>
-            <Card className="border-border/50">
-              <CardContent className="pt-3 pb-3 text-center">
-                <p className="text-lg font-bold text-emerald-600">{convertedCount}</p>
-                <p className="text-xs text-muted-foreground">Converted</p>
-              </CardContent>
-            </Card>
-            <Card className="border-border/50">
-              <CardContent className="pt-3 pb-3 text-center">
-                <p className="text-lg font-bold text-red-600">{bouncedCount}</p>
-                <p className="text-xs text-muted-foreground">Bounced</p>
-              </CardContent>
-            </Card>
-          </div>
+          {/* Tabs for Stats vs Leads */}
+          <Tabs defaultValue="stats" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="stats" className="gap-2">
+                <TrendingUp className="w-4 h-4" />
+                Performance
+              </TabsTrigger>
+              <TabsTrigger value="leads" className="gap-2">
+                <Users className="w-4 h-4" />
+                All Leads ({totalSent})
+              </TabsTrigger>
+            </TabsList>
 
-          {/* Sent Leads List */}
-          <Card className="border-border/50">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base">All Sent Leads</CardTitle>
-                <Button variant="ghost" size="sm" onClick={loadSavedLeads} disabled={isLoadingSavedLeads}>
-                  <RefreshCw className={`w-4 h-4 ${isLoadingSavedLeads ? 'animate-spin' : ''}`} />
-                </Button>
+            {/* STATS TAB */}
+            <TabsContent value="stats" className="space-y-4 mt-4">
+              {/* Key Metrics */}
+              <div className="grid grid-cols-3 gap-3">
+                <Card className="border-green-500/30 bg-green-500/5">
+                  <CardContent className="pt-4 pb-4 text-center">
+                    <TrendingUp className="w-5 h-5 text-green-600 mx-auto mb-1" />
+                    <p className="text-2xl font-bold text-green-600">{replyRate}%</p>
+                    <p className="text-xs text-muted-foreground">Reply Rate</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-emerald-500/30 bg-emerald-500/5">
+                  <CardContent className="pt-4 pb-4 text-center">
+                    <CheckCircle className="w-5 h-5 text-emerald-600 mx-auto mb-1" />
+                    <p className="text-2xl font-bold text-emerald-600">{conversionRate}%</p>
+                    <p className="text-xs text-muted-foreground">Conversion Rate</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-red-500/30 bg-red-500/5">
+                  <CardContent className="pt-4 pb-4 text-center">
+                    <XCircle className="w-5 h-5 text-red-600 mx-auto mb-1" />
+                    <p className="text-2xl font-bold text-red-600">{bounceRate}%</p>
+                    <p className="text-xs text-muted-foreground">Bounce Rate</p>
+                  </CardContent>
+                </Card>
               </div>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[350px] pr-4">
-                {isLoadingSavedLeads ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                  </div>
-                ) : sentLeads.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Send className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="font-medium">No emails sent yet</p>
+
+              {totalSent === 0 ? (
+                <Card className="border-border/50">
+                  <CardContent className="py-12 text-center">
+                    <PieChart className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="font-medium">No data yet</p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Start by sending some emails to your leads!
+                      Send some emails to see your performance charts!
                     </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {sentLeads.map((lead) => {
-                      const statusInfo = getStatusBadge(lead.outreachStatus);
-                      const StatusIcon = statusInfo.icon;
-                      
-                      return (
-                        <div
-                          key={lead.id}
-                          className="p-4 rounded-lg border border-border/50 hover:border-border transition-colors"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="font-medium truncate">{lead.business_name}</span>
-                                <Badge variant="outline" className={`text-xs ${statusInfo.className}`}>
-                                  <StatusIcon className="w-3 h-3 mr-1" />
-                                  {statusInfo.label}
-                                </Badge>
-                              </div>
-                              <p className="text-sm text-muted-foreground truncate">{lead.email}</p>
-                              {lead.sentAt && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Sent: {new Date(lead.sentAt).toLocaleDateString()}
-                                </p>
-                              )}
-                            </div>
-                            
-                            {/* Quick Status Buttons */}
-                            <div className="flex gap-1 shrink-0">
-                              {lead.outreachStatus === 'sent' && (
-                                <>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 px-2 text-green-600 hover:bg-green-500/10"
-                                    onClick={() => lead.dbId && handleUpdateSentStatus(lead.dbId, 'replied')}
-                                    title="Mark as replied"
-                                  >
-                                    <Reply className="w-4 h-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 px-2 text-red-600 hover:bg-red-500/10"
-                                    onClick={() => lead.dbId && handleUpdateSentStatus(lead.dbId, 'bounced')}
-                                    title="Mark as bounced"
-                                  >
-                                    <XCircle className="w-4 h-4" />
-                                  </Button>
-                                </>
-                              )}
-                              {lead.outreachStatus === 'replied' && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 px-2 text-emerald-600 hover:bg-emerald-500/10"
-                                  onClick={() => lead.dbId && handleUpdateSentStatus(lead.dbId, 'converted')}
-                                  title="Mark as converted"
-                                >
-                                  <CheckCircle className="w-4 h-4" />
-                                </Button>
-                              )}
-                            </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  {/* Conversion Funnel */}
+                  <Card className="border-border/50">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <BarChart3 className="w-4 h-4" />
+                        Conversion Funnel
+                      </CardTitle>
+                      <CardDescription>How leads progress through your pipeline</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-[180px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={funnelData} layout="vertical">
+                            <XAxis type="number" hide />
+                            <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 12 }} />
+                            <Tooltip 
+                              formatter={(value: number) => [value, 'Leads']}
+                              contentStyle={{ 
+                                backgroundColor: 'hsl(var(--background))', 
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '8px'
+                              }}
+                            />
+                            <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                              {funnelData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                              ))}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Status Breakdown Pie */}
+                  <Card className="border-border/50">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <PieChart className="w-4 h-4" />
+                        Status Breakdown
+                      </CardTitle>
+                      <CardDescription>Current status of all sent leads</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-[200px] flex items-center justify-center">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <RechartsPie>
+                            <Pie
+                              data={pieData}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={50}
+                              outerRadius={80}
+                              paddingAngle={2}
+                              dataKey="value"
+                              label={({ name, value }) => `${name}: ${value}`}
+                              labelLine={false}
+                            >
+                              {pieData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                              ))}
+                            </Pie>
+                            <Tooltip 
+                              contentStyle={{ 
+                                backgroundColor: 'hsl(var(--background))', 
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '8px'
+                              }}
+                            />
+                          </RechartsPie>
+                        </ResponsiveContainer>
+                      </div>
+                      {/* Legend */}
+                      <div className="flex flex-wrap justify-center gap-4 mt-2">
+                        {pieData.map((item) => (
+                          <div key={item.name} className="flex items-center gap-2 text-sm">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.fill }} />
+                            <span>{item.name}</span>
                           </div>
-                        </div>
-                      );
-                    })}
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+            </TabsContent>
+
+            {/* LEADS TAB */}
+            <TabsContent value="leads" className="mt-4">
+              <Card className="border-border/50">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">All Sent Leads</CardTitle>
+                    <Button variant="ghost" size="sm" onClick={loadSavedLeads} disabled={isLoadingSavedLeads}>
+                      <RefreshCw className={`w-4 h-4 ${isLoadingSavedLeads ? 'animate-spin' : ''}`} />
+                    </Button>
                   </div>
-                )}
-              </ScrollArea>
-            </CardContent>
-          </Card>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-[400px] pr-4">
+                    {isLoadingSavedLeads ? (
+                      <div className="flex items-center justify-center py-12">
+                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                      </div>
+                    ) : sentLeads.length === 0 ? (
+                      <div className="text-center py-12">
+                        <Send className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="font-medium">No emails sent yet</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Start by sending some emails to your leads!
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {sentLeads.map((lead) => {
+                          const statusInfo = getStatusBadge(lead.outreachStatus);
+                          const StatusIcon = statusInfo.icon;
+                          
+                          return (
+                            <div
+                              key={lead.id}
+                              className="p-4 rounded-lg border border-border/50 hover:border-border transition-colors"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-medium truncate">{lead.business_name}</span>
+                                    <Badge variant="outline" className={`text-xs ${statusInfo.className}`}>
+                                      <StatusIcon className="w-3 h-3 mr-1" />
+                                      {statusInfo.label}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-sm text-muted-foreground truncate">{lead.email}</p>
+                                  {lead.sentAt && (
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                      Sent: {new Date(lead.sentAt).toLocaleDateString()}
+                                    </p>
+                                  )}
+                                </div>
+                                
+                                {/* Quick Status Buttons */}
+                                <div className="flex gap-1 shrink-0">
+                                  {lead.outreachStatus === 'sent' && (
+                                    <>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 px-2 text-green-600 hover:bg-green-500/10"
+                                        onClick={() => lead.dbId && handleUpdateSentStatus(lead.dbId, 'replied')}
+                                        title="Mark as replied"
+                                      >
+                                        <Reply className="w-4 h-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 px-2 text-red-600 hover:bg-red-500/10"
+                                        onClick={() => lead.dbId && handleUpdateSentStatus(lead.dbId, 'bounced')}
+                                        title="Mark as bounced"
+                                      >
+                                        <XCircle className="w-4 h-4" />
+                                      </Button>
+                                    </>
+                                  )}
+                                  {lead.outreachStatus === 'replied' && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-8 px-2 text-emerald-600 hover:bg-emerald-500/10"
+                                      onClick={() => lead.dbId && handleUpdateSentStatus(lead.dbId, 'converted')}
+                                      title="Mark as converted"
+                                    >
+                                      <CheckCircle className="w-4 h-4" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
 
           {/* Back Button */}
           <Button
