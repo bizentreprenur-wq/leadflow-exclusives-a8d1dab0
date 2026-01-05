@@ -39,7 +39,7 @@ const Contact = () => {
     {
       icon: Mail,
       title: "Email",
-      value: "support@leadfinder.com",
+      value: "support@bamlead.com",
       description: "We respond within 24 hours",
     },
     {

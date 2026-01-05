@@ -105,7 +105,7 @@ const Features = () => {
             <div className="max-w-4xl mx-auto">
               <div className="text-center mb-12">
                 <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground mb-4">
-                  Why Choose LeadFinder?
+                  Why Choose BamLead?
                 </h2>
                 <p className="text-lg text-muted-foreground">
                   Built specifically for web designers, agencies, and freelancers.
