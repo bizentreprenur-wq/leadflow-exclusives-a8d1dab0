@@ -52,20 +52,14 @@ const searchTools = [
     icon: Search,
     description: 'GMB, Google & Bing',
   },
-  {
-    id: 'platform',
-    title: 'Platform Search',
-    icon: Globe,
-    description: 'Website platforms',
-  },
 ];
 
 const outreachTools = [
   {
-    id: 'verify',
-    title: 'Verify Leads',
-    icon: CheckCircle2,
-    description: 'AI verification',
+    id: 'email',
+    title: 'Send Emails',
+    icon: Send,
+    description: 'Email campaigns',
   },
   {
     id: 'templates',
@@ -74,10 +68,10 @@ const outreachTools = [
     description: 'Pre-built templates',
   },
   {
-    id: 'email',
-    title: 'Send Emails',
-    icon: Send,
-    description: 'Email campaigns',
+    id: 'verify',
+    title: 'Verify Leads',
+    icon: CheckCircle2,
+    description: 'AI verification',
   },
 ];
 
