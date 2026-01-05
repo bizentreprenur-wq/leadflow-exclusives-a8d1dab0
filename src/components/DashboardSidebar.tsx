@@ -35,6 +35,7 @@ import {
   Send,
   FileText,
   Chrome,
+  Zap,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import bamMascot from '@/assets/bamlead-mascot.png';
@@ -60,6 +61,13 @@ const outreachTools = [
     title: 'Send Emails',
     icon: Send,
     description: 'Email campaigns',
+  },
+  {
+    id: 'sequences',
+    title: 'Sequences',
+    icon: Zap,
+    description: 'Multi-channel flows',
+    badge: 'New',
   },
   {
     id: 'templates',
@@ -213,6 +221,11 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
                   >
                     <tool.icon className="w-4 h-4" />
                     <span>{tool.title}</span>
+                    {'badge' in tool && tool.badge && (
+                      <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0 bg-primary/10 text-primary">
+                        {tool.badge}
+                      </Badge>
+                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
