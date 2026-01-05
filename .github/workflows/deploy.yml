@@ -23,7 +23,7 @@ jobs:
       - name: Build project
         run: |
           npm run build
-          # Ensure Hostinger SPA routing file is deployed (our deploy uploads ./dist only)
+          # Ensure Hostinger SPA routing file is deployed
           cp .htaccess dist/.htaccess
 
           # Bundle PHP backend into a separate artifact so the frontend deploy never touches /api
@@ -32,18 +32,18 @@ jobs:
           cp -a hostinger-backend/. dist-api/
           # Server-managed secrets must never be deployed from git
           rm -f dist-api/config.php dist-api/config.example.php
-      - name: Deploy Frontend to Hostinger
+
+      - name: Deploy Frontend to Hostinger (/frontend)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/
-          # Hostinger typically serves your site from /public_html
-          server-dir: /public_html/
-          state-name: .ftp-deploy-frontend-state-v3.json
+          # IMPORTANT: Deploy the SPA to a subfolder so FTP sync cannot delete the server-owned /api folder.
+          server-dir: /public_html/frontend/
+          state-name: .ftp-deploy-frontend-state-v4.json
           dangerous-clean-slate: false
-          # IMPORTANT: keep server-managed backend secrets intact
           exclude: |
             **/.git*
             **/.git*/**
