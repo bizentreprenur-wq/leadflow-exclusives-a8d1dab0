@@ -130,27 +130,26 @@ export default function LeadActionModal({
                 <ArrowRight className="w-5 h-5 text-muted-foreground" />
               </Button>
 
-              {/* Send to Google Drive */}
-              <Button
-                onClick={() => {
-                  handleClose();
-                  onSendToGoogleDrive();
-                }}
-                className="w-full h-auto p-5 justify-start gap-4 text-left"
-                variant="outline"
-                size="lg"
-              >
-                <div className="p-3 rounded-xl bg-muted">
-                  <FileSpreadsheet className="w-6 h-6 text-foreground" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-bold text-lg text-foreground">☁️ Save to Google Drive</p>
-                  <p className="text-sm text-muted-foreground font-normal mt-0.5">
-                    Creates a Google Sheet you can access anywhere
-                  </p>
-                </div>
-                <ArrowRight className="w-5 h-5 text-muted-foreground" />
-              </Button>
+              {/* Send to Google Drive - Coming Soon */}
+              <div className="relative">
+                <Button
+                  disabled
+                  className="w-full h-auto p-5 justify-start gap-4 text-left opacity-60 cursor-not-allowed"
+                  variant="outline"
+                  size="lg"
+                >
+                  <div className="p-3 rounded-xl bg-muted">
+                    <FileSpreadsheet className="w-6 h-6 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-lg text-muted-foreground">☁️ Save to Google Drive</p>
+                    <p className="text-sm text-muted-foreground font-normal mt-0.5">
+                      Creates a Google Sheet you can access anywhere
+                    </p>
+                  </div>
+                  <Badge variant="secondary" className="shrink-0">Coming Soon</Badge>
+                </Button>
+              </div>
 
               {/* Preview Option */}
               {leads.length > 0 && (
@@ -275,15 +274,12 @@ export default function LeadActionModal({
                   Download
                 </Button>
                 <Button
-                  onClick={() => {
-                    handleClose();
-                    onSendToGoogleDrive();
-                  }}
+                  disabled
                   variant="outline"
-                  className="flex-1"
+                  className="flex-1 opacity-60 cursor-not-allowed"
                 >
                   <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  Google Drive
+                  Coming Soon
                 </Button>
               </div>
             </div>
