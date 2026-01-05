@@ -220,7 +220,7 @@ function handlePut($db, $user) {
     
     $allowedFields = [
         'outreach_status', 'email_valid', 'lead_score', 
-        'ai_drafted_message', 'verification_status', 'sent_at'
+        'ai_drafted_message', 'verification_status', 'sent_at', 'email'
     ];
     
     foreach ($allowedFields as $field) {

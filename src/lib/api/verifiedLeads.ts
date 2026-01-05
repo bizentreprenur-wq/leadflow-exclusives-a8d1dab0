@@ -164,13 +164,14 @@ export async function saveVerifiedLeads(leads: VerifiedLead[]): Promise<SaveLead
 }
 
 /**
- * Update a lead's status
+ * Update a lead's status or email
  */
 export async function updateLeadStatus(
   id: number,
   updates: Partial<{
     outreachStatus: string;
     sentAt: string | 'now';
+    email: string;
   }>
 ): Promise<{ success: boolean; error?: string }> {
   if (USE_MOCK_DATA) {
