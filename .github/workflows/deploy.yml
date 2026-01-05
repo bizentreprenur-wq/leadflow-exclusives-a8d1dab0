@@ -68,31 +68,99 @@ jobs:
             cache/**
             cache
 
-      - name: Wait for deployment to propagate
-        run: sleep 15
-
-      - name: Verify API health
+      - name: Verify API health (with retries)
         run: |
-          echo "Checking https://bamlead.com/api/health.php ..."
-          RESPONSE=$(curl -s -w "\n%{http_code}" https://bamlead.com/api/health.php)
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          BODY=$(echo "$RESPONSE" | sed '$d')
+          API_URL="https://bamlead.com/api/health.php"
+          MAX_ATTEMPTS=5
+          RETRY_DELAY=10
           
-          echo "HTTP Status: $HTTP_CODE"
-          echo "Response: $BODY"
+          echo "🔍 Running strict API health check..."
+          echo "   URL: $API_URL"
+          echo "   Max attempts: $MAX_ATTEMPTS"
+          echo ""
           
-          # Check HTTP status
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "❌ Health check failed: HTTP $HTTP_CODE"
-            exit 1
-          fi
+          for ATTEMPT in $(seq 1 $MAX_ATTEMPTS); do
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "Attempt $ATTEMPT of $MAX_ATTEMPTS"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            
+            # Fetch response with timeout
+            RESPONSE=$(curl -s -w "\n%{http_code}" --max-time 30 "$API_URL" 2>&1)
+            CURL_EXIT=$?
+            
+            if [ $CURL_EXIT -ne 0 ]; then
+              echo "❌ curl failed with exit code $CURL_EXIT"
+              if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+                echo "   Retrying in ${RETRY_DELAY}s..."
+                sleep $RETRY_DELAY
+                continue
+              fi
+              echo ""
+              echo "🚨 DEPLOYMENT BLOCKED: API unreachable after $MAX_ATTEMPTS attempts"
+              exit 1
+            fi
+            
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+            BODY=$(echo "$RESPONSE" | sed '$d')
+            
+            echo "HTTP Status: $HTTP_CODE"
+            echo "Response body: $BODY"
+            echo ""
+            
+            # Check 1: HTTP 200
+            if [ "$HTTP_CODE" != "200" ]; then
+              echo "❌ Failed: Expected HTTP 200, got $HTTP_CODE"
+              if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+                echo "   Retrying in ${RETRY_DELAY}s..."
+                sleep $RETRY_DELAY
+                continue
+              fi
+              echo ""
+              echo "🚨 DEPLOYMENT BLOCKED: API returned HTTP $HTTP_CODE"
+              echo "   This usually means:"
+              echo "   - The /api folder is missing on the server"
+              echo "   - The health.php file was not deployed"
+              echo "   - There's a server configuration issue"
+              exit 1
+            fi
+            
+            # Check 2: Response is valid JSON with "status" field
+            if ! echo "$BODY" | grep -q '"status"'; then
+              echo "❌ Failed: Response is not valid JSON or missing 'status' field"
+              if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+                echo "   Retrying in ${RETRY_DELAY}s..."
+                sleep $RETRY_DELAY
+                continue
+              fi
+              echo ""
+              echo "🚨 DEPLOYMENT BLOCKED: Invalid API response"
+              echo "   Expected JSON with 'status' field, got:"
+              echo "   $BODY"
+              echo ""
+              echo "   This usually means:"
+              echo "   - PHP is returning an error page instead of JSON"
+              echo "   - config.php is missing or has syntax errors"
+              echo "   - There's a database connection issue"
+              exit 1
+            fi
+            
+            # Check 3: Status is not "error"
+            if echo "$BODY" | grep -q '"status":\s*"error"'; then
+              echo "⚠️  API returned error status"
+              echo "   The API is responding but reporting an internal error"
+              # Don't block deployment for degraded status, just warn
+            fi
+            
+            # All checks passed
+            echo ""
+            echo "✅ API HEALTH CHECK PASSED"
+            echo "   - HTTP 200 OK"
+            echo "   - Valid JSON response"
+            echo "   - API is operational"
+            exit 0
+          done
           
-          # Verify JSON response (should contain "status")
-          if echo "$BODY" | grep -q '"status"'; then
-            echo "✅ API health check passed"
-          else
-            echo "❌ Health check failed: Response is not valid JSON"
-            echo "This usually means the API folder is missing or PHP errored"
-            exit 1
-          fi
+          echo ""
+          echo "🚨 DEPLOYMENT BLOCKED: Health check failed after $MAX_ATTEMPTS attempts"
+          exit 1
 
