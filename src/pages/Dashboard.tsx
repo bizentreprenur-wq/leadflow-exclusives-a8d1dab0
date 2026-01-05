@@ -16,6 +16,7 @@ import PlatformSearchModule from '@/components/PlatformSearchModule';
 import LeadVerificationModule, { VerifiedLead } from '@/components/LeadVerificationModule';
 import EmailOutreachModule from '@/components/EmailOutreachModule';
 import EmailTemplateLibrary from '@/components/EmailTemplateLibrary';
+import SequenceBuilderModule from '@/components/SequenceBuilderModule';
 import { LeadForEmail } from '@/lib/api/email';
 import bamMascot from '@/assets/bamlead-mascot.png';
 
@@ -135,6 +136,15 @@ export default function Dashboard() {
               onClearSelection={() => setEmailLeads([])}
             />
           ),
+        };
+      case 'sequences':
+        return {
+          title: 'Multi-Channel Sequences',
+          description: 'Build automated Email → LinkedIn → SMS outreach flows',
+          icon: Zap,
+          iconColor: 'text-amber-500',
+          iconBg: 'bg-amber-500/10',
+          component: <SequenceBuilderModule />,
         };
       case 'templates':
         return {
