@@ -187,8 +187,8 @@ const Pricing = () => {
               <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 p-6 md:p-8">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
                 <div className="relative flex flex-col md:flex-row items-center gap-6">
-                  <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20">
-                    <Sparkles className="w-10 h-10 text-primary" />
+                  <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20">
+                    <Sparkles className="w-10 h-10 text-amber-500" />
                   </div>
                   <div className="text-center md:text-left flex-1">
                     <h3 className="font-display text-xl md:text-2xl font-bold text-foreground mb-2">
