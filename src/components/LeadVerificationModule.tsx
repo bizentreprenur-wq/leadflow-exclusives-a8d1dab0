@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +19,10 @@ import {
   Download,
   RefreshCw,
   AlertTriangle,
+  Save,
+  Database,
 } from 'lucide-react';
+import { fetchVerifiedLeads, saveVerifiedLeads, deleteVerifiedLeads, type SavedLead } from '@/lib/api/verifiedLeads';
 
 export interface VerifiedLead {
   id: string;
@@ -80,9 +83,32 @@ const mockLeads: VerifiedLead[] = [
 
 export default function LeadVerificationModule({ onSendToEmail }: LeadVerificationModuleProps) {
   const [leads, setLeads] = useState<VerifiedLead[]>(mockLeads);
+  const [savedLeads, setSavedLeads] = useState<SavedLead[]>([]);
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingSaved, setIsLoadingSaved] = useState(false);
   const [verificationProgress, setVerificationProgress] = useState(0);
+  const [showSavedLeads, setShowSavedLeads] = useState(false);
+
+  // Load saved leads on mount
+  useEffect(() => {
+    loadSavedLeads();
+  }, []);
+
+  const loadSavedLeads = async () => {
+    setIsLoadingSaved(true);
+    try {
+      const response = await fetchVerifiedLeads(1, 100);
+      if (response.success && response.data) {
+        setSavedLeads(response.data.leads);
+      }
+    } catch (error) {
+      console.error('Failed to load saved leads:', error);
+    } finally {
+      setIsLoadingSaved(false);
+    }
+  };
 
   const handleSelectLead = (leadId: string, checked: boolean) => {
     if (checked) {
@@ -177,6 +203,61 @@ Best regards`;
     toast.success(`Verified ${completed} leads with AI`);
   };
 
+  const handleSaveToDatabase = async () => {
+    const verifiedLeadsToSave = leads.filter(
+      (l) => selectedLeads.includes(l.id) && l.verificationStatus === 'verified'
+    );
+
+    if (verifiedLeadsToSave.length === 0) {
+      toast.error('Please select verified leads to save');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await saveVerifiedLeads(verifiedLeadsToSave);
+      if (response.success && response.data) {
+        toast.success(`Saved ${response.data.saved} leads to database`);
+        if (response.data.errors.length > 0) {
+          console.warn('Save errors:', response.data.errors);
+        }
+        // Reload saved leads
+        await loadSavedLeads();
+      } else {
+        toast.error(response.error || 'Failed to save leads');
+      }
+    } catch (error) {
+      toast.error('Failed to save leads to database');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteSavedLeads = async () => {
+    const selectedDbIds = savedLeads
+      .filter((l) => selectedLeads.includes(l.id))
+      .map((l) => l.dbId)
+      .filter((id): id is number => id !== undefined);
+
+    if (selectedDbIds.length === 0) {
+      toast.error('Please select saved leads to delete');
+      return;
+    }
+
+    try {
+      const response = await deleteVerifiedLeads(selectedDbIds);
+      if (response.success) {
+        toast.success(`Deleted ${response.data?.deleted || selectedDbIds.length} leads`);
+        setSelectedLeads([]);
+        await loadSavedLeads();
+      } else {
+        toast.error(response.error || 'Failed to delete leads');
+      }
+    } catch (error) {
+      toast.error('Failed to delete leads');
+    }
+  };
+
   const handleSendToEmail = () => {
     const verifiedLeads = leads.filter(
       (l) => selectedLeads.includes(l.id) && l.verificationStatus === 'verified'
@@ -231,39 +312,101 @@ Best regards`;
     return 'bg-red-500/10 text-red-600 border-red-500/20';
   };
 
+  const currentLeads = showSavedLeads ? savedLeads : leads;
   const verifiedCount = leads.filter((l) => l.verificationStatus === 'verified').length;
-  const selectedVerifiedCount = leads.filter(
+  const selectedVerifiedCount = currentLeads.filter(
     (l) => selectedLeads.includes(l.id) && l.verificationStatus === 'verified'
   ).length;
 
   return (
     <div className="space-y-6">
+      {/* Toggle between current and saved leads */}
+      <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg">
+        <Button
+          variant={showSavedLeads ? 'outline' : 'default'}
+          size="sm"
+          onClick={() => {
+            setShowSavedLeads(false);
+            setSelectedLeads([]);
+          }}
+        >
+          <Sparkles className="w-4 h-4 mr-2" />
+          New Leads ({leads.length})
+        </Button>
+        <Button
+          variant={showSavedLeads ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => {
+            setShowSavedLeads(true);
+            setSelectedLeads([]);
+          }}
+        >
+          <Database className="w-4 h-4 mr-2" />
+          Saved Leads ({savedLeads.length})
+          {isLoadingSaved && <Loader2 className="w-3 h-3 ml-2 animate-spin" />}
+        </Button>
+      </div>
+
       {/* Header Actions */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <p className="text-sm text-muted-foreground">
-            {selectedLeads.length} selected • {verifiedCount} verified
+            {selectedLeads.length} selected • {showSavedLeads ? `${savedLeads.length} saved` : `${verifiedCount} verified`}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleVerifySelected}
-            disabled={isVerifying || selectedLeads.length === 0}
-          >
-            {isVerifying ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Verifying...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4 mr-2" />
-                AI Verify Selected
-              </>
-            )}
-          </Button>
+          {!showSavedLeads && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleVerifySelected}
+                disabled={isVerifying || selectedLeads.length === 0}
+              >
+                {isVerifying ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Verifying...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    AI Verify Selected
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSaveToDatabase}
+                disabled={isSaving || selectedVerifiedCount === 0}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    Save to DB ({selectedVerifiedCount})
+                  </>
+                )}
+              </Button>
+            </>
+          )}
+          {showSavedLeads && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDeleteSavedLeads}
+              disabled={selectedLeads.length === 0}
+              className="text-destructive border-destructive/50 hover:bg-destructive/10"
+            >
+              <XCircle className="w-4 h-4 mr-2" />
+              Delete Selected
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -302,15 +445,21 @@ Best regards`;
         <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
           <Checkbox
             id="select-all"
-            checked={selectedLeads.length === leads.length && leads.length > 0}
-            onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+            checked={selectedLeads.length === currentLeads.length && currentLeads.length > 0}
+            onCheckedChange={(checked) => {
+              if (checked) {
+                setSelectedLeads(currentLeads.map((l) => l.id));
+              } else {
+                setSelectedLeads([]);
+              }
+            }}
           />
           <label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
-            Select All ({leads.length})
+            Select All ({currentLeads.length})
           </label>
         </div>
 
-        {leads.map((lead) => (
+        {currentLeads.map((lead) => (
           <Card
             key={lead.id}
             className={`border transition-all ${
@@ -431,13 +580,25 @@ Best regards`;
         ))}
       </div>
 
-      {leads.length === 0 && (
+      {currentLeads.length === 0 && (
         <div className="text-center py-12">
-          <RefreshCw className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-foreground mb-2">No leads to verify</h3>
-          <p className="text-sm text-muted-foreground">
-            Search for leads first, then they'll appear here for AI verification.
-          </p>
+          {showSavedLeads ? (
+            <>
+              <Database className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No saved leads</h3>
+              <p className="text-sm text-muted-foreground">
+                Verify leads and save them to see them here.
+              </p>
+            </>
+          ) : (
+            <>
+              <RefreshCw className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-foreground mb-2">No leads to verify</h3>
+              <p className="text-sm text-muted-foreground">
+                Search for leads first, then they'll appear here for AI verification.
+              </p>
+            </>
+          )}
         </div>
       )}
     </div>
