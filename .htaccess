@@ -5,8 +5,8 @@
   RewriteEngine On
   RewriteBase /
 
-  # Allow the PHP API to work normally
-  RewriteRule ^api/ - [L]
+  # Allow the PHP API to work normally (located in /frontend/api/)
+  RewriteRule ^frontend/api/ - [L]
 
   # Don't rewrite existing files or directories
   RewriteCond %{REQUEST_FILENAME} -f [OR]

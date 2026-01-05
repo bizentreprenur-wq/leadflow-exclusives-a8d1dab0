@@ -4,7 +4,7 @@
 export const USE_MOCK_AUTH = false; // Backend is configured
 
 // API Base URL - Always use production since Lovable preview needs to hit the real API
-export const API_BASE_URL = 'https://bamlead.com/api';
+export const API_BASE_URL = 'https://bamlead.com/frontend/api';
 
 // Auth endpoints
 export const AUTH_ENDPOINTS = {
