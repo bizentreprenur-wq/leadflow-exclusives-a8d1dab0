@@ -180,6 +180,31 @@ const Pricing = () => {
           </div>
         </section>
 
+        {/* AI Verification Banner */}
+        <section className="pb-8">
+          <div className="container px-4">
+            <div className="max-w-4xl mx-auto">
+              <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 p-6 md:p-8">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                <div className="relative flex flex-col md:flex-row items-center gap-6">
+                  <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20">
+                    <Sparkles className="w-10 h-10 text-primary" />
+                  </div>
+                  <div className="text-center md:text-left flex-1">
+                    <h3 className="font-display text-xl md:text-2xl font-bold text-foreground mb-2">
+                      AI-Powered Lead Verification Included
+                    </h3>
+                    <p className="text-muted-foreground max-w-2xl">
+                      Unlike most competitors, every plan includes <span className="text-foreground font-medium">AI verification credits</span> to validate emails, score leads, and generate personalized outreach. 
+                      Get more accurate leads and higher conversion rates for your business.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Pricing cards */}
         <section className="py-20 md:py-28">
           <div className="container px-4">
