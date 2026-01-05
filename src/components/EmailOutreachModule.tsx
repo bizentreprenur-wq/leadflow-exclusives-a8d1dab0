@@ -74,6 +74,7 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   const [selectedSavedLeadIds, setSelectedSavedLeadIds] = useState<Set<string>>(new Set());
   const [leadsFromPicker, setLeadsFromPicker] = useState<LeadForEmail[]>([]);
   const [showSentLeads, setShowSentLeads] = useState(false);
+  const [updatingLeadId, setUpdatingLeadId] = useState<number | null>(null);
 
   // Merge selected leads from props and picker
   const allSelectedLeads = [...selectedLeads, ...leadsFromPicker];
@@ -164,6 +165,25 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
     onClearSelection?.();
     setLeadsFromPicker([]);
     setSelectedSavedLeadIds(new Set());
+  };
+
+  const handleUpdateLeadOutreachStatus = async (leadDbId: number, newStatus: 'sent' | 'replied' | 'converted' | 'bounced') => {
+    setUpdatingLeadId(leadDbId);
+    try {
+      const result = await updateLeadStatus(leadDbId, { outreachStatus: newStatus });
+      if (result.success) {
+        toast.success(`Lead marked as ${newStatus}`);
+        // Update local state
+        setSavedLeads(prev => prev.map(lead => 
+          lead.dbId === leadDbId ? { ...lead, outreachStatus: newStatus } : lead
+        ));
+      } else {
+        toast.error(result.error || 'Failed to update status');
+      }
+    } catch (error) {
+      toast.error('Failed to update lead status');
+    }
+    setUpdatingLeadId(null);
   };
 
   const handleSaveTemplate = async () => {
@@ -968,11 +988,14 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
                                       ? 'bg-green-500/10 text-green-600 border-green-500/20'
                                       : lead.outreachStatus === 'converted'
                                       ? 'bg-purple-500/10 text-purple-600 border-purple-500/20'
+                                      : lead.outreachStatus === 'bounced'
+                                      ? 'bg-red-500/10 text-red-600 border-red-500/20'
                                       : 'bg-blue-500/10 text-blue-600 border-blue-500/20'
                                   }`}
                                 >
                                   {lead.outreachStatus === 'replied' && <Reply className="w-3 h-3 mr-1" />}
                                   {lead.outreachStatus === 'converted' && <Star className="w-3 h-3 mr-1" />}
+                                  {lead.outreachStatus === 'bounced' && <XCircle className="w-3 h-3 mr-1" />}
                                   {lead.outreachStatus === 'sent' && <Send className="w-3 h-3 mr-1" />}
                                   {lead.outreachStatus}
                                 </Badge>
@@ -987,6 +1010,47 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
                                   Sent: {new Date(lead.sentAt).toLocaleDateString()} at {new Date(lead.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </p>
                               )}
+                              
+                              {/* Status update buttons */}
+                              <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-border/30">
+                                <span className="text-xs text-muted-foreground mr-1">Update:</span>
+                                {lead.outreachStatus !== 'replied' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 px-2 text-xs bg-green-500/10 hover:bg-green-500/20 text-green-600"
+                                    onClick={() => lead.dbId && handleUpdateLeadOutreachStatus(lead.dbId, 'replied')}
+                                    disabled={updatingLeadId === lead.dbId}
+                                  >
+                                    {updatingLeadId === lead.dbId ? <Loader2 className="w-3 h-3 animate-spin" /> : <Reply className="w-3 h-3 mr-1" />}
+                                    Replied
+                                  </Button>
+                                )}
+                                {lead.outreachStatus !== 'converted' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 px-2 text-xs bg-purple-500/10 hover:bg-purple-500/20 text-purple-600"
+                                    onClick={() => lead.dbId && handleUpdateLeadOutreachStatus(lead.dbId, 'converted')}
+                                    disabled={updatingLeadId === lead.dbId}
+                                  >
+                                    {updatingLeadId === lead.dbId ? <Loader2 className="w-3 h-3 animate-spin" /> : <Star className="w-3 h-3 mr-1" />}
+                                    Converted
+                                  </Button>
+                                )}
+                                {lead.outreachStatus !== 'bounced' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 px-2 text-xs bg-red-500/10 hover:bg-red-500/20 text-red-600"
+                                    onClick={() => lead.dbId && handleUpdateLeadOutreachStatus(lead.dbId, 'bounced')}
+                                    disabled={updatingLeadId === lead.dbId}
+                                  >
+                                    {updatingLeadId === lead.dbId ? <Loader2 className="w-3 h-3 animate-spin" /> : <XCircle className="w-3 h-3 mr-1" />}
+                                    Bounced
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
