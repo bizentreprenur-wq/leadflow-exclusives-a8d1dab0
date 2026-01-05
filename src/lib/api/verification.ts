@@ -1,9 +1,9 @@
 /**
  * Lead Verification API Client
- * Connects to PHP backend on Hostinger
+ * Falls back to mock data when no backend configured
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+import { API_BASE_URL } from './config';
 const USE_MOCK_DATA = !API_BASE_URL;
 
 export interface ContactInfo {

@@ -224,7 +224,7 @@ export default function Admin() {
                 <div>
                   <p className="font-medium text-amber-500">Demo Mode Active</p>
                   <p className="text-sm text-muted-foreground">
-                    Using mock data. Configure your Hostinger backend and set USE_MOCK_AUTH to false in src/lib/api/config.ts
+                    Using mock data. Configure your backend and set USE_MOCK_AUTH to false in src/lib/api/config.ts
                   </p>
                 </div>
               </div>

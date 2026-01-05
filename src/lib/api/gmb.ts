@@ -1,11 +1,9 @@
 /**
  * GMB Search API Client
- * Connects to PHP backend on Hostinger
- * Falls back to mock data for testing
+ * Falls back to mock data when no backend configured
  */
 
-// Update this with your Hostinger domain
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+import { API_BASE_URL } from './config';
 
 // Set to true to use mock data for testing
 const USE_MOCK_DATA = !API_BASE_URL;

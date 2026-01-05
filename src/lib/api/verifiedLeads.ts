@@ -1,6 +1,6 @@
 /**
  * Verified Leads API Client
- * Connects to PHP backend on Hostinger for lead persistence
+ * Requires backend connection for lead persistence
  */
 
 import { API_BASE_URL } from './config';
