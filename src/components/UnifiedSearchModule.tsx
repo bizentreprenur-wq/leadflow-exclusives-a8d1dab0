@@ -593,6 +593,7 @@ export default function UnifiedSearchModule() {
         open={showLeadActionModal}
         onOpenChange={setShowLeadActionModal}
         leadCount={results.length}
+        leads={results}
         onVerifyWithAI={handleVerifyWithAI}
         onDownload={handleDownloadCSV}
         onSendToGoogleDrive={handleSendToGoogleDrive}
