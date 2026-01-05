@@ -1,0 +1,248 @@
+import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarSeparator,
+  useSidebar,
+} from '@/components/ui/sidebar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Building2,
+  Globe,
+  Mail,
+  LayoutDashboard,
+  Settings,
+  HelpCircle,
+  Crown,
+  LogOut,
+  Star,
+  Clock,
+  ChevronLeft,
+  ChevronRight,
+  Sparkles,
+} from 'lucide-react';
+import bamMascot from '@/assets/bamlead-mascot.png';
+
+interface DashboardSidebarProps {
+  activeTab: string;
+  onTabChange: (tab: string) => void;
+  onLogout: () => void;
+}
+
+const searchTools = [
+  {
+    id: 'gmb',
+    title: 'GMB Search',
+    icon: Building2,
+    description: 'Google My Business',
+  },
+  {
+    id: 'platform',
+    title: 'Platform Search',
+    icon: Globe,
+    description: 'Website platforms',
+  },
+  {
+    id: 'email',
+    title: 'Email Outreach',
+    icon: Mail,
+    description: 'Send campaigns',
+  },
+];
+
+export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: DashboardSidebarProps) {
+  const { user } = useAuth();
+  const location = useLocation();
+  const { state, toggleSidebar } = useSidebar();
+  const isCollapsed = state === 'collapsed';
+
+  const trialDaysRemaining = user?.trial_ends_at
+    ? Math.max(0, Math.ceil((new Date(user.trial_ends_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : 0;
+
+  return (
+    <Sidebar collapsible="icon" className="border-r border-border">
+      {/* Header */}
+      <SidebarHeader className="p-4">
+        <Link to="/" className="flex items-center gap-3 group">
+          <div className="relative shrink-0">
+            <div className="w-10 h-10 bg-gradient-to-br from-primary/20 to-accent/20 rounded-xl flex items-center justify-center overflow-hidden">
+              <img
+                src={bamMascot}
+                alt="Bam"
+                className="w-8 h-8 object-contain transition-transform group-hover:scale-110"
+              />
+            </div>
+          </div>
+          {!isCollapsed && (
+            <div className="flex flex-col min-w-0">
+              <span className="text-lg font-bold text-foreground leading-none">BamLead</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Lead Generation</span>
+            </div>
+          )}
+        </Link>
+      </SidebarHeader>
+
+      <SidebarSeparator />
+
+      {/* Main Content */}
+      <SidebarContent>
+        {/* Dashboard Link */}
+        <SidebarGroup>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={location.pathname === '/dashboard'}
+                tooltip="Dashboard"
+                onClick={() => onTabChange('gmb')}
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span>Dashboard</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        {/* Search Tools */}
+        <SidebarGroup>
+          <SidebarGroupLabel>
+            <Sparkles className="w-3 h-3 mr-2" />
+            Lead Tools
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {searchTools.map((tool) => (
+                <SidebarMenuItem key={tool.id}>
+                  <SidebarMenuButton
+                    isActive={activeTab === tool.id}
+                    tooltip={tool.title}
+                    onClick={() => onTabChange(tool.id)}
+                  >
+                    <tool.icon className="w-4 h-4" />
+                    <span>{tool.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        {/* Admin Link (if applicable) */}
+        {(user?.role === 'admin' || user?.is_owner) && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Admin</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild tooltip="Admin Panel">
+                    <Link to="/admin">
+                      <Crown className="w-4 h-4 text-amber-500" />
+                      <span>Admin Panel</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* Support */}
+        <SidebarGroup className="mt-auto">
+          <SidebarGroupLabel>Support</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild tooltip="Help Center">
+                  <Link to="/contact">
+                    <HelpCircle className="w-4 h-4" />
+                    <span>Help Center</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarSeparator />
+
+      {/* Footer */}
+      <SidebarFooter className="p-4">
+        {/* Subscription Badge */}
+        {!isCollapsed && (
+          <div className="mb-4">
+            {user?.subscription_status === 'trial' && (
+              <Badge className="w-full justify-center gap-1.5 bg-amber-500/10 text-amber-600 border-amber-500/20 py-1.5">
+                <Clock className="w-3 h-3" />
+                {trialDaysRemaining} days left
+              </Badge>
+            )}
+            {user?.subscription_status === 'active' && (
+              <Badge className="w-full justify-center gap-1.5 bg-emerald-500/10 text-emerald-600 border-emerald-500/20 py-1.5">
+                <Star className="w-3 h-3 fill-current" />
+                Pro Plan
+              </Badge>
+            )}
+          </div>
+        )}
+
+        {/* User Info */}
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-9 h-9 bg-primary/10 rounded-full flex items-center justify-center shrink-0">
+            <span className="text-sm font-medium text-primary">
+              {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+            </span>
+          </div>
+          {!isCollapsed && (
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground truncate">{user?.name || 'User'}</p>
+              <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Logout Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start gap-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          onClick={onLogout}
+        >
+          <LogOut className="w-4 h-4" />
+          {!isCollapsed && <span>Sign out</span>}
+        </Button>
+
+        {/* Collapse Toggle */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-center mt-2 text-muted-foreground"
+          onClick={toggleSidebar}
+        >
+          {isCollapsed ? (
+            <ChevronRight className="w-4 h-4" />
+          ) : (
+            <>
+              <ChevronLeft className="w-4 h-4 mr-2" />
+              <span>Collapse</span>
+            </>
+          )}
+        </Button>
+      </SidebarFooter>
+    </Sidebar>
+  );
+}
