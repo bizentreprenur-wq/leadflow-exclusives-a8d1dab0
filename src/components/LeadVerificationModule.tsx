@@ -4,6 +4,23 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
   CheckCircle2,
@@ -21,7 +38,15 @@ import {
   AlertTriangle,
   Save,
   Database,
+  FileSpreadsheet,
+  FileText,
+  ExternalLink,
+  ChevronDown,
+  Table,
+  Link2,
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { fetchVerifiedLeads, saveVerifiedLeads, deleteVerifiedLeads, type SavedLead } from '@/lib/api/verifiedLeads';
 
 export interface VerifiedLead {
@@ -90,6 +115,8 @@ export default function LeadVerificationModule({ onSendToEmail }: LeadVerificati
   const [isLoadingSaved, setIsLoadingSaved] = useState(false);
   const [verificationProgress, setVerificationProgress] = useState(0);
   const [showSavedLeads, setShowSavedLeads] = useState(false);
+  const [googleSheetUrl, setGoogleSheetUrl] = useState('');
+  const [googleSheetsDialogOpen, setGoogleSheetsDialogOpen] = useState(false);
 
   // Load saved leads on mount
   useEffect(() => {
@@ -272,17 +299,20 @@ Best regards`;
     toast.success(`${verifiedLeads.length} leads ready for email outreach`);
   };
 
-  const handleExport = () => {
-    const verifiedLeads = leads.filter(
-      (l) => selectedLeads.includes(l.id) && l.verified
+  const getExportableLeads = () => {
+    const sourceLeads = showSavedLeads ? savedLeads : leads;
+    return sourceLeads.filter(
+      (l) => selectedLeads.includes(l.id) && (l.verified || l.verificationStatus === 'verified')
     );
+  };
 
+  const handleExportCSV = () => {
+    const verifiedLeads = getExportableLeads();
     if (verifiedLeads.length === 0) {
       toast.error('No verified leads to export');
       return;
     }
 
-    // Create CSV
     const headers = ['Business Name', 'Email', 'Phone', 'Website', 'Lead Score', 'Email Valid', 'AI Draft'];
     const rows = verifiedLeads.map((l) => [
       l.business_name,
@@ -294,7 +324,7 @@ Best regards`;
       l.aiDraftedMessage?.replace(/\n/g, ' ') || '',
     ]);
 
-    const csv = [headers, ...rows].map((row) => row.join(',')).join('\n');
+    const csv = [headers, ...rows].map((row) => row.map(cell => `"${cell}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -303,7 +333,123 @@ Best regards`;
     a.click();
     URL.revokeObjectURL(url);
 
-    toast.success(`Exported ${verifiedLeads.length} leads`);
+    toast.success(`Exported ${verifiedLeads.length} leads as CSV`);
+  };
+
+  const handleExportPDF = () => {
+    const verifiedLeads = getExportableLeads();
+    if (verifiedLeads.length === 0) {
+      toast.error('No verified leads to export');
+      return;
+    }
+
+    const doc = new jsPDF();
+    
+    // Title
+    doc.setFontSize(20);
+    doc.setTextColor(40, 40, 40);
+    doc.text('Verified Leads Report', 14, 22);
+    
+    // Summary
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 32);
+    doc.text(`Total Leads: ${verifiedLeads.length}`, 14, 38);
+    doc.text(`Valid Emails: ${verifiedLeads.filter(l => l.emailValid).length}`, 14, 44);
+    doc.text(`Avg Lead Score: ${Math.round(verifiedLeads.reduce((sum, l) => sum + l.leadScore, 0) / verifiedLeads.length)}`, 14, 50);
+
+    // Table
+    autoTable(doc, {
+      startY: 58,
+      head: [['Business Name', 'Email', 'Phone', 'Score', 'Valid']],
+      body: verifiedLeads.map(l => [
+        l.business_name,
+        l.email,
+        l.phone || '-',
+        l.leadScore.toString(),
+        l.emailValid ? '✓' : '✗'
+      ]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [59, 130, 246] },
+    });
+
+    doc.save(`verified-leads-${new Date().toISOString().split('T')[0]}.pdf`);
+    toast.success(`Exported ${verifiedLeads.length} leads as PDF`);
+  };
+
+  const handleViewOnBamlead = () => {
+    const verifiedLeads = getExportableLeads();
+    if (verifiedLeads.length === 0) {
+      toast.error('No verified leads to view');
+      return;
+    }
+
+    // Encode leads data for URL
+    const leadsData = verifiedLeads.map(l => ({
+      name: l.business_name,
+      email: l.email,
+      phone: l.phone || '',
+      website: l.website || '',
+      score: l.leadScore,
+      valid: l.emailValid
+    }));
+    
+    // Store in sessionStorage and open viewer
+    sessionStorage.setItem('bamlead_spreadsheet_data', JSON.stringify(leadsData));
+    window.open('/dashboard?view=spreadsheet', '_blank');
+    toast.success('Opening spreadsheet viewer...');
+  };
+
+  const handleCopyToClipboard = async () => {
+    const verifiedLeads = getExportableLeads();
+    if (verifiedLeads.length === 0) {
+      toast.error('No verified leads to copy');
+      return;
+    }
+
+    const headers = ['Business Name', 'Email', 'Phone', 'Website', 'Lead Score', 'Email Valid'];
+    const rows = verifiedLeads.map(l => [
+      l.business_name,
+      l.email,
+      l.phone || '',
+      l.website || '',
+      l.leadScore.toString(),
+      l.emailValid ? 'Yes' : 'No'
+    ]);
+
+    const tsv = [headers.join('\t'), ...rows.map(r => r.join('\t'))].join('\n');
+    
+    try {
+      await navigator.clipboard.writeText(tsv);
+      toast.success('Copied to clipboard - paste into Google Sheets or Excel');
+    } catch {
+      toast.error('Failed to copy to clipboard');
+    }
+  };
+
+  const handleConnectGoogleSheets = () => {
+    const verifiedLeads = getExportableLeads();
+    if (verifiedLeads.length === 0) {
+      toast.error('No verified leads to connect');
+      return;
+    }
+    setGoogleSheetsDialogOpen(true);
+  };
+
+  const handleGoogleSheetsConnect = () => {
+    if (!googleSheetUrl) {
+      toast.error('Please enter a Google Sheets URL');
+      return;
+    }
+    
+    // Copy data to clipboard for pasting
+    handleCopyToClipboard();
+    
+    // Open the Google Sheet
+    window.open(googleSheetUrl, '_blank');
+    setGoogleSheetsDialogOpen(false);
+    setGoogleSheetUrl('');
+    toast.success('Data copied! Paste it into your Google Sheet (Ctrl+V)');
   };
 
   const getScoreBadgeColor = (score: number) => {
@@ -407,15 +553,43 @@ Best regards`;
               Delete Selected
             </Button>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExport}
-            disabled={selectedVerifiedCount === 0}
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={selectedVerifiedCount === 0}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export
+                <ChevronDown className="w-3 h-3 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onClick={handleExportCSV}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Download as Spreadsheet (CSV)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportPDF}>
+                <FileText className="w-4 h-4 mr-2" />
+                Download as PDF Report
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleCopyToClipboard}>
+                <Table className="w-4 h-4 mr-2" />
+                Copy to Clipboard (for Sheets)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleViewOnBamlead}>
+                <ExternalLink className="w-4 h-4 mr-2" />
+                View on Bamlead.com
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleConnectGoogleSheets}>
+                <Link2 className="w-4 h-4 mr-2" />
+                Connect to Google Sheets
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             size="sm"
             onClick={handleSendToEmail}
@@ -601,6 +775,58 @@ Best regards`;
           )}
         </div>
       )}
+
+      {/* Google Sheets Connection Dialog */}
+      <Dialog open={googleSheetsDialogOpen} onOpenChange={setGoogleSheetsDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link2 className="w-5 h-5 text-primary" />
+              Connect to Google Sheets
+            </DialogTitle>
+            <DialogDescription>
+              Paste your Google Sheet URL and we'll copy your verified leads data for easy pasting.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="sheet-url">Google Sheet URL</Label>
+              <Input
+                id="sheet-url"
+                type="url"
+                value={googleSheetUrl}
+                onChange={(e) => setGoogleSheetUrl(e.target.value)}
+                placeholder="https://docs.google.com/spreadsheets/d/..."
+              />
+            </div>
+
+            <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 text-primary mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium">How it works:</p>
+                  <ol className="text-muted-foreground mt-1 space-y-1 list-decimal list-inside">
+                    <li>Your lead data will be copied to clipboard</li>
+                    <li>Your Google Sheet will open in a new tab</li>
+                    <li>Click a cell and press Ctrl+V (or Cmd+V) to paste</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGoogleSheetsDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleGoogleSheetsConnect}>
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Open Sheet & Copy Data
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

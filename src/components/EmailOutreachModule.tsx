@@ -37,11 +37,14 @@ import {
   sendBulkEmails,
   getSends,
   getEmailStats,
+  getScheduledEmails,
+  cancelScheduledEmail,
   personalizeTemplate,
   EmailTemplate,
   EmailSend,
   EmailStats,
   LeadForEmail,
+  ScheduledEmail,
 } from '@/lib/api/email';
 import { fetchVerifiedLeads, updateLeadStatus, type SavedLead } from '@/lib/api/verifiedLeads';
 
@@ -54,9 +57,11 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   const [activeTab, setActiveTab] = useState('send');
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [sends, setSends] = useState<EmailSend[]>([]);
+  const [scheduledEmails, setScheduledEmails] = useState<ScheduledEmail[]>([]);
   const [stats, setStats] = useState<EmailStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
+  const [isCancelling, setIsCancelling] = useState<number | null>(null);
   
   // Template editor state
   const [editingTemplate, setEditingTemplate] = useState<Partial<EmailTemplate> | null>(null);
@@ -94,19 +99,37 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [templatesRes, sendsRes, statsRes] = await Promise.all([
+      const [templatesRes, sendsRes, statsRes, scheduledRes] = await Promise.all([
         getTemplates(),
         getSends({ limit: 20 }),
         getEmailStats(30),
+        getScheduledEmails(),
       ]);
       
       if (templatesRes.success) setTemplates(templatesRes.templates);
       if (sendsRes.success) setSends(sendsRes.sends);
       if (statsRes.success && statsRes.stats) setStats(statsRes.stats);
+      if (scheduledRes.success) setScheduledEmails(scheduledRes.emails);
     } catch (error) {
       console.error('Failed to load email data:', error);
     }
     setIsLoading(false);
+  };
+
+  const handleCancelScheduled = async (id: number) => {
+    setIsCancelling(id);
+    try {
+      const result = await cancelScheduledEmail(id);
+      if (result.success) {
+        toast.success('Scheduled email cancelled');
+        setScheduledEmails(prev => prev.filter(e => e.id !== id));
+      } else {
+        toast.error(result.error || 'Failed to cancel email');
+      }
+    } catch (error) {
+      toast.error('Failed to cancel scheduled email');
+    }
+    setIsCancelling(null);
   };
 
   const loadSavedLeads = async () => {
@@ -601,10 +624,19 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
       )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3 max-w-md">
+        <TabsList className="grid w-full grid-cols-4 max-w-xl">
           <TabsTrigger value="send" className="gap-2">
             <Send className="w-4 h-4" />
             Send
+          </TabsTrigger>
+          <TabsTrigger value="scheduled" className="gap-2">
+            <Clock className="w-4 h-4" />
+            Scheduled
+            {scheduledEmails.length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1 text-xs">
+                {scheduledEmails.length}
+              </Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger value="templates" className="gap-2">
             <FileText className="w-4 h-4" />
@@ -844,6 +876,115 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Scheduled Tab */}
+        <TabsContent value="scheduled" className="space-y-4 mt-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Clock className="w-5 h-5 text-primary" />
+              Scheduled Emails Queue
+            </h3>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={loadData}
+              disabled={isLoading}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
+
+          {scheduledEmails.length > 0 ? (
+            <div className="space-y-3">
+              {scheduledEmails.map((email) => {
+                const scheduledDate = new Date(email.scheduled_for);
+                const isToday = scheduledDate.toDateString() === new Date().toDateString();
+                const isPast = scheduledDate < new Date();
+                
+                return (
+                  <Card key={email.id} className={`border-border/50 ${isPast ? 'opacity-60' : ''}`}>
+                    <CardContent className="py-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <div className={`p-2 rounded-lg ${isToday ? 'bg-amber-500/10' : 'bg-primary/10'}`}>
+                            <Calendar className={`w-4 h-4 ${isToday ? 'text-amber-500' : 'text-primary'}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium truncate">
+                                {email.business_name || email.recipient_name || email.recipient_email}
+                              </span>
+                              {isToday && (
+                                <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 shrink-0">
+                                  Today
+                                </Badge>
+                              )}
+                              {isPast && (
+                                <Badge className="bg-muted text-muted-foreground shrink-0">
+                                  Processing
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground truncate mt-0.5">
+                              {email.subject}
+                            </p>
+                            <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Mail className="w-3 h-3" />
+                                {email.recipient_email}
+                              </span>
+                              {email.template_name && (
+                                <span className="flex items-center gap-1">
+                                  <FileText className="w-3 h-3" />
+                                  {email.template_name}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-3 shrink-0">
+                          <div className="text-right">
+                            <p className="text-sm font-medium">
+                              {scheduledDate.toLocaleDateString()}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {scheduledDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:bg-destructive/10"
+                            onClick={() => handleCancelScheduled(email.id)}
+                            disabled={isCancelling === email.id}
+                          >
+                            {isCancelling === email.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <XCircle className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          ) : (
+            <Card className="border-border/50 border-dashed">
+              <CardContent className="py-12 text-center">
+                <Calendar className="w-12 h-12 mx-auto text-muted-foreground/50" />
+                <p className="mt-4 text-muted-foreground font-medium">No scheduled emails</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Schedule emails from the Send tab using "Optimal Time" or "Custom" scheduling
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Templates Tab */}
