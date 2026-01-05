@@ -1,11 +1,12 @@
-import { Palette, Search, Megaphone, User, Database } from "lucide-react";
+import { TrendingUp, Users, Megaphone, Building2, Briefcase, Target } from "lucide-react";
 
 const audiences = [
-  { icon: Palette, text: "Website designers" },
-  { icon: Search, text: "SEO professionals" },
-  { icon: Megaphone, text: "Marketing agencies" },
-  { icon: User, text: "Freelancers" },
-  { icon: Database, text: "Lead generation businesses" },
+  { icon: TrendingUp, text: "B2B Sales Teams" },
+  { icon: Users, text: "Recruiters & HR" },
+  { icon: Megaphone, text: "Marketing Agencies" },
+  { icon: Building2, text: "SaaS Companies" },
+  { icon: Briefcase, text: "Service Providers" },
+  { icon: Target, text: "Lead Gen Agencies" },
 ];
 
 const WhoThisIsForSection = () => {
@@ -19,7 +20,7 @@ const WhoThisIsForSection = () => {
               Who This Is For
             </p>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6">
-              Built for digital service providers
+              Built for modern B2B teams
             </h2>
           </div>
 
@@ -41,7 +42,7 @@ const WhoThisIsForSection = () => {
           {/* Bottom message */}
           <div className="text-center p-8 rounded-2xl border border-primary/20 bg-primary/5">
             <p className="text-xl md:text-2xl font-display font-semibold text-foreground">
-              If you sell websites or digital services, this tool removes hours of manual research.
+              If you need qualified leads, this tool removes hours of manual research.
             </p>
           </div>
         </div>
