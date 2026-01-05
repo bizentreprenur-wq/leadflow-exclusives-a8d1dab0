@@ -27,7 +27,7 @@ import { toast } from 'sonner';
 import {
   Mail, Send, FileText, BarChart3, Loader2, Plus, Trash2,
   Edit, Eye, Users, CheckCircle, AlertCircle, Clock, MousePointer,
-  Reply, XCircle, Sparkles, Database, RefreshCw, Star, Building2
+  Reply, XCircle, Sparkles, Database, RefreshCw, Star, Building2, RotateCcw
 } from 'lucide-react';
 import {
   getTemplates,
@@ -75,6 +75,9 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   const [leadsFromPicker, setLeadsFromPicker] = useState<LeadForEmail[]>([]);
   const [showSentLeads, setShowSentLeads] = useState(false);
   const [updatingLeadId, setUpdatingLeadId] = useState<number | null>(null);
+  const [resendDialogOpen, setResendDialogOpen] = useState(false);
+  const [resendLead, setResendLead] = useState<SavedLead | null>(null);
+  const [newEmailAddress, setNewEmailAddress] = useState('');
 
   // Merge selected leads from props and picker
   const allSelectedLeads = [...selectedLeads, ...leadsFromPicker];
@@ -200,6 +203,43 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
       }
     } catch (error) {
       toast.error('Failed to update lead status');
+    }
+    setUpdatingLeadId(null);
+  };
+
+  const handleOpenResendDialog = (lead: SavedLead) => {
+    setResendLead(lead);
+    setNewEmailAddress(lead.email);
+    setResendDialogOpen(true);
+  };
+
+  const handleResendWithNewEmail = async () => {
+    if (!resendLead?.dbId || !newEmailAddress) return;
+    
+    setUpdatingLeadId(resendLead.dbId);
+    try {
+      // Update email and reset status to pending
+      const result = await updateLeadStatus(resendLead.dbId, { 
+        email: newEmailAddress,
+        outreachStatus: 'pending'
+      });
+      
+      if (result.success) {
+        toast.success('Email updated - lead is now available for resending');
+        // Update local state
+        setSavedLeads(prev => prev.map(lead => 
+          lead.dbId === resendLead.dbId 
+            ? { ...lead, email: newEmailAddress, outreachStatus: 'pending' } 
+            : lead
+        ));
+        setResendDialogOpen(false);
+        setResendLead(null);
+        setNewEmailAddress('');
+      } else {
+        toast.error(result.error || 'Failed to update email');
+      }
+    } catch (error) {
+      toast.error('Failed to update lead');
     }
     setUpdatingLeadId(null);
   };
@@ -1121,6 +1161,17 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
                                     Bounced
                                   </Button>
                                 )}
+                                {lead.outreachStatus === 'bounced' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 px-2 text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-600"
+                                    onClick={() => handleOpenResendDialog(lead)}
+                                  >
+                                    <RotateCcw className="w-3 h-3 mr-1" />
+                                    Resend
+                                  </Button>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1143,6 +1194,72 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
             >
               <Users className="w-4 h-4 mr-2" />
               Add {selectedSavedLeadIds.size} Leads
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Resend Email Dialog */}
+      <Dialog open={resendDialogOpen} onOpenChange={setResendDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RotateCcw className="w-5 h-5 text-amber-500" />
+              Resend to Bounced Lead
+            </DialogTitle>
+            <DialogDescription>
+              Update the email address and make this lead available for resending
+            </DialogDescription>
+          </DialogHeader>
+
+          {resendLead && (
+            <div className="space-y-4">
+              <div className="p-3 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Building2 className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">{resendLead.business_name}</span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Original email bounced: <span className="line-through">{resendLead.email}</span>
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="new-email">New Email Address</Label>
+                <Input
+                  id="new-email"
+                  type="email"
+                  value={newEmailAddress}
+                  onChange={(e) => setNewEmailAddress(e.target.value)}
+                  placeholder="Enter new email address"
+                />
+              </div>
+
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 text-amber-500 mt-0.5" />
+                  <p className="text-sm text-muted-foreground">
+                    This will reset the lead status and make it available in the "Available" tab for your next campaign.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResendDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleResendWithNewEmail}
+              disabled={!newEmailAddress || updatingLeadId === resendLead?.dbId}
+            >
+              {updatingLeadId === resendLead?.dbId ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <RotateCcw className="w-4 h-4 mr-2" />
+              )}
+              Update & Make Available
             </Button>
           </DialogFooter>
         </DialogContent>
