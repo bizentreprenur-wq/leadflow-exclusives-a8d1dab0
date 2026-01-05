@@ -123,9 +123,9 @@ jobs:
               exit 1
             fi
             
-            # Check 2: Response is valid JSON with "status" field
-            if ! echo "$BODY" | grep -q '"status"'; then
-              echo "❌ Failed: Response is not valid JSON or missing 'status' field"
+            # Check 2: Response must be valid JSON (strict parse) with expected fields
+            if ! echo "$BODY" | node -e 'let d="";process.stdin.on("data",c=>d+=c);process.stdin.on("end",()=>{try{const j=JSON.parse(d);if(!j||typeof j.status!=="string") throw new Error("Missing status");if(!j.checks||j.checks.api!==true) throw new Error("Missing checks.api");process.exit(0);}catch(e){console.error(e.message);process.exit(1);}});'; then
+              echo "❌ Failed: Response is not valid BamLead health JSON"
               if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
                 echo "   Retrying in ${RETRY_DELAY}s..."
                 sleep $RETRY_DELAY
@@ -133,13 +133,14 @@ jobs:
               fi
               echo ""
               echo "🚨 DEPLOYMENT BLOCKED: Invalid API response"
-              echo "   Expected JSON with 'status' field, got:"
-              echo "   $BODY"
+              echo "   Expected JSON like: { status, checks: { api: true } }"
+              echo "   Got (first 300 chars):"
+              echo "   $(echo "$BODY" | tr "\n" " " | sed 's/  */ /g' | cut -c1-300)"
               echo ""
               echo "   This usually means:"
-              echo "   - PHP is returning an error page instead of JSON"
-              echo "   - config.php is missing or has syntax errors"
-              echo "   - There's a database connection issue"
+              echo "   - /api is missing (Hostinger 404 HTML)"
+              echo "   - PHP is crashing before it can output JSON"
+              echo "   - You are hitting a different document root than the deploy"
               exit 1
             fi
             
