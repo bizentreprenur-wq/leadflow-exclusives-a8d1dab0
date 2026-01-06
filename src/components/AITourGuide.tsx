@@ -39,7 +39,7 @@ const TOUR_STEPS: TourStep[] = [
     id: "welcome",
     page: "/",
     title: "Welcome to BamLead! 🎉",
-    description: "Well hello there, friend! I'm Bam, and I'll be your guide today. Allow me to walk you through BamLead, the most advanced lead generation platform on the market. Click Next to continue, or if you'd like to stop the tutorial at any time, just click the X button or Skip Tour. Shall we get started?"
+    description: "Well hello there, friend! I'm Bam, and I'll be your guide today. Just sit back and relax while I walk you through BamLead, the most advanced lead generation platform on the market. If you'd like to stop the tour at any time, just click the X button or Skip Tour. Alright, let's get started!"
   },
   {
     id: "search-methods",
@@ -275,11 +275,15 @@ export default function AITourGuide() {
     return availableVoices[selectedVoiceIndex]?.voice || availableVoices[0]?.voice || null;
   }, [availableVoices, selectedVoiceIndex]);
 
-  // Speak the current step with selected voice
-  const speak = useCallback((text: string) => {
+  // Track if we should auto-advance (set by speak, cleared on manual navigation)
+  const autoAdvanceRef = useRef(true);
+
+  // Speak the current step with selected voice and auto-advance when done
+  const speak = useCallback((text: string, shouldAutoAdvance = true) => {
     if (!("speechSynthesis" in window)) return;
     
     window.speechSynthesis.cancel();
+    autoAdvanceRef.current = shouldAutoAdvance;
     
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = speechRate;
@@ -292,7 +296,25 @@ export default function AITourGuide() {
     }
 
     utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      // Auto-advance to next step after speech ends
+      if (autoAdvanceRef.current) {
+        setTimeout(() => {
+          setCurrentStepIndex(prev => {
+            if (prev < TOUR_STEPS.length - 1) {
+              return prev + 1;
+            } else {
+              // Tour complete
+              localStorage.setItem(STORAGE_KEY, "true");
+              setShowTour(false);
+              setIsFirstVisit(false);
+              return prev;
+            }
+          });
+        }, 800); // Small pause before next step
+      }
+    };
     utterance.onerror = () => setIsSpeaking(false);
 
     speechRef.current = utterance;
@@ -373,59 +395,24 @@ export default function AITourGuide() {
     setTimeout(() => setIsWalking(false), 800);
   }, []);
 
-  // Navigate to step's page if needed
-  const goToStep = useCallback((index: number) => {
+  // Navigate to step (the useEffect handles the rest)
+  const goToStep = useCallback((index: number, disableAutoAdvance = false) => {
     const step = TOUR_STEPS[index];
     if (!step) return;
 
     stopSpeaking();
+    if (disableAutoAdvance) {
+      autoAdvanceRef.current = false;
+    }
     setCurrentStepIndex(index);
-
-    // Navigate if needed
-    if (step.page !== location.pathname) {
-      navigate(step.page);
-    }
-
-    // Speak and move Bam after a short delay
-    setTimeout(() => {
-      speak(step.description);
-      moveMascotToElement(step.element);
-    }, 500);
-
-    // Highlight element if specified
-    if (step.element) {
-      setTimeout(() => {
-        const el = document.querySelector(step.element!);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "center" });
-          el.classList.add("tour-highlight");
-          setTimeout(() => el.classList.remove("tour-highlight"), 3000);
-        }
-      }, 600);
-    }
-  }, [location.pathname, navigate, speak, stopSpeaking, moveMascotToElement]);
+  }, [stopSpeaking]);
 
   // Start tour
   const startTour = useCallback(() => {
+    autoAdvanceRef.current = true;
     setShowTour(true);
-    goToStep(0);
-  }, [goToStep]);
-
-  // Next step
-  const nextStep = useCallback(() => {
-    if (currentStepIndex < TOUR_STEPS.length - 1) {
-      goToStep(currentStepIndex + 1);
-    } else {
-      completeTour();
-    }
-  }, [currentStepIndex, goToStep]);
-
-  // Previous step
-  const prevStep = useCallback(() => {
-    if (currentStepIndex > 0) {
-      goToStep(currentStepIndex - 1);
-    }
-  }, [currentStepIndex, goToStep]);
+    setCurrentStepIndex(0);
+  }, []);
 
   // Complete tour
   const completeTour = useCallback(() => {
@@ -437,6 +424,22 @@ export default function AITourGuide() {
       navigate("/");
     }
   }, [location.pathname, navigate, stopSpeaking]);
+
+  // Next step (manual - disables auto-advance)
+  const nextStep = useCallback(() => {
+    if (currentStepIndex < TOUR_STEPS.length - 1) {
+      goToStep(currentStepIndex + 1, true);
+    } else {
+      completeTour();
+    }
+  }, [currentStepIndex, goToStep, completeTour]);
+
+  // Previous step (manual - disables auto-advance)
+  const prevStep = useCallback(() => {
+    if (currentStepIndex > 0) {
+      goToStep(currentStepIndex - 1, true);
+    }
+  }, [currentStepIndex, goToStep]);
 
   // Disable tour permanently
   const disableTour = useCallback(() => {
@@ -495,15 +498,42 @@ export default function AITourGuide() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showTour, nextStep, prevStep, isSpeaking, togglePause, speak, currentStep, stopSpeaking, skipTour]);
 
-  // Auto-speak on tour start
+  // Auto-navigate, speak, and highlight when step changes
   useEffect(() => {
-    if (showTour && currentStepIndex === 0 && !isSpeaking) {
-      setTimeout(() => {
-        speak(currentStep.description);
-        moveMascotToElement(currentStep.element);
-      }, 800);
+    if (!showTour) return;
+    
+    const step = TOUR_STEPS[currentStepIndex];
+    if (!step) return;
+
+    // Navigate if needed
+    if (step.page !== location.pathname) {
+      navigate(step.page);
     }
-  }, [showTour]);
+
+    // Speak and move Bam after a short delay
+    const speakTimeout = setTimeout(() => {
+      speak(step.description);
+      moveMascotToElement(step.element);
+    }, step.page !== location.pathname ? 600 : 300);
+
+    // Highlight element if specified
+    let highlightTimeout: NodeJS.Timeout;
+    if (step.element) {
+      highlightTimeout = setTimeout(() => {
+        const el = document.querySelector(step.element!);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.classList.add("tour-highlight");
+          setTimeout(() => el.classList.remove("tour-highlight"), 3000);
+        }
+      }, step.page !== location.pathname ? 800 : 400);
+    }
+
+    return () => {
+      clearTimeout(speakTimeout);
+      if (highlightTimeout) clearTimeout(highlightTimeout);
+    };
+  }, [showTour, currentStepIndex, location.pathname, navigate, speak, moveMascotToElement]);
 
   // Floating demo button (always visible when tour not active)
   if (!showTour && !isFirstVisit) {
@@ -525,16 +555,13 @@ export default function AITourGuide() {
       <div className="fixed top-20 right-4 z-50 flex items-center gap-1">
         <button
           onClick={() => {
+            autoAdvanceRef.current = true;
             setIsFirstVisit(false);
             setShowTour(true);
             setCurrentStepIndex(0);
             if (location.pathname !== "/") {
               navigate("/");
             }
-            setTimeout(() => {
-              speak(TOUR_STEPS[0].description);
-              moveMascotToElement(TOUR_STEPS[0].element);
-            }, 500);
           }}
           className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-l-full shadow-lg hover:brightness-110 transition-all font-medium text-sm"
         >
