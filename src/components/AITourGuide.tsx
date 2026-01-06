@@ -59,32 +59,46 @@ const TOUR_STEPS: TourStep[] = [
     page: "/",
     element: "[data-tour='ai-activation']",
     title: "When AI Features Activate",
-    description: "Now this, my friend, is where things get truly exciting. BamLead has over 10 AI features that work automatically. Pre-Intent Detection predicts who will convert. Emotional State AI reads customer moods. These powerful tools activate at different stages of your lead journey."
+    description: "Now this, my friend, is where things get truly exciting. BamLead has over 10 AI features that work automatically throughout your lead journey. During the search phase, Pre-Intent Detection analyzes browsing patterns to predict which leads are most likely to convert. Emotional State AI reads the mood and sentiment behind customer interactions to help you time your outreach perfectly. During verification, our AI validates email addresses and scores leads based on conversion likelihood. And during outreach, AI personalizes your messages and predicts the best send times. It's like having a team of experts working behind the scenes!"
   },
   {
     id: "revolutionary",
     page: "/",
     element: "[data-tour='revolutionary']",
     title: "What Makes Us Different",
-    description: "Allow me to show you the crown jewels. This section showcases all the revolutionary features that no competitor has. We're talking about Outcome Simulators, Psychological Profilers, and Invisible Negotiators. These are your secret weapons, my friend."
+    description: "Allow me to show you the crown jewels. The Outcome Simulator lets you see predicted results before you even send a campaign. The Psychological Profiler creates detailed customer personas to craft the perfect pitch. The Invisible Negotiator suggests real-time responses during conversations. And the Founder Mirror? It matches you with leads who share your business philosophy. These are your secret weapons, my friend."
+  },
+  {
+    id: "email-outreach",
+    page: "/",
+    element: "[data-tour='email-outreach']",
+    title: "Email Outreach System",
+    description: "Now let me show you something truly special, the email outreach system. You get access to over 12 professionally designed email templates across categories like Sales, Marketing, Recruiting, and Networking. Each template has beautiful visual layouts, hero banners, split designs, newsletter formats, and promotional styles. Our AI will even personalize the content for each lead automatically. You can schedule sends at optimal times, track opens and replies in real time, and manage entire campaigns from one dashboard."
+  },
+  {
+    id: "lead-nurturing",
+    page: "/",
+    element: "[data-tour='email-outreach']",
+    title: "Lead Nurturing & Sequences",
+    description: "But wait, there's more! Beyond single emails, we have full lead nurturing capabilities. You can build automated email sequences that drip over days or weeks, keeping your leads warm. The system tracks engagement, so if someone opens but doesn't reply, it automatically sends a follow-up. You can set up multi-touch campaigns that combine emails with reminders. Our AI predicts when leads are going cold and nudges you to re-engage. This is how you turn cold leads into paying customers, my friend."
   },
   {
     id: "pricing-cta",
     page: "/pricing",
-    title: "Flexible Pricing",
-    description: "Now, let's head on over to the pricing page. We offer a free trial so you can test all features before committing. No credit card required to get started. You can search for unlimited leads and try all our AI features for seven days. A fine deal, if I do say so myself."
+    title: "Flexible Pricing Plans",
+    description: "Now, let me walk you through our pricing. We have four tiers designed for every stage of your business. The Free Trial gives you 7 days to test everything with no credit card required. The Basic plan at 49 dollars per month is perfect for solo entrepreneurs, giving you 500 searches and 1,000 emails. The Pro plan at 99 dollars per month unlocks unlimited searches, 5,000 emails, and all AI features. And for agencies, the 249 dollar plan includes unlimited everything plus team collaboration, API access, and priority support. All plans include our lead verification AI and email templates."
   },
   {
     id: "dashboard-preview",
     page: "/dashboard",
-    title: "Your Dashboard",
-    description: "And here we are at your command center. From this dashboard, you can search for leads, verify them with AI, send email campaigns, and track everything. The sidebar gives you access to all features, including AI verification and email outreach."
+    title: "Your Command Center",
+    description: "And here we are at your command center, the dashboard. On the left sidebar, you'll find all your tools: the lead scanners, AI verification, email outreach, and the new Sequences module for automated campaigns. The main area shows your performance stats and recent activity. You can search for leads, verify them with AI, customize email templates with our visual editor, and even add your own images. Everything you need to run successful outreach campaigns is right here, organized and ready to go."
   },
   {
     id: "finish",
     page: "/",
     title: "You're All Set! 🚀",
-    description: "Well, that concludes our tour! You now know the fundamentals of BamLead. Start by searching for leads on the homepage, or sign up for a free trial to unlock all features. If you ever need assistance, just click the chat button. Best of luck with your lead hunting, my friend!"
+    description: "Well, that concludes our tour! You've learned about our powerful search scanners, the AI features that work behind the scenes, our beautiful email templates and nurturing sequences, and the flexible pricing plans. Remember, you can start with a free trial to test everything risk-free. If you ever need help, just click the support chat or rewatch this tour. Best of luck with your lead hunting, my friend! I'll be right here if you need me."
   }
 ];
 
