@@ -51,8 +51,8 @@ const Contact = () => {
     {
       icon: MapPin,
       title: "Location",
-      value: "Austin, Texas",
-      description: "Remote-first company",
+      value: "5900 Balcones Drive #STE 100",
+      description: "Austin, TX 78731, USA",
     },
   ];
 

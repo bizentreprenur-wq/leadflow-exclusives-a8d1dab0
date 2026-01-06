@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import mascotLogo from "@/assets/bamlead-mascot.png";
+import { MapPin } from "lucide-react";
 
 const Footer = () => {
   const footerLinks = {
@@ -12,6 +13,11 @@ const Footer = () => {
       { label: "About", href: "/about" },
       { label: "Contact", href: "/contact" },
     ],
+  };
+
+  const address = {
+    line1: "5900 Balcones Drive #STE 100",
+    line2: "Austin, TX 78731, USA",
   };
 
   return (
@@ -31,9 +37,16 @@ const Footer = () => {
                   Bam<span className="text-primary">Lead</span>
                 </span>
               </Link>
-              <p className="text-muted-foreground max-w-sm">
+              <p className="text-muted-foreground max-w-sm mb-4">
                 Find businesses that need your web design services. Stop guessing, start closing.
               </p>
+              <div className="flex items-start gap-2 text-sm text-muted-foreground">
+                <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
+                <div>
+                  <p>{address.line1}</p>
+                  <p>{address.line2}</p>
+                </div>
+              </div>
             </div>
 
             {/* Product Links */}
