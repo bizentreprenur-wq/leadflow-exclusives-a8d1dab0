@@ -114,7 +114,7 @@ export default function AITourGuide() {
   // Voice settings state
   const [availableVoices, setAvailableVoices] = useState<VoiceOption[]>([]);
   const [selectedVoiceIndex, setSelectedVoiceIndex] = useState(0);
-  const [speechRate, setSpeechRate] = useState(0.95);
+  const [speechRate, setSpeechRate] = useState(1.0);
   const [showSubtitles, setShowSubtitles] = useState(true);
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [isTestingVoice, setIsTestingVoice] = useState(false);
@@ -550,8 +550,11 @@ export default function AITourGuide() {
           <h2 className="text-2xl font-display font-bold text-foreground mb-3">
             Hey there! I'm Bam! 👋
           </h2>
-          <p className="text-muted-foreground mb-6">
+          <p className="text-muted-foreground mb-4">
             Welcome to BamLead! Want me to walk you through our features? I'll guide you around and explain everything!
+          </p>
+          <p className="text-xs text-muted-foreground/70 mb-4">
+            💡 You can turn off Bam anytime by clicking "Don't show this again" below
           </p>
           <div className="flex flex-col gap-3">
             <Button onClick={startTour} size="lg" className="w-full gap-2">
