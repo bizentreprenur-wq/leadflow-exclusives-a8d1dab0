@@ -51,22 +51,17 @@ interface DashboardSidebarProps {
   onLogout: () => void;
 }
 
-const searchTools = [
+const mainWorkflow = [
   {
-    id: 'search',
-    title: 'Lead Search',
+    id: 'workflow',
+    title: '🚀 Start Finding Leads',
     icon: Search,
-    description: 'GMB, Google & Bing',
+    description: 'Step-by-step workflow',
+    highlight: true,
   },
 ];
 
-const outreachTools = [
-  {
-    id: 'email',
-    title: 'Send Emails',
-    icon: Send,
-    description: 'Email campaigns',
-  },
+const otherTools = [
   {
     id: 'sequences',
     title: 'Sequences',
@@ -79,12 +74,6 @@ const outreachTools = [
     title: 'Email Templates',
     icon: FileText,
     description: 'Pre-built templates',
-  },
-  {
-    id: 'verify',
-    title: 'Verify Leads',
-    icon: CheckCircle2,
-    description: 'AI verification',
   },
 ];
 
@@ -215,23 +204,24 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
 
         <SidebarSeparator />
 
-        {/* Search Tools */}
+        {/* Main Workflow */}
         <SidebarGroup>
           <SidebarGroupLabel>
             <Sparkles className="w-3 h-3 mr-2" />
-            Find Leads
+            Lead Generation
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {searchTools.map((tool) => (
+              {mainWorkflow.map((tool) => (
                 <SidebarMenuItem key={tool.id}>
                   <SidebarMenuButton
                     isActive={activeTab === tool.id}
                     tooltip={tool.title}
                     onClick={() => onTabChange(tool.id)}
+                    className={tool.highlight ? 'bg-primary/10 hover:bg-primary/20' : ''}
                   >
-                    <tool.icon className="w-4 h-4" />
-                    <span>{tool.title}</span>
+                    <tool.icon className={`w-4 h-4 ${tool.highlight ? 'text-primary' : ''}`} />
+                    <span className={tool.highlight ? 'font-semibold' : ''}>{tool.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -241,15 +231,15 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
 
         <SidebarSeparator />
 
-        {/* Outreach Tools */}
+        {/* Other Tools */}
         <SidebarGroup>
           <SidebarGroupLabel>
             <Mail className="w-3 h-3 mr-2" />
-            Outreach
+            Tools
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {outreachTools.map((tool) => (
+              {otherTools.map((tool) => (
                 <SidebarMenuItem key={tool.id}>
                   <SidebarMenuButton
                     isActive={activeTab === tool.id}
