@@ -164,8 +164,8 @@ export default function AITourGuide() {
     window.speechSynthesis.cancel();
     
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.0; // Natural speaking rate
-    utterance.pitch = 1.0; // Normal pitch
+    utterance.rate = 1.15; // Slightly faster pace
+    utterance.pitch = 0.85; // Deeper voice
     utterance.volume = 1;
     
     const americanMaleVoice = getAmericanMaleVoice();
@@ -336,7 +336,29 @@ export default function AITourGuide() {
     };
   }, []);
 
-  if (tourDisabled) return null;
+  // Floating demo button (always visible when tour not active)
+  if (!showTour && !isFirstVisit) {
+    return (
+      <button
+        onClick={() => {
+          setIsFirstVisit(false);
+          setShowTour(true);
+          setCurrentStepIndex(0);
+          if (location.pathname !== "/") {
+            navigate("/");
+          }
+          setTimeout(() => {
+            speak(TOUR_STEPS[0].description);
+            moveMascotToElement(TOUR_STEPS[0].element);
+          }, 500);
+        }}
+        className="fixed top-20 right-4 z-50 flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-full shadow-lg hover:scale-105 transition-transform font-medium text-sm"
+      >
+        <Play className="w-4 h-4" />
+        Live Demo
+      </button>
+    );
+  }
 
   // First visit prompt (before tour starts)
   if (isFirstVisit && !showTour && location.pathname === "/") {
