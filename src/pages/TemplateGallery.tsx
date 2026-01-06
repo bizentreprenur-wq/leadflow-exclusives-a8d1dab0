@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Home } from "lucide-react";
 import { Link } from "react-router-dom";
 import HighConvertingTemplateGallery from "@/components/HighConvertingTemplateGallery";
+import EmailHelpOverlay from "@/components/EmailHelpOverlay";
 import { EmailTemplate } from "@/lib/highConvertingTemplates";
 import { toast } from "sonner";
 
@@ -29,12 +30,15 @@ export default function TemplateGallery() {
             <div className="h-6 w-px bg-border" />
             <h1 className="text-xl font-bold">📧 Email Template Gallery</h1>
           </div>
-          <Link to="/">
-            <Button variant="outline" size="sm">
-              <Home className="w-4 h-4 mr-2" />
-              Home
-            </Button>
-          </Link>
+          <div className="flex items-center gap-3">
+            <EmailHelpOverlay variant="inline" />
+            <Link to="/">
+              <Button variant="outline" size="sm">
+                <Home className="w-4 h-4 mr-2" />
+                Home
+              </Button>
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -45,6 +49,9 @@ export default function TemplateGallery() {
           selectedTemplateId={selectedTemplate?.id}
         />
       </main>
+
+      {/* Floating Help Button */}
+      <EmailHelpOverlay variant="floating" />
 
       {/* Selected Template Banner */}
       {selectedTemplate && (
