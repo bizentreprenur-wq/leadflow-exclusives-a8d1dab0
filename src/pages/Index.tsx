@@ -17,6 +17,7 @@ import SecretAISection from "@/components/SecretAISection";
 import RevolutionaryFeaturesSection from "@/components/RevolutionaryFeaturesSection";
 import DualSearchShowcase from "@/components/DualSearchShowcase";
 import AgentCardsSection from "@/components/AgentCardsSection";
+import WhenAIActivatesSection from "@/components/WhenAIActivatesSection";
 
 const Index = () => {
   return (
@@ -27,6 +28,7 @@ const Index = () => {
         <HeroSection />
         <DualSearchShowcase />
         <AgentCardsSection />
+        <WhenAIActivatesSection />
         <RevolutionaryFeaturesSection />
         <SecretAISection />
         <StatsSection />
