@@ -22,53 +22,53 @@ const TOUR_STEPS: TourStep[] = [
     id: "welcome",
     page: "/",
     title: "Welcome to BamLead! 🎉",
-    description: "Hey there! I'm Bam, your personal AI guide. Let me walk you through BamLead, the most advanced lead generation platform with AI features no one else has. Follow me!"
+    description: "Well hello there, friend! I'm Bam, and I'll be your guide today. Allow me to walk you through BamLead, the most advanced lead generation platform on the market. Shall we get started?"
   },
   {
     id: "search-methods",
     page: "/",
     element: "[data-tour='dual-search']",
     title: "Two Powerful Search Methods",
-    description: "Come on over here! We've got TWO awesome ways to find leads. First up, our Google My Business scanner finds local businesses. And check this out, our Platform Scanner searches Google and Bing to find businesses running outdated websites. Pretty cool, right?"
+    description: "Now, right over here, we have two excellent ways to find leads. First, our Google My Business scanner locates local businesses. Second, our Platform Scanner searches Google and Bing to find businesses running outdated websites. Quite impressive, wouldn't you say?"
   },
   {
     id: "agent-cards",
     page: "/",
     element: "[data-tour='agent-cards']",
     title: "Ready-to-Use Scanners",
-    description: "Follow me to meet your scanning agents! The GMB Scanner hunts down local businesses with Google My Business listings. And the Platform Scanner? It detects over 16 legacy platforms and analyzes website quality instantly."
+    description: "Walk with me over here to meet your scanning agents. The GMB Scanner tracks down local businesses with Google My Business listings. And the Platform Scanner, well, it detects over 16 legacy platforms and analyzes website quality in an instant."
   },
   {
     id: "ai-features",
     page: "/",
     element: "[data-tour='ai-activation']",
     title: "When AI Features Activate",
-    description: "Now this is where it gets exciting! Walk with me. BamLead has over 10 AI features that work automatically. Pre-Intent Detection predicts who's gonna convert. Emotional State AI reads customer moods. These bad boys activate at different stages of your lead journey."
+    description: "Now this, my friend, is where things get truly exciting. BamLead has over 10 AI features that work automatically. Pre-Intent Detection predicts who will convert. Emotional State AI reads customer moods. These powerful tools activate at different stages of your lead journey."
   },
   {
     id: "revolutionary",
     page: "/",
     element: "[data-tour='revolutionary']",
     title: "What Makes Us Different",
-    description: "Let me show you the good stuff! This section has all the revolutionary features that NO competitor has. We're talking Outcome Simulators, Psychological Profilers, Invisible Negotiators. These are your secret weapons for an unfair advantage."
+    description: "Allow me to show you the crown jewels. This section showcases all the revolutionary features that no competitor has. We're talking about Outcome Simulators, Psychological Profilers, and Invisible Negotiators. These are your secret weapons, my friend."
   },
   {
     id: "pricing-cta",
     page: "/pricing",
     title: "Flexible Pricing",
-    description: "Alright, hop on over to our pricing page with me! We've got a free trial so you can test all features. No credit card required to start. Search for unlimited leads and try all our AI features for 7 days. Can't beat that!"
+    description: "Now, let's head on over to the pricing page. We offer a free trial so you can test all features before committing. No credit card required to get started. You can search for unlimited leads and try all our AI features for seven days. A fine deal, if I do say so myself."
   },
   {
     id: "dashboard-preview",
     page: "/dashboard",
     title: "Your Dashboard",
-    description: "Welcome to your command center! From here you can search for leads, verify them with AI, send email campaigns, and track everything. The sidebar gives you access to all features including AI verification and email outreach."
+    description: "And here we are at your command center. From this dashboard, you can search for leads, verify them with AI, send email campaigns, and track everything. The sidebar gives you access to all features, including AI verification and email outreach."
   },
   {
     id: "finish",
     page: "/",
     title: "You're All Set! 🚀",
-    description: "And that's the tour! You now know the basics of BamLead. Start by searching for leads on the homepage, or sign up for a free trial to unlock all features. If you ever need help, just click the chat button. Happy lead hunting, friend!"
+    description: "Well, that concludes our tour! You now know the fundamentals of BamLead. Start by searching for leads on the homepage, or sign up for a free trial to unlock all features. If you ever need assistance, just click the chat button. Best of luck with your lead hunting, my friend!"
   }
 ];
 
@@ -106,40 +106,48 @@ export default function AITourGuide() {
     }
   }, []);
 
-  // Find American English voice
-  const getAmericanVoice = useCallback(() => {
+  // Find American English MALE voice (older gentleman style)
+  const getAmericanMaleVoice = useCallback(() => {
     if (!("speechSynthesis" in window)) return null;
     
     const voices = window.speechSynthesis.getVoices();
     
-    // Priority order for American voices
-    const americanVoice = voices.find(v => 
-      v.lang === "en-US" && v.name.includes("Google US English")
+    // Priority order for American MALE voices
+    const americanMaleVoice = voices.find(v => 
+      v.lang === "en-US" && v.name.includes("Google US English Male")
     ) || voices.find(v => 
-      v.lang === "en-US" && (v.name.includes("Samantha") || v.name.includes("Alex"))
+      v.lang === "en-US" && v.name.includes("Alex")
+    ) || voices.find(v => 
+      v.lang === "en-US" && v.name.includes("Daniel")
+    ) || voices.find(v => 
+      v.lang === "en-US" && v.name.includes("Fred")
+    ) || voices.find(v => 
+      v.lang === "en-US" && v.name.includes("Tom")
+    ) || voices.find(v => 
+      v.lang === "en-US" && v.name.toLowerCase().includes("male")
+    ) || voices.find(v => 
+      v.lang === "en-US" && !v.name.includes("Samantha") && !v.name.includes("Victoria") && !v.name.includes("Karen")
     ) || voices.find(v => 
       v.lang === "en-US"
-    ) || voices.find(v => 
-      v.lang.startsWith("en")
     );
     
-    return americanVoice || null;
+    return americanMaleVoice || null;
   }, []);
 
-  // Speak the current step with American accent
+  // Speak the current step with American male voice (older gentleman)
   const speak = useCallback((text: string) => {
     if (!("speechSynthesis" in window)) return;
     
     window.speechSynthesis.cancel();
     
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.92;
-    utterance.pitch = 1.05;
+    utterance.rate = 0.88; // Slightly slower for older gentleman feel
+    utterance.pitch = 0.9; // Lower pitch for male voice
     utterance.volume = 1;
     
-    const americanVoice = getAmericanVoice();
-    if (americanVoice) {
-      utterance.voice = americanVoice;
+    const americanMaleVoice = getAmericanMaleVoice();
+    if (americanMaleVoice) {
+      utterance.voice = americanMaleVoice;
     }
 
     utterance.onstart = () => setIsSpeaking(true);
@@ -148,7 +156,7 @@ export default function AITourGuide() {
 
     speechRef.current = utterance;
     window.speechSynthesis.speak(utterance);
-  }, [getAmericanVoice]);
+  }, [getAmericanMaleVoice]);
 
   // Stop speaking
   const stopSpeaking = useCallback(() => {
