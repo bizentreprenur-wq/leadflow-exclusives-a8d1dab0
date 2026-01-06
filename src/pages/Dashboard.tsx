@@ -17,8 +17,12 @@ import LeadVerificationModule, { VerifiedLead } from '@/components/LeadVerificat
 import EmailOutreachModule from '@/components/EmailOutreachModule';
 import EmailTemplateLibrary from '@/components/EmailTemplateLibrary';
 import SequenceBuilderModule from '@/components/SequenceBuilderModule';
-import { LeadForEmail } from '@/lib/api/email';
+import CommandPalette from '@/components/CommandPalette';
+import ConfettiCelebration, { useCelebration } from '@/components/ConfettiCelebration';
+import Mascot3D from '@/components/Mascot3D';
+import InteractiveStatsChart from '@/components/InteractiveStatsChart';
 import bamMascot from '@/assets/bamlead-mascot.png';
+import { LeadForEmail } from '@/lib/api/email';
 
 export default function Dashboard() {
   const { user, logout, isLoading, refreshUser } = useAuth();
@@ -26,16 +30,18 @@ export default function Dashboard() {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('search');
   const [emailLeads, setEmailLeads] = useState<LeadForEmail[]>([]);
+  const { celebrate } = useCelebration();
 
   // Check for payment success
   useEffect(() => {
     const paymentStatus = searchParams.get('payment');
     if (paymentStatus === 'success') {
       toast.success('Payment successful! Your subscription is now active.');
+      celebrate('subscription-activated');
       refreshUser();
       window.history.replaceState({}, '', '/dashboard');
     }
-  }, [searchParams, refreshUser]);
+  }, [searchParams, refreshUser, celebrate]);
 
   const handleLogout = async () => {
     await logout();
@@ -188,6 +194,10 @@ export default function Dashboard() {
 
   return (
     <SidebarProvider defaultOpen={true}>
+      {/* Global Features */}
+      <CommandPalette onNavigate={setActiveTab} onLogout={handleLogout} />
+      <ConfettiCelebration />
+      
       <div className="min-h-screen flex w-full bg-background">
         <DashboardSidebar
           activeTab={activeTab}
@@ -216,23 +226,14 @@ export default function Dashboard() {
             <section className="mb-8">
               <div className="flex items-start gap-6">
                 <div className="hidden lg:block relative">
-                  <div className="w-20 h-20 bg-gradient-to-br from-primary/20 to-accent/20 rounded-2xl flex items-center justify-center">
-                    <img
-                      src={bamMascot}
-                      alt="Bam"
-                      className="w-16 h-16 object-contain animate-float"
-                    />
-                  </div>
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center">
-                    <Sparkles className="w-3 h-3 text-white" />
-                  </div>
+                  <Mascot3D size="lg" interactive />
                 </div>
                 <div className="flex-1">
                   <h1 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
                     Lead Generation Dashboard
                   </h1>
                   <p className="text-muted-foreground max-w-2xl">
-                    Search → Verify with AI → Send personalized emails. Use the sidebar to navigate between tools.
+                    Search → Verify with AI → Send personalized emails. Press <kbd className="px-1.5 py-0.5 text-xs bg-muted rounded border border-border">⌘K</kbd> to open command palette.
                   </p>
                 </div>
               </div>
@@ -289,6 +290,11 @@ export default function Dashboard() {
                 </Card>
               </section>
             )}
+
+            {/* Interactive Stats Chart */}
+            <section className="mb-8">
+              <InteractiveStatsChart />
+            </section>
 
             {/* Quick Tips Section */}
             <section>
