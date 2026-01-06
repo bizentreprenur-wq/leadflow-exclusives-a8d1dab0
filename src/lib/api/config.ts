@@ -2,7 +2,7 @@
 // Set VITE_API_URL environment variable to connect to your backend
 
 // Set to true to use mock data when backend is unavailable
-export const USE_MOCK_AUTH = true; // No backend configured by default
+export const USE_MOCK_AUTH = false; // Backend configured via VITE_API_URL
 
 // API Base URL - Configure via environment variable VITE_API_URL
 export const API_BASE_URL = import.meta.env.VITE_API_URL || '';
