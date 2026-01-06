@@ -4,7 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { 
   Volume2, VolumeX, X, ChevronRight, ChevronLeft, 
   SkipForward, Play, Pause, Sparkles, Settings2, Check,
-  Mic2, Captions, Keyboard
+  Mic2, Captions, Keyboard, Mail, Send, Rocket, Gift, 
+  Heart, Star, Users, TrendingUp, Calendar, Zap
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import mascotImage from "@/assets/bamlead-mascot.png";
@@ -616,7 +617,118 @@ export default function AITourGuide() {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-5px); }
         }
+        @keyframes template-slide {
+          0% { transform: translateX(100%) scale(0.8); opacity: 0; }
+          15% { transform: translateX(0) scale(1); opacity: 1; }
+          85% { transform: translateX(0) scale(1); opacity: 1; }
+          100% { transform: translateX(-100%) scale(0.8); opacity: 0; }
+        }
+        @keyframes template-float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-8px); }
+        }
       `}</style>
+
+      {/* Email Template Preview Animation - Shows during email steps */}
+      {(currentStep.id === "email-outreach" || currentStep.id === "lead-nurturing") && (
+        <div className="fixed top-20 right-8 z-[55] pointer-events-none">
+          <div className="relative">
+            {/* Animated template cards */}
+            <div className="flex flex-col gap-3">
+              {/* Template 1 - Hero Style */}
+              <div 
+                className="w-64 bg-card rounded-xl border border-border shadow-elevated overflow-hidden animate-[template-float_3s_ease-in-out_infinite]"
+                style={{ animationDelay: "0s" }}
+              >
+                <div className="h-16 bg-gradient-to-r from-cyan-500/30 to-blue-600/30 flex items-center justify-center relative">
+                  <Rocket className="w-6 h-6 text-cyan-400" />
+                  <div className="absolute top-2 right-2">
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5">Sales</Badge>
+                  </div>
+                </div>
+                <div className="p-3">
+                  <div className="h-2 w-3/4 bg-foreground/20 rounded mb-2" />
+                  <div className="h-1.5 w-full bg-foreground/10 rounded mb-1" />
+                  <div className="h-1.5 w-2/3 bg-foreground/10 rounded mb-2" />
+                  <div className="h-5 w-16 bg-primary/30 rounded-md flex items-center justify-center">
+                    <Send className="w-3 h-3 text-primary" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Template 2 - Newsletter Style */}
+              <div 
+                className="w-64 bg-card rounded-xl border border-border shadow-elevated overflow-hidden animate-[template-float_3s_ease-in-out_infinite]"
+                style={{ animationDelay: "0.5s" }}
+              >
+                <div className="h-10 bg-gradient-to-r from-emerald-500/30 to-teal-600/30 flex items-center px-3 gap-2">
+                  <Mail className="w-4 h-4 text-emerald-400" />
+                  <div className="h-1.5 w-16 bg-white/30 rounded" />
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 ml-auto">Newsletter</Badge>
+                </div>
+                <div className="p-2 grid grid-cols-2 gap-2">
+                  <div className="bg-foreground/5 rounded p-1.5">
+                    <div className="h-6 bg-gradient-to-br from-emerald-500/20 to-teal-600/20 rounded mb-1" />
+                    <div className="h-1 w-full bg-foreground/10 rounded" />
+                  </div>
+                  <div className="bg-foreground/5 rounded p-1.5">
+                    <div className="h-6 bg-gradient-to-br from-emerald-500/20 to-teal-600/20 rounded mb-1" />
+                    <div className="h-1 w-full bg-foreground/10 rounded" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Template 3 - Promo Style */}
+              <div 
+                className="w-64 bg-card rounded-xl border border-border shadow-elevated overflow-hidden animate-[template-float_3s_ease-in-out_infinite]"
+                style={{ animationDelay: "1s" }}
+              >
+                <div className="h-14 bg-gradient-to-r from-orange-500/30 to-red-500/30 flex flex-col items-center justify-center relative">
+                  <Gift className="w-5 h-5 text-orange-400 mb-1" />
+                  <div className="text-[9px] font-bold text-foreground/60">SPECIAL OFFER</div>
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0.5 absolute top-2 right-2">Promo</Badge>
+                </div>
+                <div className="p-3 flex flex-col items-center">
+                  <div className="flex gap-0.5 mb-2">
+                    <Star className="w-3 h-3 text-orange-400" />
+                    <Star className="w-3 h-3 text-orange-400" />
+                    <Star className="w-3 h-3 text-orange-400" />
+                  </div>
+                  <div className="h-5 w-20 bg-orange-500/30 rounded-full flex items-center justify-center">
+                    <Zap className="w-3 h-3 text-orange-400" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Floating label */}
+            <div className="absolute -top-8 left-0 right-0 text-center">
+              <Badge className="bg-primary/90 text-primary-foreground px-3 py-1 animate-pulse">
+                <Sparkles className="w-3 h-3 mr-1 inline" />
+                12+ Beautiful Templates
+              </Badge>
+            </div>
+
+            {/* AI indicator for nurturing step */}
+            {currentStep.id === "lead-nurturing" && (
+              <div className="absolute -left-16 top-1/2 -translate-y-1/2 flex flex-col items-center gap-1">
+                <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center animate-pulse">
+                  <TrendingUp className="w-4 h-4 text-accent" />
+                </div>
+                <div className="w-px h-12 bg-accent/30" />
+                <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center animate-pulse" style={{ animationDelay: "0.3s" }}>
+                  <Calendar className="w-4 h-4 text-accent" />
+                </div>
+                <div className="w-px h-12 bg-accent/30" />
+                <div className="w-8 h-8 rounded-full bg-accent/20 flex items-center justify-center animate-pulse" style={{ animationDelay: "0.6s" }}>
+                  <Users className="w-4 h-4 text-accent" />
+                </div>
+                <div className="text-[10px] text-accent font-medium mt-1">Sequences</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Bam Mascot - Walking to each section */}
       <div 
