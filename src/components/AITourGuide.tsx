@@ -38,7 +38,7 @@ const TOUR_STEPS: TourStep[] = [
     id: "welcome",
     page: "/",
     title: "Welcome to BamLead! 🎉",
-    description: "Well hello there, friend! I'm Bam, and I'll be your guide today. Allow me to walk you through BamLead, the most advanced lead generation platform on the market. Shall we get started?"
+    description: "Well hello there, friend! I'm Bam, and I'll be your guide today. Allow me to walk you through BamLead, the most advanced lead generation platform on the market. Click Next to continue, or if you'd like to stop the tutorial at any time, just click the X button or Skip Tour. Shall we get started?"
   },
   {
     id: "search-methods",
