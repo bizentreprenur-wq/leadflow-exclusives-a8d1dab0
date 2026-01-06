@@ -3,13 +3,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Search, Globe, TrendingUp, Brain, Heart, Zap, Sparkles, Eye, Target } from "lucide-react";
 import mascotLogo from "@/assets/bamlead-mascot.png";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const HeroSection = () => {
+  const { t } = useLanguage();
+
   const secretFeatures = [
-    { icon: Brain, label: "Pre-Intent Detection", color: "text-primary" },
-    { icon: Heart, label: "Emotional AI", color: "text-accent" },
-    { icon: Eye, label: "Outcome Simulator", color: "text-blue-500" },
-    { icon: Target, label: "Psychological Profiler", color: "text-purple-500" },
+    { icon: Brain, labelKey: "feature.preIntent", color: "text-primary" },
+    { icon: Heart, labelKey: "feature.emotionalAI", color: "text-accent" },
+    { icon: Eye, labelKey: "feature.outcomeSimulator", color: "text-blue-500" },
+    { icon: Target, labelKey: "feature.psychProfiler", color: "text-purple-500" },
   ];
 
   return (
@@ -21,26 +24,23 @@ const HeroSection = () => {
             {/* Secret Badge */}
             <Badge className="bg-gradient-to-r from-primary to-accent text-white px-4 py-1.5">
               <Sparkles className="h-3 w-3 mr-1" />
-              AI FEATURES NO ONE ELSE HAS
+              {t('hero.badge')}
             </Badge>
 
             {/* Headline with gradient text */}
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold leading-[1.1] tracking-tight">
-              <span className="text-primary">Predicts intent</span>
+              <span className="text-primary">{t('hero.title1')}</span>
               <br />
               <span className="bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
-                before they're ready
+                {t('hero.title2')}
               </span>
               <br />
-              <span className="text-foreground">to convert</span>
+              <span className="text-foreground">{t('hero.title3')}</span>
             </h1>
 
-            {/* Subheadline */}
+            {/* Subheadline - Expanded for all B2B industries */}
             <p className="text-lg md:text-xl text-muted-foreground max-w-lg leading-relaxed">
-              The only lead platform with <span className="font-semibold text-primary">Pre-Intent Detection</span>, 
-              <span className="font-semibold text-accent"> Emotional State AI</span>, and 
-              <span className="font-semibold text-blue-500"> Outcome Simulation</span>. 
-              Know what your leads will do before they do it.
+              {t('hero.subtitle')}
             </p>
 
             {/* Secret Features Pills */}
@@ -51,7 +51,7 @@ const HeroSection = () => {
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted border border-border text-xs font-medium"
                 >
                   <feature.icon className={`h-3 w-3 ${feature.color}`} />
-                  {feature.label}
+                  {t(feature.labelKey)}
                 </div>
               ))}
             </div>
@@ -64,7 +64,7 @@ const HeroSection = () => {
                   className="rounded-full px-8 py-6 text-base font-semibold gap-2 shadow-lg hover:shadow-xl transition-all bg-gradient-to-r from-primary to-accent"
                 >
                   <Zap className="w-5 h-5" />
-                  Try Secret AI Features Free
+                  {t('hero.cta')}
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
@@ -72,7 +72,7 @@ const HeroSection = () => {
 
             {/* Social Proof */}
             <p className="text-sm text-muted-foreground">
-              <span className="font-bold text-foreground">2,847 teams</span> using AI features no competitor has
+              {t('hero.socialProof')}
             </p>
           </div>
 

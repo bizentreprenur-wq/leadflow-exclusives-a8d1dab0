@@ -19,6 +19,7 @@ import DualSearchShowcase from "@/components/DualSearchShowcase";
 import AgentCardsSection from "@/components/AgentCardsSection";
 import WhenAIActivatesSection from "@/components/WhenAIActivatesSection";
 import SponsorSection from "@/components/SponsorSection";
+import AutoSearchFeature from "@/components/AutoSearchFeature";
 
 const Index = () => {
   return (
@@ -29,6 +30,7 @@ const Index = () => {
         <HeroSection />
         <DualSearchShowcase />
         <AgentCardsSection />
+        <AutoSearchFeature />
         <WhenAIActivatesSection />
         <RevolutionaryFeaturesSection />
         <SecretAISection />
