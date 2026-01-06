@@ -20,6 +20,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import VerifyEmail from "./pages/VerifyEmail";
 import Reviews from "./pages/Reviews";
+import DashboardDemo from "./pages/DashboardDemo";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,7 @@ const App = () => (
               <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/reviews" element={<Reviews />} />
+              <Route path="/dashboard-demo" element={<DashboardDemo />} />
               <Route
                 path="/dashboard" 
                 element={
