@@ -35,6 +35,7 @@ import {
   ImagePlus,
   X,
   Image as ImageIcon,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmailTemplatePreset } from "@/lib/emailTemplates";
@@ -45,6 +46,7 @@ import {
   BulkSendParams,
 } from "@/lib/api/email";
 import EmailTemplateGallery from "./EmailTemplateGallery";
+import ImageEditor from "./ImageEditor";
 
 interface VerifiedLead {
   id: string;
@@ -105,6 +107,7 @@ export default function EmailComposerFlow({
   const [sendResult, setSendResult] = useState<{ sent: number; failed: number; scheduled?: number } | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [editingImage, setEditingImage] = useState<{ id: string; url: string; name: string } | null>(null);
 
   const validLeads = verifiedLeads.filter(l => l.emailValid !== false && l.email);
 
@@ -177,6 +180,22 @@ export default function EmailComposerFlow({
 
   const handleRemoveImage = (imageId: string) => {
     setCustomImages(prev => prev.filter(img => img.id !== imageId));
+  };
+
+  const handleEditImage = (image: { id: string; url: string; name: string }) => {
+    setEditingImage(image);
+  };
+
+  const handleSaveEditedImage = (editedImageUrl: string) => {
+    if (!editingImage) return;
+    
+    setCustomImages(prev => prev.map(img => 
+      img.id === editingImage.id 
+        ? { ...img, url: editedImageUrl }
+        : img
+    ));
+    setEditingImage(null);
+    toast.success('Image updated');
   };
 
   const handleInsertImage = (imageUrl: string) => {
@@ -499,6 +518,15 @@ export default function EmailComposerFlow({
                               <Button
                                 variant="secondary"
                                 size="sm"
+                                className="h-7 w-7 p-0"
+                                onClick={() => handleEditImage(image)}
+                                title="Edit Image"
+                              >
+                                <Pencil className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                size="sm"
                                 className="h-7 text-xs"
                                 onClick={() => handleInsertImage(image.url)}
                               >
@@ -531,7 +559,7 @@ export default function EmailComposerFlow({
                     )}
 
                     <p className="text-xs text-muted-foreground">
-                      Click "Insert" on any image to add it to your email. Max 5MB per image.
+                      Click edit to crop/resize, then "Insert" to add to email. Max 5MB per image.
                     </p>
                   </div>
 
@@ -928,6 +956,17 @@ export default function EmailComposerFlow({
         onSelectTemplate={handleSelectTemplate}
         onBack={() => setShowTemplateGallery(false)}
       />
+
+      {/* Image Editor */}
+      {editingImage && (
+        <ImageEditor
+          open={!!editingImage}
+          onOpenChange={(open) => !open && setEditingImage(null)}
+          imageUrl={editingImage.url}
+          imageName={editingImage.name}
+          onSave={handleSaveEditedImage}
+        />
+      )}
     </>
   );
 }
