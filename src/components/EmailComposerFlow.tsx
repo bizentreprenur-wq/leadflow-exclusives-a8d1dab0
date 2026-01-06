@@ -50,6 +50,7 @@ import ImageEditor from "./ImageEditor";
 import AIEmailWriter from "./AIEmailWriter";
 import LiveEmailPreview from "./LiveEmailPreview";
 import BackgroundRemover from "./BackgroundRemover";
+import SentimentAnalyzer from "./SentimentAnalyzer";
 import { useCelebration } from "./ConfettiCelebration";
 
 interface VerifiedLead {
@@ -484,6 +485,11 @@ export default function EmailComposerFlow({
                         setCustomBody(`<p>${text.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br/>')}</p>`);
                       }
                     }}
+                  />
+
+                  {/* Sentiment Analysis */}
+                  <SentimentAnalyzer 
+                    text={customBody.replace(/<[^>]*>/g, '')}
                   />
 
                   {/* Live Email Preview */}

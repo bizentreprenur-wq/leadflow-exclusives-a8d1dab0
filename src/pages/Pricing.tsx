@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, X, Zap, Building, Rocket, Gift, Sparkles } from "lucide-react";
+import { Check, X, Zap, Building, Rocket, Gift, Sparkles, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
@@ -9,6 +9,8 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/contexts/AuthContext";
 import { createCheckoutSession } from "@/lib/api/stripe";
+import DiscountCodeInput from "@/components/DiscountCodeInput";
+import FreeTrialBanner from "@/components/FreeTrialBanner";
 
 const tiers = [
   {
@@ -205,6 +207,15 @@ const Pricing = () => {
           </div>
         </section>
 
+        {/* Free Trial Banner */}
+        <section className="pb-12">
+          <div className="container px-4">
+            <div className="max-w-4xl mx-auto">
+              <FreeTrialBanner />
+            </div>
+          </div>
+        </section>
+
         {/* Pricing cards */}
         <section className="py-20 md:py-28">
           <div className="container px-4">
@@ -307,6 +318,15 @@ const Pricing = () => {
           </div>
         </section>
 
+        {/* Discount Code Section */}
+        <section className="pb-12">
+          <div className="container px-4">
+            <div className="max-w-md mx-auto p-6 rounded-2xl border border-border bg-card">
+              <DiscountCodeInput />
+            </div>
+          </div>
+        </section>
+
         {/* FAQ teaser */}
         <section className="pb-20 md:pb-28">
           <div className="container px-4">
@@ -321,6 +341,12 @@ const Pricing = () => {
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Link to="/">
                     <Button size="lg">Try a Free Search</Button>
+                  </Link>
+                  <Link to="/reviews">
+                    <Button size="lg" variant="outline" className="gap-2">
+                      <MessageSquare className="w-4 h-4" />
+                      Read Reviews
+                    </Button>
                   </Link>
                   <Link to="/contact">
                     <Button size="lg" variant="outline">Contact Sales</Button>

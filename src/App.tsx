@@ -16,6 +16,7 @@ import Admin from "./pages/Admin";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import VerifyEmail from "./pages/VerifyEmail";
+import Reviews from "./pages/Reviews";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,7 +38,8 @@ const App = () => (
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
-            <Route 
+            <Route path="/reviews" element={<Reviews />} />
+            <Route
               path="/dashboard" 
               element={
                 <ProtectedRoute>

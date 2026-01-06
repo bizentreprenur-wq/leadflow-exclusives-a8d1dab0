@@ -21,6 +21,9 @@ import CommandPalette from '@/components/CommandPalette';
 import ConfettiCelebration, { useCelebration } from '@/components/ConfettiCelebration';
 import Mascot3D from '@/components/Mascot3D';
 import InteractiveStatsChart from '@/components/InteractiveStatsChart';
+import AIToolsShowcase from '@/components/AIToolsShowcase';
+import AffiliateProgram from '@/components/AffiliateProgram';
+import FreeTrialBanner from '@/components/FreeTrialBanner';
 import bamMascot from '@/assets/bamlead-mascot.png';
 import { LeadForEmail } from '@/lib/api/email';
 
@@ -294,6 +297,32 @@ export default function Dashboard() {
             {/* Interactive Stats Chart */}
             <section className="mb-8">
               <InteractiveStatsChart />
+            </section>
+
+            {/* AI Tools Showcase */}
+            <section className="mb-8">
+              <Card className="border-border bg-card shadow-card">
+                <CardHeader className="border-b border-border/50 bg-muted/30">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-primary" />
+                    AI Tools
+                  </CardTitle>
+                  <CardDescription>Powerful AI tools to supercharge your outreach</CardDescription>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <AIToolsShowcase />
+                </CardContent>
+              </Card>
+            </section>
+
+            {/* Affiliate Program */}
+            <section className="mb-8">
+              <AffiliateProgram />
+            </section>
+
+            {/* Free Trial Banner */}
+            <section className="mb-8">
+              <FreeTrialBanner variant="compact" />
             </section>
 
             {/* Quick Tips Section */}
