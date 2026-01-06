@@ -13,6 +13,7 @@ import CTASection from "@/components/CTASection";
 import Footer from "@/components/Footer";
 import NewFeaturesShowcase from "@/components/NewFeaturesShowcase";
 import FreeTrialBanner from "@/components/FreeTrialBanner";
+import SecretAISection from "@/components/SecretAISection";
 
 const Index = () => {
   return (
@@ -21,6 +22,7 @@ const Index = () => {
       <Navbar />
       <main>
         <HeroSection />
+        <SecretAISection />
         <StatsSection />
         <NewFeaturesShowcase />
         <LeadGenSection />
