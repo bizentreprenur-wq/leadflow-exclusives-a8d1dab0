@@ -193,46 +193,48 @@ export default function DashboardDemo() {
               </div>
             </div>
 
-            {/* Leads Grid */}
-            <div className="grid gap-3">
-              {leads.map((lead) => (
-                <Card 
+            {/* Leads Table with Zebra Striping */}
+            <div className="rounded-lg border overflow-hidden">
+              {leads.map((lead, index) => (
+                <div 
                   key={lead.id} 
-                  className={`transition-all ${selectedLeads.includes(lead.id) ? 'ring-2 ring-primary bg-primary/5' : ''}`}
+                  className={`p-4 flex items-center gap-4 transition-all border-b last:border-b-0 ${
+                    selectedLeads.includes(lead.id) 
+                      ? 'ring-2 ring-inset ring-primary bg-primary/10' 
+                      : index % 2 === 0 
+                        ? 'bg-muted/30' 
+                        : 'bg-muted/10'
+                  }`}
                 >
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-4">
-                      <Checkbox 
-                        checked={selectedLeads.includes(lead.id)}
-                        onCheckedChange={() => toggleLeadSelection(lead.id)}
-                      />
-                      <div className="flex-1 grid grid-cols-5 gap-4 items-center">
-                        <div>
-                          <p className="font-semibold">{lead.name}</p>
-                          <p className="text-sm text-muted-foreground">{lead.category}</p>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                          <span className="font-medium">{lead.rating}</span>
-                          <span className="text-muted-foreground text-sm">({lead.reviews})</span>
-                        </div>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <MapPin className="w-4 h-4" />
-                          {lead.address}
-                        </div>
-                        <div className="flex items-center gap-1 text-sm">
-                          <Phone className="w-4 h-4 text-muted-foreground" />
-                          {lead.phone}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={lead.hasEmail ? "default" : "secondary"}>
-                            {lead.hasEmail ? "📧 Email Found" : "No Email"}
-                          </Badge>
-                        </div>
-                      </div>
+                  <Checkbox 
+                    checked={selectedLeads.includes(lead.id)}
+                    onCheckedChange={() => toggleLeadSelection(lead.id)}
+                  />
+                  <div className="flex-1 grid grid-cols-5 gap-4 items-center">
+                    <div>
+                      <p className="font-semibold">{lead.name}</p>
+                      <p className="text-sm text-muted-foreground">{lead.category}</p>
                     </div>
-                  </CardContent>
-                </Card>
+                    <div className="flex items-center gap-1">
+                      <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                      <span className="font-medium">{lead.rating}</span>
+                      <span className="text-muted-foreground text-sm">({lead.reviews})</span>
+                    </div>
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <MapPin className="w-4 h-4" />
+                      {lead.address}
+                    </div>
+                    <div className="flex items-center gap-1 text-sm">
+                      <Phone className="w-4 h-4 text-muted-foreground" />
+                      {lead.phone}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant={lead.hasEmail ? "default" : "secondary"}>
+                        {lead.hasEmail ? "📧 Email Found" : "No Email"}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
               ))}
             </div>
 
