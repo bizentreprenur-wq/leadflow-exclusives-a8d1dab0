@@ -15,6 +15,8 @@ import NewFeaturesShowcase from "@/components/NewFeaturesShowcase";
 import FreeTrialBanner from "@/components/FreeTrialBanner";
 import SecretAISection from "@/components/SecretAISection";
 import RevolutionaryFeaturesSection from "@/components/RevolutionaryFeaturesSection";
+import DualSearchShowcase from "@/components/DualSearchShowcase";
+import AgentCardsSection from "@/components/AgentCardsSection";
 
 const Index = () => {
   return (
@@ -23,6 +25,8 @@ const Index = () => {
       <Navbar />
       <main>
         <HeroSection />
+        <DualSearchShowcase />
+        <AgentCardsSection />
         <RevolutionaryFeaturesSection />
         <SecretAISection />
         <StatsSection />
