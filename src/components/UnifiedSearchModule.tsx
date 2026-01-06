@@ -44,6 +44,7 @@ import {
   type CompanyTypeFilter,
 } from '@/lib/industryFilters';
 import LeadActionModal from './LeadActionModal';
+import VoiceSearchButton from './VoiceSearchButton';
 
 interface SearchResult {
   id: string;
@@ -395,27 +396,39 @@ export default function UnifiedSearchModule() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2">
               <Label htmlFor="query">Business Type / Keywords</Label>
-              <Input
-                id="query"
-                placeholder={
-                  activeSource === 'gmb'
-                    ? 'e.g., plumbers, restaurants, dentists...'
-                    : 'e.g., web design agency, marketing company...'
-                }
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="mt-1.5"
-              />
+              <div className="flex gap-2 mt-1.5">
+                <Input
+                  id="query"
+                  placeholder={
+                    activeSource === 'gmb'
+                      ? 'e.g., plumbers, restaurants, dentists...'
+                      : 'e.g., web design agency, marketing company...'
+                  }
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  className="flex-1"
+                />
+                <VoiceSearchButton 
+                  onResult={(transcript) => setQuery(transcript)} 
+                  className="shrink-0"
+                />
+              </div>
             </div>
             <div>
               <Label htmlFor="location">Location</Label>
-              <Input
-                id="location"
-                placeholder="e.g., Austin, TX"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                className="mt-1.5"
-              />
+              <div className="flex gap-2 mt-1.5">
+                <Input
+                  id="location"
+                  placeholder="e.g., Austin, TX"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className="flex-1"
+                />
+                <VoiceSearchButton 
+                  onResult={(transcript) => setLocation(transcript)} 
+                  className="shrink-0"
+                />
+              </div>
             </div>
           </div>
 

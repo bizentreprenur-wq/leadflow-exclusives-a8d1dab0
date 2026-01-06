@@ -47,6 +47,10 @@ import {
 } from "@/lib/api/email";
 import EmailTemplateGallery from "./EmailTemplateGallery";
 import ImageEditor from "./ImageEditor";
+import AIEmailWriter from "./AIEmailWriter";
+import LiveEmailPreview from "./LiveEmailPreview";
+import BackgroundRemover from "./BackgroundRemover";
+import { useCelebration } from "./ConfettiCelebration";
 
 interface VerifiedLead {
   id: string;
@@ -108,6 +112,8 @@ export default function EmailComposerFlow({
   const [sendError, setSendError] = useState<string | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [editingImage, setEditingImage] = useState<{ id: string; url: string; name: string } | null>(null);
+  const [showBackgroundRemover, setShowBackgroundRemover] = useState(false);
+  const { celebrate } = useCelebration();
 
   const validLeads = verifiedLeads.filter(l => l.emailValid !== false && l.email);
 
@@ -298,6 +304,7 @@ export default function EmailComposerFlow({
         };
 
         setCurrentStep("success");
+        celebrate('email-sent');
         onComplete(config);
         toast.success(`Successfully queued ${result.results.sent} emails!`);
       } else {
@@ -467,6 +474,24 @@ export default function EmailComposerFlow({
                     />
                   </div>
 
+                  {/* AI Email Writer */}
+                  <AIEmailWriter 
+                    onInsert={(text) => {
+                      if (text.length < 60) {
+                        // Likely a subject line
+                        setCustomSubject(text);
+                      } else {
+                        setCustomBody(`<p>${text.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br/>')}</p>`);
+                      }
+                    }}
+                  />
+
+                  {/* Live Email Preview */}
+                  <LiveEmailPreview 
+                    subject={customSubject}
+                    body={customBody}
+                  />
+
                   {/* Image Upload Section */}
                   <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
                     <div className="flex items-center justify-between mb-3">
@@ -562,6 +587,18 @@ export default function EmailComposerFlow({
                       Click edit to crop/resize, then "Insert" to add to email. Max 5MB per image.
                     </p>
                   </div>
+
+                  {/* Background Remover */}
+                  <BackgroundRemover 
+                    onComplete={(imageUrl) => {
+                      const newImage = {
+                        id: `img-${Date.now()}`,
+                        url: imageUrl,
+                        name: 'background-removed.png',
+                      };
+                      setCustomImages(prev => [...prev, newImage]);
+                    }}
+                  />
 
                   {/* Personalization Tokens */}
                   <div className="p-4 rounded-xl bg-warning/5 border border-warning/20">
