@@ -36,6 +36,9 @@ import {
   FileText,
   Chrome,
   Zap,
+  Trophy,
+  Bot,
+  Gift,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import bamMascot from '@/assets/bamlead-mascot.png';
@@ -84,6 +87,25 @@ const outreachTools = [
 ];
 
 const resourceTools = [
+  {
+    id: 'mentor',
+    title: 'AI Sales Mentor',
+    icon: Bot,
+    description: 'Practice & improve',
+    badge: 'Exclusive',
+  },
+  {
+    id: 'leaderboard',
+    title: 'Leaderboard',
+    icon: Trophy,
+    description: 'Top affiliates',
+  },
+  {
+    id: 'affiliate',
+    title: 'Affiliate Program',
+    icon: Gift,
+    description: 'Earn money',
+  },
   {
     id: 'extension',
     title: 'Chrome Extension',

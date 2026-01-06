@@ -11,6 +11,8 @@ import WhyItWorksSection from "@/components/WhyItWorksSection";
 import FAQSection from "@/components/FAQSection";
 import CTASection from "@/components/CTASection";
 import Footer from "@/components/Footer";
+import NewFeaturesShowcase from "@/components/NewFeaturesShowcase";
+import FreeTrialBanner from "@/components/FreeTrialBanner";
 
 const Index = () => {
   return (
@@ -20,6 +22,7 @@ const Index = () => {
       <main>
         <HeroSection />
         <StatsSection />
+        <NewFeaturesShowcase />
         <LeadGenSection />
         <EmailOutreachSection />
         <ChromeExtensionSection />
@@ -27,9 +30,13 @@ const Index = () => {
         <WhoThisIsForSection />
         <WhyItWorksSection />
         <FAQSection />
+        <div className="container px-4 py-12">
+          <FreeTrialBanner />
+        </div>
         <CTASection />
       </main>
       <Footer />
+      <FreeTrialBanner variant="floating" />
     </div>
   );
 };
