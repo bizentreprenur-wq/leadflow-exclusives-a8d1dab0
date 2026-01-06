@@ -24,6 +24,16 @@ export default function Auth() {
   const pendingPlan = searchParams.get('plan') as 'basic' | 'pro' | 'agency' | null;
   const pendingBilling = searchParams.get('billing') as 'monthly' | 'yearly' | null;
 
+  // Login form state
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+
+  // Register form state
+  const [registerName, setRegisterName] = useState('');
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [registerPassword, setRegisterPassword] = useState('');
+  const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
+
   const redirectingRef = useRef(false);
 
   // Helper to handle post-auth redirect (either to checkout or dashboard)
