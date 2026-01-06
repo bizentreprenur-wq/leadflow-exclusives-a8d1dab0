@@ -3,10 +3,26 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
   Volume2, VolumeX, X, ChevronRight, ChevronLeft, 
-  SkipForward, Play, Pause, Sparkles
+  SkipForward, Play, Pause, Sparkles, Settings2, Check,
+  Mic2, Captions, Keyboard
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import mascotImage from "@/assets/bamlead-mascot.png";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+
+interface VoiceOption {
+  voice: SpeechSynthesisVoice;
+  label: string;
+  category: 'premium' | 'natural' | 'standard';
+}
 
 interface TourStep {
   id: string;
@@ -81,6 +97,9 @@ export const startTourManually = () => {
   window.dispatchEvent(new CustomEvent('start-tour'));
 };
 
+// Voice settings storage key
+const VOICE_SETTINGS_KEY = "bamlead_voice_settings";
+
 export default function AITourGuide() {
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   const [showTour, setShowTour] = useState(false);
@@ -91,6 +110,15 @@ export default function AITourGuide() {
   const [mascotPosition, setMascotPosition] = useState({ x: 0, y: 0 });
   const [isWalking, setIsWalking] = useState(false);
   const [isDemoMinimized, setIsDemoMinimized] = useState(false);
+  
+  // Voice settings state
+  const [availableVoices, setAvailableVoices] = useState<VoiceOption[]>([]);
+  const [selectedVoiceIndex, setSelectedVoiceIndex] = useState(0);
+  const [speechRate, setSpeechRate] = useState(0.95);
+  const [showSubtitles, setShowSubtitles] = useState(true);
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
+  const [isTestingVoice, setIsTestingVoice] = useState(false);
+  
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -130,47 +158,122 @@ export default function AITourGuide() {
     return () => window.removeEventListener('start-tour', handleStartTour);
   }, [location.pathname, navigate]);
 
-  // Find a natural-sounding voice (prefer premium/enhanced voices)
-  const getNaturalVoice = useCallback(() => {
-    if (!("speechSynthesis" in window)) return null;
+  // Categorize and organize available voices
+  const categorizeVoices = useCallback((): VoiceOption[] => {
+    if (!("speechSynthesis" in window)) return [];
     
     const voices = window.speechSynthesis.getVoices();
+    const englishVoices = voices.filter(v => v.lang.startsWith("en"));
     
-    // Priority: Natural/Premium voices first, then fallback
-    // Premium voices usually have "Natural", "Premium", or "Enhanced" in name
-    const naturalVoice = voices.find(v => 
-      v.lang.startsWith("en") && (v.name.includes("Natural") || v.name.includes("Premium"))
-    ) || voices.find(v => 
-      v.lang === "en-US" && v.name.includes("Aaron") // macOS natural voice
-    ) || voices.find(v => 
-      v.lang === "en-US" && v.name.includes("Evan") // Windows natural voice
-    ) || voices.find(v => 
-      v.lang === "en-GB" && v.name.includes("Daniel") // British Daniel sounds friendly
-    ) || voices.find(v => 
-      v.lang === "en-US" && v.name.includes("Samantha") // Samantha is quite natural
-    ) || voices.find(v => 
-      v.lang === "en-US" && !v.name.includes("Novelty") && !v.name.includes("Zarvox")
-    ) || voices.find(v => 
-      v.lang.startsWith("en")
-    );
+    const categorized: VoiceOption[] = [];
     
-    return naturalVoice || null;
+    // Premium voices (Natural, Premium, Enhanced in name)
+    englishVoices.forEach(voice => {
+      if (voice.name.includes("Natural") || voice.name.includes("Premium") || voice.name.includes("Enhanced")) {
+        categorized.push({
+          voice,
+          label: voice.name.replace(" (Natural)", "").replace(" (Premium)", ""),
+          category: 'premium'
+        });
+      }
+    });
+    
+    // Natural-sounding voices (specific known good ones)
+    const naturalNames = ["Aaron", "Evan", "Daniel", "Samantha", "Karen", "Moira", "Rishi"];
+    englishVoices.forEach(voice => {
+      if (naturalNames.some(name => voice.name.includes(name)) && !categorized.find(v => v.voice === voice)) {
+        categorized.push({
+          voice,
+          label: voice.name,
+          category: 'natural'
+        });
+      }
+    });
+    
+    // Standard voices (everything else, excluding novelty)
+    englishVoices.forEach(voice => {
+      if (!categorized.find(v => v.voice === voice) && 
+          !voice.name.includes("Novelty") && 
+          !voice.name.includes("Zarvox") &&
+          !voice.name.includes("Whisper") &&
+          !voice.name.includes("Trinoids")) {
+        categorized.push({
+          voice,
+          label: voice.name,
+          category: 'standard'
+        });
+      }
+    });
+    
+    return categorized;
   }, []);
 
-  // Speak the current step with natural-sounding voice
+  // Load and set voices
+  useEffect(() => {
+    const loadVoices = () => {
+      const voices = categorizeVoices();
+      setAvailableVoices(voices);
+      
+      // Load saved settings
+      const savedSettings = localStorage.getItem(VOICE_SETTINGS_KEY);
+      if (savedSettings) {
+        try {
+          const { voiceName, rate, subtitles } = JSON.parse(savedSettings);
+          const savedIndex = voices.findIndex(v => v.voice.name === voiceName);
+          if (savedIndex >= 0) setSelectedVoiceIndex(savedIndex);
+          if (rate) setSpeechRate(rate);
+          if (subtitles !== undefined) setShowSubtitles(subtitles);
+        } catch (e) {
+          console.log("Could not load voice settings");
+        }
+      }
+    };
+
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.getVoices();
+      loadVoices();
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+
+    return () => {
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, [categorizeVoices]);
+
+  // Save voice settings when changed
+  useEffect(() => {
+    if (availableVoices.length > 0) {
+      const settings = {
+        voiceName: availableVoices[selectedVoiceIndex]?.voice.name,
+        rate: speechRate,
+        subtitles: showSubtitles
+      };
+      localStorage.setItem(VOICE_SETTINGS_KEY, JSON.stringify(settings));
+    }
+  }, [selectedVoiceIndex, speechRate, showSubtitles, availableVoices]);
+
+  // Get selected voice
+  const getSelectedVoice = useCallback(() => {
+    if (availableVoices.length === 0) return null;
+    return availableVoices[selectedVoiceIndex]?.voice || availableVoices[0]?.voice || null;
+  }, [availableVoices, selectedVoiceIndex]);
+
+  // Speak the current step with selected voice
   const speak = useCallback((text: string) => {
     if (!("speechSynthesis" in window)) return;
     
     window.speechSynthesis.cancel();
     
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.95; // Slightly slower for natural pacing
-    utterance.pitch = 1.0; // Natural pitch
+    utterance.rate = speechRate;
+    utterance.pitch = 1.0;
     utterance.volume = 1;
     
-    const naturalVoice = getNaturalVoice();
-    if (naturalVoice) {
-      utterance.voice = naturalVoice;
+    const selectedVoice = getSelectedVoice();
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
     }
 
     utterance.onstart = () => setIsSpeaking(true);
@@ -179,7 +282,32 @@ export default function AITourGuide() {
 
     speechRef.current = utterance;
     window.speechSynthesis.speak(utterance);
-  }, [getNaturalVoice]);
+  }, [getSelectedVoice, speechRate]);
+
+  // Test voice with sample text
+  const testVoice = useCallback(() => {
+    if (!("speechSynthesis" in window)) return;
+    
+    setIsTestingVoice(true);
+    window.speechSynthesis.cancel();
+    
+    const testText = "Hey there! I'm Bam, your friendly guide. How does this voice sound to you?";
+    const utterance = new SpeechSynthesisUtterance(testText);
+    utterance.rate = speechRate;
+    utterance.pitch = 1.0;
+    utterance.volume = 1;
+    
+    const selectedVoice = getSelectedVoice();
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+    }
+
+    utterance.onend = () => setIsTestingVoice(false);
+    utterance.onerror = () => setIsTestingVoice(false);
+
+    window.speechSynthesis.speak(utterance);
+    toast.success("Testing voice...", { duration: 2000 });
+  }, [getSelectedVoice, speechRate]);
 
   // Stop speaking
   const stopSpeaking = useCallback(() => {
@@ -310,6 +438,48 @@ export default function AITourGuide() {
     completeTour();
   }, [completeTour]);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    if (!showTour) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if typing in input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      switch (e.key) {
+        case 'ArrowRight':
+        case 'n':
+          e.preventDefault();
+          nextStep();
+          break;
+        case 'ArrowLeft':
+        case 'p':
+          e.preventDefault();
+          prevStep();
+          break;
+        case ' ':
+          e.preventDefault();
+          if (isSpeaking) {
+            togglePause();
+          } else {
+            speak(currentStep.description);
+          }
+          break;
+        case 'm':
+          e.preventDefault();
+          stopSpeaking();
+          break;
+        case 'Escape':
+          e.preventDefault();
+          skipTour();
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showTour, nextStep, prevStep, isSpeaking, togglePause, speak, currentStep, stopSpeaking, skipTour]);
+
   // Auto-speak on tour start
   useEffect(() => {
     if (showTour && currentStepIndex === 0 && !isSpeaking) {
@@ -319,22 +489,6 @@ export default function AITourGuide() {
       }, 800);
     }
   }, [showTour]);
-
-  // Load voices
-  useEffect(() => {
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.getVoices();
-      window.speechSynthesis.onvoiceschanged = () => {
-        window.speechSynthesis.getVoices();
-      };
-    }
-
-    return () => {
-      if ("speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
-    };
-  }, []);
 
   // Floating demo button (always visible when tour not active)
   if (!showTour && !isFirstVisit) {
@@ -509,10 +663,19 @@ export default function AITourGuide() {
               </Button>
             </div>
 
-            {/* Description */}
-            <p className="text-muted-foreground text-sm leading-relaxed mb-4">
-              {currentStep.description}
-            </p>
+            {/* Description with optional subtitles styling */}
+            {showSubtitles && (
+              <div className="bg-secondary/50 rounded-lg p-3 mb-4 border-l-2 border-primary">
+                <p className="text-foreground text-sm leading-relaxed">
+                  {currentStep.description}
+                </p>
+              </div>
+            )}
+            {!showSubtitles && (
+              <p className="text-muted-foreground text-sm leading-relaxed mb-4">
+                {currentStep.description}
+              </p>
+            )}
 
             {/* Controls */}
             <div className="flex items-center justify-between gap-2">
@@ -548,6 +711,164 @@ export default function AITourGuide() {
                 >
                   <VolumeX className="w-4 h-4" />
                 </Button>
+
+                {/* Voice Settings Popover */}
+                <Popover open={showVoiceSettings} onOpenChange={setShowVoiceSettings}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      title="Voice Settings"
+                    >
+                      <Settings2 className="w-4 h-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80" align="start" side="top">
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-semibold text-sm flex items-center gap-2">
+                          <Mic2 className="w-4 h-4" />
+                          Voice Settings
+                        </h4>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={testVoice}
+                          disabled={isTestingVoice}
+                          className="h-7 text-xs"
+                        >
+                          {isTestingVoice ? "Playing..." : "Test Voice"}
+                        </Button>
+                      </div>
+
+                      {/* Voice Selector */}
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">Select Voice</Label>
+                        <div className="max-h-40 overflow-y-auto space-y-1 pr-2">
+                          {/* Premium Voices */}
+                          {availableVoices.filter(v => v.category === 'premium').length > 0 && (
+                            <>
+                              <p className="text-xs font-medium text-primary mt-2 mb-1">✨ Premium</p>
+                              {availableVoices.map((voiceOption, idx) => 
+                                voiceOption.category === 'premium' && (
+                                  <button
+                                    key={idx}
+                                    onClick={() => setSelectedVoiceIndex(idx)}
+                                    className={`w-full text-left px-2 py-1.5 rounded text-xs flex items-center justify-between transition-colors ${
+                                      selectedVoiceIndex === idx 
+                                        ? 'bg-primary/20 text-primary' 
+                                        : 'hover:bg-secondary'
+                                    }`}
+                                  >
+                                    <span>{voiceOption.label}</span>
+                                    {selectedVoiceIndex === idx && <Check className="w-3 h-3" />}
+                                  </button>
+                                )
+                              )}
+                            </>
+                          )}
+                          
+                          {/* Natural Voices */}
+                          {availableVoices.filter(v => v.category === 'natural').length > 0 && (
+                            <>
+                              <p className="text-xs font-medium text-accent mt-2 mb-1">🎯 Natural</p>
+                              {availableVoices.map((voiceOption, idx) => 
+                                voiceOption.category === 'natural' && (
+                                  <button
+                                    key={idx}
+                                    onClick={() => setSelectedVoiceIndex(idx)}
+                                    className={`w-full text-left px-2 py-1.5 rounded text-xs flex items-center justify-between transition-colors ${
+                                      selectedVoiceIndex === idx 
+                                        ? 'bg-primary/20 text-primary' 
+                                        : 'hover:bg-secondary'
+                                    }`}
+                                  >
+                                    <span>{voiceOption.label}</span>
+                                    {selectedVoiceIndex === idx && <Check className="w-3 h-3" />}
+                                  </button>
+                                )
+                              )}
+                            </>
+                          )}
+                          
+                          {/* Standard Voices */}
+                          {availableVoices.filter(v => v.category === 'standard').length > 0 && (
+                            <>
+                              <p className="text-xs font-medium text-muted-foreground mt-2 mb-1">📢 Standard</p>
+                              {availableVoices.map((voiceOption, idx) => 
+                                voiceOption.category === 'standard' && (
+                                  <button
+                                    key={idx}
+                                    onClick={() => setSelectedVoiceIndex(idx)}
+                                    className={`w-full text-left px-2 py-1.5 rounded text-xs flex items-center justify-between transition-colors ${
+                                      selectedVoiceIndex === idx 
+                                        ? 'bg-primary/20 text-primary' 
+                                        : 'hover:bg-secondary'
+                                    }`}
+                                  >
+                                    <span>{voiceOption.label}</span>
+                                    {selectedVoiceIndex === idx && <Check className="w-3 h-3" />}
+                                  </button>
+                                )
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Speed Control */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs text-muted-foreground">Speed</Label>
+                          <span className="text-xs text-muted-foreground">{speechRate.toFixed(2)}x</span>
+                        </div>
+                        <Slider
+                          value={[speechRate]}
+                          onValueChange={([value]) => setSpeechRate(value)}
+                          min={0.5}
+                          max={1.5}
+                          step={0.05}
+                          className="w-full"
+                        />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Slow</span>
+                          <span>Fast</span>
+                        </div>
+                      </div>
+
+                      {/* Subtitles Toggle */}
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs flex items-center gap-2">
+                          <Captions className="w-4 h-4" />
+                          Show Subtitles
+                        </Label>
+                        <Switch
+                          checked={showSubtitles}
+                          onCheckedChange={setShowSubtitles}
+                        />
+                      </div>
+
+                      {/* Keyboard Shortcuts */}
+                      <div className="pt-2 border-t border-border">
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mb-2">
+                          <Keyboard className="w-3 h-3" />
+                          Keyboard Shortcuts
+                        </p>
+                        <div className="grid grid-cols-2 gap-1 text-xs">
+                          <span className="text-muted-foreground">← → or N/P</span>
+                          <span>Navigate</span>
+                          <span className="text-muted-foreground">Space</span>
+                          <span>Play/Pause</span>
+                          <span className="text-muted-foreground">M</span>
+                          <span>Mute</span>
+                          <span className="text-muted-foreground">Esc</span>
+                          <span>Exit Tour</span>
+                        </div>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
 
               <div className="flex items-center gap-2">
