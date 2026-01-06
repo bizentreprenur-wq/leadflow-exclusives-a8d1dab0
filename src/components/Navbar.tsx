@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, LogIn, LayoutDashboard, Play } from "lucide-react";
+import { Menu, X, LogIn, LayoutDashboard, Play, Zap } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import mascotLogo from "@/assets/bamlead-mascot.png";
@@ -16,6 +16,7 @@ const Navbar = () => {
 
   const navLinks = [
     { href: "/features", labelKey: "nav.features" },
+    { href: "/closeloop", labelKey: "nav.closeloop", isSpecial: true },
     { href: "/pricing", labelKey: "nav.pricing" },
     { href: "/reviews", labelKey: "nav.reviews" },
     { href: "/about", labelKey: "nav.about" },
@@ -48,11 +49,14 @@ const Navbar = () => {
                   variant="ghost"
                   size="sm"
                   className={`px-4 font-medium ${
-                    isActive(link.href) 
-                      ? "text-foreground" 
-                      : "text-muted-foreground hover:text-foreground"
+                    link.isSpecial 
+                      ? "text-amber-500 hover:text-amber-400 hover:bg-amber-500/10" 
+                      : isActive(link.href) 
+                        ? "text-foreground" 
+                        : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
+                  {link.isSpecial && <Zap className="w-3.5 h-3.5 mr-1" />}
                   {t(link.labelKey)}
                 </Button>
               </Link>
