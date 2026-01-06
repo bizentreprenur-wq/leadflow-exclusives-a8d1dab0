@@ -14,7 +14,6 @@ import {
   ShieldCheck,
   Download,
   FileSpreadsheet,
-  Sparkles,
   ArrowRight,
   Eye,
   ArrowLeft,
@@ -25,6 +24,7 @@ import {
   Star,
   PartyPopper,
 } from "lucide-react";
+import AIVerificationExperience from "./AIVerificationExperience";
 
 interface Lead {
   id: string;
@@ -58,6 +58,7 @@ export default function LeadActionModal({
   onSendToGoogleDrive,
 }: LeadActionModalProps) {
   const [showPreview, setShowPreview] = useState(false);
+  const [showAIVerification, setShowAIVerification] = useState(false);
   const previewLeads = leads.slice(0, 50);
 
   const handleClose = () => {
@@ -65,9 +66,21 @@ export default function LeadActionModal({
     onOpenChange(false);
   };
 
+  const handleStartVerification = () => {
+    handleClose();
+    setShowAIVerification(true);
+  };
+
+  const handleVerificationComplete = (verifiedLeads: any[]) => {
+    // Store verified leads for email outreach
+    sessionStorage.setItem('verifiedLeads', JSON.stringify(verifiedLeads));
+    onVerifyWithAI();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+    <>
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
         {!showPreview ? (
           <>
             {/* Main Wizard View */}
@@ -88,10 +101,7 @@ export default function LeadActionModal({
             <div className="space-y-3 py-4">
               {/* Primary: Email Them (Verify First) */}
               <Button
-                onClick={() => {
-                  handleClose();
-                  onVerifyWithAI();
-                }}
+                onClick={handleStartVerification}
                 className="w-full h-auto p-5 justify-start gap-4 text-left"
                 variant="default"
                 size="lg"
@@ -102,7 +112,7 @@ export default function LeadActionModal({
                 <div className="flex-1">
                   <p className="font-bold text-lg">📧 Email These Leads</p>
                   <p className="text-sm opacity-90 font-normal mt-0.5">
-                    We'll verify the contacts first, then you can send emails
+                    AI will verify contacts first, then you can send emails
                   </p>
                 </div>
                 <ArrowRight className="w-5 h-5" />
@@ -287,5 +297,14 @@ export default function LeadActionModal({
         )}
       </DialogContent>
     </Dialog>
+
+      {/* AI Verification Experience */}
+      <AIVerificationExperience
+        open={showAIVerification}
+        onOpenChange={setShowAIVerification}
+        leads={leads}
+        onComplete={handleVerificationComplete}
+      />
+    </>
   );
 }
