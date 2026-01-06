@@ -5,7 +5,7 @@ import mascotLogo from "@/assets/bamlead-mascot.png";
 
 const AgentCardsSection = () => {
   return (
-    <section className="py-20 md:py-28 bg-background">
+    <section data-tour="agent-cards" className="py-20 md:py-28 bg-background">
       <div className="container px-4">
         {/* Section Header */}
         <div className="text-center mb-16">
