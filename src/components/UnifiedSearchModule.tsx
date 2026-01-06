@@ -470,121 +470,34 @@ export default function UnifiedSearchModule() {
         </div>
       )}
 
-      {/* Results Section */}
-      {results.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-medium text-foreground">
-                {results.length} Results Found
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                {selectedResults.length} selected
-              </p>
-            </div>
-            <Button
-              onClick={handleSaveToVerification}
-              disabled={selectedResults.length === 0}
-              size="sm"
-            >
-              <CheckCircle2 className="w-4 h-4 mr-2" />
-              Save to Verify ({selectedResults.length})
-            </Button>
-          </div>
-
-          <div className="grid gap-3">
-            {results.map((result) => (
-              <Card
-                key={result.id}
-                className={`cursor-pointer transition-all hover:shadow-card ${
-                  selectedResults.includes(result.id)
-                    ? 'border-primary/50 bg-primary/5'
-                    : 'border-border/50'
-                }`}
-                onClick={() => toggleSelect(result.id)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <h4 className="font-medium text-foreground truncate">
-                          {result.name}
-                        </h4>
-                        <Badge className={getSourceColor(result.source)}>
-                          {getSourceIcon(result.source)}
-                          <span className="ml-1 uppercase text-[10px]">{result.source}</span>
-                        </Badge>
-                        {result.rating && (
-                          <Badge variant="outline" className="gap-1">
-                            <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                            {result.rating}
-                          </Badge>
-                        )}
-                        {result.industry && (
-                          <Badge variant="outline" className="text-[10px]">
-                            {result.industry}
-                          </Badge>
-                        )}
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                        {result.address && (
-                          <span className="flex items-center gap-1">
-                            <MapPin className="w-3 h-3 shrink-0" />
-                            <span className="truncate">{result.address}</span>
-                          </span>
-                        )}
-                        {result.phone && (
-                          <span className="flex items-center gap-1">
-                            <Phone className="w-3 h-3 shrink-0" />
-                            {result.phone}
-                          </span>
-                        )}
-                        {result.email && (
-                          <span className="flex items-center gap-1">
-                            <Mail className="w-3 h-3 shrink-0" />
-                            {result.email}
-                          </span>
-                        )}
-                        {result.website && (
-                          <a
-                            href={result.website}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-primary hover:underline"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <ExternalLink className="w-3 h-3 shrink-0" />
-                            Website
-                          </a>
-                        )}
-                      </div>
-                    </div>
-
-                    <div
-                      className={`w-5 h-5 rounded border-2 shrink-0 flex items-center justify-center transition-colors ${
-                        selectedResults.includes(result.id)
-                          ? 'bg-primary border-primary'
-                          : 'border-muted-foreground/30'
-                      }`}
-                    >
-                      {selectedResults.includes(result.id) && (
-                        <CheckCircle2 className="w-3 h-3 text-primary-foreground" />
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
+      {/* Results are hidden - users must choose how to view them via the wizard modal */}
       {results.length === 0 && !isSearching && (
         <div className="text-center py-12 text-muted-foreground">
           <Search className="w-12 h-12 mx-auto mb-4 opacity-50" />
           <p>Enter a search query to find leads</p>
           <p className="text-sm mt-1">Use filters to narrow down by role, industry, or company type</p>
+        </div>
+      )}
+
+      {/* Show a summary card when results exist but are hidden */}
+      {results.length > 0 && !showLeadActionModal && (
+        <div className="text-center py-8">
+          <div className="inline-flex flex-col items-center gap-4 p-6 rounded-xl bg-success/10 border border-success/20">
+            <div className="p-3 rounded-full bg-success/20">
+              <CheckCircle2 className="w-8 h-8 text-success" />
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-foreground">
+                {results.length} leads ready!
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Choose how you want to access them
+              </p>
+            </div>
+            <Button onClick={() => setShowLeadActionModal(true)} className="mt-2">
+              View Options
+            </Button>
+          </div>
         </div>
       )}
 
