@@ -40,7 +40,7 @@ const EmailOutreachSection = () => {
   ];
 
   return (
-    <section className="py-20 md:py-28 bg-card relative overflow-hidden">
+    <section data-tour="email-outreach" className="py-20 md:py-28 bg-card relative overflow-hidden">
       <div className="container px-4">
         {/* Section Header */}
         <div className="text-center mb-16">
