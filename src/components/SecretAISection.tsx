@@ -11,7 +11,8 @@ import {
   Target,
   ArrowRight,
   Sparkles,
-  Radar
+  Radar,
+  Handshake
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import PreIntentDetection from "./PreIntentDetection";
@@ -20,6 +21,7 @@ import OutcomeSimulator from "./OutcomeSimulator";
 import PsychologicalProfiler from "./PsychologicalProfiler";
 import FounderMirror from "./FounderMirror";
 import ReverseLeadDiscovery from "./ReverseLeadDiscovery";
+import InvisibleNegotiator from "./InvisibleNegotiator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface AIAgent {
@@ -110,6 +112,18 @@ const SecretAISection = () => {
       borderColor: "border-orange-500/30",
       component: <FounderMirror />,
       badge: "💣 BRUTAL FEEDBACK"
+    },
+    {
+      id: "invisible-negotiator",
+      name: "Invisible Negotiator",
+      tagline: "AI closes deals without human intervention",
+      description: "Automatically adjusts pricing display, offers micro-concessions, and reframes ROI based on lead psychology. Closes deals while you sleep.",
+      icon: <Handshake className="h-8 w-8" />,
+      color: "text-emerald-500",
+      bgColor: "from-emerald-500/20 to-emerald-500/5",
+      borderColor: "border-emerald-500/30",
+      component: <InvisibleNegotiator />,
+      badge: "🤝 AUTO-CLOSE"
     }
   ];
 
