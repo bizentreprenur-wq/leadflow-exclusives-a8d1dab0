@@ -36,7 +36,7 @@ const CTASection = () => {
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/auth">
+            <Link to="/pricing">
               <Button 
                 size="lg" 
                 className="rounded-full px-8 py-6 text-base font-semibold gap-2 bg-primary hover:bg-primary/90"
