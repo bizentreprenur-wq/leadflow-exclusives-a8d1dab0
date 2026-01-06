@@ -8,6 +8,7 @@ import {
   Search, Globe, Mail, Target, TrendingUp,
   Zap, BarChart3, ArrowRight, Sparkles, Menu,
   CheckCircle2, Send, FileText, Chrome, Download,
+  Trophy, Bot, Gift,
 } from 'lucide-react';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import DashboardSidebar from '@/components/DashboardSidebar';
@@ -24,6 +25,8 @@ import InteractiveStatsChart from '@/components/InteractiveStatsChart';
 import AIToolsShowcase from '@/components/AIToolsShowcase';
 import AffiliateProgram from '@/components/AffiliateProgram';
 import FreeTrialBanner from '@/components/FreeTrialBanner';
+import ReferralLeaderboard from '@/components/ReferralLeaderboard';
+import AISalesMentor from '@/components/AISalesMentor';
 import bamMascot from '@/assets/bamlead-mascot.png';
 import { LeadForEmail } from '@/lib/api/email';
 
@@ -187,6 +190,33 @@ export default function Dashboard() {
               </p>
             </div>
           ),
+        };
+      case 'mentor':
+        return {
+          title: 'AI Sales Mentor',
+          description: 'Practice pitches, handle objections, and improve your sales skills with AI coaching',
+          icon: Bot,
+          iconColor: 'text-primary',
+          iconBg: 'bg-primary/10',
+          component: <AISalesMentor />,
+        };
+      case 'leaderboard':
+        return {
+          title: 'Referral Leaderboard',
+          description: 'See top affiliates, earn badges, and compete for exclusive rewards',
+          icon: Trophy,
+          iconColor: 'text-amber-500',
+          iconBg: 'bg-amber-500/10',
+          component: <ReferralLeaderboard />,
+        };
+      case 'affiliate':
+        return {
+          title: 'Affiliate Program',
+          description: 'Earn up to 35% commission on every referral with lifetime tracking',
+          icon: Gift,
+          iconColor: 'text-success',
+          iconBg: 'bg-success/10',
+          component: <AffiliateProgram />,
         };
       default:
         return null;
