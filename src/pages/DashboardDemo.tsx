@@ -15,8 +15,11 @@ import {
   Star,
   Phone,
   Building2,
-  Sparkles
+  Sparkles,
+  Users
 } from "lucide-react";
+import { SocialFinderButton } from "@/components/SocialProfileFinder";
+import EmailHelpOverlay from "@/components/EmailHelpOverlay";
 
 // Mock leads data
 const mockLeads = [
@@ -232,6 +235,7 @@ export default function DashboardDemo() {
                       <Badge variant={lead.hasEmail ? "default" : "secondary"}>
                         {lead.hasEmail ? "📧 Email Found" : "No Email"}
                       </Badge>
+                      <SocialFinderButton lead={lead} />
                     </div>
                   </div>
                 </div>
@@ -296,6 +300,9 @@ export default function DashboardDemo() {
           </div>
         )}
       </div>
+
+      {/* Floating Help Button */}
+      <EmailHelpOverlay variant="floating" />
     </div>
   );
 }
