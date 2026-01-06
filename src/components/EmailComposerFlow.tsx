@@ -51,6 +51,7 @@ import AIEmailWriter from "./AIEmailWriter";
 import LiveEmailPreview from "./LiveEmailPreview";
 import BackgroundRemover from "./BackgroundRemover";
 import SentimentAnalyzer from "./SentimentAnalyzer";
+import EmailBrandingSettings, { useEmailBranding, applyBrandingToEmail } from "./EmailBrandingSettings";
 import { useCelebration } from "./ConfettiCelebration";
 
 interface VerifiedLead {
@@ -115,6 +116,7 @@ export default function EmailComposerFlow({
   const [editingImage, setEditingImage] = useState<{ id: string; url: string; name: string } | null>(null);
   const [showBackgroundRemover, setShowBackgroundRemover] = useState(false);
   const { celebrate } = useCelebration();
+  const { branding, updateBranding } = useEmailBranding();
 
   const validLeads = verifiedLeads.filter(l => l.emailValid !== false && l.email);
 
@@ -261,12 +263,17 @@ export default function EmailComposerFlow({
         emailValid: lead.emailValid,
       }));
 
+      // Apply branding to email body if enabled
+      const brandedBody = branding.enabled 
+        ? applyBrandingToEmail(customBody, branding)
+        : customBody;
+
       // Prepare send params
       const sendParams: BulkSendParams = {
         leads: leadsForEmail,
         template_id: templateId,
         custom_subject: customSubject,
-        custom_body: customBody,
+        custom_body: brandedBody,
         send_mode: sendMode,
         scheduled_for: sendMode === "scheduled" ? `${scheduledDate}T${scheduledTime}` : undefined,
         drip_config: sendMode === "drip" ? {
@@ -366,12 +373,23 @@ export default function EmailComposerFlow({
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-0">
           {/* Header */}
           <DialogHeader className="p-6 pb-0">
-            <DialogTitle className="text-xl flex items-center gap-2">
-              <Mail className="w-5 h-5 text-primary" />
-              Send Email Campaign
-            </DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-xl flex items-center gap-2">
+                <Mail className="w-5 h-5 text-primary" />
+                Send Email Campaign
+              </DialogTitle>
+              <EmailBrandingSettings 
+                branding={branding} 
+                onBrandingChange={updateBranding}
+              />
+            </div>
             <p className="text-sm text-muted-foreground">
               {validLeads.length} verified leads ready to receive your message
+              {branding.enabled && (
+                <span className="ml-2 text-xs text-primary">
+                  • {branding.companyName || "Custom"} branding active
+                </span>
+              )}
             </p>
           </DialogHeader>
 
