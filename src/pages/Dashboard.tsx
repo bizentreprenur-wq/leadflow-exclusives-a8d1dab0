@@ -29,6 +29,7 @@ import ReferralLeaderboard from '@/components/ReferralLeaderboard';
 import AISalesMentor from '@/components/AISalesMentor';
 import AIJourneyExplainer from '@/components/AIJourneyExplainer';
 import ScalabilityDashboard from '@/components/ScalabilityDashboard';
+import AdvertisingSpotlight from '@/components/AdvertisingSpotlight';
 import bamMascot from '@/assets/bamlead-mascot.png';
 import { LeadForEmail } from '@/lib/api/email';
 
@@ -368,6 +369,11 @@ export default function Dashboard() {
             {/* Affiliate Program */}
             <section className="mb-8">
               <AffiliateProgram />
+            </section>
+
+            {/* Partner Spotlight / Advertising */}
+            <section className="mb-8">
+              <AdvertisingSpotlight />
             </section>
 
             {/* Free Trial Banner */}
