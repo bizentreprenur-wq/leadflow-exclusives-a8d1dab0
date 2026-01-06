@@ -130,48 +130,47 @@ export default function AITourGuide() {
     return () => window.removeEventListener('start-tour', handleStartTour);
   }, [location.pathname, navigate]);
 
-  // Find American English MALE voice (older gentleman style)
-  const getAmericanMaleVoice = useCallback(() => {
+  // Find a natural-sounding voice (prefer premium/enhanced voices)
+  const getNaturalVoice = useCallback(() => {
     if (!("speechSynthesis" in window)) return null;
     
     const voices = window.speechSynthesis.getVoices();
     
-    // Priority order for American MALE voices
-    const americanMaleVoice = voices.find(v => 
-      v.lang === "en-US" && v.name.includes("Google US English Male")
+    // Priority: Natural/Premium voices first, then fallback
+    // Premium voices usually have "Natural", "Premium", or "Enhanced" in name
+    const naturalVoice = voices.find(v => 
+      v.lang.startsWith("en") && (v.name.includes("Natural") || v.name.includes("Premium"))
     ) || voices.find(v => 
-      v.lang === "en-US" && v.name.includes("Alex")
+      v.lang === "en-US" && v.name.includes("Aaron") // macOS natural voice
     ) || voices.find(v => 
-      v.lang === "en-US" && v.name.includes("Daniel")
+      v.lang === "en-US" && v.name.includes("Evan") // Windows natural voice
     ) || voices.find(v => 
-      v.lang === "en-US" && v.name.includes("Fred")
+      v.lang === "en-GB" && v.name.includes("Daniel") // British Daniel sounds friendly
     ) || voices.find(v => 
-      v.lang === "en-US" && v.name.includes("Tom")
+      v.lang === "en-US" && v.name.includes("Samantha") // Samantha is quite natural
     ) || voices.find(v => 
-      v.lang === "en-US" && v.name.toLowerCase().includes("male")
+      v.lang === "en-US" && !v.name.includes("Novelty") && !v.name.includes("Zarvox")
     ) || voices.find(v => 
-      v.lang === "en-US" && !v.name.includes("Samantha") && !v.name.includes("Victoria") && !v.name.includes("Karen")
-    ) || voices.find(v => 
-      v.lang === "en-US"
+      v.lang.startsWith("en")
     );
     
-    return americanMaleVoice || null;
+    return naturalVoice || null;
   }, []);
 
-  // Speak the current step with natural American male voice
+  // Speak the current step with natural-sounding voice
   const speak = useCallback((text: string) => {
     if (!("speechSynthesis" in window)) return;
     
     window.speechSynthesis.cancel();
     
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.15; // Slightly faster pace
-    utterance.pitch = 0.85; // Deeper voice
+    utterance.rate = 0.95; // Slightly slower for natural pacing
+    utterance.pitch = 1.0; // Natural pitch
     utterance.volume = 1;
     
-    const americanMaleVoice = getAmericanMaleVoice();
-    if (americanMaleVoice) {
-      utterance.voice = americanMaleVoice;
+    const naturalVoice = getNaturalVoice();
+    if (naturalVoice) {
+      utterance.voice = naturalVoice;
     }
 
     utterance.onstart = () => setIsSpeaking(true);
@@ -180,7 +179,7 @@ export default function AITourGuide() {
 
     speechRef.current = utterance;
     window.speechSynthesis.speak(utterance);
-  }, [getAmericanMaleVoice]);
+  }, [getNaturalVoice]);
 
   // Stop speaking
   const stopSpeaking = useCallback(() => {
