@@ -17,13 +17,25 @@ import {
   Network,
   RotateCcw,
   Briefcase,
-  Star,
   Eye,
   CheckCircle2,
   Mail,
   Sparkles,
   ArrowLeft,
   X,
+  Gift,
+  Calendar,
+  Star,
+  Rocket,
+  Heart,
+  Zap,
+  Award,
+  PartyPopper,
+  ShoppingBag,
+  Building2,
+  Utensils,
+  Home,
+  Wrench,
 } from "lucide-react";
 import { EMAIL_TEMPLATE_PRESETS, EmailTemplatePreset } from "@/lib/emailTemplates";
 
@@ -33,6 +45,82 @@ interface EmailTemplateGalleryProps {
   onSelectTemplate: (template: EmailTemplatePreset) => void;
   onBack?: () => void;
 }
+
+// Visual template designs - each has a unique preview layout
+const templateVisuals: Record<string, {
+  headerColor: string;
+  headerGradient: string;
+  accent: string;
+  icon: React.ReactNode;
+  layout: "hero" | "split" | "minimal" | "announcement" | "newsletter" | "promo";
+  heroImage?: string;
+}> = {
+  "sales-intro": {
+    headerColor: "bg-gradient-to-br from-cyan-500 to-blue-600",
+    headerGradient: "from-cyan-500/20 to-blue-600/20",
+    accent: "text-cyan-400",
+    icon: <Rocket className="w-8 h-8" />,
+    layout: "hero",
+  },
+  "sales-follow-up": {
+    headerColor: "bg-gradient-to-br from-purple-500 to-pink-500",
+    headerGradient: "from-purple-500/20 to-pink-500/20",
+    accent: "text-purple-400",
+    icon: <RotateCcw className="w-8 h-8" />,
+    layout: "minimal",
+  },
+  "marketing-newsletter": {
+    headerColor: "bg-gradient-to-br from-emerald-500 to-teal-600",
+    headerGradient: "from-emerald-500/20 to-teal-600/20",
+    accent: "text-emerald-400",
+    icon: <Mail className="w-8 h-8" />,
+    layout: "newsletter",
+  },
+  "marketing-promo": {
+    headerColor: "bg-gradient-to-br from-orange-500 to-red-500",
+    headerGradient: "from-orange-500/20 to-red-500/20",
+    accent: "text-orange-400",
+    icon: <Gift className="w-8 h-8" />,
+    layout: "promo",
+  },
+  "recruiting-outreach": {
+    headerColor: "bg-gradient-to-br from-blue-500 to-indigo-600",
+    headerGradient: "from-blue-500/20 to-indigo-600/20",
+    accent: "text-blue-400",
+    icon: <Users className="w-8 h-8" />,
+    layout: "split",
+  },
+  "networking-intro": {
+    headerColor: "bg-gradient-to-br from-amber-500 to-orange-500",
+    headerGradient: "from-amber-500/20 to-orange-500/20",
+    accent: "text-amber-400",
+    icon: <Network className="w-8 h-8" />,
+    layout: "minimal",
+  },
+  "event-invite": {
+    headerColor: "bg-gradient-to-br from-pink-500 to-rose-600",
+    headerGradient: "from-pink-500/20 to-rose-600/20",
+    accent: "text-pink-400",
+    icon: <Calendar className="w-8 h-8" />,
+    layout: "announcement",
+  },
+  "thank-you": {
+    headerColor: "bg-gradient-to-br from-green-500 to-emerald-600",
+    headerGradient: "from-green-500/20 to-emerald-600/20",
+    accent: "text-green-400",
+    icon: <Heart className="w-8 h-8" />,
+    layout: "minimal",
+  },
+};
+
+// Industry-specific visuals
+const industryVisuals: Record<string, { icon: React.ReactNode; color: string }> = {
+  "restaurant": { icon: <Utensils className="w-4 h-4" />, color: "text-orange-400" },
+  "real-estate": { icon: <Home className="w-4 h-4" />, color: "text-blue-400" },
+  "retail": { icon: <ShoppingBag className="w-4 h-4" />, color: "text-pink-400" },
+  "services": { icon: <Wrench className="w-4 h-4" />, color: "text-amber-400" },
+  "corporate": { icon: <Building2 className="w-4 h-4" />, color: "text-slate-400" },
+};
 
 const categoryConfig: Record<string, { icon: React.ReactNode; color: string; bgGradient: string }> = {
   sales: {
@@ -77,6 +165,198 @@ const categories = [
   { id: "introduction", name: "Introduction", count: EMAIL_TEMPLATE_PRESETS.filter(t => t.category === "introduction").length },
 ];
 
+// Visual Email Template Preview Component
+function TemplatePreviewCard({ template, layout, headerGradient, accent, icon }: {
+  template: EmailTemplatePreset;
+  layout: "hero" | "split" | "minimal" | "announcement" | "newsletter" | "promo";
+  headerGradient: string;
+  accent: string;
+  icon: React.ReactNode;
+}) {
+  const renderLayout = () => {
+    switch (layout) {
+      case "hero":
+        return (
+          <div className="h-full flex flex-col">
+            {/* Hero banner */}
+            <div className={`h-16 bg-gradient-to-r ${headerGradient} flex items-center justify-center relative overflow-hidden`}>
+              <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAgTSAwIDIwIEwgNDAgMjAgTSAyMCAwIEwgMjAgNDAgTSAwIDMwIEwgNDAgMzAgTSAzMCAwIEwgMzAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjEpIiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-50" />
+              <div className={`${accent} drop-shadow-lg`}>{icon}</div>
+            </div>
+            {/* Content preview */}
+            <div className="flex-1 bg-white/5 p-3">
+              <div className="h-2.5 w-3/4 bg-foreground/20 rounded mb-2" />
+              <div className="h-2 w-full bg-foreground/10 rounded mb-1.5" />
+              <div className="h-2 w-full bg-foreground/10 rounded mb-1.5" />
+              <div className="h-2 w-2/3 bg-foreground/10 rounded mb-3" />
+              <div className={`h-6 w-24 ${accent.replace('text-', 'bg-')}/30 rounded-md`} />
+            </div>
+          </div>
+        );
+      
+      case "split":
+        return (
+          <div className="h-full flex">
+            {/* Left image area */}
+            <div className={`w-2/5 bg-gradient-to-br ${headerGradient} flex items-center justify-center`}>
+              <div className={`${accent} opacity-60`}>{icon}</div>
+            </div>
+            {/* Right content */}
+            <div className="flex-1 bg-white/5 p-3 flex flex-col justify-center">
+              <div className="h-2.5 w-3/4 bg-foreground/20 rounded mb-2" />
+              <div className="h-2 w-full bg-foreground/10 rounded mb-1" />
+              <div className="h-2 w-full bg-foreground/10 rounded mb-1" />
+              <div className="h-2 w-1/2 bg-foreground/10 rounded" />
+            </div>
+          </div>
+        );
+      
+      case "newsletter":
+        return (
+          <div className="h-full flex flex-col">
+            {/* Header with logo */}
+            <div className={`h-10 bg-gradient-to-r ${headerGradient} flex items-center px-3 gap-2`}>
+              <div className={`w-5 h-5 rounded ${accent.replace('text-', 'bg-')}/40`} />
+              <div className="h-2 w-16 bg-white/30 rounded" />
+            </div>
+            {/* Content grid */}
+            <div className="flex-1 bg-white/5 p-2 grid grid-cols-2 gap-2">
+              <div className="bg-foreground/5 rounded p-1.5">
+                <div className={`h-8 bg-gradient-to-br ${headerGradient} rounded mb-1.5`} />
+                <div className="h-1.5 w-full bg-foreground/10 rounded mb-1" />
+                <div className="h-1.5 w-3/4 bg-foreground/10 rounded" />
+              </div>
+              <div className="bg-foreground/5 rounded p-1.5">
+                <div className={`h-8 bg-gradient-to-br ${headerGradient} rounded mb-1.5`} />
+                <div className="h-1.5 w-full bg-foreground/10 rounded mb-1" />
+                <div className="h-1.5 w-3/4 bg-foreground/10 rounded" />
+              </div>
+            </div>
+          </div>
+        );
+      
+      case "promo":
+        return (
+          <div className="h-full flex flex-col relative overflow-hidden">
+            {/* Promo banner */}
+            <div className={`h-20 bg-gradient-to-r ${headerGradient} flex flex-col items-center justify-center relative`}>
+              <div className="absolute top-1 right-1">
+                <PartyPopper className={`w-4 h-4 ${accent}`} />
+              </div>
+              <div className={`${accent} mb-1`}>{icon}</div>
+              <div className="text-[10px] font-bold text-foreground/60">SPECIAL OFFER</div>
+              <div className="flex items-center gap-1 mt-1">
+                <Star className={`w-3 h-3 ${accent}`} />
+                <Star className={`w-3 h-3 ${accent}`} />
+                <Star className={`w-3 h-3 ${accent}`} />
+              </div>
+            </div>
+            {/* Content */}
+            <div className="flex-1 bg-white/5 p-3 flex flex-col items-center">
+              <div className="h-2 w-3/4 bg-foreground/15 rounded mb-2" />
+              <div className={`h-7 w-28 ${accent.replace('text-', 'bg-')}/30 rounded-full flex items-center justify-center`}>
+                <Zap className={`w-3 h-3 ${accent}`} />
+              </div>
+            </div>
+          </div>
+        );
+      
+      case "announcement":
+        return (
+          <div className="h-full flex flex-col">
+            {/* Announcement header */}
+            <div className={`h-12 bg-gradient-to-r ${headerGradient} flex items-center justify-center gap-2`}>
+              <Award className={`w-5 h-5 ${accent}`} />
+              <div className="h-2.5 w-20 bg-white/30 rounded" />
+            </div>
+            {/* Main content */}
+            <div className="flex-1 bg-white/5 p-3 flex flex-col items-center justify-center text-center">
+              <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${headerGradient} flex items-center justify-center mb-2`}>
+                {icon}
+              </div>
+              <div className="h-2 w-24 bg-foreground/15 rounded mb-1.5" />
+              <div className="h-1.5 w-32 bg-foreground/10 rounded mb-1" />
+              <div className="h-1.5 w-28 bg-foreground/10 rounded" />
+            </div>
+          </div>
+        );
+      
+      default: // minimal
+        return (
+          <div className="h-full flex flex-col">
+            {/* Simple header */}
+            <div className={`h-8 bg-gradient-to-r ${headerGradient} flex items-center px-3`}>
+              <div className={`w-4 h-4 rounded ${accent.replace('text-', 'bg-')}/40 mr-2`} />
+              <div className="h-1.5 w-16 bg-white/30 rounded" />
+            </div>
+            {/* Clean content */}
+            <div className="flex-1 bg-white/5 p-3">
+              <div className="h-2.5 w-1/2 bg-foreground/20 rounded mb-3" />
+              <div className="h-2 w-full bg-foreground/10 rounded mb-1.5" />
+              <div className="h-2 w-full bg-foreground/10 rounded mb-1.5" />
+              <div className="h-2 w-full bg-foreground/10 rounded mb-1.5" />
+              <div className="h-2 w-3/4 bg-foreground/10 rounded mb-3" />
+              <div className="h-2 w-20 bg-foreground/15 rounded" />
+            </div>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="h-36 rounded-t-lg overflow-hidden border-b border-border/50">
+      {renderLayout()}
+    </div>
+  );
+}
+
+// Get visual config for template based on its properties
+function getTemplateVisual(template: EmailTemplatePreset) {
+  // Check if we have a specific visual for this template ID
+  const specificVisual = templateVisuals[template.id];
+  if (specificVisual) return specificVisual;
+
+  // Generate visual based on category and tags
+  const layouts: Array<"hero" | "split" | "minimal" | "announcement" | "newsletter" | "promo"> = 
+    ["hero", "split", "minimal", "announcement", "newsletter", "promo"];
+  
+  const gradients = [
+    { header: "from-cyan-500/20 to-blue-600/20", accent: "text-cyan-400" },
+    { header: "from-purple-500/20 to-pink-500/20", accent: "text-purple-400" },
+    { header: "from-emerald-500/20 to-teal-600/20", accent: "text-emerald-400" },
+    { header: "from-orange-500/20 to-red-500/20", accent: "text-orange-400" },
+    { header: "from-blue-500/20 to-indigo-600/20", accent: "text-blue-400" },
+    { header: "from-amber-500/20 to-orange-500/20", accent: "text-amber-400" },
+    { header: "from-pink-500/20 to-rose-600/20", accent: "text-pink-400" },
+    { header: "from-green-500/20 to-emerald-600/20", accent: "text-green-400" },
+  ];
+
+  const icons = [
+    <Rocket className="w-8 h-8" />,
+    <Mail className="w-8 h-8" />,
+    <TrendingUp className="w-8 h-8" />,
+    <Gift className="w-8 h-8" />,
+    <Users className="w-8 h-8" />,
+    <Star className="w-8 h-8" />,
+    <Zap className="w-8 h-8" />,
+    <Heart className="w-8 h-8" />,
+  ];
+
+  // Use template ID to consistently pick visuals
+  const hash = template.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const gradientIndex = hash % gradients.length;
+  const layoutIndex = (hash * 3) % layouts.length;
+  const iconIndex = (hash * 7) % icons.length;
+
+  return {
+    headerColor: "",
+    headerGradient: gradients[gradientIndex].header,
+    accent: gradients[gradientIndex].accent,
+    icon: icons[iconIndex],
+    layout: layouts[layoutIndex],
+  };
+}
+
 export default function EmailTemplateGallery({
   open,
   onOpenChange,
@@ -106,7 +386,7 @@ export default function EmailTemplateGallery({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-hidden flex flex-col p-0">
         {/* Header */}
         <div className="p-6 pb-0">
           <DialogHeader className="pb-4">
@@ -119,11 +399,13 @@ export default function EmailTemplateGallery({
                 )}
                 <div>
                   <DialogTitle className="text-2xl font-bold flex items-center gap-2">
-                    <Mail className="w-6 h-6 text-primary" />
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                      <Mail className="w-5 h-5 text-primary" />
+                    </div>
                     Email Template Gallery
                   </DialogTitle>
                   <p className="text-muted-foreground text-sm mt-1">
-                    Choose from {EMAIL_TEMPLATE_PRESETS.length} professionally crafted templates
+                    Choose from {EMAIL_TEMPLATE_PRESETS.length} professionally designed templates
                   </p>
                 </div>
               </div>
@@ -134,7 +416,7 @@ export default function EmailTemplateGallery({
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search templates..."
+              placeholder="Search by name, industry, or keyword..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10 bg-secondary/50 border-border"
@@ -172,69 +454,63 @@ export default function EmailTemplateGallery({
 
         {/* Template Grid */}
         <ScrollArea className="flex-1 px-6 py-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-4">
             {filteredTemplates.map((template) => {
-              const config = categoryConfig[template.category] || categoryConfig.sales;
+              const visual = getTemplateVisual(template);
+              const industryInfo = template.industry ? industryVisuals[template.industry.toLowerCase()] : null;
 
               return (
                 <div
                   key={template.id}
-                  className="group relative bg-card border border-border rounded-xl overflow-hidden hover:border-primary/50 hover:shadow-lg transition-all duration-300"
+                  className="group relative bg-card border border-border rounded-xl overflow-hidden hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 hover:-translate-y-1"
                 >
-                  {/* Template Preview Header */}
-                  <div className={`h-32 bg-gradient-to-br ${config.bgGradient} p-4 relative overflow-hidden`}>
-                    {/* Decorative email icon */}
-                    <div className="absolute right-3 top-3 opacity-20">
-                      <Mail className="w-16 h-16" />
-                    </div>
-                    
-                    {/* Category badge */}
+                  {/* Visual Template Preview */}
+                  <TemplatePreviewCard
+                    template={template}
+                    layout={visual.layout}
+                    headerGradient={visual.headerGradient}
+                    accent={visual.accent}
+                    icon={visual.icon}
+                  />
+
+                  {/* Industry badge overlay */}
+                  {template.industry && industryInfo && (
                     <Badge
+                      className={`absolute top-2 right-2 ${industryInfo.color} bg-background/90 backdrop-blur-sm border-current/20`}
                       variant="outline"
-                      className={`${config.color} border-current/30 bg-background/80 backdrop-blur-sm`}
                     >
-                      {config.icon}
-                      <span className="ml-1.5 capitalize">{template.category}</span>
+                      {industryInfo.icon}
+                      <span className="ml-1 text-xs">{template.industry}</span>
                     </Badge>
-
-                    {/* Template preview lines */}
-                    <div className="mt-4 space-y-2">
-                      <div className="h-2 w-3/4 bg-foreground/10 rounded" />
-                      <div className="h-2 w-full bg-foreground/10 rounded" />
-                      <div className="h-2 w-2/3 bg-foreground/10 rounded" />
-                    </div>
-
-                    {/* Industry badge */}
-                    {template.industry && (
-                      <Badge
-                        variant="secondary"
-                        className="absolute bottom-3 right-3 text-xs"
-                      >
-                        {template.industry}
-                      </Badge>
-                    )}
-                  </div>
+                  )}
 
                   {/* Template Info */}
                   <div className="p-4">
-                    <h3 className="font-semibold text-foreground mb-1 line-clamp-1">
-                      {template.name}
-                    </h3>
-                    <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <h3 className="font-semibold text-foreground line-clamp-1">
+                        {template.name}
+                      </h3>
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-2 mb-3 min-h-[2rem]">
                       {template.description}
                     </p>
 
                     {/* Tags */}
-                    <div className="flex flex-wrap gap-1.5 mb-4">
-                      {template.tags.slice(0, 3).map((tag) => (
+                    <div className="flex flex-wrap gap-1 mb-3 min-h-[1.5rem]">
+                      {template.tags.slice(0, 2).map((tag) => (
                         <Badge
                           key={tag}
-                          variant="outline"
-                          className="text-xs text-muted-foreground border-border"
+                          variant="secondary"
+                          className="text-[10px] px-1.5 py-0"
                         >
                           {tag}
                         </Badge>
                       ))}
+                      {template.tags.length > 2 && (
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
+                          +{template.tags.length - 2}
+                        </Badge>
+                      )}
                     </div>
 
                     {/* Actions */}
@@ -243,17 +519,17 @@ export default function EmailTemplateGallery({
                         variant="outline"
                         size="sm"
                         onClick={() => setPreviewTemplate(template)}
-                        className="flex-1"
+                        className="flex-1 h-8 text-xs"
                       >
-                        <Eye className="w-3.5 h-3.5 mr-1.5" />
+                        <Eye className="w-3 h-3 mr-1" />
                         Preview
                       </Button>
                       <Button
                         size="sm"
                         onClick={() => handleSelectTemplate(template)}
-                        className="flex-1"
+                        className="flex-1 h-8 text-xs"
                       >
-                        <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                        <CheckCircle2 className="w-3 h-3 mr-1" />
                         Use
                       </Button>
                     </div>
@@ -277,7 +553,7 @@ export default function EmailTemplateGallery({
         {/* Template Preview Modal */}
         {previewTemplate && (
           <Dialog open={!!previewTemplate} onOpenChange={() => setPreviewTemplate(null)}>
-            <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+            <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-hidden flex flex-col">
               <DialogHeader className="shrink-0">
                 <div className="flex items-center justify-between">
                   <div>
@@ -289,6 +565,24 @@ export default function EmailTemplateGallery({
 
               <ScrollArea className="flex-1 -mx-6 px-6">
                 <div className="space-y-4 py-4">
+                  {/* Visual Preview */}
+                  <div className="rounded-xl overflow-hidden border border-border">
+                    <div className="h-48">
+                      {(() => {
+                        const visual = getTemplateVisual(previewTemplate);
+                        return (
+                          <TemplatePreviewCard
+                            template={previewTemplate}
+                            layout={visual.layout}
+                            headerGradient={visual.headerGradient}
+                            accent={visual.accent}
+                            icon={visual.icon}
+                          />
+                        );
+                      })()}
+                    </div>
+                  </div>
+
                   {/* Subject */}
                   <div className="p-4 rounded-xl bg-secondary/50 border border-border">
                     <p className="text-xs font-medium text-muted-foreground mb-1">SUBJECT LINE</p>
@@ -318,7 +612,7 @@ export default function EmailTemplateGallery({
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {["{{business_name}}", "{{first_name}}", "{{email}}", "{{sender_name}}"].map((token) => (
-                        <Badge key={token} variant="secondary" className="text-xs">
+                        <Badge key={token} variant="secondary" className="text-xs font-mono">
                           {token}
                         </Badge>
                       ))}
