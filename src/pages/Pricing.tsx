@@ -117,8 +117,10 @@ const Pricing = () => {
     }
 
     if (!isAuthenticated) {
-      toast.info('Please sign in first');
-      navigate('/auth');
+      // Pass plan info so we can redirect to checkout after login
+      const billingPeriod = isYearly ? 'yearly' : 'monthly';
+      toast.info('Please sign in first to subscribe');
+      navigate(`/auth?plan=${planId}&billing=${billingPeriod}`);
       return;
     }
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Eye, EyeOff, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 import mascotLogo from '@/assets/bamlead-mascot.png';
 import { BackendStatus } from '@/components/BackendStatus';
+import { createCheckoutSession } from '@/lib/api/stripe';
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
@@ -17,6 +18,11 @@ export default function Auth() {
   const { login, register, isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  // Check for pending checkout plan from pricing page
+  const pendingPlan = searchParams.get('plan') as 'basic' | 'pro' | 'agency' | null;
+  const pendingBilling = searchParams.get('billing') as 'monthly' | 'yearly' | null;
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
@@ -54,6 +60,27 @@ export default function Auth() {
     );
   }
 
+  // Helper to handle post-auth redirect (either to checkout or dashboard)
+  const handlePostAuthRedirect = async () => {
+    if (pendingPlan && ['basic', 'pro', 'agency'].includes(pendingPlan)) {
+      try {
+        toast.loading('Redirecting to checkout...');
+        const { checkout_url } = await createCheckoutSession(
+          pendingPlan,
+          pendingBilling || 'monthly'
+        );
+        window.location.href = checkout_url;
+      } catch (error) {
+        toast.dismiss();
+        toast.error(error instanceof Error ? error.message : 'Failed to start checkout');
+        navigate('/dashboard', { replace: true });
+      }
+    } else {
+      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
+      navigate(from, { replace: true });
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -66,8 +93,7 @@ export default function Auth() {
     try {
       await login(loginEmail, loginPassword);
       toast.success('Welcome back!');
-      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
-      navigate(from, { replace: true });
+      await handlePostAuthRedirect();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Login failed');
     } finally {
@@ -97,7 +123,7 @@ export default function Auth() {
     try {
       await register(registerEmail, registerPassword, registerName || undefined);
       toast.success('Account created! Welcome to BamLead.');
-      navigate('/dashboard', { replace: true });
+      await handlePostAuthRedirect();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Registration failed');
     } finally {
