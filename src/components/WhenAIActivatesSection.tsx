@@ -61,7 +61,7 @@ const WhenAIActivatesSection = () => {
   };
 
   return (
-    <section className="py-20 md:py-28 bg-gradient-to-b from-secondary/20 via-background to-background">
+    <section data-tour="ai-activation" className="py-20 md:py-28 bg-gradient-to-b from-secondary/20 via-background to-background">
       <div className="container px-4">
         {/* Header */}
         <div className="text-center mb-16">
