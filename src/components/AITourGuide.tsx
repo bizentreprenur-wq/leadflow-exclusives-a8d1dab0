@@ -90,6 +90,7 @@ export default function AITourGuide() {
   const [tourDisabled, setTourDisabled] = useState(false);
   const [mascotPosition, setMascotPosition] = useState({ x: 0, y: 0 });
   const [isWalking, setIsWalking] = useState(false);
+  const [isDemoMinimized, setIsDemoMinimized] = useState(false);
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -338,25 +339,48 @@ export default function AITourGuide() {
 
   // Floating demo button (always visible when tour not active)
   if (!showTour && !isFirstVisit) {
+    // Minimized state - small icon only
+    if (isDemoMinimized) {
+      return (
+        <button
+          onClick={() => setIsDemoMinimized(false)}
+          className="fixed top-20 right-4 z-50 w-10 h-10 bg-primary/80 text-primary-foreground rounded-full shadow-lg hover:scale-110 hover:bg-primary transition-all flex items-center justify-center"
+          title="Show Demo Button"
+        >
+          <Play className="w-4 h-4" />
+        </button>
+      );
+    }
+
+    // Full demo button with minimize option
     return (
-      <button
-        onClick={() => {
-          setIsFirstVisit(false);
-          setShowTour(true);
-          setCurrentStepIndex(0);
-          if (location.pathname !== "/") {
-            navigate("/");
-          }
-          setTimeout(() => {
-            speak(TOUR_STEPS[0].description);
-            moveMascotToElement(TOUR_STEPS[0].element);
-          }, 500);
-        }}
-        className="fixed top-20 right-4 z-50 flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-full shadow-lg hover:scale-105 transition-transform font-medium text-sm"
-      >
-        <Play className="w-4 h-4" />
-        Live Demo
-      </button>
+      <div className="fixed top-20 right-4 z-50 flex items-center gap-1">
+        <button
+          onClick={() => {
+            setIsFirstVisit(false);
+            setShowTour(true);
+            setCurrentStepIndex(0);
+            if (location.pathname !== "/") {
+              navigate("/");
+            }
+            setTimeout(() => {
+              speak(TOUR_STEPS[0].description);
+              moveMascotToElement(TOUR_STEPS[0].element);
+            }, 500);
+          }}
+          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-l-full shadow-lg hover:brightness-110 transition-all font-medium text-sm"
+        >
+          <Play className="w-4 h-4" />
+          Live Demo
+        </button>
+        <button
+          onClick={() => setIsDemoMinimized(true)}
+          className="flex items-center justify-center w-8 h-[36px] bg-primary/80 text-primary-foreground rounded-r-full shadow-lg hover:bg-primary/60 transition-all"
+          title="Minimize"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
     );
   }
 
