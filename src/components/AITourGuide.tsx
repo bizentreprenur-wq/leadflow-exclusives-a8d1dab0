@@ -6,6 +6,7 @@ import {
   SkipForward, Play, Pause, Sparkles
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
+import mascotImage from "@/assets/bamlead-mascot.png";
 
 interface TourStep {
   id: string;
@@ -21,53 +22,53 @@ const TOUR_STEPS: TourStep[] = [
     id: "welcome",
     page: "/",
     title: "Welcome to BamLead! 🎉",
-    description: "I'm your AI guide. Let me show you around! BamLead is the most advanced lead generation platform with AI features no one else has. Let me walk you through the main features."
+    description: "Hey there! I'm Bam, your personal AI guide. Let me walk you through BamLead, the most advanced lead generation platform with AI features no one else has. Follow me!"
   },
   {
     id: "search-methods",
     page: "/",
     element: "[data-tour='dual-search']",
     title: "Two Powerful Search Methods",
-    description: "We have TWO ways to find leads. First, Google My Business scanner finds local businesses. Second, our Platform Scanner searches Google and Bing to find businesses with outdated websites like WordPress, Wix, or Joomla. You can try both right on the homepage!"
+    description: "Come on over here! We've got TWO awesome ways to find leads. First up, our Google My Business scanner finds local businesses. And check this out, our Platform Scanner searches Google and Bing to find businesses running outdated websites. Pretty cool, right?"
   },
   {
     id: "agent-cards",
     page: "/",
     element: "[data-tour='agent-cards']",
     title: "Ready-to-Use Scanners",
-    description: "These are your two scanning agents. The GMB Scanner finds local businesses with Google My Business listings. The Platform Scanner detects 16 plus legacy platforms. Both analyze website quality instantly."
+    description: "Follow me to meet your scanning agents! The GMB Scanner hunts down local businesses with Google My Business listings. And the Platform Scanner? It detects over 16 legacy platforms and analyzes website quality instantly."
   },
   {
     id: "ai-features",
     page: "/",
     element: "[data-tour='ai-activation']",
     title: "When AI Features Activate",
-    description: "Here's the exciting part! BamLead has 10 plus AI features that work automatically. Pre-Intent Detection predicts who will convert. Emotional State AI reads customer moods. These activate at different stages of your lead journey."
+    description: "Now this is where it gets exciting! Walk with me. BamLead has over 10 AI features that work automatically. Pre-Intent Detection predicts who's gonna convert. Emotional State AI reads customer moods. These bad boys activate at different stages of your lead journey."
   },
   {
     id: "revolutionary",
     page: "/",
     element: "[data-tour='revolutionary']",
     title: "What Makes Us Different",
-    description: "This section shows all the revolutionary features that NO competitor has. We have Outcome Simulators, Psychological Profilers, Invisible Negotiators, and more. These are the secret weapons that give you an unfair advantage."
+    description: "Let me show you the good stuff! This section has all the revolutionary features that NO competitor has. We're talking Outcome Simulators, Psychological Profilers, Invisible Negotiators. These are your secret weapons for an unfair advantage."
   },
   {
     id: "pricing-cta",
     page: "/pricing",
     title: "Flexible Pricing",
-    description: "Check out our pricing page! We offer a free trial so you can test all features. No credit card required to start. You can search for unlimited leads and try all our AI features for 7 days."
+    description: "Alright, hop on over to our pricing page with me! We've got a free trial so you can test all features. No credit card required to start. Search for unlimited leads and try all our AI features for 7 days. Can't beat that!"
   },
   {
     id: "dashboard-preview",
     page: "/dashboard",
     title: "Your Dashboard",
-    description: "This is your command center! From here you can search for leads, verify them with AI, send email campaigns, and track everything. The sidebar gives you access to all features including AI verification and email outreach."
+    description: "Welcome to your command center! From here you can search for leads, verify them with AI, send email campaigns, and track everything. The sidebar gives you access to all features including AI verification and email outreach."
   },
   {
     id: "finish",
     page: "/",
     title: "You're All Set! 🚀",
-    description: "That's the tour! You now know the basics of BamLead. Start by searching for leads on the homepage, or sign up for a free trial to unlock all features. If you ever need help, click the chat button in the bottom right. Happy lead hunting!"
+    description: "And that's the tour! You now know the basics of BamLead. Start by searching for leads on the homepage, or sign up for a free trial to unlock all features. If you ever need help, just click the chat button. Happy lead hunting, friend!"
   }
 ];
 
@@ -81,6 +82,8 @@ export default function AITourGuide() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [tourDisabled, setTourDisabled] = useState(false);
+  const [mascotPosition, setMascotPosition] = useState({ x: 0, y: 0 });
+  const [isWalking, setIsWalking] = useState(false);
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -99,33 +102,44 @@ export default function AITourGuide() {
 
     if (!completed && location.pathname === "/") {
       setIsFirstVisit(true);
-      // Small delay to let the page load
       setTimeout(() => setShowTour(true), 1500);
     }
   }, []);
 
-  // Speak the current step
+  // Find American English voice
+  const getAmericanVoice = useCallback(() => {
+    if (!("speechSynthesis" in window)) return null;
+    
+    const voices = window.speechSynthesis.getVoices();
+    
+    // Priority order for American voices
+    const americanVoice = voices.find(v => 
+      v.lang === "en-US" && v.name.includes("Google US English")
+    ) || voices.find(v => 
+      v.lang === "en-US" && (v.name.includes("Samantha") || v.name.includes("Alex"))
+    ) || voices.find(v => 
+      v.lang === "en-US"
+    ) || voices.find(v => 
+      v.lang.startsWith("en")
+    );
+    
+    return americanVoice || null;
+  }, []);
+
+  // Speak the current step with American accent
   const speak = useCallback((text: string) => {
     if (!("speechSynthesis" in window)) return;
     
-    // Cancel any ongoing speech
     window.speechSynthesis.cancel();
     
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.95;
-    utterance.pitch = 1;
+    utterance.rate = 0.92;
+    utterance.pitch = 1.05;
     utterance.volume = 1;
     
-    // Try to find a good voice
-    const voices = window.speechSynthesis.getVoices();
-    const preferredVoice = voices.find(v => 
-      v.name.includes("Google") || 
-      v.name.includes("Samantha") || 
-      v.name.includes("Alex")
-    ) || voices.find(v => v.lang.startsWith("en"));
-    
-    if (preferredVoice) {
-      utterance.voice = preferredVoice;
+    const americanVoice = getAmericanVoice();
+    if (americanVoice) {
+      utterance.voice = americanVoice;
     }
 
     utterance.onstart = () => setIsSpeaking(true);
@@ -134,7 +148,7 @@ export default function AITourGuide() {
 
     speechRef.current = utterance;
     window.speechSynthesis.speak(utterance);
-  }, []);
+  }, [getAmericanVoice]);
 
   // Stop speaking
   const stopSpeaking = useCallback(() => {
@@ -158,6 +172,33 @@ export default function AITourGuide() {
     }
   }, [isPaused]);
 
+  // Move Bam to element
+  const moveMascotToElement = useCallback((elementSelector?: string) => {
+    setIsWalking(true);
+    
+    if (elementSelector) {
+      const el = document.querySelector(elementSelector);
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        const scrollY = window.scrollY;
+        
+        // Position Bam next to the element (left side)
+        setMascotPosition({
+          x: Math.max(20, rect.left - 100),
+          y: rect.top + scrollY + (rect.height / 2) - 60
+        });
+      }
+    } else {
+      // Default position for welcome/finish steps (center top)
+      setMascotPosition({
+        x: window.innerWidth / 2 - 60,
+        y: window.scrollY + 200
+      });
+    }
+
+    setTimeout(() => setIsWalking(false), 800);
+  }, []);
+
   // Navigate to step's page if needed
   const goToStep = useCallback((index: number) => {
     const step = TOUR_STEPS[index];
@@ -171,9 +212,10 @@ export default function AITourGuide() {
       navigate(step.page);
     }
 
-    // Speak after a short delay
+    // Speak and move Bam after a short delay
     setTimeout(() => {
       speak(step.description);
+      moveMascotToElement(step.element);
     }, 500);
 
     // Highlight element if specified
@@ -187,7 +229,7 @@ export default function AITourGuide() {
         }
       }, 600);
     }
-  }, [location.pathname, navigate, speak, stopSpeaking]);
+  }, [location.pathname, navigate, speak, stopSpeaking, moveMascotToElement]);
 
   // Start tour
   const startTour = useCallback(() => {
@@ -240,7 +282,10 @@ export default function AITourGuide() {
   // Auto-speak on tour start
   useEffect(() => {
     if (showTour && currentStepIndex === 0 && !isSpeaking) {
-      setTimeout(() => speak(currentStep.description), 800);
+      setTimeout(() => {
+        speak(currentStep.description);
+        moveMascotToElement(currentStep.element);
+      }, 800);
     }
   }, [showTour]);
 
@@ -267,19 +312,21 @@ export default function AITourGuide() {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
         <div className="bg-card rounded-3xl border border-border shadow-elevated p-8 max-w-md mx-4 text-center animate-in zoom-in-95">
-          <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-            <Sparkles className="w-8 h-8 text-primary" />
-          </div>
+          <img 
+            src={mascotImage} 
+            alt="Bam the mascot" 
+            className="w-24 h-24 mx-auto mb-4 object-contain animate-bounce"
+          />
           <h2 className="text-2xl font-display font-bold text-foreground mb-3">
-            Welcome to BamLead! 👋
+            Hey there! I'm Bam! 👋
           </h2>
           <p className="text-muted-foreground mb-6">
-            Would you like an AI-guided tour of our features? I'll show you around and explain everything with voice narration.
+            Welcome to BamLead! Want me to walk you through our features? I'll guide you around and explain everything!
           </p>
           <div className="flex flex-col gap-3">
             <Button onClick={startTour} size="lg" className="w-full gap-2">
               <Volume2 className="w-5 h-5" />
-              Start Voice Tour
+              Let's Go, Bam!
             </Button>
             <Button onClick={skipTour} variant="outline" size="lg" className="w-full">
               Skip for Now
@@ -298,7 +345,7 @@ export default function AITourGuide() {
 
   if (!showTour) return null;
 
-  // Tour panel
+  // Tour panel with Bam mascot walking
   return (
     <>
       {/* Tour highlight styles */}
@@ -312,7 +359,40 @@ export default function AITourGuide() {
           0%, 100% { box-shadow: 0 0 0 0 rgba(20, 184, 166, 0); }
           50% { box-shadow: 0 0 0 8px rgba(20, 184, 166, 0.3); }
         }
+        @keyframes bam-walk {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          25% { transform: translateY(-8px) rotate(-3deg); }
+          50% { transform: translateY(0) rotate(0deg); }
+          75% { transform: translateY(-8px) rotate(3deg); }
+        }
+        @keyframes bam-bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-5px); }
+        }
       `}</style>
+
+      {/* Bam Mascot - Walking to each section */}
+      <div 
+        className="fixed z-[60] pointer-events-none transition-all duration-1000 ease-out"
+        style={{
+          left: `${mascotPosition.x}px`,
+          top: `${mascotPosition.y}px`,
+        }}
+      >
+        <div className={`relative ${isWalking ? 'animate-[bam-walk_0.4s_ease-in-out_infinite]' : isSpeaking ? 'animate-[bam-bounce_0.6s_ease-in-out_infinite]' : ''}`}>
+          <img 
+            src={mascotImage} 
+            alt="Bam" 
+            className="w-20 h-20 object-contain drop-shadow-lg"
+          />
+          {/* Speech indicator */}
+          {isSpeaking && (
+            <div className="absolute -top-2 -right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center animate-pulse">
+              <Volume2 className="w-3 h-3 text-primary-foreground" />
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Tour Panel */}
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl px-4">
@@ -329,17 +409,11 @@ export default function AITourGuide() {
             {/* Header */}
             <div className="flex items-start justify-between gap-4 mb-4">
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  isSpeaking 
-                    ? "bg-primary/20 animate-pulse" 
-                    : "bg-secondary"
-                }`}>
-                  {isSpeaking ? (
-                    <Volume2 className="w-5 h-5 text-primary" />
-                  ) : (
-                    <Sparkles className="w-5 h-5 text-muted-foreground" />
-                  )}
-                </div>
+                <img 
+                  src={mascotImage} 
+                  alt="Bam" 
+                  className={`w-12 h-12 object-contain ${isSpeaking ? 'animate-pulse' : ''}`}
+                />
                 <div>
                   <Badge variant="outline" className="mb-1">
                     Step {currentStepIndex + 1} of {TOUR_STEPS.length}
