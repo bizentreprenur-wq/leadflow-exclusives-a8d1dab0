@@ -14,6 +14,7 @@ import { createCheckoutSession } from '@/lib/api/stripe';
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { login, register, isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -40,21 +41,20 @@ export default function Auth() {
   const handlePostAuthRedirect = useCallback(async () => {
     if (redirectingRef.current) return;
     redirectingRef.current = true;
+    setIsRedirecting(true);
 
     if (pendingPlan && ['basic', 'pro', 'agency'].includes(pendingPlan)) {
-      const toastId = toast.loading('Redirecting to checkout...');
       try {
         const { checkout_url } = await createCheckoutSession(
           pendingPlan,
           pendingBilling || 'monthly'
         );
-        toast.dismiss(toastId);
         window.location.assign(checkout_url);
         return;
       } catch (error) {
-        toast.dismiss(toastId);
         toast.error(error instanceof Error ? error.message : 'Failed to start checkout');
         redirectingRef.current = false;
+        setIsRedirecting(false);
         navigate('/pricing', { replace: true });
         return;
       }
@@ -123,6 +123,20 @@ export default function Auth() {
       setIsLoading(false);
     }
   };
+
+  // Show loading spinner while checking auth or redirecting
+  if (authLoading || isRedirecting) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-muted-foreground">
+            {isRedirecting ? 'Redirecting to checkout...' : 'Checking authentication...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-primary/5">
