@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import {
   Dialog,
@@ -14,13 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Mail,
   Send,
@@ -38,12 +30,17 @@ import {
   Shield,
   Loader2,
   AlertCircle,
-  Settings,
   Eye,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmailTemplatePreset } from "@/lib/emailTemplates";
-import { LeadForEmail } from "@/lib/api/email";
+import { 
+  sendBulkEmails, 
+  createTemplate,
+  LeadForEmail,
+  BulkSendParams,
+} from "@/lib/api/email";
 import EmailTemplateGallery from "./EmailTemplateGallery";
 
 interface VerifiedLead {
@@ -75,9 +72,14 @@ interface EmailSendConfig {
     delayMinutes: number;
   };
   scheduledTime?: string;
+  result?: {
+    sent: number;
+    failed: number;
+    scheduled?: number;
+  };
 }
 
-type Step = "template" | "customize" | "delivery" | "review" | "success";
+type Step = "template" | "customize" | "delivery" | "review" | "sending" | "success";
 
 export default function EmailComposerFlow({
   open,
@@ -96,6 +98,8 @@ export default function EmailComposerFlow({
   const [scheduledTime, setScheduledTime] = useState("10:00");
   const [isSending, setIsSending] = useState(false);
   const [sendProgress, setSendProgress] = useState(0);
+  const [sendResult, setSendResult] = useState<{ sent: number; failed: number; scheduled?: number } | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   const validLeads = verifiedLeads.filter(l => l.emailValid !== false && l.email);
 
@@ -109,6 +113,8 @@ export default function EmailComposerFlow({
       setSendMode("drip");
       setEmailsPerHour(20);
       setSendProgress(0);
+      setSendResult(null);
+      setSendError(null);
     }
   }, [open]);
 
@@ -121,30 +127,104 @@ export default function EmailComposerFlow({
   };
 
   const handleSend = async () => {
-    if (!selectedTemplate) return;
+    if (!selectedTemplate && !customSubject) return;
 
+    setCurrentStep("sending");
     setIsSending(true);
-    
-    // Simulate sending with progress
-    const totalEmails = validLeads.length;
-    for (let i = 0; i < totalEmails; i++) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      setSendProgress(((i + 1) / totalEmails) * 100);
+    setSendError(null);
+    setSendProgress(10);
+
+    try {
+      // First, create a custom template if the user modified it
+      let templateId: number | undefined;
+      
+      if (customSubject !== selectedTemplate?.subject || customBody !== selectedTemplate?.body_html) {
+        setSendProgress(20);
+        const templateResult = await createTemplate({
+          name: `Campaign - ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`,
+          subject: customSubject,
+          body_html: customBody,
+          is_default: false,
+        });
+        
+        if (templateResult.success && templateResult.id) {
+          templateId = templateResult.id;
+        } else {
+          throw new Error(templateResult.error || 'Failed to save template');
+        }
+      }
+
+      setSendProgress(40);
+
+      // Convert verified leads to LeadForEmail format
+      const leadsForEmail: LeadForEmail[] = validLeads.map(lead => ({
+        id: parseInt(lead.id) || undefined,
+        email: lead.email || '',
+        business_name: lead.name,
+        contact_name: lead.name,
+        website: lead.website,
+        phone: lead.phone,
+        leadScore: lead.leadScore,
+        emailValid: lead.emailValid,
+      }));
+
+      // Prepare send params
+      const sendParams: BulkSendParams = {
+        leads: leadsForEmail,
+        template_id: templateId,
+        custom_subject: customSubject,
+        custom_body: customBody,
+        send_mode: sendMode,
+        scheduled_for: sendMode === "scheduled" ? `${scheduledDate}T${scheduledTime}` : undefined,
+        drip_config: sendMode === "drip" ? {
+          emailsPerHour,
+          delayMinutes: Math.floor(60 / emailsPerHour),
+        } : undefined,
+      };
+
+      setSendProgress(60);
+
+      // Send the emails
+      const result = await sendBulkEmails(sendParams);
+
+      setSendProgress(100);
+
+      if (result.success && result.results) {
+        setSendResult({
+          sent: result.results.sent,
+          failed: result.results.failed,
+          scheduled: result.results.scheduled,
+        });
+
+        const config: EmailSendConfig = {
+          template: selectedTemplate!,
+          subject: customSubject,
+          body: customBody,
+          leads: validLeads,
+          sendMode,
+          dripConfig: sendMode === "drip" ? { emailsPerHour, delayMinutes: Math.floor(60 / emailsPerHour) } : undefined,
+          scheduledTime: sendMode === "scheduled" ? `${scheduledDate}T${scheduledTime}` : undefined,
+          result: {
+            sent: result.results.sent,
+            failed: result.results.failed,
+            scheduled: result.results.scheduled,
+          },
+        };
+
+        setCurrentStep("success");
+        onComplete(config);
+        toast.success(`Successfully queued ${result.results.sent} emails!`);
+      } else {
+        throw new Error(result.error || 'Failed to send emails');
+      }
+    } catch (error: any) {
+      console.error('Email send error:', error);
+      setSendError(error.message || 'An error occurred while sending emails');
+      setCurrentStep("review");
+      toast.error(error.message || 'Failed to send emails');
+    } finally {
+      setIsSending(false);
     }
-
-    const config: EmailSendConfig = {
-      template: selectedTemplate,
-      subject: customSubject,
-      body: customBody,
-      leads: validLeads,
-      sendMode,
-      dripConfig: sendMode === "drip" ? { emailsPerHour, delayMinutes: Math.floor(60 / emailsPerHour) } : undefined,
-      scheduledTime: sendMode === "scheduled" ? `${scheduledDate}T${scheduledTime}` : undefined,
-    };
-
-    setIsSending(false);
-    setCurrentStep("success");
-    onComplete(config);
   };
 
   const steps: { key: Step; label: string; icon: React.ReactNode }[] = [
@@ -202,7 +282,7 @@ export default function EmailComposerFlow({
           </DialogHeader>
 
           {/* Step Indicator */}
-          {currentStep !== "success" && renderStepIndicator()}
+          {currentStep !== "success" && currentStep !== "sending" && renderStepIndicator()}
 
           <ScrollArea className="flex-1">
             <div className="p-6">
@@ -294,7 +374,7 @@ export default function EmailComposerFlow({
                     </Label>
                     <Textarea
                       id="body"
-                      value={customBody.replace(/<[^>]*>/g, '')} // Strip HTML for editing
+                      value={customBody.replace(/<[^>]*>/g, '')}
                       onChange={(e) => setCustomBody(`<p>${e.target.value.replace(/\n\n/g, '</p><p>').replace(/\n/g, '<br/>')}</p>`)}
                       className="min-h-[200px] text-sm"
                       placeholder="Write your email content..."
@@ -525,6 +605,17 @@ export default function EmailComposerFlow({
                     </p>
                   </div>
 
+                  {/* Error Display */}
+                  {sendError && (
+                    <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 flex items-start gap-3">
+                      <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-destructive">Error sending emails</p>
+                        <p className="text-sm text-muted-foreground">{sendError}</p>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Summary Cards */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="p-4 rounded-xl bg-secondary/50 border border-border">
@@ -537,6 +628,9 @@ export default function EmailComposerFlow({
                       <p className="text-lg font-bold text-foreground capitalize">{sendMode}</p>
                       {sendMode === "drip" && (
                         <p className="text-xs text-muted-foreground">{emailsPerHour} emails/hour</p>
+                      )}
+                      {sendMode === "scheduled" && scheduledDate && (
+                        <p className="text-xs text-muted-foreground">{scheduledDate} {scheduledTime}</p>
                       )}
                     </div>
                   </div>
@@ -560,45 +654,56 @@ export default function EmailComposerFlow({
                   </div>
 
                   {/* Send Button */}
-                  <div className="space-y-3 pt-4">
-                    {isSending && (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">Sending emails...</span>
-                          <span className="font-medium">{Math.round(sendProgress)}%</span>
-                        </div>
-                        <Progress value={sendProgress} className="h-2" />
-                      </div>
-                    )}
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={() => setCurrentStep("delivery")}
+                      disabled={isSending}
+                      className="flex-1"
+                    >
+                      <ArrowLeft className="w-4 h-4 mr-2" />
+                      Back
+                    </Button>
+                    <Button
+                      onClick={handleSend}
+                      disabled={isSending}
+                      className="flex-1"
+                    >
+                      <Send className="w-4 h-4 mr-2" />
+                      Send Campaign
+                    </Button>
+                  </div>
+                </div>
+              )}
 
-                    <div className="flex gap-3">
-                      <Button
-                        variant="outline"
-                        onClick={() => setCurrentStep("delivery")}
-                        disabled={isSending}
-                        className="flex-1"
-                      >
-                        <ArrowLeft className="w-4 h-4 mr-2" />
-                        Back
-                      </Button>
-                      <Button
-                        onClick={handleSend}
-                        disabled={isSending}
-                        className="flex-1"
-                      >
-                        {isSending ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Sending...
-                          </>
-                        ) : (
-                          <>
-                            <Send className="w-4 h-4 mr-2" />
-                            Send Campaign
-                          </>
-                        )}
-                      </Button>
+              {/* SENDING STEP */}
+              {currentStep === "sending" && (
+                <div className="space-y-6 py-8">
+                  <div className="text-center">
+                    <div className="inline-flex p-4 rounded-2xl bg-primary/10 border border-primary/20 mb-4">
+                      <Loader2 className="w-10 h-10 text-primary animate-spin" />
                     </div>
+                    <h3 className="text-xl font-semibold text-foreground mb-2">
+                      Sending Your Campaign...
+                    </h3>
+                    <p className="text-muted-foreground">
+                      Please wait while we process your emails
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Progress</span>
+                      <span className="font-medium">{Math.round(sendProgress)}%</span>
+                    </div>
+                    <Progress value={sendProgress} className="h-3" />
+                  </div>
+
+                  <div className="text-center text-sm text-muted-foreground">
+                    {sendProgress < 30 && "Preparing template..."}
+                    {sendProgress >= 30 && sendProgress < 60 && "Processing leads..."}
+                    {sendProgress >= 60 && sendProgress < 100 && "Sending emails..."}
+                    {sendProgress >= 100 && "Finalizing..."}
                   </div>
                 </div>
               )}
@@ -621,15 +726,19 @@ export default function EmailComposerFlow({
 
                   {/* Stats */}
                   <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
-                    <div className="p-4 rounded-xl bg-primary/10 border border-primary/20">
-                      <Send className="w-5 h-5 text-primary mx-auto mb-2" />
-                      <p className="text-xl font-bold text-primary">{validLeads.length}</p>
-                      <p className="text-xs text-muted-foreground">Emails Queued</p>
-                    </div>
                     <div className="p-4 rounded-xl bg-success/10 border border-success/20">
-                      <CheckCircle2 className="w-5 h-5 text-success mx-auto mb-2" />
-                      <p className="text-xl font-bold text-success">100%</p>
-                      <p className="text-xs text-muted-foreground">Deliverable</p>
+                      <Send className="w-5 h-5 text-success mx-auto mb-2" />
+                      <p className="text-xl font-bold text-success">{sendResult?.sent || validLeads.length}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {sendMode === "drip" || sendMode === "scheduled" ? "Queued" : "Sent"}
+                      </p>
+                    </div>
+                    <div className="p-4 rounded-xl bg-primary/10 border border-primary/20">
+                      <CheckCircle2 className="w-5 h-5 text-primary mx-auto mb-2" />
+                      <p className="text-xl font-bold text-primary">
+                        {sendResult ? Math.round((sendResult.sent / (sendResult.sent + sendResult.failed)) * 100) : 100}%
+                      </p>
+                      <p className="text-xs text-muted-foreground">Success Rate</p>
                     </div>
                     <div className="p-4 rounded-xl bg-warning/10 border border-warning/20">
                       <Clock className="w-5 h-5 text-warning mx-auto mb-2" />
@@ -639,6 +748,14 @@ export default function EmailComposerFlow({
                       <p className="text-xs text-muted-foreground">Est. Time</p>
                     </div>
                   </div>
+
+                  {sendResult?.failed && sendResult.failed > 0 && (
+                    <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20 max-w-md mx-auto">
+                      <p className="text-sm text-destructive">
+                        {sendResult.failed} emails failed to send
+                      </p>
+                    </div>
+                  )}
 
                   <Button onClick={() => onOpenChange(false)} className="mt-4">
                     Done
