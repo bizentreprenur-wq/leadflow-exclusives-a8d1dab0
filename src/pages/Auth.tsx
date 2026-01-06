@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -24,62 +24,45 @@ export default function Auth() {
   const pendingPlan = searchParams.get('plan') as 'basic' | 'pro' | 'agency' | null;
   const pendingBilling = searchParams.get('billing') as 'monthly' | 'yearly' | null;
 
-  // Login form state
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-
-  // Register form state
-  const [registerName, setRegisterName] = useState('');
-  const [registerEmail, setRegisterEmail] = useState('');
-  const [registerPassword, setRegisterPassword] = useState('');
-  const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
-
-  // Redirect if already authenticated (in useEffect to avoid render-phase navigation)
-  useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
-      navigate(from, { replace: true });
-    }
-  }, [isAuthenticated, authLoading, navigate, location.state]);
-
-  // Show loading while checking auth
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  // Don't render form if authenticated (redirect is pending)
-  if (isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const redirectingRef = useRef(false);
 
   // Helper to handle post-auth redirect (either to checkout or dashboard)
-  const handlePostAuthRedirect = async () => {
+  const handlePostAuthRedirect = useCallback(async () => {
+    if (redirectingRef.current) return;
+    redirectingRef.current = true;
+
     if (pendingPlan && ['basic', 'pro', 'agency'].includes(pendingPlan)) {
+      const toastId = toast.loading('Redirecting to checkout...');
       try {
-        toast.loading('Redirecting to checkout...');
         const { checkout_url } = await createCheckoutSession(
           pendingPlan,
           pendingBilling || 'monthly'
         );
-        window.location.href = checkout_url;
+        toast.dismiss(toastId);
+        window.location.assign(checkout_url);
+        return;
       } catch (error) {
-        toast.dismiss();
+        toast.dismiss(toastId);
         toast.error(error instanceof Error ? error.message : 'Failed to start checkout');
-        navigate('/dashboard', { replace: true });
+        redirectingRef.current = false;
+        navigate('/pricing', { replace: true });
+        return;
       }
-    } else {
-      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
-      navigate(from, { replace: true });
     }
-  };
+
+    const from =
+      (location.state as { from?: { pathname: string } })?.from?.pathname ||
+      '/dashboard';
+    navigate(from, { replace: true });
+  }, [pendingPlan, pendingBilling, navigate, location.state]);
+
+  // Redirect if already authenticated (in useEffect to avoid render-phase navigation)
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      void handlePostAuthRedirect();
+    }
+  }, [isAuthenticated, authLoading, handlePostAuthRedirect]);
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
