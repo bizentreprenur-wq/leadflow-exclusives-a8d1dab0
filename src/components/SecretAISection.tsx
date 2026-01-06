@@ -12,7 +12,8 @@ import {
   ArrowRight,
   Sparkles,
   Radar,
-  Handshake
+  Handshake,
+  Wand2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import PreIntentDetection from "./PreIntentDetection";
@@ -22,6 +23,7 @@ import PsychologicalProfiler from "./PsychologicalProfiler";
 import FounderMirror from "./FounderMirror";
 import ReverseLeadDiscovery from "./ReverseLeadDiscovery";
 import InvisibleNegotiator from "./InvisibleNegotiator";
+import LivePageMutation from "./LivePageMutation";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface AIAgent {
@@ -124,6 +126,18 @@ const SecretAISection = () => {
       borderColor: "border-emerald-500/30",
       component: <InvisibleNegotiator />,
       badge: "🤝 AUTO-CLOSE"
+    },
+    {
+      id: "live-mutation",
+      name: "Live Page Mutation",
+      tagline: "Two people never see the same page",
+      description: "AI rewrites headlines, CTAs, and value props in real-time based on visitor persona and funnel stage. Not A/B testing — full content shapeshifting.",
+      icon: <Wand2 className="h-8 w-8" />,
+      color: "text-pink-500",
+      bgColor: "from-pink-500/20 to-pink-500/5",
+      borderColor: "border-pink-500/30",
+      component: <LivePageMutation />,
+      badge: "✨ SHAPESHIFTER"
     }
   ];
 
