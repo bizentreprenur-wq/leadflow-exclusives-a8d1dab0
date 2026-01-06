@@ -10,7 +10,8 @@ import {
   Zap,
   Target,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Radar
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import PreIntentDetection from "./PreIntentDetection";
@@ -18,6 +19,7 @@ import EmotionalStateDetector from "./EmotionalStateDetector";
 import OutcomeSimulator from "./OutcomeSimulator";
 import PsychologicalProfiler from "./PsychologicalProfiler";
 import FounderMirror from "./FounderMirror";
+import ReverseLeadDiscovery from "./ReverseLeadDiscovery";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface AIAgent {
@@ -37,6 +39,18 @@ const SecretAISection = () => {
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
 
   const agents: AIAgent[] = [
+    {
+      id: "reverse-discovery",
+      name: "Reverse Lead Discovery",
+      tagline: "Find companies who almost visited you",
+      description: "AI analyzes browsing patterns across the web to find companies with similar intent who haven't discovered you yet. Like mind-reading for sales.",
+      icon: <Radar className="h-8 w-8" />,
+      color: "text-cyan-500",
+      bgColor: "from-cyan-500/20 to-cyan-500/5",
+      borderColor: "border-cyan-500/30",
+      component: <ReverseLeadDiscovery />,
+      badge: "🔮 MIND READING"
+    },
     {
       id: "pre-intent",
       name: "Pre-Intent Detection",
