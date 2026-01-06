@@ -1,8 +1,4 @@
-# BamLead routing for Hostinger (Apache)
-# Split deploy:
-# - Backend PHP API lives in /public_html/api/
-# - Frontend build lives in /public_html/frontend/
-
+# BamLead Routing
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
@@ -15,7 +11,7 @@
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  # SPA fallback (everything else goes to the frontend app)
-  RewriteRule ^ frontend/index.html [L]
+  # SPA fallback (everything else goes to index.html in root)
+  RewriteRule ^ index.html [L]
 </IfModule>
 
