@@ -5,18 +5,21 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import mascotLogo from "@/assets/bamlead-mascot.png";
 import { startTourManually } from "./AITourGuide";
+import LanguageSwitcher from "./LanguageSwitcher";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const Navbar = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { isAuthenticated, isLoading } = useAuth();
+  const { t } = useLanguage();
 
   const navLinks = [
-    { href: "/features", label: "Features" },
-    { href: "/pricing", label: "Pricing" },
-    { href: "/reviews", label: "Reviews" },
-    { href: "/about", label: "About Us" },
-    { href: "/contact", label: "Contact" },
+    { href: "/features", labelKey: "nav.features" },
+    { href: "/pricing", labelKey: "nav.pricing" },
+    { href: "/reviews", labelKey: "nav.reviews" },
+    { href: "/about", labelKey: "nav.about" },
+    { href: "/contact", labelKey: "nav.contact" },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -50,14 +53,17 @@ const Navbar = () => {
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {link.label}
+                  {t(link.labelKey)}
                 </Button>
               </Link>
             ))}
           </div>
 
           {/* CTA Button - Right */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-2">
+            {/* Language Switcher */}
+            <LanguageSwitcher />
+            
             {/* Tour Demo Button */}
             <Button 
               variant="outline" 
@@ -66,7 +72,7 @@ const Navbar = () => {
               className="gap-2 text-muted-foreground hover:text-foreground"
             >
               <Play className="w-3.5 h-3.5" />
-              Demo Tour
+              {t('nav.demoTour')}
             </Button>
             
             {!isLoading && (
@@ -74,19 +80,19 @@ const Navbar = () => {
                 <Link to="/dashboard">
                   <Button className="gap-2 rounded-full px-5 font-semibold">
                     <LayoutDashboard className="w-4 h-4" />
-                    Dashboard
+                    {t('nav.dashboard')}
                   </Button>
                 </Link>
               ) : (
                 <>
                   <Link to="/auth">
                     <Button variant="ghost" size="sm" className="font-medium text-muted-foreground hover:text-foreground">
-                      Sign In
+                      {t('nav.signin')}
                     </Button>
                   </Link>
                   <Link to="/pricing">
                     <Button className="rounded-full px-5 font-semibold">
-                      Start here
+                      {t('nav.startHere')}
                     </Button>
                   </Link>
                 </>
@@ -119,16 +125,23 @@ const Navbar = () => {
                     variant={isActive(link.href) ? "secondary" : "ghost"}
                     className="w-full justify-start"
                   >
-                    {link.label}
+                    {t(link.labelKey)}
                   </Button>
                 </Link>
               ))}
+              
+              {/* Language Switcher in Mobile */}
+              <div className="px-2 py-2 flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Language</span>
+                <LanguageSwitcher />
+              </div>
+              
               {!isLoading && (
                 isAuthenticated ? (
                   <Link to="/dashboard" onClick={() => setMobileMenuOpen(false)}>
                     <Button className="w-full mt-2 gap-2 rounded-full">
                       <LayoutDashboard className="w-4 h-4" />
-                      Dashboard
+                      {t('nav.dashboard')}
                     </Button>
                   </Link>
                 ) : (
@@ -136,11 +149,11 @@ const Navbar = () => {
                     <Link to="/auth" onClick={() => setMobileMenuOpen(false)}>
                       <Button variant="outline" className="w-full mt-2 gap-2">
                         <LogIn className="w-4 h-4" />
-                        Sign In
+                        {t('nav.signin')}
                       </Button>
                     </Link>
                     <Link to="/pricing" onClick={() => setMobileMenuOpen(false)}>
-                      <Button className="w-full mt-2 rounded-full">Start here</Button>
+                      <Button className="w-full mt-2 rounded-full">{t('nav.startHere')}</Button>
                     </Link>
                   </>
                 )
