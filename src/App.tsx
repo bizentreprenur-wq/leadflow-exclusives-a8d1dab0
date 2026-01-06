@@ -22,6 +22,7 @@ import VerifyEmail from "./pages/VerifyEmail";
 import Reviews from "./pages/Reviews";
 import DashboardDemo from "./pages/DashboardDemo";
 import TemplateGallery from "./pages/TemplateGallery";
+import CloseLoop from "./pages/CloseLoop";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ const App = () => (
               <Route path="/reviews" element={<Reviews />} />
               <Route path="/dashboard-demo" element={<DashboardDemo />} />
               <Route path="/template-gallery" element={<TemplateGallery />} />
+              <Route path="/closeloop" element={<CloseLoop />} />
               <Route
                 path="/dashboard" 
                 element={

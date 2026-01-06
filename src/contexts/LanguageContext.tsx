@@ -44,6 +44,12 @@ export const translations: Translations = {
     pt: 'Contato',
     fr: 'Contact',
   },
+  'nav.closeloop': {
+    en: 'CloseLoop™',
+    es: 'CloseLoop™',
+    pt: 'CloseLoop™',
+    fr: 'CloseLoop™',
+  },
   'nav.dashboard': {
     en: 'Dashboard',
     es: 'Panel',
