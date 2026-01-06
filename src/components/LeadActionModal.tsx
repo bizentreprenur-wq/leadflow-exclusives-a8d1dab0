@@ -23,8 +23,10 @@ import {
   ExternalLink,
   Star,
   PartyPopper,
+  Sparkles,
 } from "lucide-react";
 import AIVerificationExperience from "./AIVerificationExperience";
+import EmailComposerFlow from "./EmailComposerFlow";
 
 interface Lead {
   id: string;
@@ -36,6 +38,17 @@ interface Lead {
   rating?: number;
   industry?: string;
   source?: string;
+}
+
+interface VerifiedLead {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+  address?: string;
+  leadScore?: number;
+  emailValid?: boolean;
 }
 
 interface LeadActionModalProps {
@@ -59,6 +72,8 @@ export default function LeadActionModal({
 }: LeadActionModalProps) {
   const [showPreview, setShowPreview] = useState(false);
   const [showAIVerification, setShowAIVerification] = useState(false);
+  const [showEmailComposer, setShowEmailComposer] = useState(false);
+  const [verifiedLeads, setVerifiedLeads] = useState<VerifiedLead[]>([]);
   const previewLeads = leads.slice(0, 50);
 
   const handleClose = () => {
@@ -71,10 +86,17 @@ export default function LeadActionModal({
     setShowAIVerification(true);
   };
 
-  const handleVerificationComplete = (verifiedLeads: any[]) => {
-    // Store verified leads for email outreach
-    sessionStorage.setItem('verifiedLeads', JSON.stringify(verifiedLeads));
-    onVerifyWithAI();
+  const handleVerificationComplete = (verified: VerifiedLead[]) => {
+    setVerifiedLeads(verified);
+    setShowAIVerification(false);
+    // Open email composer with verified leads
+    setShowEmailComposer(true);
+  };
+
+  const handleEmailComplete = (config: any) => {
+    console.log("Email campaign config:", config);
+    // Store for later use if needed
+    sessionStorage.setItem('lastEmailCampaign', JSON.stringify(config));
   };
 
   return (
@@ -110,9 +132,15 @@ export default function LeadActionModal({
                   <ShieldCheck className="w-6 h-6" />
                 </div>
                 <div className="flex-1">
-                  <p className="font-bold text-lg">📧 Email These Leads</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-bold text-lg">📧 Email These Leads</p>
+                    <Badge className="bg-warning text-warning-foreground text-xs">
+                      <Sparkles className="w-3 h-3 mr-1" />
+                      AI Powered
+                    </Badge>
+                  </div>
                   <p className="text-sm opacity-90 font-normal mt-0.5">
-                    AI will verify contacts first, then you can send emails
+                    AI verifies contacts → Choose template → Send emails
                   </p>
                 </div>
                 <ArrowRight className="w-5 h-5" />
@@ -261,10 +289,7 @@ export default function LeadActionModal({
 
             <div className="pt-4 border-t space-y-2">
               <Button
-                onClick={() => {
-                  handleClose();
-                  onVerifyWithAI();
-                }}
+                onClick={handleStartVerification}
                 className="w-full"
                 size="lg"
               >
@@ -304,6 +329,16 @@ export default function LeadActionModal({
         onOpenChange={setShowAIVerification}
         leads={leads}
         onComplete={handleVerificationComplete}
+        userCredits={150}
+        userPlan="basic"
+      />
+
+      {/* Email Composer Flow */}
+      <EmailComposerFlow
+        open={showEmailComposer}
+        onOpenChange={setShowEmailComposer}
+        verifiedLeads={verifiedLeads}
+        onComplete={handleEmailComplete}
       />
     </>
   );
