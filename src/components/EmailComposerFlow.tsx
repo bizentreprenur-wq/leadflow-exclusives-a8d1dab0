@@ -32,6 +32,9 @@ import {
   AlertCircle,
   Eye,
   AlertTriangle,
+  ImagePlus,
+  X,
+  Image as ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmailTemplatePreset } from "@/lib/emailTemplates";
@@ -92,6 +95,7 @@ export default function EmailComposerFlow({
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplatePreset | null>(null);
   const [customSubject, setCustomSubject] = useState("");
   const [customBody, setCustomBody] = useState("");
+  const [customImages, setCustomImages] = useState<Array<{ id: string; url: string; name: string }>>([]);
   const [sendMode, setSendMode] = useState<"instant" | "drip" | "scheduled">("drip");
   const [emailsPerHour, setEmailsPerHour] = useState(20);
   const [scheduledDate, setScheduledDate] = useState("");
@@ -100,6 +104,7 @@ export default function EmailComposerFlow({
   const [sendProgress, setSendProgress] = useState(0);
   const [sendResult, setSendResult] = useState<{ sent: number; failed: number; scheduled?: number } | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const validLeads = verifiedLeads.filter(l => l.emailValid !== false && l.email);
 
@@ -110,13 +115,75 @@ export default function EmailComposerFlow({
       setSelectedTemplate(null);
       setCustomSubject("");
       setCustomBody("");
+      setCustomImages([]);
       setSendMode("drip");
       setEmailsPerHour(20);
       setSendProgress(0);
       setSendResult(null);
       setSendError(null);
+      setIsUploadingImage(false);
     }
   }, [open]);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploadingImage(true);
+
+    try {
+      const newImages: Array<{ id: string; url: string; name: string }> = [];
+
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith('image/')) {
+          toast.error(`${file.name} is not an image file`);
+          continue;
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error(`${file.name} is too large. Max size is 5MB`);
+          continue;
+        }
+
+        // Convert to base64 data URL for embedding in email
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        newImages.push({
+          id: `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          url: dataUrl,
+          name: file.name,
+        });
+      }
+
+      setCustomImages(prev => [...prev, ...newImages]);
+      
+      if (newImages.length > 0) {
+        toast.success(`Added ${newImages.length} image${newImages.length > 1 ? 's' : ''}`);
+      }
+    } catch (error) {
+      console.error('Image upload error:', error);
+      toast.error('Failed to upload image');
+    } finally {
+      setIsUploadingImage(false);
+      // Reset the input
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveImage = (imageId: string) => {
+    setCustomImages(prev => prev.filter(img => img.id !== imageId));
+  };
+
+  const handleInsertImage = (imageUrl: string) => {
+    const imageHtml = `<br/><img src="${imageUrl}" alt="Email image" style="max-width: 100%; height: auto; border-radius: 8px; margin: 16px 0;" /><br/>`;
+    setCustomBody(prev => prev + imageHtml);
+    toast.success('Image inserted into email body');
+  };
 
   const handleSelectTemplate = (template: EmailTemplatePreset) => {
     setSelectedTemplate(template);
@@ -379,6 +446,93 @@ export default function EmailComposerFlow({
                       className="min-h-[200px] text-sm"
                       placeholder="Write your email content..."
                     />
+                  </div>
+
+                  {/* Image Upload Section */}
+                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <ImageIcon className="w-4 h-4 text-primary" />
+                        <span className="text-sm font-medium text-foreground">Custom Images</span>
+                      </div>
+                      <label className="cursor-pointer">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          onChange={handleImageUpload}
+                          className="hidden"
+                          disabled={isUploadingImage}
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-2"
+                          disabled={isUploadingImage}
+                          asChild
+                        >
+                          <span>
+                            {isUploadingImage ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <ImagePlus className="w-4 h-4" />
+                            )}
+                            {isUploadingImage ? 'Uploading...' : 'Add Image'}
+                          </span>
+                        </Button>
+                      </label>
+                    </div>
+
+                    {/* Uploaded Images Grid */}
+                    {customImages.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-2 mb-3">
+                        {customImages.map((image) => (
+                          <div key={image.id} className="relative group">
+                            <div className="aspect-video rounded-lg overflow-hidden bg-secondary border border-border">
+                              <img
+                                src={image.url}
+                                alt={image.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-1">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                className="h-7 text-xs"
+                                onClick={() => handleInsertImage(image.url)}
+                              >
+                                Insert
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                className="h-7 w-7 p-0"
+                                onClick={() => handleRemoveImage(image.id)}
+                              >
+                                <X className="w-3 h-3" />
+                              </Button>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground truncate mt-1 px-1">
+                              {image.name}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center py-4 border-2 border-dashed border-border rounded-lg mb-3">
+                        <div className="text-center">
+                          <ImageIcon className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
+                          <p className="text-xs text-muted-foreground">
+                            Upload images to personalize your email
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    <p className="text-xs text-muted-foreground">
+                      Click "Insert" on any image to add it to your email. Max 5MB per image.
+                    </p>
                   </div>
 
                   {/* Personalization Tokens */}
