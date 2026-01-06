@@ -8,7 +8,7 @@ import {
   Search, Globe, Mail, Target, TrendingUp,
   Zap, BarChart3, ArrowRight, Sparkles, Menu,
   CheckCircle2, Send, FileText, Chrome, Download,
-  Trophy, Bot, Gift,
+  Trophy, Bot, Gift, Brain, Server,
 } from 'lucide-react';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import DashboardSidebar from '@/components/DashboardSidebar';
@@ -27,6 +27,8 @@ import AffiliateProgram from '@/components/AffiliateProgram';
 import FreeTrialBanner from '@/components/FreeTrialBanner';
 import ReferralLeaderboard from '@/components/ReferralLeaderboard';
 import AISalesMentor from '@/components/AISalesMentor';
+import AIJourneyExplainer from '@/components/AIJourneyExplainer';
+import ScalabilityDashboard from '@/components/ScalabilityDashboard';
 import bamMascot from '@/assets/bamlead-mascot.png';
 import { LeadForEmail } from '@/lib/api/email';
 
@@ -217,6 +219,24 @@ export default function Dashboard() {
           iconColor: 'text-success',
           iconBg: 'bg-success/10',
           component: <AffiliateProgram />,
+        };
+      case 'ai-journey':
+        return {
+          title: 'AI Features Guide',
+          description: 'Understand when and how each AI feature activates during the customer journey',
+          icon: Brain,
+          iconColor: 'text-amber-500',
+          iconBg: 'bg-amber-500/10',
+          component: <AIJourneyExplainer />,
+        };
+      case 'scalability':
+        return {
+          title: 'System Status & Scalability',
+          description: 'Monitor performance and verify the system can handle 500+ concurrent users',
+          icon: Server,
+          iconColor: 'text-primary',
+          iconBg: 'bg-primary/10',
+          component: <ScalabilityDashboard />,
         };
       default:
         return null;
