@@ -39,6 +39,8 @@ import {
   Trophy,
   Bot,
   Gift,
+  Brain,
+  Server,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import bamMascot from '@/assets/bamlead-mascot.png';
@@ -87,6 +89,19 @@ const outreachTools = [
 ];
 
 const resourceTools = [
+  {
+    id: 'ai-journey',
+    title: 'AI Features Guide',
+    icon: Brain,
+    description: 'How AI works',
+    badge: 'Learn',
+  },
+  {
+    id: 'scalability',
+    title: 'System Status',
+    icon: Server,
+    description: 'Performance & scaling',
+  },
   {
     id: 'mentor',
     title: 'AI Sales Mentor',
