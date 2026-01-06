@@ -784,11 +784,41 @@ export default function AITourGuide() {
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl px-4">
         <div className="bg-card rounded-2xl border border-border shadow-elevated overflow-hidden">
           {/* Progress bar */}
-          <div className="h-1 bg-secondary">
+          <div className="h-1.5 bg-secondary">
             <div 
-              className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-300"
+              className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500 ease-out"
               style={{ width: `${((currentStepIndex + 1) / TOUR_STEPS.length) * 100}%` }}
             />
+          </div>
+
+          {/* Step indicators */}
+          <div className="flex items-center justify-center gap-1.5 py-3 border-b border-border/50">
+            {TOUR_STEPS.map((step, index) => (
+              <button
+                key={step.id}
+                onClick={() => goToStep(index, true)}
+                className={`group relative flex items-center justify-center transition-all duration-300 ${
+                  index === currentStepIndex 
+                    ? 'scale-110' 
+                    : 'hover:scale-105'
+                }`}
+                title={step.title}
+              >
+                <div className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
+                  index < currentStepIndex 
+                    ? 'bg-primary' 
+                    : index === currentStepIndex 
+                      ? 'bg-accent ring-2 ring-accent/30 ring-offset-1 ring-offset-card' 
+                      : 'bg-muted-foreground/30'
+                }`} />
+                {/* Tooltip on hover */}
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <div className="bg-foreground text-background text-[10px] px-2 py-1 rounded whitespace-nowrap font-medium shadow-lg">
+                    {index + 1}. {step.title.replace(/[🎉🚀]/g, '').trim()}
+                  </div>
+                </div>
+              </button>
+            ))}
           </div>
 
           <div className="p-4 md:p-6">
