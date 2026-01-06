@@ -18,6 +18,7 @@ import RevolutionaryFeaturesSection from "@/components/RevolutionaryFeaturesSect
 import DualSearchShowcase from "@/components/DualSearchShowcase";
 import AgentCardsSection from "@/components/AgentCardsSection";
 import WhenAIActivatesSection from "@/components/WhenAIActivatesSection";
+import SponsorSection from "@/components/SponsorSection";
 
 const Index = () => {
   return (
@@ -40,6 +41,7 @@ const Index = () => {
         <WhoThisIsForSection />
         <WhyItWorksSection />
         <FAQSection />
+        <SponsorSection />
         <div className="container px-4 py-12">
           <FreeTrialBanner />
         </div>
