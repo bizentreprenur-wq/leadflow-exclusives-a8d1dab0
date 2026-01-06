@@ -26,6 +26,10 @@ import {
   Zap,
   Eye,
   Send,
+  Coins,
+  TrendingUp,
+  Clock,
+  Database,
 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip } from "recharts";
 
@@ -53,20 +57,35 @@ interface AIVerificationExperienceProps {
   onOpenChange: (open: boolean) => void;
   leads: Lead[];
   onComplete: (verifiedLeads: VerifiedLead[]) => void;
+  userCredits?: number;
+  userPlan?: "free" | "basic" | "pro" | "agency";
 }
 
-type Phase = "intro" | "processing" | "results";
+type Phase = "credits" | "intro" | "processing" | "results";
+
+const planCredits = {
+  free: 25,
+  basic: 200,
+  pro: 500,
+  agency: 2000,
+};
 
 export default function AIVerificationExperience({
   open,
   onOpenChange,
   leads,
   onComplete,
+  userCredits = 150,
+  userPlan = "basic",
 }: AIVerificationExperienceProps) {
-  const [phase, setPhase] = useState<Phase>("intro");
+  const [phase, setPhase] = useState<Phase>("credits");
   const [verifiedLeads, setVerifiedLeads] = useState<VerifiedLead[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [aiThought, setAiThought] = useState("");
+
+  const creditsNeeded = leads.length;
+  const hasEnoughCredits = userCredits >= creditsNeeded;
+  const creditsAfter = userCredits - creditsNeeded;
 
   const aiThoughts = [
     "Analyzing contact information...",
@@ -84,7 +103,7 @@ export default function AIVerificationExperience({
   // Reset state when modal opens
   useEffect(() => {
     if (open) {
-      setPhase("intro");
+      setPhase("credits");
       setVerifiedLeads([]);
       setCurrentIndex(0);
     }
@@ -98,8 +117,8 @@ export default function AIVerificationExperience({
       // Update AI thought
       setAiThought(aiThoughts[currentIndex % aiThoughts.length]);
 
-      // Simulate processing time (1-2 seconds per lead)
-      await new Promise((resolve) => setTimeout(resolve, 800 + Math.random() * 700));
+      // Simulate processing time (0.5-1 second per lead)
+      await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 500));
 
       // Simulate verification result
       const lead = leads[currentIndex];
@@ -174,6 +193,134 @@ export default function AIVerificationExperience({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        {/* CREDITS PHASE */}
+        {phase === "credits" && (
+          <>
+            <DialogHeader className="text-center pb-4">
+              <div className="flex justify-center mb-4">
+                <div className="relative">
+                  <div className="p-5 rounded-full bg-gradient-to-br from-warning/20 to-warning/5 border border-warning/30">
+                    <Coins className="w-12 h-12 text-warning" />
+                  </div>
+                  <div className="absolute -top-1 -right-1 p-1.5 rounded-full bg-primary border-2 border-background">
+                    <Sparkles className="w-4 h-4 text-primary-foreground" />
+                  </div>
+                </div>
+              </div>
+              <DialogTitle className="text-2xl font-bold">AI Verification Credits</DialogTitle>
+              <p className="text-muted-foreground mt-2">
+                Review your credits before starting verification
+              </p>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              {/* Credit Overview */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="text-center p-4 rounded-xl bg-primary/10 border border-primary/20">
+                  <Database className="w-5 h-5 text-primary mx-auto mb-2" />
+                  <p className="text-2xl font-bold text-primary">{leads.length}</p>
+                  <p className="text-xs text-muted-foreground">Leads to Verify</p>
+                </div>
+                <div className="text-center p-4 rounded-xl bg-warning/10 border border-warning/20">
+                  <Coins className="w-5 h-5 text-warning mx-auto mb-2" />
+                  <p className="text-2xl font-bold text-warning">{userCredits}</p>
+                  <p className="text-xs text-muted-foreground">Credits Available</p>
+                </div>
+                <div className={`text-center p-4 rounded-xl ${hasEnoughCredits ? 'bg-success/10 border-success/20' : 'bg-destructive/10 border-destructive/20'} border`}>
+                  <TrendingUp className={`w-5 h-5 mx-auto mb-2 ${hasEnoughCredits ? 'text-success' : 'text-destructive'}`} />
+                  <p className={`text-2xl font-bold ${hasEnoughCredits ? 'text-success' : 'text-destructive'}`}>
+                    {hasEnoughCredits ? creditsAfter : `-${creditsNeeded - userCredits}`}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {hasEnoughCredits ? 'After Verification' : 'Credits Needed'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Credit Usage Info */}
+              <div className="p-4 rounded-xl bg-secondary/50 border border-border">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-foreground">Credit Usage</span>
+                  <Badge variant="outline" className="capitalize">{userPlan} Plan</Badge>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Credits this month</span>
+                    <span className="font-medium">{userCredits} / {planCredits[userPlan]}</span>
+                  </div>
+                  <Progress 
+                    value={(userCredits / planCredits[userPlan]) * 100} 
+                    className="h-2"
+                  />
+                </div>
+              </div>
+
+              {/* Verification Cost */}
+              <div className={`p-4 rounded-xl flex items-center gap-4 ${hasEnoughCredits ? 'bg-success/5 border-success/20' : 'bg-destructive/5 border-destructive/20'} border`}>
+                <div className={`p-3 rounded-xl ${hasEnoughCredits ? 'bg-success/10' : 'bg-destructive/10'}`}>
+                  {hasEnoughCredits ? (
+                    <CheckCircle2 className="w-6 h-6 text-success" />
+                  ) : (
+                    <AlertTriangle className="w-6 h-6 text-destructive" />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <p className={`font-medium ${hasEnoughCredits ? 'text-success' : 'text-destructive'}`}>
+                    {hasEnoughCredits 
+                      ? `Ready to verify ${leads.length} leads`
+                      : `Not enough credits for ${leads.length} leads`
+                    }
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {hasEnoughCredits 
+                      ? `This will use ${creditsNeeded} credits (1 per lead)`
+                      : `You need ${creditsNeeded - userCredits} more credits. Upgrade your plan for more.`
+                    }
+                  </p>
+                </div>
+              </div>
+
+              {/* What AI Verification Checks */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">What AI Verification Checks:</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-card border border-border">
+                    <Mail className="w-4 h-4 text-primary" />
+                    <span className="text-sm text-foreground">Email Deliverability</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-card border border-border">
+                    <Phone className="w-4 h-4 text-primary" />
+                    <span className="text-sm text-foreground">Phone Validation</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-card border border-border">
+                    <Building2 className="w-4 h-4 text-primary" />
+                    <span className="text-sm text-foreground">Business Status</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-2 rounded-lg bg-card border border-border">
+                    <BarChart3 className="w-4 h-4 text-primary" />
+                    <span className="text-sm text-foreground">Lead Scoring</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => setPhase("intro")} 
+                className="flex-1 gap-2"
+                disabled={!hasEnoughCredits}
+              >
+                <Zap className="w-4 h-4" />
+                Continue
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </>
+        )}
+
         {/* INTRO PHASE */}
         {phase === "intro" && (
           <>
@@ -194,7 +341,20 @@ export default function AIVerificationExperience({
               </p>
             </DialogHeader>
 
-            <div className="space-y-3 py-4">
+            {/* Credit Reminder */}
+            <div className="p-3 rounded-xl bg-warning/10 border border-warning/20 flex items-center gap-3 mb-4">
+              <Coins className="w-5 h-5 text-warning shrink-0" />
+              <div className="flex-1">
+                <span className="text-sm text-foreground font-medium">
+                  Using {creditsNeeded} credits
+                </span>
+                <span className="text-sm text-muted-foreground ml-1">
+                  ({creditsAfter} remaining)
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-3 py-2">
               <div className="flex items-center gap-3 p-4 rounded-xl bg-primary/5 border border-primary/20">
                 <Mail className="w-5 h-5 text-primary shrink-0" />
                 <div>
@@ -225,9 +385,9 @@ export default function AIVerificationExperience({
               </div>
             </div>
 
-            <div className="flex gap-3 pt-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
-                Cancel
+            <div className="flex gap-3 pt-4">
+              <Button variant="outline" onClick={() => setPhase("credits")} className="flex-1">
+                Back
               </Button>
               <Button onClick={handleStartVerification} className="flex-1 gap-2">
                 <Zap className="w-4 h-4" />
@@ -257,6 +417,12 @@ export default function AIVerificationExperience({
                   </span>
                 </div>
                 <Progress value={progress} className="h-3" />
+              </div>
+
+              {/* Credits Being Used */}
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Coins className="w-4 h-4 text-warning" />
+                <span>Using {currentIndex} of {creditsNeeded} credits</span>
               </div>
 
               {/* AI Thinking Animation */}
@@ -353,6 +519,19 @@ export default function AIVerificationExperience({
 
             <ScrollArea className="flex-1 -mx-6 px-6" style={{ maxHeight: "400px" }}>
               <div className="space-y-6 py-4">
+                {/* Credits Used Banner */}
+                <div className="p-3 rounded-xl bg-warning/10 border border-warning/20 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Coins className="w-5 h-5 text-warning" />
+                    <span className="text-sm font-medium text-foreground">
+                      {creditsNeeded} credits used
+                    </span>
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {creditsAfter} remaining
+                  </span>
+                </div>
+
                 {/* Summary Stats */}
                 <div className="grid grid-cols-3 gap-3">
                   <div className="text-center p-4 rounded-xl bg-success/10 border border-success/20">
