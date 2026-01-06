@@ -76,6 +76,19 @@ try {
             handleStats($db, $user);
             break;
             
+        // ===== SCHEDULED EMAILS =====
+        case 'scheduled':
+            handleScheduledEmails($db, $user);
+            break;
+            
+        case 'cancel-scheduled':
+            handleCancelScheduled($db, $user);
+            break;
+            
+        case 'process-scheduled':
+            handleProcessScheduled($db);
+            break;
+            
         default:
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Invalid action']);
@@ -337,35 +350,60 @@ function handleSendBulk($db, $user) {
     
     $data = json_decode(file_get_contents('php://input'), true);
     
-    if (empty($data['leads']) || empty($data['template_id'])) {
+    // Support both template_id and custom subject/body
+    $hasTemplate = !empty($data['template_id']);
+    $hasCustomContent = !empty($data['custom_subject']) && !empty($data['custom_body']);
+    
+    if (empty($data['leads']) || (!$hasTemplate && !$hasCustomContent)) {
         http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'leads and template_id are required']);
+        echo json_encode(['success' => false, 'error' => 'leads and either template_id or custom_subject/custom_body are required']);
         return;
     }
     
-    // Get the template
-    $template = $db->fetchOne(
-        "SELECT * FROM email_templates WHERE id = ? AND user_id = ?",
-        [$data['template_id'], $user['id']]
-    );
-    
-    if (!$template) {
-        http_response_code(404);
-        echo json_encode(['success' => false, 'error' => 'Template not found']);
-        return;
+    // Get the template if provided
+    $template = null;
+    if ($hasTemplate) {
+        $template = $db->fetchOne(
+            "SELECT * FROM email_templates WHERE id = ? AND user_id = ?",
+            [$data['template_id'], $user['id']]
+        );
+        
+        if (!$template) {
+            http_response_code(404);
+            echo json_encode(['success' => false, 'error' => 'Template not found']);
+            return;
+        }
     }
+    
+    // Use custom content or template
+    $emailSubject = $data['custom_subject'] ?? ($template['subject'] ?? '');
+    $emailBodyHtml = $data['custom_body'] ?? ($template['body_html'] ?? '');
+    $emailBodyText = $template['body_text'] ?? strip_tags($emailBodyHtml);
+    
+    // Get send mode and drip config
+    $sendMode = $data['send_mode'] ?? 'instant';
+    $dripConfig = $data['drip_config'] ?? null;
+    $scheduledFor = $data['scheduled_for'] ?? null;
     
     $results = [
         'total' => count($data['leads']),
         'sent' => 0,
         'failed' => 0,
         'skipped' => 0,
+        'scheduled' => 0,
         'details' => []
     ];
     
-    // Rate limiting - max 50 emails per request
-    $maxPerRequest = 50;
+    // For drip sending, we queue emails with scheduled times
+    $emailsPerHour = $dripConfig['emailsPerHour'] ?? 20;
+    $delayMinutes = $dripConfig['delayMinutes'] ?? 3;
+    
+    // Rate limiting - max 100 emails per request for drip, 50 for instant
+    $maxPerRequest = ($sendMode === 'drip' || $sendMode === 'scheduled') ? 100 : 50;
     $leads = array_slice($data['leads'], 0, $maxPerRequest);
+    
+    $currentTime = new DateTime();
+    $emailIndex = 0;
     
     foreach ($leads as $lead) {
         if (empty($lead['email'])) {
@@ -377,7 +415,7 @@ function handleSendBulk($db, $user) {
         // Prepare personalization data
         $personalization = [
             'business_name' => $lead['business_name'] ?? '',
-            'first_name' => extractFirstName($lead['business_name'] ?? ''),
+            'first_name' => extractFirstName($lead['contact_name'] ?? $lead['business_name'] ?? ''),
             'website' => $lead['website'] ?? '',
             'platform' => $lead['platform'] ?? 'Unknown',
             'issues' => is_array($lead['issues'] ?? null) ? implode(', ', $lead['issues']) : ($lead['issues'] ?? ''),
@@ -389,53 +427,101 @@ function handleSendBulk($db, $user) {
         $trackingId = bin2hex(random_bytes(32));
         
         // Personalize content
-        $subject = personalizeContent($template['subject'], $personalization);
-        $bodyHtml = personalizeContent($template['body_html'], $personalization);
+        $subject = personalizeContent($emailSubject, $personalization);
+        $bodyHtml = personalizeContent($emailBodyHtml, $personalization);
         
         // Add tracking pixel
         $trackingPixel = '<img src="' . FRONTEND_URL . '/api/email-outreach.php?action=track-open&tid=' . $trackingId . '" width="1" height="1" style="display:none" />';
-        $bodyHtml = str_replace('</body>', $trackingPixel . '</body>', $bodyHtml);
+        if (strpos($bodyHtml, '</body>') !== false) {
+            $bodyHtml = str_replace('</body>', $trackingPixel . '</body>', $bodyHtml);
+        } else {
+            $bodyHtml .= $trackingPixel;
+        }
+        
+        // Calculate send time for drip mode
+        $sendAt = null;
+        $status = 'pending';
+        
+        if ($sendMode === 'drip') {
+            // Stagger emails: add delay based on position
+            $minutesToAdd = floor($emailIndex * (60 / $emailsPerHour));
+            $sendAtTime = clone $currentTime;
+            $sendAtTime->add(new DateInterval('PT' . $minutesToAdd . 'M'));
+            $sendAt = $sendAtTime->format('Y-m-d H:i:s');
+            $status = 'scheduled';
+        } elseif ($sendMode === 'scheduled' && $scheduledFor) {
+            $sendAt = date('Y-m-d H:i:s', strtotime($scheduledFor));
+            $status = 'scheduled';
+        }
         
         // Record the send
         $sendId = $db->insert(
-            "INSERT INTO email_sends (user_id, lead_id, template_id, campaign_id, recipient_email, recipient_name, business_name, subject, body_html, tracking_id, status) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')",
+            "INSERT INTO email_sends (user_id, lead_id, template_id, campaign_id, recipient_email, recipient_name, business_name, subject, body_html, tracking_id, status, scheduled_for) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 $user['id'],
                 $lead['id'] ?? null,
-                $template['id'],
+                $data['template_id'] ?? null,
                 $data['campaign_id'] ?? null,
                 $lead['email'],
                 $lead['contact_name'] ?? null,
                 $lead['business_name'] ?? null,
                 $subject,
                 $bodyHtml,
-                $trackingId
+                $trackingId,
+                $status,
+                $sendAt
             ]
         );
         
-        // Send the email
-        $textBody = personalizeContent($template['body_text'] ?? '', $personalization);
-        $sent = sendEmail($lead['email'], $subject, $bodyHtml, $textBody);
-        
-        if ($sent) {
-            $db->update(
-                "UPDATE email_sends SET status = 'sent', sent_at = NOW() WHERE id = ?",
-                [$sendId]
-            );
-            $results['sent']++;
-            $results['details'][] = ['business' => $lead['business_name'] ?? 'Unknown', 'email' => $lead['email'], 'status' => 'sent'];
+        // For instant mode, send immediately
+        if ($sendMode === 'instant') {
+            $textBody = personalizeContent($emailBodyText, $personalization);
+            $sent = sendEmail($lead['email'], $subject, $bodyHtml, $textBody);
+            
+            if ($sent) {
+                $db->update(
+                    "UPDATE email_sends SET status = 'sent', sent_at = NOW() WHERE id = ?",
+                    [$sendId]
+                );
+                $results['sent']++;
+                $results['details'][] = ['business' => $lead['business_name'] ?? 'Unknown', 'email' => $lead['email'], 'status' => 'sent'];
+            } else {
+                $db->update(
+                    "UPDATE email_sends SET status = 'failed', error_message = 'SMTP error' WHERE id = ?",
+                    [$sendId]
+                );
+                $results['failed']++;
+                $results['details'][] = ['business' => $lead['business_name'] ?? 'Unknown', 'email' => $lead['email'], 'status' => 'failed'];
+            }
+            
+            // Small delay to avoid rate limiting
+            usleep(100000); // 100ms delay
         } else {
-            $db->update(
-                "UPDATE email_sends SET status = 'failed', error_message = 'SMTP error' WHERE id = ?",
-                [$sendId]
-            );
-            $results['failed']++;
-            $results['details'][] = ['business' => $lead['business_name'] ?? 'Unknown', 'email' => $lead['email'], 'status' => 'failed'];
+            // For drip/scheduled, count as scheduled
+            $results['scheduled']++;
+            $results['details'][] = [
+                'business' => $lead['business_name'] ?? 'Unknown', 
+                'email' => $lead['email'], 
+                'status' => 'scheduled',
+                'scheduled_for' => $sendAt
+            ];
         }
         
-        // Small delay to avoid rate limiting
-        usleep(100000); // 100ms delay
+        $emailIndex++;
+    }
+    
+    // For drip mode, also return estimated completion time
+    if ($sendMode === 'drip' && count($leads) > 0) {
+        $totalMinutes = floor(count($leads) * (60 / $emailsPerHour));
+        $completionTime = clone $currentTime;
+        $completionTime->add(new DateInterval('PT' . $totalMinutes . 'M'));
+        $results['estimated_completion'] = $completionTime->format('Y-m-d H:i:s');
+    }
+    
+    // Update sent count to include scheduled for reporting
+    if ($sendMode !== 'instant') {
+        $results['sent'] = $results['scheduled'];
     }
     
     echo json_encode(['success' => true, 'results' => $results]);
@@ -579,6 +665,113 @@ function handleStats($db, $user) {
             'reply_rate' => $replyRate,
         ],
         'daily' => $dailyStats ?: []
+    ]);
+}
+
+// ===== SCHEDULED EMAIL HANDLERS =====
+
+function handleScheduledEmails($db, $user) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+        return;
+    }
+    
+    $emails = $db->fetchAll(
+        "SELECT id, recipient_email, recipient_name, business_name, subject, scheduled_for, created_at
+         FROM email_sends 
+         WHERE user_id = ? AND status = 'scheduled' AND scheduled_for IS NOT NULL
+         ORDER BY scheduled_for ASC",
+        [$user['id']]
+    );
+    
+    echo json_encode(['success' => true, 'emails' => $emails ?: []]);
+}
+
+function handleCancelScheduled($db, $user) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'DELETE') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+        return;
+    }
+    
+    $id = $_GET['id'] ?? null;
+    if (!$id) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'ID required']);
+        return;
+    }
+    
+    // Verify ownership and status
+    $email = $db->fetchOne(
+        "SELECT id FROM email_sends WHERE id = ? AND user_id = ? AND status = 'scheduled'",
+        [$id, $user['id']]
+    );
+    
+    if (!$email) {
+        http_response_code(404);
+        echo json_encode(['success' => false, 'error' => 'Scheduled email not found']);
+        return;
+    }
+    
+    $db->update(
+        "UPDATE email_sends SET status = 'cancelled' WHERE id = ?",
+        [$id]
+    );
+    
+    echo json_encode(['success' => true, 'message' => 'Scheduled email cancelled']);
+}
+
+function handleProcessScheduled($db) {
+    // This is called by a cron job - no user auth needed
+    // Process emails that are scheduled for now or earlier
+    
+    $pendingEmails = $db->fetchAll(
+        "SELECT es.*, et.body_text as template_body_text
+         FROM email_sends es
+         LEFT JOIN email_templates et ON es.template_id = et.id
+         WHERE es.status = 'scheduled' 
+         AND es.scheduled_for <= NOW()
+         ORDER BY es.scheduled_for ASC
+         LIMIT 20",
+        []
+    );
+    
+    if (!$pendingEmails || count($pendingEmails) === 0) {
+        echo json_encode(['success' => true, 'processed' => 0, 'message' => 'No emails to process']);
+        return;
+    }
+    
+    $processed = 0;
+    $failed = 0;
+    
+    foreach ($pendingEmails as $email) {
+        $textBody = $email['template_body_text'] ?? strip_tags($email['body_html']);
+        $sent = sendEmail($email['recipient_email'], $email['subject'], $email['body_html'], $textBody);
+        
+        if ($sent) {
+            $db->update(
+                "UPDATE email_sends SET status = 'sent', sent_at = NOW() WHERE id = ?",
+                [$email['id']]
+            );
+            $processed++;
+        } else {
+            $db->update(
+                "UPDATE email_sends SET status = 'failed', error_message = 'SMTP error during scheduled send' WHERE id = ?",
+                [$email['id']]
+            );
+            $failed++;
+        }
+        
+        // Small delay between sends
+        usleep(200000); // 200ms
+    }
+    
+    echo json_encode([
+        'success' => true, 
+        'processed' => $processed, 
+        'failed' => $failed,
+        'message' => "Processed $processed emails, $failed failed"
     ]);
 }
 

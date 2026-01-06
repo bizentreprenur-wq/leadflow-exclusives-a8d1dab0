@@ -76,6 +76,8 @@ export interface LeadForEmail {
   platform?: string;
   issues?: string[];
   phone?: string;
+  leadScore?: number;
+  emailValid?: boolean;
 }
 
 export interface BulkSendResult {
@@ -83,12 +85,30 @@ export interface BulkSendResult {
   sent: number;
   failed: number;
   skipped: number;
+  scheduled?: number;
+  estimated_completion?: string;
   details: Array<{
     business: string;
     email?: string;
     status: string;
     reason?: string;
   }>;
+}
+
+export interface DripSendConfig {
+  emailsPerHour: number;
+  delayMinutes: number;
+}
+
+export interface BulkSendParams {
+  leads: LeadForEmail[];
+  template_id?: number;
+  custom_subject?: string;
+  custom_body?: string;
+  campaign_id?: number;
+  scheduled_for?: string;
+  send_mode?: 'instant' | 'drip' | 'scheduled';
+  drip_config?: DripSendConfig;
 }
 
 // Endpoints
@@ -198,17 +218,31 @@ export async function sendEmail(params: {
   }
 }
 
-export async function sendBulkEmails(params: {
-  leads: LeadForEmail[];
-  template_id: number;
-  campaign_id?: number;
-  scheduled_for?: string;
-}): Promise<{ success: boolean; results?: BulkSendResult; error?: string }> {
+export async function sendBulkEmails(params: BulkSendParams): Promise<{ success: boolean; results?: BulkSendResult; error?: string }> {
   try {
     return await apiRequest(EMAIL_ENDPOINTS.sendBulk, {
       method: 'POST',
       body: JSON.stringify(params),
     });
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// Save custom template for one-time use
+export async function saveCustomTemplate(params: {
+  subject: string;
+  body_html: string;
+  name?: string;
+}): Promise<{ success: boolean; template_id?: number; error?: string }> {
+  try {
+    const result = await createTemplate({
+      name: params.name || `Custom Template - ${new Date().toLocaleDateString()}`,
+      subject: params.subject,
+      body_html: params.body_html,
+      is_default: false,
+    });
+    return { success: result.success, template_id: result.id, error: result.error };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
