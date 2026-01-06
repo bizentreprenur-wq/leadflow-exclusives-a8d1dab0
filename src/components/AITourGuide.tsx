@@ -75,6 +75,12 @@ const TOUR_STEPS: TourStep[] = [
 const STORAGE_KEY = "bamlead_tour_completed";
 const TOUR_DISABLED_KEY = "bamlead_tour_disabled";
 
+// Export function to start tour from anywhere
+export const startTourManually = () => {
+  localStorage.removeItem(STORAGE_KEY);
+  window.dispatchEvent(new CustomEvent('start-tour'));
+};
+
 export default function AITourGuide() {
   const [isFirstVisit, setIsFirstVisit] = useState(false);
   const [showTour, setShowTour] = useState(false);
@@ -105,6 +111,23 @@ export default function AITourGuide() {
       setTimeout(() => setShowTour(true), 1500);
     }
   }, []);
+
+  // Listen for manual tour start
+  useEffect(() => {
+    const handleStartTour = () => {
+      setTourDisabled(false);
+      setIsFirstVisit(true);
+      setShowTour(false);
+      setCurrentStepIndex(0);
+      if (location.pathname !== "/") {
+        navigate("/");
+      }
+      setTimeout(() => setShowTour(true), 500);
+    };
+
+    window.addEventListener('start-tour', handleStartTour);
+    return () => window.removeEventListener('start-tour', handleStartTour);
+  }, [location.pathname, navigate]);
 
   // Find American English MALE voice (older gentleman style)
   const getAmericanMaleVoice = useCallback(() => {

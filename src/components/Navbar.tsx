@@ -1,9 +1,10 @@
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, LogIn, LayoutDashboard, ChevronDown } from "lucide-react";
+import { Menu, X, LogIn, LayoutDashboard, Play } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import mascotLogo from "@/assets/bamlead-mascot.png";
+import { startTourManually } from "./AITourGuide";
 
 const Navbar = () => {
   const location = useLocation();
@@ -57,6 +58,17 @@ const Navbar = () => {
 
           {/* CTA Button - Right */}
           <div className="hidden md:flex items-center gap-3">
+            {/* Tour Demo Button */}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={startTourManually}
+              className="gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <Play className="w-3.5 h-3.5" />
+              Demo Tour
+            </Button>
+            
             {!isLoading && (
               isAuthenticated ? (
                 <Link to="/dashboard">
