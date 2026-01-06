@@ -50,16 +50,16 @@ export interface GMBSearchResponse {
 
 // Mock data generator for testing
 function generateMockResults(service: string, location: string): GMBResult[] {
-  const businessNames = [
-    `${location} ${service.charAt(0).toUpperCase() + service.slice(1)} Pros`,
-    `Elite ${service.charAt(0).toUpperCase() + service.slice(1)} Services`,
-    `A+ ${service.charAt(0).toUpperCase() + service.slice(1)} Solutions`,
-    `Quick ${service.charAt(0).toUpperCase() + service.slice(1)} Co`,
-    `Premier ${service.charAt(0).toUpperCase() + service.slice(1)} Group`,
-    `${service.charAt(0).toUpperCase() + service.slice(1)} Masters Inc`,
-    `Reliable ${service.charAt(0).toUpperCase() + service.slice(1)} LLC`,
-    `Best ${location} ${service.charAt(0).toUpperCase() + service.slice(1)}`,
-  ];
+  const prefixes = ['Best', 'Elite', 'Premier', 'Top', 'Pro', 'Expert', 'Quality', 'Reliable', 'Trusted', 'Certified'];
+  const suffixes = ['Services', 'Solutions', 'Pros', 'Group', 'Co', 'Inc', 'LLC', 'Experts', 'Team', 'Masters'];
+  
+  const businessNames: string[] = [];
+  for (let i = 0; i < 25; i++) {
+    const prefix = prefixes[i % prefixes.length];
+    const suffix = suffixes[Math.floor(i / prefixes.length) % suffixes.length];
+    const cap = service.charAt(0).toUpperCase() + service.slice(1);
+    businessNames.push(`${prefix} ${cap} ${suffix}`);
+  }
 
   const platforms = ['WordPress', 'Wix', 'Squarespace', 'GoDaddy', 'Weebly', 'Custom/Unknown', null];
   

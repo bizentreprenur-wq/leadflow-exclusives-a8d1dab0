@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import CloseLoopComparisonSlider from "@/components/CloseLoopComparisonSlider";
 
 const features = [
   {
@@ -281,6 +282,13 @@ const CloseLoop = () => {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Comparison Slider */}
+      <section className="py-20 bg-card/30">
+        <div className="container px-4">
+          <CloseLoopComparisonSlider />
         </div>
       </section>
 
