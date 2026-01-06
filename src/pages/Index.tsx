@@ -14,6 +14,7 @@ import Footer from "@/components/Footer";
 import NewFeaturesShowcase from "@/components/NewFeaturesShowcase";
 import FreeTrialBanner from "@/components/FreeTrialBanner";
 import SecretAISection from "@/components/SecretAISection";
+import RevolutionaryFeaturesSection from "@/components/RevolutionaryFeaturesSection";
 
 const Index = () => {
   return (
@@ -22,6 +23,7 @@ const Index = () => {
       <Navbar />
       <main>
         <HeroSection />
+        <RevolutionaryFeaturesSection />
         <SecretAISection />
         <StatsSection />
         <NewFeaturesShowcase />
