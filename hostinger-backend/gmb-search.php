@@ -6,6 +6,8 @@
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/ratelimit.php';
 
 header('Content-Type: application/json');
 setCorsHeaders();
@@ -15,6 +17,10 @@ handlePreflight();
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     sendError('Method not allowed', 405);
 }
+
+// Require authentication and enforce rate limit
+$user = requireAuth();
+enforceRateLimit($user, 'search');
 
 // Get and validate input
 $input = getJsonInput();
