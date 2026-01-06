@@ -157,15 +157,15 @@ export default function AITourGuide() {
     return americanMaleVoice || null;
   }, []);
 
-  // Speak the current step with American male voice (older gentleman)
+  // Speak the current step with natural American male voice
   const speak = useCallback((text: string) => {
     if (!("speechSynthesis" in window)) return;
     
     window.speechSynthesis.cancel();
     
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.88; // Slightly slower for older gentleman feel
-    utterance.pitch = 0.9; // Lower pitch for male voice
+    utterance.rate = 1.0; // Natural speaking rate
+    utterance.pitch = 1.0; // Normal pitch
     utterance.volume = 1;
     
     const americanMaleVoice = getAmericanMaleVoice();
