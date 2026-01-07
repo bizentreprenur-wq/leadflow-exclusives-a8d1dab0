@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
@@ -580,11 +580,48 @@ export default function AITourGuide() {
     );
   }
 
+  // Auto-start countdown for first visit
+  const [countdown, setCountdown] = useState(3);
+  const [countdownPaused, setCountdownPaused] = useState(false);
+  const countdownRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (isFirstVisit && !showTour && location.pathname === "/" && !countdownPaused) {
+      countdownRef.current = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownRef.current!);
+            startTour();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+      }
+    };
+  }, [isFirstVisit, showTour, location.pathname, countdownPaused, startTour]);
+
+  const pauseCountdown = useCallback(() => {
+    setCountdownPaused(true);
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+    }
+  }, []);
+
   // First visit prompt (before tour starts)
   if (isFirstVisit && !showTour && location.pathname === "/") {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-        <div className="bg-card rounded-3xl border border-border shadow-elevated p-8 max-w-md mx-4 text-center animate-in zoom-in-95">
+        <div 
+          className="bg-card rounded-3xl border border-border shadow-elevated p-8 max-w-md mx-4 text-center animate-in zoom-in-95"
+          onMouseEnter={pauseCountdown}
+          onTouchStart={pauseCountdown}
+        >
           <img 
             src={mascotImage} 
             alt="Bam the mascot" 
@@ -600,15 +637,25 @@ export default function AITourGuide() {
             💡 You can turn off Bam anytime by clicking "Don't show this again" below
           </p>
           <div className="flex flex-col gap-3">
-            <Button onClick={startTour} size="lg" className="w-full gap-2">
-              <Volume2 className="w-5 h-5" />
-              Let's Go, Bam!
+            <Button onClick={startTour} size="lg" className="w-full gap-2 relative overflow-hidden">
+              {!countdownPaused && countdown > 0 && (
+                <span 
+                  className="absolute inset-0 bg-primary-foreground/20 origin-left animate-countdown"
+                  style={{ 
+                    animation: `countdown ${countdown}s linear forwards`,
+                  }}
+                />
+              )}
+              <Volume2 className="w-5 h-5 relative z-10" />
+              <span className="relative z-10">
+                {countdownPaused ? "Let's Go, Bam!" : `Starting in ${countdown}...`}
+              </span>
             </Button>
-            <Button onClick={skipTour} variant="outline" size="lg" className="w-full">
+            <Button onClick={() => { pauseCountdown(); skipTour(); }} variant="outline" size="lg" className="w-full">
               Skip for Now
             </Button>
             <button 
-              onClick={disableTour}
+              onClick={() => { pauseCountdown(); disableTour(); }}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               Don't show this again
@@ -640,6 +687,10 @@ export default function AITourGuide() {
           25% { transform: translateY(-8px) rotate(-3deg); }
           50% { transform: translateY(0) rotate(0deg); }
           75% { transform: translateY(-8px) rotate(3deg); }
+        }
+        @keyframes countdown {
+          from { transform: scaleX(1); }
+          to { transform: scaleX(0); }
         }
         @keyframes bam-bounce {
           0%, 100% { transform: translateY(0); }
