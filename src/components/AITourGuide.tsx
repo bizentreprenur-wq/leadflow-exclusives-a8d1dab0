@@ -536,13 +536,14 @@ export default function AITourGuide() {
   }, [showTour, currentStepIndex, location.pathname, navigate, speak, moveMascotToElement]);
 
   // Floating demo button (always visible when tour not active)
+  // Hidden on mobile to avoid blocking the menu button
   if (!showTour && !isFirstVisit) {
     // Minimized state - small icon only
     if (isDemoMinimized) {
       return (
         <button
           onClick={() => setIsDemoMinimized(false)}
-          className="fixed top-20 right-4 z-50 w-10 h-10 bg-primary/80 text-primary-foreground rounded-full shadow-lg hover:scale-110 hover:bg-primary transition-all flex items-center justify-center"
+          className="fixed top-24 right-4 z-40 hidden md:flex w-10 h-10 bg-primary/80 text-primary-foreground rounded-full shadow-lg hover:scale-110 hover:bg-primary transition-all items-center justify-center"
           title="Show Demo Button"
         >
           <Play className="w-4 h-4" />
@@ -550,9 +551,9 @@ export default function AITourGuide() {
       );
     }
 
-    // Full demo button with minimize option
+    // Full demo button with minimize option - hidden on mobile
     return (
-      <div className="fixed top-20 right-4 z-50 flex items-center gap-1">
+      <div className="fixed top-24 right-4 z-40 hidden md:flex items-center gap-1">
         <button
           onClick={() => {
             autoAdvanceRef.current = true;
@@ -593,7 +594,7 @@ export default function AITourGuide() {
             Hey there! I'm Bam! 👋
           </h2>
           <p className="text-muted-foreground mb-4">
-            Welcome to BamLead! Want me to walk you through our features? I'll guide you around and explain everything!
+            Welcome to BamLead! I'm about to walk you through all the amazing features. Just sit back and let me show you around!
           </p>
           <p className="text-xs text-muted-foreground/70 mb-4">
             💡 You can turn off Bam anytime by clicking "Don't show this again" below
