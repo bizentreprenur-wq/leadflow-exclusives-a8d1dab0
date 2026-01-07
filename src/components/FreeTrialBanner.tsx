@@ -48,7 +48,7 @@ export default function FreeTrialBanner({ variant = "full", onDismiss }: FreeTri
             </div>
           </div>
           
-          <Link to="/pricing">
+          <Link to="/auth">
             <Button 
               variant="secondary" 
               className="w-full gap-2 bg-white text-primary hover:bg-white/90"
@@ -75,7 +75,7 @@ export default function FreeTrialBanner({ variant = "full", onDismiss }: FreeTri
               <p className="text-sm text-muted-foreground">Try all features free</p>
             </div>
           </div>
-          <Link to="/pricing">
+          <Link to="/auth">
             <Button size="sm" className="gap-2">
               Start Trial
               <ArrowRight className="w-4 h-4" />
@@ -126,7 +126,7 @@ export default function FreeTrialBanner({ variant = "full", onDismiss }: FreeTri
               ))}
             </div>
 
-            <Link to="/pricing">
+            <Link to="/auth">
               <Button 
                 size="lg" 
                 variant="secondary"
