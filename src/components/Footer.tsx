@@ -90,8 +90,8 @@ const Footer = () => {
               © {new Date().getFullYear()} BamLead. All rights reserved. <span className="text-primary/60">v1.0.1</span>
             </p>
             <div className="flex gap-6 text-sm text-muted-foreground">
-              <Link to="#" className="hover:text-primary transition-colors">Privacy Policy</Link>
-              <Link to="#" className="hover:text-primary transition-colors">Terms of Service</Link>
+              <Link to="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
+              <Link to="/terms" className="hover:text-primary transition-colors">Terms of Service</Link>
             </div>
           </div>
         </div>
