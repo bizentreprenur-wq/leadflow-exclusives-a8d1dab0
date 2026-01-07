@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -398,10 +399,12 @@ export default function Reviews() {
               <p className="text-lg text-muted-foreground mb-8">
                 Join thousands of happy customers who are growing their business with BamLead.
               </p>
-              <Button size="lg" className="gap-2">
-                <TrendingUp className="w-4 h-4" />
-                Start Free Trial
-              </Button>
+              <Link to="/pricing">
+                <Button size="lg" className="gap-2">
+                  <TrendingUp className="w-4 h-4" />
+                  Start Free Trial
+                </Button>
+              </Link>
             </div>
           </div>
         </section>

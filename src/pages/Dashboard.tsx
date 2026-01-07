@@ -50,12 +50,12 @@ interface SearchResult {
   platform?: string;
 }
 
-// Step configuration
+// Step configuration - BIG and clear
 const WORKFLOW_STEPS = [
-  { id: 1, title: 'Search', description: 'Find businesses', icon: Search },
-  { id: 2, title: 'Review Leads', description: 'See your results', icon: Users },
-  { id: 3, title: 'Verify', description: 'AI verification', icon: CheckCircle2 },
-  { id: 4, title: 'Send Emails', description: 'Outreach', icon: Send },
+  { id: 1, title: 'STEP 1: Search', description: 'Find businesses that need your services', icon: Search, emoji: '🔍' },
+  { id: 2, title: 'STEP 2: Review', description: 'Pick the best leads from your results', icon: Users, emoji: '📋' },
+  { id: 3, title: 'STEP 3: Verify', description: 'AI finds emails & scores leads', icon: CheckCircle2, emoji: '✅' },
+  { id: 4, title: 'STEP 4: Outreach', description: 'Send personalized emails', icon: Send, emoji: '📧' },
 ];
 
 export default function Dashboard() {
@@ -233,54 +233,60 @@ export default function Dashboard() {
           <div className="space-y-8">
             {/* Step 1: Choose Search Type */}
             {!searchType ? (
-              <div className="space-y-6">
-                <div className="text-center">
-                  <h2 className="text-2xl font-bold text-foreground mb-2">
-                    What kind of leads do you want?
+              <div className="space-y-8">
+                {/* BIG Step Header */}
+                <div className="text-center py-6 bg-gradient-to-r from-primary/10 to-accent/10 rounded-2xl border-2 border-primary/30">
+                  <div className="text-6xl mb-4">🔍</div>
+                  <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
+                    STEP 1: Choose Your Search Type
                   </h2>
-                  <p className="text-muted-foreground">
-                    Choose your search method to find the perfect leads
+                  <p className="text-lg text-muted-foreground max-w-xl mx-auto">
+                    Pick HOW you want to find leads. Both methods find businesses that need your help!
                   </p>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-                  {/* GMB Search Card - Teal/Cyan */}
+                <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+                  {/* GMB Search Card - Teal/Cyan - BIGGER */}
                   <button
                     onClick={() => setSearchType('gmb')}
-                    className="group text-left p-6 rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 hover:border-primary hover:shadow-lg hover:shadow-primary/20 transition-all duration-300"
+                    className="group text-left p-8 rounded-3xl border-4 border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 hover:border-primary hover:shadow-2xl hover:shadow-primary/20 transition-all duration-300 hover:scale-[1.02]"
                   >
-                    <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                      <Building2 className="w-7 h-7 text-primary" />
+                    <div className="text-5xl mb-4">🏢</div>
+                    <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                      <Building2 className="w-8 h-8 text-primary" />
                     </div>
-                    <h3 className="text-xl font-bold text-foreground mb-2">
-                      🏢 Local Business Search
+                    <h3 className="text-2xl font-bold text-foreground mb-3">
+                      Local Business Search
                     </h3>
-                    <p className="text-muted-foreground mb-4">
-                      Find local businesses on Google Maps. Perfect for service-based leads like plumbers, restaurants, dentists, etc.
+                    <p className="text-lg text-muted-foreground mb-4">
+                      Find businesses on Google Maps in your area. 
+                      <span className="text-primary font-medium"> Great for plumbers, dentists, restaurants, gyms...</span>
                     </p>
-                    <div className="flex items-center gap-2 text-primary font-medium">
+                    <div className="flex items-center gap-2 text-primary font-bold text-lg">
                       <span>Search Google Maps</span>
-                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      <ChevronRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
                     </div>
                   </button>
 
-                  {/* Platform Search Card - Purple/Violet */}
+                  {/* Platform Search Card - Purple/Violet - BIGGER */}
                   <button
                     onClick={() => setSearchType('platform')}
-                    className="group text-left p-6 rounded-2xl border-2 border-violet-500/30 bg-gradient-to-br from-violet-500/10 to-violet-500/5 hover:border-violet-500 hover:shadow-lg hover:shadow-violet-500/20 transition-all duration-300"
+                    className="group text-left p-8 rounded-3xl border-4 border-violet-500/30 bg-gradient-to-br from-violet-500/10 to-violet-500/5 hover:border-violet-500 hover:shadow-2xl hover:shadow-violet-500/20 transition-all duration-300 hover:scale-[1.02]"
                   >
-                    <div className="w-14 h-14 rounded-xl bg-violet-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                      <Globe className="w-7 h-7 text-violet-500" />
+                    <div className="text-5xl mb-4">🔍</div>
+                    <div className="w-16 h-16 rounded-2xl bg-violet-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                      <Globe className="w-8 h-8 text-violet-500" />
                     </div>
-                    <h3 className="text-xl font-bold text-foreground mb-2">
-                      🔍 Outdated Website Scanner
+                    <h3 className="text-2xl font-bold text-foreground mb-3">
+                      Outdated Website Scanner
                     </h3>
-                    <p className="text-muted-foreground mb-4">
-                      Find businesses with old WordPress, Wix, or Joomla sites. Great for web design and migration services.
+                    <p className="text-lg text-muted-foreground mb-4">
+                      Find businesses with OLD WordPress, Wix, or Joomla sites.
+                      <span className="text-violet-500 font-medium"> Perfect for web design services!</span>
                     </p>
-                    <div className="flex items-center gap-2 text-violet-500 font-medium">
+                    <div className="flex items-center gap-2 text-violet-500 font-bold text-lg">
                       <span>Scan for old websites</span>
-                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      <ChevronRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
                     </div>
                   </button>
                 </div>
@@ -390,51 +396,60 @@ export default function Dashboard() {
       case 2:
         return (
           <div className="space-y-6">
+            {/* BIG Step 2 Header */}
+            <div className="text-center py-6 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 rounded-2xl border-2 border-emerald-500/30">
+              <div className="text-6xl mb-4">📋</div>
+              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
+                STEP 2: Review Your Leads ({searchResults.length} Found!)
+              </h2>
+              <p className="text-lg text-muted-foreground max-w-xl mx-auto">
+                Click on leads to SELECT them. Then click the big green button to verify with AI!
+              </p>
+            </div>
+
             {/* Results Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-muted/50 rounded-xl">
+              <div className="flex items-center gap-4">
                 <button
                   onClick={() => setCurrentStep(1)}
-                  className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-2"
+                  className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded-lg hover:bg-muted"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   New search
                 </button>
-                <h2 className="text-2xl font-bold text-foreground">
-                  🎉 Found {searchResults.length} Leads!
-                </h2>
-                <p className="text-muted-foreground">
-                  Select the leads you want to verify and contact
-                </p>
+                <Badge variant="secondary" className="text-lg px-4 py-2">
+                  🎯 {selectedLeads.length} / {searchResults.length} selected
+                </Badge>
               </div>
               
               <div className="flex items-center gap-3">
-                <Button variant="outline" onClick={selectAllLeads}>
-                  {selectedLeads.length === searchResults.length ? 'Deselect All' : 'Select All'}
+                <Button variant="outline" size="lg" onClick={selectAllLeads}>
+                  {selectedLeads.length === searchResults.length ? '❌ Deselect All' : '✅ Select All'}
                 </Button>
-                <Button variant="outline" onClick={downloadCSV}>
+                <Button variant="outline" size="lg" onClick={downloadCSV}>
                   <Download className="w-4 h-4 mr-2" />
                   Download CSV
                 </Button>
               </div>
             </div>
 
-            {/* Selection Summary */}
+            {/* Selection Summary - BIG AND OBVIOUS */}
             {selectedLeads.length > 0 && (
-              <Card className="border-primary/50 bg-primary/5">
-                <CardContent className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                      <CheckCircle2 className="w-5 h-5 text-primary" />
+              <Card className="border-4 border-emerald-500 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 shadow-xl">
+                <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center text-3xl">
+                      ✅
                     </div>
                     <div>
-                      <p className="font-semibold text-foreground">{selectedLeads.length} leads selected</p>
-                      <p className="text-sm text-muted-foreground">Ready for AI verification</p>
+                      <p className="text-2xl font-bold text-foreground">{selectedLeads.length} leads selected!</p>
+                      <p className="text-lg text-muted-foreground">Ready for AI to find their emails & score them</p>
                     </div>
                   </div>
-                  <Button onClick={proceedToVerification} className="gap-2">
-                    Verify Selected
-                    <ArrowRight className="w-4 h-4" />
+                  <Button onClick={proceedToVerification} size="lg" className="gap-3 text-lg px-8 py-6 bg-emerald-500 hover:bg-emerald-600">
+                    <Sparkles className="w-6 h-6" />
+                    GO TO STEP 3: Verify with AI
+                    <ArrowRight className="w-6 h-6" />
                   </Button>
                 </CardContent>
               </Card>
@@ -542,9 +557,20 @@ export default function Dashboard() {
       case 3:
         return (
           <div className="space-y-6">
+            {/* BIG Step 3 Header */}
+            <div className="text-center py-6 bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-2xl border-2 border-amber-500/30">
+              <div className="text-6xl mb-4">✅</div>
+              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
+                STEP 3: AI Verification
+              </h2>
+              <p className="text-lg text-muted-foreground max-w-xl mx-auto">
+                Our AI is finding emails, scoring leads, and analyzing websites for you!
+              </p>
+            </div>
+            
             <button
               onClick={() => setCurrentStep(2)}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors px-4 py-2 rounded-lg hover:bg-muted"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to lead list
@@ -556,9 +582,20 @@ export default function Dashboard() {
       case 4:
         return (
           <div className="space-y-6">
+            {/* BIG Step 4 Header */}
+            <div className="text-center py-6 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-2xl border-2 border-blue-500/30">
+              <div className="text-6xl mb-4">📧</div>
+              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
+                STEP 4: Send Your Emails!
+              </h2>
+              <p className="text-lg text-muted-foreground max-w-xl mx-auto">
+                Pick a template, customize your message, and reach out to your leads!
+              </p>
+            </div>
+            
             <button
               onClick={() => setCurrentStep(3)}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors px-4 py-2 rounded-lg hover:bg-muted"
             >
               <ArrowLeft className="w-4 h-4" />
               Back to verification
@@ -708,64 +745,59 @@ export default function Dashboard() {
               <>
                 {/* Workflow Step Progress */}
                 <div className="mb-8">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-4">
                       <div className="hidden lg:block">
                         <Mascot3D size="md" interactive />
                       </div>
                       <div>
-                        <h1 className="text-2xl font-bold text-foreground">
-                          Lead Generation
+                        <h1 className="text-3xl font-bold text-foreground">
+                          🚀 Lead Generation Made Easy
                         </h1>
-                        <p className="text-muted-foreground">
-                          Follow the steps to find and contact leads
+                        <p className="text-lg text-muted-foreground">
+                          Just follow the 4 simple steps below!
                         </p>
                       </div>
                     </div>
                     {currentStep > 1 && (
-                      <Button variant="outline" onClick={resetWorkflow}>
-                        Start Over
+                      <Button variant="outline" size="lg" onClick={resetWorkflow} className="gap-2">
+                        🔄 Start Over
                       </Button>
                     )}
                   </div>
 
-                  {/* Step Progress Bar */}
-                  <div className="flex items-center gap-2">
-                    {WORKFLOW_STEPS.map((step, index) => (
-                      <div key={step.id} className="flex items-center flex-1">
-                        <button
-                          onClick={() => currentStep > step.id && setCurrentStep(step.id)}
-                          disabled={currentStep < step.id}
-                          className={`flex items-center gap-2 px-4 py-3 rounded-xl w-full transition-all ${
-                            currentStep === step.id
-                              ? 'bg-primary text-primary-foreground shadow-lg'
-                              : currentStep > step.id
-                              ? 'bg-primary/20 text-primary hover:bg-primary/30 cursor-pointer'
-                              : 'bg-muted text-muted-foreground'
-                          }`}
-                        >
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                            currentStep === step.id
-                              ? 'bg-primary-foreground/20'
-                              : currentStep > step.id
-                              ? 'bg-primary/30'
-                              : 'bg-muted-foreground/20'
-                          }`}>
-                            {currentStep > step.id ? (
-                              <CheckCircle2 className="w-5 h-5" />
-                            ) : (
-                              step.id
-                            )}
-                          </div>
-                          <div className="text-left hidden md:block">
-                            <p className="font-semibold text-sm">{step.title}</p>
-                            <p className="text-xs opacity-80">{step.description}</p>
-                          </div>
-                        </button>
-                        {index < WORKFLOW_STEPS.length - 1 && (
-                          <ChevronRight className="w-5 h-5 text-muted-foreground mx-1 shrink-0" />
-                        )}
-                      </div>
+                  {/* Step Progress Bar - BIGGER */}
+                  <div className="grid grid-cols-4 gap-3">
+                    {WORKFLOW_STEPS.map((step) => (
+                      <button
+                        key={step.id}
+                        onClick={() => currentStep > step.id && setCurrentStep(step.id)}
+                        disabled={currentStep < step.id}
+                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl transition-all ${
+                          currentStep === step.id
+                            ? 'bg-primary text-primary-foreground shadow-xl ring-4 ring-primary/30 scale-105'
+                            : currentStep > step.id
+                            ? 'bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30 cursor-pointer border-2 border-emerald-500/50'
+                            : 'bg-muted text-muted-foreground border-2 border-border'
+                        }`}
+                      >
+                        <div className="text-3xl">
+                          {currentStep > step.id ? '✅' : step.emoji}
+                        </div>
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${
+                          currentStep === step.id
+                            ? 'bg-primary-foreground/20'
+                            : currentStep > step.id
+                            ? 'bg-emerald-500/30'
+                            : 'bg-muted-foreground/20'
+                        }`}>
+                          {step.id}
+                        </div>
+                        <div className="text-center">
+                          <p className="font-bold text-sm">{step.title}</p>
+                          <p className="text-xs opacity-80 hidden sm:block">{step.description}</p>
+                        </div>
+                      </button>
                     ))}
                   </div>
                 </div>

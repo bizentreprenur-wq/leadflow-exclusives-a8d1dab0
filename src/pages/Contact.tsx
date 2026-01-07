@@ -27,10 +27,16 @@ const Contact = () => {
 
     setIsSubmitting(true);
     
-    // Simulate form submission
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // Use mailto as reliable fallback since backend contact form isn't set up
+    const mailtoLink = `mailto:support@bamlead.com?subject=${encodeURIComponent(
+      formData.subject || `Contact from ${formData.name}`
+    )}&body=${encodeURIComponent(
+      `Name: ${formData.name}\nEmail: ${formData.email}\n\n${formData.message}`
+    )}`;
     
-    toast.success("Message sent! We'll get back to you soon.");
+    window.location.href = mailtoLink;
+    
+    toast.success("Opening your email client...");
     setFormData({ name: "", email: "", subject: "", message: "" });
     setIsSubmitting(false);
   };
