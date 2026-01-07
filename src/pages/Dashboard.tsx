@@ -247,102 +247,124 @@ export default function Dashboard() {
 
                 <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
                   {/* GMB Search Card - Matching Landing Page */}
-                  <button
-                    onClick={() => setSearchType('gmb')}
-                    className="group text-left p-6 rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-primary/5 to-transparent hover:border-primary hover:shadow-2xl hover:shadow-primary/20 transition-all duration-300"
-                  >
-                    {/* Header */}
-                    <div className="flex items-start gap-4 mb-6">
-                      <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
-                        <Building2 className="w-7 h-7 text-primary" />
+                  <div className="relative">
+                    {/* Active Badge */}
+                    {user?.has_active_subscription && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                        <Badge className="bg-primary/20 text-primary border border-primary/50 px-3 py-1 text-xs font-semibold">
+                          <Star className="w-3 h-3 mr-1" />
+                          ACTIVE
+                        </Badge>
                       </div>
-                      <div>
-                        <h3 className="text-2xl font-bold text-foreground">
-                          Google My Business
-                        </h3>
-                        <p className="text-muted-foreground">
-                          Find local businesses with GMB listings
+                    )}
+                    <button
+                      onClick={() => setSearchType('gmb')}
+                      className="group text-left p-6 rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-primary/5 to-transparent hover:border-primary hover:shadow-2xl hover:shadow-primary/20 transition-all duration-300 w-full h-full"
+                    >
+                      {/* Header */}
+                      <div className="flex items-start gap-4 mb-6">
+                        <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+                          <Building2 className="w-7 h-7 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="text-2xl font-bold text-foreground">
+                            Google My Business
+                          </h3>
+                          <p className="text-muted-foreground">
+                            Find local businesses with GMB listings
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Feature List */}
+                      <div className="space-y-3 mb-6">
+                        <div className="flex items-center gap-3 text-primary">
+                          <MapPin className="w-5 h-5 shrink-0" />
+                          <span className="text-foreground">Find local businesses with Google My Business listings</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-primary">
+                          <FileText className="w-5 h-5 shrink-0" />
+                          <span className="text-foreground">Extract contact info, phone numbers, addresses</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-primary">
+                          <Target className="w-5 h-5 shrink-0" />
+                          <span className="text-foreground">Filter by industry, rating, and website quality</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-primary">
+                          <Zap className="w-5 h-5 shrink-0" />
+                          <span className="text-foreground">Instant website analysis with mobile scores</span>
+                        </div>
+                      </div>
+
+                      {/* Perfect For */}
+                      <div className="bg-primary/10 rounded-xl p-4">
+                        <p className="text-primary font-bold mb-1">Perfect For:</p>
+                        <p className="text-muted-foreground text-sm">
+                          Web designers, agencies, and marketers targeting local service businesses (plumbers, dentists, lawyers, restaurants, etc.)
                         </p>
                       </div>
-                    </div>
-
-                    {/* Feature List */}
-                    <div className="space-y-3 mb-6">
-                      <div className="flex items-center gap-3 text-primary">
-                        <MapPin className="w-5 h-5 shrink-0" />
-                        <span className="text-foreground">Find local businesses with Google My Business listings</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-primary">
-                        <FileText className="w-5 h-5 shrink-0" />
-                        <span className="text-foreground">Extract contact info, phone numbers, addresses</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-primary">
-                        <Target className="w-5 h-5 shrink-0" />
-                        <span className="text-foreground">Filter by industry, rating, and website quality</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-primary">
-                        <Zap className="w-5 h-5 shrink-0" />
-                        <span className="text-foreground">Instant website analysis with mobile scores</span>
-                      </div>
-                    </div>
-
-                    {/* Perfect For */}
-                    <div className="bg-primary/10 rounded-xl p-4">
-                      <p className="text-primary font-bold mb-1">Perfect For:</p>
-                      <p className="text-muted-foreground text-sm">
-                        Web designers, agencies, and marketers targeting local service businesses (plumbers, dentists, lawyers, restaurants, etc.)
-                      </p>
-                    </div>
-                  </button>
+                    </button>
+                  </div>
 
                   {/* Platform Scanner Card - Matching Landing Page */}
-                  <button
-                    onClick={() => setSearchType('platform')}
-                    className="group text-left p-6 rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-primary/5 to-transparent hover:border-primary hover:shadow-2xl hover:shadow-primary/20 transition-all duration-300"
-                  >
-                    {/* Header */}
-                    <div className="flex items-start gap-4 mb-6">
-                      <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
-                        <Globe className="w-7 h-7 text-primary" />
+                  <div className="relative">
+                    {/* Active Badge */}
+                    {user?.has_active_subscription && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
+                        <Badge className="bg-primary/20 text-primary border border-primary/50 px-3 py-1 text-xs font-semibold">
+                          <Star className="w-3 h-3 mr-1" />
+                          ACTIVE
+                        </Badge>
                       </div>
-                      <div>
-                        <h3 className="text-2xl font-bold text-foreground">
-                          Platform Scanner
-                        </h3>
-                        <p className="text-muted-foreground">
-                          Find outdated websites via Google & Bing
+                    )}
+                    <button
+                      onClick={() => setSearchType('platform')}
+                      className="group text-left p-6 rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-primary/5 to-transparent hover:border-primary hover:shadow-2xl hover:shadow-primary/20 transition-all duration-300 w-full h-full"
+                    >
+                      {/* Header */}
+                      <div className="flex items-start gap-4 mb-6">
+                        <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+                          <Globe className="w-7 h-7 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="text-2xl font-bold text-foreground">
+                            Platform Scanner
+                          </h3>
+                          <p className="text-muted-foreground">
+                            Find outdated websites via Google & Bing
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Feature List */}
+                      <div className="space-y-3 mb-6">
+                        <div className="flex items-center gap-3 text-primary">
+                          <Server className="w-5 h-5 shrink-0" />
+                          <span className="text-foreground">Detect 16+ legacy platforms (WordPress, Wix, Joomla, etc.)</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-primary">
+                          <Globe className="w-5 h-5 shrink-0" />
+                          <span className="text-foreground">Search across Google AND Bing simultaneously</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-primary">
+                          <TrendingUp className="w-5 h-5 shrink-0" />
+                          <span className="text-foreground">Find businesses with outdated, slow websites</span>
+                        </div>
+                        <div className="flex items-center gap-3 text-primary">
+                          <Users className="w-5 h-5 shrink-0" />
+                          <span className="text-foreground">Target businesses ready for modernization</span>
+                        </div>
+                      </div>
+
+                      {/* Perfect For */}
+                      <div className="bg-primary/10 rounded-xl p-4">
+                        <p className="text-primary font-bold mb-1">Perfect For:</p>
+                        <p className="text-muted-foreground text-sm">
+                          Developers looking for website redesign projects, finding businesses stuck on legacy platforms that need modern solutions
                         </p>
                       </div>
-                    </div>
-
-                    {/* Feature List */}
-                    <div className="space-y-3 mb-6">
-                      <div className="flex items-center gap-3 text-primary">
-                        <Server className="w-5 h-5 shrink-0" />
-                        <span className="text-foreground">Detect 16+ legacy platforms (WordPress, Wix, Joomla, etc.)</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-primary">
-                        <Globe className="w-5 h-5 shrink-0" />
-                        <span className="text-foreground">Search across Google AND Bing simultaneously</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-primary">
-                        <TrendingUp className="w-5 h-5 shrink-0" />
-                        <span className="text-foreground">Find businesses with outdated, slow websites</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-primary">
-                        <Users className="w-5 h-5 shrink-0" />
-                        <span className="text-foreground">Target businesses ready for modernization</span>
-                      </div>
-                    </div>
-
-                    {/* Perfect For */}
-                    <div className="bg-primary/10 rounded-xl p-4">
-                      <p className="text-primary font-bold mb-1">Perfect For:</p>
-                      <p className="text-muted-foreground text-sm">
-                        Developers looking for website redesign projects, finding businesses stuck on legacy platforms that need modern solutions
-                      </p>
-                    </div>
-                  </button>
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
