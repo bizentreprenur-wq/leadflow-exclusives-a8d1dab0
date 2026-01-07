@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Mail, Lock, User, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, CreditCard } from 'lucide-react';
 import mascotLogo from '@/assets/bamlead-mascot.png';
 import { BackendStatus } from '@/components/BackendStatus';
 import { createCheckoutSession } from '@/lib/api/stripe';
@@ -138,6 +138,16 @@ export default function Auth() {
     );
   }
 
+  // Get plan display name
+  const getPlanDisplayName = (plan: string) => {
+    const names: Record<string, string> = {
+      basic: 'Basic',
+      pro: 'Pro',
+      agency: 'Agency'
+    };
+    return names[plan] || plan;
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-primary/5">
       {/* Back to home */}
@@ -151,6 +161,18 @@ export default function Auth() {
       {/* Auth card */}
       <div className="flex-1 flex items-center justify-center p-6">
         <Card className="w-full max-w-md border-border/50 shadow-xl">
+          {/* Plan selection banner */}
+          {pendingPlan && (
+            <div className="bg-primary/10 border-b border-primary/20 px-6 py-3 rounded-t-lg">
+              <div className="flex items-center gap-2 text-sm">
+                <CreditCard className="w-4 h-4 text-primary" />
+                <span className="text-foreground">
+                  Sign in to subscribe to the <strong className="text-primary">{getPlanDisplayName(pendingPlan)}</strong> plan
+                  {pendingBilling && <span className="text-muted-foreground"> ({pendingBilling})</span>}
+                </span>
+              </div>
+            </div>
+          )}
           <CardHeader className="text-center space-y-2">
             <div className="mx-auto mb-2">
               <img 
@@ -161,7 +183,9 @@ export default function Auth() {
             </div>
             <CardTitle className="text-2xl font-bold">Welcome to BamLead</CardTitle>
             <CardDescription>
-              Find leads, analyze websites, and grow your business
+              {pendingPlan 
+                ? 'Create an account or sign in to complete your subscription'
+                : 'Find leads, analyze websites, and grow your business'}
             </CardDescription>
           </CardHeader>
           <CardContent>
