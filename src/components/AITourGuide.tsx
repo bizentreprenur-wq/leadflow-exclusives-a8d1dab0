@@ -622,11 +622,22 @@ export default function AITourGuide() {
           onMouseEnter={pauseCountdown}
           onTouchStart={pauseCountdown}
         >
-          <img 
-            src={mascotImage} 
-            alt="Bam the mascot" 
-            className="w-24 h-24 mx-auto mb-4 object-contain animate-bounce"
-          />
+          <div className="relative w-24 h-24 mx-auto mb-4">
+            <img 
+              src={mascotImage} 
+              alt="Bam the mascot" 
+              className="w-full h-full object-contain animate-bounce"
+            />
+            {/* Pulsing attention indicator during countdown */}
+            {!countdownPaused && countdown > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-5 w-5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+                <span className="relative inline-flex rounded-full h-5 w-5 bg-primary items-center justify-center text-[10px] font-bold text-primary-foreground">
+                  {countdown}
+                </span>
+              </span>
+            )}
+          </div>
           <h2 className="text-2xl font-display font-bold text-foreground mb-3">
             Hey there! I'm Bam! 👋
           </h2>
