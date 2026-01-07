@@ -127,8 +127,13 @@ const Navbar = () => {
                 >
                   <Button
                     variant={isActive(link.href) ? "secondary" : "ghost"}
-                    className="w-full justify-start"
+                    className={`w-full justify-start ${
+                      link.isSpecial 
+                        ? "text-amber-500 hover:text-amber-400 hover:bg-amber-500/10" 
+                        : ""
+                    }`}
                   >
+                    {link.isSpecial && <Zap className="w-3.5 h-3.5 mr-1" />}
                     {t(link.labelKey)}
                   </Button>
                 </Link>
