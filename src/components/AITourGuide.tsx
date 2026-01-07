@@ -134,6 +134,11 @@ export default function AITourGuide() {
   const [showVoiceSettings, setShowVoiceSettings] = useState(false);
   const [isTestingVoice, setIsTestingVoice] = useState(false);
   
+  // Auto-start countdown state (moved here to avoid hooks-order issues)
+  const [countdown, setCountdown] = useState(3);
+  const [countdownPaused, setCountdownPaused] = useState(false);
+  const countdownRef = useRef<NodeJS.Timeout | null>(null);
+  
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -581,9 +586,6 @@ export default function AITourGuide() {
   }
 
   // Auto-start countdown for first visit
-  const [countdown, setCountdown] = useState(3);
-  const [countdownPaused, setCountdownPaused] = useState(false);
-  const countdownRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (isFirstVisit && !showTour && location.pathname === "/" && !countdownPaused) {
