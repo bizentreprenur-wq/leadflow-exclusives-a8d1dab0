@@ -246,47 +246,101 @@ export default function Dashboard() {
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-                  {/* GMB Search Card - Teal/Cyan - BIGGER */}
+                  {/* GMB Search Card - Matching Landing Page */}
                   <button
                     onClick={() => setSearchType('gmb')}
-                    className="group text-left p-8 rounded-3xl border-4 border-primary/30 bg-gradient-to-br from-primary/10 to-primary/5 hover:border-primary hover:shadow-2xl hover:shadow-primary/20 transition-all duration-300 hover:scale-[1.02]"
+                    className="group text-left p-6 rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-primary/5 to-transparent hover:border-primary hover:shadow-2xl hover:shadow-primary/20 transition-all duration-300"
                   >
-                    <div className="text-5xl mb-4">🏢</div>
-                    <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                      <Building2 className="w-8 h-8 text-primary" />
+                    {/* Header */}
+                    <div className="flex items-start gap-4 mb-6">
+                      <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+                        <Building2 className="w-7 h-7 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-bold text-foreground">
+                          Google My Business
+                        </h3>
+                        <p className="text-muted-foreground">
+                          Find local businesses with GMB listings
+                        </p>
+                      </div>
                     </div>
-                    <h3 className="text-2xl font-bold text-foreground mb-3">
-                      Local Business Search
-                    </h3>
-                    <p className="text-lg text-muted-foreground mb-4">
-                      Find businesses on Google Maps in your area. 
-                      <span className="text-primary font-medium"> Great for plumbers, dentists, restaurants, gyms...</span>
-                    </p>
-                    <div className="flex items-center gap-2 text-primary font-bold text-lg">
-                      <span>Search Google Maps</span>
-                      <ChevronRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
+
+                    {/* Feature List */}
+                    <div className="space-y-3 mb-6">
+                      <div className="flex items-center gap-3 text-primary">
+                        <MapPin className="w-5 h-5 shrink-0" />
+                        <span className="text-foreground">Find local businesses with Google My Business listings</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-primary">
+                        <FileText className="w-5 h-5 shrink-0" />
+                        <span className="text-foreground">Extract contact info, phone numbers, addresses</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-primary">
+                        <Target className="w-5 h-5 shrink-0" />
+                        <span className="text-foreground">Filter by industry, rating, and website quality</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-primary">
+                        <Zap className="w-5 h-5 shrink-0" />
+                        <span className="text-foreground">Instant website analysis with mobile scores</span>
+                      </div>
+                    </div>
+
+                    {/* Perfect For */}
+                    <div className="bg-primary/10 rounded-xl p-4">
+                      <p className="text-primary font-bold mb-1">Perfect For:</p>
+                      <p className="text-muted-foreground text-sm">
+                        Web designers, agencies, and marketers targeting local service businesses (plumbers, dentists, lawyers, restaurants, etc.)
+                      </p>
                     </div>
                   </button>
 
-                  {/* Platform Search Card - Purple/Violet - BIGGER */}
+                  {/* Platform Scanner Card - Matching Landing Page */}
                   <button
                     onClick={() => setSearchType('platform')}
-                    className="group text-left p-8 rounded-3xl border-4 border-violet-500/30 bg-gradient-to-br from-violet-500/10 to-violet-500/5 hover:border-violet-500 hover:shadow-2xl hover:shadow-violet-500/20 transition-all duration-300 hover:scale-[1.02]"
+                    className="group text-left p-6 rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-primary/5 to-transparent hover:border-primary hover:shadow-2xl hover:shadow-primary/20 transition-all duration-300"
                   >
-                    <div className="text-5xl mb-4">🔍</div>
-                    <div className="w-16 h-16 rounded-2xl bg-violet-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                      <Globe className="w-8 h-8 text-violet-500" />
+                    {/* Header */}
+                    <div className="flex items-start gap-4 mb-6">
+                      <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+                        <Globe className="w-7 h-7 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="text-2xl font-bold text-foreground">
+                          Platform Scanner
+                        </h3>
+                        <p className="text-muted-foreground">
+                          Find outdated websites via Google & Bing
+                        </p>
+                      </div>
                     </div>
-                    <h3 className="text-2xl font-bold text-foreground mb-3">
-                      Outdated Website Scanner
-                    </h3>
-                    <p className="text-lg text-muted-foreground mb-4">
-                      Find businesses with OLD WordPress, Wix, or Joomla sites.
-                      <span className="text-violet-500 font-medium"> Perfect for web design services!</span>
-                    </p>
-                    <div className="flex items-center gap-2 text-violet-500 font-bold text-lg">
-                      <span>Scan for old websites</span>
-                      <ChevronRight className="w-6 h-6 group-hover:translate-x-2 transition-transform" />
+
+                    {/* Feature List */}
+                    <div className="space-y-3 mb-6">
+                      <div className="flex items-center gap-3 text-primary">
+                        <Server className="w-5 h-5 shrink-0" />
+                        <span className="text-foreground">Detect 16+ legacy platforms (WordPress, Wix, Joomla, etc.)</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-primary">
+                        <Globe className="w-5 h-5 shrink-0" />
+                        <span className="text-foreground">Search across Google AND Bing simultaneously</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-primary">
+                        <TrendingUp className="w-5 h-5 shrink-0" />
+                        <span className="text-foreground">Find businesses with outdated, slow websites</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-primary">
+                        <Users className="w-5 h-5 shrink-0" />
+                        <span className="text-foreground">Target businesses ready for modernization</span>
+                      </div>
+                    </div>
+
+                    {/* Perfect For */}
+                    <div className="bg-primary/10 rounded-xl p-4">
+                      <p className="text-primary font-bold mb-1">Perfect For:</p>
+                      <p className="text-muted-foreground text-sm">
+                        Developers looking for website redesign projects, finding businesses stuck on legacy platforms that need modern solutions
+                      </p>
                     </div>
                   </button>
                 </div>
