@@ -16,10 +16,13 @@ import {
   Phone,
   Building2,
   Sparkles,
-  Users
+  Users,
+  Loader2
 } from "lucide-react";
 import { SocialFinderButton } from "@/components/SocialProfileFinder";
 import EmailHelpOverlay from "@/components/EmailHelpOverlay";
+import HighConvertingTemplateGallery from "@/components/HighConvertingTemplateGallery";
+import { toast } from "sonner";
 
 // Mock leads data
 const mockLeads = [
@@ -259,44 +262,80 @@ export default function DashboardDemo() {
 
         {/* Step 3: AI Verification */}
         {currentStep === 3 && (
-          <div className="text-center space-y-6 py-12">
-            <div className="w-24 h-24 bg-primary/20 rounded-full flex items-center justify-center mx-auto">
-              <Sparkles className="w-12 h-12 text-primary animate-pulse" />
+          <div className="space-y-6">
+            <div className="text-center py-6 bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-2xl border-2 border-amber-500/30">
+              <div className="text-6xl mb-4">✅</div>
+              <h2 className="text-2xl font-bold">STEP 3: AI Verification</h2>
+              <p className="text-muted-foreground max-w-md mx-auto mt-2">
+                Our AI verifies {selectedLeads.length} leads, finds missing emails, and scores each for quality.
+              </p>
             </div>
-            <h2 className="text-2xl font-bold">AI Verification</h2>
-            <p className="text-muted-foreground max-w-md mx-auto">
-              Our AI will verify {selectedLeads.length} leads, find missing emails, and score each lead for quality.
-            </p>
-            <div className="flex justify-center gap-4">
-              <Button variant="outline" onClick={() => setCurrentStep(2)}>
-                ← Back
-              </Button>
-              <Button onClick={() => setCurrentStep(4)} className="bg-primary">
-                Start Verification →
+            
+            {selectedLeads.length === 0 ? (
+              <Card className="border-border">
+                <CardContent className="p-6 text-center">
+                  <p className="text-xl font-semibold">No leads selected</p>
+                  <p className="text-muted-foreground mt-2">Go back to Step 2 and select leads first.</p>
+                  <Button onClick={() => setCurrentStep(2)} className="mt-4">← Go to Step 2</Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="border-primary/30">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
+                      <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold">Verifying {selectedLeads.length} leads...</p>
+                      <p className="text-muted-foreground">Finding emails, checking websites, scoring quality</p>
+                    </div>
+                  </div>
+                  <Progress value={65} className="h-3 mb-4" />
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div className="p-3 bg-green-500/10 rounded-lg">
+                      <p className="text-2xl font-bold text-green-500">4</p>
+                      <p className="text-xs text-muted-foreground">Emails Found</p>
+                    </div>
+                    <div className="p-3 bg-amber-500/10 rounded-lg">
+                      <p className="text-2xl font-bold text-amber-500">2</p>
+                      <p className="text-xs text-muted-foreground">Pending</p>
+                    </div>
+                    <div className="p-3 bg-blue-500/10 rounded-lg">
+                      <p className="text-2xl font-bold text-blue-500">85%</p>
+                      <p className="text-xs text-muted-foreground">Avg Score</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
+            <div className="flex justify-between pt-4">
+              <Button variant="outline" onClick={() => setCurrentStep(2)}>← Back</Button>
+              <Button onClick={() => setCurrentStep(4)} className="bg-primary" disabled={selectedLeads.length === 0}>
+                Continue to Email →
               </Button>
             </div>
           </div>
         )}
 
-        {/* Step 4: Send Emails */}
+        {/* Step 4: Send Emails - Full Template Gallery */}
         {currentStep === 4 && (
-          <div className="text-center space-y-6 py-12">
-            <div className="w-24 h-24 bg-green-500/20 rounded-full flex items-center justify-center mx-auto">
-              <Mail className="w-12 h-12 text-green-500" />
+          <div className="space-y-6">
+            <div className="text-center py-6 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-2xl border-2 border-blue-500/30">
+              <div className="text-6xl mb-4">📧</div>
+              <h2 className="text-2xl font-bold">STEP 4: Send Your Emails!</h2>
+              <p className="text-muted-foreground max-w-md mx-auto mt-2">
+                Pick a template, customize your message, and start your outreach campaign!
+              </p>
             </div>
-            <h2 className="text-2xl font-bold">Ready to Send Emails!</h2>
-            <p className="text-muted-foreground max-w-md mx-auto">
-              Your leads are verified. Choose a template and start your outreach campaign.
-            </p>
-            <div className="flex justify-center gap-4">
-              <Button variant="outline" onClick={() => setCurrentStep(3)}>
-                ← Back
-              </Button>
-              <Button className="bg-green-500 hover:bg-green-600">
-                <Mail className="w-4 h-4 mr-2" />
-                Compose Emails
-              </Button>
-            </div>
+
+            <Button variant="outline" onClick={() => setCurrentStep(3)}>← Back to Verification</Button>
+
+            {/* Full Template Gallery */}
+            <HighConvertingTemplateGallery 
+              onSelectTemplate={(template) => toast.success(`Template "${template.name}" selected! In live mode, this opens the email composer.`)} 
+            />
           </div>
         )}
       </div>
