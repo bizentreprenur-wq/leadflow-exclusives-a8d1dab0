@@ -34,10 +34,12 @@ import AIJourneyExplainer from '@/components/AIJourneyExplainer';
 import ScalabilityDashboard from '@/components/ScalabilityDashboard';
 import AdvertisingSpotlight from '@/components/AdvertisingSpotlight';
 import VoiceSearchButton from '@/components/VoiceSearchButton';
+import { AILeadGrouping } from '@/components/AILeadGrouping';
 import bamMascot from '@/assets/bamlead-mascot.png';
 import { LeadForEmail } from '@/lib/api/email';
 import { searchGMB, GMBResult } from '@/lib/api/gmb';
 import { searchPlatforms, PlatformResult } from '@/lib/api/platforms';
+import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } from '@/lib/api/leadAnalysis';
 
 interface SearchResult {
   id: string;
@@ -49,6 +51,14 @@ interface SearchResult {
   rating?: number;
   source: 'gmb' | 'platform';
   platform?: string;
+  websiteAnalysis?: {
+    hasWebsite: boolean;
+    platform: string | null;
+    needsUpgrade: boolean;
+    issues: string[];
+    mobileScore: number | null;
+    loadTime?: number | null;
+  };
 }
 
 // Step configuration - BIG and clear
@@ -73,8 +83,15 @@ export default function Dashboard() {
   const [query, setQuery] = useState('');
   const [location, setLocation] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
+  
+  // AI Lead Grouping state
+  const [aiGroups, setAiGroups] = useState<Record<string, LeadGroup> | null>(null);
+  const [aiSummary, setAiSummary] = useState<LeadSummary | null>(null);
+  const [aiStrategies, setAiStrategies] = useState<Record<string, EmailStrategy> | null>(null);
+  const [showAiGrouping, setShowAiGrouping] = useState(false);
 
   // Check for payment success
   useEffect(() => {
@@ -115,50 +132,92 @@ export default function Dashboard() {
     }
 
     setIsSearching(true);
+    setAiGroups(null);
+    setAiSummary(null);
+    setAiStrategies(null);
+    setShowAiGrouping(false);
     
     try {
+      let results: SearchResult[] = [];
+      
       if (searchType === 'gmb') {
         const response = await searchGMB(query, location);
         if (response.success && response.data) {
-          const results: SearchResult[] = response.data.map((r: GMBResult, index: number) => ({
+          results = response.data.map((r: GMBResult, index: number) => ({
             id: r.id || `gmb-${index}`,
             name: r.name || 'Unknown Business',
             address: r.address,
             phone: r.phone,
             website: r.url,
-            email: undefined, // GMB results don't include email
+            email: undefined,
             rating: r.rating,
             source: 'gmb' as const,
+            websiteAnalysis: r.websiteAnalysis,
           }));
-          setSearchResults(results);
-          toast.success(`Found ${results.length} local businesses!`);
         }
       } else if (searchType === 'platform') {
         const response = await searchPlatforms(query, location, ['wordpress', 'wix', 'squarespace', 'shopify']);
         if (response.success && response.data) {
-          const results: SearchResult[] = response.data.map((r: PlatformResult, index: number) => ({
+          results = response.data.map((r: PlatformResult, index: number) => ({
             id: r.id || `platform-${index}`,
             name: r.name || 'Unknown Business',
             address: r.address,
             phone: r.phone,
             website: r.url,
-            email: undefined, // Platform results don't include email
+            email: undefined,
             source: 'platform' as const,
             platform: r.websiteAnalysis?.platform || undefined,
+            websiteAnalysis: r.websiteAnalysis,
           }));
-          setSearchResults(results);
-          toast.success(`Found ${results.length} businesses with outdated websites!`);
         }
       }
       
-      // Move to step 2 after search
+      setSearchResults(results);
+      toast.success(`Found ${results.length} businesses! AI is now analyzing...`);
+      
+      // Move to step 2
       setCurrentStep(2);
+      
+      // Start AI analysis in background
+      if (results.length > 0) {
+        setIsAnalyzing(true);
+        try {
+          const analysisResponse = await analyzeLeads(results);
+          if (analysisResponse.success) {
+            setAiGroups(analysisResponse.data);
+            setAiSummary(analysisResponse.summary);
+            setAiStrategies(analysisResponse.emailStrategies);
+            setShowAiGrouping(true);
+            toast.success('AI analysis complete! Leads grouped by opportunity.');
+          }
+        } catch (analysisError) {
+          console.error('AI analysis error:', analysisError);
+          // Don't show error - user can still use results without AI grouping
+        } finally {
+          setIsAnalyzing(false);
+        }
+      }
     } catch (error) {
       console.error('Search error:', error);
       toast.error('Search failed. Please try again.');
     } finally {
       setIsSearching(false);
     }
+  };
+
+  const handleSelectGroup = (groupKey: string, leads: LeadAnalysis[]) => {
+    // Select all leads in this group
+    const leadIds = leads.map(l => l.id);
+    setSelectedLeads(leadIds);
+    setShowAiGrouping(false);
+    toast.success(`Selected ${leads.length} leads from "${aiGroups?.[groupKey]?.label}"`);
+  };
+
+  const handleSelectLeadFromGroup = (lead: LeadAnalysis) => {
+    // Select single lead and proceed
+    setSelectedLeads([lead.id]);
+    setShowAiGrouping(false);
+    toast.success(`Selected: ${lead.name}`);
   };
 
   const toggleLeadSelection = (id: string) => {
@@ -217,6 +276,10 @@ export default function Dashboard() {
     setLocation('');
     setSearchResults([]);
     setSelectedLeads([]);
+    setAiGroups(null);
+    setAiSummary(null);
+    setAiStrategies(null);
+    setShowAiGrouping(false);
   };
 
   if (isLoading) {
@@ -475,14 +538,56 @@ export default function Dashboard() {
           <div className="space-y-6">
             {/* BIG Step 2 Header */}
             <div className="text-center py-6 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 rounded-2xl border-2 border-emerald-500/30">
-              <div className="text-6xl mb-4">📋</div>
+              <div className="text-6xl mb-4">{showAiGrouping ? '🤖' : '📋'}</div>
               <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-                STEP 2: Review Your Leads ({searchResults.length} Found!)
+                STEP 2: {showAiGrouping ? 'AI-Sorted Leads' : 'Review Your Leads'} ({searchResults.length} Found!)
               </h2>
               <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-                Click on leads to SELECT them. Then click the big green button to verify with AI!
+                {showAiGrouping 
+                  ? 'AI grouped leads by what\'s wrong with their website. Click a group to email them!'
+                  : 'Click on leads to SELECT them. Then click the big green button to verify with AI!'
+                }
               </p>
+              {/* Toggle View */}
+              {aiGroups && (
+                <div className="flex justify-center gap-3 mt-4">
+                  <Button 
+                    variant={showAiGrouping ? 'default' : 'outline'}
+                    onClick={() => setShowAiGrouping(true)}
+                    className="gap-2"
+                  >
+                    <Brain className="w-4 h-4" />
+                    AI Grouped View
+                  </Button>
+                  <Button 
+                    variant={!showAiGrouping ? 'default' : 'outline'}
+                    onClick={() => setShowAiGrouping(false)}
+                    className="gap-2"
+                  >
+                    <Users className="w-4 h-4" />
+                    List View
+                  </Button>
+                </div>
+              )}
+              {isAnalyzing && (
+                <div className="flex items-center justify-center gap-2 mt-4 text-primary">
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>AI analyzing leads...</span>
+                </div>
+              )}
             </div>
+
+            {/* AI Grouping View */}
+            {showAiGrouping && aiGroups && aiSummary && aiStrategies ? (
+              <AILeadGrouping
+                groups={aiGroups}
+                summary={aiSummary}
+                emailStrategies={aiStrategies}
+                onSelectGroup={handleSelectGroup}
+                onSelectLead={handleSelectLeadFromGroup}
+              />
+            ) : (
+              <>
 
             {/* Results Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-muted/50 rounded-xl">
@@ -628,6 +733,8 @@ export default function Dashboard() {
                 ))}
               </div>
             </ScrollArea>
+            </>
+            )}
           </div>
         );
 
