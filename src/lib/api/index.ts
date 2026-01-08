@@ -21,6 +21,16 @@ export type {
   BusinessInfo 
 } from './verification';
 
+// Lead Analysis (AI Grouping)
+export { analyzeLeads } from './leadAnalysis';
+export type {
+  LeadAnalysis,
+  LeadGroup,
+  EmailStrategy,
+  LeadSummary,
+  AnalyzeLeadsResponse,
+} from './leadAnalysis';
+
 // Email Outreach
 export {
   getTemplates,
@@ -54,6 +64,7 @@ export const API_CONFIG = {
     platformSearch: '/platform-search.php',
     verifyLead: '/verify-lead.php',
     analyzeWebsite: '/analyze-website.php',
+    analyzeLeads: '/analyze-leads.php',
     emailOutreach: '/email-outreach.php',
   },
 };
