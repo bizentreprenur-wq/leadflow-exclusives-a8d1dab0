@@ -41,6 +41,7 @@ import {
   Gift,
   Brain,
   Server,
+  CreditCard,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import bamMascot from '@/assets/bamlead-mascot.png';
@@ -74,6 +75,12 @@ const otherTools = [
     title: 'Email Templates',
     icon: FileText,
     description: 'Pre-built templates',
+  },
+  {
+    id: 'subscription',
+    title: 'Subscription',
+    icon: CreditCard,
+    description: 'Manage your plan',
   },
 ];
 

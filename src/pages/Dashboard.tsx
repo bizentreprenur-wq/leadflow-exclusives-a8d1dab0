@@ -35,6 +35,7 @@ import ScalabilityDashboard from '@/components/ScalabilityDashboard';
 import AdvertisingSpotlight from '@/components/AdvertisingSpotlight';
 import VoiceSearchButton from '@/components/VoiceSearchButton';
 import { AILeadGrouping } from '@/components/AILeadGrouping';
+import SubscriptionManagement from '@/components/SubscriptionManagement';
 import bamMascot from '@/assets/bamlead-mascot.png';
 import { LeadForEmail } from '@/lib/api/email';
 import { searchGMB, GMBResult } from '@/lib/api/gmb';
@@ -883,6 +884,15 @@ export default function Dashboard() {
           iconColor: 'text-primary',
           iconBg: 'bg-primary/10',
           component: <ScalabilityDashboard />,
+        };
+      case 'subscription':
+        return {
+          title: 'Subscription & Billing',
+          description: 'Manage your plan, view payment history, and update billing',
+          icon: Target,
+          iconColor: 'text-emerald-500',
+          iconBg: 'bg-emerald-500/10',
+          component: <SubscriptionManagement />,
         };
       default:
         return null;
