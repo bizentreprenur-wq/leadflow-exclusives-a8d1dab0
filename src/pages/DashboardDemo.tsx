@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,23 +16,49 @@ import {
   Phone,
   Building2,
   Sparkles,
-  Users,
-  Loader2
+  Loader2,
+  Send
 } from "lucide-react";
 import { SocialFinderButton } from "@/components/SocialProfileFinder";
 import EmailHelpOverlay from "@/components/EmailHelpOverlay";
 import HighConvertingTemplateGallery from "@/components/HighConvertingTemplateGallery";
 import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
 
-// Mock leads data
-const mockLeads = [
-  { id: 1, name: "Joe's Auto Repair", rating: 4.8, reviews: 156, category: "Mechanic", address: "123 Main St, Houston", phone: "(713) 555-0101", website: "joesauto.com", hasEmail: true },
-  { id: 2, name: "Houston Car Care", rating: 4.5, reviews: 89, category: "Auto Shop", address: "456 Oak Ave, Houston", phone: "(713) 555-0102", website: "houstoncarcare.com", hasEmail: true },
-  { id: 3, name: "Mike's Mechanics", rating: 4.9, reviews: 234, category: "Mechanic", address: "789 Pine Rd, Houston", phone: "(713) 555-0103", website: "mikesmechanics.com", hasEmail: false },
-  { id: 4, name: "Elite Auto Service", rating: 4.7, reviews: 178, category: "Auto Repair", address: "321 Elm St, Houston", phone: "(713) 555-0104", website: "eliteauto.com", hasEmail: true },
-  { id: 5, name: "Quick Fix Garage", rating: 4.3, reviews: 67, category: "Mechanic", address: "654 Cedar Ln, Houston", phone: "(713) 555-0105", website: "quickfixgarage.com", hasEmail: true },
-  { id: 6, name: "Pro Mechanics Houston", rating: 4.6, reviews: 145, category: "Auto Shop", address: "987 Maple Dr, Houston", phone: "(713) 555-0106", website: "promechanics.com", hasEmail: false },
-];
+// Generate 100 sample leads
+const businessTypes = ["Auto Repair", "Dental Clinic", "Law Firm", "Restaurant", "Plumber", "Electrician", "Real Estate", "Accounting", "Marketing Agency", "Fitness Studio"];
+const cities = ["Houston", "Dallas", "Austin", "San Antonio", "Phoenix", "Denver", "Miami", "Atlanta", "Chicago", "Seattle"];
+const streetNames = ["Main St", "Oak Ave", "Pine Rd", "Elm St", "Cedar Ln", "Maple Dr", "First Ave", "Second St", "Commerce Blvd", "Business Park"];
+const businessPrefixes = ["Elite", "Pro", "Quick", "Premier", "Best", "Top", "Quality", "Express", "Master", "Golden", "Silver", "Trusted", "Reliable", "Expert", "Local", "City", "Metro", "Family", "Advanced", "Modern"];
+const businessSuffixes = ["Services", "Solutions", "Center", "Hub", "Group", "Co", "LLC", "Inc", "Partners", "Team"];
+
+const generateSampleLeads = () => {
+  const leads = [];
+  for (let i = 1; i <= 100; i++) {
+    const type = businessTypes[Math.floor(Math.random() * businessTypes.length)];
+    const city = cities[Math.floor(Math.random() * cities.length)];
+    const prefix = businessPrefixes[Math.floor(Math.random() * businessPrefixes.length)];
+    const suffix = businessSuffixes[Math.floor(Math.random() * businessSuffixes.length)];
+    const street = streetNames[Math.floor(Math.random() * streetNames.length)];
+    const streetNum = Math.floor(Math.random() * 9000) + 100;
+    
+    leads.push({
+      id: i,
+      name: `${prefix} ${type.split(' ')[0]} ${suffix}`,
+      rating: (Math.random() * 1.5 + 3.5).toFixed(1),
+      reviews: Math.floor(Math.random() * 300) + 10,
+      category: type,
+      address: `${streetNum} ${street}, ${city}`,
+      phone: `(${Math.floor(Math.random() * 900) + 100}) 555-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`,
+      website: `${prefix.toLowerCase()}${type.split(' ')[0].toLowerCase()}.com`,
+      hasEmail: Math.random() > 0.3,
+      email: Math.random() > 0.3 ? `contact@${prefix.toLowerCase()}${type.split(' ')[0].toLowerCase()}.com` : null,
+    });
+  }
+  return leads;
+};
+
+const sampleLeads = generateSampleLeads();
 
 const WORKFLOW_STEPS = [
   { id: 1, label: "Search", icon: Search },
@@ -42,17 +68,43 @@ const WORKFLOW_STEPS = [
 ];
 
 export default function DashboardDemo() {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchLocation, setSearchLocation] = useState("");
-  const [leads, setLeads] = useState<typeof mockLeads>([]);
-  const [selectedLeads, setSelectedLeads] = useState<number[]>([]);
-  const [searchType, setSearchType] = useState<'gmb' | 'platform' | null>(null);
+  const [currentStep, setCurrentStep] = useState(2); // Start at step 2 to show leads
+  const [searchQuery, setSearchQuery] = useState("Mechanics");
+  const [searchLocation, setSearchLocation] = useState("Houston");
+  const [leads] = useState(sampleLeads);
+  const [selectedLeads, setSelectedLeads] = useState<number[]>(sampleLeads.slice(0, 25).map(l => l.id)); // Pre-select first 25
+  const [verificationProgress, setVerificationProgress] = useState(0);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verifiedCount, setVerifiedCount] = useState(0);
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [sendProgress, setSendProgress] = useState(0);
 
-  const handleSearch = (type: 'gmb' | 'platform') => {
-    setSearchType(type);
-    setLeads(mockLeads);
+  // Simulate verification progress
+  useEffect(() => {
+    if (currentStep === 3 && selectedLeads.length > 0 && !isVerifying && verificationProgress === 0) {
+      setIsVerifying(true);
+      const interval = setInterval(() => {
+        setVerificationProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            setIsVerifying(false);
+            setVerifiedCount(selectedLeads.length);
+            toast.success(`✅ ${selectedLeads.length} leads verified!`);
+            return 100;
+          }
+          return prev + 5;
+        });
+      }, 150);
+      return () => clearInterval(interval);
+    }
+  }, [currentStep, selectedLeads.length, isVerifying, verificationProgress]);
+
+  const handleSearch = () => {
     setCurrentStep(2);
+    toast.success(`Found ${leads.length} leads for "${searchQuery}" in ${searchLocation}!`);
   };
 
   const toggleLeadSelection = (id: number) => {
@@ -69,13 +121,52 @@ export default function DashboardDemo() {
     }
   };
 
+  const handleTemplateSelect = (template: any) => {
+    setSelectedTemplate(template);
+    setEmailSubject(template.subject || `Let's Improve Your Online Presence`);
+    setEmailBody(template.body || `Hi {{business_name}},\n\nI noticed your business could benefit from a modern website refresh...\n\nBest regards`);
+    toast.success(`Template "${template.name}" selected!`);
+  };
+
+  const handleSendEmails = () => {
+    const leadsWithEmail = selectedLeads.filter(id => {
+      const lead = leads.find(l => l.id === id);
+      return lead?.hasEmail;
+    });
+
+    if (leadsWithEmail.length === 0) {
+      toast.error("No leads with emails selected!");
+      return;
+    }
+
+    setIsSending(true);
+    setSendProgress(0);
+
+    const interval = setInterval(() => {
+      setSendProgress(prev => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setIsSending(false);
+          toast.success(`🎉 Demo: ${leadsWithEmail.length} emails would be sent! (This is a demo, no actual emails sent)`);
+          return 100;
+        }
+        return prev + 10;
+      });
+    }, 200);
+  };
+
+  const leadsWithEmailCount = selectedLeads.filter(id => {
+    const lead = leads.find(l => l.id === id);
+    return lead?.hasEmail;
+  }).length;
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-card px-6 py-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-foreground">🎯 BamLead Dashboard</h1>
-          <Badge variant="outline" className="text-xs">DEMO MODE</Badge>
+          <Badge variant="outline" className="text-xs bg-amber-500/20 text-amber-600 border-amber-500">DEMO MODE - 100 Sample Leads</Badge>
         </div>
       </header>
 
@@ -93,7 +184,13 @@ export default function DashboardDemo() {
                         ? 'bg-green-500/20 text-green-600' 
                         : 'bg-muted text-muted-foreground'
                   }`}
-                  onClick={() => setCurrentStep(step.id)}
+                  onClick={() => {
+                    if (step.id === 3) {
+                      setVerificationProgress(0);
+                      setIsVerifying(false);
+                    }
+                    setCurrentStep(step.id);
+                  }}
                 >
                   {currentStep > step.id ? (
                     <CheckCircle2 className="w-5 h-5" />
@@ -140,7 +237,7 @@ export default function DashboardDemo() {
                     className="border-teal-500/30 focus:border-teal-500"
                   />
                   <Button 
-                    onClick={() => handleSearch('gmb')}
+                    onClick={handleSearch}
                     className="w-full bg-teal-500 hover:bg-teal-600 text-white"
                   >
                     <Search className="w-4 h-4 mr-2" />
@@ -168,7 +265,7 @@ export default function DashboardDemo() {
                     className="border-violet-500/30 focus:border-violet-500"
                   />
                   <Button 
-                    onClick={() => handleSearch('platform')}
+                    onClick={handleSearch}
                     className="w-full bg-violet-500 hover:bg-violet-600 text-white"
                   >
                     <Globe className="w-4 h-4 mr-2" />
@@ -186,7 +283,9 @@ export default function DashboardDemo() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-semibold">📋 Your Leads ({leads.length} found)</h2>
-                <p className="text-sm text-muted-foreground">Select leads to verify and contact</p>
+                <p className="text-sm text-muted-foreground">
+                  {selectedLeads.length} selected • {leadsWithEmailCount} with emails
+                </p>
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={selectAllLeads}>
@@ -200,7 +299,7 @@ export default function DashboardDemo() {
             </div>
 
             {/* Leads Table with Zebra Striping */}
-            <div className="rounded-lg border overflow-hidden">
+            <div className="rounded-lg border overflow-hidden max-h-[500px] overflow-y-auto">
               {leads.map((lead, index) => (
                 <div 
                   key={lead.id} 
@@ -284,25 +383,41 @@ export default function DashboardDemo() {
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4 mb-6">
                     <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
-                      <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                      {verificationProgress < 100 ? (
+                        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="w-8 h-8 text-green-500" />
+                      )}
                     </div>
                     <div>
-                      <p className="text-xl font-bold">Verifying {selectedLeads.length} leads...</p>
-                      <p className="text-muted-foreground">Finding emails, checking websites, scoring quality</p>
+                      <p className="text-xl font-bold">
+                        {verificationProgress < 100 
+                          ? `Verifying ${selectedLeads.length} leads...` 
+                          : `✅ ${verifiedCount} leads verified!`}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {verificationProgress < 100 
+                          ? "Finding emails, checking websites, scoring quality" 
+                          : "All leads verified and ready for outreach!"}
+                      </p>
                     </div>
                   </div>
-                  <Progress value={65} className="h-3 mb-4" />
-                  <div className="grid grid-cols-3 gap-4 text-center">
+                  <Progress value={verificationProgress} className="h-3 mb-4" />
+                  <div className="grid grid-cols-4 gap-4 text-center">
                     <div className="p-3 bg-green-500/10 rounded-lg">
-                      <p className="text-2xl font-bold text-green-500">4</p>
+                      <p className="text-2xl font-bold text-green-500">{leadsWithEmailCount}</p>
                       <p className="text-xs text-muted-foreground">Emails Found</p>
                     </div>
+                    <div className="p-3 bg-red-500/10 rounded-lg">
+                      <p className="text-2xl font-bold text-red-500">{selectedLeads.length - leadsWithEmailCount}</p>
+                      <p className="text-xs text-muted-foreground">No Email</p>
+                    </div>
                     <div className="p-3 bg-amber-500/10 rounded-lg">
-                      <p className="text-2xl font-bold text-amber-500">2</p>
-                      <p className="text-xs text-muted-foreground">Pending</p>
+                      <p className="text-2xl font-bold text-amber-500">{Math.round(verificationProgress)}%</p>
+                      <p className="text-xs text-muted-foreground">Progress</p>
                     </div>
                     <div className="p-3 bg-blue-500/10 rounded-lg">
-                      <p className="text-2xl font-bold text-blue-500">85%</p>
+                      <p className="text-2xl font-bold text-blue-500">{Math.floor(Math.random() * 10 + 80)}%</p>
                       <p className="text-xs text-muted-foreground">Avg Score</p>
                     </div>
                   </div>
@@ -312,30 +427,111 @@ export default function DashboardDemo() {
             
             <div className="flex justify-between pt-4">
               <Button variant="outline" onClick={() => setCurrentStep(2)}>← Back</Button>
-              <Button onClick={() => setCurrentStep(4)} className="bg-primary" disabled={selectedLeads.length === 0}>
+              <Button 
+                onClick={() => setCurrentStep(4)} 
+                className="bg-primary" 
+                disabled={selectedLeads.length === 0 || verificationProgress < 100}
+              >
                 Continue to Email →
               </Button>
             </div>
           </div>
         )}
 
-        {/* Step 4: Send Emails - Full Template Gallery */}
+        {/* Step 4: Send Emails - Full Template Gallery + Email Composer */}
         {currentStep === 4 && (
           <div className="space-y-6">
             <div className="text-center py-6 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-2xl border-2 border-blue-500/30">
               <div className="text-6xl mb-4">📧</div>
               <h2 className="text-2xl font-bold">STEP 4: Send Your Emails!</h2>
               <p className="text-muted-foreground max-w-md mx-auto mt-2">
-                Pick a template, customize your message, and start your outreach campaign!
+                {selectedTemplate 
+                  ? `Template selected! Customize and send to ${leadsWithEmailCount} leads with emails.`
+                  : `Pick a template, customize your message, and start your outreach campaign!`}
               </p>
             </div>
 
-            <Button variant="outline" onClick={() => setCurrentStep(3)}>← Back to Verification</Button>
+            {!selectedTemplate ? (
+              <>
+                <Button variant="outline" onClick={() => setCurrentStep(3)}>← Back to Verification</Button>
+                {/* Full Template Gallery */}
+                <HighConvertingTemplateGallery onSelectTemplate={handleTemplateSelect} />
+              </>
+            ) : (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <Button variant="outline" onClick={() => setSelectedTemplate(null)}>
+                    ← Change Template
+                  </Button>
+                  <Badge className="bg-green-500/20 text-green-600 border-green-500">
+                    Template: {selectedTemplate.name}
+                  </Badge>
+                </div>
 
-            {/* Full Template Gallery */}
-            <HighConvertingTemplateGallery 
-              onSelectTemplate={(template) => toast.success(`Template "${template.name}" selected! In live mode, this opens the email composer.`)} 
-            />
+                {/* Email Composer */}
+                <Card className="border-primary/30">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Mail className="w-5 h-5" />
+                      Compose Your Email
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Subject Line</label>
+                      <Input 
+                        value={emailSubject}
+                        onChange={(e) => setEmailSubject(e.target.value)}
+                        placeholder="Enter email subject..."
+                        className="border-primary/30"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Email Body</label>
+                      <Textarea 
+                        value={emailBody}
+                        onChange={(e) => setEmailBody(e.target.value)}
+                        placeholder="Write your email..."
+                        className="min-h-[200px] border-primary/30"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Use {"{{business_name}}"} to personalize each email
+                      </p>
+                    </div>
+
+                    {/* Send Progress */}
+                    {isSending && (
+                      <div className="p-4 bg-blue-500/10 rounded-lg">
+                        <div className="flex items-center gap-3 mb-3">
+                          <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                          <span className="font-medium">Sending emails...</span>
+                        </div>
+                        <Progress value={sendProgress} className="h-2" />
+                      </div>
+                    )}
+
+                    {/* Summary & Send Button */}
+                    <div className="p-4 bg-muted/50 rounded-lg flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold">{leadsWithEmailCount} leads will receive this email</p>
+                        <p className="text-sm text-muted-foreground">
+                          {selectedLeads.length - leadsWithEmailCount} leads don't have emails
+                        </p>
+                      </div>
+                      <Button 
+                        onClick={handleSendEmails}
+                        disabled={isSending || leadsWithEmailCount === 0}
+                        className="bg-green-600 hover:bg-green-700"
+                        size="lg"
+                      >
+                        <Send className="w-4 h-4 mr-2" />
+                        {isSending ? 'Sending...' : `Send to ${leadsWithEmailCount} Leads`}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
         )}
       </div>
