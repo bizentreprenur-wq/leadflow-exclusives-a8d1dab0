@@ -739,7 +739,15 @@ export default function Dashboard() {
           </div>
         );
 
-      case 3:
+      case 3: {
+        let leadsToVerifyCount = 0;
+        try {
+          const parsed = JSON.parse(sessionStorage.getItem('leadsToVerify') || '[]');
+          leadsToVerifyCount = Array.isArray(parsed) ? parsed.length : 0;
+        } catch {
+          leadsToVerifyCount = 0;
+        }
+
         return (
           <div className="space-y-6">
             {/* BIG Step 3 Header */}
@@ -752,7 +760,7 @@ export default function Dashboard() {
                 Our AI is finding emails, scoring leads, and analyzing websites for you!
               </p>
             </div>
-            
+
             <button
               onClick={() => setCurrentStep(2)}
               className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors px-4 py-2 rounded-lg hover:bg-muted"
@@ -760,9 +768,30 @@ export default function Dashboard() {
               <ArrowLeft className="w-4 h-4" />
               Back to lead list
             </button>
-            <LeadVerificationModule onSendToEmail={handleSendToEmail} />
+
+            {leadsToVerifyCount === 0 ? (
+              <Card className="border-border bg-card">
+                <CardContent className="p-6">
+                  <div className="text-center space-y-3">
+                    <p className="text-xl font-semibold text-foreground">No leads selected yet</p>
+                    <p className="text-muted-foreground">
+                      Go to Step 2, select leads, then come back to Step 3.
+                    </p>
+                    <div className="flex justify-center">
+                      <Button onClick={() => setCurrentStep(2)} className="gap-2">
+                        <Users className="w-4 h-4" />
+                        Go to Step 2
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <LeadVerificationModule onSendToEmail={handleSendToEmail} />
+            )}
           </div>
         );
+      }
 
       case 4:
         return (
@@ -777,7 +806,7 @@ export default function Dashboard() {
                 Pick a template, customize your message, and reach out to your leads!
               </p>
             </div>
-            
+
             <button
               onClick={() => setCurrentStep(3)}
               className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors px-4 py-2 rounded-lg hover:bg-muted"
@@ -785,10 +814,27 @@ export default function Dashboard() {
               <ArrowLeft className="w-4 h-4" />
               Back to verification
             </button>
-            <EmailOutreachModule
-              selectedLeads={emailLeads}
-              onClearSelection={() => setEmailLeads([])}
-            />
+
+            {emailLeads.length === 0 ? (
+              <Card className="border-border bg-card">
+                <CardContent className="p-6">
+                  <div className="text-center space-y-3">
+                    <p className="text-xl font-semibold text-foreground">No verified leads yet</p>
+                    <p className="text-muted-foreground">
+                      Complete Step 3 first so we know who you’re emailing.
+                    </p>
+                    <div className="flex justify-center">
+                      <Button onClick={() => setCurrentStep(3)} className="gap-2">
+                        <Sparkles className="w-4 h-4" />
+                        Go to Step 3
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <EmailOutreachModule selectedLeads={emailLeads} onClearSelection={() => setEmailLeads([])} />
+            )}
           </div>
         );
 
@@ -965,26 +1011,27 @@ export default function Dashboard() {
                     {WORKFLOW_STEPS.map((step) => (
                       <button
                         key={step.id}
-                        onClick={() => currentStep > step.id && setCurrentStep(step.id)}
-                        disabled={currentStep < step.id}
-                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl transition-all ${
+                        onClick={() => setCurrentStep(step.id)}
+                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background ${
                           currentStep === step.id
                             ? 'bg-primary text-primary-foreground shadow-xl ring-4 ring-primary/30 scale-105'
                             : currentStep > step.id
                             ? 'bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30 cursor-pointer border-2 border-emerald-500/50'
-                            : 'bg-muted text-muted-foreground border-2 border-border'
+                            : 'bg-muted text-muted-foreground hover:bg-muted/80 cursor-pointer border-2 border-border'
                         }`}
                       >
                         <div className="text-3xl">
                           {currentStep > step.id ? '✅' : step.emoji}
                         </div>
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${
-                          currentStep === step.id
-                            ? 'bg-primary-foreground/20'
-                            : currentStep > step.id
-                            ? 'bg-emerald-500/30'
-                            : 'bg-muted-foreground/20'
-                        }`}>
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${
+                            currentStep === step.id
+                              ? 'bg-primary-foreground/20'
+                              : currentStep > step.id
+                              ? 'bg-emerald-500/30'
+                              : 'bg-muted-foreground/20'
+                          }`}
+                        >
                           {step.id}
                         </div>
                         <div className="text-center">

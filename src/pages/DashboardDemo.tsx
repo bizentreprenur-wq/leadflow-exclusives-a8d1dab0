@@ -90,7 +90,7 @@ export default function DashboardDemo() {
                         ? 'bg-green-500/20 text-green-600' 
                         : 'bg-muted text-muted-foreground'
                   }`}
-                  onClick={() => step.id <= currentStep && setCurrentStep(step.id)}
+                  onClick={() => setCurrentStep(step.id)}
                 >
                   {currentStep > step.id ? (
                     <CheckCircle2 className="w-5 h-5" />
