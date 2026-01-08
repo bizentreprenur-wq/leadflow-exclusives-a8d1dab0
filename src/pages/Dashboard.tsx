@@ -47,6 +47,7 @@ import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } fro
 import { HIGH_CONVERTING_TEMPLATES } from '@/lib/highConvertingTemplates';
 import AutoFollowUpBuilder from '@/components/AutoFollowUpBuilder';
 import LeadResultsPanel from '@/components/LeadResultsPanel';
+import DataFieldSelector, { DATA_FIELD_OPTIONS } from '@/components/DataFieldSelector';
 
 interface SearchResult {
   id: string;
@@ -113,6 +114,11 @@ export default function Dashboard() {
   
   // Search filter options
   const [filterNoWebsite, setFilterNoWebsite] = useState(false);
+  
+  // Data field preferences - default to fields marked as default
+  const [selectedDataFields, setSelectedDataFields] = useState<string[]>(
+    DATA_FIELD_OPTIONS.filter(f => f.default).map(f => f.id)
+  );
 
   // Check for payment success
   useEffect(() => {
@@ -623,6 +629,12 @@ export default function Dashboard() {
                         ⚠️ More results = longer search time. 2,000 leads may take several minutes.
                       </p>
                     </div>
+
+                    {/* Data Field Selector */}
+                    <DataFieldSelector
+                      selectedFields={selectedDataFields}
+                      onFieldsChange={setSelectedDataFields}
+                    />
 
                     {/* No Website Filter (GMB only) */}
                     {searchType === 'gmb' && (
