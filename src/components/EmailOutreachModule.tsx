@@ -29,7 +29,8 @@ import {
   Edit, Eye, Users, CheckCircle, AlertCircle, Clock, MousePointer,
   Reply, XCircle, Sparkles, Database, RefreshCw, Star, Building2, 
   RotateCcw, Calendar, Timer, ArrowRight, ArrowLeft, PartyPopper,
-  Zap, CheckCheck, ChevronRight, TrendingUp, PieChart, MailPlus, Palette
+  Zap, CheckCheck, ChevronRight, TrendingUp, PieChart, MailPlus, Palette,
+  Search, X, Grid3X3, List
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart as RechartsPie, Pie
@@ -52,7 +53,7 @@ import {
   ScheduledEmail,
 } from '@/lib/api/email';
 import { fetchVerifiedLeads, updateLeadStatus, type SavedLead } from '@/lib/api/verifiedLeads';
-import { HIGH_CONVERTING_TEMPLATES, EmailTemplate as VisualTemplate } from '@/lib/highConvertingTemplates';
+import { HIGH_CONVERTING_TEMPLATES, TEMPLATE_CATEGORIES, EmailTemplate as VisualTemplate } from '@/lib/highConvertingTemplates';
 
 interface EmailOutreachModuleProps {
   selectedLeads?: LeadForEmail[];
@@ -78,6 +79,12 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
   const [previewContent, setPreviewContent] = useState({ subject: '', body: '' });
+  
+  // Template browser state
+  const [browserDialogOpen, setBrowserDialogOpen] = useState(false);
+  const [browserSearch, setBrowserSearch] = useState('');
+  const [browserCategory, setBrowserCategory] = useState('all');
+  const [browserViewMode, setBrowserViewMode] = useState<'grid' | 'list'>('grid');
   
   // Selection state
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
@@ -540,6 +547,263 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
           <DialogFooter>
             <Button onClick={() => setPreviewDialogOpen(false)}>Close</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Full-Screen Template Browser Dialog */}
+      <Dialog open={browserDialogOpen} onOpenChange={setBrowserDialogOpen}>
+        <DialogContent className="max-w-6xl w-[95vw] h-[90vh] flex flex-col p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-2xl flex items-center gap-2">
+                  <Palette className="w-6 h-6 text-primary" />
+                  Template Gallery
+                </DialogTitle>
+                <DialogDescription>
+                  Browse {HIGH_CONVERTING_TEMPLATES.length} high-converting email templates
+                </DialogDescription>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setBrowserDialogOpen(false)}>
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+            
+            {/* Search and Filters */}
+            <div className="flex flex-col sm:flex-row gap-4 mt-4">
+              {/* Search Input */}
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search templates by name, industry..."
+                  value={browserSearch}
+                  onChange={(e) => setBrowserSearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              
+              {/* Category Filter */}
+              <Select value={browserCategory} onValueChange={setBrowserCategory}>
+                <SelectTrigger className="w-full sm:w-[200px]">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TEMPLATE_CATEGORIES.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.label} ({cat.count})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              {/* View Mode Toggle */}
+              <div className="flex border rounded-lg">
+                <Button
+                  variant={browserViewMode === 'grid' ? 'secondary' : 'ghost'}
+                  size="icon"
+                  onClick={() => setBrowserViewMode('grid')}
+                  className="rounded-r-none"
+                >
+                  <Grid3X3 className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant={browserViewMode === 'list' ? 'secondary' : 'ghost'}
+                  size="icon"
+                  onClick={() => setBrowserViewMode('list')}
+                  className="rounded-l-none"
+                >
+                  <List className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {/* Template Grid/List */}
+          <ScrollArea className="flex-1 px-6 py-4">
+            {(() => {
+              // Filter templates
+              const filteredTemplates = HIGH_CONVERTING_TEMPLATES.filter((template) => {
+                const matchesSearch = browserSearch === '' || 
+                  template.name.toLowerCase().includes(browserSearch.toLowerCase()) ||
+                  template.industry.toLowerCase().includes(browserSearch.toLowerCase()) ||
+                  template.description.toLowerCase().includes(browserSearch.toLowerCase());
+                const matchesCategory = browserCategory === 'all' || template.category === browserCategory;
+                return matchesSearch && matchesCategory;
+              });
+
+              if (filteredTemplates.length === 0) {
+                return (
+                  <div className="flex flex-col items-center justify-center py-16">
+                    <Search className="w-12 h-12 text-muted-foreground mb-4" />
+                    <p className="font-medium">No templates found</p>
+                    <p className="text-sm text-muted-foreground">Try adjusting your search or filters</p>
+                  </div>
+                );
+              }
+
+              if (browserViewMode === 'grid') {
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    {filteredTemplates.map((template) => (
+                      <div
+                        key={template.id}
+                        onClick={() => {
+                          setSelectedVisualTemplate(template);
+                          setSelectedTemplateId('');
+                          setTemplateSource('visual');
+                          setBrowserDialogOpen(false);
+                          toast.success(`Selected: ${template.name}`);
+                        }}
+                        className={`group relative cursor-pointer rounded-lg border-2 overflow-hidden transition-all hover:shadow-lg ${
+                          selectedVisualTemplate?.id === template.id
+                            ? 'border-primary ring-2 ring-primary/20'
+                            : 'border-border/50 hover:border-border'
+                        }`}
+                      >
+                        {/* Thumbnail */}
+                        <div className="aspect-[4/3] overflow-hidden bg-muted">
+                          <img
+                            src={template.previewImage}
+                            alt={template.name}
+                            className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                          />
+                        </div>
+                        
+                        {/* Info */}
+                        <div className="p-3 bg-background">
+                          <h4 className="font-medium text-sm truncate">{template.name}</h4>
+                          <p className="text-xs text-muted-foreground truncate">{template.industry}</p>
+                          <Badge variant="secondary" className="mt-2 text-xs">
+                            {template.category}
+                          </Badge>
+                        </div>
+
+                        {/* Selection indicator */}
+                        {selectedVisualTemplate?.id === template.id && (
+                          <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-primary flex items-center justify-center">
+                            <CheckCircle className="w-4 h-4 text-primary-foreground" />
+                          </div>
+                        )}
+
+                        {/* Hover overlay */}
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewContent({
+                                subject: template.subject,
+                                body: template.body_html
+                              });
+                              setPreviewDialogOpen(true);
+                            }}
+                            className="gap-1"
+                          >
+                            <Eye className="w-3 h-3" />
+                            Preview
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              }
+
+              // List View
+              return (
+                <div className="space-y-3">
+                  {filteredTemplates.map((template) => (
+                    <div
+                      key={template.id}
+                      onClick={() => {
+                        setSelectedVisualTemplate(template);
+                        setSelectedTemplateId('');
+                        setTemplateSource('visual');
+                        setBrowserDialogOpen(false);
+                        toast.success(`Selected: ${template.name}`);
+                      }}
+                      className={`flex gap-4 p-4 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md ${
+                        selectedVisualTemplate?.id === template.id
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border/50 hover:border-border'
+                      }`}
+                    >
+                      {/* Thumbnail */}
+                      <img
+                        src={template.previewImage}
+                        alt={template.name}
+                        className="w-32 h-20 object-cover rounded-md shrink-0"
+                      />
+                      
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h4 className="font-semibold">{template.name}</h4>
+                            <p className="text-sm text-muted-foreground">{template.industry}</p>
+                          </div>
+                          <Badge variant="secondary">{template.category}</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
+                          Subject: {template.subject}
+                        </p>
+                        <p className="text-xs text-primary mt-2">
+                          💡 {template.conversionTip}
+                        </p>
+                      </div>
+                      
+                      {/* Actions */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPreviewContent({
+                              subject: template.subject,
+                              body: template.body_html
+                            });
+                            setPreviewDialogOpen(true);
+                          }}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                        {selectedVisualTemplate?.id === template.id && (
+                          <CheckCircle className="w-5 h-5 text-primary" />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </ScrollArea>
+
+          {/* Footer */}
+          <div className="px-6 py-4 border-t shrink-0 flex items-center justify-between bg-muted/30">
+            <p className="text-sm text-muted-foreground">
+              {selectedVisualTemplate ? (
+                <span className="flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-primary" />
+                  Selected: <strong>{selectedVisualTemplate.name}</strong>
+                </span>
+              ) : (
+                'Click a template to select it'
+              )}
+            </p>
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={() => setBrowserDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={() => setBrowserDialogOpen(false)}
+                disabled={!selectedVisualTemplate}
+              >
+                Use Selected Template
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </>
@@ -1294,14 +1558,11 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        // Show dialog with all templates
-                        toast.info('Visit the Template Gallery from the sidebar to browse all 60+ templates!');
-                      }}
+                      onClick={() => setBrowserDialogOpen(true)}
                       className="gap-2"
                     >
                       <Sparkles className="w-4 h-4" />
-                      Browse All Templates
+                      Browse All {HIGH_CONVERTING_TEMPLATES.length} Templates
                     </Button>
                   </div>
                 </ScrollArea>
