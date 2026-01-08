@@ -53,7 +53,7 @@ import {
   ScheduledEmail,
 } from '@/lib/api/email';
 import { fetchVerifiedLeads, updateLeadStatus, type SavedLead } from '@/lib/api/verifiedLeads';
-import { HIGH_CONVERTING_TEMPLATES, TEMPLATE_CATEGORIES, EmailTemplate as VisualTemplate } from '@/lib/highConvertingTemplates';
+import { HIGH_CONVERTING_TEMPLATES, TEMPLATE_CATEGORIES, EmailTemplate as VisualTemplate, getTemplatePerformance } from '@/lib/highConvertingTemplates';
 
 interface EmailOutreachModuleProps {
   selectedLeads?: LeadForEmail[];
@@ -705,9 +705,15 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
                         <div className="p-3 bg-background">
                           <h4 className="font-medium text-sm truncate">{template.name}</h4>
                           <p className="text-xs text-muted-foreground truncate">{template.industry}</p>
-                          <Badge variant="secondary" className="mt-2 text-xs">
-                            {template.category}
-                          </Badge>
+                          {/* A/B Performance Labels */}
+                          <div className="flex items-center gap-2 mt-2">
+                            <Badge variant="secondary" className="text-xs bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                              {getTemplatePerformance(template.id).openRate}% open
+                            </Badge>
+                            <Badge variant="secondary" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20">
+                              {getTemplatePerformance(template.id).replyRate.toFixed(1)}% reply
+                            </Badge>
+                          </div>
                         </div>
 
                         {/* Selection indicator */}
@@ -775,7 +781,14 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
                             <h4 className="font-semibold">{template.name}</h4>
                             <p className="text-sm text-muted-foreground">{template.industry}</p>
                           </div>
-                          <Badge variant="secondary">{template.category}</Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="text-xs bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                              {getTemplatePerformance(template.id).openRate}% open
+                            </Badge>
+                            <Badge variant="secondary" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/20">
+                              {getTemplatePerformance(template.id).replyRate.toFixed(1)}% reply
+                            </Badge>
+                          </div>
                         </div>
                         <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
                           Subject: {template.subject}

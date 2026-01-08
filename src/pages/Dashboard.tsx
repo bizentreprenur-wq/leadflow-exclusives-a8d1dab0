@@ -37,11 +37,14 @@ import AdvertisingSpotlight from '@/components/AdvertisingSpotlight';
 import VoiceSearchButton from '@/components/VoiceSearchButton';
 import { AILeadGrouping } from '@/components/AILeadGrouping';
 import SubscriptionManagement from '@/components/SubscriptionManagement';
+import EmailWidget from '@/components/EmailWidget';
+import AIVerifierWidget from '@/components/AIVerifierWidget';
 import bamMascot from '@/assets/bamlead-mascot.png';
 import { LeadForEmail } from '@/lib/api/email';
 import { searchGMB, GMBResult } from '@/lib/api/gmb';
 import { searchPlatforms, PlatformResult } from '@/lib/api/platforms';
 import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } from '@/lib/api/leadAnalysis';
+import { HIGH_CONVERTING_TEMPLATES } from '@/lib/highConvertingTemplates';
 
 interface SearchResult {
   id: string;
@@ -98,6 +101,12 @@ export default function Dashboard() {
   const [aiSummary, setAiSummary] = useState<LeadSummary | null>(null);
   const [aiStrategies, setAiStrategies] = useState<Record<string, EmailStrategy> | null>(null);
   const [showAiGrouping, setShowAiGrouping] = useState(false);
+
+  // Widget states
+  const [showEmailWidget, setShowEmailWidget] = useState(false);
+  const [showVerifierWidget, setShowVerifierWidget] = useState(false);
+  const [widgetLeads, setWidgetLeads] = useState<SearchResult[]>([]);
+  const [verifiedWidgetLeads, setVerifiedWidgetLeads] = useState<any[]>([]);
 
   // Check for payment success
   useEffect(() => {
@@ -245,10 +254,23 @@ export default function Dashboard() {
       toast.error('Please select at least one lead to verify');
       return;
     }
-    // Store selected leads for verification
+    // Store selected leads for verification and open widget
     const leadsToVerify = searchResults.filter(r => selectedLeads.includes(r.id));
     sessionStorage.setItem('leadsToVerify', JSON.stringify(leadsToVerify));
-    setCurrentStep(3);
+    setWidgetLeads(leadsToVerify);
+    setShowVerifierWidget(true);
+  };
+
+  // Handle verified leads from widget
+  const handleVerificationComplete = (verified: any[]) => {
+    setVerifiedWidgetLeads(verified);
+  };
+
+  // Open email widget with verified leads
+  const handleOpenEmailWidget = (leads: any[]) => {
+    setVerifiedWidgetLeads(leads);
+    setShowVerifierWidget(false);
+    setShowEmailWidget(true);
   };
 
   const downloadCSV = () => {
@@ -1172,6 +1194,34 @@ export default function Dashboard() {
           </footer>
         </SidebarInset>
       </div>
+
+      {/* Email Widget */}
+      <EmailWidget
+        isOpen={showEmailWidget}
+        onClose={() => setShowEmailWidget(false)}
+        leads={verifiedWidgetLeads.map(l => ({
+          id: l.id,
+          email: l.email,
+          business_name: l.name || l.business_name,
+          contact_name: l.contact_name,
+          website: l.website,
+          phone: l.phone,
+        }))}
+        preSelectedTemplate={HIGH_CONVERTING_TEMPLATES[0]}
+        onSuccess={() => {
+          toast.success('🎉 Campaign sent successfully!');
+          celebrate('email-sent');
+        }}
+      />
+
+      {/* AI Verifier Widget */}
+      <AIVerifierWidget
+        isOpen={showVerifierWidget}
+        onClose={() => setShowVerifierWidget(false)}
+        leads={widgetLeads}
+        onComplete={handleVerificationComplete}
+        onSendEmails={handleOpenEmailWidget}
+      />
     </SidebarProvider>
   );
 }
