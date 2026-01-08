@@ -42,6 +42,7 @@ import {
   Brain,
   Server,
   CreditCard,
+  RefreshCw,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import bamMascot from '@/assets/bamlead-mascot.png';
@@ -68,7 +69,13 @@ const otherTools = [
     title: 'Sequences',
     icon: Zap,
     description: 'Multi-channel flows',
-    badge: 'New',
+  },
+  {
+    id: 'auto-followup',
+    title: 'Auto Follow-ups',
+    icon: RefreshCw,
+    description: 'Smart re-engagement',
+    badge: 'AI',
   },
   {
     id: 'templates',
