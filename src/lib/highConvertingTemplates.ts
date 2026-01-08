@@ -114,7 +114,158 @@ const createEmailHTML = (config: {
 </html>`;
 
 export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
+  // ============================================
+  // FEATURED TEMPLATES (First 8 - Mixed Categories, AI-Proven)
+  // These appear first in the quick-select grid
+  // ============================================
+  {
+    id: 'featured-pain-agitate-solve',
+    name: 'Pain-Agitate-Solve Formula',
+    category: 'web-design',
+    industry: 'Universal',
+    subject: '{{business_name}}, I noticed something costing you customers',
+    description: 'Classic PAS copywriting formula - proven 3x higher response rate',
+    previewImage: IMAGES.webDesignStats,
+    conversionTip: 'PAS formula: Identify pain, agitate it, offer solution',
+    body_html: createEmailHTML({
+      heroImage: IMAGES.webDesignStats,
+      accentColor: '#ef4444',
+      headline: 'Hi {{first_name}}, This Is Quietly Hurting {{business_name}}',
+      body: "I visited your website and noticed it takes 8+ seconds to load. Here's why that matters: 53% of visitors leave after just 3 seconds. That's potentially half your leads—gone before they even see what you offer. The worst part? Your competitors are getting faster, not slower. But the good news: this is fixable in under 2 weeks.",
+      features: ['Speed optimization (8s → 2s)', 'Mobile-first redesign', 'Lead capture forms that convert', 'Free 30-day support included'],
+      cta: 'Fix This Now →'
+    }),
+  },
+  {
+    id: 'featured-social-proof-bomb',
+    name: 'Social Proof Bomb',
+    category: 'b2b',
+    industry: 'All Industries',
+    subject: 'How [Similar Business] got 47 new clients last month',
+    description: 'Lead with proof, not promises - 2.5x reply rate',
+    previewImage: IMAGES.growth,
+    conversionTip: 'Open with a specific, believable result from a similar business',
+    body_html: createEmailHTML({
+      heroImage: IMAGES.growth,
+      accentColor: '#22c55e',
+      headline: '{{first_name}}, This Worked for Businesses Like Yours',
+      body: "Last month, we helped a {{industry}} business similar to {{business_name}} generate 47 qualified leads. They were skeptical at first—just like you probably are. But the numbers don't lie: their website traffic tripled, and their phone started ringing. I'd love to show you exactly how we did it (no fluff, just the playbook).",
+      features: ['47 new leads in 30 days', 'Same industry as you', 'Copy-paste strategy', 'Results or refund guarantee'],
+      cta: 'Send Me the Playbook →'
+    }),
+  },
+  {
+    id: 'featured-curiosity-hook',
+    name: 'Curiosity Gap Hook',
+    category: 'local-services',
+    industry: 'Local Business',
+    subject: 'The #1 reason {{business_name}} isn\'t ranking on Google',
+    description: 'Creates irresistible curiosity - highest open rates',
+    previewImage: IMAGES.webDesignLocalSeo,
+    conversionTip: 'Tease valuable info they can only get by responding',
+    body_html: createEmailHTML({
+      heroImage: IMAGES.webDesignLocalSeo,
+      accentColor: '#8b5cf6',
+      headline: '{{first_name}}, There\'s a Simple Fix You\'re Missing',
+      body: "I analyzed {{business_name}}'s online presence and found one specific thing that's keeping you off page 1 of Google. It's not your reviews (those look great). It's not your location. It's something 90% of local businesses overlook—and it takes about 15 minutes to fix. Want me to show you what it is?",
+      features: ['Free ranking analysis', '15-minute fix', 'No obligation', 'Works for 90% of businesses'],
+      cta: 'What Am I Missing? →'
+    }),
+  },
+  {
+    id: 'featured-before-after-bridge',
+    name: 'Before-After-Bridge',
+    category: 'web-design',
+    industry: 'Service Businesses',
+    subject: 'What if {{business_name}} had 10x more website leads?',
+    description: 'Paint the transformation picture - emotional trigger',
+    previewImage: IMAGES.webDesignPortfolio,
+    conversionTip: 'Show them the "after" state before asking for anything',
+    body_html: createEmailHTML({
+      heroImage: IMAGES.webDesignPortfolio,
+      accentColor: '#14b8a6',
+      headline: 'Hi {{first_name}}, Imagine This...',
+      body: "Picture {{business_name}}'s inbox full of qualified inquiries every Monday morning. Picture your phone ringing with customers who are ready to buy—not tire-kickers. Picture spending less on ads because your website does the selling for you. That's what happened for our last 12 clients. The bridge between where you are and where they are? It's shorter than you think.",
+      features: ['10x lead increase (average)', '60-day transformation', 'Works while you sleep', 'Pay-per-result option'],
+      cta: 'Show Me How →'
+    }),
+  },
+  {
+    id: 'featured-loss-aversion',
+    name: 'Loss Aversion Trigger',
+    category: 'b2b',
+    industry: 'Competitive Markets',
+    subject: '{{business_name}} is losing $4,200/month to competitors',
+    description: 'Loss aversion is 2x more powerful than gain - proven psychology',
+    previewImage: IMAGES.webDesignCompetitor,
+    conversionTip: 'People hate losing more than they love winning',
+    body_html: createEmailHTML({
+      heroImage: IMAGES.webDesignCompetitor,
+      accentColor: '#dc2626',
+      headline: '{{first_name}}, Your Competitors Are Taking Your Customers',
+      body: "I tracked 3 of {{business_name}}'s competitors this week. They're all running Google Ads targeting YOUR potential customers. They're showing up when people search for services you offer. Every day you wait, they're building relationships with people who should be calling you. Here's the math: if you're missing just 2 customers per week at $200 each, that's $4,200/month walking out the door.",
+      features: ['Competitor ad analysis', 'Customer recovery strategy', 'Same-day implementation', 'Beat them in 30 days'],
+      cta: 'Stop Losing Customers →'
+    }),
+  },
+  {
+    id: 'featured-direct-value',
+    name: 'Direct Value Offer',
+    category: 'local-services',
+    industry: 'Restaurants & Retail',
+    subject: 'Free: Your {{business_name}} website audit (worth $500)',
+    description: 'Lead with a genuine gift - builds reciprocity',
+    previewImage: IMAGES.restaurant,
+    conversionTip: 'Give something valuable first, ask second',
+    body_html: createEmailHTML({
+      heroImage: IMAGES.restaurant,
+      accentColor: '#f59e0b',
+      headline: 'Hi {{first_name}}, This Is Genuinely Free',
+      body: "No pitch, no catch—I created a detailed audit of {{business_name}}'s online presence and I'd like to send it to you. It shows exactly how customers find you (or don't), what they see when they land on your site, and 3 specific improvements that could increase your bookings by 40%. I made this because I think you'll find it valuable. If you want help implementing it after, great. If not, the audit is still yours to keep.",
+      features: ['Full SEO breakdown', 'Competitor comparison', '3 priority fixes', 'Yours to keep forever'],
+      cta: 'Send My Free Audit →'
+    }),
+  },
+  {
+    id: 'featured-story-hook',
+    name: 'Story-Based Hook',
+    category: 'web-design',
+    industry: 'Small Business',
+    subject: 'A plumber in {{location}} made $80K from one website change',
+    description: 'Stories are 22x more memorable than facts - narrative power',
+    previewImage: IMAGES.plumber,
+    conversionTip: 'Open with a mini-story, then pivot to them',
+    body_html: createEmailHTML({
+      heroImage: IMAGES.plumber,
+      accentColor: '#3b82f6',
+      headline: '{{first_name}}, Let Me Tell You About Mike',
+      body: "Mike ran a plumbing business for 15 years. Good reviews, loyal customers, but growth had stalled. One day, he noticed his competitor (who did worse work) was getting all the Google calls. Turns out, that competitor had one thing Mike didn't: a mobile-friendly website with click-to-call. Mike fixed that in 2 weeks. That year, he added $80K in revenue. {{business_name}} reminds me of Mike's situation. Same opportunity.",
+      features: ['Real client story', 'Same industry success', 'Quick implementation', 'Measurable results'],
+      cta: 'Be Like Mike →'
+    }),
+  },
+  {
+    id: 'featured-urgency-scarcity',
+    name: 'Urgency + Scarcity',
+    category: 'general',
+    industry: 'Any Business',
+    subject: 'Only taking 3 new clients this month (is {{business_name}} one?)',
+    description: 'Scarcity creates action - use ethically',
+    previewImage: IMAGES.handshake,
+    conversionTip: 'Real scarcity (capacity limits) drives response',
+    body_html: createEmailHTML({
+      heroImage: IMAGES.handshake,
+      accentColor: '#a855f7',
+      headline: 'Hi {{first_name}}, Honest Question',
+      body: "I'm reaching out to 5 businesses in your area this week. I can only take on 3 new projects this month (quality over quantity). {{business_name}} stood out because of your great reviews and clear growth potential. If you've been thinking about upgrading your online presence, now might be the right time to chat. No pressure—just wanted to give you first dibs before I fill up.",
+      features: ['3 spots available', 'Priority scheduling', 'Dedicated attention', 'Quality guaranteed'],
+      cta: 'Claim My Spot →'
+    }),
+  },
+
+  // ============================================
   // WEB DESIGN TEMPLATES (10)
+  // ============================================
   {
     id: 'wd-hero-1',
     name: 'Modern Website Upgrade',
