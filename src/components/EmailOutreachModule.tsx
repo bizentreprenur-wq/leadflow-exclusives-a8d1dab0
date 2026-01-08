@@ -334,46 +334,69 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
     const hasTemplate = (templateSource === 'visual' && selectedVisualTemplate) || selectedTemplateId;
     if (!hasTemplate || leadsWithEmail.length === 0) return;
 
-    // For visual templates, we need to save them first or handle differently
-    if (templateSource === 'visual' && selectedVisualTemplate) {
-      toast.info('Visual templates will be saved to your account before sending. Coming soon!');
-      return;
-    }
-
-    // Calculate scheduled time
-    let scheduledFor: string | undefined;
-    if (scheduleMode === 'optimal') {
-      const now = new Date();
-      const optimalHours = [10, 14];
-      const optimalDays = [2, 3, 4];
-      
-      for (let i = 0; i < 7; i++) {
-        const checkDate = new Date(now);
-        checkDate.setDate(now.getDate() + i);
-        const dayOfWeek = checkDate.getDay();
-        
-        if (optimalDays.includes(dayOfWeek)) {
-          for (const hour of optimalHours) {
-            const slotTime = new Date(checkDate);
-            slotTime.setHours(hour, 0, 0, 0);
-            
-            if (slotTime > now) {
-              scheduledFor = slotTime.toISOString();
-              break;
-            }
-          }
-          if (scheduledFor) break;
-        }
-      }
-    } else if (scheduleMode === 'custom' && scheduledDate) {
-      scheduledFor = new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
-    }
-
     setIsSending(true);
+    
     try {
+      let templateIdToUse = selectedTemplateId ? parseInt(selectedTemplateId) : undefined;
+      
+      // If using a visual template, save it first then use that ID
+      if (templateSource === 'visual' && selectedVisualTemplate) {
+        toast.info('Saving template to your account...');
+        const saveResult = await createTemplate({
+          name: selectedVisualTemplate.name,
+          subject: selectedVisualTemplate.subject,
+          body_html: selectedVisualTemplate.body_html,
+          is_default: false,
+        });
+        
+        if (!saveResult.success || !saveResult.id) {
+          toast.error(saveResult.error || 'Failed to save template');
+          setIsSending(false);
+          return;
+        }
+        
+        templateIdToUse = saveResult.id;
+        toast.success('Template saved!');
+      }
+
+      if (!templateIdToUse) {
+        toast.error('No template selected');
+        setIsSending(false);
+        return;
+      }
+
+      // Calculate scheduled time
+      let scheduledFor: string | undefined;
+      if (scheduleMode === 'optimal') {
+        const now = new Date();
+        const optimalHours = [10, 14];
+        const optimalDays = [2, 3, 4];
+        
+        for (let i = 0; i < 7; i++) {
+          const checkDate = new Date(now);
+          checkDate.setDate(now.getDate() + i);
+          const dayOfWeek = checkDate.getDay();
+          
+          if (optimalDays.includes(dayOfWeek)) {
+            for (const hour of optimalHours) {
+              const slotTime = new Date(checkDate);
+              slotTime.setHours(hour, 0, 0, 0);
+              
+              if (slotTime > now) {
+                scheduledFor = slotTime.toISOString();
+                break;
+              }
+            }
+            if (scheduledFor) break;
+          }
+        }
+      } else if (scheduleMode === 'custom' && scheduledDate) {
+        scheduledFor = new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
+      }
+
       const result = await sendBulkEmails({
         leads: leadsWithEmail,
-        template_id: parseInt(selectedTemplateId),
+        template_id: templateIdToUse,
         scheduled_for: scheduledFor,
       });
       
@@ -1827,12 +1850,42 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
               </div>
             )}
 
+            {/* Important Info Box */}
+            <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg space-y-3">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" />
+                <div className="text-sm">
+                  <p className="font-semibold text-blue-700 dark:text-blue-400 mb-1">📧 How Email Sending Works</p>
+                  <ul className="text-muted-foreground space-y-1">
+                    <li>• <strong>Emails are sent from your server</strong> (Hostinger SMTP)</li>
+                    <li>• <strong>Legal rate:</strong> ~100 emails/hour max to avoid spam filters</li>
+                    <li>• <strong>You can leave!</strong> Scheduled emails send automatically in the background</li>
+                    <li>• Our cron job sends emails even when you are away</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Gmail/SMTP Notice */}
+            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+              <div className="flex items-start gap-3">
+                <Mail className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
+                <div className="text-sm">
+                  <p className="font-semibold text-amber-700 dark:text-amber-400 mb-1">⚙️ SMTP Setup Required</p>
+                  <p className="text-muted-foreground">
+                    Emails are sent via your Hostinger SMTP (noreply@bamlead.com). 
+                    For Gmail, add your SMTP credentials in <code className="bg-muted px-1 rounded">config.php</code> on the server.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Summary */}
             <div className="p-4 bg-muted/50 rounded-lg space-y-2">
               <p className="text-sm font-medium">Summary</p>
               <div className="text-sm text-muted-foreground space-y-1">
                 <p>• <strong>{leadsWithEmail.length}</strong> leads will receive emails</p>
-                <p>• Using template: <strong>{selectedTemplate?.name}</strong></p>
+                <p>• Using template: <strong>{activeTemplate?.name || selectedTemplate?.name || 'Selected template'}</strong></p>
                 <p>• Sending: <strong>{
                   scheduleMode === 'now' 
                     ? 'Immediately' 

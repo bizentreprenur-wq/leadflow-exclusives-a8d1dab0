@@ -146,27 +146,27 @@ export default function DashboardDemo() {
                 </CardContent>
               </Card>
 
-              {/* Platform Search - Purple */}
-              <Card className="border-2 border-purple-500/30 bg-purple-500/5 hover:border-purple-500/50 transition-all cursor-pointer">
+              {/* Platform Search - Also Teal to match */}
+              <Card className="border-2 border-teal-500/30 bg-teal-500/5 hover:border-teal-500/50 transition-all cursor-pointer">
                 <CardHeader className="text-center pb-2">
-                  <div className="w-16 h-16 bg-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Globe className="w-8 h-8 text-purple-500" />
+                  <div className="w-16 h-16 bg-teal-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Globe className="w-8 h-8 text-teal-500" />
                   </div>
-                  <CardTitle className="text-purple-600">🔍 Outdated Website Scanner</CardTitle>
+                  <CardTitle className="text-teal-600">🔍 Outdated Website Scanner</CardTitle>
                   <p className="text-sm text-muted-foreground">Find sites using old technology</p>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Input 
                     placeholder="e.g., Wix, WordPress, Joomla..."
-                    className="border-purple-500/30 focus:border-purple-500"
+                    className="border-teal-500/30 focus:border-teal-500"
                   />
                   <Input 
                     placeholder="Industry (optional)"
-                    className="border-purple-500/30 focus:border-purple-500"
+                    className="border-teal-500/30 focus:border-teal-500"
                   />
                   <Button 
                     onClick={() => handleSearch('platform')}
-                    className="w-full bg-purple-500 hover:bg-purple-600 text-white"
+                    className="w-full bg-teal-500 hover:bg-teal-600 text-white"
                   >
                     <Globe className="w-4 h-4 mr-2" />
                     Scan for Outdated Sites
