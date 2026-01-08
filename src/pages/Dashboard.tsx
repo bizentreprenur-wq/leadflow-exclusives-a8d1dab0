@@ -563,10 +563,10 @@ export default function Dashboard() {
                       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                         {[
                           { value: 100, label: '100', desc: 'Quick' },
-                          { value: 500, label: '500', desc: 'Standard' },
-                          { value: 1000, label: '1,000', desc: 'Large' },
-                          { value: 2500, label: '2,500', desc: 'Bulk' },
-                          { value: 5000, label: '5,000', desc: 'Maximum' },
+                          { value: 250, label: '250', desc: 'Standard' },
+                          { value: 500, label: '500', desc: 'Large' },
+                          { value: 1000, label: '1,000', desc: 'Bulk' },
+                          { value: 2000, label: '2,000', desc: 'Maximum' },
                         ].map((option) => (
                           <button
                             key={option.value}
@@ -584,7 +584,7 @@ export default function Dashboard() {
                         ))}
                       </div>
                       <p className="text-xs text-muted-foreground mt-2">
-                        ⚠️ More results = longer search time. 5,000 leads may take several minutes.
+                        ⚠️ More results = longer search time. 2,000 leads may take several minutes.
                       </p>
                     </div>
 

@@ -30,10 +30,10 @@ if (!$input) {
 
 $service = sanitizeInput($input['service'] ?? '');
 $location = sanitizeInput($input['location'] ?? '');
-$limit = intval($input['limit'] ?? 100); // Default 100, max 5000
+$limit = intval($input['limit'] ?? 100); // Default 100, max 2000
 
-// Validate limit (min 20, max 5000)
-$limit = max(20, min(5000, $limit));
+// Validate limit (min 20, max 2000)
+$limit = max(20, min(2000, $limit));
 
 if (empty($service)) {
     sendError('Service type is required');
@@ -100,7 +100,7 @@ function searchGMBListings($service, $location, $limit = 100) {
     $allResults = [];
     $resultsPerPage = 20;
     $maxPages = ceil($limit / $resultsPerPage); // Calculate pages needed for limit
-    $maxPages = min($maxPages, 250); // Cap at 250 pages (5000 results max)
+    $maxPages = min($maxPages, 100); // Cap at 100 pages (2000 results max)
     
     for ($page = 0; $page < $maxPages; $page++) {
         // Stop if we have enough results
