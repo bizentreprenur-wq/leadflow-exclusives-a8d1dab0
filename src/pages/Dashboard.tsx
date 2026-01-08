@@ -47,6 +47,7 @@ import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } fro
 import { HIGH_CONVERTING_TEMPLATES } from '@/lib/highConvertingTemplates';
 import AutoFollowUpBuilder from '@/components/AutoFollowUpBuilder';
 import LeadResultsPanel from '@/components/LeadResultsPanel';
+import LeadReportModal from '@/components/LeadReportModal';
 import DataFieldSelector, { DATA_FIELD_OPTIONS } from '@/components/DataFieldSelector';
 
 interface SearchResult {
@@ -109,6 +110,7 @@ export default function Dashboard() {
   const [showEmailWidget, setShowEmailWidget] = useState(false);
   const [showVerifierWidget, setShowVerifierWidget] = useState(false);
   const [showResultsPanel, setShowResultsPanel] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const [widgetLeads, setWidgetLeads] = useState<SearchResult[]>([]);
   const [verifiedWidgetLeads, setVerifiedWidgetLeads] = useState<any[]>([]);
   
@@ -202,8 +204,8 @@ export default function Dashboard() {
       setSearchResults(results);
       toast.success(`Found ${results.length} businesses!`);
       
-      // Open results panel instead of moving to step 2
-      setShowResultsPanel(true);
+      // Open the PDF-style report modal instead of the panel
+      setShowReportModal(true);
       
       // Start AI analysis in background
       if (results.length > 0) {
@@ -285,9 +287,10 @@ export default function Dashboard() {
     setShowEmailWidget(true);
   };
 
-  // Handle leads from results panel
+  // Handle leads from results panel or report modal
   const handleResultsPanelProceed = (leads: SearchResult[]) => {
     setShowResultsPanel(false);
+    setShowReportModal(false);
     setWidgetLeads(leads);
     sessionStorage.setItem('leadsToVerify', JSON.stringify(leads));
     setShowVerifierWidget(true);
@@ -1276,7 +1279,7 @@ export default function Dashboard() {
         onSendEmails={handleOpenEmailWidget}
       />
 
-      {/* Lead Results Panel */}
+      {/* Lead Results Panel (legacy) */}
       <LeadResultsPanel
         isOpen={showResultsPanel}
         onClose={() => setShowResultsPanel(false)}
@@ -1286,6 +1289,18 @@ export default function Dashboard() {
         aiSummary={aiSummary}
         aiStrategies={aiStrategies}
         onSelectLeads={(leads) => setSelectedLeads(leads.map(l => l.id))}
+        onProceedToVerify={handleResultsPanelProceed}
+      />
+
+      {/* PDF-style Lead Report Modal */}
+      <LeadReportModal
+        open={showReportModal}
+        onOpenChange={setShowReportModal}
+        leads={searchResults}
+        searchQuery={query}
+        location={location}
+        aiGroups={aiGroups}
+        aiSummary={aiSummary}
         onProceedToVerify={handleResultsPanelProceed}
       />
     </SidebarProvider>

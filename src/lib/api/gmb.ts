@@ -48,20 +48,24 @@ export interface GMBSearchResponse {
   };
 }
 
-// Mock data generator for testing
-function generateMockResults(service: string, location: string): GMBResult[] {
-  const prefixes = ['Best', 'Elite', 'Premier', 'Top', 'Pro', 'Expert', 'Quality', 'Reliable', 'Trusted', 'Certified'];
-  const suffixes = ['Services', 'Solutions', 'Pros', 'Group', 'Co', 'Inc', 'LLC', 'Experts', 'Team', 'Masters'];
+// Mock data generator for testing - supports up to 1000 leads
+function generateMockResults(service: string, location: string, count: number = 25): GMBResult[] {
+  const prefixes = ['Best', 'Elite', 'Premier', 'Top', 'Pro', 'Expert', 'Quality', 'Reliable', 'Trusted', 'Certified', 
+    'Advanced', 'Supreme', 'Master', 'Prime', 'First', 'Royal', 'Grand', 'Ultra', 'Mega', 'Alpha'];
+  const suffixes = ['Services', 'Solutions', 'Pros', 'Group', 'Co', 'Inc', 'LLC', 'Experts', 'Team', 'Masters',
+    'Associates', 'Partners', 'Specialists', 'Consultants', 'Agency', 'Network', 'Hub', 'Works', 'Labs', 'Studio'];
+  const middles = ['', ' & Sons', ' Bros', ' Plus', ' Pro', ' Max', ' Elite', ' Prime', ' Express', ' Direct'];
   
   const businessNames: string[] = [];
-  for (let i = 0; i < 25; i++) {
+  for (let i = 0; i < count; i++) {
     const prefix = prefixes[i % prefixes.length];
     const suffix = suffixes[Math.floor(i / prefixes.length) % suffixes.length];
+    const middle = middles[Math.floor(i / (prefixes.length * suffixes.length)) % middles.length];
     const cap = service.charAt(0).toUpperCase() + service.slice(1);
-    businessNames.push(`${prefix} ${cap} ${suffix}`);
+    businessNames.push(`${prefix} ${cap}${middle} ${suffix}`);
   }
 
-  const platforms = ['WordPress', 'Wix', 'Squarespace', 'GoDaddy', 'Weebly', 'Custom/Unknown', null];
+  const platforms = ['WordPress', 'Wix', 'Squarespace', 'GoDaddy', 'Weebly', 'Joomla', 'Drupal', 'Shopify', 'Custom/Unknown', null];
   
   const issueOptions = [
     'Not mobile responsive',
@@ -72,15 +76,27 @@ function generateMockResults(service: string, location: string): GMBResult[] {
     'No SSL certificate',
     'Missing alt tags on images',
     'Slow server response',
+    'Broken links detected',
+    'Missing favicon',
+    'No social media integration',
+    'Poor Core Web Vitals',
   ];
+
+  const streetNames = ['Main St', 'Oak Ave', 'Maple Dr', 'Cedar Ln', 'Pine Blvd', 'Elm St', 'Park Ave', 'Lake Dr', 'Hill Rd', 'River Way'];
+  const areaCodes = ['212', '310', '415', '305', '702', '512', '404', '303', '206', '617'];
 
   return businessNames.map((name, index) => {
     const platform = platforms[Math.floor(Math.random() * platforms.length)];
-    const hasWebsite = Math.random() > 0.15;
-    const issueCount = Math.floor(Math.random() * 4);
+    // Make ~20% have no website (high value prospects)
+    const hasWebsite = Math.random() > 0.20;
+    const issueCount = Math.floor(Math.random() * 5);
     const issues = hasWebsite 
       ? issueOptions.sort(() => Math.random() - 0.5).slice(0, issueCount)
       : ['No website found'];
+    
+    const areaCode = areaCodes[index % areaCodes.length];
+    const streetName = streetNames[index % streetNames.length];
+    const streetNumber = Math.floor(Math.random() * 9000) + 100;
     
     return {
       id: `mock_${index}_${Date.now()}`,
@@ -88,14 +104,14 @@ function generateMockResults(service: string, location: string): GMBResult[] {
       url: hasWebsite ? `https://${name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}.com` : '',
       snippet: `Professional ${service} services in ${location}. We provide quality work with competitive pricing and excellent customer service. Call today for a free estimate!`,
       displayLink: hasWebsite ? `${name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')}.com` : '',
-      phone: `(${Math.floor(Math.random() * 900) + 100}) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
-      address: `${Math.floor(Math.random() * 9000) + 1000} Main Street, ${location}`,
+      phone: `(${areaCode}) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
+      address: `${streetNumber} ${streetName}, ${location}`,
       rating: Math.round((Math.random() * 2 + 3) * 10) / 10,
-      reviewCount: Math.floor(Math.random() * 200) + 5,
+      reviewCount: Math.floor(Math.random() * 500) + 5,
       websiteAnalysis: {
         hasWebsite,
         platform: hasWebsite ? platform : null,
-        needsUpgrade: !hasWebsite || issues.length >= 2 || platform === 'WordPress',
+        needsUpgrade: !hasWebsite || issues.length >= 2 || platform === 'WordPress' || platform === 'Joomla' || platform === 'Drupal',
         issues,
         mobileScore: hasWebsite ? Math.floor(Math.random() * 60) + 40 : null,
       },
@@ -111,12 +127,13 @@ function generateMockResults(service: string, location: string): GMBResult[] {
 export async function searchGMB(service: string, location: string, limit: number = 100): Promise<GMBSearchResponse> {
   // Use mock data if no API URL is configured
   if (USE_MOCK_DATA) {
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 700));
+    // Simulate network delay - longer for larger requests
+    const delay = Math.min(500 + (limit * 2), 3000);
+    await new Promise(resolve => setTimeout(resolve, delay));
     
     return {
       success: true,
-      data: generateMockResults(service, location).slice(0, Math.min(limit, 25)),
+      data: generateMockResults(service, location, limit),
       query: { service, location },
     };
   }
