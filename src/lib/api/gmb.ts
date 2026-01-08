@@ -108,7 +108,7 @@ function generateMockResults(service: string, location: string): GMBResult[] {
   });
 }
 
-export async function searchGMB(service: string, location: string): Promise<GMBSearchResponse> {
+export async function searchGMB(service: string, location: string, limit: number = 100): Promise<GMBSearchResponse> {
   // Use mock data if no API URL is configured
   if (USE_MOCK_DATA) {
     // Simulate network delay
@@ -116,7 +116,7 @@ export async function searchGMB(service: string, location: string): Promise<GMBS
     
     return {
       success: true,
-      data: generateMockResults(service, location),
+      data: generateMockResults(service, location).slice(0, Math.min(limit, 25)),
       query: { service, location },
     };
   }
@@ -127,7 +127,7 @@ export async function searchGMB(service: string, location: string): Promise<GMBS
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ service, location }),
+      body: JSON.stringify({ service, location, limit }),
     });
 
     if (!response.ok) {
