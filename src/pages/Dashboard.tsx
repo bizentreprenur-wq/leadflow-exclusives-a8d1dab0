@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
 import {
   Search, Globe, Mail, Target, TrendingUp,
@@ -86,6 +87,9 @@ export default function Dashboard() {
   const [isSearching, setIsSearching] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  
+  // Platform selection for scanner
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['wordpress', 'wix', 'squarespace', 'joomla']);
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   
   // AI Lead Grouping state
@@ -157,7 +161,7 @@ export default function Dashboard() {
           }));
         }
       } else if (searchType === 'platform') {
-        const response = await searchPlatforms(query, location, ['wordpress', 'wix', 'squarespace', 'shopify']);
+        const response = await searchPlatforms(query, location, selectedPlatforms);
         if (response.success && response.data) {
           results = response.data.map((r: PlatformResult, index: number) => ({
             id: r.id || `platform-${index}`,
@@ -443,19 +447,13 @@ export default function Dashboard() {
                   Back to search options
                 </button>
 
-                <div className={`p-6 rounded-2xl border-2 ${
-                  searchType === 'gmb' 
-                    ? 'border-primary/30 bg-primary/5' 
-                    : 'border-violet-500/30 bg-violet-500/5'
-                }`}>
+                <div className="p-6 rounded-2xl border-2 border-primary/30 bg-primary/5">
                   <div className="flex items-center gap-3 mb-6">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                      searchType === 'gmb' ? 'bg-primary/20' : 'bg-violet-500/20'
-                    }`}>
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-primary/20">
                       {searchType === 'gmb' ? (
                         <Building2 className="w-6 h-6 text-primary" />
                       ) : (
-                        <Globe className="w-6 h-6 text-violet-500" />
+                        <Globe className="w-6 h-6 text-primary" />
                       )}
                     </div>
                     <div>
@@ -505,15 +503,56 @@ export default function Dashboard() {
                       </div>
                     </div>
 
+                    {/* Platform Checkboxes - only show for platform search */}
+                    {searchType === 'platform' && (
+                      <div>
+                        <Label className="text-foreground font-medium mb-3 block">
+                          Which platforms to scan?
+                        </Label>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          {[
+                            { id: 'wordpress', label: 'WordPress', icon: '📦' },
+                            { id: 'wix', label: 'Wix', icon: '🔷' },
+                            { id: 'squarespace', label: 'Squarespace', icon: '⬛' },
+                            { id: 'joomla', label: 'Joomla', icon: '🟠' },
+                            { id: 'drupal', label: 'Drupal', icon: '💧' },
+                            { id: 'shopify', label: 'Shopify', icon: '🛒' },
+                            { id: 'weebly', label: 'Weebly', icon: '🌐' },
+                            { id: 'godaddy', label: 'GoDaddy', icon: '🟢' },
+                          ].map((platform) => (
+                            <label
+                              key={platform.id}
+                              className={`flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                                selectedPlatforms.includes(platform.id)
+                                  ? 'border-primary bg-primary/10 text-foreground'
+                                  : 'border-border bg-muted/30 text-muted-foreground hover:border-primary/50'
+                              }`}
+                            >
+                              <Checkbox
+                                checked={selectedPlatforms.includes(platform.id)}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedPlatforms([...selectedPlatforms, platform.id]);
+                                  } else {
+                                    setSelectedPlatforms(selectedPlatforms.filter(p => p !== platform.id));
+                                  }
+                                }}
+                              />
+                              <span className="text-sm font-medium">{platform.icon} {platform.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Select at least one platform to search for outdated websites
+                        </p>
+                      </div>
+                    )}
+
                     <Button
                       onClick={handleSearch}
-                      disabled={isSearching}
+                      disabled={isSearching || (searchType === 'platform' && selectedPlatforms.length === 0)}
                       size="lg"
-                      className={`w-full mt-4 ${
-                        searchType === 'gmb' 
-                          ? 'bg-primary hover:bg-primary/90' 
-                          : 'bg-violet-500 hover:bg-violet-600'
-                      }`}
+                      className="w-full mt-4 bg-primary hover:bg-primary/90"
                     >
                       {isSearching ? (
                         <>
