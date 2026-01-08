@@ -12,6 +12,7 @@ import {
   CheckCircle2, ArrowRight, Zap, Clock, Target, Brain,
   Building2, AlertTriangle, Copy, FileSpreadsheet
 } from 'lucide-react';
+import CRMIntegrationModal from './CRMIntegrationModal';
 
 interface SearchResult {
   id: string;
@@ -138,6 +139,8 @@ export default function LeadClassificationPanel({
   const [selectedWarm, setSelectedWarm] = useState<Set<string>>(new Set());
   const [selectedCold, setSelectedCold] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<Classification>('hot');
+  const [showCRMModal, setShowCRMModal] = useState(false);
+  const [crmLeads, setCRMLeads] = useState<SearchResult[]>([]);
 
   // Classify all leads
   const classifiedLeads = useMemo(() => {
@@ -205,8 +208,8 @@ export default function LeadClassificationPanel({
         onProceedToEmail(selected);
         break;
       case 'crm':
-        onExportToCRM(selected);
-        toast.success(`Exporting ${selected.length} leads to CRM`);
+        setCRMLeads(selected);
+        setShowCRMModal(true);
         break;
       case 'csv':
         exportToCSV(selected, classification);
@@ -564,6 +567,13 @@ export default function LeadClassificationPanel({
           <ArrowRight className="w-4 h-4" />
         </Button>
       </div>
+
+      {/* CRM Integration Modal */}
+      <CRMIntegrationModal
+        open={showCRMModal}
+        onOpenChange={setShowCRMModal}
+        leads={crmLeads}
+      />
     </div>
   );
 }
