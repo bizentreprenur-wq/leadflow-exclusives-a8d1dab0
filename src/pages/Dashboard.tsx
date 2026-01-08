@@ -20,6 +20,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/s
 import DashboardSidebar from '@/components/DashboardSidebar';
 import LeadVerificationModule, { VerifiedLead } from '@/components/LeadVerificationModule';
 import EmailOutreachModule from '@/components/EmailOutreachModule';
+import HighConvertingTemplateGallery from '@/components/HighConvertingTemplateGallery';
 import EmailTemplateLibrary from '@/components/EmailTemplateLibrary';
 import SequenceBuilderModule from '@/components/SequenceBuilderModule';
 import CommandPalette from '@/components/CommandPalette';
@@ -703,12 +704,12 @@ export default function Dashboard() {
         };
       case 'templates':
         return {
-          title: 'Email Templates',
-          description: 'Pre-built email templates for every outreach scenario',
+          title: '📧 Email Template Gallery',
+          description: '60+ high-converting visual templates organized by industry',
           icon: FileText,
           iconColor: 'text-purple-500',
           iconBg: 'bg-purple-500/10',
-          component: <EmailTemplateLibrary />,
+          component: <HighConvertingTemplateGallery onSelectTemplate={(template) => toast.success(`Template "${template.name}" selected!`)} />,
         };
       case 'extension':
         return {
