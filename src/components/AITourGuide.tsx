@@ -540,6 +540,35 @@ export default function AITourGuide() {
     };
   }, [showTour, currentStepIndex, location.pathname, navigate, speak, moveMascotToElement]);
 
+  // Auto-start countdown for first visit
+  useEffect(() => {
+    if (isFirstVisit && !showTour && location.pathname === "/" && !countdownPaused) {
+      countdownRef.current = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownRef.current!);
+            startTour();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+      }
+    };
+  }, [isFirstVisit, showTour, location.pathname, countdownPaused, startTour]);
+
+  const pauseCountdown = useCallback(() => {
+    setCountdownPaused(true);
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+    }
+  }, []);
+
   // Floating demo button (always visible when tour not active)
   // Hidden on mobile to avoid blocking the menu button
   if (!showTour && !isFirstVisit) {
@@ -584,36 +613,6 @@ export default function AITourGuide() {
       </div>
     );
   }
-
-  // Auto-start countdown for first visit
-
-  useEffect(() => {
-    if (isFirstVisit && !showTour && location.pathname === "/" && !countdownPaused) {
-      countdownRef.current = setInterval(() => {
-        setCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(countdownRef.current!);
-            startTour();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-
-    return () => {
-      if (countdownRef.current) {
-        clearInterval(countdownRef.current);
-      }
-    };
-  }, [isFirstVisit, showTour, location.pathname, countdownPaused, startTour]);
-
-  const pauseCountdown = useCallback(() => {
-    setCountdownPaused(true);
-    if (countdownRef.current) {
-      clearInterval(countdownRef.current);
-    }
-  }, []);
 
   // First visit prompt (before tour starts)
   if (isFirstVisit && !showTour && location.pathname === "/") {
