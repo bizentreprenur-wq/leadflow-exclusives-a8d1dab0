@@ -29,7 +29,7 @@ import {
   Edit, Eye, Users, CheckCircle, AlertCircle, Clock, MousePointer,
   Reply, XCircle, Sparkles, Database, RefreshCw, Star, Building2, 
   RotateCcw, Calendar, Timer, ArrowRight, ArrowLeft, PartyPopper,
-  Zap, CheckCheck, ChevronRight, TrendingUp, PieChart, MailPlus
+  Zap, CheckCheck, ChevronRight, TrendingUp, PieChart, MailPlus, Palette
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart as RechartsPie, Pie
@@ -52,6 +52,7 @@ import {
   ScheduledEmail,
 } from '@/lib/api/email';
 import { fetchVerifiedLeads, updateLeadStatus, type SavedLead } from '@/lib/api/verifiedLeads';
+import { HIGH_CONVERTING_TEMPLATES, EmailTemplate as VisualTemplate } from '@/lib/highConvertingTemplates';
 
 interface EmailOutreachModuleProps {
   selectedLeads?: LeadForEmail[];
@@ -80,6 +81,8 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   
   // Selection state
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [selectedVisualTemplate, setSelectedVisualTemplate] = useState<VisualTemplate | null>(null);
+  const [templateSource, setTemplateSource] = useState<'saved' | 'visual'>('visual');
   const [savedLeads, setSavedLeads] = useState<SavedLead[]>([]);
   const [isLoadingSavedLeads, setIsLoadingSavedLeads] = useState(false);
   const [selectedSavedLeadIds, setSelectedSavedLeadIds] = useState<Set<string>>(new Set());
@@ -321,7 +324,14 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   };
 
   const handleSendEmails = async () => {
-    if (!selectedTemplateId || leadsWithEmail.length === 0) return;
+    const hasTemplate = (templateSource === 'visual' && selectedVisualTemplate) || selectedTemplateId;
+    if (!hasTemplate || leadsWithEmail.length === 0) return;
+
+    // For visual templates, we need to save them first or handle differently
+    if (templateSource === 'visual' && selectedVisualTemplate) {
+      toast.info('Visual templates will be saved to your account before sending. Coming soon!');
+      return;
+    }
 
     // Calculate scheduled time
     let scheduledFor: string | undefined;
@@ -411,6 +421,8 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   const handleStartOver = () => {
     handleClearAllLeads();
     setSelectedTemplateId('');
+    setSelectedVisualTemplate(null);
+    setTemplateSource('visual');
     setScheduleMode('now');
     setScheduledDate('');
     setLastSendResult(null);
@@ -418,6 +430,17 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   };
 
   const selectedTemplate = templates.find(t => t.id.toString() === selectedTemplateId);
+  
+  // Get the active template (either saved or visual)
+  const activeTemplate = templateSource === 'visual' && selectedVisualTemplate
+    ? { 
+        id: 0, 
+        name: selectedVisualTemplate.name, 
+        subject: selectedVisualTemplate.subject, 
+        body_html: selectedVisualTemplate.body_html,
+        is_default: false 
+      }
+    : selectedTemplate;
 
   // Template editor and preview dialogs (always rendered)
   const dialogs = (
@@ -1150,10 +1173,14 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   // STEP: CHOOSE TEMPLATE
   // ============================================
   if (currentStep === 'choose-template') {
+    // Get 8 featured visual templates for quick selection
+    const featuredTemplates = HIGH_CONVERTING_TEMPLATES.slice(0, 8);
+    const hasSelectedTemplate = templateSource === 'visual' ? selectedVisualTemplate !== null : selectedTemplateId !== '';
+
     return (
       <>
         {dialogs}
-        <div className="max-w-2xl mx-auto space-y-6">
+        <div className="max-w-4xl mx-auto space-y-6">
         {/* Progress indicator */}
         <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <span className="flex items-center gap-1 text-green-600">
@@ -1175,93 +1202,226 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
         <Card className="border-2 border-primary/20">
           <CardHeader className="text-center pb-4">
             <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-primary/10 flex items-center justify-center">
-              <FileText className="w-6 h-6 text-primary" />
+              <Palette className="w-6 h-6 text-primary" />
             </div>
-            <CardTitle>Pick an email template</CardTitle>
-            <CardDescription>What message would you like to send?</CardDescription>
+            <CardTitle>Choose Your Email Template</CardTitle>
+            <CardDescription>Select from 60+ high-converting visual templates or use your saved templates</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {templates.length === 0 ? (
-              <div className="text-center py-8">
-                <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="font-medium mb-2">No templates yet!</p>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Create your first email template to get started
-                </p>
-                <Button
-                  onClick={() => {
-                    setEditingTemplate({ name: '', subject: '', body_html: '', is_default: false });
-                    setTemplateDialogOpen(true);
-                  }}
-                  className="gap-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Create Template
-                </Button>
-              </div>
-            ) : (
-              <>
-                {/* Template selection */}
-                <div className="space-y-3">
-                  {templates.map(template => (
-                    <div
-                      key={template.id}
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                        selectedTemplateId === template.id.toString()
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border/50 hover:border-border'
-                      }`}
-                      onClick={() => setSelectedTemplateId(template.id.toString())}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-medium">{template.name}</h4>
-                            {template.is_default && (
-                              <Badge variant="secondary" className="text-xs">Default</Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
-                            Subject: {template.subject}
-                          </p>
+          <CardContent className="space-y-6">
+            {/* Template source tabs */}
+            <Tabs value={templateSource} onValueChange={(v) => setTemplateSource(v as 'saved' | 'visual')} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="visual" className="gap-2">
+                  <Palette className="w-4 h-4" />
+                  Visual Templates
+                  <Badge variant="secondary" className="ml-1 text-xs">{HIGH_CONVERTING_TEMPLATES.length}</Badge>
+                </TabsTrigger>
+                <TabsTrigger value="saved" className="gap-2">
+                  <Database className="w-4 h-4" />
+                  My Saved
+                  <Badge variant="secondary" className="ml-1 text-xs">{templates.length}</Badge>
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Visual Templates Tab */}
+              <TabsContent value="visual" className="mt-4 space-y-4">
+                {/* Visual Template Grid with Thumbnails */}
+                <ScrollArea className="h-[400px] pr-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {featuredTemplates.map((template) => (
+                      <div
+                        key={template.id}
+                        onClick={() => {
+                          setSelectedVisualTemplate(template);
+                          setSelectedTemplateId('');
+                        }}
+                        className={`group relative cursor-pointer rounded-lg border-2 overflow-hidden transition-all hover:shadow-lg ${
+                          selectedVisualTemplate?.id === template.id
+                            ? 'border-primary ring-2 ring-primary/20'
+                            : 'border-border/50 hover:border-border'
+                        }`}
+                      >
+                        {/* Thumbnail Image */}
+                        <div className="aspect-[4/3] overflow-hidden bg-muted">
+                          <img
+                            src={template.previewImage}
+                            alt={template.name}
+                            className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                          />
                         </div>
-                        <div className="flex items-center gap-2">
+                        
+                        {/* Template Info */}
+                        <div className="p-2 bg-background">
+                          <h4 className="font-medium text-xs truncate">{template.name}</h4>
+                          <p className="text-xs text-muted-foreground truncate">{template.industry}</p>
+                        </div>
+
+                        {/* Selection indicator */}
+                        {selectedVisualTemplate?.id === template.id && (
+                          <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-primary flex items-center justify-center">
+                            <CheckCircle className="w-4 h-4 text-primary-foreground" />
+                          </div>
+                        )}
+
+                        {/* Hover Preview Button */}
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                           <Button
-                            variant="ghost"
-                            size="icon"
+                            size="sm"
+                            variant="secondary"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handlePreview(template);
+                              setPreviewContent({
+                                subject: template.subject,
+                                body: template.body_html
+                              });
+                              setPreviewDialogOpen(true);
                             }}
+                            className="gap-1"
                           >
-                            <Eye className="w-4 h-4" />
+                            <Eye className="w-3 h-3" />
+                            Preview
                           </Button>
-                          {selectedTemplateId === template.id.toString() && (
-                            <CheckCircle className="w-5 h-5 text-primary" />
-                          )}
                         </div>
                       </div>
+                    ))}
+                  </div>
+
+                  {/* Show more templates link */}
+                  <div className="mt-4 pt-4 border-t text-center">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Showing 8 of {HIGH_CONVERTING_TEMPLATES.length} templates
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Show dialog with all templates
+                        toast.info('Visit the Template Gallery from the sidebar to browse all 60+ templates!');
+                      }}
+                      className="gap-2"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Browse All Templates
+                    </Button>
+                  </div>
+                </ScrollArea>
+
+                {/* Selected Visual Template Preview */}
+                {selectedVisualTemplate && (
+                  <div className="p-4 rounded-lg border-2 border-primary/30 bg-primary/5">
+                    <div className="flex items-start gap-4">
+                      <img
+                        src={selectedVisualTemplate.previewImage}
+                        alt={selectedVisualTemplate.name}
+                        className="w-24 h-16 object-cover rounded-md"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-semibold">{selectedVisualTemplate.name}</h4>
+                          <Badge variant="secondary" className="text-xs">{selectedVisualTemplate.category}</Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
+                          Subject: {selectedVisualTemplate.subject}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          💡 {selectedVisualTemplate.conversionTip}
+                        </p>
+                      </div>
+                      <CheckCircle className="w-6 h-6 text-primary shrink-0" />
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* Saved Templates Tab */}
+              <TabsContent value="saved" className="mt-4 space-y-4">
+                {templates.length === 0 ? (
+                  <div className="text-center py-8">
+                    <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="font-medium mb-2">No saved templates yet!</p>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Create your first custom email template
+                    </p>
+                    <Button
+                      onClick={() => {
+                        setEditingTemplate({ name: '', subject: '', body_html: '', is_default: false });
+                        setTemplateDialogOpen(true);
+                      }}
+                      className="gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Create Template
+                    </Button>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-[350px]">
+                    <div className="space-y-3 pr-4">
+                      {templates.map(template => (
+                        <div
+                          key={template.id}
+                          className={`p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                            selectedTemplateId === template.id.toString()
+                              ? 'border-primary bg-primary/5'
+                              : 'border-border/50 hover:border-border'
+                          }`}
+                          onClick={() => {
+                            setSelectedTemplateId(template.id.toString());
+                            setSelectedVisualTemplate(null);
+                          }}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-medium">{template.name}</h4>
+                                {template.is_default && (
+                                  <Badge variant="secondary" className="text-xs">Default</Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
+                                Subject: {template.subject}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePreview(template);
+                                }}
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              {selectedTemplateId === template.id.toString() && (
+                                <CheckCircle className="w-5 h-5 text-primary" />
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
 
                 {/* Create new template button */}
-                <Button
-                  variant="outline"
-                  className="w-full gap-2"
-                  onClick={() => {
-                    setEditingTemplate({ name: '', subject: '', body_html: '', is_default: false });
-                    setTemplateDialogOpen(true);
-                  }}
-                >
-                  <Plus className="w-4 h-4" />
-                  Create New Template
-                </Button>
-              </>
-            )}
+                {templates.length > 0 && (
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={() => {
+                      setEditingTemplate({ name: '', subject: '', body_html: '', is_default: false });
+                      setTemplateDialogOpen(true);
+                    }}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Create New Template
+                  </Button>
+                )}
+              </TabsContent>
+            </Tabs>
 
             {/* Navigation */}
-            <div className="flex gap-3 pt-4">
+            <div className="flex gap-3 pt-4 border-t">
               <Button
                 variant="outline"
                 onClick={() => setCurrentStep('select-leads')}
@@ -1273,7 +1433,7 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
               <Button
                 className="flex-1 gap-2"
                 onClick={() => setCurrentStep('schedule')}
-                disabled={!selectedTemplateId}
+                disabled={!hasSelectedTemplate}
               >
                 Continue
                 <ArrowRight className="w-4 h-4" />
