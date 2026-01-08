@@ -30,6 +30,10 @@ if (!$input) {
 
 $service = sanitizeInput($input['service'] ?? '');
 $location = sanitizeInput($input['location'] ?? '');
+$limit = intval($input['limit'] ?? 100); // Default 100, max 5000
+
+// Validate limit (min 20, max 5000)
+$limit = max(20, min(5000, $limit));
 
 if (empty($service)) {
     sendError('Service type is required');
@@ -40,7 +44,7 @@ if (empty($location)) {
 }
 
 try {
-    $cacheKey = "gmb_search_{$service}_{$location}";
+    $cacheKey = "gmb_search_{$service}_{$location}_{$limit}";
     
     // Check cache
     $cached = getCache($cacheKey);
@@ -50,13 +54,14 @@ try {
             'data' => $cached,
             'query' => [
                 'service' => $service,
-                'location' => $location
+                'location' => $location,
+                'limit' => $limit
             ],
             'cached' => true
         ]);
     }
     
-    $results = searchGMBListings($service, $location);
+    $results = searchGMBListings($service, $location, $limit);
     
     // Cache results
     setCache($cacheKey, $results);
@@ -66,8 +71,10 @@ try {
         'data' => $results,
         'query' => [
             'service' => $service,
-            'location' => $location
-        ]
+            'location' => $location,
+            'limit' => $limit
+        ],
+        'totalResults' => count($results)
     ]);
 } catch (Exception $e) {
     if (defined('DEBUG_MODE') && DEBUG_MODE) {
@@ -79,19 +86,36 @@ try {
 
 /**
  * Search for GMB listings using SerpAPI Google Maps
- * Fetches multiple pages for more comprehensive results
+ * Fetches multiple pages for comprehensive results up to the specified limit
  */
-function searchGMBListings($service, $location) {
+function searchGMBListings($service, $location, $limit = 100) {
     $apiKey = defined('SERPAPI_KEY') ? SERPAPI_KEY : '';
     
     if (empty($apiKey)) {
         // Return mock data if API not configured
-        return getMockResults($service, $location);
+        return getMockResults($service, $location, min($limit, 50));
     }
     
     $query = "$service in $location";
     $allResults = [];
-    $maxPages = 5; // Fetch up to 5 pages (100+ results)
+    $resultsPerPage = 20;
+    $maxPages = ceil($limit / $resultsPerPage); // Calculate pages needed for limit
+    $maxPages = min($maxPages, 250); // Cap at 250 pages (5000 results max)
+    
+    for ($page = 0; $page < $maxPages; $page++) {
+        // Stop if we have enough results
+        if (count($allResults) >= $limit) {
+            break;
+        }
+        
+        $params = [
+            'engine' => 'google_maps',
+            'q' => $query,
+            'type' => 'search',
+            'api_key' => $apiKey,
+            'hl' => 'en',
+            'num' => $resultsPerPage,
+        ];
     
     for ($page = 0; $page < $maxPages; $page++) {
         $params = [
@@ -172,12 +196,14 @@ function searchGMBListings($service, $location) {
 }
 
 /**
- * Return mock results when API is not configured (25 results for testing)
+ * Return mock results when API is not configured
  */
-function getMockResults($service, $location) {
+function getMockResults($service, $location, $count = 50) {
     $prefixes = ['Best', 'Elite', 'Premier', 'Top', 'Pro', 'Expert', 'Quality', 'Reliable', 'Trusted', 'Certified', 
                  'Supreme', 'Master', 'Prime', 'First Class', 'Superior', 'Advanced', 'Professional', 'Ultimate', 
-                 'Royal', 'Precision', 'Dynamic', 'Swift', 'Legacy', 'Titan', 'Apex'];
+                 'Royal', 'Precision', 'Dynamic', 'Swift', 'Legacy', 'Titan', 'Apex', 'Alpha', 'Omega', 'Delta',
+                 'Phoenix', 'Eagle', 'Summit', 'Pinnacle', 'Crown', 'Diamond', 'Platinum', 'Golden', 'Silver',
+                 'Metro', 'Urban', 'City', 'Local', 'Regional', 'National', 'Express', 'Rapid', 'Quick', 'Fast'];
     $platforms = ['WordPress', 'Wix', 'Squarespace', 'GoDaddy', 'Weebly', 'Custom/Unknown', null, 'Joomla', 'Shopify'];
     $issues = [
         'Not mobile responsive',
@@ -192,8 +218,8 @@ function getMockResults($service, $location) {
     
     $results = [];
     
-    for ($i = 0; $i < 25; $i++) {
-        $prefix = $prefixes[$i];
+    for ($i = 0; $i < $count; $i++) {
+        $prefix = $prefixes[$i % count($prefixes)];
         $platform = $platforms[array_rand($platforms)];
         $hasWebsite = rand(0, 100) > 15; // 85% have websites
         $issueCount = rand(0, 4);

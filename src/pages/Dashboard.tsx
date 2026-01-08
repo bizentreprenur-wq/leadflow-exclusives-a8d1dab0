@@ -90,6 +90,7 @@ export default function Dashboard() {
   
   // Platform selection for scanner
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['wordpress', 'wix', 'squarespace', 'joomla']);
+  const [searchLimit, setSearchLimit] = useState<number>(100); // Default 100 results
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   
   // AI Lead Grouping state
@@ -146,7 +147,7 @@ export default function Dashboard() {
       let results: SearchResult[] = [];
       
       if (searchType === 'gmb') {
-        const response = await searchGMB(query, location);
+        const response = await searchGMB(query, location, searchLimit);
         if (response.success && response.data) {
           results = response.data.map((r: GMBResult, index: number) => ({
             id: r.id || `gmb-${index}`,
@@ -553,6 +554,39 @@ export default function Dashboard() {
                         </p>
                       </div>
                     )}
+
+                    {/* Results Limit Selector */}
+                    <div>
+                      <Label className="text-foreground font-medium mb-3 block">
+                        How many leads do you want?
+                      </Label>
+                      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                        {[
+                          { value: 100, label: '100', desc: 'Quick' },
+                          { value: 500, label: '500', desc: 'Standard' },
+                          { value: 1000, label: '1,000', desc: 'Large' },
+                          { value: 2500, label: '2,500', desc: 'Bulk' },
+                          { value: 5000, label: '5,000', desc: 'Maximum' },
+                        ].map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            onClick={() => setSearchLimit(option.value)}
+                            className={`p-3 rounded-lg border-2 text-center transition-all ${
+                              searchLimit === option.value
+                                ? 'border-primary bg-primary/10 text-foreground'
+                                : 'border-border bg-muted/30 text-muted-foreground hover:border-primary/50'
+                            }`}
+                          >
+                            <div className="font-bold text-lg">{option.label}</div>
+                            <div className="text-xs opacity-70">{option.desc}</div>
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        ⚠️ More results = longer search time. 5,000 leads may take several minutes.
+                      </p>
+                    </div>
 
                     <Button
                       onClick={handleSearch}
