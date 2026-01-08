@@ -15,7 +15,9 @@ import {
   Lightbulb,
   Target,
   TrendingUp,
-  Users
+  Users,
+  Save,
+  Loader2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +25,8 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { LeadGroup, LeadAnalysis, LeadSummary, EmailStrategy } from '@/lib/api/leadAnalysis';
+import { saveVerifiedLeads } from '@/lib/api/verifiedLeads';
+import { toast } from 'sonner';
 
 interface AILeadGroupingProps {
   groups: Record<string, LeadGroup>;
@@ -30,6 +34,7 @@ interface AILeadGroupingProps {
   emailStrategies: Record<string, EmailStrategy>;
   onSelectGroup: (groupKey: string, leads: LeadAnalysis[]) => void;
   onSelectLead: (lead: LeadAnalysis) => void;
+  onLeadsSaved?: () => void;
 }
 
 const groupIcons: Record<string, React.ReactNode> = {
@@ -65,10 +70,56 @@ export function AILeadGrouping({
   summary, 
   emailStrategies,
   onSelectGroup, 
-  onSelectLead 
+  onSelectLead,
+  onLeadsSaved
 }: AILeadGroupingProps) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [expandedLeads, setExpandedLeads] = useState<Set<string>>(new Set());
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Collect all leads from all groups
+  const getAllLeads = (): LeadAnalysis[] => {
+    return Object.values(groups).flatMap(group => group.leads);
+  };
+
+  // Save all AI-analyzed leads to verified_leads table
+  const handleSaveAllLeads = async () => {
+    setIsSaving(true);
+    try {
+      const allLeads = getAllLeads();
+      
+      // Map LeadAnalysis to VerifiedLead format
+      const leadsToSave = allLeads.map(lead => ({
+        id: lead.id,
+        business_name: lead.name,
+        email: '', // Email will be found during verification step
+        contact_name: undefined,
+        phone: lead.phone,
+        website: lead.url,
+        platform: lead.websiteAnalysis?.platform || undefined,
+        verified: true,
+        emailValid: false,
+        leadScore: lead.conversionProbability === 'high' ? 85 : lead.conversionProbability === 'medium' ? 65 : 45,
+        aiDraftedMessage: lead.talkingPoints?.join(' ') || '',
+        verificationStatus: 'verified' as const,
+        issues: lead.painPoints || []
+      }));
+
+      const result = await saveVerifiedLeads(leadsToSave);
+      
+      if (result.success) {
+        toast.success(`Saved ${result.data?.saved || allLeads.length} leads to your database`);
+        onLeadsSaved?.();
+      } else {
+        toast.error(result.error || 'Failed to save leads');
+      }
+    } catch (error) {
+      console.error('Save leads error:', error);
+      toast.error('Failed to save leads');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const toggleGroup = (key: string) => {
     setExpandedGroups(prev => {
@@ -101,10 +152,24 @@ export function AILeadGrouping({
       {/* Summary Dashboard */}
       <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <TrendingUp className="w-5 h-5 text-primary" />
-            AI Lead Analysis Summary
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <TrendingUp className="w-5 h-5 text-primary" />
+              AI Lead Analysis Summary
+            </CardTitle>
+            <Button 
+              onClick={handleSaveAllLeads} 
+              disabled={isSaving || summary.total === 0}
+              className="gap-2"
+            >
+              {isSaving ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              Save All {summary.total} Leads
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
