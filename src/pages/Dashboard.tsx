@@ -375,12 +375,12 @@ export default function Dashboard() {
                     </button>
                   </div>
 
-                  {/* Platform Scanner Card - Matching Landing Page */}
+                  {/* Platform Scanner Card - VIOLET color */}
                   <div className="relative">
                     {/* Active Badge */}
                     {user?.has_active_subscription && (
                       <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                        <Badge className="bg-primary/20 text-primary border border-primary/50 px-3 py-1 text-xs font-semibold">
+                        <Badge className="bg-violet-500/20 text-violet-400 border border-violet-500/50 px-3 py-1 text-xs font-semibold">
                           <Star className="w-3 h-3 mr-1" />
                           ACTIVE
                         </Badge>
@@ -388,12 +388,12 @@ export default function Dashboard() {
                     )}
                     <button
                       onClick={() => setSearchType('platform')}
-                      className="group text-left p-6 rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-primary/5 to-transparent hover:border-primary hover:shadow-2xl hover:shadow-primary/20 transition-all duration-300 w-full h-full"
+                      className="group text-left p-6 rounded-2xl border-2 border-violet-500/40 bg-gradient-to-br from-violet-500/5 to-transparent hover:border-violet-500 hover:shadow-2xl hover:shadow-violet-500/20 transition-all duration-300 w-full h-full"
                     >
                       {/* Header */}
                       <div className="flex items-start gap-4 mb-6">
-                        <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
-                          <Globe className="w-7 h-7 text-primary" />
+                        <div className="w-14 h-14 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0">
+                          <Globe className="w-7 h-7 text-violet-500" />
                         </div>
                         <div>
                           <h3 className="text-2xl font-bold text-foreground">
@@ -407,27 +407,27 @@ export default function Dashboard() {
 
                       {/* Feature List */}
                       <div className="space-y-3 mb-6">
-                        <div className="flex items-center gap-3 text-primary">
+                        <div className="flex items-center gap-3 text-violet-500">
                           <Server className="w-5 h-5 shrink-0" />
                           <span className="text-foreground">Detect 16+ legacy platforms (WordPress, Wix, Joomla, etc.)</span>
                         </div>
-                        <div className="flex items-center gap-3 text-primary">
+                        <div className="flex items-center gap-3 text-violet-500">
                           <Globe className="w-5 h-5 shrink-0" />
                           <span className="text-foreground">Search across Google AND Bing simultaneously</span>
                         </div>
-                        <div className="flex items-center gap-3 text-primary">
+                        <div className="flex items-center gap-3 text-violet-500">
                           <TrendingUp className="w-5 h-5 shrink-0" />
                           <span className="text-foreground">Find businesses with outdated, slow websites</span>
                         </div>
-                        <div className="flex items-center gap-3 text-primary">
+                        <div className="flex items-center gap-3 text-violet-500">
                           <Users className="w-5 h-5 shrink-0" />
                           <span className="text-foreground">Target businesses ready for modernization</span>
                         </div>
                       </div>
 
                       {/* Perfect For */}
-                      <div className="bg-primary/10 rounded-xl p-4">
-                        <p className="text-primary font-bold mb-1">Perfect For:</p>
+                      <div className="bg-violet-500/10 rounded-xl p-4">
+                        <p className="text-violet-500 font-bold mb-1">Perfect For:</p>
                         <p className="text-muted-foreground text-sm">
                           Developers looking for website redesign projects, finding businesses stuck on legacy platforms that need modern solutions
                         </p>
@@ -447,13 +447,19 @@ export default function Dashboard() {
                   Back to search options
                 </button>
 
-                <div className="p-6 rounded-2xl border-2 border-primary/30 bg-primary/5">
+                <div className={`p-6 rounded-2xl border-2 ${
+                  searchType === 'gmb' 
+                    ? 'border-primary/30 bg-primary/5' 
+                    : 'border-violet-500/30 bg-violet-500/5'
+                }`}>
                   <div className="flex items-center gap-3 mb-6">
-                    <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-primary/20">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                      searchType === 'gmb' ? 'bg-primary/20' : 'bg-violet-500/20'
+                    }`}>
                       {searchType === 'gmb' ? (
                         <Building2 className="w-6 h-6 text-primary" />
                       ) : (
-                        <Globe className="w-6 h-6 text-primary" />
+                        <Globe className="w-6 h-6 text-violet-500" />
                       )}
                     </div>
                     <div>
@@ -552,7 +558,11 @@ export default function Dashboard() {
                       onClick={handleSearch}
                       disabled={isSearching || (searchType === 'platform' && selectedPlatforms.length === 0)}
                       size="lg"
-                      className="w-full mt-4 bg-primary hover:bg-primary/90"
+                      className={`w-full mt-4 ${
+                        searchType === 'gmb' 
+                          ? 'bg-primary hover:bg-primary/90' 
+                          : 'bg-violet-500 hover:bg-violet-600'
+                      }`}
                     >
                       {isSearching ? (
                         <>
