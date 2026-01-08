@@ -45,6 +45,7 @@ import { searchGMB, GMBResult } from '@/lib/api/gmb';
 import { searchPlatforms, PlatformResult } from '@/lib/api/platforms';
 import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } from '@/lib/api/leadAnalysis';
 import { HIGH_CONVERTING_TEMPLATES } from '@/lib/highConvertingTemplates';
+import AutoFollowUpBuilder from '@/components/AutoFollowUpBuilder';
 
 interface SearchResult {
   id: string;
@@ -1041,6 +1042,15 @@ export default function Dashboard() {
           iconColor: 'text-emerald-500',
           iconBg: 'bg-emerald-500/10',
           component: <SubscriptionManagement />,
+        };
+      case 'auto-followup':
+        return {
+          title: 'Auto Follow-Up Builder',
+          description: 'Smart follow-ups based on lead engagement patterns',
+          icon: Brain,
+          iconColor: 'text-violet-500',
+          iconBg: 'bg-violet-500/10',
+          component: <AutoFollowUpBuilder />,
         };
       default:
         return null;
