@@ -74,7 +74,7 @@ const TOUR_STEPS: TourStep[] = [
     page: "/",
     element: "[data-tour='email-outreach']",
     title: "Email Outreach System",
-    description: "Now let me show you something truly special, the email outreach system. You get access to over 12 professionally designed email templates across categories like Sales, Marketing, Recruiting, and Networking. Each template has beautiful visual layouts, hero banners, split designs, newsletter formats, and promotional styles. Our AI will even personalize the content for each lead automatically. You can schedule sends at optimal times, track opens and replies in real time, and manage entire campaigns from one dashboard."
+    description: "Now let me show you something truly special, the email outreach system. You get access to over 60 professionally designed, high-converting email templates across industries like Web Design, Local Services, Insurance, Medical, Education, and B2B. Each template has beautiful visual layouts, hero banners, split designs, newsletter formats, and promotional styles. Our AI will even personalize the content for each lead automatically. You can schedule sends at optimal times, track opens and replies in real time, and manage entire campaigns from one dashboard."
   },
   {
     id: "lead-nurturing",
@@ -796,7 +796,7 @@ export default function AITourGuide() {
             <div className="absolute -top-8 left-0 right-0 text-center">
               <Badge className="bg-primary/90 text-primary-foreground px-3 py-1 animate-pulse">
                 <Sparkles className="w-3 h-3 mr-1 inline" />
-                12+ Beautiful Templates
+                60+ High-Converting Templates
               </Badge>
             </div>
 
