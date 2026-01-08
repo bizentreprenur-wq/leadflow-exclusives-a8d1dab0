@@ -82,7 +82,7 @@ export default function DashboardDemo() {
   const [isSending, setIsSending] = useState(false);
   const [sendProgress, setSendProgress] = useState(0);
 
-  // Simulate verification progress
+  // Auto-complete verification for demo when on Step 3
   useEffect(() => {
     if (currentStep === 3 && selectedLeads.length > 0 && !isVerifying && verificationProgress === 0) {
       setIsVerifying(true);
@@ -101,6 +101,40 @@ export default function DashboardDemo() {
       return () => clearInterval(interval);
     }
   }, [currentStep, selectedLeads.length, isVerifying, verificationProgress]);
+
+  // Auto-select a sample template when entering Step 4
+  useEffect(() => {
+    if (currentStep === 4 && !selectedTemplate) {
+      const sampleTemplate = {
+        id: 'demo-template',
+        name: 'Professional Web Design Pitch',
+        category: 'web-design',
+        subject: 'Your website could be bringing in more customers, {{business_name}}',
+        body: `Hi {{business_name}} team,
+
+I came across your business while researching local companies in your area, and I noticed your website has a lot of potential to drive even more customers to your door.
+
+Here are 3 quick wins I spotted:
+• Mobile optimization - 60% of your customers are browsing on phones
+• Page speed improvements - faster sites = more conversions
+• Updated design - a modern look builds instant trust
+
+I'd love to show you a quick mockup of what a refreshed website could look like for your business. No cost, no obligation - just a friendly conversation.
+
+Would you be open to a 15-minute call this week?
+
+Best regards,
+[Your Name]`,
+        previewImage: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&h=300&fit=crop',
+      };
+      setSelectedTemplate(sampleTemplate);
+      setEmailSubject(sampleTemplate.subject);
+      setEmailBody(sampleTemplate.body);
+      // Mark verification as complete for demo
+      setVerificationProgress(100);
+      setVerifiedCount(selectedLeads.length);
+    }
+  }, [currentStep, selectedTemplate, selectedLeads.length]);
 
   const handleSearch = () => {
     setCurrentStep(2);
