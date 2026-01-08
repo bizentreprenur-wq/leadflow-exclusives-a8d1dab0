@@ -46,6 +46,7 @@ import { searchPlatforms, PlatformResult } from '@/lib/api/platforms';
 import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } from '@/lib/api/leadAnalysis';
 import { HIGH_CONVERTING_TEMPLATES } from '@/lib/highConvertingTemplates';
 import AutoFollowUpBuilder from '@/components/AutoFollowUpBuilder';
+import LeadResultsPanel from '@/components/LeadResultsPanel';
 
 interface SearchResult {
   id: string;
@@ -106,8 +107,12 @@ export default function Dashboard() {
   // Widget states
   const [showEmailWidget, setShowEmailWidget] = useState(false);
   const [showVerifierWidget, setShowVerifierWidget] = useState(false);
+  const [showResultsPanel, setShowResultsPanel] = useState(false);
   const [widgetLeads, setWidgetLeads] = useState<SearchResult[]>([]);
   const [verifiedWidgetLeads, setVerifiedWidgetLeads] = useState<any[]>([]);
+  
+  // Search filter options
+  const [filterNoWebsite, setFilterNoWebsite] = useState(false);
 
   // Check for payment success
   useEffect(() => {
@@ -189,10 +194,10 @@ export default function Dashboard() {
       }
       
       setSearchResults(results);
-      toast.success(`Found ${results.length} businesses! AI is now analyzing...`);
+      toast.success(`Found ${results.length} businesses!`);
       
-      // Move to step 2
-      setCurrentStep(2);
+      // Open results panel instead of moving to step 2
+      setShowResultsPanel(true);
       
       // Start AI analysis in background
       if (results.length > 0) {
@@ -272,6 +277,14 @@ export default function Dashboard() {
     setVerifiedWidgetLeads(leads);
     setShowVerifierWidget(false);
     setShowEmailWidget(true);
+  };
+
+  // Handle leads from results panel
+  const handleResultsPanelProceed = (leads: SearchResult[]) => {
+    setShowResultsPanel(false);
+    setWidgetLeads(leads);
+    sessionStorage.setItem('leadsToVerify', JSON.stringify(leads));
+    setShowVerifierWidget(true);
   };
 
   const downloadCSV = () => {
@@ -610,6 +623,24 @@ export default function Dashboard() {
                         ⚠️ More results = longer search time. 2,000 leads may take several minutes.
                       </p>
                     </div>
+
+                    {/* No Website Filter (GMB only) */}
+                    {searchType === 'gmb' && (
+                      <div className="p-4 rounded-lg border-2 border-emerald-500/30 bg-emerald-500/5">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <Checkbox
+                            checked={filterNoWebsite}
+                            onCheckedChange={(checked) => setFilterNoWebsite(checked === true)}
+                          />
+                          <div>
+                            <span className="font-medium text-emerald-600">🔥 Only businesses WITHOUT a website</span>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              High-value leads for web design outreach - these businesses need your services most!
+                            </p>
+                          </div>
+                        </label>
+                      </div>
+                    )}
 
                     <Button
                       onClick={handleSearch}
@@ -1231,6 +1262,19 @@ export default function Dashboard() {
         leads={widgetLeads}
         onComplete={handleVerificationComplete}
         onSendEmails={handleOpenEmailWidget}
+      />
+
+      {/* Lead Results Panel */}
+      <LeadResultsPanel
+        isOpen={showResultsPanel}
+        onClose={() => setShowResultsPanel(false)}
+        results={searchResults}
+        isAnalyzing={isAnalyzing}
+        aiGroups={aiGroups}
+        aiSummary={aiSummary}
+        aiStrategies={aiStrategies}
+        onSelectLeads={(leads) => setSelectedLeads(leads.map(l => l.id))}
+        onProceedToVerify={handleResultsPanelProceed}
       />
     </SidebarProvider>
   );
