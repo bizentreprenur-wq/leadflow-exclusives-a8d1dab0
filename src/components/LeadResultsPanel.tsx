@@ -21,9 +21,10 @@ import {
   Star, TrendingUp, Download, Filter, ArrowRight, Sparkles,
   Brain, Target, BarChart3, Mail, Building2, Zap, Clock,
   ChevronLeft, ChevronRight, FileSpreadsheet, AlertTriangle,
-  Loader2, Eye, MousePointer
+  Loader2, Eye, MousePointer, Flame, Snowflake
 } from 'lucide-react';
 import { LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } from '@/lib/api/leadAnalysis';
+import LeadClassificationPanel from '@/components/LeadClassificationPanel';
 
 interface SearchResult {
   id: string;
@@ -73,9 +74,10 @@ export default function LeadResultsPanel({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeTab, setActiveTab] = useState<'all' | 'ai-grouped' | 'no-website'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'ai-grouped' | 'no-website' | 'classified'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'rating' | 'issues'>('rating');
   const [filterHasWebsite, setFilterHasWebsite] = useState<'all' | 'yes' | 'no'>('all');
+  const [showClassification, setShowClassification] = useState(false);
 
   // Reset selection when results change
   useEffect(() => {
@@ -243,14 +245,15 @@ export default function LeadResultsPanel({
 
         {/* Quick Stats Cards */}
         <div className="p-4 border-b bg-muted/30">
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-5 gap-3">
             <button
               onClick={() => {
                 setFilterHasWebsite('all');
                 setActiveTab('all');
+                setShowClassification(false);
               }}
               className={`p-3 rounded-lg border-2 text-center transition-all ${
-                filterHasWebsite === 'all' ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
+                filterHasWebsite === 'all' && !showClassification ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50'
               }`}
             >
               <p className="text-xl font-bold">{stats.total.toLocaleString()}</p>
@@ -258,20 +261,37 @@ export default function LeadResultsPanel({
             </button>
             <button
               onClick={() => {
-                setFilterHasWebsite('no');
-                setActiveTab('no-website');
+                setShowClassification(true);
               }}
               className={`p-3 rounded-lg border-2 text-center transition-all ${
-                filterHasWebsite === 'no' ? 'border-emerald-500 bg-emerald-500/10' : 'border-border hover:border-emerald-500/50'
+                showClassification ? 'border-red-500 bg-red-500/10' : 'border-border hover:border-red-500/50'
+              }`}
+            >
+              <div className="flex justify-center gap-1 text-xl font-bold">
+                <Flame className="w-5 h-5 text-red-500" />
+              </div>
+              <p className="text-xs text-muted-foreground">Hot/Warm/Cold</p>
+            </button>
+            <button
+              onClick={() => {
+                setFilterHasWebsite('no');
+                setActiveTab('no-website');
+                setShowClassification(false);
+              }}
+              className={`p-3 rounded-lg border-2 text-center transition-all ${
+                filterHasWebsite === 'no' && !showClassification ? 'border-emerald-500 bg-emerald-500/10' : 'border-border hover:border-emerald-500/50'
               }`}
             >
               <p className="text-xl font-bold text-emerald-600">{stats.withoutWebsite}</p>
               <p className="text-xs text-muted-foreground">No Website 🔥</p>
             </button>
             <button
-              onClick={() => setFilterHasWebsite('yes')}
+              onClick={() => {
+                setFilterHasWebsite('yes');
+                setShowClassification(false);
+              }}
               className={`p-3 rounded-lg border-2 text-center transition-all ${
-                filterHasWebsite === 'yes' ? 'border-amber-500 bg-amber-500/10' : 'border-border hover:border-amber-500/50'
+                filterHasWebsite === 'yes' && !showClassification ? 'border-amber-500 bg-amber-500/10' : 'border-border hover:border-amber-500/50'
               }`}
             >
               <p className="text-xl font-bold text-amber-600">{stats.needsUpgrade}</p>
@@ -281,9 +301,10 @@ export default function LeadResultsPanel({
               onClick={() => {
                 setActiveTab('ai-grouped');
                 setFilterHasWebsite('all');
+                setShowClassification(false);
               }}
               className={`p-3 rounded-lg border-2 text-center transition-all ${
-                activeTab === 'ai-grouped' ? 'border-violet-500 bg-violet-500/10' : 'border-border hover:border-violet-500/50'
+                activeTab === 'ai-grouped' && !showClassification ? 'border-violet-500 bg-violet-500/10' : 'border-border hover:border-violet-500/50'
               }`}
             >
               <p className="text-xl font-bold text-violet-600">
@@ -294,6 +315,43 @@ export default function LeadResultsPanel({
           </div>
         </div>
 
+        {/* Classification View */}
+        {showClassification ? (
+          <div className="flex-1 overflow-auto p-4">
+            <LeadClassificationPanel
+              leads={results}
+              onProceedToCall={(leads) => {
+                toast.success(`${leads.length} leads ready for calling - phone numbers copied!`);
+                const phones = leads.filter(l => l.phone).map(l => l.phone).join('\n');
+                navigator.clipboard.writeText(phones);
+              }}
+              onProceedToEmail={(leads) => {
+                onProceedToVerify(leads);
+              }}
+              onExportToCRM={(leads) => {
+                // Export as CSV for CRM import
+                const headers = ['Name', 'Address', 'Phone', 'Website', 'Rating'];
+                const rows = leads.map(l => [
+                  `"${l.name || ''}"`,
+                  `"${l.address || ''}"`,
+                  `"${l.phone || ''}"`,
+                  `"${l.website || ''}"`,
+                  l.rating || '',
+                ].join(','));
+                const csv = [headers.join(','), ...rows].join('\n');
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `crm-import-${new Date().toISOString().split('T')[0]}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              onClose={() => setShowClassification(false)}
+            />
+          </div>
+        ) : (
+          <>
         {/* AI Recommendations */}
         {aiSummary && !isAnalyzing && (
           <div className="p-4 border-b">
@@ -542,6 +600,8 @@ export default function LeadResultsPanel({
             </Button>
           </div>
         </div>
+          </>
+        )}
       </SheetContent>
     </Sheet>
   );
