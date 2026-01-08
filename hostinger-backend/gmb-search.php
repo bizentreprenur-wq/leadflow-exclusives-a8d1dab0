@@ -91,8 +91,7 @@ function searchGMBListings($service, $location) {
     
     $query = "$service in $location";
     $allResults = [];
-    $maxPages = 3; // Fetch up to 3 pages (60+ results)
-    $nextPageToken = null;
+    $maxPages = 5; // Fetch up to 5 pages (100+ results)
     
     for ($page = 0; $page < $maxPages; $page++) {
         $params = [
@@ -100,11 +99,12 @@ function searchGMBListings($service, $location) {
             'q' => $query,
             'type' => 'search',
             'api_key' => $apiKey,
-            'll' => '@29.7604267,-95.3698028,11z', // Houston coordinates with zoom
+            'hl' => 'en',
+            'num' => 20, // Request maximum per page
         ];
         
-        // Add pagination token if available
-        if ($nextPageToken) {
+        // Add pagination offset for subsequent pages
+        if ($page > 0) {
             $params['start'] = $page * 20;
         }
         
@@ -172,63 +172,52 @@ function searchGMBListings($service, $location) {
 }
 
 /**
- * Return mock results when API is not configured
+ * Return mock results when API is not configured (25 results for testing)
  */
 function getMockResults($service, $location) {
-    return [
-        [
-            'id' => 'mock_1',
-            'name' => "Best $service Services",
-            'url' => 'https://example-business.com',
-            'snippet' => "Top rated $service in $location area",
-            'displayLink' => 'example-business.com',
-            'address' => "123 Main St, $location",
-            'phone' => '(555) 123-4567',
-            'rating' => 4.5,
-            'reviews' => 42,
-            'websiteAnalysis' => [
-                'hasWebsite' => true,
-                'platform' => 'WordPress',
-                'needsUpgrade' => true,
-                'issues' => ['Not mobile responsive', 'Outdated jQuery version'],
-                'mobileScore' => 45
-            ]
-        ],
-        [
-            'id' => 'mock_2',
-            'name' => "$location $service Pros",
-            'url' => 'https://example-pros.com',
-            'snippet' => "Professional $service services in $location",
-            'displayLink' => 'example-pros.com',
-            'address' => "456 Oak Ave, $location",
-            'phone' => '(555) 987-6543',
-            'rating' => 4.8,
-            'reviews' => 127,
-            'websiteAnalysis' => [
-                'hasWebsite' => true,
-                'platform' => 'Wix',
-                'needsUpgrade' => false,
-                'issues' => [],
-                'mobileScore' => 85
-            ]
-        ],
-        [
-            'id' => 'mock_3',
-            'name' => "Quick $service Co",
-            'url' => '',
-            'snippet' => "Fast and reliable $service",
-            'displayLink' => '',
-            'address' => "789 Elm St, $location",
-            'phone' => '(555) 456-7890',
-            'rating' => 4.2,
-            'reviews' => 18,
-            'websiteAnalysis' => [
-                'hasWebsite' => false,
-                'platform' => null,
-                'needsUpgrade' => true,
-                'issues' => ['No website found'],
-                'mobileScore' => null
-            ]
-        ]
+    $prefixes = ['Best', 'Elite', 'Premier', 'Top', 'Pro', 'Expert', 'Quality', 'Reliable', 'Trusted', 'Certified', 
+                 'Supreme', 'Master', 'Prime', 'First Class', 'Superior', 'Advanced', 'Professional', 'Ultimate', 
+                 'Royal', 'Precision', 'Dynamic', 'Swift', 'Legacy', 'Titan', 'Apex'];
+    $platforms = ['WordPress', 'Wix', 'Squarespace', 'GoDaddy', 'Weebly', 'Custom/Unknown', null, 'Joomla', 'Shopify'];
+    $issues = [
+        'Not mobile responsive',
+        'Missing meta description', 
+        'Outdated jQuery version',
+        'Large page size (slow loading)',
+        'Missing alt tags on images',
+        'No SSL certificate',
+        'Slow server response',
+        'Tables used for layout'
     ];
+    
+    $results = [];
+    
+    for ($i = 0; $i < 25; $i++) {
+        $prefix = $prefixes[$i];
+        $platform = $platforms[array_rand($platforms)];
+        $hasWebsite = rand(0, 100) > 15; // 85% have websites
+        $issueCount = rand(0, 4);
+        $selectedIssues = $hasWebsite ? array_slice($issues, 0, $issueCount) : ['No website found'];
+        
+        $results[] = [
+            'id' => 'mock_' . ($i + 1),
+            'name' => "$prefix $service Services",
+            'url' => $hasWebsite ? 'https://example-' . strtolower($prefix) . '.com' : '',
+            'snippet' => "Professional $service services in $location. Quality work, competitive pricing.",
+            'displayLink' => $hasWebsite ? 'example-' . strtolower($prefix) . '.com' : '',
+            'address' => (1000 + $i * 100) . " Main St, $location",
+            'phone' => '(555) ' . rand(100, 999) . '-' . rand(1000, 9999),
+            'rating' => round(rand(30, 50) / 10, 1),
+            'reviews' => rand(5, 250),
+            'websiteAnalysis' => [
+                'hasWebsite' => $hasWebsite,
+                'platform' => $hasWebsite ? $platform : null,
+                'needsUpgrade' => !$hasWebsite || $issueCount >= 2,
+                'issues' => $selectedIssues,
+                'mobileScore' => $hasWebsite ? rand(35, 95) : null
+            ]
+        ];
+    }
+    
+    return $results;
 }
