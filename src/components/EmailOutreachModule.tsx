@@ -192,16 +192,16 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
     setIsLoading(true);
     try {
       const [templatesRes, sendsRes, statsRes, scheduledRes] = await Promise.all([
-        getTemplates(),
-        getSends({ limit: 20 }),
-        getEmailStats(30),
-        getScheduledEmails(),
+        getTemplates().catch(() => ({ success: false, templates: [] })),
+        getSends({ limit: 20 }).catch(() => ({ success: false, sends: [] })),
+        getEmailStats(30).catch(() => ({ success: false, stats: null })),
+        getScheduledEmails().catch(() => ({ success: false, emails: [] })),
       ]);
       
-      if (templatesRes.success) setTemplates(templatesRes.templates);
-      if (sendsRes.success) setSends(sendsRes.sends);
+      if (templatesRes.success && templatesRes.templates) setTemplates(templatesRes.templates);
+      if (sendsRes.success && sendsRes.sends) setSends(sendsRes.sends);
       if (statsRes.success && statsRes.stats) setStats(statsRes.stats);
-      if (scheduledRes.success) setScheduledEmails(scheduledRes.emails);
+      if (scheduledRes.success && scheduledRes.emails) setScheduledEmails(scheduledRes.emails);
     } catch (error) {
       console.error('Failed to load email data:', error);
     }
