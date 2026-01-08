@@ -190,12 +190,21 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
 
   const loadData = async () => {
     setIsLoading(true);
+    
+    // Timeout helper - never wait more than 5 seconds for any API call
+    const withTimeout = <T,>(promise: Promise<T>, fallback: T, ms = 5000): Promise<T> => {
+      return Promise.race([
+        promise,
+        new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
+      ]);
+    };
+    
     try {
       const [templatesRes, sendsRes, statsRes, scheduledRes] = await Promise.all([
-        getTemplates().catch(() => ({ success: false, templates: [] })),
-        getSends({ limit: 20 }).catch(() => ({ success: false, sends: [] })),
-        getEmailStats(30).catch(() => ({ success: false, stats: null })),
-        getScheduledEmails().catch(() => ({ success: false, emails: [] })),
+        withTimeout(getTemplates(), { success: false, templates: [] }),
+        withTimeout(getSends({ limit: 20 }), { success: false, sends: [], total: 0 }),
+        withTimeout(getEmailStats(30), { success: false, stats: null }),
+        withTimeout(getScheduledEmails(), { success: false, emails: [] }),
       ]);
       
       if (templatesRes.success && templatesRes.templates) setTemplates(templatesRes.templates);
