@@ -898,26 +898,23 @@ export default function Dashboard() {
               Back to verification
             </button>
 
-            {emailLeads.length === 0 ? (
-              <Card className="border-border bg-card">
-                <CardContent className="p-6">
-                  <div className="text-center space-y-3">
-                    <p className="text-xl font-semibold text-foreground">No verified leads yet</p>
-                    <p className="text-muted-foreground">
-                      Complete Step 3 first so we know who you’re emailing.
-                    </p>
-                    <div className="flex justify-center">
-                      <Button onClick={() => setCurrentStep(3)} className="gap-2">
-                        <Sparkles className="w-4 h-4" />
-                        Go to Step 3
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <EmailOutreachModule selectedLeads={emailLeads} onClearSelection={() => setEmailLeads([])} />
-            )}
+            {(() => {
+              // Use sample leads if none verified yet for demo purposes
+              const sampleLeads: LeadForEmail[] = [
+                { email: 'contact@acmeplumbing.com', business_name: 'Acme Plumbing Co', contact_name: 'John Smith', website: 'www.acmeplumbing.com', phone: '(555) 123-4567' },
+                { email: 'info@sunsetdental.com', business_name: 'Sunset Dental Clinic', contact_name: 'Dr. Sarah Johnson', website: 'www.sunsetdental.com', phone: '(555) 234-5678' },
+                { email: 'hello@greenthumb.com', business_name: 'Green Thumb Landscaping', contact_name: 'Mike Davis', website: 'www.greenthumb.com', phone: '(555) 345-6789' },
+                { email: 'service@quickfix.com', business_name: 'QuickFix Auto Repair', contact_name: 'Carlos Martinez', website: 'www.quickfixauto.com', phone: '(555) 456-7890' },
+                { email: 'info@elegantcuts.com', business_name: 'Elegant Cuts Salon', contact_name: 'Lisa Chen', website: 'www.elegantcuts.com', phone: '(555) 567-8901' },
+                { email: 'office@smithlaw.com', business_name: 'Smith & Associates Law', contact_name: 'Robert Smith', website: 'www.smithlaw.com', phone: '(555) 678-9012' },
+                { email: 'contact@homeclean.com', business_name: 'Home Clean Services', contact_name: 'Jennifer Brown', website: 'www.homeclean.com', phone: '(555) 789-0123' },
+                { email: 'info@fitzone.com', business_name: 'FitZone Gym', contact_name: 'David Wilson', website: 'www.fitzone.com', phone: '(555) 890-1234' },
+                { email: 'hello@tastybites.com', business_name: 'Tasty Bites Restaurant', contact_name: 'Maria Garcia', website: 'www.tastybites.com', phone: '(555) 901-2345' },
+                { email: 'info@techpros.com', business_name: 'TechPros IT Solutions', contact_name: 'Alex Thompson', website: 'www.techpros.com', phone: '(555) 012-3456' },
+              ];
+              const leadsToUse = emailLeads.length > 0 ? emailLeads : sampleLeads;
+              return <EmailOutreachModule selectedLeads={leadsToUse} onClearSelection={() => setEmailLeads([])} />;
+            })()}
           </div>
         );
 
