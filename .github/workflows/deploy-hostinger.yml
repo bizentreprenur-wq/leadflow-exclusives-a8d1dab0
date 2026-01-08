@@ -1,4 +1,4 @@
-name: Deploy to Hostinger
+name: Deploy to Hostinger (Safe - Protects /api/)
 
 on:
   push:
@@ -25,16 +25,29 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Deploy to Hostinger via FTP
+      - name: Create .ftp-deploy-sync-state placeholder
+        run: |
+          echo "# FTP Deploy - NEVER delete api folder" > ./dist/.ftp-deploy-note.txt
+
+      - name: Deploy to Hostinger via SFTP (Safe Mode)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftp
           local-dir: ./dist/
           server-dir: /public_html/
+          # CRITICAL: Never delete files not in source (protects /api/)
           dangerous-clean-slate: false
+          # Exclude these paths from being touched AT ALL
           exclude: |
             **/api/**
+            **/api
             api/**
-            .htaccess
+            api/
+            api
+            **/config.php
+            **/.htaccess
+          # Log what's happening
+          log-level: standard
