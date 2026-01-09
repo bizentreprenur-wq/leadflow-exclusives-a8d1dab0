@@ -35,6 +35,7 @@ import AIJourneyExplainer from '@/components/AIJourneyExplainer';
 import ScalabilityDashboard from '@/components/ScalabilityDashboard';
 import AdvertisingSpotlight from '@/components/AdvertisingSpotlight';
 import VoiceSearchButton from '@/components/VoiceSearchButton';
+import SystemDiagnostics from '@/components/SystemDiagnostics';
 import { AILeadGrouping } from '@/components/AILeadGrouping';
 import SubscriptionManagement from '@/components/SubscriptionManagement';
 import EmailWidget from '@/components/EmailWidget';
@@ -1079,6 +1080,15 @@ export default function Dashboard() {
           iconColor: 'text-primary',
           iconBg: 'bg-primary/10',
           component: <ScalabilityDashboard />,
+        };
+      case 'diagnostics':
+        return {
+          title: 'Backend Diagnostics',
+          description: 'Test all APIs and verify system connectivity',
+          icon: Server,
+          iconColor: 'text-orange-500',
+          iconBg: 'bg-orange-500/10',
+          component: <SystemDiagnostics />,
         };
       case 'subscription':
         return {

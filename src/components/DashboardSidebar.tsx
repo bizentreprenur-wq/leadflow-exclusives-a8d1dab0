@@ -43,6 +43,7 @@ import {
   Server,
   CreditCard,
   RefreshCw,
+  Wrench,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import bamMascot from '@/assets/bamlead-mascot.png';
@@ -105,6 +106,13 @@ const resourceTools = [
     title: 'System Status',
     icon: Server,
     description: 'Performance & scaling',
+  },
+  {
+    id: 'diagnostics',
+    title: 'Backend Diagnostics',
+    icon: Wrench,
+    description: 'Test all APIs',
+    badge: 'Admin',
   },
   {
     id: 'mentor',
