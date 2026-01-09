@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { exportToGoogleDrive } from '@/lib/api/googleDrive';
 import CRMIntegrationModal from './CRMIntegrationModal';
+import EmailScheduleModal from './EmailScheduleModal';
 
 interface SearchResult {
   id: string;
@@ -260,6 +261,7 @@ export default function LeadSpreadsheetViewer({
   const [activeGroup, setActiveGroup] = useState<'all' | 'hot' | 'warm' | 'cold' | 'ready' | 'nowebsite'>('all');
   const [verifiedCount, setVerifiedCount] = useState(0);
   const [showCRMModal, setShowCRMModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [isExportingToDrive, setIsExportingToDrive] = useState(false);
   
   // Use fake leads if external leads are 100 or less
@@ -703,12 +705,28 @@ export default function LeadSpreadsheetViewer({
             </DropdownMenu>
 
             <Button 
+              onClick={() => {
+                if (selectedLeads.length === 0) {
+                  toast.error('Please select at least one lead');
+                  return;
+                }
+                setShowScheduleModal(true);
+              }}
+              disabled={selectedIds.size === 0}
+              variant="outline"
+              className="gap-2"
+            >
+              <Clock className="w-4 h-4" />
+              Schedule
+            </Button>
+
+            <Button 
               onClick={handleSendToEmail}
               disabled={selectedIds.size === 0}
               className="gap-2 bg-primary hover:bg-primary/90"
             >
               <Send className="w-4 h-4" />
-              Send to Email
+              Send Now
             </Button>
           </div>
         </div>
@@ -887,6 +905,25 @@ export default function LeadSpreadsheetViewer({
         open={showCRMModal}
         onOpenChange={setShowCRMModal}
         leads={selectedLeads}
+      />
+
+      {/* Email Schedule Modal */}
+      <EmailScheduleModal
+        open={showScheduleModal}
+        onOpenChange={setShowScheduleModal}
+        leads={selectedLeads.map(lead => ({
+          id: lead.id,
+          name: lead.name,
+          email: lead.email,
+          aiClassification: lead.aiClassification,
+          bestTimeToCall: lead.bestTimeToCall,
+          conversionProbability: lead.conversionProbability,
+        }))}
+        onSchedule={(leads, scheduledTime, mode) => {
+          console.log('Scheduled emails:', { leads, scheduledTime, mode });
+          toast.success(`${leads.length} emails scheduled for ${scheduledTime.toLocaleString()}`);
+          // Here you would integrate with your email outreach backend
+        }}
       />
     </Dialog>
   );
