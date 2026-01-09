@@ -92,57 +92,284 @@ const IMAGES = {
   senior: "https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?w=600&h=300&fit=crop",
 };
 
-// Helper function to create email HTML template
-const createEmailHTML = (config: {
+// Template Style Variants - Each creates a unique visual design
+type TemplateConfig = {
   heroImage: string;
   accentColor: string;
   headline: string;
   body: string;
   features: string[];
   cta: string;
-}) => `
+};
+
+// Style 1: Classic with Hero Image (Original)
+const createClassicHeroTemplate = (config: TemplateConfig) => `
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0;padding:0;background:#0a0a0a;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#1a1a1a;">
+    <tr><td><img src="${config.heroImage}" alt="Header" style="width:100%;height:auto;display:block;"/></td></tr>
+    <tr><td style="background:${config.accentColor};padding:15px 30px;"><span style="color:white;font-size:20px;font-weight:bold;">BamLead</span></td></tr>
+    <tr><td style="padding:40px 30px;">
+      <h1 style="color:#ffffff;font-size:26px;margin:0 0 20px;line-height:1.3;">${config.headline}</h1>
+      <p style="color:#a0a0a0;font-size:16px;line-height:1.6;margin:0 0 25px;">${config.body}</p>
+      <table width="100%" style="background:#262626;border-radius:12px;margin:25px 0;"><tr><td style="padding:25px;">
+        <p style="color:${config.accentColor};font-size:14px;font-weight:600;margin:0 0 15px;text-transform:uppercase;">What You Get</p>
+        ${config.features.map(f => `<p style="padding:8px 0;color:#ffffff;font-size:15px;margin:0;">✓ ${f}</p>`).join('')}
+      </td></tr></table>
+      <a href="#" style="display:inline-block;background:${config.accentColor};color:white;text-decoration:none;padding:16px 32px;border-radius:8px;font-weight:600;font-size:16px;">${config.cta}</a>
+      <p style="color:#666666;font-size:14px;margin:30px 0 0;">Best regards,<br/><span style="color:#ffffff;">{{sender_name}}</span></p>
+    </td></tr>
+    <tr><td style="background:#0f0f0f;padding:20px 30px;border-top:1px solid #262626;"><p style="color:#666666;font-size:12px;margin:0;text-align:center;">Sent with BamLead | <a href="#" style="color:${config.accentColor};">Unsubscribe</a></p></td></tr>
+  </table>
+</body></html>`;
+
+// Style 2: Minimalist Clean (No hero, typography focused)
+const createMinimalistTemplate = (config: TemplateConfig) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#ffffff;font-family:Georgia,'Times New Roman',serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:0 auto;background:#ffffff;">
+    <tr><td style="padding:50px 40px 30px;">
+      <div style="width:40px;height:4px;background:${config.accentColor};margin-bottom:30px;"></div>
+      <h1 style="color:#1a1a1a;font-size:28px;margin:0 0 25px;line-height:1.4;font-weight:400;">${config.headline}</h1>
+      <p style="color:#4a4a4a;font-size:17px;line-height:1.8;margin:0 0 30px;">${config.body}</p>
+      <div style="border-left:3px solid ${config.accentColor};padding-left:20px;margin:30px 0;">
+        ${config.features.map(f => `<p style="color:#333;font-size:15px;margin:10px 0;font-style:italic;">— ${f}</p>`).join('')}
+      </div>
+      <a href="#" style="display:inline-block;background:${config.accentColor};color:white;text-decoration:none;padding:14px 28px;font-size:15px;font-family:'Segoe UI',sans-serif;margin-top:20px;">${config.cta}</a>
+      <p style="color:#888;font-size:14px;margin:40px 0 0;padding-top:20px;border-top:1px solid #eee;">Warmly,<br/><span style="color:#333;">{{sender_name}}</span></p>
+    </td></tr>
+  </table>
+</body></html>`;
+
+// Style 3: Gradient Header (Modern SaaS style)
+const createGradientTemplate = (config: TemplateConfig) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f5f5f5;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;">
+    <tr><td style="background:linear-gradient(135deg, ${config.accentColor} 0%, ${config.accentColor}dd 50%, ${config.accentColor}aa 100%);padding:50px 40px;text-align:center;">
+      <h1 style="color:#ffffff;font-size:28px;margin:0 0 15px;font-weight:700;text-shadow:0 2px 4px rgba(0,0,0,0.1);">${config.headline}</h1>
+      <p style="color:rgba(255,255,255,0.9);font-size:16px;margin:0;">Powered by BamLead</p>
+    </td></tr>
+    <tr><td style="background:#ffffff;padding:40px;box-shadow:0 4px 20px rgba(0,0,0,0.1);">
+      <p style="color:#444;font-size:16px;line-height:1.7;margin:0 0 25px;">${config.body}</p>
+      <table width="100%" style="margin:25px 0;">${config.features.map((f, i) => `
+        <tr><td style="padding:12px 15px;background:${i % 2 === 0 ? '#f9f9f9' : '#fff'};border-radius:6px;">
+          <span style="color:${config.accentColor};font-weight:bold;margin-right:10px;">✓</span>
+          <span style="color:#333;font-size:15px;">${f}</span>
+        </td></tr>`).join('')}
+      </table>
+      <div style="text-align:center;margin-top:30px;">
+        <a href="#" style="display:inline-block;background:${config.accentColor};color:white;text-decoration:none;padding:16px 40px;border-radius:50px;font-weight:600;font-size:15px;box-shadow:0 4px 15px ${config.accentColor}44;">${config.cta}</a>
+      </div>
+    </td></tr>
+    <tr><td style="padding:25px;text-align:center;"><p style="color:#999;font-size:13px;margin:0;">{{sender_name}} via BamLead</p></td></tr>
+  </table>
+</body></html>`;
+
+// Style 4: Side-by-Side (Image left, content right)
+const createSplitLayoutTemplate = (config: TemplateConfig) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#1e1e1e;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:650px;margin:0 auto;background:#2a2a2a;border-radius:12px;overflow:hidden;">
     <tr>
-      <td>
-        <img src="${config.heroImage}" alt="Header" style="width:100%;height:auto;display:block;"/>
-      </td>
-    </tr>
-    <tr>
-      <td style="background:${config.accentColor};padding:15px 30px;">
-        <span style="color:white;font-size:20px;font-weight:bold;">BamLead</span>
-      </td>
-    </tr>
-    <tr>
-      <td style="padding:40px 30px;">
-        <h1 style="color:#ffffff;font-size:26px;margin:0 0 20px;line-height:1.3;">${config.headline}</h1>
-        <p style="color:#a0a0a0;font-size:16px;line-height:1.6;margin:0 0 25px;">${config.body}</p>
-        <table width="100%" style="background:#262626;border-radius:12px;margin:25px 0;">
-          <tr>
-            <td style="padding:25px;">
-              <p style="color:${config.accentColor};font-size:14px;font-weight:600;margin:0 0 15px;text-transform:uppercase;">What You Get</p>
-              ${config.features.map(f => `<p style="padding:8px 0;color:#ffffff;font-size:15px;margin:0;">✓ ${f}</p>`).join('')}
-            </td>
-          </tr>
-        </table>
-        <a href="#" style="display:inline-block;background:${config.accentColor};color:white;text-decoration:none;padding:16px 32px;border-radius:8px;font-weight:600;font-size:16px;">${config.cta}</a>
-        <p style="color:#666666;font-size:14px;margin:30px 0 0;">Best regards,<br/><span style="color:#ffffff;">{{sender_name}}</span></p>
-      </td>
-    </tr>
-    <tr>
-      <td style="background:#0f0f0f;padding:20px 30px;border-top:1px solid #262626;">
-        <p style="color:#666666;font-size:12px;margin:0;text-align:center;">Sent with BamLead | <a href="#" style="color:${config.accentColor};">Unsubscribe</a></p>
+      <td width="35%" style="vertical-align:top;"><img src="${config.heroImage}" style="width:100%;height:100%;object-fit:cover;min-height:400px;display:block;"/></td>
+      <td width="65%" style="vertical-align:top;padding:35px;">
+        <div style="border-left:4px solid ${config.accentColor};padding-left:20px;margin-bottom:25px;">
+          <h1 style="color:#fff;font-size:22px;margin:0;line-height:1.3;">${config.headline}</h1>
+        </div>
+        <p style="color:#b0b0b0;font-size:14px;line-height:1.7;margin:0 0 20px;">${config.body}</p>
+        <div style="background:#333;border-radius:8px;padding:15px;margin:20px 0;">
+          ${config.features.map(f => `<p style="color:#ddd;font-size:13px;margin:8px 0;"><span style="color:${config.accentColor};">●</span> ${f}</p>`).join('')}
+        </div>
+        <a href="#" style="display:inline-block;background:${config.accentColor};color:white;text-decoration:none;padding:12px 25px;border-radius:6px;font-size:14px;font-weight:600;">${config.cta}</a>
+        <p style="color:#666;font-size:12px;margin-top:25px;">— {{sender_name}}</p>
       </td>
     </tr>
   </table>
-</body>
-</html>`;
+</body></html>`;
+
+// Style 5: Bold Cards (Feature-focused cards)
+const createCardGridTemplate = (config: TemplateConfig) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#0f0f0f;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#161616;">
+    <tr><td style="padding:40px 30px;text-align:center;">
+      <img src="${config.heroImage}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid ${config.accentColor};"/>
+      <h1 style="color:#fff;font-size:24px;margin:20px 0 10px;">${config.headline}</h1>
+      <p style="color:#888;font-size:15px;line-height:1.6;margin:0 0 30px;max-width:400px;margin-left:auto;margin-right:auto;">${config.body}</p>
+    </td></tr>
+    <tr><td style="padding:0 20px 30px;">
+      <table width="100%" cellpadding="8" cellspacing="8">${(() => {
+        const rows = [];
+        for (let i = 0; i < config.features.length; i += 2) {
+          rows.push(`<tr>
+            <td width="50%" style="background:linear-gradient(145deg,#222,#1a1a1a);padding:20px;border-radius:12px;border:1px solid #333;">
+              <span style="color:${config.accentColor};font-size:20px;">✦</span>
+              <p style="color:#fff;font-size:14px;margin:10px 0 0;">${config.features[i]}</p>
+            </td>
+            ${config.features[i+1] ? `<td width="50%" style="background:linear-gradient(145deg,#222,#1a1a1a);padding:20px;border-radius:12px;border:1px solid #333;">
+              <span style="color:${config.accentColor};font-size:20px;">✦</span>
+              <p style="color:#fff;font-size:14px;margin:10px 0 0;">${config.features[i+1]}</p>
+            </td>` : '<td></td>'}
+          </tr>`);
+        }
+        return rows.join('');
+      })()}</table>
+    </td></tr>
+    <tr><td style="padding:10px 30px 40px;text-align:center;">
+      <a href="#" style="display:inline-block;background:linear-gradient(135deg,${config.accentColor},${config.accentColor}cc);color:white;text-decoration:none;padding:16px 45px;border-radius:8px;font-weight:bold;font-size:15px;box-shadow:0 8px 25px ${config.accentColor}33;">${config.cta}</a>
+      <p style="color:#555;font-size:13px;margin-top:30px;">{{sender_name}} • BamLead</p>
+    </td></tr>
+  </table>
+</body></html>`;
+
+// Style 6: Timeline Style (Step-by-step feel)
+const createTimelineTemplate = (config: TemplateConfig) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#fafafa;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:580px;margin:0 auto;background:#fff;border:1px solid #e5e5e5;">
+    <tr><td style="padding:40px 40px 30px;">
+      <h1 style="color:#111;font-size:26px;margin:0 0 8px;font-weight:700;">${config.headline}</h1>
+      <div style="width:60px;height:3px;background:${config.accentColor};margin-bottom:25px;"></div>
+      <p style="color:#555;font-size:16px;line-height:1.7;margin:0 0 35px;">${config.body}</p>
+      ${config.features.map((f, i) => `
+        <table width="100%" style="margin-bottom:${i < config.features.length - 1 ? '20px' : '0'};"><tr>
+          <td width="50" style="vertical-align:top;">
+            <div style="width:36px;height:36px;background:${config.accentColor};border-radius:50%;text-align:center;line-height:36px;color:#fff;font-weight:bold;font-size:14px;">${i + 1}</div>
+            ${i < config.features.length - 1 ? `<div style="width:2px;height:30px;background:#e0e0e0;margin:8px auto 0;"></div>` : ''}
+          </td>
+          <td style="padding:6px 0 0 15px;"><p style="color:#333;font-size:15px;margin:0;">${f}</p></td>
+        </tr></table>
+      `).join('')}
+      <div style="margin-top:35px;">
+        <a href="#" style="display:inline-block;background:${config.accentColor};color:white;text-decoration:none;padding:14px 32px;border-radius:6px;font-weight:600;">${config.cta}</a>
+      </div>
+      <p style="color:#999;font-size:14px;margin-top:40px;padding-top:20px;border-top:1px solid #eee;">{{sender_name}}</p>
+    </td></tr>
+  </table>
+</body></html>`;
+
+// Style 7: Dark Neon (Cyberpunk aesthetic)
+const createNeonTemplate = (config: TemplateConfig) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#050505;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#0a0a0a;border:1px solid ${config.accentColor}33;">
+    <tr><td style="padding:50px 35px;border-bottom:1px solid ${config.accentColor}33;">
+      <h1 style="color:${config.accentColor};font-size:32px;margin:0 0 5px;text-shadow:0 0 20px ${config.accentColor}66;letter-spacing:-1px;">${config.headline}</h1>
+      <div style="color:#666;font-size:12px;text-transform:uppercase;letter-spacing:2px;margin-top:10px;">BamLead Outreach</div>
+    </td></tr>
+    <tr><td style="padding:35px;">
+      <p style="color:#ccc;font-size:16px;line-height:1.8;margin:0 0 30px;">${config.body}</p>
+      <table width="100%" style="border:1px solid ${config.accentColor}44;background:#111;">
+        ${config.features.map((f, i) => `
+          <tr><td style="padding:15px 20px;border-bottom:${i < config.features.length - 1 ? `1px solid ${config.accentColor}22` : 'none'};">
+            <span style="color:${config.accentColor};margin-right:12px;">▸</span>
+            <span style="color:#eee;font-size:14px;">${f}</span>
+          </td></tr>
+        `).join('')}
+      </table>
+      <div style="margin-top:35px;">
+        <a href="#" style="display:inline-block;background:transparent;color:${config.accentColor};text-decoration:none;padding:14px 35px;border:2px solid ${config.accentColor};font-weight:600;font-size:15px;text-transform:uppercase;letter-spacing:1px;box-shadow:0 0 20px ${config.accentColor}33;">${config.cta}</a>
+      </div>
+      <p style="color:#444;font-size:13px;margin-top:40px;">// {{sender_name}}</p>
+    </td></tr>
+  </table>
+</body></html>`;
+
+// Style 8: Magazine Style (Editorial look)
+const createMagazineTemplate = (config: TemplateConfig) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f0ebe3;font-family:Georgia,'Times New Roman',serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:620px;margin:0 auto;background:#fff;">
+    <tr><td><img src="${config.heroImage}" style="width:100%;height:200px;object-fit:cover;filter:grayscale(30%);"/></td></tr>
+    <tr><td style="padding:45px 50px;">
+      <p style="color:${config.accentColor};font-size:11px;text-transform:uppercase;letter-spacing:3px;margin:0 0 15px;">Featured Insight</p>
+      <h1 style="color:#1a1a1a;font-size:32px;margin:0 0 25px;line-height:1.25;font-weight:400;">${config.headline}</h1>
+      <p style="color:#444;font-size:17px;line-height:1.9;margin:0 0 30px;text-align:justify;">${config.body}</p>
+      <div style="border-top:2px solid #1a1a1a;border-bottom:2px solid #1a1a1a;padding:25px 0;margin:30px 0;">
+        <p style="color:#1a1a1a;font-size:13px;text-transform:uppercase;letter-spacing:2px;margin:0 0 15px;">What's Included</p>
+        ${config.features.map(f => `<p style="color:#333;font-size:15px;margin:12px 0;padding-left:20px;border-left:3px solid ${config.accentColor};">${f}</p>`).join('')}
+      </div>
+      <table width="100%"><tr>
+        <td><a href="#" style="display:inline-block;background:#1a1a1a;color:white;text-decoration:none;padding:16px 35px;font-family:'Segoe UI',sans-serif;font-size:14px;letter-spacing:1px;">${config.cta}</a></td>
+        <td style="text-align:right;color:#888;font-size:14px;font-style:italic;">— {{sender_name}}</td>
+      </tr></table>
+    </td></tr>
+  </table>
+</body></html>`;
+
+// Style 9: Stats Focused (Data-driven look)
+const createStatsTemplate = (config: TemplateConfig) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#111827;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#1f2937;">
+    <tr><td style="padding:40px;text-align:center;">
+      <h1 style="color:#f9fafb;font-size:28px;margin:0 0 20px;">${config.headline}</h1>
+      <p style="color:#9ca3af;font-size:15px;line-height:1.7;margin:0 0 30px;">${config.body}</p>
+    </td></tr>
+    <tr><td style="padding:0 30px 30px;">
+      <table width="100%" cellpadding="10"><tr>
+        ${config.features.slice(0, 4).map((f, i) => `
+          <td width="25%" style="text-align:center;background:#374151;border-radius:8px;padding:20px 10px;">
+            <div style="color:${config.accentColor};font-size:28px;font-weight:bold;">${['97%', '3x', '24h', '10+'][i]}</div>
+            <div style="color:#d1d5db;font-size:11px;margin-top:8px;">${f.split(' ').slice(0, 2).join(' ')}</div>
+          </td>
+        `).join('')}
+      </tr></table>
+    </td></tr>
+    <tr><td style="padding:20px 40px 50px;text-align:center;">
+      <a href="#" style="display:inline-block;background:${config.accentColor};color:white;text-decoration:none;padding:16px 40px;border-radius:8px;font-weight:600;font-size:15px;">${config.cta}</a>
+      <p style="color:#6b7280;font-size:13px;margin-top:25px;">{{sender_name}} • BamLead</p>
+    </td></tr>
+  </table>
+</body></html>`;
+
+// Style 10: Friendly/Casual (Approachable tone)
+const createFriendlyTemplate = (config: TemplateConfig) => `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#fef3c7;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:550px;margin:0 auto;background:#fffbeb;border-radius:20px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,0.1);">
+    <tr><td style="padding:45px 40px;">
+      <div style="font-size:40px;margin-bottom:15px;">👋</div>
+      <h1 style="color:#1a1a1a;font-size:24px;margin:0 0 20px;font-weight:600;">${config.headline}</h1>
+      <p style="color:#525252;font-size:16px;line-height:1.8;margin:0 0 25px;">${config.body}</p>
+      <div style="background:#fff;border-radius:16px;padding:25px;box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+        ${config.features.map((f, i) => `
+          <p style="color:#333;font-size:15px;margin:${i === 0 ? '0' : '12px 0 0'};padding-left:30px;position:relative;">
+            <span style="position:absolute;left:0;">✨</span>${f}
+          </p>
+        `).join('')}
+      </div>
+      <div style="margin-top:30px;text-align:center;">
+        <a href="#" style="display:inline-block;background:${config.accentColor};color:white;text-decoration:none;padding:16px 40px;border-radius:50px;font-weight:600;font-size:15px;">${config.cta}</a>
+      </div>
+      <p style="color:#888;font-size:14px;margin-top:35px;text-align:center;">Cheers, {{sender_name}} 🙌</p>
+    </td></tr>
+  </table>
+</body></html>`;
+
+// Wrapper function to maintain backwards compatibility
+const createEmailHTML = (config: TemplateConfig) => createClassicHeroTemplate(config);
 
 export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
   // ============================================
@@ -158,7 +385,7 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     description: 'Classic PAS copywriting formula - proven 3x higher response rate',
     previewImage: IMAGES.webDesignStats,
     conversionTip: 'PAS formula: Identify pain, agitate it, offer solution',
-    body_html: createEmailHTML({
+    body_html: createNeonTemplate({
       heroImage: IMAGES.webDesignStats,
       accentColor: '#ef4444',
       headline: 'Hi {{first_name}}, This Is Quietly Hurting {{business_name}}',
@@ -176,7 +403,7 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     description: 'Lead with client results - 2.5x higher reply rate',
     previewImage: IMAGES.growth,
     conversionTip: 'Open with a specific, believable result from a similar business',
-    body_html: createEmailHTML({
+    body_html: createStatsTemplate({
       heroImage: IMAGES.growth,
       accentColor: '#22c55e',
       headline: '{{first_name}}, This Worked for Businesses Like Yours',
@@ -194,7 +421,7 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     description: 'Creates irresistible curiosity - highest open rates',
     previewImage: IMAGES.webDesignLocalSeo,
     conversionTip: 'Tease valuable info they can only get by responding',
-    body_html: createEmailHTML({
+    body_html: createMinimalistTemplate({
       heroImage: IMAGES.webDesignLocalSeo,
       accentColor: '#8b5cf6',
       headline: '{{first_name}}, There\'s a Simple Fix You\'re Missing',
@@ -212,7 +439,7 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     description: 'Paint the transformation picture - emotional trigger',
     previewImage: IMAGES.webDesignPortfolio,
     conversionTip: 'Show them the "after" state before asking for anything',
-    body_html: createEmailHTML({
+    body_html: createGradientTemplate({
       heroImage: IMAGES.webDesignPortfolio,
       accentColor: '#14b8a6',
       headline: 'Hi {{first_name}}, Imagine This...',
@@ -230,7 +457,7 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     description: 'Loss aversion is 2x more powerful than gain - proven psychology',
     previewImage: IMAGES.webDesignCompetitor,
     conversionTip: 'People hate losing more than they love winning',
-    body_html: createEmailHTML({
+    body_html: createSplitLayoutTemplate({
       heroImage: IMAGES.webDesignCompetitor,
       accentColor: '#dc2626',
       headline: '{{first_name}}, Your Competitors Are Taking Your Customers',
@@ -248,7 +475,7 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     description: 'Lead with a genuine gift - builds reciprocity',
     previewImage: IMAGES.webDesign,
     conversionTip: 'Give something valuable first, ask second',
-    body_html: createEmailHTML({
+    body_html: createFriendlyTemplate({
       heroImage: IMAGES.webDesign,
       accentColor: '#f59e0b',
       headline: 'Hi {{first_name}}, This Is Genuinely Free',
@@ -266,7 +493,7 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     description: 'Stories are 22x more memorable than facts - narrative power',
     previewImage: IMAGES.webDesignPortfolio,
     conversionTip: 'Open with a mini-story, then pivot to them',
-    body_html: createEmailHTML({
+    body_html: createMagazineTemplate({
       heroImage: IMAGES.webDesignPortfolio,
       accentColor: '#3b82f6',
       headline: '{{first_name}}, Let Me Tell You About Mike',
@@ -284,7 +511,7 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     description: 'Scarcity creates action - use ethically',
     previewImage: IMAGES.webDesignMobile,
     conversionTip: 'Real scarcity (capacity limits) drives response',
-    body_html: createEmailHTML({
+    body_html: createCardGridTemplate({
       heroImage: IMAGES.webDesignMobile,
       accentColor: '#a855f7',
       headline: 'Hi {{first_name}}, Honest Question',
@@ -306,7 +533,7 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     description: 'Hero-style intro for outdated websites',
     previewImage: IMAGES.webDesign,
     conversionTip: 'Opens with value proposition, not a pitch',
-    body_html: createEmailHTML({
+    body_html: createTimelineTemplate({
       heroImage: IMAGES.webDesign,
       accentColor: '#14b8a6',
       headline: 'Hi {{first_name}}, Your Website Could Be Working Harder',
@@ -324,7 +551,7 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     description: 'Data-backed approach with statistics',
     previewImage: IMAGES.webDesignStats,
     conversionTip: 'Use shocking stats to create urgency',
-    body_html: createEmailHTML({
+    body_html: createStatsTemplate({
       heroImage: IMAGES.webDesignStats,
       accentColor: '#8b5cf6',
       headline: '{{first_name}}, Your Competitors Are Getting Ahead',
@@ -342,7 +569,7 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     description: 'Social proof with client results',
     previewImage: IMAGES.webDesignPortfolio,
     conversionTip: 'Show similar industry success stories',
-    body_html: createEmailHTML({
+    body_html: createMagazineTemplate({
       heroImage: IMAGES.webDesignPortfolio,
       accentColor: '#f59e0b',
       headline: 'Hi {{first_name}}, Real Results for Real Businesses',
@@ -360,7 +587,7 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     description: 'SEO-focused for local businesses',
     previewImage: IMAGES.webDesignLocalSeo,
     conversionTip: 'Address Google visibility concerns',
-    body_html: createEmailHTML({
+    body_html: createNeonTemplate({
       heroImage: IMAGES.webDesignLocalSeo,
       accentColor: '#ef4444',
       headline: '{{first_name}}, Are Customers Finding You Online?',
@@ -378,7 +605,7 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     description: 'Competitive analysis approach',
     previewImage: IMAGES.webDesignCompetitor,
     conversionTip: 'Create urgency through competition',
-    body_html: createEmailHTML({
+    body_html: createSplitLayoutTemplate({
       heroImage: IMAGES.webDesignCompetitor,
       accentColor: '#14b8a6',
       headline: 'Hi {{first_name}}, Your Competitors Are Investing in Their Websites',
@@ -396,7 +623,7 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     description: 'Mobile optimization focus',
     previewImage: IMAGES.webDesignMobile,
     conversionTip: 'Target mobile experience issues',
-    body_html: createEmailHTML({
+    body_html: createCardGridTemplate({
       heroImage: IMAGES.webDesignMobile,
       accentColor: '#3b82f6',
       headline: '{{first_name}}, 70% of Your Visitors Are on Mobile',
@@ -414,7 +641,7 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     description: 'Seasonal/New Year pitch',
     previewImage: IMAGES.webDesignSeasonal,
     conversionTip: 'Leverage seasonal motivation',
-    body_html: createEmailHTML({
+    body_html: createGradientTemplate({
       heroImage: IMAGES.webDesignSeasonal,
       accentColor: '#8b5cf6',
       headline: 'Hi {{first_name}}, Start 2024 with a Fresh Look',
@@ -432,7 +659,7 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     description: 'Focus on credibility and trust signals',
     previewImage: IMAGES.webDesignTrust,
     conversionTip: 'Address trust factor concerns',
-    body_html: createEmailHTML({
+    body_html: createMinimalistTemplate({
       heroImage: IMAGES.webDesignTrust,
       accentColor: '#059669',
       headline: '{{first_name}}, First Impressions Matter Online',
@@ -450,7 +677,7 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     description: 'For businesses ready to sell online',
     previewImage: IMAGES.ecommerce,
     conversionTip: 'Target businesses wanting online sales',
-    body_html: createEmailHTML({
+    body_html: createFriendlyTemplate({
       heroImage: IMAGES.ecommerce,
       accentColor: '#14b8a6',
       headline: 'Hi {{first_name}}, Your Customers Want to Buy Online',
@@ -468,7 +695,7 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     description: 'Maintenance and security focus',
     previewImage: IMAGES.tech,
     conversionTip: 'Address security concerns',
-    body_html: createEmailHTML({
+    body_html: createNeonTemplate({
       heroImage: IMAGES.tech,
       accentColor: '#ef4444',
       headline: '{{first_name}}, When Did You Last Update Your Website?',
