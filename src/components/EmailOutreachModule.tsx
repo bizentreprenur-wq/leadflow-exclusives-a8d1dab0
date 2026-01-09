@@ -34,8 +34,9 @@ import {
   Reply, XCircle, Sparkles, Database, RefreshCw, Star, Building2, 
   RotateCcw, Calendar, Timer, ArrowRight, ArrowLeft, PartyPopper,
   Zap, CheckCheck, ChevronRight, TrendingUp, PieChart, MailPlus, Palette,
-  Search, X, Grid3X3, List, CalendarIcon
+  Search, X, Grid3X3, List, CalendarIcon, CalendarPlus, ExternalLink
 } from 'lucide-react';
+import CRMIntegrationModal from '@/components/CRMIntegrationModal';
 import { LazyLoader } from '@/components/ui/lazy-loader';
 import { EmailStatsSkeleton, TemplateCardSkeleton, SavedLeadsListSkeleton } from '@/components/ui/loading-skeletons';
 import {
@@ -105,6 +106,10 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   const [scheduleMode, setScheduleMode] = useState<'now' | 'optimal' | 'custom'>('now');
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined);
   const [scheduledTime, setScheduledTime] = useState('09:00');
+  
+  // Calendar & CRM state
+  const [addToCalendar, setAddToCalendar] = useState(false);
+  const [showCRMModal, setShowCRMModal] = useState(false);
   
   // Success state
   const [lastSendResult, setLastSendResult] = useState<{ sent: number; failed: number; scheduled?: string } | null>(null);
@@ -344,6 +349,98 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
     
     return 'Next Tuesday at 10:00 AM';
   };
+
+  // Generate calendar event (Google Calendar, Outlook, or iCal)
+  const generateCalendarEvent = (type: 'google' | 'outlook' | 'ical') => {
+    const scheduledDateTime = scheduleMode === 'custom' && scheduledDate 
+      ? new Date(`${format(scheduledDate, 'yyyy-MM-dd')}T${scheduledTime}`)
+      : scheduleMode === 'optimal'
+        ? (() => {
+            const now = new Date();
+            const optimalHours = [10, 14];
+            const optimalDays = [2, 3, 4];
+            for (let i = 0; i < 7; i++) {
+              const checkDate = new Date(now);
+              checkDate.setDate(now.getDate() + i);
+              if (optimalDays.includes(checkDate.getDay())) {
+                for (const hour of optimalHours) {
+                  const slotTime = new Date(checkDate);
+                  slotTime.setHours(hour, 0, 0, 0);
+                  if (slotTime > now) return slotTime;
+                }
+              }
+            }
+            return new Date();
+          })()
+        : new Date();
+
+    const endTime = new Date(scheduledDateTime);
+    endTime.setHours(endTime.getHours() + 1);
+
+    const title = `Email Campaign: ${leadsWithEmail.length} leads`;
+    const description = `Sending ${leadsWithEmail.length} emails using BamLead.\n\nTemplate: ${activeTemplate?.name || selectedTemplate?.name || 'Custom template'}\n\nLeads:\n${leadsWithEmail.slice(0, 5).map(l => `- ${l.business_name}`).join('\n')}${leadsWithEmail.length > 5 ? `\n...and ${leadsWithEmail.length - 5} more` : ''}`;
+
+    const formatDate = (date: Date) => date.toISOString().replace(/-|:|\.\d+/g, '').slice(0, 15) + 'Z';
+
+    if (type === 'google') {
+      const url = new URL('https://calendar.google.com/calendar/render');
+      url.searchParams.set('action', 'TEMPLATE');
+      url.searchParams.set('text', title);
+      url.searchParams.set('dates', `${formatDate(scheduledDateTime)}/${formatDate(endTime)}`);
+      url.searchParams.set('details', description);
+      window.open(url.toString(), '_blank');
+    } else if (type === 'outlook') {
+      const url = new URL('https://outlook.live.com/calendar/0/deeplink/compose');
+      url.searchParams.set('subject', title);
+      url.searchParams.set('startdt', scheduledDateTime.toISOString());
+      url.searchParams.set('enddt', endTime.toISOString());
+      url.searchParams.set('body', description);
+      window.open(url.toString(), '_blank');
+    } else {
+      // Generate ICS file
+      const icsContent = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//BamLead//Email Campaign//EN',
+        'BEGIN:VEVENT',
+        `DTSTART:${formatDate(scheduledDateTime)}`,
+        `DTEND:${formatDate(endTime)}`,
+        `SUMMARY:${title}`,
+        `DESCRIPTION:${description.replace(/\n/g, '\\n')}`,
+        'END:VEVENT',
+        'END:VCALENDAR'
+      ].join('\r\n');
+
+      const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'email-campaign.ics';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    toast.success(`Added to ${type === 'google' ? 'Google Calendar' : type === 'outlook' ? 'Outlook' : 'calendar'}!`);
+  };
+
+  // Convert leads for CRM modal
+  const leadsForCRM = leadsWithEmail.map(l => ({
+    id: l.id?.toString() || '',
+    name: l.business_name || '',
+    address: '',
+    phone: l.phone || '',
+    website: l.website || '',
+    email: l.email || '',
+    source: 'gmb' as const,
+    platform: l.platform || '',
+    websiteAnalysis: l.issues ? {
+      hasWebsite: !!l.website,
+      platform: l.platform || null,
+      needsUpgrade: false,
+      issues: Array.isArray(l.issues) ? l.issues : (l.issues as string).split(',').map(i => i.trim()),
+      mobileScore: null,
+    } : undefined,
+  }));
 
   const handleSendEmails = async () => {
     const hasTemplate = (templateSource === 'visual' && selectedVisualTemplate) || selectedTemplateId;
@@ -588,6 +685,13 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* CRM Integration Modal */}
+      <CRMIntegrationModal
+        open={showCRMModal}
+        onOpenChange={setShowCRMModal}
+        leads={leadsForCRM}
+      />
 
       {/* Full-Screen Template Browser Dialog */}
       <Dialog open={browserDialogOpen} onOpenChange={setBrowserDialogOpen}>
@@ -1923,6 +2027,75 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
               </div>
             )}
 
+            {/* Calendar & CRM Options */}
+            <div className="grid md:grid-cols-2 gap-4">
+              {/* Add to Calendar */}
+              <Card className="border-2 border-blue-500/20 bg-blue-500/5">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <CalendarPlus className="w-4 h-4 text-blue-600" />
+                    Add to Calendar
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Add a reminder when your emails are sent
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => generateCalendarEvent('google')}
+                      className="gap-1.5 text-xs"
+                    >
+                      <span className="text-lg">📅</span> Google
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => generateCalendarEvent('outlook')}
+                      className="gap-1.5 text-xs"
+                    >
+                      <span className="text-lg">📧</span> Outlook
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => generateCalendarEvent('ical')}
+                      className="gap-1.5 text-xs"
+                    >
+                      <span className="text-lg">📱</span> iCal
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Export to CRM */}
+              <Card className="border-2 border-purple-500/20 bg-purple-500/5">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Database className="w-4 h-4 text-purple-600" />
+                    Export to CRM
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Sync leads to your CRM before sending
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowCRMModal(true)}
+                    className="gap-2 w-full"
+                  >
+                    <Database className="w-4 h-4" />
+                    Connect HubSpot, Salesforce, Pipedrive
+                    <ExternalLink className="w-3 h-3 ml-auto" />
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
             {/* Important Info Box */}
             <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg space-y-3">
               <div className="flex items-start gap-3">
@@ -2044,6 +2217,28 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
                 </p>
               </div>
             )}
+
+            {/* Quick Actions */}
+            <div className="flex flex-wrap justify-center gap-3 mb-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => generateCalendarEvent('google')}
+                className="gap-2"
+              >
+                <CalendarPlus className="w-4 h-4" />
+                Add to Calendar
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowCRMModal(true)}
+                className="gap-2"
+              >
+                <Database className="w-4 h-4" />
+                Export to CRM
+              </Button>
+            </div>
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Button
