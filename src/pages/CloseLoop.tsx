@@ -14,11 +14,21 @@ import {
   Users,
   Clock,
   DollarSign,
-  Sparkles
+  Sparkles,
+  Construction
 } from "lucide-react";
+import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import CloseLoopComparisonSlider from "@/components/CloseLoopComparisonSlider";
+
+const handleComingSoon = () => {
+  toast.info("CloseLoop™ is coming soon!", {
+    description: "We're putting the finishing touches on our powerful post-lead advertising system. Sign up to be notified when it launches!",
+    duration: 5000,
+    icon: <Construction className="w-5 h-5 text-amber-500" />
+  });
+};
 
 const features = [
   {
@@ -162,11 +172,11 @@ const CloseLoop = () => {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" className="closeloop-gradient text-white border-0 text-lg px-8 py-6 closeloop-glow">
+              <Button size="lg" onClick={handleComingSoon} className="closeloop-gradient text-white border-0 text-lg px-8 py-6 closeloop-glow">
                 Book a Demo
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
-              <Button size="lg" variant="outline" className="closeloop-border text-lg px-8 py-6">
+              <Button size="lg" variant="outline" onClick={handleComingSoon} className="closeloop-border text-lg px-8 py-6">
                 See Pricing
               </Button>
             </div>
@@ -336,6 +346,7 @@ const CloseLoop = () => {
                   <Button 
                     className={`w-full ${tier.popular ? 'closeloop-gradient text-white' : ''}`}
                     variant={tier.popular ? 'default' : 'outline'}
+                    onClick={handleComingSoon}
                   >
                     Get Started
                   </Button>
@@ -357,7 +368,7 @@ const CloseLoop = () => {
               We don't just generate leads. We stay in the game until the money is made.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" className="closeloop-gradient text-white border-0 text-lg px-8 py-6 closeloop-glow">
+              <Button size="lg" onClick={handleComingSoon} className="closeloop-gradient text-white border-0 text-lg px-8 py-6 closeloop-glow">
                 Book a Demo
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
