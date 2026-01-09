@@ -29,7 +29,7 @@ jobs:
         run: |
           echo "# FTP Deploy - NEVER delete api folder" > ./dist/.ftp-deploy-note.txt
 
-      - name: Deploy to Hostinger via SFTP (Safe Mode)
+      - name: Deploy Frontend to Hostinger
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
@@ -38,9 +38,7 @@ jobs:
           protocol: ftp
           local-dir: ./dist/
           server-dir: /public_html/
-          # CRITICAL: Never delete files not in source (protects /api/)
           dangerous-clean-slate: false
-          # Exclude these paths from being touched AT ALL
           exclude: |
             **/api/**
             **/api
@@ -48,6 +46,19 @@ jobs:
             api/
             api
             **/config.php
-            **/.htaccess
-          # Log what's happening
+          log-level: standard
+
+      - name: Deploy Backend API to Hostinger
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftp
+          local-dir: ./api/
+          server-dir: /public_html/api/
+          dangerous-clean-slate: false
+          exclude: |
+            **/config.php
+            config.php
           log-level: standard
