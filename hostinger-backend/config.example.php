@@ -83,6 +83,15 @@ define('STRIPE_PRICES', [
 define('OPENAI_API_KEY', 'sk-YOUR_OPENAI_KEY_HERE'); // <-- REPLACE THIS
 
 // =====================================
+// GOOGLE DRIVE API (For Export Features)
+// =====================================
+// Get from: https://console.cloud.google.com/apis/credentials
+// Create OAuth 2.0 Client ID for Web application
+define('GOOGLE_DRIVE_CLIENT_ID', ''); // <-- REPLACE THIS
+define('GOOGLE_DRIVE_CLIENT_SECRET', ''); // <-- REPLACE THIS
+define('GOOGLE_DRIVE_REDIRECT_URI', 'https://bamlead.com/api/google-drive-callback.php');
+
+// =====================================
 // JWT SECRET (For Token Authentication)
 // =====================================
 // Generate at: https://randomkeygen.com/

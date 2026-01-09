@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { VerificationSkeleton } from '@/components/ui/loading-skeletons';
 import * as XLSX from 'xlsx';
+import { getGoogleDriveAuthUrl, exportToGoogleDrive, checkGoogleDriveStatus } from '@/lib/api/googleDrive';
 
 interface Lead {
   id: string;
@@ -451,10 +452,55 @@ export default function AIVerifierWidget({ isOpen, onClose, leads, onComplete, o
               </Button>
               <Button 
                 variant="outline"
-                onClick={() => {
-                  toast.info('Google Drive integration coming soon!', {
-                    description: 'This feature will allow you to export leads directly to your Google Drive.'
-                  });
+                onClick={async () => {
+                  try {
+                    // First check if Drive is connected
+                    const status = await checkGoogleDriveStatus();
+                    
+                    if (status.connected) {
+                      // Export directly
+                      toast.loading('Exporting to Google Drive...');
+                      const result = await exportToGoogleDrive(verifiedLeads);
+                      
+                      if (result.success) {
+                        toast.dismiss();
+                        toast.success('Exported to Google Drive!', {
+                          description: result.file_name,
+                          action: {
+                            label: 'Open',
+                            onClick: () => window.open(result.web_view_link, '_blank')
+                          }
+                        });
+                      } else if (result.needs_auth) {
+                        // Need to re-authenticate
+                        const authResult = await getGoogleDriveAuthUrl();
+                        if (authResult.auth_url) {
+                          window.location.href = authResult.auth_url;
+                        }
+                      } else {
+                        toast.dismiss();
+                        toast.error(result.error || 'Export failed');
+                      }
+                    } else {
+                      // Need to connect first
+                      const authResult = await getGoogleDriveAuthUrl();
+                      if (authResult.auth_url) {
+                        toast.info('Connecting to Google Drive...', {
+                          description: 'You will be redirected to authorize access.'
+                        });
+                        setTimeout(() => {
+                          window.location.href = authResult.auth_url;
+                        }, 1500);
+                      } else {
+                        toast.error(authResult.error || 'Failed to get auth URL');
+                      }
+                    }
+                  } catch (error) {
+                    // Fallback for when backend isn't configured
+                    toast.info('Google Drive integration coming soon!', {
+                      description: 'This feature will allow you to export leads directly to your Google Drive.'
+                    });
+                  }
                 }}
                 className="flex-1 gap-2"
               >
