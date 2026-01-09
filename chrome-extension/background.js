@@ -1,35 +1,57 @@
 // BamLead Chrome Extension - Background Service Worker
+// Version 1.0.1 - Fixed installation and context menu issues
 
 // Create context menu on install
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener(async () => {
+  console.log('BamLead extension installing...');
+  
   // Initialize storage
-  chrome.storage.local.set({
-    leadsCount: 0,
-    todayCount: 0,
-    savedLeads: [],
-    lastDate: new Date().toDateString()
-  });
+  try {
+    await chrome.storage.local.set({
+      leadsCount: 0,
+      todayCount: 0,
+      savedLeads: [],
+      savedEmails: [],
+      lastDate: new Date().toDateString()
+    });
+    console.log('Storage initialized');
+  } catch (e) {
+    console.error('Storage init error:', e);
+  }
+
+  // Remove existing context menus first to avoid duplicates
+  try {
+    await chrome.contextMenus.removeAll();
+  } catch (e) {
+    console.log('No existing menus to remove');
+  }
 
   // Create context menu items
-  chrome.contextMenus.create({
-    id: 'bamlead-extract',
-    title: 'Extract contact info',
-    contexts: ['page']
-  });
+  try {
+    chrome.contextMenus.create({
+      id: 'bamlead-extract',
+      title: '🔍 Extract contact info (BamLead)',
+      contexts: ['page']
+    });
 
-  chrome.contextMenus.create({
-    id: 'bamlead-save',
-    title: 'Save as lead to BamLead',
-    contexts: ['page']
-  });
+    chrome.contextMenus.create({
+      id: 'bamlead-save',
+      title: '💾 Save as lead to BamLead',
+      contexts: ['page']
+    });
 
-  chrome.contextMenus.create({
-    id: 'bamlead-email',
-    title: 'Add email to BamLead',
-    contexts: ['selection']
-  });
+    chrome.contextMenus.create({
+      id: 'bamlead-email',
+      title: '📧 Add email to BamLead',
+      contexts: ['selection']
+    });
 
-  console.log('BamLead extension installed');
+    console.log('Context menus created');
+  } catch (e) {
+    console.error('Context menu error:', e);
+  }
+
+  console.log('BamLead extension installed successfully!');
 });
 
 // Handle context menu clicks

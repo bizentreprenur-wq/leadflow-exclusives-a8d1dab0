@@ -466,15 +466,29 @@ export default function LeadSpreadsheetViewer({
       const result = await exportToGoogleDrive(formattedLeads);
       
       if (result.success && result.web_view_link) {
-        toast.success('Leads exported to Google Drive!');
+        toast.success('Leads exported to Google Drive!', {
+          action: {
+            label: 'Open',
+            onClick: () => window.open(result.web_view_link, '_blank'),
+          },
+        });
         window.open(result.web_view_link, '_blank');
       } else if (result.needs_auth) {
-        toast.info('Please connect your Google Drive first');
+        // Show connect option
+        toast.info('Please connect your Google Drive to export', {
+          description: 'You can use CSV/Excel export in the meantime',
+          duration: 5000,
+        });
       } else {
-        toast.error(result.error || 'Failed to export to Google Drive');
+        // Google Drive not configured on backend - suggest alternative
+        toast.error(result.error || 'Google Drive export unavailable', {
+          description: 'Use CSV or Excel export instead',
+          duration: 4000,
+        });
       }
     } catch (error) {
-      toast.error('Failed to export to Google Drive');
+      console.error('Google Drive export error:', error);
+      toast.error('Export failed - try CSV/Excel instead');
     } finally {
       setIsExportingToDrive(false);
     }
