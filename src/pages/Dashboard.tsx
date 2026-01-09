@@ -1004,7 +1004,7 @@ export default function Dashboard() {
           icon: Zap,
           iconColor: 'text-amber-500',
           iconBg: 'bg-amber-500/10',
-          component: <SequenceBuilderModule />,
+          component: <SequenceBuilderModule leads={searchResults} />,
         };
       case 'templates':
         return {
