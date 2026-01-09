@@ -72,6 +72,12 @@ export default function LeadSpreadsheetViewer({
 
   const currentLeads = activeTab === 'new' ? leads : savedLeads;
 
+  // Clear selection when switching tabs
+  const handleTabChange = (value: string) => {
+    setActiveTab(value as 'new' | 'saved');
+    setSelectedIds(new Set());
+  };
+
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev);
@@ -192,7 +198,7 @@ export default function LeadSpreadsheetViewer({
 
         {/* Tabs Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b bg-muted/30">
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'new' | 'saved')} className="w-auto">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-auto">
             <TabsList className="bg-background border">
               <TabsTrigger value="new" className="gap-2 px-4">
                 <Sparkles className="w-4 h-4" />
@@ -272,10 +278,15 @@ export default function LeadSpreadsheetViewer({
               <TableHeader>
                 <TableRow className="bg-muted/50">
                   <TableHead className="w-12">
-                    <Checkbox 
-                      checked={selectedIds.size === currentLeads.length && currentLeads.length > 0}
-                      onCheckedChange={selectAll}
-                    />
+                    <div className="flex items-center gap-2">
+                      <Checkbox 
+                        checked={selectedIds.size === currentLeads.length && currentLeads.length > 0}
+                        onCheckedChange={selectAll}
+                      />
+                      <span className="text-xs font-normal text-muted-foreground">
+                        Select All ({currentLeads.length})
+                      </span>
+                    </div>
                   </TableHead>
                   <TableHead className="w-12">#</TableHead>
                   <TableHead className="min-w-[200px]">Business Name</TableHead>
