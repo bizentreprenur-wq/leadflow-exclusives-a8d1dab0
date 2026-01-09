@@ -44,6 +44,8 @@ import {
   CreditCard,
   RefreshCw,
   Wrench,
+  Settings,
+  HardDrive,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import bamMascot from '@/assets/bamlead-mascot.png';
@@ -90,6 +92,13 @@ const otherTools = [
     title: 'Subscription',
     icon: CreditCard,
     description: 'Manage your plan',
+  },
+  {
+    id: 'settings',
+    title: 'Settings',
+    icon: Settings,
+    description: 'Integrations & account',
+    badge: 'New',
   },
 ];
 
