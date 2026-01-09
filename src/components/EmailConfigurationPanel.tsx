@@ -12,8 +12,9 @@ import { toast } from 'sonner';
 import {
   Mail, Server, Shield, Send, Inbox, Settings, Eye, EyeOff,
   CheckCircle2, XCircle, Loader2, RefreshCw, Trash2, Archive,
-  Star, AlertCircle, Clock, ExternalLink, Key
+  Star, AlertCircle, Clock, ExternalLink, Key, MailOpen
 } from 'lucide-react';
+import OutgoingMailbox from './OutgoingMailbox';
 
 interface SMTPConfig {
   host: string;
@@ -38,7 +39,7 @@ interface EmailMessage {
 }
 
 export default function EmailConfigurationPanel() {
-  const [activeTab, setActiveTab] = useState('smtp');
+  const [activeTab, setActiveTab] = useState('mailbox');
   const [showPassword, setShowPassword] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
@@ -175,20 +176,33 @@ export default function EmailConfigurationPanel() {
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="mailbox" className="gap-2">
+            <MailOpen className="w-4 h-4" />
+            Mailbox
+          </TabsTrigger>
           <TabsTrigger value="smtp" className="gap-2">
             <Server className="w-4 h-4" />
             SMTP Setup
           </TabsTrigger>
           <TabsTrigger value="inbox" className="gap-2">
             <Inbox className="w-4 h-4" />
-            Email Inbox
+            Inbox
           </TabsTrigger>
           <TabsTrigger value="outbox" className="gap-2">
             <Send className="w-4 h-4" />
-            Sent Emails
+            Sent
           </TabsTrigger>
         </TabsList>
+
+        {/* Visual Mailbox Tab */}
+        <TabsContent value="mailbox" className="space-y-4">
+          <OutgoingMailbox 
+            smtpConnected={isConnected}
+            smtpHost={smtpConfig.host || 'Your SMTP Server'}
+            onConfigureClick={() => setActiveTab('smtp')}
+          />
+        </TabsContent>
 
         {/* SMTP Configuration Tab */}
         <TabsContent value="smtp" className="space-y-4">
