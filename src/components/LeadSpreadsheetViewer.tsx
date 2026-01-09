@@ -23,12 +23,14 @@ import {
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import {
-  ArrowLeft, Sparkles, FileText, Download, Send, Database, ChevronDown,
+  ArrowLeft, Sparkles, FileText, Download, Send, ChevronDown,
   Globe, Phone, MapPin, Star, AlertTriangle, CheckCircle2, ExternalLink,
   FileSpreadsheet, FileDown, Flame, Thermometer, Snowflake, Clock, 
   PhoneCall, Calendar, TrendingUp, Filter, Users, Building2, Mail,
-  Target, Zap, Brain, Eye
+  Target, Zap, Brain, Eye, Briefcase, HardDrive
 } from 'lucide-react';
+import { exportToGoogleDrive } from '@/lib/api/googleDrive';
+import CRMIntegrationModal from './CRMIntegrationModal';
 
 interface SearchResult {
   id: string;
@@ -257,6 +259,8 @@ export default function LeadSpreadsheetViewer({
   const [activeTab, setActiveTab] = useState<'new' | 'saved'>('new');
   const [activeGroup, setActiveGroup] = useState<'all' | 'hot' | 'warm' | 'cold' | 'ready' | 'nowebsite'>('all');
   const [verifiedCount, setVerifiedCount] = useState(0);
+  const [showCRMModal, setShowCRMModal] = useState(false);
+  const [isExportingToDrive, setIsExportingToDrive] = useState(false);
   
   // Use fake leads if external leads are 100 or less
   const [fakeLeads] = useState<SearchResult[]>(() => generateFakeLeads());
@@ -294,7 +298,25 @@ export default function LeadSpreadsheetViewer({
 
   const handleGroupChange = (group: typeof activeGroup) => {
     setActiveGroup(group);
-    setSelectedIds(new Set());
+    // Auto-select ALL leads in the selected group (except 'all')
+    const baseLeads = activeTab === 'new' ? leads : savedLeads;
+    let filteredLeads: SearchResult[] = [];
+    
+    switch (group) {
+      case 'hot': filteredLeads = baseLeads.filter(l => l.aiClassification === 'hot'); break;
+      case 'warm': filteredLeads = baseLeads.filter(l => l.aiClassification === 'warm'); break;
+      case 'cold': filteredLeads = baseLeads.filter(l => l.aiClassification === 'cold'); break;
+      case 'ready': filteredLeads = baseLeads.filter(l => l.readyToCall); break;
+      case 'nowebsite': filteredLeads = baseLeads.filter(l => !l.websiteAnalysis?.hasWebsite); break;
+      default: filteredLeads = []; // Don't auto-select for 'all'
+    }
+    
+    // Auto-select all leads in the group (except 'all' which clears selection)
+    if (group !== 'all') {
+      setSelectedIds(new Set(filteredLeads.map(l => l.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
   };
 
   const toggleSelect = (id: string) => {
@@ -414,6 +436,54 @@ export default function LeadSpreadsheetViewer({
     XLSX.utils.book_append_sheet(workbook, worksheet, 'AI Analyzed Leads');
     XLSX.writeFile(workbook, `website-design-leads-${new Date().toISOString().split('T')[0]}.xlsx`);
     toast.success(`Exported ${dataToExport.length} leads as Excel`);
+  };
+
+  const handleExportGoogleDrive = async () => {
+    const dataToExport = selectedLeads.length > 0 ? selectedLeads : currentLeads;
+    
+    if (dataToExport.length === 0) {
+      toast.error('No leads to export');
+      return;
+    }
+
+    setIsExportingToDrive(true);
+    try {
+      const formattedLeads = dataToExport.map(lead => ({
+        name: lead.name,
+        email: lead.email,
+        phone: lead.phone,
+        website: lead.website,
+        leadScore: lead.leadScore,
+        conversionProbability: `${lead.conversionProbability}%`,
+        bestContactTime: lead.bestTimeToCall,
+        marketingAngle: lead.recommendedApproach,
+        talkingPoints: lead.painPoints,
+        painPoints: lead.painPoints,
+      }));
+
+      const result = await exportToGoogleDrive(formattedLeads);
+      
+      if (result.success && result.web_view_link) {
+        toast.success('Leads exported to Google Drive!');
+        window.open(result.web_view_link, '_blank');
+      } else if (result.needs_auth) {
+        toast.info('Please connect your Google Drive first');
+      } else {
+        toast.error(result.error || 'Failed to export to Google Drive');
+      }
+    } catch (error) {
+      toast.error('Failed to export to Google Drive');
+    } finally {
+      setIsExportingToDrive(false);
+    }
+  };
+
+  const handleOpenCRM = () => {
+    if (selectedLeads.length === 0) {
+      toast.error('Please select at least one lead');
+      return;
+    }
+    setShowCRMModal(true);
   };
 
   const getClassificationBadge = (classification?: string) => {
@@ -599,12 +669,12 @@ export default function LeadSpreadsheetViewer({
 
             <Button 
               variant="outline" 
-              onClick={handleSaveToDatabase}
+              onClick={handleOpenCRM}
               disabled={selectedIds.size === 0}
               className="gap-2"
             >
-              <Database className="w-4 h-4" />
-              Save to DB
+              <Briefcase className="w-4 h-4" />
+              CRM
             </Button>
 
             <DropdownMenu>
@@ -623,6 +693,11 @@ export default function LeadSpreadsheetViewer({
                 <DropdownMenuItem onClick={handleExportExcel} className="gap-2">
                   <FileSpreadsheet className="w-4 h-4" />
                   Export as Excel (with AI data)
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleExportGoogleDrive} disabled={isExportingToDrive} className="gap-2">
+                  <HardDrive className="w-4 h-4" />
+                  {isExportingToDrive ? 'Exporting...' : 'Export to Google Drive'}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -806,6 +881,13 @@ export default function LeadSpreadsheetViewer({
           </div>
         </ScrollArea>
       </DialogContent>
+
+      {/* CRM Integration Modal */}
+      <CRMIntegrationModal
+        open={showCRMModal}
+        onOpenChange={setShowCRMModal}
+        leads={selectedLeads}
+      />
     </Dialog>
   );
 }
