@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import {
   CheckCircle2, XCircle, Loader2, Mail, Globe, Brain, Target,
   TrendingUp, Clock, Sparkles, AlertTriangle, Phone, Building2,
-  Calendar, BarChart3, Zap, Users, Send, Star
+  Calendar, BarChart3, Zap, Users, Send, Star, Download, Cloud
 } from 'lucide-react';
 import { VerificationSkeleton } from '@/components/ui/loading-skeletons';
 
@@ -377,7 +377,56 @@ export default function AIVerifierWidget({ isOpen, onClose, leads, onComplete, o
 
         {/* Footer */}
         {verificationComplete && (
-          <div className="p-6 border-t bg-muted/30">
+          <div className="p-6 border-t bg-muted/30 space-y-3">
+            {/* Primary Actions */}
+            <div className="flex gap-2">
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  const csvContent = [
+                    ['Name', 'Email', 'Phone', 'Website', 'Lead Score', 'Priority', 'Best Contact Time', 'Marketing Angle', 'Predicted Response'].join(','),
+                    ...verifiedLeads.map(l => [
+                      `"${l.name || ''}"`,
+                      `"${l.email || ''}"`,
+                      `"${l.phone || ''}"`,
+                      `"${l.website || ''}"`,
+                      l.leadScore,
+                      l.conversionProbability,
+                      `"${l.bestContactTime}"`,
+                      `"${l.marketingAngle?.replace(/"/g, '""') || ''}"`,
+                      `${l.predictedResponse}%`
+                    ].join(','))
+                  ].join('\n');
+                  
+                  const blob = new Blob([csvContent], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `verified-leads-${new Date().toISOString().split('T')[0]}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  toast.success('Downloaded verified leads as CSV');
+                }}
+                className="flex-1 gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Download CSV
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  toast.info('Google Drive integration coming soon!', {
+                    description: 'This feature will allow you to export leads directly to your Google Drive.'
+                  });
+                }}
+                className="flex-1 gap-2"
+              >
+                <Cloud className="w-4 h-4" />
+                Save to Drive
+              </Button>
+            </div>
+            
+            {/* Email Action */}
             <div className="flex gap-3">
               <Button variant="outline" onClick={onClose} className="flex-1">
                 Close
