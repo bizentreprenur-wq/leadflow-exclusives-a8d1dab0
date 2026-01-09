@@ -32,7 +32,8 @@ import {
   Zap, CheckCheck, ChevronRight, TrendingUp, PieChart, MailPlus, Palette,
   Search, X, Grid3X3, List
 } from 'lucide-react';
-import { EmailStatsSkeleton, TemplateCardSkeleton, SavedLeadsListSkeleton, EmailHistoryRowSkeleton } from '@/components/ui/loading-skeletons';
+import { LazyLoader } from '@/components/ui/lazy-loader';
+import { EmailStatsSkeleton, TemplateCardSkeleton, SavedLeadsListSkeleton } from '@/components/ui/loading-skeletons';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart as RechartsPie, Pie
 } from 'recharts';
@@ -855,23 +856,19 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
     </>
   );
 
-  if (isLoading) {
-    return (
-      <>
-        {dialogs}
-        <div className="max-w-2xl mx-auto space-y-6">
-          {/* Welcome card skeleton */}
-          <EmailStatsSkeleton />
-          
-          {/* Action buttons skeleton */}
-          <div className="grid grid-cols-2 gap-4">
-            <TemplateCardSkeleton />
-            <TemplateCardSkeleton />
-          </div>
-        </div>
-      </>
-    );
-  }
+  // Custom skeleton for the start screen
+  const StartScreenSkeleton = () => (
+    <div className="max-w-2xl mx-auto space-y-6">
+      <EmailStatsSkeleton />
+      <div className="grid grid-cols-2 gap-4">
+        <TemplateCardSkeleton />
+        <TemplateCardSkeleton />
+      </div>
+    </div>
+  );
+
+  // Wrap the main content in LazyLoader for initial data loading
+  const mainContent = (() => {
 
   // ============================================
   // STEP: START - Welcome screen
@@ -2023,4 +2020,16 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
 
   // Fallback - should never reach here
   return <>{dialogs}</>;
+})();
+
+  // Return wrapped content with LazyLoader
+  return (
+    <LazyLoader
+      isLoading={isLoading}
+      customSkeleton={<StartScreenSkeleton />}
+      delay={100}
+    >
+      {mainContent}
+    </LazyLoader>
+  );
 }
