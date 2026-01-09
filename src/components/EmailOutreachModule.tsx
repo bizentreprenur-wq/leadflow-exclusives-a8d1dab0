@@ -1213,20 +1213,21 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <ScrollArea className="h-[400px] pr-4">
-                    {isLoadingSavedLeads ? (
-                      <div className="flex items-center justify-center py-12">
-                        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                      </div>
-                    ) : sentLeads.length === 0 ? (
-                      <div className="text-center py-12">
-                        <Send className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                        <p className="font-medium">No emails sent yet</p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Start by sending some emails to your leads!
-                        </p>
-                      </div>
-                    ) : (
+                  <LazyLoader
+                    isLoading={isLoadingSavedLeads}
+                    skeleton={{ preset: 'list', rows: 5 }}
+                    delay={100}
+                  >
+                    <ScrollArea className="h-[400px] pr-4">
+                      {sentLeads.length === 0 ? (
+                        <div className="text-center py-12">
+                          <Send className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                          <p className="font-medium">No emails sent yet</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Start by sending some emails to your leads!
+                          </p>
+                        </div>
+                      ) : (
                       <div className="space-y-3">
                         {sentLeads.map((lead) => {
                           const statusInfo = getStatusBadge(lead.outreachStatus);
@@ -1311,7 +1312,8 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
                         })}
                       </div>
                     )}
-                  </ScrollArea>
+                    </ScrollArea>
+                  </LazyLoader>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1401,60 +1403,62 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
               )}
 
               {/* Leads list */}
-              <ScrollArea className="h-[300px] pr-4 border rounded-lg">
-                {isLoadingSavedLeads ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                  </div>
-                ) : availableLeads.length === 0 ? (
-                  <div className="text-center py-12 px-4">
-                    <Database className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="font-medium">No leads available</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Search for leads and verify them first
-                    </p>
-                  </div>
-                ) : (
-                  <div className="p-2 space-y-2">
-                    {availableLeads.map((lead, index) => (
-                      <div
-                        key={lead.id}
-                        className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                          selectedSavedLeadIds.has(lead.id)
-                            ? 'border-primary bg-primary/5'
-                            : 'border-border/50 hover:border-border'
-                        }`}
-                        onClick={() => handleToggleSavedLead(lead.id)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Checkbox
-                            checked={selectedSavedLeadIds.has(lead.id)}
-                            className="pointer-events-none"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs text-muted-foreground">#{index + 1}</span>
-                              <span className="font-medium truncate">{lead.business_name}</span>
-                              {lead.leadScore >= 80 && (
-                                <Badge className="bg-emerald-500/10 text-emerald-600 text-xs">
-                                  <Star className="w-3 h-3 mr-1" />
-                                  Hot
-                                </Badge>
-                              )}
+              <LazyLoader
+                isLoading={isLoadingSavedLeads}
+                customSkeleton={<SavedLeadsListSkeleton />}
+                delay={100}
+              >
+                <ScrollArea className="h-[300px] pr-4 border rounded-lg">
+                  {availableLeads.length === 0 ? (
+                    <div className="text-center py-12 px-4">
+                      <Database className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="font-medium">No leads available</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Search for leads and verify them first
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-2 space-y-2">
+                      {availableLeads.map((lead, index) => (
+                        <div
+                          key={lead.id}
+                          className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                            selectedSavedLeadIds.has(lead.id)
+                              ? 'border-primary bg-primary/5'
+                              : 'border-border/50 hover:border-border'
+                          }`}
+                          onClick={() => handleToggleSavedLead(lead.id)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Checkbox
+                              checked={selectedSavedLeadIds.has(lead.id)}
+                              className="pointer-events-none"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">#{index + 1}</span>
+                                <span className="font-medium truncate">{lead.business_name}</span>
+                                {lead.leadScore >= 80 && (
+                                  <Badge className="bg-emerald-500/10 text-emerald-600 text-xs">
+                                    <Star className="w-3 h-3 mr-1" />
+                                    Hot
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-muted-foreground truncate">
+                                {lead.email}
+                              </p>
                             </div>
-                            <p className="text-sm text-muted-foreground truncate">
-                              {lead.email}
-                            </p>
+                            <CheckCircle className={`w-5 h-5 transition-opacity ${
+                              selectedSavedLeadIds.has(lead.id) ? 'text-primary opacity-100' : 'opacity-0'
+                            }`} />
                           </div>
-                          <CheckCircle className={`w-5 h-5 transition-opacity ${
-                            selectedSavedLeadIds.has(lead.id) ? 'text-primary opacity-100' : 'opacity-0'
-                          }`} />
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </ScrollArea>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </LazyLoader>
 
               {/* Navigation */}
               <div className="flex gap-3 pt-4">
