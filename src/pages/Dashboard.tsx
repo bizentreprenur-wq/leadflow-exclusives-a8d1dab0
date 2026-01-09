@@ -113,7 +113,7 @@ export default function Dashboard() {
   const [showVerifierWidget, setShowVerifierWidget] = useState(false);
   const [showResultsPanel, setShowResultsPanel] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
-  const [showSpreadsheetViewer, setShowSpreadsheetViewer] = useState(false);
+  const [showSpreadsheetViewer, setShowSpreadsheetViewer] = useState(true); // Auto-open with 1000 fake leads
   const [widgetLeads, setWidgetLeads] = useState<SearchResult[]>([]);
   const [verifiedWidgetLeads, setVerifiedWidgetLeads] = useState<any[]>([]);
   

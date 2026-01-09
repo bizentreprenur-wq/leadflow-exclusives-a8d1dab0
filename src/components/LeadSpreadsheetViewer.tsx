@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
   Table,
@@ -24,7 +25,9 @@ import * as XLSX from 'xlsx';
 import {
   ArrowLeft, Sparkles, FileText, Download, Send, Database, ChevronDown,
   Globe, Phone, MapPin, Star, AlertTriangle, CheckCircle2, ExternalLink,
-  FileSpreadsheet, FileDown
+  FileSpreadsheet, FileDown, Flame, Thermometer, Snowflake, Clock, 
+  PhoneCall, Calendar, TrendingUp, Filter, Users, Building2, Mail,
+  Target, Zap, Brain, Eye
 } from 'lucide-react';
 
 interface SearchResult {
@@ -45,6 +48,18 @@ interface SearchResult {
     mobileScore: number | null;
     loadTime?: number | null;
   };
+  // AI Intelligence fields
+  aiClassification?: 'hot' | 'warm' | 'cold';
+  leadScore?: number;
+  bestTimeToCall?: string;
+  readyToCall?: boolean;
+  painPoints?: string[];
+  urgencyLevel?: 'high' | 'medium' | 'low';
+  recommendedApproach?: string;
+  conversionProbability?: number;
+  industry?: string;
+  employeeCount?: string;
+  annualRevenue?: string;
 }
 
 interface LeadSpreadsheetViewerProps {
@@ -57,10 +72,182 @@ interface LeadSpreadsheetViewerProps {
   onSendToEmail?: (leads: SearchResult[]) => void;
 }
 
+// Generate 1000 fake website design leads with AI intelligence
+const generateFakeLeads = (): SearchResult[] => {
+  const businessTypes = [
+    'Plumbing', 'Dental', 'Law Firm', 'Restaurant', 'Auto Repair', 'Salon', 'Gym', 
+    'Real Estate', 'Landscaping', 'HVAC', 'Roofing', 'Electrician', 'Accounting',
+    'Veterinary', 'Chiropractic', 'Photography', 'Catering', 'Cleaning', 'Moving',
+    'Insurance', 'Florist', 'Bakery', 'Pet Store', 'Daycare', 'Tutoring'
+  ];
+  
+  const cities = [
+    'New York, NY', 'Los Angeles, CA', 'Chicago, IL', 'Houston, TX', 'Phoenix, AZ',
+    'Philadelphia, PA', 'San Antonio, TX', 'San Diego, CA', 'Dallas, TX', 'Austin, TX',
+    'Jacksonville, FL', 'Fort Worth, TX', 'Columbus, OH', 'Charlotte, NC', 'Indianapolis, IN',
+    'Seattle, WA', 'Denver, CO', 'Boston, MA', 'Nashville, TN', 'Portland, OR',
+    'Las Vegas, NV', 'Detroit, MI', 'Memphis, TN', 'Louisville, KY', 'Baltimore, MD'
+  ];
+
+  const firstNames = ['John', 'Mike', 'David', 'James', 'Robert', 'William', 'Richard', 'Joseph', 'Thomas', 'Charles', 'Sarah', 'Jennifer', 'Lisa', 'Karen', 'Nancy', 'Betty', 'Margaret', 'Sandra', 'Ashley', 'Dorothy'];
+  const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Anderson', 'Taylor', 'Thomas', 'Moore', 'Jackson', 'Martin', 'Lee', 'Thompson', 'White', 'Harris'];
+  
+  const platforms = ['WordPress 3.x', 'Wix (Old)', 'Squarespace', 'Joomla 2.5', 'Drupal 6', 'GoDaddy Builder', 'Weebly', 'Custom HTML', null];
+  
+  const painPoints = [
+    'Website not mobile-friendly',
+    'Slow page load times',
+    'Outdated design from 2010s',
+    'No online booking system',
+    'Missing contact forms',
+    'No SSL certificate',
+    'Poor SEO rankings',
+    'No Google reviews integration',
+    'Broken links throughout site',
+    'Missing social media integration',
+    'No email capture forms',
+    'Competitors ranking higher',
+    'Losing customers to competitors',
+    'No online payment options'
+  ];
+
+  const approaches = [
+    'Emphasize mobile-first redesign',
+    'Lead with competitor analysis',
+    'Focus on SEO improvements',
+    'Highlight revenue impact',
+    'Show before/after examples',
+    'Offer free website audit',
+    'Discuss local search visibility',
+    'Present case study from same industry'
+  ];
+
+  const callTimes = [
+    '9:00 AM - 10:00 AM',
+    '10:00 AM - 11:00 AM',
+    '11:00 AM - 12:00 PM',
+    '2:00 PM - 3:00 PM',
+    '3:00 PM - 4:00 PM',
+    '4:00 PM - 5:00 PM'
+  ];
+
+  const issues = [
+    'No mobile responsiveness',
+    'Outdated CMS version',
+    'Security vulnerabilities',
+    'Slow load time (>5s)',
+    'Missing meta tags',
+    'No HTTPS',
+    'Broken contact form',
+    'Flash content detected',
+    'Missing alt tags',
+    'Duplicate content issues'
+  ];
+
+  const leads: SearchResult[] = [];
+  
+  for (let i = 0; i < 1000; i++) {
+    const businessType = businessTypes[Math.floor(Math.random() * businessTypes.length)];
+    const city = cities[Math.floor(Math.random() * cities.length)];
+    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+    const hasWebsite = Math.random() > 0.25;
+    const platform = hasWebsite ? platforms[Math.floor(Math.random() * platforms.length)] : null;
+    
+    // AI Classification logic
+    const leadScore = Math.floor(Math.random() * 100) + 1;
+    let aiClassification: 'hot' | 'warm' | 'cold';
+    let urgencyLevel: 'high' | 'medium' | 'low';
+    let readyToCall: boolean;
+    let conversionProbability: number;
+    
+    if (leadScore >= 80) {
+      aiClassification = 'hot';
+      urgencyLevel = 'high';
+      readyToCall = true;
+      conversionProbability = Math.floor(Math.random() * 20) + 75;
+    } else if (leadScore >= 50) {
+      aiClassification = 'warm';
+      urgencyLevel = 'medium';
+      readyToCall = Math.random() > 0.5;
+      conversionProbability = Math.floor(Math.random() * 30) + 35;
+    } else {
+      aiClassification = 'cold';
+      urgencyLevel = 'low';
+      readyToCall = Math.random() > 0.8;
+      conversionProbability = Math.floor(Math.random() * 25) + 5;
+    }
+
+    // Random pain points (1-4)
+    const numPainPoints = Math.floor(Math.random() * 4) + 1;
+    const selectedPainPoints: string[] = [];
+    for (let j = 0; j < numPainPoints; j++) {
+      const point = painPoints[Math.floor(Math.random() * painPoints.length)];
+      if (!selectedPainPoints.includes(point)) {
+        selectedPainPoints.push(point);
+      }
+    }
+
+    // Random issues (0-5)
+    const numIssues = Math.floor(Math.random() * 6);
+    const selectedIssues: string[] = [];
+    for (let j = 0; j < numIssues; j++) {
+      const issue = issues[Math.floor(Math.random() * issues.length)];
+      if (!selectedIssues.includes(issue)) {
+        selectedIssues.push(issue);
+      }
+    }
+
+    const streetNum = Math.floor(Math.random() * 9999) + 1;
+    const streets = ['Main St', 'Oak Ave', 'Maple Dr', 'Cedar Ln', 'Pine Rd', 'Elm St', 'Park Ave', 'Broadway', 'Market St', 'Center Ave'];
+    const street = streets[Math.floor(Math.random() * streets.length)];
+
+    leads.push({
+      id: `lead-${i + 1}`,
+      name: `${firstName}'s ${businessType} Services`,
+      address: `${streetNum} ${street}, ${city}`,
+      phone: `(${Math.floor(Math.random() * 900) + 100}) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
+      website: hasWebsite ? `www.${firstName.toLowerCase()}${businessType.toLowerCase().replace(/\s/g, '')}.com` : undefined,
+      email: `contact@${firstName.toLowerCase()}${businessType.toLowerCase().replace(/\s/g, '')}.com`,
+      rating: Math.floor(Math.random() * 20 + 30) / 10,
+      source: Math.random() > 0.5 ? 'gmb' : 'platform',
+      platform: platform || undefined,
+      websiteAnalysis: hasWebsite ? {
+        hasWebsite: true,
+        platform: platform,
+        needsUpgrade: Math.random() > 0.3,
+        issues: selectedIssues,
+        mobileScore: Math.floor(Math.random() * 60) + 20,
+        loadTime: Math.random() * 8 + 1,
+      } : {
+        hasWebsite: false,
+        platform: null,
+        needsUpgrade: false,
+        issues: [],
+        mobileScore: null,
+        loadTime: null,
+      },
+      aiClassification,
+      leadScore,
+      bestTimeToCall: callTimes[Math.floor(Math.random() * callTimes.length)],
+      readyToCall,
+      painPoints: selectedPainPoints,
+      urgencyLevel,
+      recommendedApproach: approaches[Math.floor(Math.random() * approaches.length)],
+      conversionProbability,
+      industry: businessType,
+      employeeCount: ['1-5', '5-10', '10-25', '25-50', '50+'][Math.floor(Math.random() * 5)],
+      annualRevenue: ['$50K-100K', '$100K-250K', '$250K-500K', '$500K-1M', '$1M+'][Math.floor(Math.random() * 5)],
+    });
+  }
+  
+  return leads;
+};
+
 export default function LeadSpreadsheetViewer({
   open,
   onOpenChange,
-  leads,
+  leads: externalLeads,
   savedLeads = [],
   onProceedToVerify,
   onSaveToDatabase,
@@ -68,13 +255,45 @@ export default function LeadSpreadsheetViewer({
 }: LeadSpreadsheetViewerProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<'new' | 'saved'>('new');
+  const [activeGroup, setActiveGroup] = useState<'all' | 'hot' | 'warm' | 'cold' | 'ready' | 'nowebsite'>('all');
   const [verifiedCount, setVerifiedCount] = useState(0);
+  
+  // Use fake leads if external leads are 100 or less
+  const [fakeLeads] = useState<SearchResult[]>(() => generateFakeLeads());
+  const leads = externalLeads.length > 100 ? externalLeads : fakeLeads;
 
-  const currentLeads = activeTab === 'new' ? leads : savedLeads;
+  // Group leads by AI classification
+  const groupedLeads = useMemo(() => {
+    const hot = leads.filter(l => l.aiClassification === 'hot');
+    const warm = leads.filter(l => l.aiClassification === 'warm');
+    const cold = leads.filter(l => l.aiClassification === 'cold');
+    const readyToCall = leads.filter(l => l.readyToCall);
+    const noWebsite = leads.filter(l => !l.websiteAnalysis?.hasWebsite);
+    
+    return { hot, warm, cold, readyToCall, noWebsite, all: leads };
+  }, [leads]);
 
-  // Clear selection when switching tabs
+  const currentLeads = useMemo(() => {
+    const baseLeads = activeTab === 'new' ? leads : savedLeads;
+    
+    switch (activeGroup) {
+      case 'hot': return baseLeads.filter(l => l.aiClassification === 'hot');
+      case 'warm': return baseLeads.filter(l => l.aiClassification === 'warm');
+      case 'cold': return baseLeads.filter(l => l.aiClassification === 'cold');
+      case 'ready': return baseLeads.filter(l => l.readyToCall);
+      case 'nowebsite': return baseLeads.filter(l => !l.websiteAnalysis?.hasWebsite);
+      default: return baseLeads;
+    }
+  }, [activeTab, activeGroup, leads, savedLeads]);
+
+  // Clear selection when switching tabs or groups
   const handleTabChange = (value: string) => {
     setActiveTab(value as 'new' | 'saved');
+    setSelectedIds(new Set());
+  };
+
+  const handleGroupChange = (group: typeof activeGroup) => {
+    setActiveGroup(group);
     setSelectedIds(new Set());
   };
 
@@ -109,6 +328,7 @@ export default function LeadSpreadsheetViewer({
       return;
     }
     onProceedToVerify(selectedLeads);
+    toast.success(`Sending ${selectedLeads.length} leads to AI verification`);
   };
 
   const handleSaveToDatabase = () => {
@@ -135,16 +355,22 @@ export default function LeadSpreadsheetViewer({
   const handleExportCSV = () => {
     const dataToExport = selectedLeads.length > 0 ? selectedLeads : currentLeads;
     
-    const headers = ['Name', 'Address', 'Phone', 'Website', 'Rating', 'Has Website', 'Platform', 'Issues'];
+    const headers = ['Name', 'Email', 'Phone', 'Address', 'Website', 'Rating', 'AI Score', 'Classification', 'Best Time to Call', 'Ready to Call', 'Pain Points', 'Recommended Approach', 'Conversion %', 'Industry'];
     const rows = dataToExport.map(r => [
       `"${r.name || ''}"`,
-      `"${r.address || ''}"`,
+      `"${r.email || ''}"`,
       `"${r.phone || ''}"`,
-      `"${r.website || ''}"`,
+      `"${r.address || ''}"`,
+      `"${r.website || 'No Website'}"`,
       r.rating || '',
-      r.websiteAnalysis?.hasWebsite ? 'Yes' : 'No',
-      `"${r.websiteAnalysis?.platform || ''}"`,
-      `"${r.websiteAnalysis?.issues?.join('; ') || ''}"`,
+      r.leadScore || '',
+      r.aiClassification?.toUpperCase() || '',
+      `"${r.bestTimeToCall || ''}"`,
+      r.readyToCall ? 'Yes' : 'No',
+      `"${r.painPoints?.join('; ') || ''}"`,
+      `"${r.recommendedApproach || ''}"`,
+      `${r.conversionProbability || 0}%`,
+      `"${r.industry || ''}"`,
     ].join(','));
 
     const csv = [headers.join(','), ...rows].join('\n');
@@ -152,7 +378,7 @@ export default function LeadSpreadsheetViewer({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `leads-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `website-design-leads-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success(`Exported ${dataToExport.length} leads as CSV`);
@@ -163,20 +389,57 @@ export default function LeadSpreadsheetViewer({
     
     const worksheetData = dataToExport.map(r => ({
       'Business Name': r.name || '',
-      'Address': r.address || '',
+      'Email': r.email || '',
       'Phone': r.phone || '',
-      'Website': r.website || '',
+      'Address': r.address || '',
+      'Website': r.website || 'No Website',
       'Rating': r.rating || '',
-      'Has Website': r.websiteAnalysis?.hasWebsite ? 'Yes' : 'No',
-      'Platform': r.websiteAnalysis?.platform || '',
+      'AI Lead Score': r.leadScore || '',
+      'Classification': r.aiClassification?.toUpperCase() || '',
+      'Urgency Level': r.urgencyLevel?.toUpperCase() || '',
+      'Best Time to Call': r.bestTimeToCall || '',
+      'Ready to Call': r.readyToCall ? 'Yes' : 'No',
+      'Conversion Probability': `${r.conversionProbability || 0}%`,
+      'Pain Points': r.painPoints?.join('; ') || '',
+      'Recommended Approach': r.recommendedApproach || '',
+      'Industry': r.industry || '',
+      'Employee Count': r.employeeCount || '',
+      'Annual Revenue': r.annualRevenue || '',
+      'Platform': r.websiteAnalysis?.platform || 'N/A',
       'Issues': r.websiteAnalysis?.issues?.join('; ') || '',
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(worksheetData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Leads');
-    XLSX.writeFile(workbook, `leads-${new Date().toISOString().split('T')[0]}.xlsx`);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'AI Analyzed Leads');
+    XLSX.writeFile(workbook, `website-design-leads-${new Date().toISOString().split('T')[0]}.xlsx`);
     toast.success(`Exported ${dataToExport.length} leads as Excel`);
+  };
+
+  const getClassificationBadge = (classification?: string) => {
+    switch (classification) {
+      case 'hot':
+        return <Badge className="bg-red-500/20 text-red-600 border-red-500/30 gap-1"><Flame className="w-3 h-3" /> HOT</Badge>;
+      case 'warm':
+        return <Badge className="bg-orange-500/20 text-orange-600 border-orange-500/30 gap-1"><Thermometer className="w-3 h-3" /> WARM</Badge>;
+      case 'cold':
+        return <Badge className="bg-blue-500/20 text-blue-600 border-blue-500/30 gap-1"><Snowflake className="w-3 h-3" /> COLD</Badge>;
+      default:
+        return <Badge variant="outline">Unknown</Badge>;
+    }
+  };
+
+  const getUrgencyBadge = (urgency?: string) => {
+    switch (urgency) {
+      case 'high':
+        return <Badge className="bg-red-500/10 text-red-500 text-xs">HIGH URGENCY</Badge>;
+      case 'medium':
+        return <Badge className="bg-yellow-500/10 text-yellow-600 text-xs">MEDIUM</Badge>;
+      case 'low':
+        return <Badge className="bg-gray-500/10 text-gray-500 text-xs">LOW</Badge>;
+      default:
+        return null;
+    }
   };
 
   return (
@@ -187,26 +450,131 @@ export default function LeadSpreadsheetViewer({
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="gap-2">
               <ArrowLeft className="w-4 h-4" />
-              Back to lead list
+              Back
             </Button>
+            <div className="flex items-center gap-2">
+              <Brain className="w-5 h-5 text-primary" />
+              <span className="font-semibold">AI-Powered Lead Intelligence</span>
+            </div>
           </div>
-          <Badge variant="outline" className="gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            Live Demo
-          </Badge>
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="gap-2 px-3 py-1">
+              <Users className="w-4 h-4" />
+              {leads.length.toLocaleString()} Total Leads
+            </Badge>
+            <Badge className="bg-emerald-500/20 text-emerald-600 border-emerald-500/30 gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              Website Design Campaign
+            </Badge>
+          </div>
         </div>
 
-        {/* Tabs Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b bg-muted/30">
+        {/* AI Intelligence Summary Bar */}
+        <div className="px-6 py-4 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 border-b">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <Flame className="w-5 h-5 text-red-500" />
+                <span className="font-semibold text-red-600">{groupedLeads.hot.length}</span>
+                <span className="text-sm text-muted-foreground">Hot Leads</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Thermometer className="w-5 h-5 text-orange-500" />
+                <span className="font-semibold text-orange-600">{groupedLeads.warm.length}</span>
+                <span className="text-sm text-muted-foreground">Warm Leads</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Snowflake className="w-5 h-5 text-blue-500" />
+                <span className="font-semibold text-blue-600">{groupedLeads.cold.length}</span>
+                <span className="text-sm text-muted-foreground">Cold Leads</span>
+              </div>
+              <div className="h-6 w-px bg-border" />
+              <div className="flex items-center gap-2">
+                <PhoneCall className="w-5 h-5 text-emerald-500" />
+                <span className="font-semibold text-emerald-600">{groupedLeads.readyToCall.length}</span>
+                <span className="text-sm text-muted-foreground">Ready to Call</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Globe className="w-5 h-5 text-purple-500" />
+                <span className="font-semibold text-purple-600">{groupedLeads.noWebsite.length}</span>
+                <span className="text-sm text-muted-foreground">No Website</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Zap className="w-4 h-4 text-primary" />
+              AI analyzed & scored
+            </div>
+          </div>
+        </div>
+
+        {/* Filter Tabs */}
+        <div className="flex items-center justify-between px-6 py-3 border-b bg-muted/30">
+          <div className="flex items-center gap-2">
+            <Button
+              variant={activeGroup === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleGroupChange('all')}
+              className="gap-2"
+            >
+              <Users className="w-4 h-4" />
+              All ({leads.length})
+            </Button>
+            <Button
+              variant={activeGroup === 'hot' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleGroupChange('hot')}
+              className="gap-2 border-red-500/30 hover:bg-red-500/10"
+            >
+              <Flame className="w-4 h-4 text-red-500" />
+              Hot ({groupedLeads.hot.length})
+            </Button>
+            <Button
+              variant={activeGroup === 'warm' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleGroupChange('warm')}
+              className="gap-2 border-orange-500/30 hover:bg-orange-500/10"
+            >
+              <Thermometer className="w-4 h-4 text-orange-500" />
+              Warm ({groupedLeads.warm.length})
+            </Button>
+            <Button
+              variant={activeGroup === 'cold' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleGroupChange('cold')}
+              className="gap-2 border-blue-500/30 hover:bg-blue-500/10"
+            >
+              <Snowflake className="w-4 h-4 text-blue-500" />
+              Cold ({groupedLeads.cold.length})
+            </Button>
+            <Button
+              variant={activeGroup === 'ready' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleGroupChange('ready')}
+              className="gap-2 border-emerald-500/30 hover:bg-emerald-500/10"
+            >
+              <PhoneCall className="w-4 h-4 text-emerald-500" />
+              Ready to Call ({groupedLeads.readyToCall.length})
+            </Button>
+            <Button
+              variant={activeGroup === 'nowebsite' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleGroupChange('nowebsite')}
+              className="gap-2 border-purple-500/30 hover:bg-purple-500/10"
+            >
+              <Target className="w-4 h-4 text-purple-500" />
+              No Website ({groupedLeads.noWebsite.length})
+            </Button>
+          </div>
+          
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-auto">
             <TabsList className="bg-background border">
               <TabsTrigger value="new" className="gap-2 px-4">
                 <Sparkles className="w-4 h-4" />
-                New Leads ({leads.length})
+                New
               </TabsTrigger>
               <TabsTrigger value="saved" className="gap-2 px-4">
                 <FileText className="w-4 h-4" />
-                Saved Leads ({savedLeads.length})
+                Saved ({savedLeads.length})
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -214,10 +582,9 @@ export default function LeadSpreadsheetViewer({
 
         {/* Action Bar */}
         <div className="flex items-center justify-between px-6 py-3 border-b bg-card">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>{selectedIds.size} selected</span>
-            <span>•</span>
-            <span>{verifiedCount} verified</span>
+          <div className="flex items-center gap-4 text-sm">
+            <span className="font-medium">{selectedIds.size} selected</span>
+            <span className="text-muted-foreground">of {currentLeads.length} leads</span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -227,7 +594,7 @@ export default function LeadSpreadsheetViewer({
               className="gap-2 bg-amber-500 hover:bg-amber-600 text-black font-medium"
             >
               <Sparkles className="w-4 h-4" />
-              AI Verify Selected
+              AI Verify ({selectedIds.size})
             </Button>
 
             <Button 
@@ -237,7 +604,7 @@ export default function LeadSpreadsheetViewer({
               className="gap-2"
             >
               <Database className="w-4 h-4" />
-              Save to DB ({selectedIds.size})
+              Save to DB
             </Button>
 
             <DropdownMenu>
@@ -255,7 +622,7 @@ export default function LeadSpreadsheetViewer({
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleExportExcel} className="gap-2">
                   <FileSpreadsheet className="w-4 h-4" />
-                  Export as Excel
+                  Export as Excel (with AI data)
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -266,36 +633,36 @@ export default function LeadSpreadsheetViewer({
               className="gap-2 bg-primary hover:bg-primary/90"
             >
               <Send className="w-4 h-4" />
-              Send to Email ({selectedIds.size})
+              Send to Email
             </Button>
           </div>
         </div>
 
         {/* Spreadsheet Table */}
         <ScrollArea className="flex-1">
-          <div className="p-6">
+          <div className="p-4">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead className="w-12">
-                    <div className="flex items-center gap-2">
-                      <Checkbox 
-                        checked={selectedIds.size === currentLeads.length && currentLeads.length > 0}
-                        onCheckedChange={selectAll}
-                      />
-                      <span className="text-xs font-normal text-muted-foreground">
-                        Select All ({currentLeads.length})
-                      </span>
-                    </div>
+                  <TableHead className="w-12 sticky left-0 bg-muted/50">
+                    <Checkbox 
+                      checked={selectedIds.size === currentLeads.length && currentLeads.length > 0}
+                      onCheckedChange={selectAll}
+                    />
                   </TableHead>
                   <TableHead className="w-12">#</TableHead>
+                  <TableHead className="min-w-[80px]">Score</TableHead>
+                  <TableHead className="min-w-[100px]">Status</TableHead>
                   <TableHead className="min-w-[200px]">Business Name</TableHead>
-                  <TableHead className="min-w-[250px]">Address</TableHead>
+                  <TableHead className="min-w-[200px]">Email</TableHead>
                   <TableHead className="min-w-[130px]">Phone</TableHead>
-                  <TableHead className="min-w-[200px]">Website</TableHead>
+                  <TableHead className="min-w-[120px]">Best Time</TableHead>
+                  <TableHead className="min-w-[100px]">Ready?</TableHead>
+                  <TableHead className="min-w-[200px]">Pain Points</TableHead>
+                  <TableHead className="min-w-[180px]">Recommended Approach</TableHead>
+                  <TableHead className="min-w-[100px]">Conv. %</TableHead>
+                  <TableHead className="min-w-[150px]">Website</TableHead>
                   <TableHead className="w-20">Rating</TableHead>
-                  <TableHead className="min-w-[120px]">Status</TableHead>
-                  <TableHead className="min-w-[150px]">Issues</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -303,9 +670,9 @@ export default function LeadSpreadsheetViewer({
                   <TableRow 
                     key={lead.id}
                     data-state={selectedIds.has(lead.id) ? 'selected' : undefined}
-                    className={selectedIds.has(lead.id) ? 'bg-primary/5' : ''}
+                    className={`${selectedIds.has(lead.id) ? 'bg-primary/5' : ''} ${lead.aiClassification === 'hot' ? 'bg-red-500/5' : ''}`}
                   >
-                    <TableCell>
+                    <TableCell className="sticky left-0 bg-inherit">
                       <Checkbox 
                         checked={selectedIds.has(lead.id)}
                         onCheckedChange={() => toggleSelect(lead.id)}
@@ -316,19 +683,29 @@ export default function LeadSpreadsheetViewer({
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <span className="font-medium">{lead.name}</span>
-                        {!lead.website && (
-                          <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-xs">
-                            No Website
-                          </Badge>
-                        )}
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                          (lead.leadScore || 0) >= 80 ? 'bg-red-500/20 text-red-600' :
+                          (lead.leadScore || 0) >= 50 ? 'bg-orange-500/20 text-orange-600' :
+                          'bg-blue-500/20 text-blue-600'
+                        }`}>
+                          {lead.leadScore}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
-                      {lead.address ? (
-                        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                          <MapPin className="w-3.5 h-3.5 shrink-0" />
-                          <span className="truncate max-w-[200px]">{lead.address}</span>
+                      {getClassificationBadge(lead.aiClassification)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        <span className="font-medium">{lead.name}</span>
+                        <span className="text-xs text-muted-foreground">{lead.industry}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {lead.email ? (
+                        <div className="flex items-center gap-1.5 text-sm">
+                          <Mail className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span className="text-primary">{lead.email}</span>
                         </div>
                       ) : (
                         <span className="text-muted-foreground text-sm">—</span>
@@ -345,6 +722,46 @@ export default function LeadSpreadsheetViewer({
                       )}
                     </TableCell>
                     <TableCell>
+                      <div className="flex items-center gap-1.5 text-sm">
+                        <Clock className="w-3.5 h-3.5 text-emerald-500" />
+                        <span className="text-xs">{lead.bestTimeToCall}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {lead.readyToCall ? (
+                        <Badge className="bg-emerald-500/20 text-emerald-600 border-emerald-500/30 gap-1">
+                          <PhoneCall className="w-3 h-3" /> YES
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs">Not Yet</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1 max-w-[200px]">
+                        {lead.painPoints?.slice(0, 2).map((point, i) => (
+                          <Badge key={i} variant="outline" className="text-xs bg-amber-500/10 text-amber-600 border-amber-500/20">
+                            {point.length > 25 ? point.slice(0, 25) + '...' : point}
+                          </Badge>
+                        ))}
+                        {(lead.painPoints?.length || 0) > 2 && (
+                          <Badge variant="outline" className="text-xs">+{(lead.painPoints?.length || 0) - 2}</Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-xs text-muted-foreground">{lead.recommendedApproach}</span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <TrendingUp className={`w-4 h-4 ${
+                          (lead.conversionProbability || 0) >= 70 ? 'text-emerald-500' :
+                          (lead.conversionProbability || 0) >= 40 ? 'text-orange-500' :
+                          'text-gray-400'
+                        }`} />
+                        <span className="font-semibold">{lead.conversionProbability}%</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
                       {lead.website ? (
                         <a 
                           href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
@@ -353,11 +770,13 @@ export default function LeadSpreadsheetViewer({
                           className="flex items-center gap-1.5 text-sm text-primary hover:underline"
                         >
                           <Globe className="w-3.5 h-3.5" />
-                          <span className="truncate max-w-[150px]">{lead.website}</span>
+                          <span className="truncate max-w-[100px]">{lead.website}</span>
                           <ExternalLink className="w-3 h-3" />
                         </a>
                       ) : (
-                        <Badge variant="outline" className="text-xs">No website</Badge>
+                        <Badge className="bg-purple-500/20 text-purple-600 border-purple-500/30 text-xs">
+                          No website - HOT PROSPECT
+                        </Badge>
                       )}
                     </TableCell>
                     <TableCell>
@@ -365,32 +784,6 @@ export default function LeadSpreadsheetViewer({
                         <div className="flex items-center gap-1">
                           <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
                           <span className="font-medium">{lead.rating}</span>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {lead.websiteAnalysis?.needsUpgrade ? (
-                        <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20 text-xs">
-                          Needs Upgrade
-                        </Badge>
-                      ) : lead.website ? (
-                        <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-xs gap-1">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Active
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="text-xs">
-                          Prospect
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {lead.websiteAnalysis?.issues && lead.websiteAnalysis.issues.length > 0 ? (
-                        <div className="flex items-center gap-1.5 text-xs text-amber-600">
-                          <AlertTriangle className="w-3.5 h-3.5" />
-                          <span>{lead.websiteAnalysis.issues.length} issues</span>
                         </div>
                       ) : (
                         <span className="text-muted-foreground text-sm">—</span>
@@ -404,11 +797,9 @@ export default function LeadSpreadsheetViewer({
             {currentLeads.length === 0 && (
               <div className="flex flex-col items-center justify-center py-16 text-center">
                 <FileText className="w-12 h-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">No leads found</h3>
+                <h3 className="text-lg font-medium mb-2">No leads in this category</h3>
                 <p className="text-muted-foreground">
-                  {activeTab === 'new' 
-                    ? 'Run a search to find new leads'
-                    : 'Save some leads to see them here'}
+                  Try selecting a different filter or run a new search
                 </p>
               </div>
             )}
