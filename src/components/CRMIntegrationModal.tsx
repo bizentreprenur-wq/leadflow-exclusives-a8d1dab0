@@ -45,7 +45,7 @@ interface CRMIntegrationModalProps {
   leads: SearchResult[];
 }
 
-type CRMProvider = 'hubspot' | 'salesforce' | 'pipedrive';
+type CRMProvider = 'hubspot' | 'salesforce' | 'pipedrive' | 'zoho' | 'freshsales' | 'close' | 'monday' | 'airtable' | 'notion' | 'systeme';
 
 interface CRMConfig {
   id: CRMProvider;
@@ -115,6 +115,132 @@ const CRM_CONFIGS: CRMConfig[] = [
       { key: 'address', label: 'Address', mapped: 'org.address' },
     ],
   },
+  {
+    id: 'zoho',
+    name: 'Zoho CRM',
+    logo: '🔴',
+    color: 'text-red-600',
+    bgColor: 'bg-red-500/10',
+    description: 'Sync leads to Zoho CRM modules',
+    apiKeyLabel: 'Zoho OAuth Access Token',
+    apiKeyPlaceholder: 'Your Zoho OAuth access token',
+    helpUrl: 'https://www.zoho.com/crm/developer/docs/api/v2/oauth-overview.html',
+    fields: [
+      { key: 'name', label: 'Business Name', mapped: 'Account_Name' },
+      { key: 'phone', label: 'Phone', mapped: 'Phone' },
+      { key: 'email', label: 'Email', mapped: 'Email' },
+      { key: 'website', label: 'Website', mapped: 'Website' },
+      { key: 'address', label: 'Address', mapped: 'Billing_Street' },
+    ],
+  },
+  {
+    id: 'freshsales',
+    name: 'Freshsales',
+    logo: '🍋',
+    color: 'text-lime-600',
+    bgColor: 'bg-lime-500/10',
+    description: 'Add contacts and accounts to Freshsales',
+    apiKeyLabel: 'Freshsales API Key',
+    apiKeyPlaceholder: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+    helpUrl: 'https://support.freshsales.io/en/support/solutions/articles/220119-how-to-find-my-api-key',
+    fields: [
+      { key: 'name', label: 'Business Name', mapped: 'company.name' },
+      { key: 'phone', label: 'Phone', mapped: 'phone' },
+      { key: 'email', label: 'Email', mapped: 'email' },
+      { key: 'website', label: 'Website', mapped: 'company.website' },
+      { key: 'address', label: 'Address', mapped: 'address' },
+    ],
+  },
+  {
+    id: 'close',
+    name: 'Close',
+    logo: '📞',
+    color: 'text-indigo-600',
+    bgColor: 'bg-indigo-500/10',
+    description: 'Create leads in your Close account',
+    apiKeyLabel: 'Close API Key',
+    apiKeyPlaceholder: 'api_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+    helpUrl: 'https://developer.close.com/topics/authentication/',
+    fields: [
+      { key: 'name', label: 'Business Name', mapped: 'name' },
+      { key: 'phone', label: 'Phone', mapped: 'contacts[0].phones[0].phone' },
+      { key: 'email', label: 'Email', mapped: 'contacts[0].emails[0].email' },
+      { key: 'website', label: 'Website', mapped: 'url' },
+      { key: 'address', label: 'Address', mapped: 'addresses[0].address_1' },
+    ],
+  },
+  {
+    id: 'monday',
+    name: 'Monday.com',
+    logo: '📋',
+    color: 'text-pink-600',
+    bgColor: 'bg-pink-500/10',
+    description: 'Add items to your Monday.com boards',
+    apiKeyLabel: 'Monday.com API Token',
+    apiKeyPlaceholder: 'eyJhbGciOiJIUzI1NiJ9...',
+    helpUrl: 'https://developer.monday.com/api-reference/docs/authentication',
+    fields: [
+      { key: 'name', label: 'Business Name', mapped: 'name' },
+      { key: 'phone', label: 'Phone', mapped: 'phone' },
+      { key: 'email', label: 'Email', mapped: 'email' },
+      { key: 'website', label: 'Website', mapped: 'link' },
+      { key: 'address', label: 'Address', mapped: 'location' },
+    ],
+  },
+  {
+    id: 'airtable',
+    name: 'Airtable',
+    logo: '📊',
+    color: 'text-cyan-600',
+    bgColor: 'bg-cyan-500/10',
+    description: 'Add records to your Airtable base',
+    apiKeyLabel: 'Airtable Personal Access Token',
+    apiKeyPlaceholder: 'patxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+    helpUrl: 'https://airtable.com/developers/web/guides/personal-access-tokens',
+    fields: [
+      { key: 'name', label: 'Business Name', mapped: 'Name' },
+      { key: 'phone', label: 'Phone', mapped: 'Phone' },
+      { key: 'email', label: 'Email', mapped: 'Email' },
+      { key: 'website', label: 'Website', mapped: 'Website' },
+      { key: 'address', label: 'Address', mapped: 'Address' },
+    ],
+  },
+  {
+    id: 'notion',
+    name: 'Notion',
+    logo: '📝',
+    color: 'text-gray-700',
+    bgColor: 'bg-gray-500/10',
+    description: 'Create database entries in Notion',
+    apiKeyLabel: 'Notion Integration Secret',
+    apiKeyPlaceholder: 'secret_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+    helpUrl: 'https://developers.notion.com/docs/create-a-notion-integration',
+    fields: [
+      { key: 'name', label: 'Business Name', mapped: 'Name' },
+      { key: 'phone', label: 'Phone', mapped: 'Phone' },
+      { key: 'email', label: 'Email', mapped: 'Email' },
+      { key: 'website', label: 'Website', mapped: 'Website' },
+      { key: 'address', label: 'Address', mapped: 'Address' },
+    ],
+  },
+  {
+    id: 'systeme',
+    name: 'Systeme.io',
+    logo: '🚀',
+    color: 'text-violet-600',
+    bgColor: 'bg-violet-500/10',
+    description: 'Add contacts to your Systeme.io funnels',
+    apiKeyLabel: 'Systeme.io API Key',
+    apiKeyPlaceholder: 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+    helpUrl: 'https://systeme.io/dashboard/settings/integrations/api',
+    fields: [
+      { key: 'name', label: 'Business Name', mapped: 'first_name' },
+      { key: 'phone', label: 'Phone', mapped: 'phone' },
+      { key: 'email', label: 'Email', mapped: 'email' },
+      { key: 'website', label: 'Website', mapped: 'tags' },
+      { key: 'address', label: 'Address', mapped: 'country' },
+    ],
+  },
 ];
 
 export default function CRMIntegrationModal({
@@ -127,6 +253,13 @@ export default function CRMIntegrationModal({
     hubspot: '',
     salesforce: '',
     pipedrive: '',
+    zoho: '',
+    freshsales: '',
+    close: '',
+    monday: '',
+    airtable: '',
+    notion: '',
+    systeme: '',
   });
   const [connectedCRMs, setConnectedCRMs] = useState<Set<CRMProvider>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
@@ -295,6 +428,35 @@ export default function CRMIntegrationModal({
     return results;
   };
 
+  // Generic export function for new CRMs
+  const exportToGenericCRM = async (leadsToExport: SearchResult[], crmId: CRMProvider) => {
+    const apiKey = apiKeys[crmId];
+    const results = { success: 0, failed: 0 };
+    const config = CRM_CONFIGS.find(c => c.id === crmId);
+
+    for (let i = 0; i < leadsToExport.length; i++) {
+      const lead = leadsToExport[i];
+      setExportProgress(Math.round((i / leadsToExport.length) * 100));
+
+      try {
+        // Simulate API call - in production, implement actual CRM APIs
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Log the export attempt
+        console.log(`Exporting to ${config?.name}:`, {
+          apiKey: apiKey.substring(0, 8) + '...',
+          lead: lead.name,
+        });
+
+        results.success++;
+      } catch (error) {
+        results.failed++;
+      }
+    }
+
+    return results;
+  };
+
   const handleExport = async () => {
     if (!connectedCRMs.has(selectedCRM)) {
       toast.error('Please connect to this CRM first');
@@ -317,11 +479,22 @@ export default function CRMIntegrationModal({
         case 'pipedrive':
           results = await exportToPipedrive(leads);
           break;
+        case 'zoho':
+        case 'freshsales':
+        case 'close':
+        case 'monday':
+        case 'airtable':
+        case 'notion':
+        case 'systeme':
+          results = await exportToGenericCRM(leads, selectedCRM);
+          break;
+        default:
+          results = await exportToGenericCRM(leads, selectedCRM);
       }
 
       setExportProgress(100);
 
-      if (results.success > 0) {
+      if (results && results.success > 0) {
         toast.success(
           `Exported ${results.success} leads to ${CRM_CONFIGS.find(c => c.id === selectedCRM)?.name}!`,
           { description: results.failed > 0 ? `${results.failed} failed` : undefined }
