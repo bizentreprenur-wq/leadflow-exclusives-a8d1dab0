@@ -92,8 +92,8 @@ function searchGMBListings($service, $location, $limit = 100) {
     $apiKey = defined('SERPAPI_KEY') ? SERPAPI_KEY : '';
     
     if (empty($apiKey)) {
-        // Return mock data if API not configured
-        return getMockResults($service, $location, min($limit, 50));
+        // Return expanded mock data if API not configured - up to 500 for testing
+        return getMockResults($service, $location, min($limit, 500));
     }
     
     $query = "$service in $location";
@@ -116,20 +116,10 @@ function searchGMBListings($service, $location, $limit = 100) {
             'hl' => 'en',
             'num' => $resultsPerPage,
         ];
-    
-    for ($page = 0; $page < $maxPages; $page++) {
-        $params = [
-            'engine' => 'google_maps',
-            'q' => $query,
-            'type' => 'search',
-            'api_key' => $apiKey,
-            'hl' => 'en',
-            'num' => 20, // Request maximum per page
-        ];
         
         // Add pagination offset for subsequent pages
         if ($page > 0) {
-            $params['start'] = $page * 20;
+            $params['start'] = $page * $resultsPerPage;
         }
         
         $url = "https://serpapi.com/search.json?" . http_build_query($params);
@@ -151,6 +141,11 @@ function searchGMBListings($service, $location, $limit = 100) {
         }
         
         foreach ($data['local_results'] as $item) {
+            // Stop if we've reached the limit
+            if (count($allResults) >= $limit) {
+                break;
+            }
+            
             $websiteUrl = $item['website'] ?? '';
             
             $business = [
@@ -186,8 +181,6 @@ function searchGMBListings($service, $location, $limit = 100) {
             break;
         }
         
-        $nextPageToken = true;
-        
         // Small delay to avoid rate limiting
         usleep(200000); // 200ms delay between requests
     }
@@ -197,13 +190,15 @@ function searchGMBListings($service, $location, $limit = 100) {
 
 /**
  * Return mock results when API is not configured
+ * Expanded to support up to 500 for testing UI
  */
-function getMockResults($service, $location, $count = 50) {
+function getMockResults($service, $location, $count = 100) {
     $prefixes = ['Best', 'Elite', 'Premier', 'Top', 'Pro', 'Expert', 'Quality', 'Reliable', 'Trusted', 'Certified', 
                  'Supreme', 'Master', 'Prime', 'First Class', 'Superior', 'Advanced', 'Professional', 'Ultimate', 
                  'Royal', 'Precision', 'Dynamic', 'Swift', 'Legacy', 'Titan', 'Apex', 'Alpha', 'Omega', 'Delta',
                  'Phoenix', 'Eagle', 'Summit', 'Pinnacle', 'Crown', 'Diamond', 'Platinum', 'Golden', 'Silver',
                  'Metro', 'Urban', 'City', 'Local', 'Regional', 'National', 'Express', 'Rapid', 'Quick', 'Fast'];
+    $suffixes = ['Services', 'Solutions', 'Pros', 'Group', 'Co', 'Inc', 'LLC', 'Experts', 'Team', 'Masters'];
     $platforms = ['WordPress', 'Wix', 'Squarespace', 'GoDaddy', 'Weebly', 'Custom/Unknown', null, 'Joomla', 'Shopify'];
     $issues = [
         'Not mobile responsive',
@@ -220,18 +215,19 @@ function getMockResults($service, $location, $count = 50) {
     
     for ($i = 0; $i < $count; $i++) {
         $prefix = $prefixes[$i % count($prefixes)];
+        $suffix = $suffixes[$i % count($suffixes)];
         $platform = $platforms[array_rand($platforms)];
         $hasWebsite = rand(0, 100) > 15; // 85% have websites
         $issueCount = rand(0, 4);
         $selectedIssues = $hasWebsite ? array_slice($issues, 0, $issueCount) : ['No website found'];
         
         $results[] = [
-            'id' => 'mock_' . ($i + 1),
-            'name' => "$prefix $service Services",
-            'url' => $hasWebsite ? 'https://example-' . strtolower($prefix) . '.com' : '',
+            'id' => 'mock_' . ($i + 1) . '_' . time(),
+            'name' => "$prefix $service $suffix",
+            'url' => $hasWebsite ? 'https://example-' . strtolower($prefix) . '-' . ($i + 1) . '.com' : '',
             'snippet' => "Professional $service services in $location. Quality work, competitive pricing.",
-            'displayLink' => $hasWebsite ? 'example-' . strtolower($prefix) . '.com' : '',
-            'address' => (1000 + $i * 100) . " Main St, $location",
+            'displayLink' => $hasWebsite ? 'example-' . strtolower($prefix) . '-' . ($i + 1) . '.com' : '',
+            'address' => (1000 + $i * 10) . " Main St, $location",
             'phone' => '(555) ' . rand(100, 999) . '-' . rand(1000, 9999),
             'rating' => round(rand(30, 50) / 10, 1),
             'reviews' => rand(5, 250),
