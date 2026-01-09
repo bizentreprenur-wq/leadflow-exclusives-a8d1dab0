@@ -389,12 +389,19 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
           )}
         </Button>
 
-        {/* Backend Status Indicator */}
-        {!isCollapsed ? (
-          <BackendStatusIndicator className="mb-3" />
-        ) : (
-          <BackendStatusIndicator compact showLabel={false} className="mb-3 justify-center" />
-        )}
+        {/* Status Indicator */}
+        <div className="mb-3">
+          {!isCollapsed ? (
+            <>
+              <BackendStatusIndicator className="mb-1" />
+              <p className="text-[10px] text-muted-foreground text-center">
+                Dashboard offline? <a href="/contact" className="text-primary hover:underline">Contact us now</a>
+              </p>
+            </>
+          ) : (
+            <BackendStatusIndicator compact showLabel={false} className="justify-center" />
+          )}
+        </div>
 
         {/* User Info */}
         <div className="flex items-center gap-3 mb-3">

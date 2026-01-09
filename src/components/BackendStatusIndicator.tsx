@@ -101,7 +101,7 @@ export function BackendStatusIndicator({
           bgColor: 'bg-green-500/10',
           borderColor: 'border-green-500/30',
           pulseColor: 'bg-green-500',
-          label: 'Connected',
+          label: 'Online',
           description: 'All systems operational',
         };
       case 'degraded':
@@ -122,7 +122,7 @@ export function BackendStatusIndicator({
           borderColor: 'border-destructive/30',
           pulseColor: 'bg-destructive',
           label: 'Offline',
-          description: 'Backend unreachable',
+          description: 'Contact support immediately',
         };
       default:
         return {
