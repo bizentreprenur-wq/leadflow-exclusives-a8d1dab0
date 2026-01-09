@@ -51,6 +51,7 @@ import LeadResultsPanel from '@/components/LeadResultsPanel';
 import LeadDocumentViewer from '@/components/LeadDocumentViewer';
 import LeadSpreadsheetViewer from '@/components/LeadSpreadsheetViewer';
 import DataFieldSelector, { DATA_FIELD_OPTIONS } from '@/components/DataFieldSelector';
+import SettingsPanel from '@/components/SettingsPanel';
 
 interface SearchResult {
   id: string;
@@ -1109,6 +1110,15 @@ export default function Dashboard() {
           iconColor: 'text-violet-500',
           iconBg: 'bg-violet-500/10',
           component: <AutoFollowUpBuilder />,
+        };
+      case 'settings':
+        return {
+          title: 'Settings',
+          description: 'Manage integrations and account preferences',
+          icon: Target,
+          iconColor: 'text-slate-500',
+          iconBg: 'bg-slate-500/10',
+          component: <SettingsPanel />,
         };
       default:
         return null;
