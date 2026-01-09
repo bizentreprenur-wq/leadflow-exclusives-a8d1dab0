@@ -1,38 +1,69 @@
 // BamLead Chrome Extension - Popup Script
+// Version 1.0.1 - Fixed error handling
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Get current tab info
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  
-  // Update page URL display
-  const pageUrl = document.getElementById('pageUrl');
-  if (tab && tab.url) {
-    const url = new URL(tab.url);
-    pageUrl.textContent = url.hostname + url.pathname;
+  try {
+    // Get current tab info
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    // Update page URL display
+    const pageUrl = document.getElementById('pageUrl');
+    if (tab && tab.url) {
+      try {
+        const url = new URL(tab.url);
+        pageUrl.textContent = url.hostname + url.pathname;
+      } catch (e) {
+        pageUrl.textContent = tab.url.substring(0, 40) + '...';
+      }
+    } else {
+      pageUrl.textContent = 'No page detected';
+    }
+
+    // Load saved stats
+    await loadStats();
+
+    // Button handlers with null checks
+    const extractBtn = document.getElementById('extractBtn');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const sendBtn = document.getElementById('sendToBamLead');
+
+    if (extractBtn) extractBtn.addEventListener('click', () => extractContactInfo(tab));
+    if (analyzeBtn) analyzeBtn.addEventListener('click', () => analyzeWebsite(tab));
+    if (saveBtn) saveBtn.addEventListener('click', () => saveLead(tab));
+    if (sendBtn) sendBtn.addEventListener('click', sendToBamLead);
+
+    // Check if we can access the current tab
+    if (tab && tab.url && (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://'))) {
+      showToast('Cannot access Chrome internal pages');
+      if (extractBtn) extractBtn.disabled = true;
+      if (analyzeBtn) analyzeBtn.disabled = true;
+    }
+  } catch (error) {
+    console.error('Popup init error:', error);
+    showToast('Extension error - please reload');
   }
-
-  // Load saved stats
-  loadStats();
-
-  // Button handlers
-  document.getElementById('extractBtn').addEventListener('click', () => extractContactInfo(tab));
-  document.getElementById('analyzeBtn').addEventListener('click', () => analyzeWebsite(tab));
-  document.getElementById('saveBtn').addEventListener('click', () => saveLead(tab));
-  document.getElementById('sendToBamLead').addEventListener('click', sendToBamLead);
 });
 
 async function loadStats() {
-  const stats = await chrome.storage.local.get(['leadsCount', 'todayCount', 'lastDate']);
-  const today = new Date().toDateString();
-  
-  // Reset today count if it's a new day
-  if (stats.lastDate !== today) {
-    await chrome.storage.local.set({ todayCount: 0, lastDate: today });
-    stats.todayCount = 0;
+  try {
+    const stats = await chrome.storage.local.get(['leadsCount', 'todayCount', 'lastDate']);
+    const today = new Date().toDateString();
+    
+    // Reset today count if it's a new day
+    if (stats.lastDate !== today) {
+      await chrome.storage.local.set({ todayCount: 0, lastDate: today });
+      stats.todayCount = 0;
+    }
+    
+    const leadsCountEl = document.getElementById('leadsCount');
+    const todayCountEl = document.getElementById('todayCount');
+    
+    if (leadsCountEl) leadsCountEl.textContent = stats.leadsCount || 0;
+    if (todayCountEl) todayCountEl.textContent = stats.todayCount || 0;
+  } catch (error) {
+    console.error('Load stats error:', error);
   }
-  
-  document.getElementById('leadsCount').textContent = stats.leadsCount || 0;
-  document.getElementById('todayCount').textContent = stats.todayCount || 0;
 }
 
 async function extractContactInfo(tab) {
