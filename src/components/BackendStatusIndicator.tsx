@@ -193,7 +193,7 @@ export function BackendStatusIndicator({
           </div>
           <div className="flex-1 text-left">
             <div className={cn('text-xs font-medium', config.color)}>{config.label}</div>
-            <div className="text-[10px] text-muted-foreground">API Status</div>
+            <div className="text-[10px] text-muted-foreground">Status</div>
           </div>
         </Button>
       </PopoverTrigger>
