@@ -9,9 +9,10 @@ import { toast } from 'sonner';
 import {
   CheckCircle2, XCircle, Loader2, Mail, Globe, Brain, Target,
   TrendingUp, Clock, Sparkles, AlertTriangle, Phone, Building2,
-  Calendar, BarChart3, Zap, Users, Send, Star, Download, Cloud
+  Calendar, BarChart3, Zap, Users, Send, Star, Download, Cloud, FileSpreadsheet
 } from 'lucide-react';
 import { VerificationSkeleton } from '@/components/ui/loading-skeletons';
+import * as XLSX from 'xlsx';
 
 interface Lead {
   id: string;
@@ -378,7 +379,7 @@ export default function AIVerifierWidget({ isOpen, onClose, leads, onComplete, o
         {/* Footer */}
         {verificationComplete && (
           <div className="p-6 border-t bg-muted/30 space-y-3">
-            {/* Primary Actions */}
+            {/* Export Actions */}
             <div className="flex gap-2">
               <Button 
                 variant="outline"
@@ -410,7 +411,43 @@ export default function AIVerifierWidget({ isOpen, onClose, leads, onComplete, o
                 className="flex-1 gap-2"
               >
                 <Download className="w-4 h-4" />
-                Download CSV
+                CSV
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  const worksheetData = verifiedLeads.map(l => ({
+                    'Name': l.name || '',
+                    'Email': l.email || '',
+                    'Phone': l.phone || '',
+                    'Website': l.website || '',
+                    'Lead Score': l.leadScore,
+                    'Priority': l.conversionProbability,
+                    'Best Contact Time': l.bestContactTime,
+                    'Marketing Angle': l.marketingAngle || '',
+                    'Predicted Response': `${l.predictedResponse}%`,
+                    'Email Valid': l.emailValid ? 'Yes' : 'No',
+                    'Talking Points': l.talkingPoints?.join('; ') || '',
+                    'Pain Points': l.painPoints?.join('; ') || ''
+                  }));
+                  
+                  const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+                  const workbook = XLSX.utils.book_new();
+                  XLSX.utils.book_append_sheet(workbook, worksheet, 'Verified Leads');
+                  
+                  // Auto-size columns
+                  const colWidths = Object.keys(worksheetData[0] || {}).map(key => ({
+                    wch: Math.max(key.length, 15)
+                  }));
+                  worksheet['!cols'] = colWidths;
+                  
+                  XLSX.writeFile(workbook, `verified-leads-${new Date().toISOString().split('T')[0]}.xlsx`);
+                  toast.success('Downloaded verified leads as Excel');
+                }}
+                className="flex-1 gap-2"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                Excel
               </Button>
               <Button 
                 variant="outline"
@@ -422,7 +459,7 @@ export default function AIVerifierWidget({ isOpen, onClose, leads, onComplete, o
                 className="flex-1 gap-2"
               >
                 <Cloud className="w-4 h-4" />
-                Save to Drive
+                Drive
               </Button>
             </div>
             
