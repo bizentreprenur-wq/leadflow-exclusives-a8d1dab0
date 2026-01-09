@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import {
   HardDrive, CheckCircle2, XCircle, Loader2, ExternalLink,
   RefreshCw, Unlink, Settings, Bell, Shield,
-  Download, Trash2, Mail, Database
+  Download, Trash2, Mail, Database, Phone
 } from 'lucide-react';
 import {
   checkGoogleDriveStatus,
@@ -20,6 +20,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import EmailConfigurationPanel from './EmailConfigurationPanel';
 import CRMIntegrationModal from './CRMIntegrationModal';
+import VoiceAgentSettings from './VoiceAgentSettings';
 
 export default function SettingsPanel() {
   const { user } = useAuth();
@@ -95,10 +96,14 @@ export default function SettingsPanel() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="integrations" className="gap-2">
             <Database className="w-4 h-4" />
             Integrations
+          </TabsTrigger>
+          <TabsTrigger value="voice" className="gap-2">
+            <Phone className="w-4 h-4" />
+            Voice Agent
           </TabsTrigger>
           <TabsTrigger value="email" className="gap-2">
             <Mail className="w-4 h-4" />
@@ -255,6 +260,11 @@ export default function SettingsPanel() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Voice Agent Tab */}
+        <TabsContent value="voice" className="space-y-4">
+          <VoiceAgentSettings onShowGuide={() => setActiveTab('voice-guide')} />
         </TabsContent>
 
         {/* Email & SMTP Tab */}

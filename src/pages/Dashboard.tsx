@@ -52,6 +52,8 @@ import LeadDocumentViewer from '@/components/LeadDocumentViewer';
 import LeadSpreadsheetViewer from '@/components/LeadSpreadsheetViewer';
 import DataFieldSelector, { DATA_FIELD_OPTIONS } from '@/components/DataFieldSelector';
 import SettingsPanel from '@/components/SettingsPanel';
+import VoiceCallWidget from '@/components/VoiceCallWidget';
+import VoiceAgentSetupGuide from '@/components/VoiceAgentSetupGuide';
 
 interface SearchResult {
   id: string;
@@ -1119,6 +1121,32 @@ export default function Dashboard() {
           iconColor: 'text-slate-500',
           iconBg: 'bg-slate-500/10',
           component: <SettingsPanel />,
+        };
+      case 'voice-calling':
+        return {
+          title: 'AI Voice Calling',
+          description: 'Call leads with your AI sales agent',
+          icon: Phone,
+          iconColor: 'text-violet-500',
+          iconBg: 'bg-violet-500/10',
+          component: (
+            <div className="space-y-6">
+              <VoiceCallWidget onOpenSettings={() => setActiveTab('settings')} />
+              <Button variant="outline" onClick={() => setActiveTab('voice-guide')} className="gap-2">
+                <Brain className="w-4 h-4" />
+                View Setup Guide
+              </Button>
+            </div>
+          ),
+        };
+      case 'voice-guide':
+        return {
+          title: 'Voice Agent Setup Guide',
+          description: 'Learn how to create your AI voice agent',
+          icon: Brain,
+          iconColor: 'text-violet-500',
+          iconBg: 'bg-violet-500/10',
+          component: <VoiceAgentSetupGuide />,
         };
       default:
         return null;

@@ -46,6 +46,7 @@ import {
   Wrench,
   Settings,
   HardDrive,
+  Phone,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import bamMascot from '@/assets/bamlead-mascot.png';
@@ -68,6 +69,13 @@ const mainWorkflow = [
 ];
 
 const otherTools = [
+  {
+    id: 'voice-calling',
+    title: 'Voice Calling',
+    icon: Phone,
+    description: 'AI voice calls',
+    badge: 'New',
+  },
   {
     id: 'sequences',
     title: 'Sequences',
@@ -98,7 +106,6 @@ const otherTools = [
     title: 'Settings',
     icon: Settings,
     description: 'Integrations & account',
-    badge: 'New',
   },
 ];
 
