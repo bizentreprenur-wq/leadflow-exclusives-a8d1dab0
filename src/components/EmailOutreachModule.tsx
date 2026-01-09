@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,6 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Dialog,
   DialogContent,
@@ -24,13 +27,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import {
   Mail, Send, FileText, BarChart3, Loader2, Plus, Trash2,
   Edit, Eye, Users, CheckCircle, AlertCircle, Clock, MousePointer,
   Reply, XCircle, Sparkles, Database, RefreshCw, Star, Building2, 
   RotateCcw, Calendar, Timer, ArrowRight, ArrowLeft, PartyPopper,
   Zap, CheckCheck, ChevronRight, TrendingUp, PieChart, MailPlus, Palette,
-  Search, X, Grid3X3, List
+  Search, X, Grid3X3, List, CalendarIcon
 } from 'lucide-react';
 import { LazyLoader } from '@/components/ui/lazy-loader';
 import { EmailStatsSkeleton, TemplateCardSkeleton, SavedLeadsListSkeleton } from '@/components/ui/loading-skeletons';
@@ -99,7 +103,7 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   
   // Scheduling state
   const [scheduleMode, setScheduleMode] = useState<'now' | 'optimal' | 'custom'>('now');
-  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledDate, setScheduledDate] = useState<Date | undefined>(undefined);
   const [scheduledTime, setScheduledTime] = useState('09:00');
   
   // Success state
@@ -402,7 +406,8 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
           }
         }
       } else if (scheduleMode === 'custom' && scheduledDate) {
-        scheduledFor = new Date(`${scheduledDate}T${scheduledTime}`).toISOString();
+        const dateStr = format(scheduledDate, 'yyyy-MM-dd');
+        scheduledFor = new Date(`${dateStr}T${scheduledTime}`).toISOString();
       }
 
       const result = await sendBulkEmails({
@@ -465,7 +470,7 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
     setSelectedVisualTemplate(null);
     setTemplateSource('visual');
     setScheduleMode('now');
-    setScheduledDate('');
+    setScheduledDate(undefined);
     setLastSendResult(null);
     setCurrentStep('start');
   };
@@ -1855,27 +1860,65 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
               </div>
             </div>
 
-            {/* Custom date/time picker */}
+            {/* Custom date/time picker with dropdowns */}
             {scheduleMode === 'custom' && (
               <div className="grid grid-cols-2 gap-3 p-4 bg-muted/50 rounded-lg">
                 <div className="space-y-2">
-                  <Label htmlFor="schedule-date">Date</Label>
-                  <Input
-                    id="schedule-date"
-                    type="date"
-                    value={scheduledDate}
-                    onChange={(e) => setScheduledDate(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
-                  />
+                  <Label>Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !scheduledDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {scheduledDate ? format(scheduledDate, "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0 z-50 bg-background border shadow-lg" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={scheduledDate}
+                        onSelect={setScheduledDate}
+                        disabled={(date) => date < new Date()}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="schedule-time">Time</Label>
-                  <Input
-                    id="schedule-time"
-                    type="time"
-                    value={scheduledTime}
-                    onChange={(e) => setScheduledTime(e.target.value)}
-                  />
+                  <Label>Time</Label>
+                  <Select value={scheduledTime} onValueChange={setScheduledTime}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select time" />
+                    </SelectTrigger>
+                    <SelectContent className="z-50 bg-background border shadow-lg max-h-60">
+                      {/* Morning times */}
+                      <SelectItem value="06:00">6:00 AM</SelectItem>
+                      <SelectItem value="07:00">7:00 AM</SelectItem>
+                      <SelectItem value="08:00">8:00 AM</SelectItem>
+                      <SelectItem value="09:00">9:00 AM ⭐</SelectItem>
+                      <SelectItem value="10:00">10:00 AM ⭐</SelectItem>
+                      <SelectItem value="11:00">11:00 AM</SelectItem>
+                      {/* Afternoon times */}
+                      <SelectItem value="12:00">12:00 PM</SelectItem>
+                      <SelectItem value="13:00">1:00 PM</SelectItem>
+                      <SelectItem value="14:00">2:00 PM ⭐</SelectItem>
+                      <SelectItem value="15:00">3:00 PM</SelectItem>
+                      <SelectItem value="16:00">4:00 PM</SelectItem>
+                      <SelectItem value="17:00">5:00 PM</SelectItem>
+                      {/* Evening times */}
+                      <SelectItem value="18:00">6:00 PM</SelectItem>
+                      <SelectItem value="19:00">7:00 PM</SelectItem>
+                      <SelectItem value="20:00">8:00 PM</SelectItem>
+                      <SelectItem value="21:00">9:00 PM</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[10px] text-muted-foreground">⭐ = Best open rates</p>
                 </div>
               </div>
             )}
@@ -1922,7 +1965,12 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
                     : scheduleMode === 'optimal'
                       ? getNextOptimalTime()
                       : scheduledDate 
-                        ? new Date(`${scheduledDate}T${scheduledTime}`).toLocaleString()
+                        ? `${format(scheduledDate, 'PPP')} at ${scheduledTime.replace(/^(\d{2}):(\d{2})$/, (_, h, m) => {
+                            const hour = parseInt(h);
+                            const ampm = hour >= 12 ? 'PM' : 'AM';
+                            const hour12 = hour % 12 || 12;
+                            return `${hour12}:${m} ${ampm}`;
+                          })}`
                         : 'Select a date'
                 }</strong></p>
               </div>
