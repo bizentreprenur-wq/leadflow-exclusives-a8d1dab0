@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -142,30 +142,30 @@ export default function AIVerifierWidget({ isOpen, onClose, leads, onComplete, o
   };
 
   return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent side="right" className="w-full sm:max-w-2xl flex flex-col p-0">
-        <SheetHeader className="p-6 border-b bg-gradient-to-r from-violet-500/10 to-purple-500/10">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-[95vw] w-full h-[95vh] max-h-[95vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="p-6 border-b bg-gradient-to-r from-violet-500/10 to-purple-500/10 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-violet-500/20 flex items-center justify-center">
               <Brain className="w-6 h-6 text-violet-500" />
             </div>
             <div>
-              <SheetTitle className="text-xl flex items-center gap-2">
+              <DialogTitle className="text-xl flex items-center gap-2">
                 AI Lead Verifier
                 <Badge variant="secondary" className="bg-violet-500/10 text-violet-600">
                   <Sparkles className="w-3 h-3 mr-1" />
                   Predictive AI
                 </Badge>
-              </SheetTitle>
-              <SheetDescription>
+              </DialogTitle>
+              <DialogDescription>
                 {verificationComplete 
                   ? `${verifiedLeads.length} leads analyzed • ${highPriorityLeads.length} high priority`
                   : `Analyzing ${leads.length} leads...`
                 }
-              </SheetDescription>
+              </DialogDescription>
             </div>
           </div>
-        </SheetHeader>
+        </DialogHeader>
 
         <ScrollArea className="flex-1">
           <div className="p-6 space-y-6">
@@ -525,7 +525,7 @@ export default function AIVerifierWidget({ isOpen, onClose, leads, onComplete, o
             </div>
           </div>
         )}
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
