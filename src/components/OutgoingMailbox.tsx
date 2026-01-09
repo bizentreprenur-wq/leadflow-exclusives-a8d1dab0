@@ -11,6 +11,7 @@ import {
   Server, Loader2, RefreshCw, ArrowRight, Sparkles,
   MailOpen, MailPlus, ExternalLink, Zap, TrendingUp
 } from 'lucide-react';
+import { EmailSend, EmailStats, getSends, getEmailStats } from '@/lib/api/email';
 
 interface OutgoingEmail {
   id: string;
@@ -27,69 +28,108 @@ interface OutgoingMailboxProps {
   onConfigureClick?: () => void;
 }
 
+// Convert API EmailSend to our local OutgoingEmail format
+const mapEmailSendToOutgoing = (send: EmailSend): OutgoingEmail => {
+  let status: OutgoingEmail['status'] = 'sent';
+  if (send.status === 'pending') status = 'queued';
+  else if (send.status === 'failed' || send.status === 'bounced') status = 'failed';
+  else if (send.status === 'sent' || send.status === 'delivered' || send.status === 'opened' || send.status === 'clicked' || send.status === 'replied') status = 'sent';
+  
+  return {
+    id: send.id.toString(),
+    to: send.recipient_email,
+    subject: send.subject,
+    status,
+    timestamp: send.sent_at || send.created_at,
+    businessName: send.business_name || send.recipient_name,
+  };
+};
+
 export default function OutgoingMailbox({ 
   smtpConnected = false, 
   smtpHost = 'Your SMTP Server',
   onConfigureClick 
 }: OutgoingMailboxProps) {
   const [emails, setEmails] = useState<OutgoingEmail[]>([]);
+  const [stats, setStats] = useState<EmailStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [sendProgress, setSendProgress] = useState(0);
   
-  // Load mock demo emails
+  // Load real email data on mount
   useEffect(() => {
-    setEmails([
-      {
-        id: '1',
-        to: 'john@smithplumbing.com',
-        subject: 'Grow Your Plumbing Business with BamLead',
-        status: 'sent',
-        timestamp: '2025-01-09T10:30:00',
-        businessName: 'Smith Plumbing Co.'
-      },
-      {
-        id: '2',
-        to: 'info@greenlawncare.com',
-        subject: 'Special Offer for Green Lawn Care',
-        status: 'sent',
-        timestamp: '2025-01-09T10:29:00',
-        businessName: 'Green Lawn Care'
-      },
-      {
-        id: '3',
-        to: 'hello@quickelectric.com',
-        subject: 'Partnership Opportunity',
-        status: 'sending',
-        timestamp: '2025-01-09T10:28:00',
-        businessName: 'Quick Electric Services'
-      },
-      {
-        id: '4',
-        to: 'contact@luxuryauto.com',
-        subject: 'Website Review for Luxury Auto',
-        status: 'queued',
-        timestamp: '2025-01-09T10:27:00',
-        businessName: 'Luxury Auto Detailing'
-      },
-    ]);
+    loadEmailData();
   }, []);
 
-  // Simulate sending animation
-  const simulateSending = () => {
-    setIsAnimating(true);
-    setSendProgress(0);
+  const loadEmailData = async () => {
+    setIsLoading(true);
     
-    const interval = setInterval(() => {
-      setSendProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setIsAnimating(false);
-          return 100;
-        }
-        return prev + 10;
-      });
-    }, 200);
+    // Use timeout to prevent hanging
+    const withTimeout = <T,>(promise: Promise<T>, fallback: T, ms = 5000): Promise<T> => {
+      return Promise.race([
+        promise,
+        new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
+      ]);
+    };
+
+    try {
+      const [sendsRes, statsRes] = await Promise.all([
+        withTimeout(getSends({ limit: 20 }), { success: false, sends: [], total: 0 }),
+        withTimeout(getEmailStats(7), { success: false, stats: null }),
+      ]);
+
+      if (sendsRes.success && sendsRes.sends && sendsRes.sends.length > 0) {
+        setEmails(sendsRes.sends.map(mapEmailSendToOutgoing));
+      } else {
+        // Fall back to demo data if no real data
+        setEmails(getDemoEmails());
+      }
+
+      if (statsRes.success && statsRes.stats) {
+        setStats(statsRes.stats);
+      }
+    } catch (error) {
+      console.error('Failed to load email data:', error);
+      setEmails(getDemoEmails());
+    }
+    
+    setIsLoading(false);
   };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await loadEmailData();
+    setIsRefreshing(false);
+  };
+
+  // Demo emails as fallback
+  const getDemoEmails = (): OutgoingEmail[] => [
+    {
+      id: 'demo-1',
+      to: 'john@smithplumbing.com',
+      subject: 'Grow Your Plumbing Business with BamLead',
+      status: 'sent',
+      timestamp: new Date().toISOString(),
+      businessName: 'Smith Plumbing Co.'
+    },
+    {
+      id: 'demo-2',
+      to: 'info@greenlawncare.com',
+      subject: 'Special Offer for Green Lawn Care',
+      status: 'sent',
+      timestamp: new Date(Date.now() - 60000).toISOString(),
+      businessName: 'Green Lawn Care'
+    },
+    {
+      id: 'demo-3',
+      to: 'hello@quickelectric.com',
+      subject: 'Partnership Opportunity',
+      status: 'queued',
+      timestamp: new Date(Date.now() - 120000).toISOString(),
+      businessName: 'Quick Electric Services'
+    },
+  ];
 
   const getStatusIcon = (status: OutgoingEmail['status']) => {
     switch (status) {
@@ -119,15 +159,31 @@ export default function OutgoingMailbox({
 
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    
+    if (hours < 24) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
   };
 
-  const sentCount = emails.filter(e => e.status === 'sent').length;
+  const sentCount = stats?.total_sent || emails.filter(e => e.status === 'sent').length;
   const queuedCount = emails.filter(e => e.status === 'queued' || e.status === 'sending').length;
+  const deliveryRate = stats ? Math.round(((stats.total_sent - stats.total_bounced - stats.total_failed) / Math.max(stats.total_sent, 1)) * 100) : 98;
 
   return (
     <div className="space-y-4">
-      {/* Visual Mailbox Header */}
+      {/* Loading State */}
+      {isLoading ? (
+        <Card className="p-8 text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-primary" />
+          <p className="text-muted-foreground">Loading your mailbox...</p>
+        </Card>
+      ) : (
+        <>
+          {/* Visual Mailbox Header */}
       <Card className="overflow-hidden border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-background to-secondary/5">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -228,14 +284,14 @@ export default function OutgoingMailbox({
           <div className="grid grid-cols-3 gap-3 mb-4">
             <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-center">
               <div className="text-2xl font-bold text-emerald-600">{sentCount}</div>
-              <div className="text-xs text-emerald-600/80">Sent Today</div>
+              <div className="text-xs text-emerald-600/80">Total Sent</div>
             </div>
             <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
               <div className="text-2xl font-bold text-amber-600">{queuedCount}</div>
               <div className="text-xs text-amber-600/80">In Queue</div>
             </div>
             <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-center">
-              <div className="text-2xl font-bold text-blue-600">98%</div>
+              <div className="text-2xl font-bold text-blue-600">{deliveryRate}%</div>
               <div className="text-xs text-blue-600/80">Delivery Rate</div>
             </div>
           </div>
@@ -273,9 +329,15 @@ export default function OutgoingMailbox({
               <Send className="w-4 h-4" />
               Outgoing Emails
             </CardTitle>
-            <Button variant="ghost" size="sm" className="gap-1 text-xs">
-              <RefreshCw className="w-3 h-3" />
-              Refresh
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="gap-1 text-xs"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'Refreshing...' : 'Refresh'}
             </Button>
           </div>
         </CardHeader>
@@ -370,6 +432,8 @@ export default function OutgoingMailbox({
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }
