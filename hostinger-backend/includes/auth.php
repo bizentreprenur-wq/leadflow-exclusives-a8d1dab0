@@ -285,3 +285,11 @@ function grantFreeAccount($email) {
     
     return $result > 0;
 }
+
+/**
+ * Authenticate request via token (alias for validateSession for API consistency)
+ * Used by email-outreach.php and other API endpoints
+ */
+function authenticateRequest() {
+    return validateSession();
+}
