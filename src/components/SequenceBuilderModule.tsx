@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Progress } from '@/components/ui/progress';
 import {
   Dialog,
   DialogContent,
@@ -26,8 +27,132 @@ import {
   Mail, Linkedin, MessageSquare, Plus, Trash2, GripVertical,
   Clock, Play, Pause, Save, ArrowRight, Sparkles, Zap, 
   ChevronDown, ChevronUp, Eye, Edit, Copy, CheckCircle,
-  Timer, Users, TrendingUp, Settings
+  Timer, Users, TrendingUp, Settings, Flame, Snowflake, 
+  Globe, XCircle, Brain, Target
 } from 'lucide-react';
+
+// Lead type for detection
+interface LeadData {
+  id: string;
+  name: string;
+  website?: string;
+  websiteAnalysis?: {
+    hasWebsite: boolean;
+    platform: string | null;
+    needsUpgrade: boolean;
+    issues: string[];
+    mobileScore: number | null;
+  };
+  rating?: number;
+}
+
+interface LeadTypeAnalysis {
+  hot: number;
+  warm: number;
+  cold: number;
+  noWebsite: number;
+  total: number;
+  primaryType: 'hot' | 'warm' | 'cold' | 'no-website' | 'mixed';
+  recommendedSequences: string[];
+}
+
+interface SequenceBuilderModuleProps {
+  leads?: LeadData[];
+}
+
+// Classify a single lead
+function classifyLead(lead: LeadData): 'hot' | 'warm' | 'cold' | 'no-website' {
+  // No website = high-value prospect
+  if (!lead.website || lead.websiteAnalysis?.hasWebsite === false) {
+    return 'no-website';
+  }
+
+  let score = 50;
+
+  // Needs upgrade = hot
+  if (lead.websiteAnalysis?.needsUpgrade) {
+    score += 30;
+  }
+
+  // Has issues = warm/hot
+  const issueCount = lead.websiteAnalysis?.issues?.length || 0;
+  if (issueCount >= 3) {
+    score += 25;
+  } else if (issueCount > 0) {
+    score += 10;
+  }
+
+  // Low mobile score = hot
+  const mobileScore = lead.websiteAnalysis?.mobileScore;
+  if (mobileScore !== null && mobileScore !== undefined) {
+    if (mobileScore < 50) {
+      score += 20;
+    } else if (mobileScore < 70) {
+      score += 10;
+    }
+  }
+
+  // High rating = established business
+  if (lead.rating && lead.rating >= 4.5) {
+    score += 10;
+  }
+
+  if (score >= 80) return 'hot';
+  if (score >= 55) return 'warm';
+  return 'cold';
+}
+
+// Analyze all leads and recommend sequences
+function analyzeLeadTypes(leads: LeadData[]): LeadTypeAnalysis {
+  const analysis: LeadTypeAnalysis = {
+    hot: 0,
+    warm: 0,
+    cold: 0,
+    noWebsite: 0,
+    total: leads.length,
+    primaryType: 'mixed',
+    recommendedSequences: [],
+  };
+
+  leads.forEach(lead => {
+    const type = classifyLead(lead);
+    switch (type) {
+      case 'hot': analysis.hot++; break;
+      case 'warm': analysis.warm++; break;
+      case 'cold': analysis.cold++; break;
+      case 'no-website': analysis.noWebsite++; break;
+    }
+  });
+
+  // Determine primary type
+  const counts = [
+    { type: 'hot' as const, count: analysis.hot },
+    { type: 'warm' as const, count: analysis.warm },
+    { type: 'cold' as const, count: analysis.cold },
+    { type: 'no-website' as const, count: analysis.noWebsite },
+  ];
+  counts.sort((a, b) => b.count - a.count);
+
+  if (counts[0].count > analysis.total * 0.4) {
+    analysis.primaryType = counts[0].type;
+  }
+
+  // Recommend sequences based on lead types
+  if (analysis.noWebsite > 0) {
+    analysis.recommendedSequences.push('no-website');
+  }
+  if (analysis.hot > 0) {
+    analysis.recommendedSequences.push('hot-leads');
+  }
+  if (analysis.warm > 0) {
+    analysis.recommendedSequences.push('warm-nurture');
+  }
+  if (analysis.cold > 0) {
+    analysis.recommendedSequences.push('cold-outreach', 'reengagement');
+  }
+
+  return analysis;
+}
 
 // Types
 interface SequenceStep {
@@ -144,7 +269,7 @@ const SEQUENCE_TEMPLATES = [
   },
 ];
 
-export default function SequenceBuilderModule() {
+export default function SequenceBuilderModule({ leads = [] }: SequenceBuilderModuleProps) {
   const [sequences, setSequences] = useState<Sequence[]>([
     {
       ...SEQUENCE_TEMPLATES[0],
@@ -153,6 +278,9 @@ export default function SequenceBuilderModule() {
       leadsEnrolled: 0,
     },
   ]);
+
+  // Analyze leads to detect types and recommend sequences
+  const leadAnalysis = useMemo(() => analyzeLeadTypes(leads), [leads]);
 
   const [activeSequence, setActiveSequence] = useState<Sequence | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -637,6 +765,105 @@ export default function SequenceBuilderModule() {
         </Button>
       </div>
 
+      {/* Lead Type Detection Panel */}
+      {leads.length > 0 && (
+        <Card className="border-2 border-violet-500/30 bg-gradient-to-r from-violet-500/5 to-purple-500/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Brain className="w-5 h-5 text-violet-600" />
+              AI Lead Analysis - {leadAnalysis.total} Leads Detected
+            </CardTitle>
+            <CardDescription>
+              Based on your current search results, here's what we recommend
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Lead Type Breakdown */}
+            <div className="grid grid-cols-4 gap-3">
+              <div className="p-3 rounded-lg border-2 border-red-500/30 bg-red-500/5 text-center">
+                <Flame className="w-5 h-5 text-red-500 mx-auto mb-1" />
+                <p className="text-xl font-bold text-red-600">{leadAnalysis.hot}</p>
+                <p className="text-xs text-muted-foreground">Hot Leads</p>
+              </div>
+              <div className="p-3 rounded-lg border-2 border-amber-500/30 bg-amber-500/5 text-center">
+                <TrendingUp className="w-5 h-5 text-amber-500 mx-auto mb-1" />
+                <p className="text-xl font-bold text-amber-600">{leadAnalysis.warm}</p>
+                <p className="text-xs text-muted-foreground">Warm Leads</p>
+              </div>
+              <div className="p-3 rounded-lg border-2 border-blue-500/30 bg-blue-500/5 text-center">
+                <Snowflake className="w-5 h-5 text-blue-500 mx-auto mb-1" />
+                <p className="text-xl font-bold text-blue-600">{leadAnalysis.cold}</p>
+                <p className="text-xs text-muted-foreground">Cold Leads</p>
+              </div>
+              <div className="p-3 rounded-lg border-2 border-emerald-500/30 bg-emerald-500/5 text-center">
+                <XCircle className="w-5 h-5 text-emerald-500 mx-auto mb-1" />
+                <p className="text-xl font-bold text-emerald-600">{leadAnalysis.noWebsite}</p>
+                <p className="text-xs text-muted-foreground">No Website 🔥</p>
+              </div>
+            </div>
+
+            {/* Distribution Bar */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Lead Distribution</span>
+                <span className="font-medium">
+                  Primary: {
+                    leadAnalysis.primaryType === 'hot' ? '🔥 Hot Leads' :
+                    leadAnalysis.primaryType === 'warm' ? '⚡ Warm Leads' :
+                    leadAnalysis.primaryType === 'cold' ? '❄️ Cold Leads' :
+                    leadAnalysis.primaryType === 'no-website' ? '🌐 No Website' :
+                    '📊 Mixed'
+                  }
+                </span>
+              </div>
+              <div className="flex h-3 rounded-full overflow-hidden bg-muted">
+                {leadAnalysis.hot > 0 && (
+                  <div 
+                    className="bg-red-500 transition-all" 
+                    style={{ width: `${(leadAnalysis.hot / leadAnalysis.total) * 100}%` }}
+                  />
+                )}
+                {leadAnalysis.warm > 0 && (
+                  <div 
+                    className="bg-amber-500 transition-all" 
+                    style={{ width: `${(leadAnalysis.warm / leadAnalysis.total) * 100}%` }}
+                  />
+                )}
+                {leadAnalysis.cold > 0 && (
+                  <div 
+                    className="bg-blue-500 transition-all" 
+                    style={{ width: `${(leadAnalysis.cold / leadAnalysis.total) * 100}%` }}
+                  />
+                )}
+                {leadAnalysis.noWebsite > 0 && (
+                  <div 
+                    className="bg-emerald-500 transition-all" 
+                    style={{ width: `${(leadAnalysis.noWebsite / leadAnalysis.total) * 100}%` }}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* AI Recommendation */}
+            <div className="p-3 rounded-lg bg-violet-500/10 border border-violet-500/30">
+              <div className="flex items-start gap-3">
+                <Target className="w-5 h-5 text-violet-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-violet-600 mb-1">AI Recommendation</p>
+                  <p className="text-sm text-muted-foreground">
+                    {leadAnalysis.primaryType === 'hot' && 'Use the "Hot Lead Fast Close" sequence for quick conversions. These leads are ready to buy!'}
+                    {leadAnalysis.primaryType === 'warm' && 'The "Warm Lead Nurture" sequence is perfect. Send value-packed content to build trust.'}
+                    {leadAnalysis.primaryType === 'cold' && 'Start with "Cold Outreach" or "Re-engagement Campaign" for gradual warming.'}
+                    {leadAnalysis.primaryType === 'no-website' && 'Your best bet: "No Website Specialist" sequence. These leads NEED your services!'}
+                    {leadAnalysis.primaryType === 'mixed' && 'Create separate sequences for each lead type, or start with "Cold Outreach" as a general approach.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* AI Recommended Sequences */}
       <Card className="border-amber-500/30 bg-amber-500/5">
         <CardHeader className="pb-3">
@@ -645,44 +872,85 @@ export default function SequenceBuilderModule() {
             AI-Recommended Sequences
           </CardTitle>
           <CardDescription>
-            Choose a proven sequence template based on your lead types
+            {leads.length > 0 
+              ? `Based on your ${leadAnalysis.total} leads, we recommend these sequences` 
+              : 'Choose a proven sequence template based on your lead types'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {SEQUENCE_TEMPLATES.map((template) => (
-              <Card 
-                key={template.id} 
-                className="cursor-pointer hover:border-primary/50 transition-colors"
-                onClick={() => {
-                  const newSeq: Sequence = {
-                    ...template,
-                    id: generateId(),
-                    status: 'draft',
-                    createdAt: new Date(),
-                    leadsEnrolled: 0,
-                    steps: template.steps.map(s => ({ ...s, id: generateId() })),
-                  };
-                  setSequences(prev => [...prev, newSeq]);
-                  toast.success(`"${template.name}" sequence added!`);
-                }}
-              >
-                <CardContent className="pt-4 pb-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <h4 className="font-medium text-sm">{template.name}</h4>
-                    <Badge variant="secondary" className="text-[10px] bg-amber-500/10 text-amber-600">
-                      AI Pick
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground mb-2">{template.description}</p>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{template.steps.length} steps</span>
-                    <span>•</span>
-                    <span>{template.steps.filter(s => s.channel === 'email').length} emails</span>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            {SEQUENCE_TEMPLATES
+              .sort((a, b) => {
+                // Prioritize recommended sequences when we have leads
+                if (leads.length === 0) return 0;
+                const aRecommended = leadAnalysis.recommendedSequences.includes(a.id);
+                const bRecommended = leadAnalysis.recommendedSequences.includes(b.id);
+                if (aRecommended && !bRecommended) return -1;
+                if (!aRecommended && bRecommended) return 1;
+                return 0;
+              })
+              .map((template) => {
+                const isRecommended = leads.length > 0 && leadAnalysis.recommendedSequences.includes(template.id);
+                const isPrimaryMatch = 
+                  (leadAnalysis.primaryType === 'hot' && template.id === 'hot-leads') ||
+                  (leadAnalysis.primaryType === 'warm' && template.id === 'warm-nurture') ||
+                  (leadAnalysis.primaryType === 'cold' && template.id === 'cold-outreach') ||
+                  (leadAnalysis.primaryType === 'no-website' && template.id === 'no-website');
+
+                return (
+                  <Card 
+                    key={template.id} 
+                    className={`cursor-pointer transition-all ${
+                      isPrimaryMatch 
+                        ? 'border-2 border-violet-500 ring-2 ring-violet-500/20 bg-violet-500/5' 
+                        : isRecommended 
+                          ? 'border-2 border-amber-500/50 bg-amber-500/5 hover:border-amber-500'
+                          : 'hover:border-primary/50'
+                    }`}
+                    onClick={() => {
+                      const newSeq: Sequence = {
+                        ...template,
+                        id: generateId(),
+                        status: 'draft',
+                        createdAt: new Date(),
+                        leadsEnrolled: 0,
+                        steps: template.steps.map(s => ({ ...s, id: generateId() })),
+                      };
+                      setSequences(prev => [...prev, newSeq]);
+                      toast.success(`"${template.name}" sequence added!`);
+                    }}
+                  >
+                    <CardContent className="pt-4 pb-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <h4 className="font-medium text-sm">{template.name}</h4>
+                        <div className="flex gap-1">
+                          {isPrimaryMatch && (
+                            <Badge className="text-[10px] bg-violet-500 text-white border-0">
+                              Best Match
+                            </Badge>
+                          )}
+                          {isRecommended && !isPrimaryMatch && (
+                            <Badge variant="secondary" className="text-[10px] bg-amber-500/20 text-amber-600 border-0">
+                              Recommended
+                            </Badge>
+                          )}
+                          {!isRecommended && (
+                            <Badge variant="secondary" className="text-[10px]">
+                              AI Pick
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-2">{template.description}</p>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span>{template.steps.length} steps</span>
+                        <span>•</span>
+                        <span>{template.steps.filter(s => s.channel === 'email').length} emails</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
           </div>
         </CardContent>
       </Card>
