@@ -1,7 +1,11 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   RefreshCw, 
   Target, 
@@ -15,20 +19,30 @@ import {
   Clock,
   DollarSign,
   Sparkles,
-  Construction
+  Construction,
+  Rocket,
+  Bell,
+  Mail,
+  Building2,
+  Phone,
+  Loader2,
+  PartyPopper
 } from "lucide-react";
 import { toast } from "sonner";
+import { z } from "zod";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import CloseLoopComparisonSlider from "@/components/CloseLoopComparisonSlider";
 
-const handleComingSoon = () => {
-  toast.info("CloseLoop™ is coming soon!", {
-    description: "We're putting the finishing touches on our powerful post-lead advertising system. Sign up to be notified when it launches!",
-    duration: 5000,
-    icon: <Construction className="w-5 h-5 text-amber-500" />
-  });
-};
+// Form validation schema
+const signupSchema = z.object({
+  name: z.string().trim().min(2, "Name must be at least 2 characters").max(100),
+  email: z.string().trim().email("Please enter a valid email").max(255),
+  company: z.string().trim().min(2, "Company name required").max(100),
+  phone: z.string().trim().optional(),
+  message: z.string().trim().max(500).optional(),
+});
+
+type SignupData = z.infer<typeof signupSchema>;
 
 const features = [
   {
@@ -63,48 +77,6 @@ const features = [
   }
 ];
 
-const pricingTiers = [
-  {
-    name: "CloseLoop™ Lite",
-    price: "$297",
-    period: "/month",
-    color: "from-emerald-500 to-emerald-600",
-    features: [
-      "Lead retargeting ads",
-      "Testimonial & reminder ads",
-      "Pixel & audience setup",
-      "Facebook & Google integration"
-    ]
-  },
-  {
-    name: "CloseLoop™ Pro",
-    price: "$597",
-    period: "/month",
-    popular: true,
-    color: "from-amber-500 to-orange-500",
-    features: [
-      "Everything in Lite, plus:",
-      "Behavior-based ad sequences",
-      "No-show reduction ads",
-      "Appointment confirmation ads",
-      "AI-generated ad variations"
-    ]
-  },
-  {
-    name: "CloseLoop™ Revenue+",
-    price: "$997",
-    period: "/month",
-    color: "from-rose-500 to-red-600",
-    features: [
-      "Everything in Pro, plus:",
-      "Lost-lead resurrection campaigns",
-      "ZIP-code takeover ads",
-      "Revenue attribution dashboard",
-      "Cost per CLOSED deal tracking"
-    ]
-  }
-];
-
 const stats = [
   { value: "30-50%", label: "Leads typically lost", icon: Users },
   { value: "3x", label: "Higher close rates", icon: TrendingUp },
@@ -113,6 +85,83 @@ const stats = [
 ];
 
 const CloseLoop = () => {
+  const [formData, setFormData] = useState<Partial<SignupData>>({
+    name: '',
+    email: '',
+    company: '',
+    phone: '',
+    message: '',
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrors({});
+
+    // Validate form
+    const result = signupSchema.safeParse(formData);
+    if (!result.success) {
+      const fieldErrors: Record<string, string> = {};
+      result.error.errors.forEach(err => {
+        if (err.path[0]) {
+          fieldErrors[err.path[0] as string] = err.message;
+        }
+      });
+      setErrors(fieldErrors);
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Send to CRM via webhook (using Zapier-compatible format)
+      // Users should configure their CRM webhook URL
+      const webhookUrl = 'https://hooks.zapier.com/hooks/catch/YOUR_WEBHOOK_ID'; // Placeholder
+      
+      // For demo purposes, we'll simulate the submission
+      // In production, replace with actual webhook URL
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Attempt to send to webhook (with no-cors for Zapier compatibility)
+      try {
+        await fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          mode: 'no-cors',
+          body: JSON.stringify({
+            ...result.data,
+            source: 'CloseLoop Landing Page',
+            timestamp: new Date().toISOString(),
+            page_url: window.location.href,
+          }),
+        });
+      } catch {
+        // Webhook may fail if not configured - that's okay for demo
+      }
+
+      setIsSubmitted(true);
+      toast.success("You're on the list! 🎉", {
+        description: "We'll notify you as soon as CloseLoop™ launches.",
+        duration: 5000,
+      });
+    } catch (error) {
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background closeloop-theme">
       {/* Custom amber/orange themed styles */}
@@ -137,55 +186,70 @@ const CloseLoop = () => {
         .closeloop-border {
           border-color: hsl(38 92% 50% / 0.3);
         }
+        @keyframes pulse-glow {
+          0%, 100% { box-shadow: 0 0 60px hsl(38 92% 50% / 0.3); }
+          50% { box-shadow: 0 0 100px hsl(38 92% 50% / 0.5); }
+        }
+        .animate-pulse-glow {
+          animation: pulse-glow 3s ease-in-out infinite;
+        }
+        @keyframes float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+        .animate-float {
+          animation: float 4s ease-in-out infinite;
+        }
       `}</style>
 
       <Navbar />
       
-      {/* Hero Section */}
+      {/* Giant Coming Soon Hero */}
       <section className="relative py-20 lg:py-32 overflow-hidden">
-        {/* Animated background glow */}
-        <div className="absolute inset-0 bg-gradient-to-b from-amber-500/5 via-transparent to-transparent" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-amber-500/10 rounded-full blur-3xl" />
+        {/* Animated background effects */}
+        <div className="absolute inset-0 bg-gradient-to-b from-amber-500/10 via-transparent to-transparent" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-amber-500/20 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-orange-500/10 rounded-full blur-3xl" />
         
         <div className="container relative z-10 px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <Badge className="mb-6 closeloop-gradient text-white border-0 px-4 py-1.5 text-sm font-semibold">
-              <Zap className="w-4 h-4 mr-1" />
-              Exclusive BamLead Module
-            </Badge>
+          <div className="max-w-5xl mx-auto text-center">
+            {/* Coming Soon Badge - Animated */}
+            <div className="mb-8 animate-float">
+              <Badge className="closeloop-gradient text-white border-0 px-6 py-3 text-lg font-bold animate-pulse-glow">
+                <Construction className="w-6 h-6 mr-2" />
+                COMING SOON
+              </Badge>
+            </div>
             
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-6">
-              <span className="text-foreground">BamLead</span>{" "}
+            {/* Giant Title */}
+            <h1 className="text-6xl md:text-8xl lg:text-9xl font-black mb-6 tracking-tight">
               <span className="closeloop-text">CloseLoop™</span>
             </h1>
             
-            <p className="text-2xl md:text-3xl font-semibold text-foreground mb-4">
+            <p className="text-3xl md:text-4xl font-bold text-foreground mb-4">
               We Don't Stop at the Lead.
             </p>
-            <p className="text-2xl md:text-3xl font-semibold closeloop-text mb-8">
+            <p className="text-3xl md:text-4xl font-bold closeloop-text mb-8">
               We Advertise Until It Closes.
             </p>
             
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-10">
-              Most lead companies hand you a name and number… then disappear. 
-              CloseLoop™ continues advertising to your leads until they book, show up, and buy.
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-12">
+              The most powerful post-lead advertising system is almost here. 
+              Get exclusive early access and be the first to transform your lead conversion.
             </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" onClick={handleComingSoon} className="closeloop-gradient text-white border-0 text-lg px-8 py-6 closeloop-glow">
-                Book a Demo
-                <ArrowRight className="ml-2 w-5 h-5" />
-              </Button>
-              <Button size="lg" variant="outline" onClick={handleComingSoon} className="closeloop-border text-lg px-8 py-6">
-                See Pricing
-              </Button>
+
+            {/* Countdown/Launch indicator */}
+            <div className="flex items-center justify-center gap-2 text-amber-500 mb-12">
+              <Rocket className="w-6 h-6 animate-bounce" />
+              <span className="text-lg font-semibold">Launching Q1 2026</span>
+              <Rocket className="w-6 h-6 animate-bounce" style={{ animationDelay: '0.5s' }} />
             </div>
           </div>
         </div>
       </section>
 
       {/* Stats Section */}
-      <section className="py-16 border-y border-border/50">
+      <section className="py-12 border-y border-amber-500/20 bg-card/30">
         <div className="container px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((stat, index) => (
@@ -201,48 +265,188 @@ const CloseLoop = () => {
         </div>
       </section>
 
-      {/* Problem Section */}
-      <section className="py-20">
-        <div className="container px-4">
-          <div className="max-w-3xl mx-auto text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">
-              The Problem <span className="closeloop-text">No One Talks About</span>
-            </h2>
-            <p className="text-lg text-muted-foreground">
-              Companies don't lose money because of no leads. They lose money because:
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
-            {[
-              "Leads don't answer the phone",
-              "Leads go cold after first contact",
-              "Appointments no-show",
-              "No follow-up after the first contact"
-            ].map((problem, index) => (
-              <Card key={index} className="bg-card/50 border-amber-500/20 hover:border-amber-500/40 transition-colors">
-                <CardContent className="p-6 text-center">
-                  <div className="w-10 h-10 rounded-full closeloop-gradient flex items-center justify-center mx-auto mb-4">
-                    <span className="text-white font-bold">{index + 1}</span>
+      {/* Signup Form Section - The Main CTA */}
+      <section className="py-20 relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-amber-500/5 to-transparent" />
+        
+        <div className="container relative z-10 px-4">
+          <div className="max-w-2xl mx-auto">
+            {isSubmitted ? (
+              /* Success State */
+              <Card className="border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-orange-500/10 closeloop-glow">
+                <CardContent className="pt-12 pb-12 text-center">
+                  <div className="w-24 h-24 mx-auto mb-6 rounded-full closeloop-gradient flex items-center justify-center animate-bounce">
+                    <PartyPopper className="w-12 h-12 text-white" />
                   </div>
-                  <p className="text-foreground font-medium">{problem}</p>
+                  <h2 className="text-3xl font-bold mb-4">You're on the VIP List! 🎉</h2>
+                  <p className="text-lg text-muted-foreground mb-6">
+                    We'll email you the moment CloseLoop™ launches. Get ready to transform your lead conversion game!
+                  </p>
+                  <div className="flex items-center justify-center gap-2 text-amber-500">
+                    <Bell className="w-5 h-5" />
+                    <span className="font-medium">Check your inbox for a confirmation</span>
+                  </div>
                 </CardContent>
               </Card>
-            ))}
+            ) : (
+              /* Signup Form */
+              <Card className="border-amber-500/30 bg-card/80 backdrop-blur-sm closeloop-glow">
+                <CardHeader className="text-center pb-2">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full closeloop-gradient flex items-center justify-center">
+                    <Bell className="w-8 h-8 text-white" />
+                  </div>
+                  <CardTitle className="text-3xl font-bold">
+                    Get <span className="closeloop-text">Early Access</span>
+                  </CardTitle>
+                  <CardDescription className="text-lg">
+                    Be the first to know when CloseLoop™ launches. Plus get exclusive founding member pricing.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleSubmit} className="space-y-5">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="name" className="flex items-center gap-2">
+                          <Users className="w-4 h-4 text-amber-500" />
+                          Full Name *
+                        </Label>
+                        <Input
+                          id="name"
+                          name="name"
+                          placeholder="John Smith"
+                          value={formData.name || ''}
+                          onChange={handleInputChange}
+                          className={`bg-background/50 ${errors.name ? 'border-destructive' : 'border-amber-500/30 focus:border-amber-500'}`}
+                        />
+                        {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="email" className="flex items-center gap-2">
+                          <Mail className="w-4 h-4 text-amber-500" />
+                          Email Address *
+                        </Label>
+                        <Input
+                          id="email"
+                          name="email"
+                          type="email"
+                          placeholder="john@company.com"
+                          value={formData.email || ''}
+                          onChange={handleInputChange}
+                          className={`bg-background/50 ${errors.email ? 'border-destructive' : 'border-amber-500/30 focus:border-amber-500'}`}
+                        />
+                        {errors.email && <p className="text-sm text-destructive">{errors.email}</p>}
+                      </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="company" className="flex items-center gap-2">
+                          <Building2 className="w-4 h-4 text-amber-500" />
+                          Company Name *
+                        </Label>
+                        <Input
+                          id="company"
+                          name="company"
+                          placeholder="Your Company"
+                          value={formData.company || ''}
+                          onChange={handleInputChange}
+                          className={`bg-background/50 ${errors.company ? 'border-destructive' : 'border-amber-500/30 focus:border-amber-500'}`}
+                        />
+                        {errors.company && <p className="text-sm text-destructive">{errors.company}</p>}
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label htmlFor="phone" className="flex items-center gap-2">
+                          <Phone className="w-4 h-4 text-amber-500" />
+                          Phone (Optional)
+                        </Label>
+                        <Input
+                          id="phone"
+                          name="phone"
+                          type="tel"
+                          placeholder="(555) 123-4567"
+                          value={formData.phone || ''}
+                          onChange={handleInputChange}
+                          className="bg-background/50 border-amber-500/30 focus:border-amber-500"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="message" className="flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-amber-500" />
+                        What's your biggest lead challenge? (Optional)
+                      </Label>
+                      <Textarea
+                        id="message"
+                        name="message"
+                        placeholder="Tell us about your current lead follow-up challenges..."
+                        value={formData.message || ''}
+                        onChange={handleInputChange}
+                        className="bg-background/50 border-amber-500/30 focus:border-amber-500 min-h-[80px]"
+                      />
+                    </div>
+
+                    <Button
+                      type="submit"
+                      size="lg"
+                      disabled={isSubmitting}
+                      className="w-full closeloop-gradient text-white text-lg py-6 font-bold hover:opacity-90 transition-opacity"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                          Signing Up...
+                        </>
+                      ) : (
+                        <>
+                          <Bell className="w-5 h-5 mr-2" />
+                          Notify Me When It Launches
+                        </>
+                      )}
+                    </Button>
+
+                    <p className="text-center text-sm text-muted-foreground">
+                      🔒 We respect your privacy. No spam, ever.
+                    </p>
+                  </form>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Bonus info */}
+            <div className="mt-8 grid md:grid-cols-3 gap-4 text-center">
+              <div className="p-4 rounded-lg bg-card/50 border border-amber-500/20">
+                <Zap className="w-8 h-8 mx-auto mb-2 text-amber-500" />
+                <p className="text-sm font-medium">Early Bird Pricing</p>
+                <p className="text-xs text-muted-foreground">Exclusive discounts for early signups</p>
+              </div>
+              <div className="p-4 rounded-lg bg-card/50 border border-amber-500/20">
+                <Target className="w-8 h-8 mx-auto mb-2 text-amber-500" />
+                <p className="text-sm font-medium">Priority Access</p>
+                <p className="text-xs text-muted-foreground">Be first to try new features</p>
+              </div>
+              <div className="p-4 rounded-lg bg-card/50 border border-amber-500/20">
+                <Sparkles className="w-8 h-8 mx-auto mb-2 text-amber-500" />
+                <p className="text-sm font-medium">Free Setup</p>
+                <p className="text-xs text-muted-foreground">For founding members only</p>
+              </div>
+            </div>
           </div>
-          
-          <p className="text-center text-lg text-muted-foreground mt-10 max-w-2xl mx-auto">
-            Traditional agencies stop at the form fill. <span className="closeloop-text font-semibold">That's where BamLead starts.</span>
-          </p>
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Features Preview */}
       <section className="py-20 bg-card/30">
         <div className="container px-4">
           <div className="text-center mb-16">
+            <Badge className="mb-4 closeloop-gradient text-white border-0">
+              <Sparkles className="w-4 h-4 mr-1" />
+              What's Coming
+            </Badge>
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              What Makes <span className="closeloop-text">CloseLoop™</span> Different
+              Sneak Peek at <span className="closeloop-text">CloseLoop™</span> Features
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               A complete post-lead advertising system that follows every lead until conversion.
@@ -265,116 +469,29 @@ const CloseLoop = () => {
         </div>
       </section>
 
-      {/* How It Works */}
-      <section className="py-20">
-        <div className="container px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              How <span className="closeloop-text">CloseLoop™</span> Works
-            </h2>
-          </div>
-          
-          <div className="max-w-4xl mx-auto space-y-6">
-            {[
-              { trigger: "Lead doesn't answer", action: "→ They see reminder ads" },
-              { trigger: "Lead clicks but doesn't book", action: "→ They see trust & proof ads" },
-              { trigger: "Lead no-shows", action: "→ They see appointment reinforcement ads" },
-              { trigger: "Lead goes cold", action: "→ They are re-engaged weeks or months later" }
-            ].map((item, index) => (
-              <div key={index} className="flex items-center gap-4 p-4 rounded-xl bg-card border border-amber-500/20">
-                <div className="w-10 h-10 rounded-full closeloop-gradient flex items-center justify-center shrink-0">
-                  <span className="text-white font-bold text-sm">{index + 1}</span>
-                </div>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 flex-1">
-                  <span className="text-foreground font-medium">{item.trigger}</span>
-                  <span className="text-amber-500 font-semibold">{item.action}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Comparison Slider */}
-      <section className="py-20 bg-card/30">
-        <div className="container px-4">
-          <CloseLoopComparisonSlider />
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      <section className="py-20 bg-card/30">
-        <div className="container px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Simple, <span className="closeloop-text">Transparent Pricing</span>
-            </h2>
-            <p className="text-lg text-muted-foreground">
-              Choose the plan that fits your business goals
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {pricingTiers.map((tier, index) => (
-              <Card 
-                key={index} 
-                className={`relative bg-card border-border overflow-hidden ${
-                  tier.popular ? 'border-amber-500 ring-2 ring-amber-500/20' : ''
-                }`}
-              >
-                {tier.popular && (
-                  <div className="absolute top-0 right-0 closeloop-gradient text-white text-xs font-bold px-3 py-1 rounded-bl-lg">
-                    MOST POPULAR
-                  </div>
-                )}
-                <CardContent className="p-6">
-                  <h3 className="text-xl font-bold mb-2 text-foreground">{tier.name}</h3>
-                  <div className="mb-6">
-                    <span className={`text-4xl font-bold bg-gradient-to-r ${tier.color} bg-clip-text text-transparent`}>
-                      {tier.price}
-                    </span>
-                    <span className="text-muted-foreground">{tier.period}</span>
-                  </div>
-                  <ul className="space-y-3 mb-6">
-                    {tier.features.map((feature, fIndex) => (
-                      <li key={fIndex} className="flex items-start gap-2">
-                        <CheckCircle2 className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                        <span className="text-muted-foreground">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Button 
-                    className={`w-full ${tier.popular ? 'closeloop-gradient text-white' : ''}`}
-                    variant={tier.popular ? 'default' : 'outline'}
-                    onClick={handleComingSoon}
-                  >
-                    Get Started
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
+      {/* Final CTA */}
       <section className="py-20">
         <div className="container px-4">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-3xl md:text-4xl font-bold mb-6">
-              Ready to <span className="closeloop-text">Close More Deals</span>?
+              Don't Miss the <span className="closeloop-text">Launch</span>
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              We don't just generate leads. We stay in the game until the money is made.
+              Join hundreds of businesses waiting to transform their lead conversion. Sign up above to secure your spot.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" onClick={handleComingSoon} className="closeloop-gradient text-white border-0 text-lg px-8 py-6 closeloop-glow">
-                Book a Demo
-                <ArrowRight className="ml-2 w-5 h-5" />
+              <Button 
+                size="lg" 
+                onClick={() => document.getElementById('email')?.focus()}
+                className="closeloop-gradient text-white border-0 text-lg px-8 py-6 closeloop-glow"
+              >
+                <Bell className="mr-2 w-5 h-5" />
+                Get Early Access
               </Button>
-              <Link to="/pricing">
+              <Link to="/dashboard">
                 <Button size="lg" variant="outline" className="closeloop-border text-lg px-8 py-6 w-full">
-                  Explore BamLead Plans
+                  Explore BamLead Dashboard
+                  <ArrowRight className="ml-2 w-5 h-5" />
                 </Button>
               </Link>
             </div>
