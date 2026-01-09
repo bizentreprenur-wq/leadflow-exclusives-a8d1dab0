@@ -763,7 +763,11 @@ export default function LeadSpreadsheetViewer({
                   <TableRow 
                     key={lead.id}
                     data-state={selectedIds.has(lead.id) ? 'selected' : undefined}
-                    className={`${selectedIds.has(lead.id) ? 'bg-primary/5' : ''} ${lead.aiClassification === 'hot' ? 'bg-red-500/5' : ''}`}
+                    className={`${selectedIds.has(lead.id) ? 'bg-primary/5' : ''} ${
+                      lead.aiClassification === 'hot' ? 'bg-red-500/5' : 
+                      lead.aiClassification === 'warm' ? 'bg-orange-500/5' : 
+                      lead.aiClassification === 'cold' ? 'bg-blue-500/5' : ''
+                    }`}
                   >
                     <TableCell className="sticky left-0 bg-inherit">
                       <Checkbox 

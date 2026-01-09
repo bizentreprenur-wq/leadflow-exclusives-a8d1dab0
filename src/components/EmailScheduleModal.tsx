@@ -15,13 +15,15 @@ import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { format, addDays, setHours, setMinutes, isAfter } from 'date-fns';
 import {
   Clock, CalendarDays, Sparkles, Send, Users, Zap, Brain,
   TrendingUp, Mail, CheckCircle2, AlertCircle, Timer, Flame,
-  Thermometer, Snowflake
+  Thermometer, Snowflake, FileText, Eye
 } from 'lucide-react';
+import { EMAIL_TEMPLATE_PRESETS, TEMPLATE_CATEGORIES, EmailTemplatePreset } from '@/lib/emailTemplates';
 
 interface Lead {
   id: string;
@@ -58,6 +60,15 @@ export default function EmailScheduleModal({
   const [selectedTime, setSelectedTime] = useState<string>('09:00');
   const [selectedAISlot, setSelectedAISlot] = useState<number>(0);
   const [isScheduling, setIsScheduling] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplatePreset | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string>('sales');
+  const [previewTemplate, setPreviewTemplate] = useState<EmailTemplatePreset | null>(null);
+
+  // Filter templates by category
+  const filteredTemplates = useMemo(() => 
+    EMAIL_TEMPLATE_PRESETS.filter(t => t.category === activeCategory),
+    [activeCategory]
+  );
 
   // Filter leads with valid emails
   const validLeads = useMemo(() => 
@@ -416,6 +427,139 @@ export default function EmailScheduleModal({
               </div>
             )}
 
+            {/* Email Template Selection */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-primary" />
+                <Label className="text-base font-semibold">Select Email Template</Label>
+                {selectedTemplate && (
+                  <Badge className="bg-emerald-500/20 text-emerald-600 border-emerald-500/30">
+                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                    Selected
+                  </Badge>
+                )}
+              </div>
+
+              {/* Category Tabs */}
+              <Tabs value={activeCategory} onValueChange={setActiveCategory}>
+                <TabsList className="w-full justify-start bg-muted/50 overflow-x-auto">
+                  {TEMPLATE_CATEGORIES.map(cat => (
+                    <TabsTrigger key={cat.id} value={cat.id} className="text-xs px-3">
+                      {cat.name}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+
+                <TabsContent value={activeCategory} className="mt-3">
+                  <div className="grid gap-2 max-h-[200px] overflow-y-auto pr-2">
+                    {filteredTemplates.map(template => (
+                      <div
+                        key={template.id}
+                        onClick={() => setSelectedTemplate(template)}
+                        className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                          selectedTemplate?.id === template.id
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm">{template.name}</span>
+                              {template.industry && (
+                                <Badge variant="outline" className="text-xs">
+                                  {template.industry}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">{template.description}</p>
+                            <div className="flex gap-1 mt-2">
+                              {template.tags.slice(0, 3).map(tag => (
+                                <Badge key={tag} variant="secondary" className="text-xs">
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="shrink-0 ml-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewTemplate(template);
+                            }}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </TabsContent>
+              </Tabs>
+
+              {/* Selected Template Preview */}
+              {selectedTemplate && (
+                <Card className="bg-emerald-500/5 border-emerald-500/20">
+                  <CardContent className="pt-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span className="font-medium text-sm text-emerald-700">Selected: {selectedTemplate.name}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Subject: {selectedTemplate.subject}</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {/* Template Preview Modal */}
+            {previewTemplate && (
+              <Card className="border-2 border-primary/20 bg-card">
+                <CardContent className="pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Eye className="w-4 h-4 text-primary" />
+                      <span className="font-semibold text-sm">Preview: {previewTemplate.name}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setPreviewTemplate(null)}
+                    >
+                      Close
+                    </Button>
+                  </div>
+                  <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Subject:</Label>
+                      <p className="text-sm font-medium">{previewTemplate.subject}</p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Body:</Label>
+                      <div 
+                        className="text-sm prose prose-sm max-w-none mt-1"
+                        dangerouslySetInnerHTML={{ __html: previewTemplate.body_html }}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setSelectedTemplate(previewTemplate);
+                        setPreviewTemplate(null);
+                      }}
+                      className="gap-1"
+                    >
+                      <CheckCircle2 className="w-3 h-3" />
+                      Use This Template
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Drip Rate Info */}
             <Card className="bg-muted/50">
               <CardContent className="pt-4">
@@ -450,7 +594,7 @@ export default function EmailScheduleModal({
             </Button>
             <Button
               onClick={handleSchedule}
-              disabled={isScheduling || validLeads.length === 0}
+              disabled={isScheduling || validLeads.length === 0 || !selectedTemplate}
               className="gap-2 bg-primary hover:bg-primary/90"
             >
               {isScheduling ? (
