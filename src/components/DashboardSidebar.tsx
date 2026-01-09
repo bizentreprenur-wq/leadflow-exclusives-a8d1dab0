@@ -46,6 +46,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import bamMascot from '@/assets/bamlead-mascot.png';
+import { BackendStatusIndicator } from '@/components/BackendStatusIndicator';
 
 interface DashboardSidebarProps {
   activeTab: string;
@@ -379,6 +380,13 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
             </>
           )}
         </Button>
+
+        {/* Backend Status Indicator */}
+        {!isCollapsed ? (
+          <BackendStatusIndicator className="mb-3" />
+        ) : (
+          <BackendStatusIndicator compact showLabel={false} className="mb-3 justify-center" />
+        )}
 
         {/* User Info */}
         <div className="flex items-center gap-3 mb-3">
