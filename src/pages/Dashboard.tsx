@@ -48,7 +48,7 @@ import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } fro
 import { HIGH_CONVERTING_TEMPLATES } from '@/lib/highConvertingTemplates';
 import AutoFollowUpBuilder from '@/components/AutoFollowUpBuilder';
 import LeadResultsPanel from '@/components/LeadResultsPanel';
-import LeadReportModal from '@/components/LeadReportModal';
+import LeadDocumentViewer from '@/components/LeadDocumentViewer';
 import DataFieldSelector, { DATA_FIELD_OPTIONS } from '@/components/DataFieldSelector';
 
 interface SearchResult {
@@ -1302,15 +1302,13 @@ export default function Dashboard() {
         onProceedToVerify={handleResultsPanelProceed}
       />
 
-      {/* PDF-style Lead Report Modal */}
-      <LeadReportModal
+      {/* Full-screen Lead Document Viewer */}
+      <LeadDocumentViewer
         open={showReportModal}
         onOpenChange={setShowReportModal}
         leads={searchResults}
         searchQuery={query}
         location={location}
-        aiGroups={aiGroups}
-        aiSummary={aiSummary}
         onProceedToVerify={handleResultsPanelProceed}
       />
     </SidebarProvider>
