@@ -49,6 +49,7 @@ import { HIGH_CONVERTING_TEMPLATES } from '@/lib/highConvertingTemplates';
 import AutoFollowUpBuilder from '@/components/AutoFollowUpBuilder';
 import LeadResultsPanel from '@/components/LeadResultsPanel';
 import LeadDocumentViewer from '@/components/LeadDocumentViewer';
+import LeadSpreadsheetViewer from '@/components/LeadSpreadsheetViewer';
 import DataFieldSelector, { DATA_FIELD_OPTIONS } from '@/components/DataFieldSelector';
 
 interface SearchResult {
@@ -112,6 +113,7 @@ export default function Dashboard() {
   const [showVerifierWidget, setShowVerifierWidget] = useState(false);
   const [showResultsPanel, setShowResultsPanel] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showSpreadsheetViewer, setShowSpreadsheetViewer] = useState(false);
   const [widgetLeads, setWidgetLeads] = useState<SearchResult[]>([]);
   const [verifiedWidgetLeads, setVerifiedWidgetLeads] = useState<any[]>([]);
   
@@ -205,8 +207,8 @@ export default function Dashboard() {
       setSearchResults(results);
       toast.success(`Found ${results.length} businesses!`);
       
-      // Open the PDF-style report modal instead of the panel
-      setShowReportModal(true);
+      // Open the spreadsheet viewer to display leads
+      setShowSpreadsheetViewer(true);
       
       // Start AI analysis in background
       if (results.length > 0) {
@@ -1310,6 +1312,29 @@ export default function Dashboard() {
         searchQuery={query}
         location={location}
         onProceedToVerify={handleResultsPanelProceed}
+      />
+
+      {/* Lead Spreadsheet Viewer */}
+      <LeadSpreadsheetViewer
+        open={showSpreadsheetViewer}
+        onOpenChange={setShowSpreadsheetViewer}
+        leads={searchResults}
+        onProceedToVerify={(leads) => {
+          setShowSpreadsheetViewer(false);
+          setWidgetLeads(leads);
+          sessionStorage.setItem('leadsToVerify', JSON.stringify(leads));
+          setShowVerifierWidget(true);
+        }}
+        onSaveToDatabase={(leads) => {
+          // Save to session storage for now
+          sessionStorage.setItem('savedLeads', JSON.stringify(leads));
+          toast.success(`${leads.length} leads saved to database`);
+        }}
+        onSendToEmail={(leads) => {
+          setShowSpreadsheetViewer(false);
+          setVerifiedWidgetLeads(leads);
+          setShowEmailWidget(true);
+        }}
       />
     </SidebarProvider>
   );
