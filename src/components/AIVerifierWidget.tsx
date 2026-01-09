@@ -143,7 +143,7 @@ export default function AIVerifierWidget({ isOpen, onClose, leads, onComplete, o
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] w-full h-[95vh] max-h-[95vh] flex flex-col p-0 gap-0">
+      <DialogContent className="max-w-full w-screen h-screen max-h-screen flex flex-col p-0 gap-0 rounded-none border-0">
         <DialogHeader className="p-6 border-b bg-gradient-to-r from-violet-500/10 to-purple-500/10 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-violet-500/20 flex items-center justify-center">
