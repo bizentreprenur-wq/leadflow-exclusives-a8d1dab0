@@ -84,18 +84,70 @@ const DEFAULT_TEMPLATES = {
   },
 };
 
+// Pre-built sequence templates with AI recommendations
+const SEQUENCE_TEMPLATES = [
+  {
+    id: 'cold-outreach',
+    name: 'Cold Outreach Sequence',
+    description: 'Multi-touch outreach for new leads',
+    aiRecommendedFor: ['new-leads', 'no-website', 'cold-prospects'],
+    steps: [
+      { id: 's1', channel: 'email' as const, delay: 0, delayUnit: 'days' as const, subject: 'Quick question about your business', message: 'Hi {{first_name}},\n\nI noticed {{business_name}} and wanted to reach out...', isActive: true },
+      { id: 's2', channel: 'linkedin' as const, delay: 2, delayUnit: 'days' as const, message: 'Hi {{first_name}}, I just sent you an email - would love to connect here as well!', isActive: true },
+      { id: 's3', channel: 'email' as const, delay: 3, delayUnit: 'days' as const, subject: 'Following up', message: 'Hi {{first_name}},\n\nJust wanted to follow up on my previous message...', isActive: true },
+      { id: 's4', channel: 'sms' as const, delay: 5, delayUnit: 'days' as const, message: 'Hi {{first_name}}, I\'ve tried reaching you via email. Would a quick call work?', isActive: true },
+    ],
+  },
+  {
+    id: 'warm-nurture',
+    name: 'Warm Lead Nurture',
+    description: 'For leads who\'ve shown interest but haven\'t converted',
+    aiRecommendedFor: ['warm-leads', 'website-visitors', 'opened-emails'],
+    steps: [
+      { id: 'w1', channel: 'email' as const, delay: 0, delayUnit: 'days' as const, subject: 'Resources for {{business_name}}', message: 'Hi {{first_name}},\n\nI put together some resources specifically for businesses like yours...', isActive: true },
+      { id: 'w2', channel: 'email' as const, delay: 3, delayUnit: 'days' as const, subject: 'Case study you might find interesting', message: 'Hi {{first_name}},\n\nThought you\'d appreciate this success story from a similar business...', isActive: true },
+      { id: 'w3', channel: 'linkedin' as const, delay: 5, delayUnit: 'days' as const, message: 'Hi {{first_name}}, hope the resources I sent were helpful! Happy to discuss any questions.', isActive: true },
+    ],
+  },
+  {
+    id: 'hot-leads',
+    name: 'Hot Lead Fast Close',
+    description: 'Quick, high-touch sequence for ready-to-buy leads',
+    aiRecommendedFor: ['hot-leads', 'requested-info', 'high-intent'],
+    steps: [
+      { id: 'h1', channel: 'email' as const, delay: 0, delayUnit: 'hours' as const, subject: 'Here\'s what you asked for, {{first_name}}', message: 'Hi {{first_name}},\n\nThank you for your interest! Here\'s the information you requested...', isActive: true },
+      { id: 'h2', channel: 'sms' as const, delay: 4, delayUnit: 'hours' as const, message: 'Hi {{first_name}}, just sent over the info you requested. Any questions?', isActive: true },
+      { id: 'h3', channel: 'email' as const, delay: 1, delayUnit: 'days' as const, subject: 'Quick follow-up', message: 'Hi {{first_name}},\n\nWanted to make sure you received my previous email...', isActive: true },
+    ],
+  },
+  {
+    id: 'no-website',
+    name: 'No Website Specialist',
+    description: 'Targeted sequence for businesses without websites',
+    aiRecommendedFor: ['no-website', 'web-design-prospects'],
+    steps: [
+      { id: 'n1', channel: 'email' as const, delay: 0, delayUnit: 'days' as const, subject: '{{business_name}} could benefit from this', message: 'Hi {{first_name}},\n\nI noticed {{business_name}} doesn\'t have a website yet. In 2024, 97% of consumers search online before visiting a local business...', isActive: true },
+      { id: 'n2', channel: 'email' as const, delay: 3, delayUnit: 'days' as const, subject: 'Free mockup for {{business_name}}', message: 'Hi {{first_name}},\n\nI created a quick mockup of what {{business_name}}\'s website could look like...', isActive: true },
+      { id: 'n3', channel: 'linkedin' as const, delay: 5, delayUnit: 'days' as const, message: 'Hi {{first_name}}, I\'ve been reaching out about a website for {{business_name}}. Would love to connect!', isActive: true },
+      { id: 'n4', channel: 'email' as const, delay: 7, delayUnit: 'days' as const, subject: 'Last chance for the free mockup', message: 'Hi {{first_name}},\n\nJust checking one more time about that free website mockup...', isActive: true },
+    ],
+  },
+  {
+    id: 'reengagement',
+    name: 'Re-engagement Campaign',
+    description: 'Win back leads who went cold',
+    aiRecommendedFor: ['cold-leads', 'no-reply', 'dormant'],
+    steps: [
+      { id: 'r1', channel: 'email' as const, delay: 0, delayUnit: 'days' as const, subject: 'It\'s been a while, {{first_name}}', message: 'Hi {{first_name}},\n\nWe connected a while back about {{business_name}}. Things have changed since then...', isActive: true },
+      { id: 'r2', channel: 'email' as const, delay: 5, delayUnit: 'days' as const, subject: 'New offer for {{business_name}}', message: 'Hi {{first_name}},\n\nWanted to share a special offer we\'re running this month...', isActive: true },
+    ],
+  },
+];
+
 export default function SequenceBuilderModule() {
   const [sequences, setSequences] = useState<Sequence[]>([
     {
-      id: '1',
-      name: 'Cold Outreach Sequence',
-      description: 'Multi-touch outreach for new leads',
-      steps: [
-        { id: 's1', channel: 'email', delay: 0, delayUnit: 'days', subject: 'Quick question about your business', message: 'Hi {{first_name}},\n\nI noticed {{business_name}} and wanted to reach out...', isActive: true },
-        { id: 's2', channel: 'linkedin', delay: 2, delayUnit: 'days', message: 'Hi {{first_name}}, I just sent you an email - would love to connect here as well!', isActive: true },
-        { id: 's3', channel: 'email', delay: 3, delayUnit: 'days', subject: 'Following up', message: 'Hi {{first_name}},\n\nJust wanted to follow up on my previous message...', isActive: true },
-        { id: 's4', channel: 'sms', delay: 5, delayUnit: 'days', message: 'Hi {{first_name}}, I\'ve tried reaching you via email. Would a quick call work?', isActive: true },
-      ],
+      ...SEQUENCE_TEMPLATES[0],
       status: 'draft',
       createdAt: new Date(),
       leadsEnrolled: 0,
@@ -585,6 +637,56 @@ export default function SequenceBuilderModule() {
         </Button>
       </div>
 
+      {/* AI Recommended Sequences */}
+      <Card className="border-amber-500/30 bg-amber-500/5">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-amber-500" />
+            AI-Recommended Sequences
+          </CardTitle>
+          <CardDescription>
+            Choose a proven sequence template based on your lead types
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {SEQUENCE_TEMPLATES.map((template) => (
+              <Card 
+                key={template.id} 
+                className="cursor-pointer hover:border-primary/50 transition-colors"
+                onClick={() => {
+                  const newSeq: Sequence = {
+                    ...template,
+                    id: generateId(),
+                    status: 'draft',
+                    createdAt: new Date(),
+                    leadsEnrolled: 0,
+                    steps: template.steps.map(s => ({ ...s, id: generateId() })),
+                  };
+                  setSequences(prev => [...prev, newSeq]);
+                  toast.success(`"${template.name}" sequence added!`);
+                }}
+              >
+                <CardContent className="pt-4 pb-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <h4 className="font-medium text-sm">{template.name}</h4>
+                    <Badge variant="secondary" className="text-[10px] bg-amber-500/10 text-amber-600">
+                      AI Pick
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">{template.description}</p>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>{template.steps.length} steps</span>
+                    <span>•</span>
+                    <span>{template.steps.filter(s => s.channel === 'email').length} emails</span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Channel Overview */}
       <div className="grid grid-cols-3 gap-4">
         {Object.entries(CHANNEL_CONFIG).map(([key, config]) => {
@@ -614,7 +716,7 @@ export default function SequenceBuilderModule() {
             <Zap className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="font-bold text-lg mb-2">No sequences yet</h3>
             <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-              Create your first multi-channel sequence to automate your outreach across Email, LinkedIn, and SMS.
+              Create your first multi-channel sequence or choose an AI-recommended template above.
             </p>
             <Button onClick={handleCreateSequence} className="gap-2">
               <Plus className="w-4 h-4" />

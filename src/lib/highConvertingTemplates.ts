@@ -368,8 +368,26 @@ const createFriendlyTemplate = (config: TemplateConfig) => `
   </table>
 </body></html>`;
 
-// Wrapper function to maintain backwards compatibility
-const createEmailHTML = (config: TemplateConfig) => createClassicHeroTemplate(config);
+// Template style rotation - cycles through 10 unique styles
+const templateStyles = [
+  createClassicHeroTemplate,
+  createMinimalistTemplate,
+  createGradientTemplate,
+  createSplitLayoutTemplate,
+  createCardGridTemplate,
+  createTimelineTemplate,
+  createNeonTemplate,
+  createMagazineTemplate,
+  createStatsTemplate,
+  createFriendlyTemplate,
+];
+
+let styleIndex = 0;
+const createEmailHTML = (config: TemplateConfig) => {
+  const style = templateStyles[styleIndex % templateStyles.length];
+  styleIndex++;
+  return style(config);
+};
 
 export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
   // ============================================
