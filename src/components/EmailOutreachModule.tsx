@@ -32,6 +32,7 @@ import {
   Zap, CheckCheck, ChevronRight, TrendingUp, PieChart, MailPlus, Palette,
   Search, X, Grid3X3, List
 } from 'lucide-react';
+import { EmailStatsSkeleton, TemplateCardSkeleton, SavedLeadsListSkeleton, EmailHistoryRowSkeleton } from '@/components/ui/loading-skeletons';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart as RechartsPie, Pie
 } from 'recharts';
@@ -858,9 +859,15 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
     return (
       <>
         {dialogs}
-        <div className="flex flex-col items-center justify-center py-16">
-          <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-          <p className="text-muted-foreground">Loading your email tools...</p>
+        <div className="max-w-2xl mx-auto space-y-6">
+          {/* Welcome card skeleton */}
+          <EmailStatsSkeleton />
+          
+          {/* Action buttons skeleton */}
+          <div className="grid grid-cols-2 gap-4">
+            <TemplateCardSkeleton />
+            <TemplateCardSkeleton />
+          </div>
         </div>
       </>
     );

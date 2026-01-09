@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } from '@/lib/api/leadAnalysis';
 import LeadClassificationPanel from '@/components/LeadClassificationPanel';
+import { LeadResultsPanelSkeleton, LeadRowSkeleton } from '@/components/ui/loading-skeletons';
 
 interface SearchResult {
   id: string;

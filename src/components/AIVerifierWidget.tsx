@@ -11,6 +11,7 @@ import {
   TrendingUp, Clock, Sparkles, AlertTriangle, Phone, Building2,
   Calendar, BarChart3, Zap, Users, Send, Star
 } from 'lucide-react';
+import { VerificationSkeleton } from '@/components/ui/loading-skeletons';
 
 interface Lead {
   id: string;
