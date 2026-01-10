@@ -128,6 +128,9 @@ export default function Dashboard() {
   // Search filter options
   const [filterNoWebsite, setFilterNoWebsite] = useState(false);
   
+  // Form validation state
+  const [validationErrors, setValidationErrors] = useState<{ query?: boolean; location?: boolean }>({});
+  
   // Data field preferences - default to fields marked as default
   const [selectedDataFields, setSelectedDataFields] = useState<string[]>(
     DATA_FIELD_OPTIONS.filter(f => f.default).map(f => f.id)
@@ -162,12 +165,20 @@ export default function Dashboard() {
   };
 
   const handleSearch = async () => {
+    // Validate fields and set error states
+    const errors: { query?: boolean; location?: boolean } = {};
+    
     if (!query.trim()) {
-      toast.error('Please enter what you\'re looking for');
-      return;
+      errors.query = true;
     }
     if (!location.trim()) {
-      toast.error('Please enter a location');
+      errors.location = true;
+    }
+    
+    setValidationErrors(errors);
+    
+    if (errors.query || errors.location) {
+      toast.error('Please fill in the highlighted fields above');
       return;
     }
 
@@ -539,13 +550,24 @@ export default function Dashboard() {
                           id="query"
                           placeholder={searchType === 'gmb' ? 'e.g., mechanics, restaurants, lawyers...' : 'e.g., real estate, dental, fitness...'}
                           value={query}
-                          onChange={(e) => setQuery(e.target.value)}
-                          className="flex-1"
+                          onChange={(e) => {
+                            setQuery(e.target.value);
+                            if (e.target.value.trim()) {
+                              setValidationErrors(prev => ({ ...prev, query: false }));
+                            }
+                          }}
+                          className={`flex-1 ${validationErrors.query ? 'border-2 border-red-500 focus-visible:ring-red-500' : ''}`}
                         />
                         <VoiceSearchButton 
-                          onResult={(transcript) => setQuery(transcript)} 
+                          onResult={(transcript) => {
+                            setQuery(transcript);
+                            setValidationErrors(prev => ({ ...prev, query: false }));
+                          }} 
                         />
                       </div>
+                      {validationErrors.query && (
+                        <p className="text-sm text-red-500 mt-1">⚠️ Please enter what you're looking for</p>
+                      )}
                     </div>
 
                     <div>
@@ -557,13 +579,24 @@ export default function Dashboard() {
                           id="location"
                           placeholder="e.g., Houston, TX"
                           value={location}
-                          onChange={(e) => setLocation(e.target.value)}
-                          className="flex-1"
+                          onChange={(e) => {
+                            setLocation(e.target.value);
+                            if (e.target.value.trim()) {
+                              setValidationErrors(prev => ({ ...prev, location: false }));
+                            }
+                          }}
+                          className={`flex-1 ${validationErrors.location ? 'border-2 border-red-500 focus-visible:ring-red-500' : ''}`}
                         />
                         <VoiceSearchButton 
-                          onResult={(transcript) => setLocation(transcript)} 
+                          onResult={(transcript) => {
+                            setLocation(transcript);
+                            setValidationErrors(prev => ({ ...prev, location: false }));
+                          }} 
                         />
                       </div>
+                      {validationErrors.location && (
+                        <p className="text-sm text-red-500 mt-1">⚠️ Please enter a city and state</p>
+                      )}
                     </div>
 
                     {/* Platform Checkboxes - only show for platform search */}
