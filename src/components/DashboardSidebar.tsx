@@ -47,6 +47,7 @@ import {
   Settings,
   HardDrive,
   Phone,
+  History,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import bamMascot from '@/assets/bamlead-mascot.png';
@@ -75,6 +76,12 @@ const otherTools = [
     icon: Phone,
     description: 'AI voice calls',
     badge: 'New',
+  },
+  {
+    id: 'call-history',
+    title: 'Call History',
+    icon: History,
+    description: 'View call logs',
   },
   {
     id: 'sequences',

@@ -54,6 +54,7 @@ import DataFieldSelector, { DATA_FIELD_OPTIONS } from '@/components/DataFieldSel
 import SettingsPanel from '@/components/SettingsPanel';
 import VoiceCallWidget from '@/components/VoiceCallWidget';
 import VoiceAgentSetupGuide from '@/components/VoiceAgentSetupGuide';
+import CallLogHistory from '@/components/CallLogHistory';
 
 interface SearchResult {
   id: string;
@@ -1147,6 +1148,15 @@ export default function Dashboard() {
           iconColor: 'text-violet-500',
           iconBg: 'bg-violet-500/10',
           component: <VoiceAgentSetupGuide />,
+        };
+      case 'call-history':
+        return {
+          title: 'Call History',
+          description: 'View and manage your voice call logs',
+          icon: Phone,
+          iconColor: 'text-violet-500',
+          iconBg: 'bg-violet-500/10',
+          component: <CallLogHistory />,
         };
       default:
         return null;

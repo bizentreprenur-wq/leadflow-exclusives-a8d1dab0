@@ -55,6 +55,21 @@ export type {
   BulkSendResult,
 } from './email';
 
+// Call Logs
+export {
+  saveCallLog,
+  listCallLogs,
+  updateCallLog,
+  deleteCallLog,
+  getCallStats,
+} from './callLogs';
+export type {
+  CallLog,
+  CallOutcome,
+  CallStats,
+  TranscriptMessage,
+} from './callLogs';
+
 // API Configuration
 export const API_CONFIG = {
   baseUrl: import.meta.env.VITE_API_URL || '',
@@ -66,5 +81,6 @@ export const API_CONFIG = {
     analyzeWebsite: '/analyze-website.php',
     analyzeLeads: '/analyze-leads.php',
     emailOutreach: '/email-outreach.php',
+    callLogs: '/call-logs.php',
   },
 };
