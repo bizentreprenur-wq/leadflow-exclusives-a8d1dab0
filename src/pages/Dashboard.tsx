@@ -373,138 +373,214 @@ export default function Dashboard() {
           <div className="space-y-8">
             {/* Step 1: Choose Search Type */}
             {!searchType ? (
-              <div className="space-y-8">
-                {/* BIG Step Header */}
-                <div className="text-center py-6 bg-gradient-to-r from-primary/10 to-accent/10 rounded-2xl border-2 border-primary/30">
-                  <div className="text-6xl mb-4">🔍</div>
-                  <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-                    STEP 1: Choose Your Search Type
+              <div className="space-y-8 max-w-5xl mx-auto">
+                
+                {/* Welcome & Instructions Section */}
+                <div className="text-center py-8 px-6 bg-gradient-to-br from-primary/10 via-background to-accent/10 rounded-3xl border border-primary/20 shadow-lg">
+                  <div className="text-5xl mb-4">👋</div>
+                  <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
+                    Welcome! Let's Find You Some Leads
+                  </h1>
+                  <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-6">
+                    Follow these simple steps to find businesses that need your services. 
+                    It's easy - just pick an option below and we'll guide you through!
+                  </p>
+                  
+                  {/* Mini Steps Preview */}
+                  <div className="flex items-center justify-center gap-2 md:gap-4 flex-wrap text-sm">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-primary/20 rounded-full border border-primary/30">
+                      <span className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-xs font-bold">1</span>
+                      <span className="text-foreground font-medium">Pick Search Type</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground hidden md:block" />
+                    <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-full">
+                      <span className="w-6 h-6 bg-muted-foreground/30 text-muted-foreground rounded-full flex items-center justify-center text-xs font-bold">2</span>
+                      <span className="text-muted-foreground">Enter Details</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground hidden md:block" />
+                    <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-full">
+                      <span className="w-6 h-6 bg-muted-foreground/30 text-muted-foreground rounded-full flex items-center justify-center text-xs font-bold">3</span>
+                      <span className="text-muted-foreground">Get Leads!</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section Label */}
+                <div className="text-center">
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full border border-primary/30 mb-4">
+                    <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold text-lg">1</div>
+                    <span className="font-semibold text-primary">STEP 1: Pick Your Search Type</span>
+                  </div>
+                  <h2 className="text-xl md:text-2xl font-bold text-foreground mb-2">
+                    How do you want to find leads today?
                   </h2>
-                  <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-                    Pick HOW you want to find leads. Both methods find businesses that need your help!
+                  <p className="text-muted-foreground max-w-xl mx-auto">
+                    👇 Click one of the two options below to get started 👇
                   </p>
                 </div>
 
-                <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-                  {/* GMB Search Card - Matching Landing Page */}
+                {/* Two Search Options - Centered Grid */}
+                <div className="grid md:grid-cols-2 gap-8 items-stretch">
+                  
+                  {/* OPTION A: GMB Search Card */}
                   <div className="relative">
-                    {/* Active Badge */}
+                    {/* Option Label */}
+                    <div className="absolute -top-4 left-6 z-10">
+                      <Badge className="bg-primary text-primary-foreground px-4 py-1.5 text-sm font-bold shadow-lg">
+                        OPTION A
+                      </Badge>
+                    </div>
+                    
                     {user?.has_active_subscription && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                        <Badge className="bg-primary/20 text-primary border border-primary/50 px-3 py-1 text-xs font-semibold">
+                      <div className="absolute -top-3 right-6 z-10">
+                        <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 px-3 py-1 text-xs font-semibold">
                           <Star className="w-3 h-3 mr-1" />
                           ACTIVE
                         </Badge>
                       </div>
                     )}
+                    
                     <button
                       onClick={() => setSearchType('gmb')}
-                      className="group text-left p-6 rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-primary/5 to-transparent hover:border-primary hover:shadow-2xl hover:shadow-primary/20 transition-all duration-300 w-full h-full"
+                      className="group text-left p-6 pt-8 rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-primary/5 to-transparent hover:border-primary hover:shadow-2xl hover:shadow-primary/20 transition-all duration-300 w-full h-full"
                     >
                       {/* Header */}
-                      <div className="flex items-start gap-4 mb-6">
-                        <div className="w-14 h-14 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
-                          <Building2 className="w-7 h-7 text-primary" />
-                        </div>
-                        <div>
-                          <h3 className="text-2xl font-bold text-foreground">
-                            Google My Business
-                          </h3>
-                          <p className="text-muted-foreground">
-                            Find local businesses with GMB listings
-                          </p>
+                      <div className="flex items-center justify-center gap-4 mb-6">
+                        <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center shrink-0">
+                          <Building2 className="w-8 h-8 text-primary" />
                         </div>
                       </div>
+                      
+                      <div className="text-center mb-6">
+                        <h3 className="text-2xl font-bold text-foreground mb-2">
+                          🏢 Local Business Search
+                        </h3>
+                        <p className="text-muted-foreground">
+                          Find businesses on Google Maps
+                        </p>
+                      </div>
 
-                      {/* Feature List */}
+                      {/* What You Get */}
                       <div className="space-y-3 mb-6">
-                        <div className="flex items-center gap-3 text-primary">
-                          <MapPin className="w-5 h-5 shrink-0" />
-                          <span className="text-foreground">Find local businesses with Google My Business listings</span>
+                        <p className="text-sm font-semibold text-primary mb-2">✨ What you'll get:</p>
+                        <div className="flex items-center gap-3">
+                          <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                          <span className="text-foreground text-sm">Business names & contact info</span>
                         </div>
-                        <div className="flex items-center gap-3 text-primary">
-                          <FileText className="w-5 h-5 shrink-0" />
-                          <span className="text-foreground">Extract contact info, phone numbers, addresses</span>
+                        <div className="flex items-center gap-3">
+                          <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                          <span className="text-foreground text-sm">Phone numbers & addresses</span>
                         </div>
-                        <div className="flex items-center gap-3 text-primary">
-                          <Target className="w-5 h-5 shrink-0" />
-                          <span className="text-foreground">Filter by industry, rating, and website quality</span>
+                        <div className="flex items-center gap-3">
+                          <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                          <span className="text-foreground text-sm">Star ratings & reviews</span>
                         </div>
-                        <div className="flex items-center gap-3 text-primary">
-                          <Zap className="w-5 h-5 shrink-0" />
-                          <span className="text-foreground">Instant website analysis with mobile scores</span>
+                        <div className="flex items-center gap-3">
+                          <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                          <span className="text-foreground text-sm">Website quality scores</span>
                         </div>
                       </div>
 
                       {/* Perfect For */}
-                      <div className="bg-primary/10 rounded-xl p-4">
-                        <p className="text-primary font-bold mb-1">Perfect For:</p>
+                      <div className="bg-primary/10 rounded-xl p-4 text-center">
+                        <p className="text-primary font-bold text-sm mb-1">👍 Best for:</p>
                         <p className="text-muted-foreground text-sm">
-                          Web designers, agencies, and marketers targeting local service businesses (plumbers, dentists, lawyers, restaurants, etc.)
+                          Finding plumbers, dentists, restaurants, lawyers, etc.
                         </p>
+                      </div>
+                      
+                      {/* CTA */}
+                      <div className="mt-4 text-center">
+                        <span className="inline-flex items-center gap-2 text-primary font-semibold group-hover:gap-3 transition-all">
+                          Click to Start <ArrowRight className="w-4 h-4" />
+                        </span>
                       </div>
                     </button>
                   </div>
 
-                  {/* Platform Scanner Card - VIOLET color */}
+                  {/* OPTION B: Platform Scanner Card */}
                   <div className="relative">
-                    {/* Active Badge */}
+                    {/* Option Label */}
+                    <div className="absolute -top-4 left-6 z-10">
+                      <Badge className="bg-violet-500 text-white px-4 py-1.5 text-sm font-bold shadow-lg">
+                        OPTION B
+                      </Badge>
+                    </div>
+                    
                     {user?.has_active_subscription && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 z-10">
-                        <Badge className="bg-violet-500/20 text-violet-400 border border-violet-500/50 px-3 py-1 text-xs font-semibold">
+                      <div className="absolute -top-3 right-6 z-10">
+                        <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 px-3 py-1 text-xs font-semibold">
                           <Star className="w-3 h-3 mr-1" />
                           ACTIVE
                         </Badge>
                       </div>
                     )}
+                    
                     <button
                       onClick={() => setSearchType('platform')}
-                      className="group text-left p-6 rounded-2xl border-2 border-violet-500/40 bg-gradient-to-br from-violet-500/5 to-transparent hover:border-violet-500 hover:shadow-2xl hover:shadow-violet-500/20 transition-all duration-300 w-full h-full"
+                      className="group text-left p-6 pt-8 rounded-2xl border-2 border-violet-500/40 bg-gradient-to-br from-violet-500/5 to-transparent hover:border-violet-500 hover:shadow-2xl hover:shadow-violet-500/20 transition-all duration-300 w-full h-full"
                     >
                       {/* Header */}
-                      <div className="flex items-start gap-4 mb-6">
-                        <div className="w-14 h-14 rounded-xl bg-violet-500/20 flex items-center justify-center shrink-0">
-                          <Globe className="w-7 h-7 text-violet-500" />
-                        </div>
-                        <div>
-                          <h3 className="text-2xl font-bold text-foreground">
-                            Platform Scanner
-                          </h3>
-                          <p className="text-muted-foreground">
-                            Find outdated websites via Google & Bing
-                          </p>
+                      <div className="flex items-center justify-center gap-4 mb-6">
+                        <div className="w-16 h-16 rounded-2xl bg-violet-500/20 flex items-center justify-center shrink-0">
+                          <Globe className="w-8 h-8 text-violet-500" />
                         </div>
                       </div>
+                      
+                      <div className="text-center mb-6">
+                        <h3 className="text-2xl font-bold text-foreground mb-2">
+                          🔍 Outdated Website Finder
+                        </h3>
+                        <p className="text-muted-foreground">
+                          Find sites using old technology
+                        </p>
+                      </div>
 
-                      {/* Feature List */}
+                      {/* What You Get */}
                       <div className="space-y-3 mb-6">
-                        <div className="flex items-center gap-3 text-violet-500">
-                          <Server className="w-5 h-5 shrink-0" />
-                          <span className="text-foreground">Detect 16+ legacy platforms (WordPress, Wix, Joomla, etc.)</span>
+                        <p className="text-sm font-semibold text-violet-500 mb-2">✨ What you'll get:</p>
+                        <div className="flex items-center gap-3">
+                          <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
+                          <span className="text-foreground text-sm">Old WordPress, Wix, Joomla sites</span>
                         </div>
-                        <div className="flex items-center gap-3 text-violet-500">
-                          <Globe className="w-5 h-5 shrink-0" />
-                          <span className="text-foreground">Search across Google AND Bing simultaneously</span>
+                        <div className="flex items-center gap-3">
+                          <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
+                          <span className="text-foreground text-sm">Slow, outdated websites</span>
                         </div>
-                        <div className="flex items-center gap-3 text-violet-500">
-                          <TrendingUp className="w-5 h-5 shrink-0" />
-                          <span className="text-foreground">Find businesses with outdated, slow websites</span>
+                        <div className="flex items-center gap-3">
+                          <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
+                          <span className="text-foreground text-sm">Businesses needing redesigns</span>
                         </div>
-                        <div className="flex items-center gap-3 text-violet-500">
-                          <Users className="w-5 h-5 shrink-0" />
-                          <span className="text-foreground">Target businesses ready for modernization</span>
+                        <div className="flex items-center gap-3">
+                          <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
+                          <span className="text-foreground text-sm">Contact info & website URLs</span>
                         </div>
                       </div>
 
                       {/* Perfect For */}
-                      <div className="bg-violet-500/10 rounded-xl p-4">
-                        <p className="text-violet-500 font-bold mb-1">Perfect For:</p>
+                      <div className="bg-violet-500/10 rounded-xl p-4 text-center">
+                        <p className="text-violet-500 font-bold text-sm mb-1">👍 Best for:</p>
                         <p className="text-muted-foreground text-sm">
-                          Developers looking for website redesign projects, finding businesses stuck on legacy platforms that need modern solutions
+                          Web designers looking for redesign projects
                         </p>
+                      </div>
+                      
+                      {/* CTA */}
+                      <div className="mt-4 text-center">
+                        <span className="inline-flex items-center gap-2 text-violet-500 font-semibold group-hover:gap-3 transition-all">
+                          Click to Start <ArrowRight className="w-4 h-4" />
+                        </span>
                       </div>
                     </button>
                   </div>
+                </div>
+                
+                {/* Help Text */}
+                <div className="text-center py-4 px-6 bg-muted/30 rounded-xl border border-border/50">
+                  <p className="text-sm text-muted-foreground">
+                    💡 <strong>Not sure which to pick?</strong> Start with <span className="text-primary font-medium">Option A</span> if you want local businesses, 
+                    or <span className="text-violet-500 font-medium">Option B</span> if you're a web designer looking for redesign clients.
+                  </p>
                 </div>
               </div>
             ) : (
