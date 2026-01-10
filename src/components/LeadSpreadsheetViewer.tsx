@@ -289,12 +289,15 @@ export default function LeadSpreadsheetViewer({
   const [userCredits] = useState(25); // Would come from API in production
   const [isExportingToDrive, setIsExportingToDrive] = useState(false);
 
-  // PDF preview
+  // PDF preview & Lead Report Document
   const [showPDFReadyBanner, setShowPDFReadyBanner] = useState(false);
   const [hasShownPDFReadyBanner, setHasShownPDFReadyBanner] = useState(false);
   const [showPDFPreview, setShowPDFPreview] = useState(false);
   const [pdfDataUrl, setPdfDataUrl] = useState<string | null>(null);
   const pdfIframeRef = useRef<HTMLIFrameElement | null>(null);
+  
+  // Auto-open Lead Report Document popup
+  const [showLeadReportDocument, setShowLeadReportDocument] = useState(true);
 
   // Use fake leads if external leads are 100 or less
   const [fakeLeads] = useState<SearchResult[]>(() => generateFakeLeads());
@@ -617,223 +620,346 @@ export default function LeadSpreadsheetViewer({
 
   return (
     <>
+    {/* Lead Report Document Auto-Popup */}
+    <LeadReportDocument
+      open={showLeadReportDocument}
+      onClose={() => setShowLeadReportDocument(false)}
+      leads={leads}
+      searchQuery="Business Leads"
+      location="Your Area"
+    />
+
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-screen h-screen max-w-none m-0 p-0 rounded-none flex flex-col bg-background">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b bg-card">
-          <div className="flex items-center gap-4">
+        {/* Header - Compact */}
+        <div className="flex items-center justify-between px-4 py-2 border-b bg-card">
+          <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} className="gap-2">
               <ArrowLeft className="w-4 h-4" />
               Back
             </Button>
             <div className="flex items-center gap-2">
               <Brain className="w-5 h-5 text-primary" />
-              <span className="font-semibold">AI-Powered Lead Intelligence</span>
+              <span className="font-semibold text-sm">AI-Powered Lead Intelligence</span>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Badge variant="outline" className="gap-2 px-3 py-1">
-              <Users className="w-4 h-4" />
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="gap-1 px-2 py-1 text-xs">
+              <Users className="w-3 h-3" />
               {leads.length.toLocaleString()} Total Leads
             </Badge>
-            <Badge className="bg-emerald-500/20 text-emerald-600 border-emerald-500/30 gap-2">
+            <Badge className="bg-emerald-500/20 text-emerald-600 border-emerald-500/30 gap-1 text-xs">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               Website Design Campaign
             </Badge>
           </div>
         </div>
 
-        {/* AI Intelligence Summary Bar */}
-        <div className="px-6 py-4 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 border-b">
+        {/* AI Intelligence Summary Bar - Compact */}
+        <div className="px-4 py-2 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 border-b">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <Flame className="w-5 h-5 text-red-500" />
-                <span className="font-semibold text-red-600">{groupedLeads.hot.length}</span>
-                <span className="text-sm text-muted-foreground">Hot Leads</span>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1">
+                <Flame className="w-4 h-4 text-red-500" />
+                <span className="font-semibold text-red-600 text-sm">{groupedLeads.hot.length}</span>
+                <span className="text-xs text-muted-foreground">Hot</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Thermometer className="w-5 h-5 text-orange-500" />
-                <span className="font-semibold text-orange-600">{groupedLeads.warm.length}</span>
-                <span className="text-sm text-muted-foreground">Warm Leads</span>
+              <div className="flex items-center gap-1">
+                <Thermometer className="w-4 h-4 text-orange-500" />
+                <span className="font-semibold text-orange-600 text-sm">{groupedLeads.warm.length}</span>
+                <span className="text-xs text-muted-foreground">Warm</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Snowflake className="w-5 h-5 text-blue-500" />
-                <span className="font-semibold text-blue-600">{groupedLeads.cold.length}</span>
-                <span className="text-sm text-muted-foreground">Cold Leads</span>
+              <div className="flex items-center gap-1">
+                <Snowflake className="w-4 h-4 text-blue-500" />
+                <span className="font-semibold text-blue-600 text-sm">{groupedLeads.cold.length}</span>
+                <span className="text-xs text-muted-foreground">Cold</span>
               </div>
-              <div className="h-6 w-px bg-border" />
-              <div className="flex items-center gap-2">
-                <PhoneCall className="w-5 h-5 text-emerald-500" />
-                <span className="font-semibold text-emerald-600">{groupedLeads.readyToCall.length}</span>
-                <span className="text-sm text-muted-foreground">Ready to Call</span>
+              <div className="h-4 w-px bg-border" />
+              <div className="flex items-center gap-1">
+                <PhoneCall className="w-4 h-4 text-emerald-500" />
+                <span className="font-semibold text-emerald-600 text-sm">{groupedLeads.readyToCall.length}</span>
+                <span className="text-xs text-muted-foreground">Ready</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Globe className="w-5 h-5 text-purple-500" />
-                <span className="font-semibold text-purple-600">{groupedLeads.noWebsite.length}</span>
-                <span className="text-sm text-muted-foreground">No Website</span>
+              <div className="flex items-center gap-1">
+                <Globe className="w-4 h-4 text-purple-500" />
+                <span className="font-semibold text-purple-600 text-sm">{groupedLeads.noWebsite.length}</span>
+                <span className="text-xs text-muted-foreground">No Site</span>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Zap className="w-4 h-4 text-primary" />
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Zap className="w-3 h-3 text-primary" />
               AI analyzed & scored
             </div>
           </div>
         </div>
 
-        {/* Filter Tabs */}
-        <div className="flex items-center justify-between px-6 py-3 border-b bg-muted/30">
-          <div className="flex items-center gap-2">
+        {/* HOW TO USE THIS PAGE - Instructions */}
+        <div className="px-4 py-2 border-b border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent">
+          <div className="flex items-start gap-3">
+            <div className="w-7 h-7 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+              <Brain className="w-4 h-4 text-amber-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-amber-700 text-xs mb-0.5">📋 How to Use This Page:</h3>
+              <ol className="text-xs text-amber-600/90 space-y-0 list-decimal list-inside">
+                <li><strong>Filter leads</strong> by clicking Hot 🔥, Warm ⚡, Cold ❄️, Ready 📞, or No Website 🌐</li>
+                <li><strong>Select leads</strong> by clicking rows or checkboxes</li>
+                <li><strong>AI Verify</strong> (uses credits) to confirm contact info accuracy ✨</li>
+                <li><strong>Take action</strong> - Call 📞, Email 📧, or Export</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+        
+        {/* AI VERIFY REMINDER - Flashing */}
+        <div className="px-4 py-2 border-b border-amber-500/50 bg-gradient-to-r from-amber-500/20 via-amber-400/15 to-amber-500/20 animate-pulse">
+          <div className="flex items-center justify-center gap-3">
+            <Brain className="w-5 h-5 text-amber-600 animate-bounce" />
+            <span className="font-bold text-amber-700 text-sm">⚠️ REMEMBER: AI Verify your leads before contacting them!</span>
+            <Brain className="w-5 h-5 text-amber-600 animate-bounce" />
+          </div>
+        </div>
+
+        {/* Filter Tabs - Compact */}
+        <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/30">
+          <div className="flex items-center gap-1">
             <Button
               variant={activeGroup === 'all' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleGroupChange('all')}
-              className="gap-2"
+              className="gap-1 text-xs px-2"
             >
-              <Users className="w-4 h-4" />
+              <Users className="w-3 h-3" />
               All ({leads.length})
             </Button>
             <Button
               variant={activeGroup === 'hot' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleGroupChange('hot')}
-              className="gap-2 border-red-500/30 hover:bg-red-500/10"
+              className={`gap-1 text-xs px-2 ${activeGroup === 'hot' ? 'bg-red-500 hover:bg-red-600' : 'border-red-500/30 hover:bg-red-500/10'}`}
             >
-              <Flame className="w-4 h-4 text-red-500" />
-              Hot ({groupedLeads.hot.length})
+              <Flame className={`w-3 h-3 ${activeGroup === 'hot' ? 'text-white' : 'text-red-500'}`} />
+              🔥 Hot ({groupedLeads.hot.length})
             </Button>
             <Button
               variant={activeGroup === 'warm' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleGroupChange('warm')}
-              className="gap-2 border-orange-500/30 hover:bg-orange-500/10"
+              className={`gap-1 text-xs px-2 ${activeGroup === 'warm' ? 'bg-orange-500 hover:bg-orange-600' : 'border-orange-500/30 hover:bg-orange-500/10'}`}
             >
-              <Thermometer className="w-4 h-4 text-orange-500" />
-              Warm ({groupedLeads.warm.length})
+              <Thermometer className={`w-3 h-3 ${activeGroup === 'warm' ? 'text-white' : 'text-orange-500'}`} />
+              ⚡ Warm ({groupedLeads.warm.length})
             </Button>
             <Button
               variant={activeGroup === 'cold' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleGroupChange('cold')}
-              className="gap-2 border-blue-500/30 hover:bg-blue-500/10"
+              className={`gap-1 text-xs px-2 ${activeGroup === 'cold' ? 'bg-blue-500 hover:bg-blue-600' : 'border-blue-500/30 hover:bg-blue-500/10'}`}
             >
-              <Snowflake className="w-4 h-4 text-blue-500" />
-              Cold ({groupedLeads.cold.length})
+              <Snowflake className={`w-3 h-3 ${activeGroup === 'cold' ? 'text-white' : 'text-blue-500'}`} />
+              ❄️ Cold ({groupedLeads.cold.length})
             </Button>
             <Button
               variant={activeGroup === 'ready' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleGroupChange('ready')}
-              className="gap-2 border-emerald-500/30 hover:bg-emerald-500/10"
+              className={`gap-1 text-xs px-2 ${activeGroup === 'ready' ? 'bg-emerald-500 hover:bg-emerald-600' : 'border-emerald-500/30 hover:bg-emerald-500/10'}`}
             >
-              <PhoneCall className="w-4 h-4 text-emerald-500" />
-              Ready to Call ({groupedLeads.readyToCall.length})
+              <PhoneCall className={`w-3 h-3 ${activeGroup === 'ready' ? 'text-white' : 'text-emerald-500'}`} />
+              📞 Ready ({groupedLeads.readyToCall.length})
             </Button>
             <Button
               variant={activeGroup === 'nowebsite' ? 'default' : 'outline'}
               size="sm"
               onClick={() => handleGroupChange('nowebsite')}
-              className="gap-2 border-purple-500/30 hover:bg-purple-500/10"
+              className={`gap-1 text-xs px-2 ${activeGroup === 'nowebsite' ? 'bg-purple-500 hover:bg-purple-600' : 'border-purple-500/30 hover:bg-purple-500/10'}`}
             >
-              <Target className="w-4 h-4 text-purple-500" />
-              No Website ({groupedLeads.noWebsite.length})
+              <Target className={`w-3 h-3 ${activeGroup === 'nowebsite' ? 'text-white' : 'text-purple-500'}`} />
+              🌐 No Site ({groupedLeads.noWebsite.length})
             </Button>
           </div>
           
           <Tabs value={activeTab} onValueChange={handleTabChange} className="w-auto">
-            <TabsList className="bg-background border">
-              <TabsTrigger value="new" className="gap-2 px-4">
-                <Sparkles className="w-4 h-4" />
+            <TabsList className="bg-background border h-8">
+              <TabsTrigger value="new" className="gap-1 px-3 text-xs h-7">
+                <Sparkles className="w-3 h-3" />
                 New
               </TabsTrigger>
-              <TabsTrigger value="saved" className="gap-2 px-4">
-                <FileText className="w-4 h-4" />
+              <TabsTrigger value="saved" className="gap-1 px-3 text-xs h-7">
+                <FileText className="w-3 h-3" />
                 Saved ({savedLeads.length})
               </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
 
-        {/* Action Bar - Clean, organized with proper spacing */}
-        <div className="px-6 py-4 border-b bg-card/50">
-          {/* Row 1: Selection info + View Report button */}
-          <div className="flex items-center justify-between mb-4">
+        {/* AI VERIFY - Prominent Separate Section */}
+        <div className="px-4 py-2 border-b bg-gradient-to-r from-amber-500/20 via-amber-400/10 to-amber-500/20">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-lg">
+              <div className="relative">
+                <div className="absolute -inset-1 bg-amber-500/50 rounded-lg blur animate-pulse" />
+                <Button 
+                  onClick={handleAIVerifyClick}
+                  disabled={selectedIds.size === 0}
+                  size="default"
+                  className="relative gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-bold shadow-lg shadow-amber-500/30 animate-pulse"
+                >
+                  <Sparkles className="w-5 h-5" />
+                  ✨ AI VERIFY LEADS ✨
+                  {selectedIds.size > 0 && (
+                    <Badge className="ml-2 bg-white/20 text-white">{selectedIds.size}</Badge>
+                  )}
+                </Button>
+              </div>
+              <div className="text-sm text-amber-700">
+                <span className="font-semibold">💡 Pro Tip:</span> AI Verify confirms phone & email accuracy!
+              </div>
+            </div>
+            <Badge variant="outline" className="border-amber-500/50 text-amber-600">
+              Uses {selectedIds.size || 0} credits
+            </Badge>
+          </div>
+        </div>
+
+        {/* Action Bar - Compact */}
+        <div className="px-4 py-2 border-b bg-card/50">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 px-2 py-1 bg-muted rounded-lg">
                 <Checkbox 
                   checked={selectedIds.size === currentLeads.length && currentLeads.length > 0}
                   onCheckedChange={selectAll}
                 />
-                <span className="font-medium text-sm">{selectedIds.size} selected</span>
-                <span className="text-muted-foreground text-sm">of {currentLeads.length}</span>
+                <span className="font-medium text-xs">{selectedIds.size} selected</span>
+                <span className="text-muted-foreground text-xs">of {currentLeads.length}</span>
               </div>
             </div>
             
-            {/* View Full Report Button - prominent */}
-            <Button
-              onClick={() => setShowPDFReadyBanner(true)}
-              className="gap-2 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500"
-            >
-              <FileText className="w-4 h-4" />
-              View Full Report
-            </Button>
-          </div>
+            {/* Action buttons - organized */}
+            <div className="flex items-center gap-4">
+              {/* Actions Group */}
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Actions:</span>
+                <Button 
+                  onClick={() => {
+                    if (selectedIds.size === 0) {
+                      toast.error('Select leads first to call them');
+                      return;
+                    }
+                    handleCallFromChoice();
+                  }}
+                  disabled={selectedIds.size === 0}
+                  size="sm"
+                  className="gap-1 bg-emerald-600 hover:bg-emerald-500 h-7 text-xs px-2"
+                >
+                  <PhoneCall className="w-3 h-3" />
+                  Call
+                </Button>
 
-          {/* Row 2: Action buttons - organized in groups with visual separators */}
-          <div className="flex items-center gap-6">
-            {/* Primary Actions Group */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide mr-1">Actions:</span>
-              <Button 
-                onClick={() => {
-                  if (selectedIds.size === 0) {
-                    toast.error('Select leads first to call them');
-                    return;
-                  }
-                  handleCallFromChoice();
-                }}
-                disabled={selectedIds.size === 0}
+                <Button 
+                  onClick={() => {
+                    if (selectedIds.size === 0) {
+                      toast.error('Select leads first to email them');
+                      return;
+                    }
+                    handleEmailFromChoice();
+                  }}
+                  disabled={selectedIds.size === 0}
+                  size="sm"
+                  className="gap-1 bg-blue-600 hover:bg-blue-500 h-7 text-xs px-2"
+                >
+                  <Mail className="w-3 h-3" />
+                  Email
+                </Button>
+              </div>
+
+              {/* Tools Group */}
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Tools:</span>
+                
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleOpenCRM}
+                  disabled={selectedIds.size === 0}
+                  className="gap-1 h-7 text-xs px-2"
+                >
+                  <Briefcase className="w-3 h-3" />
+                  CRM
+                </Button>
+
+                <Button 
+                  onClick={() => {
+                    if (selectedLeads.length === 0) {
+                      toast.error('Please select at least one lead');
+                      return;
+                    }
+                    setShowScheduleModal(true);
+                  }}
+                  disabled={selectedIds.size === 0}
+                  size="sm"
+                  variant="outline"
+                  className="gap-1 h-7 text-xs px-2"
+                >
+                  <Clock className="w-3 h-3" />
+                  Schedule
+                </Button>
+              </div>
+
+              {/* Export Group */}
+              <div className="flex items-center gap-1">
+                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Export:</span>
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1 h-7 text-xs px-2">
+                      <Download className="w-3 h-3" />
+                      Download
+                      <ChevronDown className="w-2 h-2" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={handleExportCSV} className="gap-2">
+                      <FileDown className="w-4 h-4" />
+                      Export as CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleExportExcel} className="gap-2">
+                      <FileSpreadsheet className="w-4 h-4" />
+                      Export as Excel
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleExportGoogleDrive} disabled={isExportingToDrive} className="gap-2">
+                      <HardDrive className="w-4 h-4" />
+                      {isExportingToDrive ? 'Exporting...' : 'Google Drive'}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              {/* View Report */}
+              <Button
+                onClick={() => setShowLeadReportDocument(true)}
                 size="sm"
-                className="gap-2 bg-emerald-600 hover:bg-emerald-500"
+                className="gap-1 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 h-7 text-xs px-2"
               >
-                <PhoneCall className="w-4 h-4" />
-                Call
+                <FileText className="w-3 h-3" />
+                View Report
               </Button>
 
+              {/* Send Action */}
               <Button 
-                onClick={() => {
-                  if (selectedIds.size === 0) {
-                    toast.error('Select leads first to email them');
-                    return;
-                  }
-                  handleEmailFromChoice();
-                }}
+                onClick={handleSendToEmail}
                 disabled={selectedIds.size === 0}
                 size="sm"
-                className="gap-2 bg-blue-600 hover:bg-blue-500"
+                className="gap-1 bg-primary hover:bg-primary/90 h-7 text-xs px-2"
               >
-                <Mail className="w-4 h-4" />
-                Email
-              </Button>
-
-              <Button 
-                onClick={handleAIVerifyClick}
-                disabled={selectedIds.size === 0}
-                size="sm"
-                variant="outline"
-                className="gap-2 border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
-              >
-                <Sparkles className="w-4 h-4" />
-                AI Verify
+                <Send className="w-3 h-3" />
+                Send Now
               </Button>
             </div>
-
-            {/* Visual Separator */}
-            <div className="h-8 w-px bg-border" />
-
-            {/* Tools Group */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide mr-1">Tools:</span>
+          </div>
+        </div>
               
               <Button 
                 variant="outline" 
