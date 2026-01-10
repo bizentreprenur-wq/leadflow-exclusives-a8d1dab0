@@ -1406,6 +1406,36 @@ export default function Dashboard() {
               </Link>
             </div>
 
+            {/* SMTP Status Indicator */}
+            {(() => {
+              const smtpConfig = JSON.parse(localStorage.getItem('smtp_config') || '{}');
+              const isSmtpConfigured = smtpConfig.username && smtpConfig.password;
+              return (
+                <button
+                  onClick={() => setActiveTab('settings')}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    isSmtpConfigured
+                      ? 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/30'
+                      : 'bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border border-amber-500/30'
+                  }`}
+                >
+                  {isSmtpConfigured ? (
+                    <>
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">SMTP Connected</span>
+                      <span className="sm:hidden">SMTP ✓</span>
+                    </>
+                  ) : (
+                    <>
+                      <Server className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Configure SMTP</span>
+                      <span className="sm:hidden">SMTP ⚠️</span>
+                    </>
+                  )}
+                </button>
+              );
+            })()}
+
             <div className="flex-1" />
 
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
