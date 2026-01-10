@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import {
   AlertDialog,
@@ -32,12 +32,14 @@ import {
 } from '@/components/ui/table';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import {
   ArrowLeft, Sparkles, FileText, Download, Send, ChevronDown,
   Globe, Phone, MapPin, Star, AlertTriangle, CheckCircle2, ExternalLink,
-  FileSpreadsheet, FileDown, Flame, Thermometer, Snowflake, Clock, 
+  FileSpreadsheet, FileDown, Flame, Thermometer, Snowflake, Clock,
   PhoneCall, Calendar, TrendingUp, Filter, Users, Building2, Mail,
-  Target, Zap, Brain, Eye, Briefcase, HardDrive, Rocket
+  Target, Zap, Brain, Eye, Briefcase, HardDrive, Rocket, Printer
 } from 'lucide-react';
 import { exportToGoogleDrive } from '@/lib/api/googleDrive';
 import CRMIntegrationModal from './CRMIntegrationModal';
@@ -285,10 +287,25 @@ export default function LeadSpreadsheetViewer({
   const [callQueueLeads, setCallQueueLeads] = useState<SearchResult[]>([]);
   const [userCredits] = useState(25); // Would come from API in production
   const [isExportingToDrive, setIsExportingToDrive] = useState(false);
-  
+
+  // PDF preview
+  const [showPDFReadyBanner, setShowPDFReadyBanner] = useState(false);
+  const [hasShownPDFReadyBanner, setHasShownPDFReadyBanner] = useState(false);
+  const [showPDFPreview, setShowPDFPreview] = useState(false);
+  const [pdfDataUrl, setPdfDataUrl] = useState<string | null>(null);
+  const pdfIframeRef = useRef<HTMLIFrameElement | null>(null);
+
   // Use fake leads if external leads are 100 or less
   const [fakeLeads] = useState<SearchResult[]>(() => generateFakeLeads());
   const leads = externalLeads.length > 100 ? externalLeads : fakeLeads;
+
+  // Big "PDF is ready" popup (show once when this viewer opens)
+  useEffect(() => {
+    if (open && !hasShownPDFReadyBanner && (externalLeads.length > 0 || savedLeads.length > 0)) {
+      setShowPDFReadyBanner(true);
+      setHasShownPDFReadyBanner(true);
+    }
+  }, [open, hasShownPDFReadyBanner, externalLeads.length, savedLeads.length]);
 
   // Group leads by AI classification
   const groupedLeads = useMemo(() => {
