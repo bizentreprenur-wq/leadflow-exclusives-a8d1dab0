@@ -34,7 +34,7 @@ import {
   Globe, Phone, MapPin, ExternalLink,
   FileSpreadsheet, FileDown, Flame, Thermometer, Snowflake, Clock, 
   PhoneCall, Users, Mail,
-  Target, Zap, Brain, Rocket, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Trash2, FileText
+  Target, Zap, Brain, Rocket, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Trash2, FileText, Printer
 } from 'lucide-react';
 import CRMIntegrationModal from './CRMIntegrationModal';
 import EmailScheduleModal from './EmailScheduleModal';
@@ -1371,6 +1371,19 @@ export default function EmbeddedSpreadsheetView({
                 <Button onClick={handleDownloadPDFFromPreview} className="gap-2">
                   <Download className="w-4 h-4" />
                   Download PDF
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    const iframe = document.querySelector('iframe[title="PDF Preview"]') as HTMLIFrameElement;
+                    if (iframe?.contentWindow) {
+                      iframe.contentWindow.print();
+                    }
+                  }} 
+                  className="gap-2"
+                >
+                  <Printer className="w-4 h-4" />
+                  Print
                 </Button>
                 <Button variant="secondary" onClick={closePDFPreview} className="gap-2">
                   <ArrowLeft className="w-4 h-4" />
