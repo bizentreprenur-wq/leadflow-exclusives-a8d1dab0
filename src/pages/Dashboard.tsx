@@ -648,6 +648,8 @@ export default function Dashboard() {
                     <DataFieldSelector
                       selectedFields={selectedDataFields}
                       onFieldsChange={setSelectedDataFields}
+                      searchQuery={query}
+                      searchLocation={location}
                     />
 
                     {/* No Website Filter (GMB only) */}
