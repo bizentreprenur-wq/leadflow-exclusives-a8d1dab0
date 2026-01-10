@@ -128,6 +128,9 @@ export default function Dashboard() {
   // Search filter options
   const [filterNoWebsite, setFilterNoWebsite] = useState(false);
   
+  // Settings tab to open (for deep-linking)
+  const [settingsInitialTab, setSettingsInitialTab] = useState<string>('integrations');
+
   // Form validation state
   const [validationErrors, setValidationErrors] = useState<{ query?: boolean; location?: boolean; platforms?: boolean }>({});
   
@@ -839,6 +842,10 @@ export default function Dashboard() {
               setEmailLeads(convertedLeads);
               setCurrentStep(3);
             }}
+            onOpenEmailSettings={() => {
+              setSettingsInitialTab('email');
+              setActiveTab('settings');
+            }}
           />
         );
 
@@ -1269,7 +1276,7 @@ export default function Dashboard() {
           icon: Target,
           iconColor: 'text-slate-500',
           iconBg: 'bg-slate-500/10',
-          component: <SettingsPanel />,
+          component: <SettingsPanel initialTab={settingsInitialTab} />,
         };
       case 'voice-calling':
         return {

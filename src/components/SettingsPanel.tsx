@@ -23,9 +23,13 @@ import CRMIntegrationModal from './CRMIntegrationModal';
 import VoiceAgentSettings from './VoiceAgentSettings';
 import ChatConfigurationPanel from './ChatConfigurationPanel';
 
-export default function SettingsPanel() {
+interface SettingsPanelProps {
+  initialTab?: string;
+}
+
+export default function SettingsPanel({ initialTab = 'integrations' }: SettingsPanelProps) {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('integrations');
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [driveConnected, setDriveConnected] = useState(false);
   const [isCheckingDrive, setIsCheckingDrive] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
