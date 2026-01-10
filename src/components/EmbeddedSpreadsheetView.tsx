@@ -27,12 +27,14 @@ import {
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import {
   ArrowLeft, Download, ChevronDown,
   Globe, Phone, MapPin, ExternalLink,
   FileSpreadsheet, FileDown, Flame, Thermometer, Snowflake, Clock, 
   PhoneCall, Users, Mail,
-  Target, Zap, Brain, Rocket, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Trash2
+  Target, Zap, Brain, Rocket, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Trash2, FileText
 } from 'lucide-react';
 import CRMIntegrationModal from './CRMIntegrationModal';
 import EmailScheduleModal from './EmailScheduleModal';
@@ -284,6 +286,8 @@ export default function EmbeddedSpreadsheetView({
   const [callQueueLeads, setCallQueueLeads] = useState<SearchResult[]>([]);
   const [userCredits] = useState(25);
   const [isExportingToDrive, setIsExportingToDrive] = useState(false);
+  const [showPDFPreview, setShowPDFPreview] = useState(false);
+  const [pdfDataUrl, setPdfDataUrl] = useState<string | null>(null);
   
   // Use fake leads if external leads are 100 or less
   const [fakeLeads] = useState<SearchResult[]>(() => generateFakeLeads());
@@ -554,6 +558,156 @@ export default function EmbeddedSpreadsheetView({
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Leads');
     XLSX.writeFile(workbook, `website-design-leads-${new Date().toISOString().split('T')[0]}.xlsx`);
     toast.success(`Exported ${dataToExport.length} leads as Excel`);
+  };
+
+  const handleExportPDF = (preview: boolean = false) => {
+    const dataToExport = selectedLeads.length > 0 ? selectedLeads : currentLeads;
+    
+    if (dataToExport.length === 0) {
+      toast.error('No leads to export');
+      return;
+    }
+    
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Header
+    doc.setFontSize(24);
+    doc.setTextColor(59, 130, 246);
+    doc.text('BamLead Intelligence Report', pageWidth / 2, 20, { align: 'center' });
+    
+    doc.setFontSize(12);
+    doc.setTextColor(100);
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 28, { align: 'center' });
+    doc.text(`Total Leads: ${dataToExport.length}`, pageWidth / 2, 34, { align: 'center' });
+    
+    // Summary stats
+    const hotCount = dataToExport.filter(l => l.aiClassification === 'hot').length;
+    const warmCount = dataToExport.filter(l => l.aiClassification === 'warm').length;
+    const coldCount = dataToExport.filter(l => l.aiClassification === 'cold').length;
+    
+    doc.setFontSize(14);
+    doc.setTextColor(0);
+    doc.text('Lead Summary', 14, 48);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(239, 68, 68);
+    doc.text(`🔥 HOT LEADS: ${hotCount} - Call immediately!`, 14, 56);
+    doc.setTextColor(245, 158, 11);
+    doc.text(`⚡ WARM LEADS: ${warmCount} - Email first, then call`, 14, 62);
+    doc.setTextColor(59, 130, 246);
+    doc.text(`❄️ COLD LEADS: ${coldCount} - Nurture with content`, 14, 68);
+    
+    let yPos = 80;
+    
+    // Hot leads section
+    const hotLeads = dataToExport.filter(l => l.aiClassification === 'hot');
+    if (hotLeads.length > 0) {
+      doc.setFontSize(12);
+      doc.setTextColor(239, 68, 68);
+      doc.text('🔥 HOT LEADS - Contact Today', 14, yPos);
+      yPos += 8;
+      
+      const hotData = hotLeads.slice(0, 20).map(l => [
+        l.name.substring(0, 25),
+        l.phone || 'N/A',
+        l.email?.substring(0, 25) || 'N/A',
+        `${l.leadScore || 0}%`
+      ]);
+      
+      autoTable(doc, {
+        head: [['Business', 'Phone', 'Email', 'Score']],
+        body: hotData,
+        startY: yPos,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [239, 68, 68] },
+      });
+      
+      yPos = (doc as any).lastAutoTable.finalY + 10;
+    }
+    
+    // Warm leads
+    const warmLeads = dataToExport.filter(l => l.aiClassification === 'warm');
+    if (warmLeads.length > 0 && yPos < 240) {
+      doc.setFontSize(12);
+      doc.setTextColor(245, 158, 11);
+      doc.text('⚡ WARM LEADS - Email First', 14, yPos);
+      yPos += 8;
+      
+      const warmData = warmLeads.slice(0, 15).map(l => [
+        l.name.substring(0, 25),
+        l.phone || 'N/A',
+        l.email?.substring(0, 25) || 'N/A',
+        `${l.leadScore || 0}%`
+      ]);
+      
+      autoTable(doc, {
+        head: [['Business', 'Phone', 'Email', 'Score']],
+        body: warmData,
+        startY: yPos,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [245, 158, 11] },
+      });
+      
+      yPos = (doc as any).lastAutoTable.finalY + 10;
+    }
+    
+    // Cold leads on new page if needed
+    const coldLeads = dataToExport.filter(l => l.aiClassification === 'cold');
+    if (coldLeads.length > 0) {
+      if (yPos > 200) {
+        doc.addPage();
+        yPos = 20;
+      }
+      
+      doc.setFontSize(12);
+      doc.setTextColor(59, 130, 246);
+      doc.text('❄️ COLD LEADS - Nurture', 14, yPos);
+      yPos += 8;
+      
+      const coldData = coldLeads.slice(0, 15).map(l => [
+        l.name.substring(0, 25),
+        l.phone || 'N/A',
+        l.email?.substring(0, 25) || 'N/A',
+        `${l.leadScore || 0}%`
+      ]);
+      
+      autoTable(doc, {
+        head: [['Business', 'Phone', 'Email', 'Score']],
+        body: coldData,
+        startY: yPos,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [59, 130, 246] },
+      });
+    }
+    
+    if (preview) {
+      // Generate data URL for preview
+      const pdfBlob = doc.output('blob');
+      const url = URL.createObjectURL(pdfBlob);
+      setPdfDataUrl(url);
+      setShowPDFPreview(true);
+    } else {
+      doc.save(`bamlead-leads-${new Date().toISOString().split('T')[0]}.pdf`);
+      toast.success(`Exported ${dataToExport.length} leads as PDF`);
+    }
+  };
+
+  const handleDownloadPDFFromPreview = () => {
+    handleExportPDF(false);
+    setShowPDFPreview(false);
+    if (pdfDataUrl) {
+      URL.revokeObjectURL(pdfDataUrl);
+      setPdfDataUrl(null);
+    }
+  };
+
+  const closePDFPreview = () => {
+    setShowPDFPreview(false);
+    if (pdfDataUrl) {
+      URL.revokeObjectURL(pdfDataUrl);
+      setPdfDataUrl(null);
+    }
   };
 
   const getClassificationBadge = (classification?: string) => {
@@ -852,6 +1006,15 @@ export default function EmbeddedSpreadsheetView({
                 <FileSpreadsheet className="w-4 h-4 mr-2" />
                 Export as Excel
               </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleExportPDF(true)}>
+                <FileText className="w-4 h-4 mr-2" />
+                Preview as PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExportPDF(false)}>
+                <Download className="w-4 h-4 mr-2" />
+                Download PDF
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -1090,6 +1253,46 @@ export default function EmbeddedSpreadsheetView({
             setShowScheduleModal(false);
           }}
         />
+      )}
+
+      {/* PDF Preview Modal */}
+      {showPDFPreview && pdfDataUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+          <div className="relative w-full max-w-5xl h-[90vh] bg-background rounded-xl shadow-2xl flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b bg-gradient-to-r from-primary/10 to-accent/10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-lg">Lead Intelligence Report</h2>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedLeads.length > 0 ? selectedLeads.length : currentLeads.length} leads • Generated {new Date().toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button onClick={handleDownloadPDFFromPreview} className="gap-2">
+                  <Download className="w-4 h-4" />
+                  Download PDF
+                </Button>
+                <Button variant="ghost" size="icon" onClick={closePDFPreview}>
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+            
+            {/* PDF Viewer */}
+            <div className="flex-1 overflow-hidden">
+              <iframe
+                src={pdfDataUrl}
+                className="w-full h-full border-0"
+                title="PDF Preview"
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
