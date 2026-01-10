@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -65,6 +65,7 @@ const FIELD_OPTIONS = [
 ];
 
 const DEFAULT_FIELDS = ['business_name', 'phone', 'email', 'website', 'address', 'rating'];
+const STORAGE_KEY = 'bamlead_field_preferences';
 
 export default function LeadActionChoiceModal({
   open,
@@ -74,8 +75,16 @@ export default function LeadActionChoiceModal({
   onEmailSelected,
   onAIVerifySelected,
 }: LeadActionChoiceModalProps) {
-  const [selectedFields, setSelectedFields] = useState<string[]>(DEFAULT_FIELDS);
+  const [selectedFields, setSelectedFields] = useState<string[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    return saved ? JSON.parse(saved) : DEFAULT_FIELDS;
+  });
   const [showFieldSelector, setShowFieldSelector] = useState(false);
+
+  // Save to localStorage whenever fields change
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedFields));
+  }, [selectedFields]);
 
   const toggleField = (fieldId: string) => {
     setSelectedFields(prev => 
