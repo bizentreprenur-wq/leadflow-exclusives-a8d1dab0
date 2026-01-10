@@ -296,14 +296,9 @@ export default function EmbeddedSpreadsheetView({
   const [fakeLeads] = useState<SearchResult[]>(() => generateFakeLeads());
   const leads = externalLeads.length > 100 ? externalLeads : fakeLeads;
 
-  // Auto-open PDF preview when component mounts
-  useEffect(() => {
-    // Small delay to ensure leads are loaded before generating PDF
-    const timer = setTimeout(() => {
-      handleExportPDF(true);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // State for auto-open PDF
+  const [hasAutoOpenedPDF, setHasAutoOpenedPDF] = useState(false);
+
 
   const groupedLeads = useMemo(() => {
     const hot = leads.filter(l => l.aiClassification === 'hot');
@@ -748,6 +743,17 @@ export default function EmbeddedSpreadsheetView({
       setIsSendingEmail(false);
     }
   };
+
+  // Auto-open PDF preview when component mounts (after functions are defined)
+  useEffect(() => {
+    if (!hasAutoOpenedPDF && leads.length > 0) {
+      const timer = setTimeout(() => {
+        handleExportPDF(true);
+        setHasAutoOpenedPDF(true);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [leads, hasAutoOpenedPDF]);
 
   const getClassificationBadge = (classification?: string) => {
     switch (classification) {
@@ -1366,8 +1372,9 @@ export default function EmbeddedSpreadsheetView({
                   <Download className="w-4 h-4" />
                   Download PDF
                 </Button>
-                <Button variant="ghost" size="icon" onClick={closePDFPreview}>
-                  <X className="w-5 h-5" />
+                <Button variant="secondary" onClick={closePDFPreview} className="gap-2">
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to Spreadsheet
                 </Button>
               </div>
             </div>
