@@ -1,5 +1,11 @@
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -736,61 +742,97 @@ export default function EmbeddedSpreadsheetView({
 
         <div className="flex flex-wrap items-center gap-2">
           {/* Clear Action Buttons - Each with specific purpose */}
-          <Button 
-            onClick={() => {
-              if (selectedIds.size === 0) {
-                toast.error('Select leads first to call them');
-                return;
-              }
-              handleCallFromChoice();
-            }}
-            disabled={selectedIds.size === 0}
-            variant="outline"
-            size="sm"
-            className="gap-2 border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/10"
-          >
-            <PhoneCall className="w-4 h-4" />
-            Call Selected ({selectedIds.size})
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  onClick={() => {
+                    if (selectedIds.size === 0) {
+                      toast.error('Select leads first to call them');
+                      return;
+                    }
+                    handleCallFromChoice();
+                  }}
+                  disabled={selectedIds.size === 0}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/10"
+                >
+                  <PhoneCall className="w-4 h-4" />
+                  Call Selected ({selectedIds.size})
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Start a voice call with selected leads using AI-powered calling</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
-          <Button 
-            onClick={() => {
-              if (selectedIds.size === 0) {
-                toast.error('Select leads first to email them');
-                return;
-              }
-              handleEmailFromChoice();
-            }}
-            disabled={selectedIds.size === 0}
-            variant="outline"
-            size="sm"
-            className="gap-2 border-blue-500/50 text-blue-600 hover:bg-blue-500/10"
-          >
-            <Mail className="w-4 h-4" />
-            Email Selected ({selectedIds.size})
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  onClick={() => {
+                    if (selectedIds.size === 0) {
+                      toast.error('Select leads first to email them');
+                      return;
+                    }
+                    handleEmailFromChoice();
+                  }}
+                  disabled={selectedIds.size === 0}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 border-blue-500/50 text-blue-600 hover:bg-blue-500/10"
+                >
+                  <Mail className="w-4 h-4" />
+                  Email Selected ({selectedIds.size})
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Send personalized email campaigns to selected leads</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
-          <Button 
-            onClick={handleAIVerifyClick}
-            disabled={selectedIds.size === 0}
-            variant="outline"
-            size="sm"
-            className="gap-2 border-purple-500/50 text-purple-600 hover:bg-purple-500/10"
-          >
-            <Brain className="w-4 h-4" />
-            AI Verify ({selectedIds.size})
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  onClick={handleAIVerifyClick}
+                  disabled={selectedIds.size === 0}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 border-purple-500/50 text-purple-600 hover:bg-purple-500/10"
+                >
+                  <Brain className="w-4 h-4" />
+                  AI Verify ({selectedIds.size})
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Use AI to verify lead contact info and enrich data</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
-          <Button 
-            onClick={handleBulkDelete}
-            disabled={selectedIds.size === 0}
-            variant="outline"
-            size="sm"
-            className="gap-2 border-red-500/50 text-red-600 hover:bg-red-500/10 hover:text-red-700"
-          >
-            <Trash2 className="w-4 h-4" />
-            Delete ({selectedIds.size})
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  onClick={handleBulkDelete}
+                  disabled={selectedIds.size === 0}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 border-red-500/50 text-red-600 hover:bg-red-500/10 hover:text-red-700"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Delete ({selectedIds.size})
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Remove selected leads from your current list</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           {/* Export Menu */}
           <DropdownMenu>
