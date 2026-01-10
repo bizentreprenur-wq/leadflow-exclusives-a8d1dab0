@@ -76,12 +76,11 @@ interface SearchResult {
   };
 }
 
-// Step configuration - BIG and clear
+// Step configuration - 3 simple steps
 const WORKFLOW_STEPS = [
   { id: 1, title: 'STEP 1: Search', description: 'Find businesses that need your services', icon: Search, emoji: '🔍' },
   { id: 2, title: 'STEP 2: Review', description: 'Pick the best leads from your results', icon: Users, emoji: '📋' },
-  { id: 3, title: 'STEP 3: Verify', description: 'AI finds emails & scores leads', icon: CheckCircle2, emoji: '✅' },
-  { id: 4, title: 'STEP 4: Outreach', description: 'Send emails & call customers', icon: Send, emoji: '📧' },
+  { id: 3, title: 'STEP 3: Outreach', description: 'Verify leads & send emails', icon: Send, emoji: '📧' },
 ];
 
 export default function Dashboard() {
@@ -121,6 +120,9 @@ export default function Dashboard() {
   const [widgetLeads, setWidgetLeads] = useState<SearchResult[]>([]);
   const [verifiedWidgetLeads, setVerifiedWidgetLeads] = useState<any[]>([]);
   
+  // Outreach mode toggle (email or verify)
+  const [outreachMode, setOutreachMode] = useState<'email' | 'verify'>('email');
+  
   // Search filter options
   const [filterNoWebsite, setFilterNoWebsite] = useState(false);
   
@@ -154,7 +156,7 @@ export default function Dashboard() {
       phone: l.phone,
     }));
     setEmailLeads(convertedLeads);
-    setCurrentStep(4);
+    setCurrentStep(3);
   };
 
   const handleSearch = async () => {
@@ -785,12 +787,12 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <p className="text-2xl font-bold text-foreground">{selectedLeads.length} leads selected!</p>
-                      <p className="text-lg text-muted-foreground">Ready for AI to find their emails & score them</p>
+                      <p className="text-lg text-muted-foreground">Ready to verify and send outreach</p>
                     </div>
                   </div>
-                  <Button onClick={proceedToVerification} size="lg" className="gap-3 text-lg px-8 py-6 bg-emerald-500 hover:bg-emerald-600">
-                    <Sparkles className="w-6 h-6" />
-                    GO TO STEP 3: Verify with AI
+                  <Button onClick={() => setCurrentStep(3)} size="lg" className="gap-3 text-lg px-8 py-6 bg-emerald-500 hover:bg-emerald-600">
+                    <Send className="w-6 h-6" />
+                    GO TO STEP 3: Outreach
                     <ArrowRight className="w-6 h-6" />
                   </Button>
                 </CardContent>
@@ -899,100 +901,124 @@ export default function Dashboard() {
         );
 
       case 3: {
-        let leadsToVerifyCount = 0;
-        try {
-          const parsed = JSON.parse(sessionStorage.getItem('leadsToVerify') || '[]');
-          leadsToVerifyCount = Array.isArray(parsed) ? parsed.length : 0;
-        } catch {
-          leadsToVerifyCount = 0;
-        }
+        // Sample leads for demo if none selected
+        const sampleLeads: LeadForEmail[] = [
+          { email: 'contact@acmeplumbing.com', business_name: 'Acme Plumbing Co', contact_name: 'John Smith', website: 'www.acmeplumbing.com', phone: '(555) 123-4567' },
+          { email: 'info@sunsetdental.com', business_name: 'Sunset Dental Clinic', contact_name: 'Dr. Sarah Johnson', website: 'www.sunsetdental.com', phone: '(555) 234-5678' },
+          { email: 'hello@greenthumb.com', business_name: 'Green Thumb Landscaping', contact_name: 'Mike Davis', website: 'www.greenthumb.com', phone: '(555) 345-6789' },
+          { email: 'service@quickfix.com', business_name: 'QuickFix Auto Repair', contact_name: 'Carlos Martinez', website: 'www.quickfixauto.com', phone: '(555) 456-7890' },
+          { email: 'info@elegantcuts.com', business_name: 'Elegant Cuts Salon', contact_name: 'Lisa Chen', website: 'www.elegantcuts.com', phone: '(555) 567-8901' },
+          { email: 'office@smithlaw.com', business_name: 'Smith & Associates Law', contact_name: 'Robert Smith', website: 'www.smithlaw.com', phone: '(555) 678-9012' },
+          { email: 'contact@homeclean.com', business_name: 'Home Clean Services', contact_name: 'Jennifer Brown', website: 'www.homeclean.com', phone: '(555) 789-0123' },
+          { email: 'info@fitzone.com', business_name: 'FitZone Gym', contact_name: 'David Wilson', website: 'www.fitzone.com', phone: '(555) 890-1234' },
+          { email: 'hello@tastybites.com', business_name: 'Tasty Bites Restaurant', contact_name: 'Maria Garcia', website: 'www.tastybites.com', phone: '(555) 901-2345' },
+          { email: 'info@techpros.com', business_name: 'TechPros IT Solutions', contact_name: 'Alex Thompson', website: 'www.techpros.com', phone: '(555) 012-3456' },
+        ];
+
+        // Convert selected search results to email leads format
+        const selectedSearchLeads: LeadForEmail[] = searchResults
+          .filter(r => selectedLeads.includes(r.id))
+          .map(r => ({
+            email: r.email || '',
+            business_name: r.name,
+            contact_name: '',
+            website: r.website || '',
+            phone: r.phone || '',
+          }));
+
+        const leadsToUse = emailLeads.length > 0 
+          ? emailLeads 
+          : selectedSearchLeads.length > 0 
+            ? selectedSearchLeads 
+            : sampleLeads;
+
 
         return (
           <div className="space-y-6">
             {/* BIG Step 3 Header */}
-            <div className="text-center py-6 bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-2xl border-2 border-amber-500/30">
-              <div className="text-6xl mb-4">✅</div>
+            <div className="text-center py-6 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-2xl border-2 border-blue-500/30">
+              <div className="text-6xl mb-4">📧</div>
               <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-                STEP 3: AI Verification
+                STEP 3: Send Your Outreach!
               </h2>
               <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-                Our AI is finding emails, scoring leads, and analyzing websites for you!
+                {leadsToUse.length} leads ready! Send emails now or use AI to verify first.
               </p>
             </div>
 
-            <button
-              onClick={() => setCurrentStep(2)}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors px-4 py-2 rounded-lg hover:bg-muted"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to lead list
-            </button>
+            {/* Action Toggle - Email Now vs AI Verify First */}
+            <div className="flex items-center justify-center gap-4">
+              <button
+                onClick={() => setCurrentStep(2)}
+                className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors px-4 py-2 rounded-lg hover:bg-muted"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to leads
+              </button>
+            </div>
 
-            {leadsToVerifyCount === 0 ? (
-              <Card className="border-border bg-card">
-                <CardContent className="p-6">
-                  <div className="text-center space-y-3">
-                    <p className="text-xl font-semibold text-foreground">No leads selected yet</p>
-                    <p className="text-muted-foreground">
-                      Go to Step 2, select leads, then come back to Step 3.
-                    </p>
-                    <div className="flex justify-center">
-                      <Button onClick={() => setCurrentStep(2)} className="gap-2">
-                        <Users className="w-4 h-4" />
-                        Go to Step 2
-                      </Button>
-                    </div>
+            {/* Two Action Cards */}
+            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+              {/* Send Emails Card */}
+              <Card 
+                className={`cursor-pointer transition-all border-2 ${
+                  outreachMode === 'email' 
+                    ? 'border-blue-500 bg-blue-500/5 ring-2 ring-blue-500/20' 
+                    : 'border-border hover:border-blue-500/50'
+                }`}
+                onClick={() => setOutreachMode('email')}
+              >
+                <CardContent className="p-6 text-center">
+                  <div className="w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center mx-auto mb-4 text-3xl">
+                    📧
                   </div>
+                  <h3 className="text-xl font-bold text-foreground mb-2">Send Emails Now</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Pick a template and send outreach immediately to your {leadsToUse.length} leads
+                  </p>
+                  <Badge className="bg-blue-500/20 text-blue-600 border-blue-500/30">
+                    Quick & Direct
+                  </Badge>
                 </CardContent>
               </Card>
+
+              {/* AI Verify First Card */}
+              <Card 
+                className={`cursor-pointer transition-all border-2 ${
+                  outreachMode === 'verify' 
+                    ? 'border-amber-500 bg-amber-500/5 ring-2 ring-amber-500/20' 
+                    : 'border-border hover:border-amber-500/50'
+                }`}
+                onClick={() => setOutreachMode('verify')}
+              >
+                <CardContent className="p-6 text-center">
+                  <div className="w-16 h-16 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto mb-4 text-3xl">
+                    ✅
+                  </div>
+                  <h3 className="text-xl font-bold text-foreground mb-2">AI Verify First</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Find missing emails, score leads, and analyze websites before sending
+                  </p>
+                  <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30">
+                    <Sparkles className="w-3 h-3 mr-1" />
+                    Uses Credits
+                  </Badge>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Content based on mode */}
+            {outreachMode === 'email' ? (
+              <EmailOutreachModule 
+                selectedLeads={leadsToUse} 
+                onClearSelection={() => setEmailLeads([])} 
+              />
             ) : (
               <LeadVerificationModule onSendToEmail={handleSendToEmail} />
             )}
           </div>
         );
       }
-
-      case 4:
-        return (
-          <div className="space-y-6">
-            {/* BIG Step 4 Header */}
-            <div className="text-center py-6 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-2xl border-2 border-blue-500/30">
-              <div className="text-6xl mb-4">📧</div>
-              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-                STEP 4: Send Your Emails!
-              </h2>
-              <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-                Pick a template, customize your message, and reach out to your leads!
-              </p>
-            </div>
-
-            <button
-              onClick={() => setCurrentStep(3)}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors px-4 py-2 rounded-lg hover:bg-muted"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to verification
-            </button>
-
-            {(() => {
-              // Use sample leads if none verified yet for demo purposes
-              const sampleLeads: LeadForEmail[] = [
-                { email: 'contact@acmeplumbing.com', business_name: 'Acme Plumbing Co', contact_name: 'John Smith', website: 'www.acmeplumbing.com', phone: '(555) 123-4567' },
-                { email: 'info@sunsetdental.com', business_name: 'Sunset Dental Clinic', contact_name: 'Dr. Sarah Johnson', website: 'www.sunsetdental.com', phone: '(555) 234-5678' },
-                { email: 'hello@greenthumb.com', business_name: 'Green Thumb Landscaping', contact_name: 'Mike Davis', website: 'www.greenthumb.com', phone: '(555) 345-6789' },
-                { email: 'service@quickfix.com', business_name: 'QuickFix Auto Repair', contact_name: 'Carlos Martinez', website: 'www.quickfixauto.com', phone: '(555) 456-7890' },
-                { email: 'info@elegantcuts.com', business_name: 'Elegant Cuts Salon', contact_name: 'Lisa Chen', website: 'www.elegantcuts.com', phone: '(555) 567-8901' },
-                { email: 'office@smithlaw.com', business_name: 'Smith & Associates Law', contact_name: 'Robert Smith', website: 'www.smithlaw.com', phone: '(555) 678-9012' },
-                { email: 'contact@homeclean.com', business_name: 'Home Clean Services', contact_name: 'Jennifer Brown', website: 'www.homeclean.com', phone: '(555) 789-0123' },
-                { email: 'info@fitzone.com', business_name: 'FitZone Gym', contact_name: 'David Wilson', website: 'www.fitzone.com', phone: '(555) 890-1234' },
-                { email: 'hello@tastybites.com', business_name: 'Tasty Bites Restaurant', contact_name: 'Maria Garcia', website: 'www.tastybites.com', phone: '(555) 901-2345' },
-                { email: 'info@techpros.com', business_name: 'TechPros IT Solutions', contact_name: 'Alex Thompson', website: 'www.techpros.com', phone: '(555) 012-3456' },
-              ];
-              const leadsToUse = emailLeads.length > 0 ? emailLeads : sampleLeads;
-              return <EmailOutreachModule selectedLeads={leadsToUse} onClearSelection={() => setEmailLeads([])} />;
-            })()}
-          </div>
-        );
 
       default:
         return null;
