@@ -299,6 +299,7 @@ export default function EmbeddedSpreadsheetView({
   // State for auto-open PDF
   const [hasAutoOpenedPDF, setHasAutoOpenedPDF] = useState(false);
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
+  const [showPDFReadyBanner, setShowPDFReadyBanner] = useState(false);
 
   const groupedLeads = useMemo(() => {
     const hot = leads.filter(l => l.aiClassification === 'hot');
@@ -766,16 +767,21 @@ export default function EmbeddedSpreadsheetView({
     setShowPDFPreview(true);
   };
 
-  // Auto-open PDF preview when component mounts (after functions are defined)
+  // Show PDF ready banner when component mounts
   useEffect(() => {
     if (!hasAutoOpenedPDF && leads.length > 0) {
       const timer = setTimeout(() => {
-        handleExportPDF(true);
+        setShowPDFReadyBanner(true);
         setHasAutoOpenedPDF(true);
-      }, 300);
+      }, 500);
       return () => clearTimeout(timer);
     }
   }, [leads, hasAutoOpenedPDF]);
+
+  const handleOpenPDFFromBanner = () => {
+    setShowPDFReadyBanner(false);
+    handleExportPDF(true);
+  };
 
   const getClassificationBadge = (classification?: string) => {
     switch (classification) {
@@ -811,7 +817,43 @@ export default function EmbeddedSpreadsheetView({
   };
 
   return (
-    <div className="flex flex-col h-full min-h-[600px] bg-background rounded-xl border overflow-hidden">
+    <div className="flex flex-col h-full min-h-[600px] bg-background rounded-xl border overflow-hidden relative">
+      
+      {/* BIG PDF Ready Banner */}
+      {showPDFReadyBanner && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 animate-in fade-in duration-300">
+          <div className="bg-gradient-to-br from-primary via-blue-600 to-indigo-700 rounded-2xl p-8 shadow-2xl max-w-md mx-4 text-center animate-in zoom-in-95 duration-300">
+            <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FileText className="w-10 h-10 text-white" />
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">
+              🎉 Your Leads PDF is Ready!
+            </h2>
+            <p className="text-white/80 mb-6">
+              We found <span className="font-bold text-white">{leads.length.toLocaleString()} leads</span> for you!
+              <br />Click below to view your PDF report.
+            </p>
+            <div className="flex flex-col gap-3">
+              <Button 
+                onClick={handleOpenPDFFromBanner}
+                size="lg"
+                className="w-full bg-white text-primary hover:bg-white/90 font-bold text-lg py-6"
+              >
+                <FileText className="w-5 h-5 mr-2" />
+                👉 View My PDF Report
+              </Button>
+              <Button 
+                variant="ghost" 
+                onClick={() => setShowPDFReadyBanner(false)}
+                className="text-white/70 hover:text-white hover:bg-white/10"
+              >
+                View spreadsheet instead
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-card">
         <div className="flex items-center gap-4">
