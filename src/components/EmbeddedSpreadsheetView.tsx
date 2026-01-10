@@ -348,6 +348,23 @@ export default function EmbeddedSpreadsheetView({
     }
   }, [selectedIds]);
 
+  // Clear selections when external leads change (new search)
+  useEffect(() => {
+    if (externalLeads.length > 0) {
+      // When new search results come in, validate selections against new lead IDs
+      const validLeadIds = new Set(externalLeads.map(l => l.id));
+      setSelectedIds(prev => {
+        const validSelections = new Set([...prev].filter(id => validLeadIds.has(id)));
+        // If no valid selections remain, don't keep stale ones
+        if (validSelections.size === 0 && prev.size > 0) {
+          localStorage.removeItem('bamlead_selected_leads');
+          return new Set();
+        }
+        return validSelections;
+      });
+    }
+  }, [externalLeads]);
+
   const groupedLeads = useMemo(() => {
     const hot = leads.filter(l => l.aiClassification === 'hot');
     const warm = leads.filter(l => l.aiClassification === 'warm');
@@ -1476,10 +1493,11 @@ export default function EmbeddedSpreadsheetView({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {currentLeads.map((lead) => (
+            {currentLeads.map((lead, index) => (
               <TableRow 
                 key={lead.id}
-                className={getRowClassName(lead)}
+                className={`${getRowClassName(lead)} animate-fade-in`}
+                style={{ animationDelay: `${Math.min(index * 30, 300)}ms` }}
                 onClick={() => toggleSelect(lead.id)}
               >
                 <TableCell onClick={(e) => e.stopPropagation()}>
