@@ -8,6 +8,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
   Table,
@@ -25,7 +26,7 @@ import {
   Globe, Phone, MapPin, ExternalLink,
   FileSpreadsheet, FileDown, Flame, Thermometer, Snowflake, Clock, 
   PhoneCall, Users, Mail,
-  Target, Zap, Brain, Rocket, Search, X, ArrowUpDown, ArrowUp, ArrowDown
+  Target, Zap, Brain, Rocket, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Trash2
 } from 'lucide-react';
 import CRMIntegrationModal from './CRMIntegrationModal';
 import EmailScheduleModal from './EmailScheduleModal';
@@ -272,6 +273,7 @@ export default function EmbeddedSpreadsheetView({
   const [showCallQueueModal, setShowCallQueueModal] = useState(false);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [showActionChoice, setShowActionChoice] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [callLead, setCallLead] = useState<SearchResult | null>(null);
   const [callQueueLeads, setCallQueueLeads] = useState<SearchResult[]>([]);
   const [userCredits] = useState(25);
@@ -462,6 +464,24 @@ export default function EmbeddedSpreadsheetView({
 
   const handleAIVerifyFromChoice = () => {
     setShowVerifyConfirm(true);
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedLeads.length === 0) {
+      toast.error('Please select at least one lead to delete');
+      return;
+    }
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = () => {
+    // Remove selected leads from the view
+    const remainingLeads = leads.filter(l => !selectedIds.has(l.id));
+    // Clear selection
+    setSelectedIds(new Set());
+    setShowDeleteConfirm(false);
+    toast.success(`Removed ${selectedLeads.length} leads from the list`);
+    // Note: In a real app, you'd call a parent callback to update the leads state
   };
 
   const handleExportCSV = () => {
@@ -715,14 +735,61 @@ export default function EmbeddedSpreadsheetView({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Primary Action Button */}
+          {/* Clear Action Buttons - Each with specific purpose */}
           <Button 
-            onClick={handleOpenActionChoice}
+            onClick={() => {
+              if (selectedIds.size === 0) {
+                toast.error('Select leads first to call them');
+                return;
+              }
+              handleCallFromChoice();
+            }}
             disabled={selectedIds.size === 0}
-            className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 font-medium"
+            variant="outline"
+            size="sm"
+            className="gap-2 border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/10"
           >
-            <Rocket className="w-4 h-4" />
-            Take Action ({selectedIds.size})
+            <PhoneCall className="w-4 h-4" />
+            Call Selected ({selectedIds.size})
+          </Button>
+
+          <Button 
+            onClick={() => {
+              if (selectedIds.size === 0) {
+                toast.error('Select leads first to email them');
+                return;
+              }
+              handleEmailFromChoice();
+            }}
+            disabled={selectedIds.size === 0}
+            variant="outline"
+            size="sm"
+            className="gap-2 border-blue-500/50 text-blue-600 hover:bg-blue-500/10"
+          >
+            <Mail className="w-4 h-4" />
+            Email Selected ({selectedIds.size})
+          </Button>
+
+          <Button 
+            onClick={handleAIVerifyClick}
+            disabled={selectedIds.size === 0}
+            variant="outline"
+            size="sm"
+            className="gap-2 border-purple-500/50 text-purple-600 hover:bg-purple-500/10"
+          >
+            <Brain className="w-4 h-4" />
+            AI Verify ({selectedIds.size})
+          </Button>
+
+          <Button 
+            onClick={handleBulkDelete}
+            disabled={selectedIds.size === 0}
+            variant="outline"
+            size="sm"
+            className="gap-2 border-red-500/50 text-red-600 hover:bg-red-500/10 hover:text-red-700"
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete ({selectedIds.size})
           </Button>
 
           {/* Export Menu */}
@@ -898,6 +965,30 @@ export default function EmbeddedSpreadsheetView({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmVerify}>
               Verify Now
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="w-5 h-5" />
+              Delete {selectedLeads.length} Leads?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove the selected leads from your current view. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmDelete}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Delete Leads
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
