@@ -1,5 +1,15 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -27,7 +37,7 @@ import {
   Globe, Phone, MapPin, Star, AlertTriangle, CheckCircle2, ExternalLink,
   FileSpreadsheet, FileDown, Flame, Thermometer, Snowflake, Clock, 
   PhoneCall, Calendar, TrendingUp, Filter, Users, Building2, Mail,
-  Target, Zap, Brain, Eye, Briefcase, HardDrive
+  Target, Zap, Brain, Eye, Briefcase, HardDrive, Rocket
 } from 'lucide-react';
 import { exportToGoogleDrive } from '@/lib/api/googleDrive';
 import CRMIntegrationModal from './CRMIntegrationModal';
@@ -262,6 +272,7 @@ export default function LeadSpreadsheetViewer({
   const [verifiedCount, setVerifiedCount] = useState(0);
   const [showCRMModal, setShowCRMModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showVerifyConfirm, setShowVerifyConfirm] = useState(false);
   const [isExportingToDrive, setIsExportingToDrive] = useState(false);
   
   // Use fake leads if external leads are 100 or less
@@ -346,11 +357,17 @@ export default function LeadSpreadsheetViewer({
     [currentLeads, selectedIds]
   );
 
-  const handleAIVerify = () => {
+  const handleAIVerifyClick = () => {
     if (selectedLeads.length === 0) {
       toast.error('Please select at least one lead to verify');
       return;
     }
+    // Show confirmation dialog for bulk verification
+    setShowVerifyConfirm(true);
+  };
+
+  const handleConfirmVerify = () => {
+    setShowVerifyConfirm(false);
     onProceedToVerify(selectedLeads);
     toast.success(`Sending ${selectedLeads.length} leads to AI verification`);
   };
@@ -675,7 +692,7 @@ export default function LeadSpreadsheetViewer({
 
           <div className="flex items-center gap-2">
             <Button 
-              onClick={handleAIVerify}
+              onClick={handleAIVerifyClick}
               disabled={selectedIds.size === 0}
               className="gap-2 bg-amber-500 hover:bg-amber-600 text-black font-medium"
             >
@@ -917,6 +934,57 @@ export default function LeadSpreadsheetViewer({
           </div>
         </ScrollArea>
       </DialogContent>
+
+      {/* AI Verify Confirmation Dialog */}
+      <AlertDialog open={showVerifyConfirm} onOpenChange={setShowVerifyConfirm}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-3 rounded-full bg-amber-500/10">
+                <Rocket className="w-6 h-6 text-amber-500" />
+              </div>
+              <AlertDialogTitle className="text-xl">
+                Supercharge These Leads? 🚀
+              </AlertDialogTitle>
+            </div>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                <p className="text-base">
+                  You're about to unlock <span className="font-bold text-foreground">{selectedLeads.length.toLocaleString()} leads</span> with AI-powered verification!
+                </p>
+                
+                <div className="p-4 rounded-lg bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20">
+                  <p className="font-medium text-foreground mb-2">✨ What you'll get for each lead:</p>
+                  <ul className="text-sm space-y-1 text-muted-foreground">
+                    <li>• Verified contact information</li>
+                    <li>• AI-scored lead quality (0-100)</li>
+                    <li>• Personalized outreach messages</li>
+                    <li>• Best time to contact</li>
+                  </ul>
+                </div>
+
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border">
+                  <Sparkles className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                  <p className="text-sm">
+                    <span className="font-medium text-foreground">Heads up:</span> This will use{' '}
+                    <span className="font-bold text-amber-600">{selectedLeads.length.toLocaleString()} AI credits</span> from your verification balance.
+                  </p>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="mt-4">
+            <AlertDialogCancel>Maybe Later</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleConfirmVerify}
+              className="bg-amber-500 hover:bg-amber-600 text-black font-medium gap-2"
+            >
+              <Sparkles className="w-4 h-4" />
+              Verify All {selectedLeads.length.toLocaleString()} Leads
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* CRM Integration Modal */}
       <CRMIntegrationModal
