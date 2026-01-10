@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,7 +25,7 @@ import {
   Globe, Phone, MapPin, ExternalLink,
   FileSpreadsheet, FileDown, Flame, Thermometer, Snowflake, Clock, 
   PhoneCall, Users, Mail,
-  Target, Zap, Brain, Rocket
+  Target, Zap, Brain, Rocket, Search, X
 } from 'lucide-react';
 import CRMIntegrationModal from './CRMIntegrationModal';
 import EmailScheduleModal from './EmailScheduleModal';
@@ -261,6 +262,7 @@ export default function EmbeddedSpreadsheetView({
 }: EmbeddedSpreadsheetViewProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeGroup, setActiveGroup] = useState<'all' | 'hot' | 'warm' | 'cold' | 'ready' | 'nowebsite'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [showCRMModal, setShowCRMModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showVerifyConfirm, setShowVerifyConfirm] = useState(false);
@@ -289,15 +291,28 @@ export default function EmbeddedSpreadsheetView({
   }, [leads]);
 
   const currentLeads = useMemo(() => {
+    let filtered: SearchResult[];
     switch (activeGroup) {
-      case 'hot': return leads.filter(l => l.aiClassification === 'hot');
-      case 'warm': return leads.filter(l => l.aiClassification === 'warm');
-      case 'cold': return leads.filter(l => l.aiClassification === 'cold');
-      case 'ready': return leads.filter(l => l.readyToCall);
-      case 'nowebsite': return leads.filter(l => !l.websiteAnalysis?.hasWebsite);
-      default: return leads;
+      case 'hot': filtered = leads.filter(l => l.aiClassification === 'hot'); break;
+      case 'warm': filtered = leads.filter(l => l.aiClassification === 'warm'); break;
+      case 'cold': filtered = leads.filter(l => l.aiClassification === 'cold'); break;
+      case 'ready': filtered = leads.filter(l => l.readyToCall); break;
+      case 'nowebsite': filtered = leads.filter(l => !l.websiteAnalysis?.hasWebsite); break;
+      default: filtered = leads;
     }
-  }, [activeGroup, leads]);
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(l => 
+        l.name?.toLowerCase().includes(query) ||
+        l.phone?.toLowerCase().includes(query) ||
+        l.email?.toLowerCase().includes(query)
+      );
+    }
+    
+    return filtered;
+  }, [activeGroup, leads, searchQuery]);
 
   const handleGroupChange = (group: typeof activeGroup) => {
     setActiveGroup(group);
@@ -556,7 +571,7 @@ export default function EmbeddedSpreadsheetView({
         </div>
       </div>
 
-      {/* Filter Tabs */}
+      {/* Filter Tabs + Search */}
       <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b bg-muted/30">
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -613,6 +628,28 @@ export default function EmbeddedSpreadsheetView({
             <Target className="w-3 h-3 text-purple-500" />
             No Website ({groupedLeads.noWebsite.length})
           </Button>
+        </div>
+        
+        {/* Search Input */}
+        <div className="relative flex items-center">
+          <Search className="absolute left-3 w-4 h-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search by name, phone, or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 pr-8 w-64 h-9"
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute right-1 h-7 w-7 p-0"
+              onClick={() => setSearchQuery('')}
+            >
+              <X className="w-3 h-3" />
+            </Button>
+          )}
         </div>
       </div>
 
