@@ -743,14 +743,36 @@ export default function LeadSpreadsheetViewer({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Primary Action Button */}
+            {/* Call Button */}
             <Button 
-              onClick={handleOpenActionChoice}
+              onClick={() => {
+                if (selectedIds.size === 0) {
+                  toast.error('Select leads first to call them');
+                  return;
+                }
+                handleCallFromChoice();
+              }}
               disabled={selectedIds.size === 0}
-              className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 font-medium"
+              className="gap-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400"
             >
-              <Target className="w-4 h-4" />
-              📞 Call or ✉️ Email ({selectedIds.size})
+              <PhoneCall className="w-4 h-4" />
+              Call ({selectedIds.size})
+            </Button>
+
+            {/* Email Button */}
+            <Button 
+              onClick={() => {
+                if (selectedIds.size === 0) {
+                  toast.error('Select leads first to email them');
+                  return;
+                }
+                handleEmailFromChoice();
+              }}
+              disabled={selectedIds.size === 0}
+              className="gap-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400"
+            >
+              <Mail className="w-4 h-4" />
+              Email ({selectedIds.size})
             </Button>
 
             <Button 
