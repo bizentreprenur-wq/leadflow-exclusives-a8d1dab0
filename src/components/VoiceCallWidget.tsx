@@ -1,22 +1,29 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useConversation } from '@elevenlabs/react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
 import { 
   Phone, 
   PhoneOff, 
   Mic, 
-  MicOff, 
   Volume2,
   Loader2,
   Settings,
-  AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { saveCallLog, type CallOutcome, type TranscriptMessage } from '@/lib/api/callLogs';
 
 interface VoiceCallWidgetProps {
+  leadId?: number;
   leadName?: string;
   leadPhone?: string;
   onCallEnd?: (duration: number) => void;
@@ -24,6 +31,7 @@ interface VoiceCallWidgetProps {
 }
 
 export default function VoiceCallWidget({ 
+  leadId,
   leadName, 
   leadPhone, 
   onCallEnd,
@@ -32,6 +40,10 @@ export default function VoiceCallWidget({
   const [isConnecting, setIsConnecting] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [agentId, setAgentId] = useState<string | null>(null);
+  const [showOutcomeSelector, setShowOutcomeSelector] = useState(false);
+  const [selectedOutcome, setSelectedOutcome] = useState<CallOutcome>('completed');
+  const transcriptRef = useRef<TranscriptMessage[]>([]);
+  const callStartTimeRef = useRef<number>(0);
 
   // Load agent ID from localStorage
   useEffect(() => {
@@ -50,21 +62,63 @@ export default function VoiceCallWidget({
     return () => clearInterval(interval);
   }, []);
 
+  const handleSaveLog = useCallback(async (outcome: CallOutcome) => {
+    if (!agentId || callDuration === 0) return;
+    
+    const result = await saveCallLog({
+      agent_id: agentId,
+      duration_seconds: callDuration,
+      outcome,
+      transcript: transcriptRef.current.length > 0 ? transcriptRef.current : undefined,
+      lead_id: leadId,
+      lead_name: leadName,
+      lead_phone: leadPhone,
+    });
+    
+    if (result.success) {
+      toast.success('Call logged successfully');
+    } else {
+      toast.error('Failed to save call log');
+    }
+    
+    // Reset
+    transcriptRef.current = [];
+    setShowOutcomeSelector(false);
+    setSelectedOutcome('completed');
+  }, [agentId, callDuration, leadId, leadName, leadPhone]);
+
   const conversation = useConversation({
     onConnect: () => {
       console.log('Connected to AI agent');
       setIsConnecting(false);
+      callStartTimeRef.current = Date.now();
+      transcriptRef.current = [];
       toast.success('Connected to AI agent');
     },
     onDisconnect: () => {
       console.log('Disconnected from AI agent');
       if (callDuration > 0) {
+        setShowOutcomeSelector(true);
         onCallEnd?.(callDuration);
       }
-      setCallDuration(0);
     },
-    onMessage: (message) => {
+    onMessage: (message: any) => {
       console.log('Message from agent:', message);
+      
+      // Capture transcript messages
+      if (message.type === 'user_transcript' && message.user_transcription_event?.user_transcript) {
+        transcriptRef.current.push({
+          role: 'user',
+          text: message.user_transcription_event.user_transcript,
+          timestamp: Date.now() - callStartTimeRef.current,
+        });
+      } else if (message.type === 'agent_response' && message.agent_response_event?.agent_response) {
+        transcriptRef.current.push({
+          role: 'agent',
+          text: message.agent_response_event.agent_response,
+          timestamp: Date.now() - callStartTimeRef.current,
+        });
+      }
     },
     onError: (error) => {
       console.error('Conversation error:', error);
@@ -107,7 +161,19 @@ export default function VoiceCallWidget({
   const endCall = useCallback(async () => {
     await conversation.endSession();
     toast.info(`Call ended - Duration: ${formatDuration(callDuration)}`);
+    // Don't reset duration yet - we need it for logging
   }, [conversation, callDuration]);
+
+  const handleOutcomeConfirm = useCallback(() => {
+    handleSaveLog(selectedOutcome);
+    setCallDuration(0);
+  }, [handleSaveLog, selectedOutcome]);
+
+  const handleSkipLogging = useCallback(() => {
+    setShowOutcomeSelector(false);
+    setCallDuration(0);
+    transcriptRef.current = [];
+  }, []);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -272,9 +338,38 @@ export default function VoiceCallWidget({
         </div>
 
         {/* Tips */}
-        {!isConnected && !isConnecting && (
+        {!isConnected && !isConnecting && !showOutcomeSelector && (
           <div className="text-center text-xs text-muted-foreground mt-2">
             <p>Your AI agent will handle the conversation automatically</p>
+          </div>
+        )}
+
+        {/* Outcome Selector - shown after call ends */}
+        {showOutcomeSelector && (
+          <div className="mt-4 p-4 rounded-lg bg-muted/50 border space-y-3">
+            <p className="text-sm font-medium">How did the call go?</p>
+            <Select value={selectedOutcome} onValueChange={(v) => setSelectedOutcome(v as CallOutcome)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="interested">✅ Interested</SelectItem>
+                <SelectItem value="callback_requested">📞 Callback Requested</SelectItem>
+                <SelectItem value="not_interested">❌ Not Interested</SelectItem>
+                <SelectItem value="no_answer">📵 No Answer</SelectItem>
+                <SelectItem value="wrong_number">🚫 Wrong Number</SelectItem>
+                <SelectItem value="completed">✓ Completed</SelectItem>
+                <SelectItem value="other">📝 Other</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="flex gap-2">
+              <Button onClick={handleOutcomeConfirm} className="flex-1">
+                Save Call Log
+              </Button>
+              <Button variant="ghost" onClick={handleSkipLogging}>
+                Skip
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>
