@@ -87,18 +87,32 @@ function generateMockPlatformResults(service: string, location: string, platform
   });
 }
 
+// Callback for progressive loading
+export type PlatformProgressCallback = (results: PlatformResult[], progress: number) => void;
+
 export async function searchPlatforms(
   service: string,
   location: string,
-  platforms: string[]
+  platforms: string[],
+  onProgress?: PlatformProgressCallback
 ): Promise<PlatformSearchResponse> {
   // Use mock data if no API URL is configured
   if (USE_MOCK_DATA) {
-    await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 700));
+    const allResults = generateMockPlatformResults(service, location, platforms);
+    
+    // Simulate progressive loading
+    if (onProgress) {
+      for (let i = 0; i < allResults.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 50));
+        onProgress(allResults.slice(0, i + 1), ((i + 1) / allResults.length) * 100);
+      }
+    } else {
+      await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 700));
+    }
     
     return {
       success: true,
-      data: generateMockPlatformResults(service, location, platforms),
+      data: allResults,
       query: { service, location, platforms },
     };
   }
@@ -120,7 +134,24 @@ export async function searchPlatforms(
       };
     }
 
-    return await response.json();
+    const data = await response.json();
+    
+    // Progressive reveal for platform results
+    if (onProgress && data.success && data.data) {
+      const allResults = data.data;
+      const batchSize = Math.max(2, Math.floor(allResults.length / 4));
+      let loaded = 0;
+      
+      while (loaded < allResults.length) {
+        loaded = Math.min(loaded + batchSize, allResults.length);
+        onProgress(allResults.slice(0, loaded), (loaded / allResults.length) * 100);
+        if (loaded < allResults.length) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+      }
+    }
+    
+    return data;
   } catch (error) {
     console.error('Platform Search error:', error);
     return {

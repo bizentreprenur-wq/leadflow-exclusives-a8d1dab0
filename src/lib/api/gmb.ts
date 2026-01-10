@@ -124,16 +124,39 @@ function generateMockResults(service: string, location: string, count: number = 
   });
 }
 
-export async function searchGMB(service: string, location: string, limit: number = 100): Promise<GMBSearchResponse> {
+// Callback for progressive loading
+export type ProgressCallback = (results: GMBResult[], progress: number) => void;
+
+export async function searchGMB(
+  service: string, 
+  location: string, 
+  limit: number = 100,
+  onProgress?: ProgressCallback
+): Promise<GMBSearchResponse> {
   // Use mock data if no API URL is configured
   if (USE_MOCK_DATA) {
-    // Simulate network delay - longer for larger requests
-    const delay = Math.min(500 + (limit * 2), 3000);
-    await new Promise(resolve => setTimeout(resolve, delay));
+    // Generate all results first
+    const allResults = generateMockResults(service, location, limit);
+    
+    // Simulate progressive loading in batches
+    if (onProgress) {
+      const batchSize = Math.max(10, Math.floor(limit / 5)); // 5 batches
+      let loaded = 0;
+      
+      while (loaded < allResults.length) {
+        await new Promise(resolve => setTimeout(resolve, 150 + Math.random() * 100));
+        loaded = Math.min(loaded + batchSize, allResults.length);
+        onProgress(allResults.slice(0, loaded), (loaded / allResults.length) * 100);
+      }
+    } else {
+      // Legacy behavior - wait for all
+      const delay = Math.min(500 + (limit * 2), 3000);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
     
     return {
       success: true,
-      data: generateMockResults(service, location, limit),
+      data: allResults,
       query: { service, location },
     };
   }
@@ -155,7 +178,24 @@ export async function searchGMB(service: string, location: string, limit: number
       };
     }
 
-    return await response.json();
+    const data = await response.json();
+    
+    // If we have progress callback and data, simulate progressive reveal
+    if (onProgress && data.success && data.data) {
+      const allResults = data.data;
+      const batchSize = Math.max(10, Math.floor(allResults.length / 5));
+      let loaded = 0;
+      
+      while (loaded < allResults.length) {
+        loaded = Math.min(loaded + batchSize, allResults.length);
+        onProgress(allResults.slice(0, loaded), (loaded / allResults.length) * 100);
+        if (loaded < allResults.length) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+      }
+    }
+    
+    return data;
   } catch (error) {
     console.error('GMB Search error:', error);
     return {
