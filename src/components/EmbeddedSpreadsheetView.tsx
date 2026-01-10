@@ -1,0 +1,850 @@
+import { useState, useMemo } from 'react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
+import { format } from 'date-fns';
+import {
+  ArrowLeft, Download, ChevronDown,
+  Globe, Phone, MapPin, ExternalLink,
+  FileSpreadsheet, FileDown, Flame, Thermometer, Snowflake, Clock, 
+  PhoneCall, Users, Mail,
+  Target, Zap, Brain, Rocket
+} from 'lucide-react';
+import CRMIntegrationModal from './CRMIntegrationModal';
+import EmailScheduleModal from './EmailScheduleModal';
+import LeadCallModal from './LeadCallModal';
+import CallQueueModal from './CallQueueModal';
+import CreditsUpsellModal from './CreditsUpsellModal';
+import LeadActionChoiceModal from './LeadActionChoiceModal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+
+interface SearchResult {
+  id: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  website?: string;
+  email?: string;
+  rating?: number;
+  source: 'gmb' | 'platform';
+  platform?: string;
+  websiteAnalysis?: {
+    hasWebsite: boolean;
+    platform: string | null;
+    needsUpgrade: boolean;
+    issues: string[];
+    mobileScore: number | null;
+    loadTime?: number | null;
+  };
+  aiClassification?: 'hot' | 'warm' | 'cold';
+  leadScore?: number;
+  bestTimeToCall?: string;
+  readyToCall?: boolean;
+  painPoints?: string[];
+  urgencyLevel?: 'high' | 'medium' | 'low';
+  recommendedApproach?: string;
+  conversionProbability?: number;
+  industry?: string;
+  employeeCount?: string;
+  annualRevenue?: string;
+}
+
+interface EmbeddedSpreadsheetViewProps {
+  leads: SearchResult[];
+  savedLeads?: SearchResult[];
+  onProceedToVerify: (leads: SearchResult[]) => void;
+  onSaveToDatabase?: (leads: SearchResult[]) => void;
+  onSendToEmail?: (leads: SearchResult[]) => void;
+  onBack: () => void;
+}
+
+// Generate 1000 fake website design leads with AI intelligence
+const generateFakeLeads = (): SearchResult[] => {
+  const businessTypes = [
+    'Plumbing', 'Dental', 'Law Firm', 'Restaurant', 'Auto Repair', 'Salon', 'Gym', 
+    'Real Estate', 'Landscaping', 'HVAC', 'Roofing', 'Electrician', 'Accounting',
+    'Veterinary', 'Chiropractic', 'Photography', 'Catering', 'Cleaning', 'Moving',
+    'Insurance', 'Florist', 'Bakery', 'Pet Store', 'Daycare', 'Tutoring'
+  ];
+  
+  const cities = [
+    'New York, NY', 'Los Angeles, CA', 'Chicago, IL', 'Houston, TX', 'Phoenix, AZ',
+    'Philadelphia, PA', 'San Antonio, TX', 'San Diego, CA', 'Dallas, TX', 'Austin, TX',
+    'Jacksonville, FL', 'Fort Worth, TX', 'Columbus, OH', 'Charlotte, NC', 'Indianapolis, IN',
+    'Seattle, WA', 'Denver, CO', 'Boston, MA', 'Nashville, TN', 'Portland, OR',
+    'Las Vegas, NV', 'Detroit, MI', 'Memphis, TN', 'Louisville, KY', 'Baltimore, MD'
+  ];
+
+  const firstNames = ['John', 'Mike', 'David', 'James', 'Robert', 'William', 'Richard', 'Joseph', 'Thomas', 'Charles', 'Sarah', 'Jennifer', 'Lisa', 'Karen', 'Nancy', 'Betty', 'Margaret', 'Sandra', 'Ashley', 'Dorothy'];
+  const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Anderson', 'Taylor', 'Thomas', 'Moore', 'Jackson', 'Martin', 'Lee', 'Thompson', 'White', 'Harris'];
+  
+  const platforms = ['WordPress 3.x', 'Wix (Old)', 'Squarespace', 'Joomla 2.5', 'Drupal 6', 'GoDaddy Builder', 'Weebly', 'Custom HTML', null];
+  
+  const painPoints = [
+    'Website not mobile-friendly',
+    'Slow page load times',
+    'Outdated design from 2010s',
+    'No online booking system',
+    'Missing contact forms',
+    'No SSL certificate',
+    'Poor SEO rankings',
+    'No Google reviews integration',
+    'Broken links throughout site',
+    'Missing social media integration',
+    'No email capture forms',
+    'Competitors ranking higher',
+    'Losing customers to competitors',
+    'No online payment options'
+  ];
+
+  const approaches = [
+    'Emphasize mobile-first redesign',
+    'Lead with competitor analysis',
+    'Focus on SEO improvements',
+    'Highlight revenue impact',
+    'Show before/after examples',
+    'Offer free website audit',
+    'Discuss local search visibility',
+    'Present case study from same industry'
+  ];
+
+  const callTimes = [
+    '9:00 AM - 10:00 AM',
+    '10:00 AM - 11:00 AM',
+    '11:00 AM - 12:00 PM',
+    '2:00 PM - 3:00 PM',
+    '3:00 PM - 4:00 PM',
+    '4:00 PM - 5:00 PM'
+  ];
+
+  const issues = [
+    'No mobile responsiveness',
+    'Outdated CMS version',
+    'Security vulnerabilities',
+    'Slow load time (>5s)',
+    'Missing meta tags',
+    'No HTTPS',
+    'Broken contact form',
+    'Flash content detected',
+    'Missing alt tags',
+    'Duplicate content issues'
+  ];
+
+  const leads: SearchResult[] = [];
+  
+  for (let i = 0; i < 1000; i++) {
+    const businessType = businessTypes[Math.floor(Math.random() * businessTypes.length)];
+    const city = cities[Math.floor(Math.random() * cities.length)];
+    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+    const hasWebsite = Math.random() > 0.25;
+    const platform = hasWebsite ? platforms[Math.floor(Math.random() * platforms.length)] : null;
+    
+    const leadScore = Math.floor(Math.random() * 100) + 1;
+    let aiClassification: 'hot' | 'warm' | 'cold';
+    let urgencyLevel: 'high' | 'medium' | 'low';
+    let readyToCall: boolean;
+    let conversionProbability: number;
+    
+    if (leadScore >= 80) {
+      aiClassification = 'hot';
+      urgencyLevel = 'high';
+      readyToCall = true;
+      conversionProbability = Math.floor(Math.random() * 20) + 75;
+    } else if (leadScore >= 50) {
+      aiClassification = 'warm';
+      urgencyLevel = 'medium';
+      readyToCall = Math.random() > 0.5;
+      conversionProbability = Math.floor(Math.random() * 30) + 35;
+    } else {
+      aiClassification = 'cold';
+      urgencyLevel = 'low';
+      readyToCall = Math.random() > 0.8;
+      conversionProbability = Math.floor(Math.random() * 25) + 5;
+    }
+
+    const numPainPoints = Math.floor(Math.random() * 4) + 1;
+    const selectedPainPoints: string[] = [];
+    for (let j = 0; j < numPainPoints; j++) {
+      const point = painPoints[Math.floor(Math.random() * painPoints.length)];
+      if (!selectedPainPoints.includes(point)) {
+        selectedPainPoints.push(point);
+      }
+    }
+
+    const numIssues = Math.floor(Math.random() * 6);
+    const selectedIssues: string[] = [];
+    for (let j = 0; j < numIssues; j++) {
+      const issue = issues[Math.floor(Math.random() * issues.length)];
+      if (!selectedIssues.includes(issue)) {
+        selectedIssues.push(issue);
+      }
+    }
+
+    const streetNum = Math.floor(Math.random() * 9999) + 1;
+    const streets = ['Main St', 'Oak Ave', 'Maple Dr', 'Cedar Ln', 'Pine Rd', 'Elm St', 'Park Ave', 'Broadway', 'Market St', 'Center Ave'];
+    const street = streets[Math.floor(Math.random() * streets.length)];
+
+    leads.push({
+      id: `lead-${i + 1}`,
+      name: `${firstName}'s ${businessType} Services`,
+      address: `${streetNum} ${street}, ${city}`,
+      phone: `(${Math.floor(Math.random() * 900) + 100}) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`,
+      website: hasWebsite ? `www.${firstName.toLowerCase()}${businessType.toLowerCase().replace(/\s/g, '')}.com` : undefined,
+      email: `contact@${firstName.toLowerCase()}${businessType.toLowerCase().replace(/\s/g, '')}.com`,
+      rating: Math.floor(Math.random() * 20 + 30) / 10,
+      source: Math.random() > 0.5 ? 'gmb' : 'platform',
+      platform: platform || undefined,
+      websiteAnalysis: hasWebsite ? {
+        hasWebsite: true,
+        platform: platform,
+        needsUpgrade: Math.random() > 0.3,
+        issues: selectedIssues,
+        mobileScore: Math.floor(Math.random() * 60) + 20,
+        loadTime: Math.random() * 8 + 1,
+      } : {
+        hasWebsite: false,
+        platform: null,
+        needsUpgrade: false,
+        issues: [],
+        mobileScore: null,
+        loadTime: null,
+      },
+      aiClassification,
+      leadScore,
+      bestTimeToCall: callTimes[Math.floor(Math.random() * callTimes.length)],
+      readyToCall,
+      painPoints: selectedPainPoints,
+      urgencyLevel,
+      recommendedApproach: approaches[Math.floor(Math.random() * approaches.length)],
+      conversionProbability,
+      industry: businessType,
+      employeeCount: ['1-5', '5-10', '10-25', '25-50', '50+'][Math.floor(Math.random() * 5)],
+      annualRevenue: ['$50K-100K', '$100K-250K', '$250K-500K', '$500K-1M', '$1M+'][Math.floor(Math.random() * 5)],
+    });
+  }
+  
+  return leads;
+};
+
+export default function EmbeddedSpreadsheetView({
+  leads: externalLeads,
+  savedLeads = [],
+  onProceedToVerify,
+  onSaveToDatabase,
+  onSendToEmail,
+  onBack,
+}: EmbeddedSpreadsheetViewProps) {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [activeGroup, setActiveGroup] = useState<'all' | 'hot' | 'warm' | 'cold' | 'ready' | 'nowebsite'>('all');
+  const [showCRMModal, setShowCRMModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showVerifyConfirm, setShowVerifyConfirm] = useState(false);
+  const [showCallModal, setShowCallModal] = useState(false);
+  const [showCallQueueModal, setShowCallQueueModal] = useState(false);
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [showActionChoice, setShowActionChoice] = useState(false);
+  const [callLead, setCallLead] = useState<SearchResult | null>(null);
+  const [callQueueLeads, setCallQueueLeads] = useState<SearchResult[]>([]);
+  const [userCredits] = useState(25);
+  const [isExportingToDrive, setIsExportingToDrive] = useState(false);
+  
+  // Use fake leads if external leads are 100 or less
+  const [fakeLeads] = useState<SearchResult[]>(() => generateFakeLeads());
+  const leads = externalLeads.length > 100 ? externalLeads : fakeLeads;
+
+  // Group leads by AI classification
+  const groupedLeads = useMemo(() => {
+    const hot = leads.filter(l => l.aiClassification === 'hot');
+    const warm = leads.filter(l => l.aiClassification === 'warm');
+    const cold = leads.filter(l => l.aiClassification === 'cold');
+    const readyToCall = leads.filter(l => l.readyToCall);
+    const noWebsite = leads.filter(l => !l.websiteAnalysis?.hasWebsite);
+    
+    return { hot, warm, cold, readyToCall, noWebsite, all: leads };
+  }, [leads]);
+
+  const currentLeads = useMemo(() => {
+    switch (activeGroup) {
+      case 'hot': return leads.filter(l => l.aiClassification === 'hot');
+      case 'warm': return leads.filter(l => l.aiClassification === 'warm');
+      case 'cold': return leads.filter(l => l.aiClassification === 'cold');
+      case 'ready': return leads.filter(l => l.readyToCall);
+      case 'nowebsite': return leads.filter(l => !l.websiteAnalysis?.hasWebsite);
+      default: return leads;
+    }
+  }, [activeGroup, leads]);
+
+  const handleGroupChange = (group: typeof activeGroup) => {
+    setActiveGroup(group);
+    // Auto-select ALL leads in the selected group (except 'all')
+    let filteredLeads: SearchResult[] = [];
+    
+    switch (group) {
+      case 'hot': filteredLeads = leads.filter(l => l.aiClassification === 'hot'); break;
+      case 'warm': filteredLeads = leads.filter(l => l.aiClassification === 'warm'); break;
+      case 'cold': filteredLeads = leads.filter(l => l.aiClassification === 'cold'); break;
+      case 'ready': filteredLeads = leads.filter(l => l.readyToCall); break;
+      case 'nowebsite': filteredLeads = leads.filter(l => !l.websiteAnalysis?.hasWebsite); break;
+      default: filteredLeads = [];
+    }
+    
+    if (group !== 'all') {
+      setSelectedIds(new Set(filteredLeads.map(l => l.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    if (selectedIds.size === currentLeads.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(currentLeads.map(l => l.id)));
+    }
+  };
+
+  const selectedLeads = useMemo(() => 
+    currentLeads.filter(l => selectedIds.has(l.id)),
+    [currentLeads, selectedIds]
+  );
+
+  const handleAIVerifyClick = () => {
+    if (selectedLeads.length === 0) {
+      toast.error('Please select at least one lead to verify');
+      return;
+    }
+    setShowVerifyConfirm(true);
+  };
+
+  const handleConfirmVerify = () => {
+    if (userCredits < selectedLeads.length) {
+      setShowVerifyConfirm(false);
+      setShowCreditsModal(true);
+      return;
+    }
+    setShowVerifyConfirm(false);
+    onProceedToVerify(selectedLeads);
+    toast.success(`Sending ${selectedLeads.length} leads to AI verification`);
+  };
+
+  const handleCallLead = (lead: SearchResult) => {
+    setCallLead(lead);
+    setShowCallModal(true);
+  };
+
+  const handleOpenActionChoice = () => {
+    if (selectedLeads.length === 0) {
+      toast.error('Please select at least one lead');
+      return;
+    }
+    setShowActionChoice(true);
+  };
+
+  const handleCallFromChoice = () => {
+    if (selectedLeads.length === 1) {
+      setCallLead(selectedLeads[0]);
+      setShowCallModal(true);
+    } else {
+      setCallQueueLeads(selectedLeads);
+      setShowCallQueueModal(true);
+    }
+  };
+
+  const handleEmailFromChoice = () => {
+    if (onSendToEmail) {
+      onSendToEmail(selectedLeads);
+    }
+  };
+
+  const handleAIVerifyFromChoice = () => {
+    setShowVerifyConfirm(true);
+  };
+
+  const handleExportCSV = () => {
+    const dataToExport = selectedLeads.length > 0 ? selectedLeads : currentLeads;
+    
+    const headers = ['Name', 'Email', 'Phone', 'Address', 'Website', 'Rating', 'AI Score', 'Classification', 'Best Time to Call', 'Ready to Call', 'Pain Points', 'Recommended Approach', 'Conversion %', 'Industry'];
+    const rows = dataToExport.map(r => [
+      `"${r.name || ''}"`,
+      `"${r.email || ''}"`,
+      `"${r.phone || ''}"`,
+      `"${r.address || ''}"`,
+      `"${r.website || 'No Website'}"`,
+      r.rating || '',
+      r.leadScore || '',
+      r.aiClassification?.toUpperCase() || '',
+      `"${r.bestTimeToCall || ''}"`,
+      r.readyToCall ? 'Yes' : 'No',
+      `"${r.painPoints?.join('; ') || ''}"`,
+      `"${r.recommendedApproach || ''}"`,
+      `${r.conversionProbability || 0}%`,
+      `"${r.industry || ''}"`,
+    ].join(','));
+
+    const csv = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `website-design-leads-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${dataToExport.length} leads as CSV`);
+  };
+
+  const handleExportExcel = () => {
+    const dataToExport = selectedLeads.length > 0 ? selectedLeads : currentLeads;
+    
+    const worksheetData = dataToExport.map(r => ({
+      'Business Name': r.name || '',
+      'Email': r.email || '',
+      'Phone': r.phone || '',
+      'Address': r.address || '',
+      'Website': r.website || 'No Website',
+      'Rating': r.rating || '',
+      'AI Score': r.leadScore || '',
+      'Classification': r.aiClassification?.toUpperCase() || '',
+      'Best Time to Call': r.bestTimeToCall || '',
+      'Ready to Call': r.readyToCall ? 'Yes' : 'No',
+      'Conversion Probability': `${r.conversionProbability || 0}%`,
+      'Pain Points': r.painPoints?.join('; ') || '',
+      'Recommended Approach': r.recommendedApproach || '',
+      'Urgency': r.urgencyLevel?.toUpperCase() || '',
+      'Industry': r.industry || '',
+      'Platform': r.websiteAnalysis?.platform || '',
+      'Mobile Score': r.websiteAnalysis?.mobileScore || '',
+      'Issues': r.websiteAnalysis?.issues?.join('; ') || '',
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+    const colWidths = Object.keys(worksheetData[0] || {}).map(key => ({ wch: Math.max(key.length, 15) }));
+    worksheet['!cols'] = colWidths;
+    
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Leads');
+    XLSX.writeFile(workbook, `website-design-leads-${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast.success(`Exported ${dataToExport.length} leads as Excel`);
+  };
+
+  const getClassificationBadge = (classification?: string) => {
+    switch (classification) {
+      case 'hot':
+        return <Badge className="bg-red-500/20 text-red-600 border-red-500/30 gap-1"><Flame className="w-3 h-3" /> HOT</Badge>;
+      case 'warm':
+        return <Badge className="bg-orange-500/20 text-orange-600 border-orange-500/30 gap-1"><Thermometer className="w-3 h-3" /> WARM</Badge>;
+      case 'cold':
+        return <Badge className="bg-blue-500/20 text-blue-600 border-blue-500/30 gap-1"><Snowflake className="w-3 h-3" /> COLD</Badge>;
+      default:
+        return <Badge variant="outline">Unknown</Badge>;
+    }
+  };
+
+  const getRowClassName = (lead: SearchResult) => {
+    const isSelected = selectedIds.has(lead.id);
+    let baseClass = 'transition-colors cursor-pointer ';
+    
+    if (isSelected) {
+      baseClass += 'bg-primary/10 ';
+    }
+    
+    switch (lead.aiClassification) {
+      case 'hot':
+        return baseClass + (isSelected ? 'bg-red-500/20' : 'hover:bg-red-500/10');
+      case 'warm':
+        return baseClass + (isSelected ? 'bg-orange-500/20' : 'hover:bg-orange-500/10');
+      case 'cold':
+        return baseClass + (isSelected ? 'bg-blue-500/20' : 'hover:bg-blue-500/10');
+      default:
+        return baseClass + 'hover:bg-muted/50';
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full min-h-[600px] bg-background rounded-xl border overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b bg-card">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" onClick={onBack} className="gap-2">
+            <ArrowLeft className="w-4 h-4" />
+            New Search
+          </Button>
+          <div className="flex items-center gap-2">
+            <Brain className="w-5 h-5 text-primary" />
+            <span className="font-semibold">STEP 2: Review Leads</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className="gap-2 px-3 py-1">
+            <Users className="w-4 h-4" />
+            {leads.length.toLocaleString()} Total Leads
+          </Badge>
+        </div>
+      </div>
+
+      {/* AI Intelligence Summary Bar */}
+      <div className="px-4 py-3 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 border-b">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Flame className="w-4 h-4 text-red-500" />
+              <span className="font-semibold text-red-600">{groupedLeads.hot.length}</span>
+              <span className="text-xs text-muted-foreground hidden sm:inline">Hot</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Thermometer className="w-4 h-4 text-orange-500" />
+              <span className="font-semibold text-orange-600">{groupedLeads.warm.length}</span>
+              <span className="text-xs text-muted-foreground hidden sm:inline">Warm</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Snowflake className="w-4 h-4 text-blue-500" />
+              <span className="font-semibold text-blue-600">{groupedLeads.cold.length}</span>
+              <span className="text-xs text-muted-foreground hidden sm:inline">Cold</span>
+            </div>
+            <div className="h-4 w-px bg-border hidden sm:block" />
+            <div className="flex items-center gap-2">
+              <PhoneCall className="w-4 h-4 text-emerald-500" />
+              <span className="font-semibold text-emerald-600">{groupedLeads.readyToCall.length}</span>
+              <span className="text-xs text-muted-foreground hidden sm:inline">Ready</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Globe className="w-4 h-4 text-purple-500" />
+              <span className="font-semibold text-purple-600">{groupedLeads.noWebsite.length}</span>
+              <span className="text-xs text-muted-foreground hidden sm:inline">No Site</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Zap className="w-3 h-3 text-primary" />
+            AI scored
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b bg-muted/30">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant={activeGroup === 'all' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => handleGroupChange('all')}
+            className="gap-1"
+          >
+            <Users className="w-3 h-3" />
+            All ({leads.length})
+          </Button>
+          <Button
+            variant={activeGroup === 'hot' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => handleGroupChange('hot')}
+            className="gap-1 border-red-500/30 hover:bg-red-500/10"
+          >
+            <Flame className="w-3 h-3 text-red-500" />
+            Hot ({groupedLeads.hot.length})
+          </Button>
+          <Button
+            variant={activeGroup === 'warm' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => handleGroupChange('warm')}
+            className="gap-1 border-orange-500/30 hover:bg-orange-500/10"
+          >
+            <Thermometer className="w-3 h-3 text-orange-500" />
+            Warm ({groupedLeads.warm.length})
+          </Button>
+          <Button
+            variant={activeGroup === 'cold' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => handleGroupChange('cold')}
+            className="gap-1 border-blue-500/30 hover:bg-blue-500/10"
+          >
+            <Snowflake className="w-3 h-3 text-blue-500" />
+            Cold ({groupedLeads.cold.length})
+          </Button>
+          <Button
+            variant={activeGroup === 'ready' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => handleGroupChange('ready')}
+            className="gap-1 border-emerald-500/30 hover:bg-emerald-500/10"
+          >
+            <PhoneCall className="w-3 h-3 text-emerald-500" />
+            Ready ({groupedLeads.readyToCall.length})
+          </Button>
+          <Button
+            variant={activeGroup === 'nowebsite' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => handleGroupChange('nowebsite')}
+            className="gap-1 border-purple-500/30 hover:bg-purple-500/10"
+          >
+            <Target className="w-3 h-3 text-purple-500" />
+            No Website ({groupedLeads.noWebsite.length})
+          </Button>
+        </div>
+      </div>
+
+      {/* Action Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b bg-card">
+        <div className="flex items-center gap-4 text-sm">
+          <span className="font-medium">{selectedIds.size} selected</span>
+          <Button variant="ghost" size="sm" onClick={selectAll}>
+            {selectedIds.size === currentLeads.length ? 'Deselect All' : 'Select All'}
+          </Button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Primary Action Button */}
+          <Button 
+            onClick={handleOpenActionChoice}
+            disabled={selectedIds.size === 0}
+            className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 font-medium"
+          >
+            <Rocket className="w-4 h-4" />
+            Take Action ({selectedIds.size})
+          </Button>
+
+          {/* Export Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Download className="w-4 h-4" />
+                Export
+                <ChevronDown className="w-3 h-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={handleExportCSV}>
+                <FileDown className="w-4 h-4 mr-2" />
+                Export as CSV
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleExportExcel}>
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Export as Excel
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="flex-1 overflow-auto">
+        <Table>
+          <TableHeader className="sticky top-0 bg-card z-10">
+            <TableRow>
+              <TableHead className="w-12">
+                <Checkbox
+                  checked={selectedIds.size === currentLeads.length && currentLeads.length > 0}
+                  onCheckedChange={selectAll}
+                />
+              </TableHead>
+              <TableHead className="min-w-[200px]">Business</TableHead>
+              <TableHead className="min-w-[120px]">Contact</TableHead>
+              <TableHead className="min-w-[100px]">Score</TableHead>
+              <TableHead className="min-w-[100px]">Status</TableHead>
+              <TableHead className="min-w-[120px]">Best Time</TableHead>
+              <TableHead className="min-w-[150px]">Website</TableHead>
+              <TableHead className="min-w-[80px]">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {currentLeads.map((lead) => (
+              <TableRow 
+                key={lead.id}
+                className={getRowClassName(lead)}
+                onClick={() => toggleSelect(lead.id)}
+              >
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  <Checkbox
+                    checked={selectedIds.has(lead.id)}
+                    onCheckedChange={() => toggleSelect(lead.id)}
+                  />
+                </TableCell>
+                <TableCell>
+                  <div>
+                    <p className="font-medium truncate max-w-[200px]">{lead.name}</p>
+                    <p className="text-xs text-muted-foreground truncate max-w-[200px]">{lead.address}</p>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="space-y-1">
+                    {lead.phone && (
+                      <div className="flex items-center gap-1 text-xs">
+                        <Phone className="w-3 h-3" />
+                        <span className="truncate max-w-[100px]">{lead.phone}</span>
+                      </div>
+                    )}
+                    {lead.email && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Mail className="w-3 h-3" />
+                        <span className="truncate max-w-[100px]">{lead.email}</span>
+                      </div>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-lg">{lead.leadScore}</span>
+                    {getClassificationBadge(lead.aiClassification)}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="space-y-1">
+                    {lead.readyToCall && (
+                      <Badge className="bg-emerald-500/20 text-emerald-600 text-xs gap-1">
+                        <PhoneCall className="w-3 h-3" /> Ready
+                      </Badge>
+                    )}
+                    {!lead.websiteAnalysis?.hasWebsite && (
+                      <Badge className="bg-purple-500/20 text-purple-600 text-xs gap-1">
+                        <Globe className="w-3 h-3" /> No Site
+                      </Badge>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Clock className="w-3 h-3" />
+                    {lead.bestTimeToCall}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {lead.website ? (
+                    <a
+                      href={`https://${lead.website}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center gap-1 text-xs text-primary hover:underline"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      <span className="truncate max-w-[100px]">{lead.website}</span>
+                    </a>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">No website</span>
+                  )}
+                </TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => handleCallLead(lead)}
+                    className="gap-1"
+                  >
+                    <Phone className="w-3 h-3" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Modals */}
+      <AlertDialog open={showVerifyConfirm} onOpenChange={setShowVerifyConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Verify {selectedLeads.length} Leads with AI?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will use {selectedLeads.length} credits to verify contact information for the selected leads.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmVerify}>
+              Verify Now
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {showActionChoice && (
+        <LeadActionChoiceModal
+          open={showActionChoice}
+          onOpenChange={setShowActionChoice}
+          selectedLeads={selectedLeads}
+          onCallSelected={handleCallFromChoice}
+          onEmailSelected={handleEmailFromChoice}
+          onAIVerifySelected={handleAIVerifyFromChoice}
+        />
+      )}
+
+      {showCallModal && callLead && (
+        <LeadCallModal
+          open={showCallModal}
+          onOpenChange={setShowCallModal}
+          lead={callLead}
+        />
+      )}
+
+      {showCallQueueModal && (
+        <CallQueueModal
+          open={showCallQueueModal}
+          onOpenChange={setShowCallQueueModal}
+          leads={callQueueLeads}
+        />
+      )}
+
+      {showCreditsModal && (
+        <CreditsUpsellModal
+          open={showCreditsModal}
+          onOpenChange={setShowCreditsModal}
+          requiredCredits={selectedLeads.length}
+          currentCredits={userCredits}
+        />
+      )}
+
+      {showCRMModal && (
+        <CRMIntegrationModal
+          open={showCRMModal}
+          onOpenChange={setShowCRMModal}
+          leads={selectedLeads}
+        />
+      )}
+
+      {showScheduleModal && (
+        <EmailScheduleModal
+          open={showScheduleModal}
+          onOpenChange={setShowScheduleModal}
+          leads={selectedLeads}
+          onSchedule={(leads, scheduledTime, mode) => {
+            toast.success(`Scheduled ${leads.length} emails for ${format(scheduledTime, 'PPp')}`);
+            setShowScheduleModal(false);
+          }}
+        />
+      )}
+    </div>
+  );
+}

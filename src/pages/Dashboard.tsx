@@ -50,6 +50,7 @@ import AutoFollowUpBuilder from '@/components/AutoFollowUpBuilder';
 import LeadResultsPanel from '@/components/LeadResultsPanel';
 import LeadDocumentViewer from '@/components/LeadDocumentViewer';
 import LeadSpreadsheetViewer from '@/components/LeadSpreadsheetViewer';
+import EmbeddedSpreadsheetView from '@/components/EmbeddedSpreadsheetView';
 import DataFieldSelector, { DATA_FIELD_OPTIONS } from '@/components/DataFieldSelector';
 import SettingsPanel from '@/components/SettingsPanel';
 import VoiceCallWidget from '@/components/VoiceCallWidget';
@@ -698,239 +699,26 @@ export default function Dashboard() {
 
       case 2:
         return (
-          <div className="space-y-6">
-            {/* BIG Step 2 Header */}
-            <div className="text-center py-6 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 rounded-2xl border-2 border-emerald-500/30">
-              <div className="text-6xl mb-4">{showAiGrouping ? '🤖' : '📋'}</div>
-              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-                STEP 2: {showAiGrouping ? 'AI-Sorted Leads' : 'Review Your Leads'} ({searchResults.length} Found!)
-              </h2>
-              <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-                {showAiGrouping 
-                  ? 'AI grouped leads by what\'s wrong with their website. Click a group to email them!'
-                  : 'Click on leads to SELECT them. Then click the big green button to verify with AI!'
-                }
-              </p>
-              {/* Toggle View */}
-              {aiGroups && (
-                <div className="flex justify-center gap-3 mt-4">
-                  <Button 
-                    variant={showAiGrouping ? 'default' : 'outline'}
-                    onClick={() => setShowAiGrouping(true)}
-                    className="gap-2"
-                  >
-                    <Brain className="w-4 h-4" />
-                    AI Grouped View
-                  </Button>
-                  <Button 
-                    variant={!showAiGrouping ? 'default' : 'outline'}
-                    onClick={() => setShowAiGrouping(false)}
-                    className="gap-2"
-                  >
-                    <Users className="w-4 h-4" />
-                    List View
-                  </Button>
-                </div>
-              )}
-              {isAnalyzing && (
-                <div className="flex items-center justify-center gap-2 mt-4 text-primary">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>AI analyzing leads...</span>
-                </div>
-              )}
-            </div>
-
-            {/* AI Grouping View */}
-            {showAiGrouping && aiGroups && aiSummary && aiStrategies ? (
-              <AILeadGrouping
-                groups={aiGroups}
-                summary={aiSummary}
-                emailStrategies={aiStrategies}
-                onSelectGroup={handleSelectGroup}
-                onSelectLead={handleSelectLeadFromGroup}
-              />
-            ) : (
-              <>
-
-            {/* Full Screen Spreadsheet CTA - PROMINENT */}
-            <Card className="border-2 border-primary/50 bg-gradient-to-r from-primary/10 to-accent/10 shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center text-3xl">
-                      📊
-                    </div>
-                    <div>
-                      <p className="text-xl font-bold text-foreground">
-                        {searchResults.length.toLocaleString()} Leads Found!
-                      </p>
-                      <p className="text-muted-foreground">
-                        Open the full-screen spreadsheet to see ALL leads at once like a PDF or Excel
-                      </p>
-                    </div>
-                  </div>
-                  <Button 
-                    onClick={() => setShowSpreadsheetViewer(true)} 
-                    size="lg" 
-                    className="gap-3 text-lg px-8 py-6 bg-primary hover:bg-primary/90 shadow-lg"
-                  >
-                    <ExternalLink className="w-5 h-5" />
-                    Open Full-Screen View
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Results Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-muted/50 rounded-xl">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => setCurrentStep(1)}
-                  className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded-lg hover:bg-muted"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  New search
-                </button>
-                <Badge variant="secondary" className="text-lg px-4 py-2">
-                  🎯 {selectedLeads.length} / {searchResults.length} selected
-                </Badge>
-              </div>
-              
-              <div className="flex items-center gap-3">
-                <Button variant="default" size="lg" onClick={() => setShowSpreadsheetViewer(true)} className="gap-2">
-                  📊 Spreadsheet View
-                </Button>
-                <Button variant="outline" size="lg" onClick={selectAllLeads}>
-                  {selectedLeads.length === searchResults.length ? '❌ Deselect All' : '✅ Select All'}
-                </Button>
-                <Button variant="outline" size="lg" onClick={downloadCSV}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Download CSV
-                </Button>
-              </div>
-            </div>
-
-            {/* Selection Summary - BIG AND OBVIOUS */}
-            {selectedLeads.length > 0 && (
-              <Card className="border-4 border-emerald-500 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 shadow-xl">
-                <CardContent className="p-6 flex flex-col md:flex-row items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center text-3xl">
-                      ✅
-                    </div>
-                    <div>
-                      <p className="text-2xl font-bold text-foreground">{selectedLeads.length} leads selected!</p>
-                      <p className="text-lg text-muted-foreground">Ready to verify and send outreach</p>
-                    </div>
-                  </div>
-                  <Button onClick={() => setCurrentStep(3)} size="lg" className="gap-3 text-lg px-8 py-6 bg-emerald-500 hover:bg-emerald-600">
-                    <Send className="w-6 h-6" />
-                    GO TO STEP 3: Outreach
-                    <ArrowRight className="w-6 h-6" />
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Results Grid */}
-            <ScrollArea className="h-[500px] pr-4">
-              <div className="grid gap-3">
-                {searchResults.map((result, index) => (
-                  <Card 
-                    key={result.id}
-                    className={`cursor-pointer transition-all hover:shadow-md ${
-                      selectedLeads.includes(result.id) 
-                        ? 'border-primary bg-primary/5 ring-2 ring-primary/20' 
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                    onClick={() => toggleLeadSelection(result.id)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-4">
-                        {/* Selection indicator */}
-                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 mt-1 ${
-                          selectedLeads.includes(result.id)
-                            ? 'border-primary bg-primary text-primary-foreground'
-                            : 'border-muted-foreground/30'
-                        }`}>
-                          {selectedLeads.includes(result.id) && (
-                            <CheckCircle2 className="w-4 h-4" />
-                          )}
-                        </div>
-
-                        {/* Lead info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <h3 className="font-semibold text-foreground truncate">
-                                {index + 1}. {result.name}
-                              </h3>
-                              {result.address && (
-                                <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                                  <MapPin className="w-3 h-3" />
-                                  {result.address}
-                                </p>
-                              )}
-                            </div>
-                            
-                            <div className="flex items-center gap-2 shrink-0">
-                              {result.rating && (
-                                <Badge variant="secondary" className="gap-1">
-                                  <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                                  {result.rating}
-                                </Badge>
-                              )}
-                              <Badge className={
-                                result.source === 'gmb' 
-                                  ? 'bg-primary/10 text-primary border-primary/20' 
-                                  : 'bg-violet-500/10 text-violet-500 border-violet-500/20'
-                              }>
-                                {result.source === 'gmb' ? 'GMB' : result.platform || 'Web'}
-                              </Badge>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-3 mt-2 text-sm">
-                            {result.phone && (
-                              <span className="flex items-center gap-1 text-muted-foreground">
-                                <Phone className="w-3 h-3" />
-                                {result.phone}
-                              </span>
-                            )}
-                            {result.email ? (
-                              <span className="flex items-center gap-1 text-emerald-600">
-                                <Mail className="w-3 h-3" />
-                                Has email ✓
-                              </span>
-                            ) : (
-                              <span className="flex items-center gap-1 text-amber-600">
-                                <Mail className="w-3 h-3" />
-                                No email (AI will find)
-                              </span>
-                            )}
-                            {result.website && (
-                              <a 
-                                href={result.website} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-1 text-primary hover:underline"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <ExternalLink className="w-3 h-3" />
-                                Website
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </ScrollArea>
-            </>
-            )}
-          </div>
+          <EmbeddedSpreadsheetView
+            leads={searchResults}
+            onBack={() => setCurrentStep(1)}
+            onProceedToVerify={(leads) => {
+              setWidgetLeads(leads);
+              sessionStorage.setItem('leadsToVerify', JSON.stringify(leads));
+              setShowVerifierWidget(true);
+            }}
+            onSendToEmail={(leads) => {
+              const convertedLeads: LeadForEmail[] = leads.map((l) => ({
+                email: l.email || '',
+                business_name: l.name,
+                contact_name: '',
+                website: l.website || '',
+                phone: l.phone || '',
+              }));
+              setEmailLeads(convertedLeads);
+              setCurrentStep(3);
+            }}
+          />
         );
 
       case 3: {
