@@ -34,7 +34,7 @@ import {
   Globe, Phone, MapPin, ExternalLink,
   FileSpreadsheet, FileDown, Flame, Thermometer, Snowflake, Clock, 
   PhoneCall, Users, Mail,
-  Target, Zap, Brain, Rocket, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Trash2, FileText, Printer, Loader2
+  Target, Zap, Brain, Rocket, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Trash2, FileText, Printer, Loader2, RotateCcw, History
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import CRMIntegrationModal from './CRMIntegrationModal';
@@ -921,6 +921,61 @@ export default function EmbeddedSpreadsheetView({
         searchQuery="Business Leads"
         location="Your Area"
       />
+
+      {/* VIEW PREVIOUS REPORTS BUTTON - Before the main spreadsheet */}
+      <div className="px-4 py-3 border-b bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/10">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center">
+              <FileText className="w-5 h-5 text-indigo-600" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">📂 Have a previous search?</p>
+              <p className="text-sm text-muted-foreground">
+                View your saved reports and lead lists from earlier sessions
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowLeadReportDocument(true)}
+              className="gap-2 border-indigo-500/50 text-indigo-600 hover:bg-indigo-500/10"
+            >
+              <FileText className="w-4 h-4" />
+              View Current Report
+            </Button>
+            <Button 
+              variant="default"
+              onClick={() => {
+                // Check if there are saved leads from previous sessions
+                const savedSelections = localStorage.getItem('bamlead_selected_leads');
+                const savedLeadsCount = savedSelections ? JSON.parse(savedSelections).length : 0;
+                
+                if (savedLeadsCount > 0) {
+                  toast.success(`Found ${savedLeadsCount} leads from your last session!`, {
+                    description: 'These leads are automatically selected for you.',
+                    duration: 5000,
+                  });
+                } else {
+                  toast.info('No previous selections found. Start by selecting leads from the list below!');
+                }
+              }}
+              className="gap-2 bg-indigo-600 hover:bg-indigo-700"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Load Previous Selection ({
+                (() => {
+                  try {
+                    const saved = localStorage.getItem('bamlead_selected_leads');
+                    return saved ? JSON.parse(saved).length : 0;
+                  } catch { return 0; }
+                })()
+              })
+            </Button>
+          </div>
+        </div>
+      </div>
 
       {/* STEP 2 Header with Instructions */}
       <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-purple-500/10 border-b">
