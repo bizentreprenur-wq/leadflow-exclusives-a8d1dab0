@@ -63,7 +63,8 @@ const sampleLeads = generateSampleLeads();
 const WORKFLOW_STEPS = [
   { id: 1, label: "Search", icon: Search },
   { id: 2, label: "Review Leads", icon: Building2 },
-  { id: 3, label: "Send Outreach", icon: Mail },
+  { id: 3, label: "Email", icon: Mail },
+  { id: 4, label: "Call", icon: Phone },
 ];
 
 export default function DashboardDemo() {
@@ -527,15 +528,25 @@ Best regards,
                             {selectedLeads.length - leadsWithEmailCount} leads don't have emails
                           </p>
                         </div>
-                        <Button 
-                          onClick={handleSendEmails}
-                          disabled={isSending || leadsWithEmailCount === 0}
-                          className="bg-green-600 hover:bg-green-700"
-                          size="lg"
-                        >
-                          <Send className="w-4 h-4 mr-2" />
-                          {isSending ? 'Sending...' : `Send to ${leadsWithEmailCount} Leads`}
-                        </Button>
+                        <div className="flex items-center gap-3">
+                          <Button 
+                            onClick={handleSendEmails}
+                            disabled={isSending || leadsWithEmailCount === 0}
+                            className="bg-green-600 hover:bg-green-700"
+                            size="lg"
+                          >
+                            <Send className="w-4 h-4 mr-2" />
+                            {isSending ? 'Sending...' : `Send to ${leadsWithEmailCount} Leads`}
+                          </Button>
+                          <Button 
+                            onClick={() => setCurrentStep(4)}
+                            variant="outline"
+                            size="lg"
+                          >
+                            <Phone className="w-4 h-4 mr-2" />
+                            Call Leads →
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -601,6 +612,67 @@ Best regards,
                 </CardContent>
               </Card>
             )}
+          </div>
+        )}
+
+        {/* Step 4: Voice Calling */}
+        {currentStep === 4 && (
+          <div className="space-y-6">
+            <div className="text-center py-6 bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-2xl border-2 border-green-500/30">
+              <div className="text-6xl mb-4">📞</div>
+              <h2 className="text-2xl font-bold">STEP 4: AI Voice Calls</h2>
+              <p className="text-muted-foreground max-w-md mx-auto mt-2">
+                Follow up with leads using AI-powered voice calls
+              </p>
+            </div>
+
+            <Button variant="outline" onClick={() => setCurrentStep(3)}>← Back to Emails</Button>
+
+            {/* Call Queue */}
+            <Card className="border-green-500/30">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Phone className="w-5 h-5 text-green-500" />
+                  Leads Ready to Call ({selectedLeads.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {leads.filter(l => selectedLeads.includes(l.id)).slice(0, 5).map((lead) => (
+                    <div 
+                      key={lead.id}
+                      className="flex items-center justify-between p-4 rounded-lg border border-border bg-card hover:border-green-500/50 transition-all"
+                    >
+                      <div>
+                        <p className="font-semibold">{lead.name}</p>
+                        <p className="text-sm text-muted-foreground flex items-center gap-2">
+                          <Phone className="w-3 h-3" />
+                          {lead.phone}
+                        </p>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        className="bg-green-600 hover:bg-green-700 gap-2"
+                        onClick={() => toast.info('Demo: Voice calls require ElevenLabs agent setup')}
+                      >
+                        <Phone className="w-4 h-4" />
+                        Call
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Setup Info */}
+            <Card className="border-amber-500/30 bg-amber-500/5">
+              <CardContent className="p-6 text-center">
+                <p className="font-medium text-amber-600 mb-2">🎙️ Voice Calling Setup Required</p>
+                <p className="text-sm text-muted-foreground">
+                  To enable AI voice calls, configure your ElevenLabs Public Agent ID in Settings.
+                </p>
+              </CardContent>
+            </Card>
           </div>
         )}
       </div>
