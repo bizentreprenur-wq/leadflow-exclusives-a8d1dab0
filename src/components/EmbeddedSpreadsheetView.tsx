@@ -42,6 +42,7 @@ import LeadCallModal from './LeadCallModal';
 import CallQueueModal from './CallQueueModal';
 import CreditsUpsellModal from './CreditsUpsellModal';
 import LeadActionChoiceModal from './LeadActionChoiceModal';
+import LeadReportDocument from './LeadReportDocument';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -300,6 +301,9 @@ export default function EmbeddedSpreadsheetView({
   const [hasAutoOpenedPDF, setHasAutoOpenedPDF] = useState(false);
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
   const [showPDFReadyBanner, setShowPDFReadyBanner] = useState(false);
+  
+  // Auto-open Lead Report Document popup
+  const [showLeadReportDocument, setShowLeadReportDocument] = useState(true);
 
   const groupedLeads = useMemo(() => {
     const hot = leads.filter(l => l.aiClassification === 'hot');
@@ -854,12 +858,21 @@ export default function EmbeddedSpreadsheetView({
         </div>
       )}
 
+      {/* Lead Report Document Auto-Popup */}
+      <LeadReportDocument
+        open={showLeadReportDocument}
+        onClose={() => setShowLeadReportDocument(false)}
+        leads={leads}
+        searchQuery="Business Leads"
+        location="Your Area"
+      />
+
       {/* STEP 2 Header with Instructions */}
       <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-purple-500/10 border-b">
-        {/* Welcome & Instructions */}
-        <div className="px-6 py-5">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-4">
+        {/* Welcome & Instructions - Compact */}
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
               {/* Back Button */}
               <Button variant="outline" size="sm" onClick={onBack} className="gap-2 shrink-0">
                 <ArrowLeft className="w-4 h-4" />
@@ -867,88 +880,98 @@ export default function EmbeddedSpreadsheetView({
               </Button>
               
               {/* Step Badge */}
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 rounded-full border border-blue-500/30">
-                  <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-lg">2</div>
-                  <span className="font-semibold text-blue-600">STEP 2: Review Your Leads</span>
-                </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-500/20 rounded-full border border-blue-500/30">
+                <div className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-sm">2</div>
+                <span className="font-semibold text-blue-600 text-sm">STEP 2: Review Your Leads</span>
               </div>
             </div>
             
             {/* Lead Count Badge */}
-            <Badge variant="outline" className="gap-2 px-4 py-2 text-base shrink-0">
-              <Users className="w-5 h-5" />
-              <span className="font-bold">{leads.length.toLocaleString()}</span> Total Leads
+            <Badge variant="outline" className="gap-2 px-3 py-1.5 text-sm shrink-0">
+              <Users className="w-4 h-4" />
+              <span className="font-bold">{leads.length.toLocaleString()}</span> Leads
             </Badge>
-          </div>
-          
-          {/* Helper Text */}
-          <div className="mt-4 p-4 bg-muted/40 rounded-lg border border-border/50">
-            <p className="text-sm text-muted-foreground">
-              <span className="text-foreground font-medium">👋 Here are your leads!</span> Use the filters below to find the best ones, 
-              then select them and take action. <span className="text-primary font-medium">Hot leads 🔥</span> are your best opportunities!
-            </p>
           </div>
         </div>
         
         {/* AI Intelligence Summary - Section Labeled */}
-        <div className="px-6 py-3 border-t border-border/50 bg-gradient-to-r from-primary/5 to-transparent">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
+        <div className="px-4 py-2 border-t border-border/50 bg-gradient-to-r from-primary/5 to-transparent">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">AI Summary:</span>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-1.5 px-2 py-1 bg-red-500/10 rounded-md">
-                  <Flame className="w-4 h-4 text-red-500" />
-                  <span className="font-bold text-red-600">{groupedLeads.hot.length}</span>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1 px-2 py-0.5 bg-red-500/10 rounded-md">
+                  <Flame className="w-3 h-3 text-red-500" />
+                  <span className="font-bold text-red-600 text-sm">{groupedLeads.hot.length}</span>
                   <span className="text-xs text-red-500">Hot</span>
                 </div>
-                <div className="flex items-center gap-1.5 px-2 py-1 bg-orange-500/10 rounded-md">
-                  <Thermometer className="w-4 h-4 text-orange-500" />
-                  <span className="font-bold text-orange-600">{groupedLeads.warm.length}</span>
+                <div className="flex items-center gap-1 px-2 py-0.5 bg-orange-500/10 rounded-md">
+                  <Thermometer className="w-3 h-3 text-orange-500" />
+                  <span className="font-bold text-orange-600 text-sm">{groupedLeads.warm.length}</span>
                   <span className="text-xs text-orange-500">Warm</span>
                 </div>
-                <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-500/10 rounded-md">
-                  <Snowflake className="w-4 h-4 text-blue-500" />
-                  <span className="font-bold text-blue-600">{groupedLeads.cold.length}</span>
+                <div className="flex items-center gap-1 px-2 py-0.5 bg-blue-500/10 rounded-md">
+                  <Snowflake className="w-3 h-3 text-blue-500" />
+                  <span className="font-bold text-blue-600 text-sm">{groupedLeads.cold.length}</span>
                   <span className="text-xs text-blue-500">Cold</span>
                 </div>
-                <div className="h-4 w-px bg-border hidden sm:block" />
-                <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 rounded-md">
-                  <PhoneCall className="w-4 h-4 text-emerald-500" />
-                  <span className="font-bold text-emerald-600">{groupedLeads.readyToCall.length}</span>
+                <div className="flex items-center gap-1 px-2 py-0.5 bg-emerald-500/10 rounded-md">
+                  <PhoneCall className="w-3 h-3 text-emerald-500" />
+                  <span className="font-bold text-emerald-600 text-sm">{groupedLeads.readyToCall.length}</span>
                   <span className="text-xs text-emerald-500">Ready</span>
                 </div>
-                <div className="flex items-center gap-1.5 px-2 py-1 bg-purple-500/10 rounded-md">
-                  <Globe className="w-4 h-4 text-purple-500" />
-                  <span className="font-bold text-purple-600">{groupedLeads.noWebsite.length}</span>
+                <div className="flex items-center gap-1 px-2 py-0.5 bg-purple-500/10 rounded-md">
+                  <Globe className="w-3 h-3 text-purple-500" />
+                  <span className="font-bold text-purple-600 text-sm">{groupedLeads.noWebsite.length}</span>
                   <span className="text-xs text-purple-500">No Site</span>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleViewPDFClick}
-                className="gap-2 border-primary/50 text-primary hover:bg-primary/10"
-              >
-                <FileText className="w-4 h-4" />
-                {hasAutoOpenedPDF ? 'View PDF' : 'Generate PDF'}
-              </Button>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Zap className="w-3 h-3 text-primary" />
-                AI scored
-              </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setShowLeadReportDocument(true)}
+              className="gap-2 border-primary/50 text-primary hover:bg-primary/10"
+            >
+              <FileText className="w-4 h-4" />
+              View Report
+            </Button>
+          </div>
+        </div>
+        
+        {/* HOW TO USE THIS PAGE - Instructions */}
+        <div className="px-4 py-3 border-t border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+              <Brain className="w-4 h-4 text-amber-600" />
             </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-amber-700 text-sm mb-1">📋 How to Use This Page:</h3>
+              <ol className="text-xs text-amber-600/90 space-y-0.5 list-decimal list-inside">
+                <li><strong>Filter leads</strong> by clicking Hot 🔥, Warm ⚡, Cold ❄️, Ready 📞, or No Website 🌐 below</li>
+                <li><strong>Select leads</strong> by clicking on rows or using the checkboxes</li>
+                <li><strong>AI Verify your leads</strong> (uses credits) to confirm contact info is accurate ✨</li>
+                <li><strong>Take action</strong> - Call 📞, Email 📧, or Export your selected leads</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+        
+        {/* AI VERIFY REMINDER - Flashing */}
+        <div className="px-4 py-2 border-t border-amber-500/50 bg-gradient-to-r from-amber-500/20 via-amber-400/15 to-amber-500/20 animate-pulse">
+          <div className="flex items-center justify-center gap-3">
+            <Brain className="w-5 h-5 text-amber-600 animate-bounce" />
+            <span className="font-bold text-amber-700">⚠️ REMEMBER: AI Verify your leads before contacting them! This ensures accurate contact info.</span>
+            <Brain className="w-5 h-5 text-amber-600 animate-bounce" />
           </div>
         </div>
       </div>
 
-      {/* SECTION: Filter by Lead Type */}
-      <div className="px-4 py-4 border-b bg-muted/20">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide shrink-0">Filter by:</span>
+      {/* SECTION: Filter by Lead Type - Compact */}
+      <div className="px-4 py-2 border-b bg-muted/20">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide shrink-0">Filter:</span>
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant={activeGroup === 'all' ? 'default' : 'outline'}
@@ -1032,29 +1055,67 @@ export default function EmbeddedSpreadsheetView({
         </div>
       </div>
 
-      {/* SECTION: Actions - Take action on selected leads */}
-      <div className="px-4 py-4 border-b bg-card/50">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+      {/* SECTION: AI VERIFY - Prominent Separate Section */}
+      <div className="px-4 py-3 border-b bg-gradient-to-r from-amber-500/20 via-amber-400/10 to-amber-500/20">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <div className="absolute -inset-1 bg-amber-500/50 rounded-lg blur animate-pulse" />
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      onClick={handleAIVerifyClick}
+                      disabled={selectedIds.size === 0}
+                      size="lg"
+                      className="relative gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-bold shadow-lg shadow-amber-500/30 animate-pulse"
+                    >
+                      <Brain className="w-5 h-5" />
+                      ✨ AI VERIFY LEADS ✨
+                      {selectedIds.size > 0 && (
+                        <Badge className="ml-2 bg-white/20 text-white">{selectedIds.size}</Badge>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Verify & enrich selected leads with AI - Uses credits</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <div className="text-sm text-amber-700">
+              <span className="font-semibold">💡 Pro Tip:</span> AI Verify confirms phone & email accuracy before you reach out!
+            </div>
+          </div>
+          <Badge variant="outline" className="border-amber-500/50 text-amber-600">
+            Uses {selectedIds.size || 0} credits
+          </Badge>
+        </div>
+      </div>
+
+      {/* SECTION: Actions - Take action on selected leads - Compact */}
+      <div className="px-4 py-2 border-b bg-card/50">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           {/* Left: Selection Info */}
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3 px-3 py-2 bg-muted rounded-lg">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-2 py-1 bg-muted rounded-lg">
               <Checkbox
                 checked={selectedIds.size === currentLeads.length && currentLeads.length > 0}
                 onCheckedChange={selectAll}
               />
               <span className="font-medium text-sm">{selectedIds.size} selected</span>
-              <span className="text-muted-foreground text-sm">of {currentLeads.length}</span>
+              <span className="text-muted-foreground text-xs">of {currentLeads.length}</span>
             </div>
-            <Button variant="ghost" size="sm" onClick={selectAll} className="text-primary">
-              {selectedIds.size === currentLeads.length ? 'Clear All' : 'Select All'}
+            <Button variant="ghost" size="sm" onClick={selectAll} className="text-primary text-xs">
+              {selectedIds.size === currentLeads.length ? 'Clear' : 'Select All'}
             </Button>
           </div>
 
           {/* Right: Action Buttons - Organized into groups */}
-          <div className="flex flex-wrap items-center gap-6">
+          <div className="flex flex-wrap items-center gap-4">
             {/* Primary Actions Group */}
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mr-1">Actions:</span>
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Actions:</span>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -1068,10 +1129,10 @@ export default function EmbeddedSpreadsheetView({
                       }}
                       disabled={selectedIds.size === 0}
                       size="sm"
-                      className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white"
+                      className="gap-1 bg-emerald-600 hover:bg-emerald-500 text-white"
                     >
-                      <PhoneCall className="w-4 h-4" />
-                      📞 Call
+                      <PhoneCall className="w-3 h-3" />
+                      Call
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -1093,10 +1154,10 @@ export default function EmbeddedSpreadsheetView({
                       }}
                       disabled={selectedIds.size === 0}
                       size="sm"
-                      className="gap-2 bg-blue-600 hover:bg-blue-500 text-white"
+                      className="gap-1 bg-blue-600 hover:bg-blue-500 text-white"
                     >
-                      <Mail className="w-4 h-4" />
-                      📧 Email
+                      <Mail className="w-3 h-3" />
+                      Email
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -1104,34 +1165,11 @@ export default function EmbeddedSpreadsheetView({
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
-
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      onClick={handleAIVerifyClick}
-                      disabled={selectedIds.size === 0}
-                      size="sm"
-                      variant="outline"
-                      className="gap-2 border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
-                    >
-                      <Brain className="w-4 h-4" />
-                      ✨ AI Verify
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Use AI to verify and enrich lead data</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
             </div>
-
-            {/* Separator */}
-            <div className="h-8 w-px bg-border hidden md:block" />
 
             {/* Tools Group */}
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mr-1">Tools:</span>
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tools:</span>
               
               <TooltipProvider>
                 <Tooltip>
@@ -1187,8 +1225,9 @@ export default function EmbeddedSpreadsheetView({
         </div>
       </div>
 
-      {/* Table */}
+      {/* Table with horizontal scroll */}
       <div className="flex-1 overflow-auto">
+        <div className="min-w-[1200px]">
         <Table>
           <TableHeader className="sticky top-0 bg-card z-10">
             <TableRow>
@@ -1322,6 +1361,7 @@ export default function EmbeddedSpreadsheetView({
             ))}
           </TableBody>
         </Table>
+        </div>
       </div>
 
       {/* Modals */}
