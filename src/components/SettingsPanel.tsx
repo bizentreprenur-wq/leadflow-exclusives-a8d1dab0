@@ -355,6 +355,26 @@ export default function SettingsPanel() {
 
               <div className="flex items-center justify-between p-4 rounded-lg border">
                 <div>
+                  <h4 className="font-medium">Reset Tutorial</h4>
+                  <p className="text-sm text-muted-foreground">Re-experience first-time popups and guides</p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="gap-1"
+                  onClick={() => {
+                    localStorage.removeItem('bamlead_step2_visited');
+                    localStorage.removeItem('bamlead_tour_completed');
+                    toast.success('Tutorial reset! You\'ll see the welcome guides again.');
+                  }}
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Reset
+                </Button>
+              </div>
+
+              <div className="flex items-center justify-between p-4 rounded-lg border">
+                <div>
                   <h4 className="font-medium">Export All Data</h4>
                   <p className="text-sm text-muted-foreground">Download all your leads and settings</p>
                 </div>
