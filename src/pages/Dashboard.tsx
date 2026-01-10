@@ -129,7 +129,7 @@ export default function Dashboard() {
   const [filterNoWebsite, setFilterNoWebsite] = useState(false);
   
   // Form validation state
-  const [validationErrors, setValidationErrors] = useState<{ query?: boolean; location?: boolean }>({});
+  const [validationErrors, setValidationErrors] = useState<{ query?: boolean; location?: boolean; platforms?: boolean }>({});
   
   // Data field preferences - default to fields marked as default
   const [selectedDataFields, setSelectedDataFields] = useState<string[]>(
@@ -166,7 +166,7 @@ export default function Dashboard() {
 
   const handleSearch = async () => {
     // Validate fields and set error states
-    const errors: { query?: boolean; location?: boolean } = {};
+    const errors: { query?: boolean; location?: boolean; platforms?: boolean } = {};
     
     if (!query.trim()) {
       errors.query = true;
@@ -174,10 +174,13 @@ export default function Dashboard() {
     if (!location.trim()) {
       errors.location = true;
     }
+    if (searchType === 'platform' && selectedPlatforms.length === 0) {
+      errors.platforms = true;
+    }
     
     setValidationErrors(errors);
     
-    if (errors.query || errors.location) {
+    if (errors.query || errors.location || errors.platforms) {
       toast.error('Please fill in the highlighted fields above');
       return;
     }
@@ -605,7 +608,9 @@ export default function Dashboard() {
                         <Label className="text-foreground font-medium mb-3 block">
                           Which platforms to scan?
                         </Label>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 rounded-lg border-2 ${
+                          validationErrors.platforms ? 'border-red-500 bg-red-500/5' : 'border-transparent'
+                        }`}>
                           {[
                             { id: 'wordpress', label: 'WordPress', icon: '📦' },
                             { id: 'wix', label: 'Wix', icon: '🔷' },
@@ -629,6 +634,7 @@ export default function Dashboard() {
                                 onCheckedChange={(checked) => {
                                   if (checked) {
                                     setSelectedPlatforms([...selectedPlatforms, platform.id]);
+                                    setValidationErrors(prev => ({ ...prev, platforms: false }));
                                   } else {
                                     setSelectedPlatforms(selectedPlatforms.filter(p => p !== platform.id));
                                   }
@@ -638,9 +644,13 @@ export default function Dashboard() {
                             </label>
                           ))}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Select at least one platform to search for outdated websites
-                        </p>
+                        {validationErrors.platforms ? (
+                          <p className="text-sm text-red-500 mt-2">⚠️ Please select at least one platform to scan</p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Select at least one platform to search for outdated websites
+                          </p>
+                        )}
                       </div>
                     )}
 
