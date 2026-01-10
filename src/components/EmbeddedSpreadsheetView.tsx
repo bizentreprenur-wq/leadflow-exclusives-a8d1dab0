@@ -44,6 +44,7 @@ import CallQueueModal from './CallQueueModal';
 import CreditsUpsellModal from './CreditsUpsellModal';
 import LeadActionChoiceModal from './LeadActionChoiceModal';
 import LeadReportDocument from './LeadReportDocument';
+import EmailTransitionModal from './EmailTransitionModal';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -299,6 +300,7 @@ export default function EmbeddedSpreadsheetView({
   const [showEmailShare, setShowEmailShare] = useState(false);
   const [emailRecipient, setEmailRecipient] = useState('');
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [showEmailTransition, setShowEmailTransition] = useState(false);
   
   // Use fake leads if external leads are 100 or less
   const [fakeLeads] = useState<SearchResult[]>(() => generateFakeLeads());
@@ -315,8 +317,12 @@ export default function EmbeddedSpreadsheetView({
   
   // SMTP Status - Check localStorage for configuration
   const [smtpConfigured, setSmtpConfigured] = useState(() => {
-    const smtpSettings = localStorage.getItem('bamlead_smtp_settings');
-    return smtpSettings ? JSON.parse(smtpSettings)?.host : false;
+    const smtpSettings = localStorage.getItem('smtp_config');
+    if (smtpSettings) {
+      const config = JSON.parse(smtpSettings);
+      return config.username && config.password;
+    }
+    return false;
   });
 
   const groupedLeads = useMemo(() => {
@@ -492,6 +498,16 @@ export default function EmbeddedSpreadsheetView({
   };
 
   const handleEmailFromChoice = () => {
+    if (selectedLeads.length === 0) {
+      toast.error('Please select at least one lead to email');
+      return;
+    }
+    // Show transition modal instead of directly proceeding
+    setShowEmailTransition(true);
+  };
+
+  const handleConfirmEmailTransition = () => {
+    setShowEmailTransition(false);
     if (onSendToEmail) {
       onSendToEmail(selectedLeads);
     }
@@ -1049,6 +1065,35 @@ export default function EmbeddedSpreadsheetView({
         </div>
       </div>
 
+      {/* PROMINENT CTA BANNER - Encourage proceeding to Step 3 */}
+      {selectedIds.size > 0 && (
+        <div className="px-4 py-3 border-t border-b-2 border-blue-500/50 bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-blue-500/10">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center text-2xl animate-bounce">
+                📧
+              </div>
+              <div>
+                <p className="text-lg font-bold text-foreground">
+                  Ready to reach out to {selectedIds.size} leads?
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Continue to Step 3 to choose templates and send email campaigns
+                </p>
+              </div>
+            </div>
+            <Button 
+              onClick={handleEmailFromChoice}
+              size="lg"
+              className="gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 shadow-lg animate-pulse"
+            >
+              <Mail className="w-5 h-5" />
+              Continue to Email Outreach →
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* SECTION: Filter by Lead Type - Compact */}
       <div className="px-4 py-2 border-b bg-muted/20">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1603,6 +1648,18 @@ export default function EmbeddedSpreadsheetView({
           }}
         />
       )}
+
+      {/* Email Transition Modal */}
+      <EmailTransitionModal
+        open={showEmailTransition}
+        onOpenChange={setShowEmailTransition}
+        selectedLeads={selectedLeads}
+        onContinueToEmail={handleConfirmEmailTransition}
+        onConfigureSmtp={() => {
+          setShowEmailTransition(false);
+          onOpenEmailSettings?.();
+        }}
+      />
 
       {/* PDF Preview Modal */}
       {showPDFPreview && pdfDataUrl && (
