@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -288,12 +288,23 @@ export default function EmbeddedSpreadsheetView({
   const [isExportingToDrive, setIsExportingToDrive] = useState(false);
   const [showPDFPreview, setShowPDFPreview] = useState(false);
   const [pdfDataUrl, setPdfDataUrl] = useState<string | null>(null);
+  const [showEmailShare, setShowEmailShare] = useState(false);
+  const [emailRecipient, setEmailRecipient] = useState('');
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
   
   // Use fake leads if external leads are 100 or less
   const [fakeLeads] = useState<SearchResult[]>(() => generateFakeLeads());
   const leads = externalLeads.length > 100 ? externalLeads : fakeLeads;
 
-  // Group leads by AI classification
+  // Auto-open PDF preview when component mounts
+  useEffect(() => {
+    // Small delay to ensure leads are loaded before generating PDF
+    const timer = setTimeout(() => {
+      handleExportPDF(true);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const groupedLeads = useMemo(() => {
     const hot = leads.filter(l => l.aiClassification === 'hot');
     const warm = leads.filter(l => l.aiClassification === 'warm');
@@ -707,6 +718,34 @@ export default function EmbeddedSpreadsheetView({
     if (pdfDataUrl) {
       URL.revokeObjectURL(pdfDataUrl);
       setPdfDataUrl(null);
+    }
+  };
+
+  const handleEmailShare = async () => {
+    if (!emailRecipient.trim()) {
+      toast.error('Please enter an email address');
+      return;
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(emailRecipient)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    
+    setIsSendingEmail(true);
+    
+    // Simulate email sending (in production, this would call a backend API)
+    try {
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      toast.success(`PDF report sent to ${emailRecipient}!`);
+      setEmailRecipient('');
+      setShowEmailShare(false);
+    } catch (error) {
+      toast.error('Failed to send email. Please try again.');
+    } finally {
+      setIsSendingEmail(false);
     }
   };
 
@@ -1273,6 +1312,56 @@ export default function EmbeddedSpreadsheetView({
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {/* Email Share Section */}
+                {showEmailShare ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="email"
+                      placeholder="recipient@email.com"
+                      value={emailRecipient}
+                      onChange={(e) => setEmailRecipient(e.target.value)}
+                      className="w-56 h-9"
+                      disabled={isSendingEmail}
+                    />
+                    <Button 
+                      onClick={handleEmailShare} 
+                      size="sm"
+                      disabled={isSendingEmail}
+                      className="gap-2"
+                    >
+                      {isSendingEmail ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="w-4 h-4" />
+                          Send
+                        </>
+                      )}
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => {
+                        setShowEmailShare(false);
+                        setEmailRecipient('');
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowEmailShare(true)} 
+                    className="gap-2"
+                  >
+                    <Mail className="w-4 h-4" />
+                    Email Report
+                  </Button>
+                )}
                 <Button onClick={handleDownloadPDFFromPreview} className="gap-2">
                   <Download className="w-4 h-4" />
                   Download PDF
