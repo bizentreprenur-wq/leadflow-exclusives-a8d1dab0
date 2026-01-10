@@ -42,6 +42,8 @@ import {
 import { exportToGoogleDrive } from '@/lib/api/googleDrive';
 import CRMIntegrationModal from './CRMIntegrationModal';
 import EmailScheduleModal from './EmailScheduleModal';
+import LeadCallModal from './LeadCallModal';
+import CreditsUpsellModal from './CreditsUpsellModal';
 
 interface SearchResult {
   id: string;
@@ -273,6 +275,10 @@ export default function LeadSpreadsheetViewer({
   const [showCRMModal, setShowCRMModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showVerifyConfirm, setShowVerifyConfirm] = useState(false);
+  const [showCallModal, setShowCallModal] = useState(false);
+  const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [callLead, setCallLead] = useState<SearchResult | null>(null);
+  const [userCredits] = useState(25); // Would come from API in production
   const [isExportingToDrive, setIsExportingToDrive] = useState(false);
   
   // Use fake leads if external leads are 100 or less
@@ -367,9 +373,20 @@ export default function LeadSpreadsheetViewer({
   };
 
   const handleConfirmVerify = () => {
+    // Check if user has enough credits
+    if (userCredits < selectedLeads.length) {
+      setShowVerifyConfirm(false);
+      setShowCreditsModal(true);
+      return;
+    }
     setShowVerifyConfirm(false);
     onProceedToVerify(selectedLeads);
     toast.success(`Sending ${selectedLeads.length} leads to AI verification`);
+  };
+
+  const handleCallLead = (lead: SearchResult) => {
+    setCallLead(lead);
+    setShowCallModal(true);
   };
 
   const handleSaveToDatabase = () => {
@@ -787,6 +804,7 @@ export default function LeadSpreadsheetViewer({
                   <TableHead className="min-w-[100px]">Conv. %</TableHead>
                   <TableHead className="min-w-[150px]">Website</TableHead>
                   <TableHead className="w-20">Rating</TableHead>
+                  <TableHead className="w-24 text-center">Call</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -917,6 +935,17 @@ export default function LeadSpreadsheetViewer({
                         <span className="text-muted-foreground text-sm">—</span>
                       )}
                     </TableCell>
+                    <TableCell>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleCallLead(lead)}
+                        className="gap-1.5 h-8 text-xs hover:bg-emerald-500/10 hover:text-emerald-600 hover:border-emerald-500/50"
+                      >
+                        <PhoneCall className="w-3.5 h-3.5" />
+                        Call
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -1010,6 +1039,24 @@ export default function LeadSpreadsheetViewer({
           toast.success(`${leads.length} emails scheduled for ${scheduledTime.toLocaleString()}`);
           // Here you would integrate with your email outreach backend
         }}
+      />
+
+      {/* Call Modal */}
+      <LeadCallModal
+        open={showCallModal}
+        onOpenChange={setShowCallModal}
+        lead={callLead}
+        onCallComplete={(leadId, outcome, duration) => {
+          console.log('Call completed:', { leadId, outcome, duration });
+        }}
+      />
+
+      {/* Credits Upsell Modal */}
+      <CreditsUpsellModal
+        open={showCreditsModal}
+        onOpenChange={setShowCreditsModal}
+        currentCredits={userCredits}
+        requiredCredits={selectedLeads.length}
       />
     </Dialog>
   );
