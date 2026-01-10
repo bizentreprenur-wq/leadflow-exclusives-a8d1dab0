@@ -278,7 +278,21 @@ export default function EmbeddedSpreadsheetView({
   isLoading = false,
   loadingProgress = 0,
 }: EmbeddedSpreadsheetViewProps) {
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Initialize selectedIds from localStorage for session persistence
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem('bamlead_selected_leads');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return new Set(parsed);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load selected leads from localStorage:', e);
+    }
+    return new Set();
+  });
   const [activeGroup, setActiveGroup] = useState<'all' | 'hot' | 'warm' | 'cold' | 'ready' | 'nowebsite'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortColumn, setSortColumn] = useState<'name' | 'score' | 'rating' | null>(null);
@@ -324,6 +338,15 @@ export default function EmbeddedSpreadsheetView({
     }
     return false;
   });
+
+  // Persist selectedIds to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('bamlead_selected_leads', JSON.stringify([...selectedIds]));
+    } catch (e) {
+      console.error('Failed to save selected leads to localStorage:', e);
+    }
+  }, [selectedIds]);
 
   const groupedLeads = useMemo(() => {
     const hot = leads.filter(l => l.aiClassification === 'hot');
