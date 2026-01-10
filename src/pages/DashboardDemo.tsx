@@ -20,7 +20,8 @@ import {
   Loader2,
   Send,
   ArrowLeft,
-  Home
+  Home,
+  Server
 } from "lucide-react";
 import { SocialFinderButton } from "@/components/SocialProfileFinder";
 import EmailHelpOverlay from "@/components/EmailHelpOverlay";
@@ -420,7 +421,12 @@ Best regards,
         )}
 
         {/* Step 3: Send Outreach (with optional AI Verify) */}
-        {currentStep === 3 && (
+        {currentStep === 3 && (() => {
+          // Check SMTP configuration
+          const smtpConfig = JSON.parse(localStorage.getItem('smtp_config') || '{}');
+          const isSmtpConfigured = smtpConfig.username && smtpConfig.password;
+
+          return (
           <div className="space-y-6">
             {/* Header */}
             <div className="text-center py-6 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-2xl border-2 border-blue-500/30">
@@ -434,7 +440,37 @@ Best regards,
             {/* Back Button */}
             <Button variant="outline" onClick={() => setCurrentStep(2)}>← Back to Leads</Button>
 
-            {/* Mode Selection Cards */}
+            {/* SMTP Configuration Check */}
+            <Card className={`border-2 ${isSmtpConfigured ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-14 h-14 rounded-full flex items-center justify-center text-3xl ${isSmtpConfigured ? 'bg-emerald-500/20' : 'bg-amber-500/20'}`}>
+                      {isSmtpConfigured ? '✅' : '⚠️'}
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-foreground">
+                        {isSmtpConfigured ? 'SMTP Configured!' : 'Configure SMTP First'}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {isSmtpConfigured 
+                          ? `Sending via ${smtpConfig.host || 'your SMTP server'}` 
+                          : 'You need to set up your email server before sending outreach'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={() => toast.info('Sign in to access full Settings panel')}
+                    variant={isSmtpConfigured ? 'outline' : 'default'}
+                    className={`gap-2 ${!isSmtpConfigured ? 'bg-amber-500 hover:bg-amber-600' : ''}`}
+                  >
+                    <Server className="w-4 h-4" />
+                    {isSmtpConfigured ? 'View Settings' : 'Configure SMTP →'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
             <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
               {/* Send Emails Card */}
               <Card 
@@ -657,7 +693,8 @@ Best regards,
               </Card>
             )}
           </div>
-        )}
+          );
+        })()}
 
         {/* Step 4: Voice Calling - FULL EXPERIENCE */}
         {currentStep === 4 && (
