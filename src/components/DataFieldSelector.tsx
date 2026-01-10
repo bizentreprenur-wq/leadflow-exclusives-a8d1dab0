@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { 
   Building2, User, Phone, MapPin, Clock, Globe, 
   Mail, Star, Hash, FileText, ChevronDown, ChevronUp,
-  Settings2
+  Settings2, AlertCircle
 } from 'lucide-react';
 
 export interface DataFieldOption {
@@ -43,9 +43,16 @@ export const DATA_FIELD_OPTIONS: DataFieldOption[] = [
 interface DataFieldSelectorProps {
   selectedFields: string[];
   onFieldsChange: (fields: string[]) => void;
+  searchQuery?: string;
+  searchLocation?: string;
 }
 
-export default function DataFieldSelector({ selectedFields, onFieldsChange }: DataFieldSelectorProps) {
+export default function DataFieldSelector({ 
+  selectedFields, 
+  onFieldsChange,
+  searchQuery = '',
+  searchLocation = ''
+}: DataFieldSelectorProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const toggleField = (fieldId: string) => {
@@ -105,6 +112,23 @@ export default function DataFieldSelector({ selectedFields, onFieldsChange }: Da
       {/* Expandable Content */}
       {isExpanded && (
         <div className="p-4 space-y-4 bg-background">
+          {/* Orange Reminder - Show when search criteria is missing */}
+          {(!searchQuery.trim() || !searchLocation.trim()) && (
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-orange-500/10 border border-orange-500/30">
+              <AlertCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-orange-600">Don't forget your search criteria! 👆</p>
+                <p className="text-sm text-orange-600/80 mt-0.5">
+                  {!searchQuery.trim() && !searchLocation.trim() 
+                    ? "Enter the business type and location above before searching."
+                    : !searchQuery.trim() 
+                      ? "Enter what type of business you're looking for above."
+                      : "Enter the city/location where you want to find leads above."
+                  }
+                </p>
+              </div>
+            </div>
+          )}
           {/* Quick Actions */}
           <div className="flex items-center gap-2 pb-3 border-b border-border">
             <Button 
