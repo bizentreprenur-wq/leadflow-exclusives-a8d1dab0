@@ -296,25 +296,27 @@ export default function LeadSpreadsheetViewer({
   const [pdfDataUrl, setPdfDataUrl] = useState<string | null>(null);
   const pdfIframeRef = useRef<HTMLIFrameElement | null>(null);
   
-  // Loading states for report generation
-  const [isGeneratingReport, setIsGeneratingReport] = useState(true);
+  // Loading states for report generation - Check if returning user
+  const isReturningUser = localStorage.getItem('bamlead_step2_visited') === 'true';
+  const [isGeneratingReport, setIsGeneratingReport] = useState(!isReturningUser);
   const [showLeadReportDocument, setShowLeadReportDocument] = useState(false);
 
   // Use fake leads if external leads are 100 or less
   const [fakeLeads] = useState<SearchResult[]>(() => generateFakeLeads());
   const leads = externalLeads.length > 100 ? externalLeads : fakeLeads;
 
-  // Quick report generation - show loading then open report
+  // Quick report generation - only show for FIRST visit, then mark as returning user
   useEffect(() => {
-    if (open && isGeneratingReport) {
-      // Fast loading - just 1.5 seconds
+    if (open && isGeneratingReport && !isReturningUser) {
+      // Super fast - just 500ms
       const timer = setTimeout(() => {
         setIsGeneratingReport(false);
         setShowLeadReportDocument(true);
-      }, 1500);
+        localStorage.setItem('bamlead_step2_visited', 'true');
+      }, 500);
       return () => clearTimeout(timer);
     }
-  }, [open, isGeneratingReport]);
+  }, [open, isGeneratingReport, isReturningUser]);
 
   // Big "PDF is ready" popup (show once when this viewer opens)
   useEffect(() => {
@@ -633,8 +635,8 @@ export default function LeadSpreadsheetViewer({
 
   return (
     <>
-    {/* Loading Popup - Shows while generating report */}
-    {isGeneratingReport && (
+    {/* Loading Popup - Shows while generating report (only for first visit) */}
+    {isGeneratingReport && !isReturningUser && (
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70">
         <div className="bg-card rounded-2xl p-8 shadow-2xl max-w-md mx-4 text-center animate-in zoom-in-95 duration-300">
           <div className="w-16 h-16 mx-auto mb-4 relative">
@@ -646,10 +648,21 @@ export default function LeadSpreadsheetViewer({
           <p className="text-muted-foreground mb-4">
             Generating your report... please hold
           </p>
-          <div className="flex items-center justify-center gap-2 text-sm text-primary">
+          <div className="flex items-center justify-center gap-2 text-sm text-primary mb-4">
             <Sparkles className="w-4 h-4 animate-pulse" />
             <span>Analyzing {leads.length.toLocaleString()} leads</span>
           </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => {
+              setIsGeneratingReport(false);
+              localStorage.setItem('bamlead_step2_visited', 'true');
+            }}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            Skip to Spreadsheet →
+          </Button>
         </div>
       </div>
     )}
