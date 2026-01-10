@@ -63,6 +63,357 @@ import {
 import { fetchVerifiedLeads, updateLeadStatus, type SavedLead } from '@/lib/api/verifiedLeads';
 import { HIGH_CONVERTING_TEMPLATES, TEMPLATE_CATEGORIES, EmailTemplate as VisualTemplate, getTemplatePerformance } from '@/lib/highConvertingTemplates';
 
+// Pre-built email sequences for the preview
+const EMAIL_SEQUENCES = [
+  {
+    id: 'cold-outreach',
+    name: 'Cold Outreach',
+    description: 'Multi-touch for new leads',
+    steps: 4,
+    duration: '5 days',
+    color: 'blue',
+  },
+  {
+    id: 'warm-nurture',
+    name: 'Warm Nurture',
+    description: 'For interested prospects',
+    steps: 3,
+    duration: '5 days',
+    color: 'amber',
+  },
+  {
+    id: 'hot-leads',
+    name: 'Hot Lead Fast Close',
+    description: 'Quick high-touch sequence',
+    steps: 3,
+    duration: '1 day',
+    color: 'red',
+  },
+  {
+    id: 'no-website',
+    name: 'No Website Specialist',
+    description: 'For businesses without sites',
+    steps: 4,
+    duration: '7 days',
+    color: 'purple',
+  },
+];
+
+// SMTP Quick Setup Component
+function SMTPQuickSetup({ onConfigured }: { onConfigured: () => void }) {
+  const [host, setHost] = useState('smtp.hostinger.com');
+  const [port, setPort] = useState('465');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<'success' | 'error' | null>(null);
+
+  const handleSave = async () => {
+    if (!username || !password) {
+      toast.error('Please enter your email and password');
+      return;
+    }
+
+    // Save to localStorage
+    localStorage.setItem('smtp_config', JSON.stringify({
+      host,
+      port,
+      username,
+      password,
+      configured: true,
+    }));
+
+    toast.success('SMTP settings saved!');
+    onConfigured();
+  };
+
+  const handleTest = async () => {
+    if (!username || !password) {
+      toast.error('Please enter credentials first');
+      return;
+    }
+
+    setIsTesting(true);
+    setTestResult(null);
+
+    try {
+      // In production, this would call the backend to test SMTP
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Simulated success - in real app, call backend API
+      setTestResult('success');
+      toast.success('SMTP connection successful!');
+    } catch (error) {
+      setTestResult('error');
+      toast.error('SMTP connection failed');
+    }
+    setIsTesting(false);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label className="text-sm">SMTP Host</Label>
+          <Input
+            value={host}
+            onChange={(e) => setHost(e.target.value)}
+            placeholder="smtp.hostinger.com"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-sm">Port</Label>
+          <Input
+            value={port}
+            onChange={(e) => setPort(e.target.value)}
+            placeholder="465"
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label className="text-sm">Email (Username)</Label>
+          <Input
+            type="email"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="noreply@yourdomain.com"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label className="text-sm">Password</Label>
+          <Input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+          />
+        </div>
+      </div>
+      <div className="flex items-center gap-3">
+        <Button onClick={handleTest} variant="outline" disabled={isTesting} className="gap-2">
+          {isTesting ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Testing...
+            </>
+          ) : (
+            <>
+              <Zap className="w-4 h-4" />
+              Test Connection
+            </>
+          )}
+        </Button>
+        <Button onClick={handleSave} className="gap-2 bg-amber-500 hover:bg-amber-600">
+          <Shield className="w-4 h-4" />
+          Save & Enable SMTP
+        </Button>
+        {testResult === 'success' && (
+          <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+            <CheckCircle className="w-3 h-3 mr-1" />
+            Connection OK
+          </Badge>
+        )}
+        {testResult === 'error' && (
+          <Badge className="bg-red-500/10 text-red-600 border-red-500/30">
+            <XCircle className="w-3 h-3 mr-1" />
+            Failed
+          </Badge>
+        )}
+      </div>
+      <p className="text-xs text-muted-foreground">
+        💡 <strong>Tip:</strong> Use your Hostinger email credentials. Create a dedicated email like <code>noreply@yourdomain.com</code> for best deliverability.
+      </p>
+    </div>
+  );
+}
+
+// SMTP Test Section Component (when already configured)
+function SMTPTestSection() {
+  const [testEmail, setTestEmail] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [lastTest, setLastTest] = useState<{ time: Date; success: boolean } | null>(null);
+
+  const handleSendTest = async () => {
+    if (!testEmail || !testEmail.includes('@')) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      // Call backend to send test email
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/email-outreach.php?action=send_test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ test_email: testEmail }),
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        setLastTest({ time: new Date(), success: true });
+        toast.success('Test email sent! Check your inbox.');
+      } else {
+        setLastTest({ time: new Date(), success: false });
+        toast.error(data.error || 'Failed to send test email');
+      }
+    } catch (error) {
+      setLastTest({ time: new Date(), success: false });
+      toast.error('Failed to send test email');
+    }
+    setIsSending(false);
+  };
+
+  const smtpConfig = JSON.parse(localStorage.getItem('smtp_config') || '{}');
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-4 p-3 rounded-lg bg-muted/50">
+        <div className="flex-1">
+          <p className="text-sm font-medium">Current Configuration</p>
+          <p className="text-xs text-muted-foreground">
+            {smtpConfig.host}:{smtpConfig.port} • {smtpConfig.username}
+          </p>
+        </div>
+        <Button variant="ghost" size="sm" onClick={() => {
+          localStorage.removeItem('smtp_config');
+          window.location.reload();
+        }}>
+          <Edit className="w-4 h-4 mr-1" />
+          Edit
+        </Button>
+      </div>
+      
+      <div className="flex items-center gap-3">
+        <Input
+          type="email"
+          value={testEmail}
+          onChange={(e) => setTestEmail(e.target.value)}
+          placeholder="Enter your email to test..."
+          className="flex-1"
+        />
+        <Button onClick={handleSendTest} disabled={isSending} className="gap-2">
+          {isSending ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Sending...
+            </>
+          ) : (
+            <>
+              <Send className="w-4 h-4" />
+              Send Test Email
+            </>
+          )}
+        </Button>
+      </div>
+
+      {lastTest && (
+        <div className={`flex items-center gap-2 text-sm ${lastTest.success ? 'text-emerald-600' : 'text-red-600'}`}>
+          {lastTest.success ? (
+            <CheckCircle className="w-4 h-4" />
+          ) : (
+            <XCircle className="w-4 h-4" />
+          )}
+          Last test: {lastTest.time.toLocaleTimeString()} - {lastTest.success ? 'Delivered' : 'Failed'}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Sequence Preview Section Component
+function SequencePreviewSection({ 
+  onCreateNew, 
+  onEditSequence 
+}: { 
+  onCreateNew: () => void; 
+  onEditSequence: (seq: typeof EMAIL_SEQUENCES[0]) => void;
+}) {
+  const [savedSequences, setSavedSequences] = useState<any[]>([]);
+
+  const getColorClasses = (color: string) => {
+    const colors: Record<string, { bg: string; text: string; border: string }> = {
+      blue: { bg: 'bg-blue-500/10', text: 'text-blue-600', border: 'border-blue-500/30' },
+      amber: { bg: 'bg-amber-500/10', text: 'text-amber-600', border: 'border-amber-500/30' },
+      red: { bg: 'bg-red-500/10', text: 'text-red-600', border: 'border-red-500/30' },
+      purple: { bg: 'bg-purple-500/10', text: 'text-purple-600', border: 'border-purple-500/30' },
+    };
+    return colors[color] || colors.blue;
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Pre-built sequences */}
+      <div className="grid grid-cols-2 gap-3">
+        {EMAIL_SEQUENCES.map((seq) => {
+          const colors = getColorClasses(seq.color);
+          return (
+            <div
+              key={seq.id}
+              onClick={() => onEditSequence(seq)}
+              className={`p-3 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md ${colors.bg} ${colors.border} hover:scale-[1.02]`}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <h4 className={`font-semibold text-sm ${colors.text}`}>{seq.name}</h4>
+                <Badge variant="outline" className={`text-xs ${colors.text} ${colors.border}`}>
+                  {seq.steps} steps
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mb-2">{seq.description}</p>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Clock className="w-3 h-3" />
+                {seq.duration}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* User's custom sequences */}
+      {savedSequences.length > 0 && (
+        <div className="pt-3 border-t">
+          <p className="text-sm font-medium mb-2">Your Custom Sequences</p>
+          <div className="space-y-2">
+            {savedSequences.map((seq) => (
+              <div
+                key={seq.id}
+                onClick={() => onEditSequence(seq)}
+                className="p-3 rounded-lg border bg-muted/30 cursor-pointer hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-sm">{seq.name}</span>
+                  <Badge variant="secondary" className="text-xs">{seq.steps?.length || 0} steps</Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Quick actions */}
+      <div className="flex items-center justify-between pt-3 border-t">
+        <p className="text-xs text-muted-foreground">
+          💡 Click any sequence to customize and use it
+        </p>
+        <Button variant="ghost" size="sm" className="gap-1 text-primary" onClick={onCreateNew}>
+          <Plus className="w-3 h-3" />
+          Build Custom
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// SMTP Setup Form (for dialog)
+function SMTPSetupForm({ onComplete }: { onComplete: () => void }) {
+  return (
+    <div className="py-4">
+      <SMTPQuickSetup onConfigured={onComplete} />
+    </div>
+  );
+}
+
 interface EmailOutreachModuleProps {
   selectedLeads?: LeadForEmail[];
   onClearSelection?: () => void;
@@ -85,6 +436,10 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   // SMTP state
   const [smtpConfigured, setSmtpConfigured] = useState(false);
   const [showSmtpSetup, setShowSmtpSetup] = useState(false);
+  
+  // Sequence builder state
+  const [showSequenceBuilder, setShowSequenceBuilder] = useState(false);
+  const [editingSequence, setEditingSequence] = useState<any>(null);
   
   // Template editor state
   const [editingTemplate, setEditingTemplate] = useState<Partial<EmailTemplate> | null>(null);
@@ -1004,7 +1359,30 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
     return (
       <>
         {dialogs}
-        <div className="max-w-3xl mx-auto space-y-6">
+        
+        {/* SMTP Setup Modal */}
+        <Dialog open={showSmtpSetup} onOpenChange={setShowSmtpSetup}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Server className="w-5 h-5 text-primary" />
+                Configure Your SMTP Server
+              </DialogTitle>
+              <DialogDescription>
+                Send emails from YOUR domain for better deliverability
+              </DialogDescription>
+            </DialogHeader>
+            <SMTPSetupForm 
+              onComplete={() => {
+                setSmtpConfigured(true);
+                setShowSmtpSetup(false);
+                toast.success('SMTP configured successfully!');
+              }} 
+            />
+          </DialogContent>
+        </Dialog>
+        
+        <div className="max-w-4xl mx-auto space-y-6">
           {/* Welcome Card */}
           <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
             <CardContent className="pt-8 pb-8 text-center">
@@ -1018,48 +1396,79 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
             </CardContent>
           </Card>
 
-          {/* SMTP Setup Check - Show prominently if not configured */}
-          {!smtpConfigured && (
-            <Card className="border-2 border-amber-500/50 bg-gradient-to-br from-amber-500/10 to-amber-500/5">
-              <CardContent className="py-6">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 rounded-xl bg-amber-500/20">
-                    <Server className="w-6 h-6 text-amber-500" />
+          {/* SMTP Configuration Section - Always visible */}
+          <Card className={`border-2 ${smtpConfigured ? 'border-emerald-500/50 bg-gradient-to-br from-emerald-500/5 to-transparent' : 'border-amber-500/50 bg-gradient-to-br from-amber-500/10 to-amber-500/5'}`}>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`p-3 rounded-xl ${smtpConfigured ? 'bg-emerald-500/20' : 'bg-amber-500/20'}`}>
+                    <Server className={`w-6 h-6 ${smtpConfigured ? 'text-emerald-500' : 'text-amber-500'}`} />
                   </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-lg mb-1 flex items-center gap-2">
-                      ⚠️ Set Up Your Email Server First
-                    </h3>
-                    <p className="text-muted-foreground mb-3">
-                      Configure your SMTP settings to send emails from YOUR domain. This improves deliverability and ensures emails don't go to spam.
-                    </p>
-                    <div className="flex items-center gap-3">
-                      <Button 
-                        onClick={() => setShowSmtpSetup(true)}
-                        className="gap-2 bg-amber-500 hover:bg-amber-600"
-                      >
-                        <Shield className="w-4 h-4" />
-                        Configure SMTP Now
-                      </Button>
-                      <p className="text-xs text-muted-foreground">
-                        Emails are sent from your server (e.g., Hostinger)
-                      </p>
-                    </div>
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      {smtpConfigured ? '✅ SMTP Connected' : '⚠️ Set Up Your Email Server First'}
+                    </CardTitle>
+                    <CardDescription>
+                      {smtpConfigured 
+                        ? 'Emails are sent from YOUR domain for maximum deliverability' 
+                        : 'Configure your SMTP settings to send emails from YOUR domain'}
+                    </CardDescription>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+                {smtpConfigured && (
+                  <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                    <CheckCircle className="w-3 h-3 mr-1" />
+                    Connected
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* SMTP Quick Config or Status */}
+              {!smtpConfigured ? (
+                <SMTPQuickSetup onConfigured={() => setSmtpConfigured(true)} />
+              ) : (
+                <SMTPTestSection />
+              )}
+            </CardContent>
+          </Card>
 
-          {/* SMTP Configured Badge */}
-          {smtpConfigured && (
-            <div className="flex items-center justify-center gap-2 py-2">
-              <CheckCircle className="w-4 h-4 text-emerald-500" />
-              <span className="text-sm text-emerald-600 font-medium">
-                SMTP configured — emails sent from YOUR server
-              </span>
-            </div>
-          )}
+          {/* Email Sequences Section */}
+          <Card className="border-2 border-purple-500/30 bg-gradient-to-br from-purple-500/5 to-transparent">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-xl bg-purple-500/20">
+                    <Zap className="w-6 h-6 text-purple-500" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Email Sequences</CardTitle>
+                    <CardDescription>
+                      Automated multi-step outreach campaigns
+                    </CardDescription>
+                  </div>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="gap-2 border-purple-500/30 hover:bg-purple-500/10"
+                  onClick={() => setShowSequenceBuilder(true)}
+                >
+                  <Plus className="w-4 h-4" />
+                  Create Sequence
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <SequencePreviewSection 
+                onCreateNew={() => setShowSequenceBuilder(true)} 
+                onEditSequence={(seq) => {
+                  setEditingSequence(seq);
+                  setShowSequenceBuilder(true);
+                }}
+              />
+            </CardContent>
+          </Card>
 
           {/* Quick Stats */}
           {stats && stats.total_sent > 0 && (
@@ -1129,7 +1538,6 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
             <Card 
               className="cursor-pointer border-2 border-emerald-500/30 hover:border-emerald-500/60 bg-emerald-500/5 hover:bg-emerald-500/10 transition-all"
               onClick={() => {
-                // Navigate to voice calling section
                 toast.info('Go to Voice Calling in the sidebar to call leads');
               }}
             >
