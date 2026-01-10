@@ -81,7 +81,7 @@ const WORKFLOW_STEPS = [
   { id: 1, title: 'STEP 1: Search', description: 'Find businesses that need your services', icon: Search, emoji: '🔍' },
   { id: 2, title: 'STEP 2: Review', description: 'Pick the best leads from your results', icon: Users, emoji: '📋' },
   { id: 3, title: 'STEP 3: Verify', description: 'AI finds emails & scores leads', icon: CheckCircle2, emoji: '✅' },
-  { id: 4, title: 'STEP 4: Outreach', description: 'Send personalized emails', icon: Send, emoji: '📧' },
+  { id: 4, title: 'STEP 4: Outreach', description: 'Send emails & call customers', icon: Send, emoji: '📧' },
 ];
 
 export default function Dashboard() {
