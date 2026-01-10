@@ -437,6 +437,7 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   // SMTP state
   const [smtpConfigured, setSmtpConfigured] = useState(false);
   const [showSmtpSetup, setShowSmtpSetup] = useState(false);
+  const [showSmtpWarningModal, setShowSmtpWarningModal] = useState(false);
   
   // Sequence builder state
   const [showSequenceBuilder, setShowSequenceBuilder] = useState(false);
@@ -820,6 +821,12 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
     const hasTemplate = (templateSource === 'visual' && selectedVisualTemplate) || selectedTemplateId;
     if (!hasTemplate || leadsWithEmail.length === 0) return;
 
+    // Check SMTP configuration before sending
+    if (!smtpConfigured) {
+      setShowSmtpWarningModal(true);
+      return;
+    }
+
     setIsSending(true);
     
     try {
@@ -1072,6 +1079,90 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
         onOpenChange={setShowCRMModal}
         leads={leadsForCRM}
       />
+
+      {/* SMTP Warning Modal */}
+      <Dialog open={showSmtpWarningModal} onOpenChange={setShowSmtpWarningModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertCircle className="w-5 h-5" />
+              SMTP Configuration Required
+            </DialogTitle>
+            <DialogDescription>
+              You need to configure your email server (SMTP) before sending outreach emails.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+              <p className="text-sm text-muted-foreground mb-3">
+                <strong className="text-foreground">Why is this needed?</strong>
+              </p>
+              <ul className="text-sm text-muted-foreground space-y-2">
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
+                  Emails are sent from YOUR email address
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
+                  Better deliverability & trust
+                </li>
+                <li className="flex items-start gap-2">
+                  <CheckCircle className="w-4 h-4 text-emerald-500 mt-0.5 shrink-0" />
+                  Replies come directly to your inbox
+                </li>
+              </ul>
+            </div>
+
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <p className="text-sm font-medium mb-2">Quick Setup (2 mins)</p>
+              <p className="text-xs text-muted-foreground">
+                Use your Hostinger, Gmail, or any SMTP provider credentials. We recommend creating a dedicated email like <code className="bg-muted px-1 rounded">noreply@yourdomain.com</code>.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowSmtpWarningModal(false)}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                setShowSmtpWarningModal(false);
+                setShowSmtpSetup(true);
+              }}
+              className="w-full sm:w-auto gap-2 bg-amber-500 hover:bg-amber-600"
+            >
+              <Server className="w-4 h-4" />
+              Configure SMTP Now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* SMTP Setup Dialog */}
+      <Dialog open={showSmtpSetup} onOpenChange={setShowSmtpSetup}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Server className="w-5 h-5 text-primary" />
+              SMTP Configuration
+            </DialogTitle>
+            <DialogDescription>
+              Enter your email server credentials to send outreach emails
+            </DialogDescription>
+          </DialogHeader>
+          <SMTPSetupForm onComplete={() => {
+            setShowSmtpSetup(false);
+            setSmtpConfigured(true);
+            toast.success('SMTP configured! You can now send emails.');
+          }} />
+        </DialogContent>
+      </Dialog>
 
       {/* Full-Screen Template Browser Dialog */}
       <Dialog open={browserDialogOpen} onOpenChange={setBrowserDialogOpen}>
