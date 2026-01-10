@@ -34,7 +34,8 @@ import {
   Reply, XCircle, Sparkles, Database, RefreshCw, Star, Building2, 
   RotateCcw, Calendar, Timer, ArrowRight, ArrowLeft, PartyPopper,
   Zap, CheckCheck, ChevronRight, TrendingUp, PieChart, MailPlus, Palette,
-  Search, X, Grid3X3, List, CalendarIcon, CalendarPlus, ExternalLink
+  Search, X, Grid3X3, List, CalendarIcon, CalendarPlus, ExternalLink,
+  Phone, Server, Shield
 } from 'lucide-react';
 import CRMIntegrationModal from '@/components/CRMIntegrationModal';
 import { LazyLoader } from '@/components/ui/lazy-loader';
@@ -81,6 +82,10 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   
+  // SMTP state
+  const [smtpConfigured, setSmtpConfigured] = useState(false);
+  const [showSmtpSetup, setShowSmtpSetup] = useState(false);
+  
   // Template editor state
   const [editingTemplate, setEditingTemplate] = useState<Partial<EmailTemplate> | null>(null);
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
@@ -113,6 +118,19 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   
   // Success state
   const [lastSendResult, setLastSendResult] = useState<{ sent: number; failed: number; scheduled?: string } | null>(null);
+
+  // Check SMTP configuration on mount
+  useEffect(() => {
+    const savedConfig = localStorage.getItem('smtp_config');
+    if (savedConfig) {
+      try {
+        const config = JSON.parse(savedConfig);
+        setSmtpConfigured(!!config.username && !!config.password);
+      } catch (e) {
+        setSmtpConfigured(false);
+      }
+    }
+  }, []);
 
   // Merge selected leads from props and picker
   const allSelectedLeads = [...selectedLeads, ...leadsFromPicker];
@@ -986,23 +1004,66 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
     return (
       <>
         {dialogs}
-        <div className="max-w-2xl mx-auto space-y-6">
+        <div className="max-w-3xl mx-auto space-y-6">
           {/* Welcome Card */}
           <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
             <CardContent className="pt-8 pb-8 text-center">
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
-                <Mail className="w-8 h-8 text-primary" />
+                <Send className="w-8 h-8 text-primary" />
               </div>
-              <h2 className="text-2xl font-bold mb-2">Send Emails to Your Leads</h2>
+              <h2 className="text-2xl font-bold mb-2">Send Emails & Call Customers</h2>
               <p className="text-muted-foreground max-w-md mx-auto">
-                Ready to reach out? Let's do it step by step — super easy!
+                Reach out to your leads via personalized emails or AI-powered voice calls
               </p>
             </CardContent>
           </Card>
 
+          {/* SMTP Setup Check - Show prominently if not configured */}
+          {!smtpConfigured && (
+            <Card className="border-2 border-amber-500/50 bg-gradient-to-br from-amber-500/10 to-amber-500/5">
+              <CardContent className="py-6">
+                <div className="flex items-start gap-4">
+                  <div className="p-3 rounded-xl bg-amber-500/20">
+                    <Server className="w-6 h-6 text-amber-500" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg mb-1 flex items-center gap-2">
+                      ⚠️ Set Up Your Email Server First
+                    </h3>
+                    <p className="text-muted-foreground mb-3">
+                      Configure your SMTP settings to send emails from YOUR domain. This improves deliverability and ensures emails don't go to spam.
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <Button 
+                        onClick={() => setShowSmtpSetup(true)}
+                        className="gap-2 bg-amber-500 hover:bg-amber-600"
+                      >
+                        <Shield className="w-4 h-4" />
+                        Configure SMTP Now
+                      </Button>
+                      <p className="text-xs text-muted-foreground">
+                        Emails are sent from your server (e.g., Hostinger)
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* SMTP Configured Badge */}
+          {smtpConfigured && (
+            <div className="flex items-center justify-center gap-2 py-2">
+              <CheckCircle className="w-4 h-4 text-emerald-500" />
+              <span className="text-sm text-emerald-600 font-medium">
+                SMTP configured — emails sent from YOUR server
+              </span>
+            </div>
+          )}
+
           {/* Quick Stats */}
           {stats && stats.total_sent > 0 && (
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-4 gap-4">
               <Card className="border-border/50">
                 <CardContent className="pt-4 text-center">
                   <p className="text-2xl font-bold text-primary">{stats.total_sent}</p>
@@ -1021,64 +1082,102 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
                   <p className="text-xs text-muted-foreground">Replied</p>
                 </CardContent>
               </Card>
+              <Card className={`border-border/50 ${stats.total_bounced > 0 ? 'border-red-500/30' : ''}`}>
+                <CardContent className="pt-4 text-center">
+                  <p className={`text-2xl font-bold ${stats.total_bounced > 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                    {stats.total_bounced || 0}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Bounced</p>
+                </CardContent>
+              </Card>
             </div>
           )}
 
-          {/* Main Actions */}
-          <div className="space-y-3">
-            <Button
-              size="lg"
-              className="w-full h-16 text-lg gap-3"
+          {/* Main Actions - Email & Call */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Email Action */}
+            <Card 
+              className="cursor-pointer border-2 border-primary/30 hover:border-primary/60 bg-primary/5 hover:bg-primary/10 transition-all"
               onClick={() => {
+                if (!smtpConfigured) {
+                  toast.error('Please configure SMTP first', {
+                    description: 'Set up your email server to send emails',
+                  });
+                  return;
+                }
                 loadSavedLeads();
                 setCurrentStep('select-leads');
               }}
             >
-              <Zap className="w-5 h-5" />
-              Start Sending Emails
-              <ArrowRight className="w-5 h-5 ml-auto" />
-            </Button>
+              <CardContent className="pt-6 pb-6 text-center">
+                <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-primary/20 flex items-center justify-center">
+                  <Mail className="w-7 h-7 text-primary" />
+                </div>
+                <h3 className="text-xl font-bold mb-2">📧 Send Emails</h3>
+                <p className="text-sm text-muted-foreground">
+                  Personalized outreach with templates
+                </p>
+                {!smtpConfigured && (
+                  <Badge variant="outline" className="mt-3 text-amber-600 border-amber-500/50">
+                    Setup SMTP first
+                  </Badge>
+                )}
+              </CardContent>
+            </Card>
 
-            <div className="grid grid-cols-2 gap-3">
-              <Button
-                variant="outline"
-                className="h-14 gap-2"
-                onClick={() => {
-                  setEditingTemplate({ name: '', subject: '', body_html: '', is_default: false });
-                  setTemplateDialogOpen(true);
-                }}
-              >
-                <Plus className="w-4 h-4" />
-                Create Template
-              </Button>
-              <Button
-                variant="outline"
-                className="h-14 gap-2"
-                onClick={() => {
-                  loadSavedLeads();
-                  setCurrentStep('select-leads');
-                }}
-              >
-                <FileText className="w-4 h-4" />
-                View Templates ({templates.length})
-              </Button>
-            </div>
+            {/* Call Action */}
+            <Card 
+              className="cursor-pointer border-2 border-emerald-500/30 hover:border-emerald-500/60 bg-emerald-500/5 hover:bg-emerald-500/10 transition-all"
+              onClick={() => {
+                // Navigate to voice calling section
+                toast.info('Go to Voice Calling in the sidebar to call leads');
+              }}
+            >
+              <CardContent className="pt-6 pb-6 text-center">
+                <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                  <Phone className="w-7 h-7 text-emerald-500" />
+                </div>
+                <h3 className="text-xl font-bold mb-2">📞 Call Customers</h3>
+                <p className="text-sm text-muted-foreground">
+                  AI-powered voice calling
+                </p>
+              </CardContent>
+            </Card>
           </div>
 
-          {/* View Sent Leads button */}
-          <Button
-            variant="outline"
-            size="lg"
-            className="w-full h-14 gap-3"
-            onClick={() => {
-              loadSavedLeads();
-              setCurrentStep('sent-leads');
-            }}
-          >
-            <BarChart3 className="w-5 h-5" />
-            View Sent Leads
-            <Badge variant="secondary" className="ml-auto">{sentLeads.length}</Badge>
-          </Button>
+          {/* Secondary Actions */}
+          <div className="grid grid-cols-3 gap-3">
+            <Button
+              variant="outline"
+              className="h-14 gap-2"
+              onClick={() => {
+                setEditingTemplate({ name: '', subject: '', body_html: '', is_default: false });
+                setTemplateDialogOpen(true);
+              }}
+            >
+              <Plus className="w-4 h-4" />
+              Create Template
+            </Button>
+            <Button
+              variant="outline"
+              className="h-14 gap-2"
+              onClick={() => setBrowserDialogOpen(true)}
+            >
+              <FileText className="w-4 h-4" />
+              Templates ({templates.length + HIGH_CONVERTING_TEMPLATES.length})
+            </Button>
+            <Button
+              variant="outline"
+              className="h-14 gap-2"
+              onClick={() => {
+                loadSavedLeads();
+                setCurrentStep('sent-leads');
+              }}
+            >
+              <BarChart3 className="w-4 h-4" />
+              View Sent ({sentLeads.length})
+            </Button>
+          </div>
 
           {/* Scheduled emails reminder */}
           {scheduledEmails.length > 0 && (
@@ -1096,6 +1195,26 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
               </CardContent>
             </Card>
           )}
+
+          {/* Deliverability Tips */}
+          <Card className="bg-gradient-to-r from-blue-500/5 via-transparent to-emerald-500/5 border-blue-500/20">
+            <CardContent className="py-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-blue-500/10">
+                  <TrendingUp className="w-5 h-5 text-blue-500" />
+                </div>
+                <div>
+                  <p className="font-medium mb-1">💡 Deliverability Tips</p>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>• Always send from YOUR domain via SMTP — not shared servers</li>
+                    <li>• Use personalized subject lines with the lead's name</li>
+                    <li>• Avoid spam words like "FREE", "URGENT", "CLICK NOW"</li>
+                    <li>• Send at optimal times (9am, 11am, 2pm) for better open rates</li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </>
     );
