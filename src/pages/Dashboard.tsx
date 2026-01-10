@@ -249,10 +249,17 @@ export default function Dashboard() {
     setIsSearching(true);
     setSearchProgress(0);
     setSearchResults([]); // Clear previous results
+    setSelectedLeads([]); // Clear previous selections
+    setEmailLeads([]); // Clear email leads from previous search
     setAiGroups(null);
     setAiSummary(null);
     setAiStrategies(null);
     setShowAiGrouping(false);
+    
+    // Clear sessionStorage for previous search data
+    sessionStorage.removeItem('bamlead_search_results');
+    sessionStorage.removeItem('bamlead_email_leads');
+    localStorage.removeItem('bamlead_selected_leads');
     
     // Open spreadsheet viewer immediately to show loading state
     setShowSpreadsheetViewer(true);
