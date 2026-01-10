@@ -16,6 +16,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { 
@@ -29,7 +35,9 @@ import {
   ChevronRight,
   Loader2,
   FileText,
-  Trash2
+  Trash2,
+  Download,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { 
   listCallLogs, 
@@ -40,6 +48,9 @@ import {
   type CallOutcome,
   type CallStats 
 } from '@/lib/api/callLogs';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const OUTCOME_LABELS: Record<CallOutcome, string> = {
   completed: 'Completed',
@@ -152,6 +163,156 @@ export default function CallLogHistory() {
     });
   };
 
+  const formatDateFull = (dateStr: string) => {
+    return new Date(dateStr).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  // Fetch all logs for export (not just current page)
+  const fetchAllLogsForExport = async (): Promise<CallLog[]> => {
+    const result = await listCallLogs({
+      limit: 1000,
+      offset: 0,
+      outcome: outcomeFilter === 'all' ? undefined : outcomeFilter,
+    });
+    return result.success && result.logs ? result.logs : [];
+  };
+
+  const exportToCSV = async () => {
+    toast.loading('Preparing CSV export...');
+    
+    try {
+      const allLogs = await fetchAllLogsForExport();
+      
+      if (allLogs.length === 0) {
+        toast.dismiss();
+        toast.error('No call logs to export');
+        return;
+      }
+
+      const exportData = allLogs.map(log => ({
+        'Lead Name': log.lead_name || 'Unknown',
+        'Phone': log.lead_phone || '',
+        'Duration': formatDuration(log.duration_seconds),
+        'Outcome': OUTCOME_LABELS[log.outcome],
+        'Date': formatDateFull(log.created_at),
+        'Notes': log.notes || '',
+        'Transcript': log.transcript 
+          ? log.transcript.map(m => `${m.role === 'agent' ? 'AI' : 'Lead'}: ${m.text}`).join(' | ')
+          : '',
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      
+      // Auto-size columns
+      const colWidths = Object.keys(exportData[0] || {}).map(key => ({
+        wch: Math.max(
+          key.length,
+          ...exportData.map(row => String(row[key as keyof typeof row] || '').length)
+        ).toString().length + 2
+      }));
+      ws['!cols'] = colWidths;
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Call Logs');
+      
+      const fileName = `call-logs-${new Date().toISOString().split('T')[0]}.csv`;
+      XLSX.writeFile(wb, fileName, { bookType: 'csv' });
+      
+      toast.dismiss();
+      toast.success(`Exported ${allLogs.length} call logs to CSV`);
+    } catch (error) {
+      toast.dismiss();
+      toast.error('Failed to export CSV');
+      console.error('CSV export error:', error);
+    }
+  };
+
+  const exportToPDF = async () => {
+    toast.loading('Generating PDF report...');
+    
+    try {
+      const allLogs = await fetchAllLogsForExport();
+      
+      if (allLogs.length === 0) {
+        toast.dismiss();
+        toast.error('No call logs to export');
+        return;
+      }
+
+      const doc = new jsPDF();
+      
+      // Title
+      doc.setFontSize(20);
+      doc.setTextColor(40, 40, 40);
+      doc.text('Call Log Report', 14, 22);
+      
+      // Subtitle with date and filter
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      const filterText = outcomeFilter === 'all' ? 'All Outcomes' : OUTCOME_LABELS[outcomeFilter];
+      doc.text(`Generated: ${new Date().toLocaleDateString()} | Filter: ${filterText} | Total: ${allLogs.length} calls`, 14, 30);
+      
+      // Stats summary if available
+      if (stats) {
+        doc.setFontSize(11);
+        doc.setTextColor(60, 60, 60);
+        doc.text(`Summary: ${stats.total_calls} total calls | ${stats.interested_rate}% interested | Avg duration: ${formatDuration(stats.average_duration_seconds)}`, 14, 38);
+      }
+
+      // Table data
+      const tableData = allLogs.map(log => [
+        log.lead_name || 'Unknown',
+        log.lead_phone || '-',
+        formatDuration(log.duration_seconds),
+        OUTCOME_LABELS[log.outcome],
+        formatDateFull(log.created_at),
+        (log.notes || '').substring(0, 50) + ((log.notes?.length || 0) > 50 ? '...' : ''),
+      ]);
+
+      autoTable(doc, {
+        startY: stats ? 44 : 36,
+        head: [['Lead Name', 'Phone', 'Duration', 'Outcome', 'Date', 'Notes']],
+        body: tableData,
+        styles: {
+          fontSize: 8,
+          cellPadding: 2,
+        },
+        headStyles: {
+          fillColor: [79, 70, 229], // Primary purple
+          textColor: 255,
+          fontStyle: 'bold',
+        },
+        alternateRowStyles: {
+          fillColor: [245, 245, 250],
+        },
+        columnStyles: {
+          0: { cellWidth: 35 },
+          1: { cellWidth: 30 },
+          2: { cellWidth: 20 },
+          3: { cellWidth: 30 },
+          4: { cellWidth: 35 },
+          5: { cellWidth: 40 },
+        },
+      });
+
+      const fileName = `call-logs-report-${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
+      
+      toast.dismiss();
+      toast.success(`PDF report generated with ${allLogs.length} call logs`);
+    } catch (error) {
+      toast.dismiss();
+      toast.error('Failed to generate PDF');
+      console.error('PDF export error:', error);
+    }
+  };
+
   const totalPages = Math.ceil(total / pageSize);
 
   return (
@@ -225,23 +386,43 @@ export default function CallLogHistory() {
               <MessageSquare className="w-5 h-5" />
               Call History
             </CardTitle>
-            <Select 
-              value={outcomeFilter} 
-              onValueChange={(v) => {
-                setOutcomeFilter(v as CallOutcome | 'all');
-                setPage(0);
-              }}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by outcome" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Outcomes</SelectItem>
-                {Object.entries(OUTCOME_LABELS).map(([key, label]) => (
-                  <SelectItem key={key} value={key}>{label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Download className="w-4 h-4" />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={exportToCSV} className="gap-2">
+                    <FileSpreadsheet className="w-4 h-4" />
+                    Export as CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={exportToPDF} className="gap-2">
+                    <FileText className="w-4 h-4" />
+                    Export as PDF Report
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Select 
+                value={outcomeFilter} 
+                onValueChange={(v) => {
+                  setOutcomeFilter(v as CallOutcome | 'all');
+                  setPage(0);
+                }}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by outcome" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Outcomes</SelectItem>
+                  {Object.entries(OUTCOME_LABELS).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
