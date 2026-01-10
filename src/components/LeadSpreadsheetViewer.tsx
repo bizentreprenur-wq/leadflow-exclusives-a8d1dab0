@@ -48,6 +48,7 @@ import LeadCallModal from './LeadCallModal';
 import CallQueueModal from './CallQueueModal';
 import CreditsUpsellModal from './CreditsUpsellModal';
 import LeadActionChoiceModal from './LeadActionChoiceModal';
+import LeadReportDocument from './LeadReportDocument';
 
 interface SearchResult {
   id: string;
@@ -1166,6 +1167,15 @@ export default function LeadSpreadsheetViewer({
         onCallSelected={handleCallFromChoice}
         onEmailSelected={handleEmailFromChoice}
         onAIVerifySelected={handleAIVerifyFromChoice}
+      />
+
+      {/* Lead Report Document - White background document popup */}
+      <LeadReportDocument
+        open={showPDFReadyBanner}
+        onClose={() => setShowPDFReadyBanner(false)}
+        leads={leads}
+        searchQuery="Website Design Leads"
+        location="Your Search Area"
       />
     </Dialog>
   );
