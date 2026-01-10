@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import BackButton from "@/components/BackButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { createCheckoutSession } from "@/lib/api/stripe";
 import DiscountCodeInput from "@/components/DiscountCodeInput";
@@ -149,8 +150,13 @@ const Pricing = () => {
       <Navbar />
       
       <main>
+        {/* Back Button */}
+        <div className="container px-4 pt-6">
+          <BackButton />
+        </div>
+
         {/* Hero */}
-        <section className="py-20 md:py-28 bg-gradient-hero">
+        <section className="py-16 md:py-24 bg-gradient-hero">
           <div className="container px-4">
             <div className="max-w-3xl mx-auto text-center">
               <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">

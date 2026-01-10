@@ -1,6 +1,7 @@
 import { useState } from "react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import BackButton from "@/components/BackButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -67,8 +68,13 @@ const Contact = () => {
       <Navbar />
       
       <main>
+        {/* Back Button */}
+        <div className="container px-4 pt-6">
+          <BackButton />
+        </div>
+
         {/* Hero */}
-        <section className="py-20 md:py-28 bg-gradient-hero">
+        <section className="py-16 md:py-24 bg-gradient-hero">
           <div className="container px-4">
             <div className="max-w-3xl mx-auto text-center">
               <h1 className="text-4xl md:text-5xl font-display font-bold text-foreground mb-6">
