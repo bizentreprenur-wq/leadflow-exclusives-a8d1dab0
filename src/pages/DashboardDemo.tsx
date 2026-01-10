@@ -62,9 +62,8 @@ const sampleLeads = generateSampleLeads();
 
 const WORKFLOW_STEPS = [
   { id: 1, label: "Search", icon: Search },
-  { id: 2, label: "See All Leads", icon: Building2 },
-  { id: 3, label: "AI Verification", icon: Sparkles },
-  { id: 4, label: "Send Emails", icon: Mail },
+  { id: 2, label: "Review Leads", icon: Building2 },
+  { id: 3, label: "Send Outreach", icon: Mail },
 ];
 
 export default function DashboardDemo() {
@@ -81,10 +80,11 @@ export default function DashboardDemo() {
   const [emailBody, setEmailBody] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [sendProgress, setSendProgress] = useState(0);
+  const [outreachMode, setOutreachMode] = useState<'email' | 'verify'>('email');
 
-  // Auto-complete verification for demo when on Step 3
+  // Auto-complete verification for demo when on Step 3 with verify mode
   useEffect(() => {
-    if (currentStep === 3 && selectedLeads.length > 0 && !isVerifying && verificationProgress === 0) {
+    if (currentStep === 3 && outreachMode === 'verify' && selectedLeads.length > 0 && !isVerifying && verificationProgress === 0) {
       setIsVerifying(true);
       const interval = setInterval(() => {
         setVerificationProgress(prev => {
@@ -100,11 +100,11 @@ export default function DashboardDemo() {
       }, 150);
       return () => clearInterval(interval);
     }
-  }, [currentStep, selectedLeads.length, isVerifying, verificationProgress]);
+  }, [currentStep, selectedLeads.length, isVerifying, verificationProgress, outreachMode]);
 
-  // Auto-select a sample template when entering Step 4
+  // Auto-select a sample template when entering Step 3 email mode
   useEffect(() => {
-    if (currentStep === 4 && !selectedTemplate) {
+    if (currentStep === 3 && !selectedTemplate) {
       const sampleTemplate = {
         id: 'demo-template',
         name: 'Professional Web Design Pitch',
@@ -387,38 +387,168 @@ Best regards,
                 disabled={selectedLeads.length === 0}
                 className="bg-primary"
               >
-                Verify {selectedLeads.length} Leads →
+                Send Outreach ({selectedLeads.length} Leads) →
               </Button>
             </div>
           </div>
         )}
 
-        {/* Step 3: AI Verification */}
+        {/* Step 3: Send Outreach (with optional AI Verify) */}
         {currentStep === 3 && (
           <div className="space-y-6">
-            <div className="text-center py-6 bg-gradient-to-r from-amber-500/10 to-orange-500/10 rounded-2xl border-2 border-amber-500/30">
-              <div className="text-6xl mb-4">✅</div>
-              <h2 className="text-2xl font-bold">STEP 3: AI Verification</h2>
+            {/* Header */}
+            <div className="text-center py-6 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-2xl border-2 border-blue-500/30">
+              <div className="text-6xl mb-4">📧</div>
+              <h2 className="text-2xl font-bold">STEP 3: Send Your Outreach!</h2>
               <p className="text-muted-foreground max-w-md mx-auto mt-2">
-                Our AI verifies {selectedLeads.length} leads, finds missing emails, and scores each for quality.
+                {selectedLeads.length} leads ready! Send emails now or use AI to verify first.
               </p>
             </div>
-            
-            {selectedLeads.length === 0 ? (
-              <Card className="border-border">
+
+            {/* Back Button */}
+            <Button variant="outline" onClick={() => setCurrentStep(2)}>← Back to Leads</Button>
+
+            {/* Mode Selection Cards */}
+            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+              {/* Send Emails Card */}
+              <Card 
+                className={`cursor-pointer transition-all border-2 ${
+                  outreachMode === 'email' 
+                    ? 'border-blue-500 bg-blue-500/5 ring-2 ring-blue-500/20' 
+                    : 'border-border hover:border-blue-500/50'
+                }`}
+                onClick={() => setOutreachMode('email')}
+              >
                 <CardContent className="p-6 text-center">
-                  <p className="text-xl font-semibold">No leads selected</p>
-                  <p className="text-muted-foreground mt-2">Go back to Step 2 and select leads first.</p>
-                  <Button onClick={() => setCurrentStep(2)} className="mt-4">← Go to Step 2</Button>
+                  <div className="w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center mx-auto mb-4 text-3xl">
+                    📧
+                  </div>
+                  <h3 className="text-xl font-bold text-foreground mb-2">Send Emails Now</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Pick a template and send outreach immediately to your {leadsWithEmailCount} leads with emails
+                  </p>
+                  <Badge className="bg-blue-500/20 text-blue-600 border-blue-500/30">
+                    Quick & Direct
+                  </Badge>
                 </CardContent>
               </Card>
+
+              {/* AI Verify First Card */}
+              <Card 
+                className={`cursor-pointer transition-all border-2 ${
+                  outreachMode === 'verify' 
+                    ? 'border-amber-500 bg-amber-500/5 ring-2 ring-amber-500/20' 
+                    : 'border-border hover:border-amber-500/50'
+                }`}
+                onClick={() => {
+                  setOutreachMode('verify');
+                  setVerificationProgress(0);
+                }}
+              >
+                <CardContent className="p-6 text-center">
+                  <div className="w-16 h-16 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto mb-4 text-3xl">
+                    ✅
+                  </div>
+                  <h3 className="text-xl font-bold text-foreground mb-2">AI Verify First</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Find missing emails, score leads, and analyze websites before sending
+                  </p>
+                  <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30">
+                    <Sparkles className="w-3 h-3 mr-1" />
+                    Uses Credits
+                  </Badge>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Content based on mode */}
+            {outreachMode === 'email' ? (
+              // Email Mode - Template Gallery + Composer
+              !selectedTemplate ? (
+                <HighConvertingTemplateGallery onSelectTemplate={handleTemplateSelect} />
+              ) : (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <Button variant="outline" onClick={() => setSelectedTemplate(null)}>
+                      ← Change Template
+                    </Button>
+                    <Badge className="bg-green-500/20 text-green-600 border-green-500">
+                      Template: {selectedTemplate.name}
+                    </Badge>
+                  </div>
+
+                  {/* Email Composer */}
+                  <Card className="border-primary/30">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Mail className="w-5 h-5" />
+                        Compose Your Email
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Subject Line</label>
+                        <Input 
+                          value={emailSubject}
+                          onChange={(e) => setEmailSubject(e.target.value)}
+                          placeholder="Enter email subject..."
+                          className="border-primary/30"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Email Body</label>
+                        <Textarea 
+                          value={emailBody}
+                          onChange={(e) => setEmailBody(e.target.value)}
+                          placeholder="Write your email..."
+                          className="min-h-[200px] border-primary/30"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Use {"{{business_name}}"} to personalize each email
+                        </p>
+                      </div>
+
+                      {/* Send Progress */}
+                      {isSending && (
+                        <div className="p-4 bg-blue-500/10 rounded-lg">
+                          <div className="flex items-center gap-3 mb-3">
+                            <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                            <span className="font-medium">Sending emails...</span>
+                          </div>
+                          <Progress value={sendProgress} className="h-2" />
+                        </div>
+                      )}
+
+                      {/* Summary & Send Button */}
+                      <div className="p-4 bg-muted/50 rounded-lg flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold">{leadsWithEmailCount} leads will receive this email</p>
+                          <p className="text-sm text-muted-foreground">
+                            {selectedLeads.length - leadsWithEmailCount} leads don't have emails
+                          </p>
+                        </div>
+                        <Button 
+                          onClick={handleSendEmails}
+                          disabled={isSending || leadsWithEmailCount === 0}
+                          className="bg-green-600 hover:bg-green-700"
+                          size="lg"
+                        >
+                          <Send className="w-4 h-4 mr-2" />
+                          {isSending ? 'Sending...' : `Send to ${leadsWithEmailCount} Leads`}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )
             ) : (
-              <Card className="border-primary/30">
+              // Verify Mode - AI Verification Progress
+              <Card className="border-amber-500/30">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4 mb-6">
-                    <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
+                    <div className="w-16 h-16 bg-amber-500/20 rounded-full flex items-center justify-center">
                       {verificationProgress < 100 ? (
-                        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                        <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
                       ) : (
                         <CheckCircle2 className="w-8 h-8 text-green-500" />
                       )}
@@ -455,116 +585,21 @@ Best regards,
                       <p className="text-xs text-muted-foreground">Avg Score</p>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            )}
-            
-            <div className="flex justify-between pt-4">
-              <Button variant="outline" onClick={() => setCurrentStep(2)}>← Back</Button>
-              <Button 
-                onClick={() => setCurrentStep(4)} 
-                className="bg-primary" 
-                disabled={selectedLeads.length === 0 || verificationProgress < 100}
-              >
-                Continue to Email →
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Step 4: Send Emails - Full Template Gallery + Email Composer */}
-        {currentStep === 4 && (
-          <div className="space-y-6">
-            <div className="text-center py-6 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-2xl border-2 border-blue-500/30">
-              <div className="text-6xl mb-4">📧</div>
-              <h2 className="text-2xl font-bold">STEP 4: Send Your Emails!</h2>
-              <p className="text-muted-foreground max-w-md mx-auto mt-2">
-                {selectedTemplate 
-                  ? `Template selected! Customize and send to ${leadsWithEmailCount} leads with emails.`
-                  : `Pick a template, customize your message, and start your outreach campaign!`}
-              </p>
-            </div>
-
-            {!selectedTemplate ? (
-              <>
-                <Button variant="outline" onClick={() => setCurrentStep(3)}>← Back to Verification</Button>
-                {/* Full Template Gallery */}
-                <HighConvertingTemplateGallery onSelectTemplate={handleTemplateSelect} />
-              </>
-            ) : (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <Button variant="outline" onClick={() => setSelectedTemplate(null)}>
-                    ← Change Template
-                  </Button>
-                  <Badge className="bg-green-500/20 text-green-600 border-green-500">
-                    Template: {selectedTemplate.name}
-                  </Badge>
-                </div>
-
-                {/* Email Composer */}
-                <Card className="border-primary/30">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Mail className="w-5 h-5" />
-                      Compose Your Email
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Subject Line</label>
-                      <Input 
-                        value={emailSubject}
-                        onChange={(e) => setEmailSubject(e.target.value)}
-                        placeholder="Enter email subject..."
-                        className="border-primary/30"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">Email Body</label>
-                      <Textarea 
-                        value={emailBody}
-                        onChange={(e) => setEmailBody(e.target.value)}
-                        placeholder="Write your email..."
-                        className="min-h-[200px] border-primary/30"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Use {"{{business_name}}"} to personalize each email
-                      </p>
-                    </div>
-
-                    {/* Send Progress */}
-                    {isSending && (
-                      <div className="p-4 bg-blue-500/10 rounded-lg">
-                        <div className="flex items-center gap-3 mb-3">
-                          <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
-                          <span className="font-medium">Sending emails...</span>
-                        </div>
-                        <Progress value={sendProgress} className="h-2" />
-                      </div>
-                    )}
-
-                    {/* Summary & Send Button */}
-                    <div className="p-4 bg-muted/50 rounded-lg flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold">{leadsWithEmailCount} leads will receive this email</p>
-                        <p className="text-sm text-muted-foreground">
-                          {selectedLeads.length - leadsWithEmailCount} leads don't have emails
-                        </p>
-                      </div>
+                  
+                  {verificationProgress >= 100 && (
+                    <div className="mt-6 flex justify-center">
                       <Button 
-                        onClick={handleSendEmails}
-                        disabled={isSending || leadsWithEmailCount === 0}
+                        onClick={() => setOutreachMode('email')}
                         className="bg-green-600 hover:bg-green-700"
                         size="lg"
                       >
-                        <Send className="w-4 h-4 mr-2" />
-                        {isSending ? 'Sending...' : `Send to ${leadsWithEmailCount} Leads`}
+                        <Mail className="w-4 h-4 mr-2" />
+                        Now Send Emails →
                       </Button>
                     </div>
-                  </CardContent>
-                </Card>
-              </div>
+                  )}
+                </CardContent>
+              </Card>
             )}
           </div>
         )}
