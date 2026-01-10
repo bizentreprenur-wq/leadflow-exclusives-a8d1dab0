@@ -93,6 +93,8 @@ interface EmbeddedSpreadsheetViewProps {
   onSendToEmail?: (leads: SearchResult[]) => void;
   onBack: () => void;
   onOpenEmailSettings?: () => void;
+  isLoading?: boolean;
+  loadingProgress?: number;
 }
 
 // Generate 1000 fake website design leads with AI intelligence
@@ -271,6 +273,8 @@ export default function EmbeddedSpreadsheetView({
   onSendToEmail,
   onBack,
   onOpenEmailSettings,
+  isLoading = false,
+  loadingProgress = 0,
 }: EmbeddedSpreadsheetViewProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeGroup, setActiveGroup] = useState<'all' | 'hot' | 'warm' | 'cold' | 'ready' | 'nowebsite'>('all');
@@ -880,6 +884,32 @@ export default function EmbeddedSpreadsheetView({
 
       {/* STEP 2 Header with Instructions */}
       <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-purple-500/10 border-b">
+        {/* Loading Progress Bar */}
+        {isLoading && (
+          <div className="px-4 py-3 bg-primary/5 border-b border-primary/20">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <span className="font-medium text-primary text-sm">Loading leads...</span>
+              </div>
+              <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-gradient-to-r from-primary to-blue-400 transition-all duration-300 ease-out rounded-full"
+                  style={{ width: `${loadingProgress}%` }}
+                />
+              </div>
+              <span className="text-sm font-bold text-primary min-w-[60px] text-right">
+                {Math.round(loadingProgress)}%
+              </span>
+            </div>
+            {externalLeads.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-2">
+                ✨ Showing {externalLeads.length.toLocaleString()} leads so far — more arriving!
+              </p>
+            )}
+          </div>
+        )}
+        
         {/* Welcome & Instructions - Compact */}
         <div className="px-4 py-3">
           <div className="flex items-center justify-between gap-4">
@@ -901,6 +931,7 @@ export default function EmbeddedSpreadsheetView({
             <Badge variant="outline" className="gap-2 px-3 py-1.5 text-sm shrink-0">
               <Users className="w-4 h-4" />
               <span className="font-bold">{leads.length.toLocaleString()}</span> Leads
+              {isLoading && <span className="text-xs text-muted-foreground">(loading...)</span>}
             </Badge>
           </div>
         </div>

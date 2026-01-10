@@ -99,6 +99,7 @@ export default function Dashboard() {
   const [query, setQuery] = useState('');
   const [location, setLocation] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [searchProgress, setSearchProgress] = useState(0);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   
@@ -189,18 +190,41 @@ export default function Dashboard() {
     }
 
     setIsSearching(true);
+    setSearchProgress(0);
+    setSearchResults([]); // Clear previous results
     setAiGroups(null);
     setAiSummary(null);
     setAiStrategies(null);
     setShowAiGrouping(false);
     
+    // Open spreadsheet viewer immediately to show loading state
+    setShowSpreadsheetViewer(true);
+    
     try {
-      let results: SearchResult[] = [];
+      let finalResults: SearchResult[] = [];
+      
+      // Progress callback for streaming results
+      const handleProgress = (partialResults: any[], progress: number) => {
+        setSearchProgress(progress);
+        const mapped = partialResults.map((r: any, index: number) => ({
+          id: r.id || `result-${index}`,
+          name: r.name || 'Unknown Business',
+          address: r.address,
+          phone: r.phone,
+          website: r.url || r.website,
+          email: undefined,
+          rating: r.rating,
+          source: searchType as 'gmb' | 'platform',
+          platform: r.websiteAnalysis?.platform || undefined,
+          websiteAnalysis: r.websiteAnalysis,
+        }));
+        setSearchResults(mapped);
+      };
       
       if (searchType === 'gmb') {
-        const response = await searchGMB(query, location, searchLimit);
+        const response = await searchGMB(query, location, searchLimit, handleProgress);
         if (response.success && response.data) {
-          results = response.data.map((r: GMBResult, index: number) => ({
+          finalResults = response.data.map((r: GMBResult, index: number) => ({
             id: r.id || `gmb-${index}`,
             name: r.name || 'Unknown Business',
             address: r.address,
@@ -213,9 +237,9 @@ export default function Dashboard() {
           }));
         }
       } else if (searchType === 'platform') {
-        const response = await searchPlatforms(query, location, selectedPlatforms);
+        const response = await searchPlatforms(query, location, selectedPlatforms, handleProgress);
         if (response.success && response.data) {
-          results = response.data.map((r: PlatformResult, index: number) => ({
+          finalResults = response.data.map((r: PlatformResult, index: number) => ({
             id: r.id || `platform-${index}`,
             name: r.name || 'Unknown Business',
             address: r.address,
@@ -229,30 +253,29 @@ export default function Dashboard() {
         }
       }
       
-      setSearchResults(results);
-      toast.success(`Found ${results.length} businesses!`);
+      setSearchResults(finalResults);
+      setSearchProgress(100);
+      toast.success(`Found ${finalResults.length} businesses!`);
       
-      // Open the spreadsheet viewer to display leads
-      setShowSpreadsheetViewer(true);
-      
-      // Start AI analysis in background
-      if (results.length > 0) {
+      // Start AI analysis in background (non-blocking)
+      if (finalResults.length > 0) {
         setIsAnalyzing(true);
-        try {
-          const analysisResponse = await analyzeLeads(results);
-          if (analysisResponse.success) {
-            setAiGroups(analysisResponse.data);
-            setAiSummary(analysisResponse.summary);
-            setAiStrategies(analysisResponse.emailStrategies);
-            setShowAiGrouping(true);
-            toast.success('AI analysis complete! Leads grouped by opportunity.');
-          }
-        } catch (analysisError) {
-          console.error('AI analysis error:', analysisError);
-          // Don't show error - user can still use results without AI grouping
-        } finally {
-          setIsAnalyzing(false);
-        }
+        analyzeLeads(finalResults)
+          .then((analysisResponse) => {
+            if (analysisResponse.success) {
+              setAiGroups(analysisResponse.data);
+              setAiSummary(analysisResponse.summary);
+              setAiStrategies(analysisResponse.emailStrategies);
+              setShowAiGrouping(true);
+              toast.success('AI analysis complete! Leads grouped by opportunity.');
+            }
+          })
+          .catch((analysisError) => {
+            console.error('AI analysis error:', analysisError);
+          })
+          .finally(() => {
+            setIsAnalyzing(false);
+          });
       }
     } catch (error) {
       console.error('Search error:', error);
@@ -829,6 +852,8 @@ export default function Dashboard() {
         return (
           <EmbeddedSpreadsheetView
             leads={searchResults}
+            isLoading={isSearching}
+            loadingProgress={searchProgress}
             onBack={() => setCurrentStep(1)}
             onProceedToVerify={(leads) => {
               setWidgetLeads(leads);
