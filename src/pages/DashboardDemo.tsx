@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,7 +18,9 @@ import {
   Building2,
   Sparkles,
   Loader2,
-  Send
+  Send,
+  ArrowLeft,
+  Home
 } from "lucide-react";
 import { SocialFinderButton } from "@/components/SocialProfileFinder";
 import EmailHelpOverlay from "@/components/EmailHelpOverlay";
@@ -200,8 +203,30 @@ Best regards,
       {/* Header */}
       <header className="border-b bg-card px-6 py-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-foreground">🎯 BamLead Dashboard</h1>
-          <Badge variant="outline" className="text-xs bg-amber-500/20 text-amber-600 border-amber-500">DEMO MODE - 100 Sample Leads</Badge>
+          <div className="flex items-center gap-4">
+            <Link to="/">
+              <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground">
+                <ArrowLeft className="w-4 h-4" />
+                <span className="hidden sm:inline">Back</span>
+              </Button>
+            </Link>
+            <Link to="/">
+              <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground">
+                <Home className="w-4 h-4" />
+                <span className="hidden sm:inline">Home</span>
+              </Button>
+            </Link>
+            <h1 className="text-2xl font-bold text-foreground">🎯 BamLead Dashboard</h1>
+          </div>
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="text-xs bg-amber-500/20 text-amber-600 border-amber-500">DEMO MODE</Badge>
+            <Link to="/auth">
+              <Button size="sm" className="gap-2">
+                <Sparkles className="w-4 h-4" />
+                Sign In for Full Access
+              </Button>
+            </Link>
+          </div>
         </div>
       </header>
 
