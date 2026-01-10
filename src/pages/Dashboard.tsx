@@ -752,6 +752,35 @@ export default function Dashboard() {
             ) : (
               <>
 
+            {/* Full Screen Spreadsheet CTA - PROMINENT */}
+            <Card className="border-2 border-primary/50 bg-gradient-to-r from-primary/10 to-accent/10 shadow-lg">
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center text-3xl">
+                      📊
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-foreground">
+                        {searchResults.length.toLocaleString()} Leads Found!
+                      </p>
+                      <p className="text-muted-foreground">
+                        Open the full-screen spreadsheet to see ALL leads at once like a PDF or Excel
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={() => setShowSpreadsheetViewer(true)} 
+                    size="lg" 
+                    className="gap-3 text-lg px-8 py-6 bg-primary hover:bg-primary/90 shadow-lg"
+                  >
+                    <ExternalLink className="w-5 h-5" />
+                    Open Full-Screen View
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Results Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-muted/50 rounded-xl">
               <div className="flex items-center gap-4">
@@ -768,6 +797,9 @@ export default function Dashboard() {
               </div>
               
               <div className="flex items-center gap-3">
+                <Button variant="default" size="lg" onClick={() => setShowSpreadsheetViewer(true)} className="gap-2">
+                  📊 Spreadsheet View
+                </Button>
                 <Button variant="outline" size="lg" onClick={selectAllLeads}>
                   {selectedLeads.length === searchResults.length ? '❌ Deselect All' : '✅ Select All'}
                 </Button>

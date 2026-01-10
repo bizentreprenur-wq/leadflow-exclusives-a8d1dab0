@@ -21,11 +21,13 @@ import {
   Send,
   ArrowLeft,
   Home,
-  Server
+  Server,
+  ExternalLink
 } from "lucide-react";
 import { SocialFinderButton } from "@/components/SocialProfileFinder";
 import EmailHelpOverlay from "@/components/EmailHelpOverlay";
 import HighConvertingTemplateGallery from "@/components/HighConvertingTemplateGallery";
+import LeadSpreadsheetViewer from "@/components/LeadSpreadsheetViewer";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -86,6 +88,19 @@ export default function DashboardDemo() {
   const [isSending, setIsSending] = useState(false);
   const [sendProgress, setSendProgress] = useState(0);
   const [outreachMode, setOutreachMode] = useState<'email' | 'verify'>('email');
+  const [showSpreadsheetViewer, setShowSpreadsheetViewer] = useState(false);
+
+  // Convert leads to SearchResult format for LeadSpreadsheetViewer
+  const leadsAsSearchResults = leads.map(lead => ({
+    id: String(lead.id),
+    name: lead.name,
+    address: lead.address,
+    phone: lead.phone,
+    website: lead.website,
+    email: lead.email || undefined,
+    rating: parseFloat(lead.rating),
+    source: 'gmb' as const,
+  }));
 
   // Auto-complete verification for demo when on Step 3 with verify mode
   useEffect(() => {
@@ -341,6 +356,35 @@ Best regards,
         {/* Step 2: See All Leads */}
         {currentStep === 2 && (
           <div className="space-y-4">
+            {/* Full Screen Spreadsheet CTA - PROMINENT */}
+            <Card className="border-2 border-primary/50 bg-gradient-to-r from-primary/10 to-accent/10 shadow-lg">
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-2xl bg-primary/20 flex items-center justify-center text-3xl">
+                      📊
+                    </div>
+                    <div>
+                      <p className="text-xl font-bold text-foreground">
+                        {leads.length.toLocaleString()} Leads Found!
+                      </p>
+                      <p className="text-muted-foreground">
+                        Open the full-screen spreadsheet to see ALL leads at once
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={() => setShowSpreadsheetViewer(true)} 
+                    size="lg" 
+                    className="gap-3 text-lg px-8 py-6 bg-primary hover:bg-primary/90 shadow-lg"
+                  >
+                    <ExternalLink className="w-5 h-5" />
+                    Open Full-Screen View
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-semibold">📋 Your Leads ({leads.length} found)</h2>
@@ -349,6 +393,9 @@ Best regards,
                 </p>
               </div>
               <div className="flex gap-2">
+                <Button variant="default" size="sm" onClick={() => setShowSpreadsheetViewer(true)} className="gap-2">
+                  📊 Spreadsheet View
+                </Button>
                 <Button variant="outline" size="sm" onClick={selectAllLeads}>
                   {selectedLeads.length === leads.length ? 'Deselect All' : 'Select All'}
                 </Button>
@@ -879,6 +926,27 @@ Best regards,
 
       {/* Floating Help Button */}
       <EmailHelpOverlay variant="floating" />
+
+      {/* Lead Spreadsheet Viewer */}
+      <LeadSpreadsheetViewer
+        open={showSpreadsheetViewer}
+        onOpenChange={setShowSpreadsheetViewer}
+        leads={leadsAsSearchResults}
+        onProceedToVerify={(selectedLeadsFromViewer) => {
+          setShowSpreadsheetViewer(false);
+          setSelectedLeads(selectedLeadsFromViewer.map(l => parseInt(l.id)));
+          setCurrentStep(3);
+          setOutreachMode('verify');
+          toast.success(`${selectedLeadsFromViewer.length} leads selected for verification`);
+        }}
+        onSendToEmail={(selectedLeadsFromViewer) => {
+          setShowSpreadsheetViewer(false);
+          setSelectedLeads(selectedLeadsFromViewer.map(l => parseInt(l.id)));
+          setCurrentStep(3);
+          setOutreachMode('email');
+          toast.success(`${selectedLeadsFromViewer.length} leads selected for email outreach`);
+        }}
+      />
     </div>
   );
 }
