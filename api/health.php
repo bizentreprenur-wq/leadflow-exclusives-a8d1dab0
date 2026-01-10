@@ -2,8 +2,8 @@
 /**
  * Health Check Endpoint
  * Returns JSON status to verify API is reachable and configured correctly
- * Deployed: 2025-01-04 v2
- * Force redeploy trigger
+ * Deployed: 2026-01-10 v3
+ * Trigger redeploy - API files to Hostinger
  */
 
 header('Content-Type: application/json');
