@@ -34,8 +34,9 @@ import {
   Globe, Phone, MapPin, ExternalLink,
   FileSpreadsheet, FileDown, Flame, Thermometer, Snowflake, Clock, 
   PhoneCall, Users, Mail,
-  Target, Zap, Brain, Rocket, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Trash2, FileText, Printer
+  Target, Zap, Brain, Rocket, Search, X, ArrowUpDown, ArrowUp, ArrowDown, Trash2, FileText, Printer, Loader2
 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import CRMIntegrationModal from './CRMIntegrationModal';
 import EmailScheduleModal from './EmailScheduleModal';
 import LeadCallModal from './LeadCallModal';
@@ -1440,6 +1441,66 @@ export default function EmbeddedSpreadsheetView({
                 </TableCell>
               </TableRow>
             ))}
+            
+            {/* Skeleton loading rows while streaming */}
+            {isLoading && (
+              <>
+                {[...Array(5)].map((_, index) => (
+                  <TableRow key={`skeleton-${index}`} className="animate-pulse">
+                    <TableCell>
+                      <Skeleton className="h-4 w-4 rounded" />
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-[160px]" />
+                        <Skeleton className="h-3 w-[120px]" />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-1">
+                          <Skeleton className="h-3 w-3 rounded-full" />
+                          <Skeleton className="h-3 w-[80px]" />
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Skeleton className="h-3 w-3 rounded-full" />
+                          <Skeleton className="h-3 w-[90px]" />
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Skeleton className="h-6 w-8" />
+                        <Skeleton className="h-5 w-12 rounded-full" />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-5 w-16 rounded-full" />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Skeleton className="h-3 w-3 rounded-full" />
+                        <Skeleton className="h-3 w-[80px]" />
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-3 w-[100px]" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-8 w-8 rounded" />
+                    </TableCell>
+                  </TableRow>
+                ))}
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-3">
+                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                      <span>Loading more leads...</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              </>
+            )}
           </TableBody>
         </Table>
         </div>
