@@ -654,11 +654,11 @@ export default function LeadSpreadsheetViewer({
       </div>
     )}
 
-    {/* Lead Report Document Auto-Popup */}
+    {/* Lead Report Document Auto-Popup - Shows selected leads if any, otherwise all leads */}
     <LeadReportDocument
       open={showLeadReportDocument}
       onClose={() => setShowLeadReportDocument(false)}
-      leads={leads}
+      leads={selectedLeads.length > 0 ? selectedLeads : leads}
       searchQuery="Business Leads"
       location="Your Area"
     />
