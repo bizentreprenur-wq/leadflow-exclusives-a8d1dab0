@@ -88,7 +88,7 @@ export default function DashboardDemo() {
   const [isSending, setIsSending] = useState(false);
   const [sendProgress, setSendProgress] = useState(0);
   const [outreachMode, setOutreachMode] = useState<'email' | 'verify'>('email');
-  const [showSpreadsheetViewer, setShowSpreadsheetViewer] = useState(false);
+  const [showSpreadsheetViewer, setShowSpreadsheetViewer] = useState(true); // Auto-open full-screen view
 
   // Convert leads to SearchResult format for LeadSpreadsheetViewer
   const leadsAsSearchResults = leads.map(lead => ({
