@@ -92,6 +92,7 @@ interface EmbeddedSpreadsheetViewProps {
   onSaveToDatabase?: (leads: SearchResult[]) => void;
   onSendToEmail?: (leads: SearchResult[]) => void;
   onBack: () => void;
+  onOpenEmailSettings?: () => void;
 }
 
 // Generate 1000 fake website design leads with AI intelligence
@@ -269,6 +270,7 @@ export default function EmbeddedSpreadsheetView({
   onSaveToDatabase,
   onSendToEmail,
   onBack,
+  onOpenEmailSettings,
 }: EmbeddedSpreadsheetViewProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeGroup, setActiveGroup] = useState<'all' | 'hot' | 'warm' | 'cold' | 'ready' | 'nowebsite'>('all');
@@ -297,13 +299,20 @@ export default function EmbeddedSpreadsheetView({
   const [fakeLeads] = useState<SearchResult[]>(() => generateFakeLeads());
   const leads = externalLeads.length > 100 ? externalLeads : fakeLeads;
 
-  // State for auto-open PDF
-  const [hasAutoOpenedPDF, setHasAutoOpenedPDF] = useState(false);
+  // State for auto-open PDF - Check if returning user
+  const isReturningUser = localStorage.getItem('bamlead_step2_visited') === 'true';
+  const [hasAutoOpenedPDF, setHasAutoOpenedPDF] = useState(isReturningUser);
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
   const [showPDFReadyBanner, setShowPDFReadyBanner] = useState(false);
   
-  // Auto-open Lead Report Document popup
-  const [showLeadReportDocument, setShowLeadReportDocument] = useState(true);
+  // Auto-open Lead Report Document popup - Only for first-time visitors
+  const [showLeadReportDocument, setShowLeadReportDocument] = useState(!isReturningUser);
+  
+  // SMTP Status - Check localStorage for configuration
+  const [smtpConfigured, setSmtpConfigured] = useState(() => {
+    const smtpSettings = localStorage.getItem('bamlead_smtp_settings');
+    return smtpSettings ? JSON.parse(smtpSettings)?.host : false;
+  });
 
   const groupedLeads = useMemo(() => {
     const hot = leads.filter(l => l.aiClassification === 'hot');
@@ -771,16 +780,18 @@ export default function EmbeddedSpreadsheetView({
     setShowPDFPreview(true);
   };
 
-  // Show PDF ready banner when component mounts
+  // Show PDF ready banner when component mounts - only for first-time visitors
   useEffect(() => {
-    if (!hasAutoOpenedPDF && leads.length > 0) {
+    if (!isReturningUser && !hasAutoOpenedPDF && leads.length > 0) {
       const timer = setTimeout(() => {
         setShowPDFReadyBanner(true);
         setHasAutoOpenedPDF(true);
+        // Mark as visited so returning users skip the popup
+        localStorage.setItem('bamlead_step2_visited', 'true');
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [leads, hasAutoOpenedPDF]);
+  }, [leads, hasAutoOpenedPDF, isReturningUser]);
 
   const handleOpenPDFFromBanner = () => {
     setShowPDFReadyBanner(false);
@@ -963,6 +974,45 @@ export default function EmbeddedSpreadsheetView({
             <Brain className="w-5 h-5 text-amber-600 animate-bounce" />
             <span className="font-bold text-amber-700">⚠️ REMEMBER: AI Verify your leads before contacting them! This ensures accurate contact info.</span>
             <Brain className="w-5 h-5 text-amber-600 animate-bounce" />
+          </div>
+        </div>
+        
+        {/* SMTP STATUS BANNER */}
+        <div className={`px-4 py-2 border-t ${smtpConfigured ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-blue-500/30 bg-blue-500/10'}`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${smtpConfigured ? 'bg-emerald-500/20' : 'bg-blue-500/20'}`}>
+                <Mail className={`w-4 h-4 ${smtpConfigured ? 'text-emerald-600' : 'text-blue-600'}`} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className={`font-semibold text-sm ${smtpConfigured ? 'text-emerald-700' : 'text-blue-700'}`}>
+                    {smtpConfigured ? '✅ Email Sending Ready' : '📧 Email Setup Required'}
+                  </span>
+                  {smtpConfigured ? (
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  ) : null}
+                </div>
+                <p className={`text-xs ${smtpConfigured ? 'text-emerald-600/80' : 'text-blue-600/80'}`}>
+                  {smtpConfigured 
+                    ? 'Your SMTP is configured. You can send emails to leads!' 
+                    : 'Configure your SMTP settings to send emails to leads'
+                  }
+                </p>
+              </div>
+            </div>
+            <Button
+              variant={smtpConfigured ? 'outline' : 'default'}
+              size="sm"
+              onClick={() => onOpenEmailSettings?.()}
+              className={smtpConfigured 
+                ? 'gap-2 border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/10' 
+                : 'gap-2 bg-blue-500 hover:bg-blue-600 text-white'
+              }
+            >
+              <Mail className="w-4 h-4" />
+              {smtpConfigured ? 'Email Settings' : 'Set Up Email →'}
+            </Button>
           </div>
         </div>
       </div>
