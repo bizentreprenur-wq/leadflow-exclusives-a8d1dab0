@@ -25,7 +25,7 @@ import {
   Globe, Phone, MapPin, ExternalLink,
   FileSpreadsheet, FileDown, Flame, Thermometer, Snowflake, Clock, 
   PhoneCall, Users, Mail,
-  Target, Zap, Brain, Rocket, Search, X
+  Target, Zap, Brain, Rocket, Search, X, ArrowUpDown, ArrowUp, ArrowDown
 } from 'lucide-react';
 import CRMIntegrationModal from './CRMIntegrationModal';
 import EmailScheduleModal from './EmailScheduleModal';
@@ -263,6 +263,8 @@ export default function EmbeddedSpreadsheetView({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeGroup, setActiveGroup] = useState<'all' | 'hot' | 'warm' | 'cold' | 'ready' | 'nowebsite'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortColumn, setSortColumn] = useState<'name' | 'score' | 'rating' | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const [showCRMModal, setShowCRMModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showVerifyConfirm, setShowVerifyConfirm] = useState(false);
@@ -311,8 +313,58 @@ export default function EmbeddedSpreadsheetView({
       );
     }
     
+    // Apply sorting
+    if (sortColumn) {
+      filtered = [...filtered].sort((a, b) => {
+        let valA: string | number = 0;
+        let valB: string | number = 0;
+        
+        switch (sortColumn) {
+          case 'name':
+            valA = a.name?.toLowerCase() || '';
+            valB = b.name?.toLowerCase() || '';
+            break;
+          case 'score':
+            valA = a.leadScore || 0;
+            valB = b.leadScore || 0;
+            break;
+          case 'rating':
+            valA = a.rating || 0;
+            valB = b.rating || 0;
+            break;
+        }
+        
+        if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+        if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+    
     return filtered;
-  }, [activeGroup, leads, searchQuery]);
+  }, [activeGroup, leads, searchQuery, sortColumn, sortDirection]);
+
+  const handleSort = (column: 'name' | 'score' | 'rating') => {
+    if (sortColumn === column) {
+      if (sortDirection === 'asc') {
+        setSortDirection('desc');
+      } else {
+        setSortColumn(null);
+        setSortDirection('asc');
+      }
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (column: 'name' | 'score' | 'rating') => {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="w-3 h-3 ml-1 opacity-50" />;
+    }
+    return sortDirection === 'asc' 
+      ? <ArrowUp className="w-3 h-3 ml-1" /> 
+      : <ArrowDown className="w-3 h-3 ml-1" />;
+  };
 
   const handleGroupChange = (group: typeof activeGroup) => {
     setActiveGroup(group);
@@ -707,10 +759,34 @@ export default function EmbeddedSpreadsheetView({
                   onCheckedChange={selectAll}
                 />
               </TableHead>
-              <TableHead className="min-w-[200px]">Business</TableHead>
+              <TableHead 
+                className="min-w-[200px] cursor-pointer hover:bg-muted/50 select-none"
+                onClick={() => handleSort('name')}
+              >
+                <div className="flex items-center">
+                  Business
+                  {getSortIcon('name')}
+                </div>
+              </TableHead>
               <TableHead className="min-w-[120px]">Contact</TableHead>
-              <TableHead className="min-w-[100px]">Score</TableHead>
-              <TableHead className="min-w-[100px]">Status</TableHead>
+              <TableHead 
+                className="min-w-[100px] cursor-pointer hover:bg-muted/50 select-none"
+                onClick={() => handleSort('score')}
+              >
+                <div className="flex items-center">
+                  Score
+                  {getSortIcon('score')}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="min-w-[100px] cursor-pointer hover:bg-muted/50 select-none"
+                onClick={() => handleSort('rating')}
+              >
+                <div className="flex items-center">
+                  Rating
+                  {getSortIcon('rating')}
+                </div>
+              </TableHead>
               <TableHead className="min-w-[120px]">Best Time</TableHead>
               <TableHead className="min-w-[150px]">Website</TableHead>
               <TableHead className="min-w-[80px]">Actions</TableHead>
