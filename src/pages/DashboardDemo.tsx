@@ -553,25 +553,44 @@ Best regards,
                             {selectedLeads.length - leadsWithEmailCount} leads don't have emails
                           </p>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <Button 
-                            onClick={handleSendEmails}
-                            disabled={isSending || leadsWithEmailCount === 0}
-                            className="bg-green-600 hover:bg-green-700"
-                            size="lg"
-                          >
-                            <Send className="w-4 h-4 mr-2" />
-                            {isSending ? 'Sending...' : `Send to ${leadsWithEmailCount} Leads`}
-                          </Button>
-                          <Button 
-                            onClick={() => setCurrentStep(4)}
-                            variant="outline"
-                            size="lg"
-                          >
-                            <Phone className="w-4 h-4 mr-2" />
-                            Call Leads →
-                          </Button>
+                        <Button 
+                          onClick={handleSendEmails}
+                          disabled={isSending || leadsWithEmailCount === 0}
+                          className="bg-green-600 hover:bg-green-700"
+                          size="lg"
+                        >
+                          <Send className="w-4 h-4 mr-2" />
+                          {isSending ? 'Sending...' : `Send to ${leadsWithEmailCount} Leads`}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Continue to Calls - Big & Always Visible */}
+                  <Card className="border-2 border-green-500/30 bg-gradient-to-r from-green-500/5 to-emerald-500/5">
+                    <CardContent className="p-6">
+                      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center text-3xl">
+                            📞
+                          </div>
+                          <div>
+                            <p className="text-lg font-bold text-foreground">
+                              Ready to follow up with calls?
+                            </p>
+                            <p className="text-muted-foreground">
+                              {selectedLeads.length} leads have phone numbers ready for AI voice calls
+                            </p>
+                          </div>
                         </div>
+                        <Button 
+                          onClick={() => setCurrentStep(4)}
+                          size="lg"
+                          className="gap-2 bg-green-600 hover:bg-green-700 text-white px-6"
+                        >
+                          <Phone className="w-5 h-5" />
+                          Call Leads →
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
