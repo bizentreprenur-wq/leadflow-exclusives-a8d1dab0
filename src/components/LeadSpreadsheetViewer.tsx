@@ -960,88 +960,10 @@ export default function LeadSpreadsheetViewer({
             </div>
           </div>
         </div>
-              
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleOpenCRM}
-                disabled={selectedIds.size === 0}
-                className="gap-2"
-              >
-                <Briefcase className="w-4 h-4" />
-                CRM
-              </Button>
 
-              <Button 
-                onClick={() => {
-                  if (selectedLeads.length === 0) {
-                    toast.error('Please select at least one lead');
-                    return;
-                  }
-                  setShowScheduleModal(true);
-                }}
-                disabled={selectedIds.size === 0}
-                size="sm"
-                variant="outline"
-                className="gap-2"
-              >
-                <Clock className="w-4 h-4" />
-                Schedule
-              </Button>
-            </div>
-
-            {/* Visual Separator */}
-            <div className="h-8 w-px bg-border" />
-
-            {/* Export Group */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide mr-1">Export:</span>
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Download className="w-4 h-4" />
-                    Download
-                    <ChevronDown className="w-3 h-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleExportCSV} className="gap-2">
-                    <FileDown className="w-4 h-4" />
-                    Export as CSV
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleExportExcel} className="gap-2">
-                    <FileSpreadsheet className="w-4 h-4" />
-                    Export as Excel (with AI data)
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleExportGoogleDrive} disabled={isExportingToDrive} className="gap-2">
-                    <HardDrive className="w-4 h-4" />
-                    {isExportingToDrive ? 'Exporting...' : 'Export to Google Drive'}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            {/* Spacer */}
-            <div className="flex-1" />
-
-            {/* Send Action */}
-            <Button 
-              onClick={handleSendToEmail}
-              disabled={selectedIds.size === 0}
-              size="sm"
-              className="gap-2 bg-primary hover:bg-primary/90"
-            >
-              <Send className="w-4 h-4" />
-              Send Now
-            </Button>
-          </div>
-        </div>
-
-        {/* Spreadsheet Table */}
+        {/* Spreadsheet Table with horizontal scroll */}
         <ScrollArea className="flex-1">
-          <div className="p-4">
+          <div className="p-2 min-w-[1400px]">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
@@ -1344,15 +1266,6 @@ export default function LeadSpreadsheetViewer({
       />
 
     </Dialog>
-
-      {/* Lead Report Document - White background document popup - OUTSIDE the main dialog for proper z-index */}
-      <LeadReportDocument
-        open={showPDFReadyBanner}
-        onClose={() => setShowPDFReadyBanner(false)}
-        leads={leads}
-        searchQuery="Website Design Leads"
-        location="Your Search Area"
-      />
     </>
   );
 }
