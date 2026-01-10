@@ -616,6 +616,7 @@ export default function LeadSpreadsheetViewer({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-screen h-screen max-w-none m-0 p-0 rounded-none flex flex-col bg-background">
         {/* Header */}
@@ -753,110 +754,157 @@ export default function LeadSpreadsheetViewer({
           </Tabs>
         </div>
 
-        {/* Action Bar */}
-        <div className="flex items-center justify-between px-6 py-3 border-b bg-card">
-          <div className="flex items-center gap-4 text-sm">
-            <span className="font-medium">{selectedIds.size} selected</span>
-            <span className="text-muted-foreground">of {currentLeads.length} leads</span>
+        {/* Action Bar - Clean, organized with proper spacing */}
+        <div className="px-6 py-4 border-b bg-card/50">
+          {/* Row 1: Selection info + View Report button */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-lg">
+                <Checkbox 
+                  checked={selectedIds.size === currentLeads.length && currentLeads.length > 0}
+                  onCheckedChange={selectAll}
+                />
+                <span className="font-medium text-sm">{selectedIds.size} selected</span>
+                <span className="text-muted-foreground text-sm">of {currentLeads.length}</span>
+              </div>
+            </div>
+            
+            {/* View Full Report Button - prominent */}
+            <Button
+              onClick={() => setShowPDFReadyBanner(true)}
+              className="gap-2 bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500"
+            >
+              <FileText className="w-4 h-4" />
+              View Full Report
+            </Button>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Call Button */}
-            <Button 
-              onClick={() => {
-                if (selectedIds.size === 0) {
-                  toast.error('Select leads first to call them');
-                  return;
-                }
-                handleCallFromChoice();
-              }}
-              disabled={selectedIds.size === 0}
-              className="gap-2 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400"
-            >
-              <PhoneCall className="w-4 h-4" />
-              Call ({selectedIds.size})
-            </Button>
+          {/* Row 2: Action buttons - organized in groups with visual separators */}
+          <div className="flex items-center gap-6">
+            {/* Primary Actions Group */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide mr-1">Actions:</span>
+              <Button 
+                onClick={() => {
+                  if (selectedIds.size === 0) {
+                    toast.error('Select leads first to call them');
+                    return;
+                  }
+                  handleCallFromChoice();
+                }}
+                disabled={selectedIds.size === 0}
+                size="sm"
+                className="gap-2 bg-emerald-600 hover:bg-emerald-500"
+              >
+                <PhoneCall className="w-4 h-4" />
+                Call
+              </Button>
 
-            {/* Email Button */}
-            <Button 
-              onClick={() => {
-                if (selectedIds.size === 0) {
-                  toast.error('Select leads first to email them');
-                  return;
-                }
-                handleEmailFromChoice();
-              }}
-              disabled={selectedIds.size === 0}
-              className="gap-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400"
-            >
-              <Mail className="w-4 h-4" />
-              Email ({selectedIds.size})
-            </Button>
+              <Button 
+                onClick={() => {
+                  if (selectedIds.size === 0) {
+                    toast.error('Select leads first to email them');
+                    return;
+                  }
+                  handleEmailFromChoice();
+                }}
+                disabled={selectedIds.size === 0}
+                size="sm"
+                className="gap-2 bg-blue-600 hover:bg-blue-500"
+              >
+                <Mail className="w-4 h-4" />
+                Email
+              </Button>
 
-            <Button 
-              onClick={handleAIVerifyClick}
-              disabled={selectedIds.size === 0}
-              variant="outline"
-              className="gap-2 border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
-            >
-              <Sparkles className="w-4 h-4" />
-              AI Verify
-            </Button>
+              <Button 
+                onClick={handleAIVerifyClick}
+                disabled={selectedIds.size === 0}
+                size="sm"
+                variant="outline"
+                className="gap-2 border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
+              >
+                <Sparkles className="w-4 h-4" />
+                AI Verify
+              </Button>
+            </div>
 
-            <Button 
-              variant="outline" 
-              onClick={handleOpenCRM}
-              disabled={selectedIds.size === 0}
-              className="gap-2"
-            >
-              <Briefcase className="w-4 h-4" />
-              CRM
-            </Button>
+            {/* Visual Separator */}
+            <div className="h-8 w-px bg-border" />
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="gap-2">
-                  <Download className="w-4 h-4" />
-                  Export
-                  <ChevronDown className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleExportCSV} className="gap-2">
-                  <FileDown className="w-4 h-4" />
-                  Export as CSV
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExportExcel} className="gap-2">
-                  <FileSpreadsheet className="w-4 h-4" />
-                  Export as Excel (with AI data)
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleExportGoogleDrive} disabled={isExportingToDrive} className="gap-2">
-                  <HardDrive className="w-4 h-4" />
-                  {isExportingToDrive ? 'Exporting...' : 'Export to Google Drive'}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {/* Tools Group */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide mr-1">Tools:</span>
+              
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={handleOpenCRM}
+                disabled={selectedIds.size === 0}
+                className="gap-2"
+              >
+                <Briefcase className="w-4 h-4" />
+                CRM
+              </Button>
 
-            <Button 
-              onClick={() => {
-                if (selectedLeads.length === 0) {
-                  toast.error('Please select at least one lead');
-                  return;
-                }
-                setShowScheduleModal(true);
-              }}
-              disabled={selectedIds.size === 0}
-              variant="outline"
-              className="gap-2"
-            >
-              <Clock className="w-4 h-4" />
-              Schedule
-            </Button>
+              <Button 
+                onClick={() => {
+                  if (selectedLeads.length === 0) {
+                    toast.error('Please select at least one lead');
+                    return;
+                  }
+                  setShowScheduleModal(true);
+                }}
+                disabled={selectedIds.size === 0}
+                size="sm"
+                variant="outline"
+                className="gap-2"
+              >
+                <Clock className="w-4 h-4" />
+                Schedule
+              </Button>
+            </div>
 
+            {/* Visual Separator */}
+            <div className="h-8 w-px bg-border" />
+
+            {/* Export Group */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide mr-1">Export:</span>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Download className="w-4 h-4" />
+                    Download
+                    <ChevronDown className="w-3 h-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleExportCSV} className="gap-2">
+                    <FileDown className="w-4 h-4" />
+                    Export as CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportExcel} className="gap-2">
+                    <FileSpreadsheet className="w-4 h-4" />
+                    Export as Excel (with AI data)
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleExportGoogleDrive} disabled={isExportingToDrive} className="gap-2">
+                    <HardDrive className="w-4 h-4" />
+                    {isExportingToDrive ? 'Exporting...' : 'Export to Google Drive'}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {/* Spacer */}
+            <div className="flex-1" />
+
+            {/* Send Action */}
             <Button 
               onClick={handleSendToEmail}
               disabled={selectedIds.size === 0}
+              size="sm"
               className="gap-2 bg-primary hover:bg-primary/90"
             >
               <Send className="w-4 h-4" />
@@ -1169,7 +1217,9 @@ export default function LeadSpreadsheetViewer({
         onAIVerifySelected={handleAIVerifyFromChoice}
       />
 
-      {/* Lead Report Document - White background document popup */}
+    </Dialog>
+
+      {/* Lead Report Document - White background document popup - OUTSIDE the main dialog for proper z-index */}
       <LeadReportDocument
         open={showPDFReadyBanner}
         onClose={() => setShowPDFReadyBanner(false)}
@@ -1177,6 +1227,6 @@ export default function LeadSpreadsheetViewer({
         searchQuery="Website Design Leads"
         location="Your Search Area"
       />
-    </Dialog>
+    </>
   );
 }
