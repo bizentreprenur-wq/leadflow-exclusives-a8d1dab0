@@ -937,6 +937,10 @@ export default function Dashboard() {
         const leadsForCalling = leadsToUse.filter(l => l.phone);
 
 
+        // Check SMTP configuration
+        const smtpConfig = JSON.parse(localStorage.getItem('smtp_config') || '{}');
+        const isSmtpConfigured = smtpConfig.username && smtpConfig.password;
+
         return (
           <div className="space-y-6">
             {/* BIG Step 3 Header */}
@@ -950,8 +954,8 @@ export default function Dashboard() {
               </p>
             </div>
 
-            {/* Action Toggle - Email Now vs AI Verify First */}
-            <div className="flex items-center justify-center gap-4">
+            {/* Back Button */}
+            <div className="flex items-center gap-4">
               <button
                 onClick={() => setCurrentStep(2)}
                 className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors px-4 py-2 rounded-lg hover:bg-muted"
@@ -960,6 +964,38 @@ export default function Dashboard() {
                 Back to leads
               </button>
             </div>
+
+            {/* SMTP Configuration Check */}
+            <Card className={`border-2 ${isSmtpConfigured ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className={`w-14 h-14 rounded-full flex items-center justify-center text-3xl ${isSmtpConfigured ? 'bg-emerald-500/20' : 'bg-amber-500/20'}`}>
+                      {isSmtpConfigured ? '✅' : '⚠️'}
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-foreground">
+                        {isSmtpConfigured ? 'SMTP Configured!' : 'Configure SMTP First'}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {isSmtpConfigured 
+                          ? `Sending via ${smtpConfig.host || 'your SMTP server'}` 
+                          : 'You need to set up your email server before sending outreach'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={() => setActiveTab('settings')}
+                    variant={isSmtpConfigured ? 'outline' : 'default'}
+                    className={`gap-2 ${!isSmtpConfigured ? 'bg-amber-500 hover:bg-amber-600' : ''}`}
+                  >
+                    <Server className="w-4 h-4" />
+                    {isSmtpConfigured ? 'View Settings' : 'Configure SMTP →'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Two Action Cards */}
             <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
