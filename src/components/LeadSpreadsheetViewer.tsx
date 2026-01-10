@@ -296,12 +296,25 @@ export default function LeadSpreadsheetViewer({
   const [pdfDataUrl, setPdfDataUrl] = useState<string | null>(null);
   const pdfIframeRef = useRef<HTMLIFrameElement | null>(null);
   
-  // Auto-open Lead Report Document popup
-  const [showLeadReportDocument, setShowLeadReportDocument] = useState(true);
+  // Loading states for report generation
+  const [isGeneratingReport, setIsGeneratingReport] = useState(true);
+  const [showLeadReportDocument, setShowLeadReportDocument] = useState(false);
 
   // Use fake leads if external leads are 100 or less
   const [fakeLeads] = useState<SearchResult[]>(() => generateFakeLeads());
   const leads = externalLeads.length > 100 ? externalLeads : fakeLeads;
+
+  // Quick report generation - show loading then open report
+  useEffect(() => {
+    if (open && isGeneratingReport) {
+      // Fast loading - just 1.5 seconds
+      const timer = setTimeout(() => {
+        setIsGeneratingReport(false);
+        setShowLeadReportDocument(true);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [open, isGeneratingReport]);
 
   // Big "PDF is ready" popup (show once when this viewer opens)
   useEffect(() => {
@@ -620,6 +633,27 @@ export default function LeadSpreadsheetViewer({
 
   return (
     <>
+    {/* Loading Popup - Shows while generating report */}
+    {isGeneratingReport && (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70">
+        <div className="bg-card rounded-2xl p-8 shadow-2xl max-w-md mx-4 text-center animate-in zoom-in-95 duration-300">
+          <div className="w-16 h-16 mx-auto mb-4 relative">
+            <div className="absolute inset-0 rounded-full border-4 border-primary/20"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+            <FileText className="absolute inset-0 m-auto w-6 h-6 text-primary" />
+          </div>
+          <h2 className="text-xl font-bold mb-2">Lead Intelligence Report</h2>
+          <p className="text-muted-foreground mb-4">
+            Generating your report... please hold
+          </p>
+          <div className="flex items-center justify-center gap-2 text-sm text-primary">
+            <Sparkles className="w-4 h-4 animate-pulse" />
+            <span>Analyzing {leads.length.toLocaleString()} leads</span>
+          </div>
+        </div>
+      </div>
+    )}
+
     {/* Lead Report Document Auto-Popup */}
     <LeadReportDocument
       open={showLeadReportDocument}
