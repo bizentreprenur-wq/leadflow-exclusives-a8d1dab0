@@ -44,6 +44,7 @@ import CRMIntegrationModal from './CRMIntegrationModal';
 import EmailScheduleModal from './EmailScheduleModal';
 import LeadCallModal from './LeadCallModal';
 import CreditsUpsellModal from './CreditsUpsellModal';
+import LeadActionChoiceModal from './LeadActionChoiceModal';
 
 interface SearchResult {
   id: string;
@@ -277,6 +278,7 @@ export default function LeadSpreadsheetViewer({
   const [showVerifyConfirm, setShowVerifyConfirm] = useState(false);
   const [showCallModal, setShowCallModal] = useState(false);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
+  const [showActionChoice, setShowActionChoice] = useState(false);
   const [callLead, setCallLead] = useState<SearchResult | null>(null);
   const [userCredits] = useState(25); // Would come from API in production
   const [isExportingToDrive, setIsExportingToDrive] = useState(false);
@@ -387,6 +389,37 @@ export default function LeadSpreadsheetViewer({
   const handleCallLead = (lead: SearchResult) => {
     setCallLead(lead);
     setShowCallModal(true);
+  };
+
+  const handleOpenActionChoice = () => {
+    if (selectedLeads.length === 0) {
+      toast.error('Please select at least one lead');
+      return;
+    }
+    setShowActionChoice(true);
+  };
+
+  const handleCallFromChoice = () => {
+    // If only one lead selected, open call modal directly
+    if (selectedLeads.length === 1) {
+      setCallLead(selectedLeads[0]);
+      setShowCallModal(true);
+    } else {
+      // For multiple leads, start with first one
+      setCallLead(selectedLeads[0]);
+      setShowCallModal(true);
+      toast.info(`Starting with ${selectedLeads[0].name}. Call each lead from the table.`);
+    }
+  };
+
+  const handleEmailFromChoice = () => {
+    if (onSendToEmail) {
+      onSendToEmail(selectedLeads);
+    }
+  };
+
+  const handleAIVerifyFromChoice = () => {
+    setShowVerifyConfirm(true);
   };
 
   const handleSaveToDatabase = () => {
@@ -708,13 +741,24 @@ export default function LeadSpreadsheetViewer({
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Primary Action Button */}
+            <Button 
+              onClick={handleOpenActionChoice}
+              disabled={selectedIds.size === 0}
+              className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 font-medium"
+            >
+              <Target className="w-4 h-4" />
+              Take Action ({selectedIds.size})
+            </Button>
+
             <Button 
               onClick={handleAIVerifyClick}
               disabled={selectedIds.size === 0}
-              className="gap-2 bg-amber-500 hover:bg-amber-600 text-black font-medium"
+              variant="outline"
+              className="gap-2 border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
             >
               <Sparkles className="w-4 h-4" />
-              AI Verify ({selectedIds.size})
+              AI Verify
             </Button>
 
             <Button 
@@ -1057,6 +1101,16 @@ export default function LeadSpreadsheetViewer({
         onOpenChange={setShowCreditsModal}
         currentCredits={userCredits}
         requiredCredits={selectedLeads.length}
+      />
+
+      {/* Action Choice Modal */}
+      <LeadActionChoiceModal
+        open={showActionChoice}
+        onOpenChange={setShowActionChoice}
+        selectedLeads={selectedLeads}
+        onCallSelected={handleCallFromChoice}
+        onEmailSelected={handleEmailFromChoice}
+        onAIVerifySelected={handleAIVerifyFromChoice}
       />
     </Dialog>
   );
