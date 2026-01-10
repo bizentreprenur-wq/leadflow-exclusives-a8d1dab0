@@ -298,7 +298,7 @@ export default function EmbeddedSpreadsheetView({
 
   // State for auto-open PDF
   const [hasAutoOpenedPDF, setHasAutoOpenedPDF] = useState(false);
-
+  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
 
   const groupedLeads = useMemo(() => {
     const hot = leads.filter(l => l.aiClassification === 'hot');
@@ -744,6 +744,28 @@ export default function EmbeddedSpreadsheetView({
     }
   };
 
+  // Handler for View PDF button - asks to regenerate if already opened
+  const handleViewPDFClick = () => {
+    if (hasAutoOpenedPDF && pdfDataUrl) {
+      // PDF was already generated, ask if they want to regenerate
+      setShowRegenerateConfirm(true);
+    } else {
+      // First time, just generate
+      handleExportPDF(true);
+      setHasAutoOpenedPDF(true);
+    }
+  };
+
+  const handleRegeneratePDF = () => {
+    setShowRegenerateConfirm(false);
+    handleExportPDF(true);
+  };
+
+  const handleViewExistingPDF = () => {
+    setShowRegenerateConfirm(false);
+    setShowPDFPreview(true);
+  };
+
   // Auto-open PDF preview when component mounts (after functions are defined)
   useEffect(() => {
     if (!hasAutoOpenedPDF && leads.length > 0) {
@@ -845,11 +867,11 @@ export default function EmbeddedSpreadsheetView({
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={() => handleExportPDF(true)}
+              onClick={handleViewPDFClick}
               className="gap-2 border-primary/50 text-primary hover:bg-primary/10"
             >
               <FileText className="w-4 h-4" />
-              View PDF Report
+              {hasAutoOpenedPDF ? 'View PDF Report' : 'Generate PDF Report'}
             </Button>
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Zap className="w-3 h-3 text-primary" />
@@ -1414,6 +1436,30 @@ export default function EmbeddedSpreadsheetView({
           </div>
         </div>
       )}
+
+      {/* Regenerate PDF Confirmation Dialog */}
+      <AlertDialog open={showRegenerateConfirm} onOpenChange={setShowRegenerateConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-primary" />
+              PDF Report Already Generated
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              You've already generated a PDF report for these leads. What would you like to do?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button variant="outline" onClick={handleViewExistingPDF}>
+              View Existing PDF
+            </Button>
+            <AlertDialogAction onClick={handleRegeneratePDF}>
+              Regenerate New PDF
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
