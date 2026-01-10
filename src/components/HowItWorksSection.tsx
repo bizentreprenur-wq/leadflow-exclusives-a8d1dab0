@@ -1,33 +1,37 @@
-import { Search, Filter, Download, Rocket } from "lucide-react";
+import { Search, Mail, Phone, Rocket, CheckCircle2 } from "lucide-react";
 
 const steps = [
   {
     number: "01",
     icon: Search,
     title: "Search",
-    description: "Enter your target niche and location. Our AI scans Google My Business and search results in real-time.",
+    description: "Pick a business type and location. BamLead finds real businesses that need your help!",
     color: "primary",
+    emoji: "🔍",
   },
   {
     number: "02",
-    icon: Filter,
-    title: "Filter",
-    description: "Automatically filter results by website quality, platform type, and business category to find the best leads.",
+    icon: CheckCircle2,
+    title: "Review",
+    description: "See all the leads in a nice list. Pick the ones you want to contact. Easy peasy!",
     color: "accent",
+    emoji: "📋",
   },
   {
     number: "03",
-    icon: Download,
-    title: "Export",
-    description: "Download your curated lead list with business details, contact info, and website analysis.",
+    icon: Mail,
+    title: "Email",
+    description: "Send emails with beautiful templates. The AI helps you write messages that get replies!",
     color: "success",
+    emoji: "📧",
   },
   {
     number: "04",
-    icon: Rocket,
-    title: "Outreach",
-    description: "Use the insights to craft personalized pitches and close more website design deals.",
+    icon: Phone,
+    title: "Call",
+    description: "Let AI call your leads for you! It sounds totally human and qualifies leads automatically.",
     color: "primary",
+    emoji: "📞",
   },
 ];
 
@@ -69,9 +73,9 @@ const HowItWorksSection = () => {
                 )}
                 
                 <div className="relative bg-background rounded-2xl p-6 border border-border shadow-card hover:shadow-elevated transition-all duration-300 h-full">
-                  {/* Step Number */}
-                  <div className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-foreground text-background text-sm font-bold flex items-center justify-center">
-                    {step.number}
+                  {/* Step Number with Emoji */}
+                  <div className="absolute -top-3 -right-3 w-10 h-10 rounded-full bg-foreground text-background text-lg flex items-center justify-center">
+                    {step.emoji}
                   </div>
                   
                   {/* Icon */}
@@ -81,7 +85,7 @@ const HowItWorksSection = () => {
                   
                   {/* Content */}
                   <h3 className="text-xl font-display font-bold text-foreground mb-2">
-                    {step.title}
+                    Step {step.number}: {step.title}
                   </h3>
                   <p className="text-muted-foreground text-sm leading-relaxed">
                     {step.description}

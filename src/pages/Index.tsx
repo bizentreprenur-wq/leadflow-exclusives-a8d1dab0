@@ -20,6 +20,7 @@ import AgentCardsSection from "@/components/AgentCardsSection";
 import WhenAIActivatesSection from "@/components/WhenAIActivatesSection";
 import SponsorSection from "@/components/SponsorSection";
 import AutoSearchFeature from "@/components/AutoSearchFeature";
+import VoiceCallingSection from "@/components/VoiceCallingSection";
 
 const Index = () => {
   return (
@@ -29,8 +30,10 @@ const Index = () => {
       <main>
         <HeroSection />
         <DualSearchShowcase />
+        <HowItWorksSection />
         <AgentCardsSection />
         <AutoSearchFeature />
+        <VoiceCallingSection />
         <WhenAIActivatesSection />
         <RevolutionaryFeaturesSection />
         <SecretAISection />
@@ -39,7 +42,6 @@ const Index = () => {
         <LeadGenSection />
         <EmailOutreachSection />
         <ChromeExtensionSection />
-        <HowItWorksSection />
         <WhoThisIsForSection />
         <WhyItWorksSection />
         <FAQSection />

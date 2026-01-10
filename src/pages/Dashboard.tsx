@@ -932,6 +932,9 @@ export default function Dashboard() {
           : selectedSearchLeads.length > 0 
             ? selectedSearchLeads 
             : sampleLeads;
+        
+        // Store leads for Step 4 (Voice Calling)
+        const leadsForCalling = leadsToUse.filter(l => l.phone);
 
 
         return (
@@ -1016,6 +1019,32 @@ export default function Dashboard() {
               />
             ) : (
               <LeadVerificationModule onSendToEmail={handleSendToEmail} />
+            )}
+
+            {/* Continue to Voice Calls Button */}
+            {leadsForCalling.length > 0 && (
+              <div className="mt-6 p-4 rounded-xl border-2 border-green-500/30 bg-green-500/5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="text-3xl">📞</div>
+                    <div>
+                      <p className="font-semibold text-foreground">Ready to call {leadsForCalling.length} leads?</p>
+                      <p className="text-sm text-muted-foreground">Follow up with AI voice calls after sending emails</p>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={() => {
+                      // Store leads for step 4
+                      setEmailLeads(leadsToUse);
+                      setCurrentStep(4);
+                    }}
+                    className="gap-2 bg-green-600 hover:bg-green-700"
+                  >
+                    <Phone className="w-4 h-4" />
+                    Continue to Calls →
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
         );
