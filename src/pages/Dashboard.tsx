@@ -90,23 +90,49 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('workflow');
-  const [emailLeads, setEmailLeads] = useState<LeadForEmail[]>([]);
+  // Initialize emailLeads from sessionStorage for persistence across steps
+  const [emailLeads, setEmailLeads] = useState<LeadForEmail[]>(() => {
+    try {
+      const saved = sessionStorage.getItem('bamlead_email_leads');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const { celebrate } = useCelebration();
 
-  // Workflow state
-  const [currentStep, setCurrentStep] = useState(1);
-  const [searchType, setSearchType] = useState<'gmb' | 'platform' | null>(null);
-  const [query, setQuery] = useState('');
-  const [location, setLocation] = useState('');
+  // Workflow state - Initialize from sessionStorage for persistence
+  const [currentStep, setCurrentStep] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('bamlead_current_step');
+      return saved ? parseInt(saved, 10) : 1;
+    } catch { return 1; }
+  });
+  const [searchType, setSearchType] = useState<'gmb' | 'platform' | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('bamlead_search_type');
+      return saved ? (saved as 'gmb' | 'platform') : null;
+    } catch { return null; }
+  });
+  const [query, setQuery] = useState(() => sessionStorage.getItem('bamlead_query') || '');
+  const [location, setLocation] = useState(() => sessionStorage.getItem('bamlead_location') || '');
   const [isSearching, setIsSearching] = useState(false);
   const [searchProgress, setSearchProgress] = useState(0);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>(() => {
+    try {
+      const saved = sessionStorage.getItem('bamlead_search_results');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   
   // Platform selection for scanner
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['wordpress', 'wix', 'squarespace', 'joomla']);
   const [searchLimit, setSearchLimit] = useState<number>(100); // Default 100 results
-  const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
+  const [selectedLeads, setSelectedLeads] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('bamlead_selected_leads');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   
   // AI Lead Grouping state
   const [aiGroups, setAiGroups] = useState<Record<string, LeadGroup> | null>(null);
@@ -139,6 +165,37 @@ export default function Dashboard() {
   const [selectedDataFields, setSelectedDataFields] = useState<string[]>(
     DATA_FIELD_OPTIONS.filter(f => f.default).map(f => f.id)
   );
+
+  // Persist workflow state to sessionStorage for seamless step transitions
+  useEffect(() => {
+    sessionStorage.setItem('bamlead_current_step', currentStep.toString());
+  }, [currentStep]);
+
+  useEffect(() => {
+    if (searchType) {
+      sessionStorage.setItem('bamlead_search_type', searchType);
+    }
+  }, [searchType]);
+
+  useEffect(() => {
+    sessionStorage.setItem('bamlead_query', query);
+  }, [query]);
+
+  useEffect(() => {
+    sessionStorage.setItem('bamlead_location', location);
+  }, [location]);
+
+  useEffect(() => {
+    if (searchResults.length > 0) {
+      sessionStorage.setItem('bamlead_search_results', JSON.stringify(searchResults));
+    }
+  }, [searchResults]);
+
+  useEffect(() => {
+    if (emailLeads.length > 0) {
+      sessionStorage.setItem('bamlead_email_leads', JSON.stringify(emailLeads));
+    }
+  }, [emailLeads]);
 
   // Check for payment success
   useEffect(() => {
@@ -378,10 +435,22 @@ export default function Dashboard() {
     setLocation('');
     setSearchResults([]);
     setSelectedLeads([]);
+    setEmailLeads([]);
     setAiGroups(null);
     setAiSummary(null);
     setAiStrategies(null);
     setShowAiGrouping(false);
+    
+    // Clear sessionStorage for workflow
+    sessionStorage.removeItem('bamlead_current_step');
+    sessionStorage.removeItem('bamlead_search_type');
+    sessionStorage.removeItem('bamlead_query');
+    sessionStorage.removeItem('bamlead_location');
+    sessionStorage.removeItem('bamlead_search_results');
+    sessionStorage.removeItem('bamlead_email_leads');
+    localStorage.removeItem('bamlead_selected_leads');
+    
+    toast.success('Workflow reset! Start a new search.');
   };
 
   // Only show brief loading on first paint if no cached user
