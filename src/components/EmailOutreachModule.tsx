@@ -2130,10 +2130,99 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
     const featuredTemplates = HIGH_CONVERTING_TEMPLATES.slice(0, 8);
     const hasSelectedTemplate = templateSource === 'visual' ? selectedVisualTemplate !== null : selectedTemplateId !== '';
 
+    // Check if SMTP needs to be configured first
+    if (!smtpConfigured) {
+      return (
+        <>
+          {dialogs}
+          <div className="max-w-2xl mx-auto space-y-6">
+            {/* Progress indicator */}
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1 text-green-600">
+                <CheckCheck className="w-5 h-5" />
+                {allSelectedLeads.length} Leads
+              </span>
+              <ChevronRight className="w-4 h-4" />
+              <span className="flex items-center gap-1 text-primary font-medium">
+                <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs">2</span>
+                Configure Email
+              </span>
+              <ChevronRight className="w-4 h-4" />
+              <span className="flex items-center gap-1">
+                <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs">3</span>
+                Template
+              </span>
+            </div>
+
+            {/* SMTP Setup Required Card */}
+            <Card className="border-2 border-amber-500/50 bg-gradient-to-br from-amber-500/10 to-amber-500/5">
+              <CardHeader className="text-center pb-4">
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-500/20 flex items-center justify-center">
+                  <Server className="w-8 h-8 text-amber-500" />
+                </div>
+                <CardTitle className="text-xl">⚠️ Set Up Your Email First</CardTitle>
+                <CardDescription className="text-base">
+                  Before sending emails, configure your SMTP server so emails come from YOUR domain
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Why this matters */}
+                <div className="p-4 rounded-lg bg-muted/50 border">
+                  <h4 className="font-medium mb-2 flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-primary" />
+                    Why is this important?
+                  </h4>
+                  <ul className="text-sm text-muted-foreground space-y-1">
+                    <li>✓ Emails sent from YOUR domain = better deliverability</li>
+                    <li>✓ Avoid spam folders by using authenticated SMTP</li>
+                    <li>✓ Build your domain reputation for future campaigns</li>
+                    <li>✓ BamLead remembers your settings for next time</li>
+                  </ul>
+                </div>
+
+                {/* SMTP Setup Form */}
+                <div className="p-4 rounded-lg border-2 border-dashed border-primary/30 bg-primary/5">
+                  <h4 className="font-medium mb-4 text-center">Enter Your SMTP Details</h4>
+                  <SMTPQuickSetup onConfigured={() => setSmtpConfigured(true)} />
+                </div>
+
+                {/* Navigation */}
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setCurrentStep('select-leads')}
+                    className="gap-2"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Back
+                  </Button>
+                  <div className="flex-1 text-center text-sm text-muted-foreground flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin opacity-50" />
+                    Waiting for SMTP configuration...
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      );
+    }
+
     return (
       <>
         {dialogs}
         <div className="max-w-4xl mx-auto space-y-6">
+        {/* SMTP Configured Badge */}
+        <div className="flex items-center justify-center gap-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+          <CheckCircle className="w-4 h-4 text-emerald-500" />
+          <span className="text-sm text-emerald-600 font-medium">
+            SMTP Ready — Sending from {JSON.parse(localStorage.getItem('smtp_config') || '{}').username || 'your domain'}
+          </span>
+          <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setSmtpConfigured(false)}>
+            Edit
+          </Button>
+        </div>
+
         {/* Progress indicator */}
         <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
           <span className="flex items-center gap-1 text-green-600">
@@ -2141,13 +2230,18 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
             {allSelectedLeads.length} Leads
           </span>
           <ChevronRight className="w-4 h-4" />
+          <span className="flex items-center gap-1 text-green-600">
+            <CheckCheck className="w-5 h-5" />
+            SMTP
+          </span>
+          <ChevronRight className="w-4 h-4" />
           <span className="flex items-center gap-1 text-primary font-medium">
-            <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs">2</span>
+            <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs">3</span>
             Template
           </span>
           <ChevronRight className="w-4 h-4" />
           <span className="flex items-center gap-1">
-            <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs">3</span>
+            <span className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-xs">4</span>
             Send
           </span>
         </div>
