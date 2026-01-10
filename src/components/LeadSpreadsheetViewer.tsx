@@ -701,11 +701,11 @@ export default function LeadSpreadsheetViewer({
             </div>
             <div className="flex-1">
               <h3 className="font-semibold text-amber-700 text-xs mb-0.5">📋 How to Use This Page:</h3>
-              <ol className="text-xs text-amber-600/90 space-y-0 list-decimal list-inside">
-                <li><strong>Filter leads</strong> by clicking Hot 🔥, Warm ⚡, Cold ❄️, Ready 📞, or No Website 🌐</li>
-                <li><strong>Select leads</strong> by clicking rows or checkboxes</li>
-                <li><strong>AI Verify</strong> (uses credits) to confirm contact info accuracy ✨</li>
-                <li><strong>Take action</strong> - Call 📞, Email 📧, or Export</li>
+              <ol className="text-xs space-y-0.5 list-decimal list-inside">
+                <li className="text-muted-foreground"><strong className="text-foreground">Filter leads</strong> by clicking <span className="text-red-500 font-semibold">Hot 🔥</span>, <span className="text-orange-500 font-semibold">Warm ⚡</span>, <span className="text-blue-500 font-semibold">Cold ❄️</span>, <span className="text-emerald-500 font-semibold">Ready 📞</span>, or <span className="text-purple-500 font-semibold">No Website 🌐</span></li>
+                <li className="text-muted-foreground"><strong className="text-foreground">Select leads</strong> by clicking rows or checkboxes</li>
+                <li className="text-muted-foreground"><strong className="text-foreground">AI Verify</strong> (uses credits) to confirm contact info accuracy ✨</li>
+                <li className="text-muted-foreground"><strong className="text-foreground">Take action</strong> - Call 📞, Email 📧, or Export</li>
               </ol>
             </div>
           </div>
