@@ -1031,31 +1031,48 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
         </DialogContent>
       </Dialog>
 
-      {/* Preview Dialog */}
+      {/* Preview Dialog - Full HTML Email Render */}
       <Dialog open={previewDialogOpen} onOpenChange={setPreviewDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Email Preview</DialogTitle>
-            <DialogDescription>This is how your email will look</DialogDescription>
+        <DialogContent className="max-w-4xl w-[95vw] h-[90vh] p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-xl flex items-center gap-2">
+                  <Eye className="w-5 h-5 text-primary" />
+                  Email Preview
+                </DialogTitle>
+                <DialogDescription>
+                  This is exactly how your email will appear to recipients
+                </DialogDescription>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setPreviewDialogOpen(false)}>
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+            {/* Subject line display */}
+            <div className="mt-4 p-3 bg-muted rounded-lg">
+              <p className="text-xs text-muted-foreground mb-1">Subject Line:</p>
+              <p className="font-semibold">{previewContent.subject}</p>
+            </div>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div className="p-3 bg-muted rounded-lg">
-              <p className="text-sm font-medium">Subject:</p>
-              <p className="text-sm">{previewContent.subject}</p>
-            </div>
-
-            <div className="p-4 bg-background border rounded-lg">
-              <div
-                className="prose prose-sm dark:prose-invert max-w-none"
-                dangerouslySetInnerHTML={{ __html: previewContent.body }}
-              />
-            </div>
+          {/* Full Email Render via iframe */}
+          <div className="flex-1 overflow-hidden bg-gray-100 dark:bg-zinc-900">
+            <iframe
+              srcDoc={previewContent.body
+                .replace(/\{\{first_name\}\}/g, 'John')
+                .replace(/\{\{business_name\}\}/g, 'Acme Corp')
+                .replace(/\{\{sender_name\}\}/g, 'Your Name')
+                .replace(/\{\{company_name\}\}/g, 'BamLead')
+                .replace(/\{\{website\}\}/g, 'www.example.com')
+                .replace(/\{\{phone\}\}/g, '(555) 123-4567')
+              }
+              className="w-full h-full border-0"
+              style={{ minHeight: '500px', height: 'calc(90vh - 180px)' }}
+              title="Email Preview"
+              sandbox="allow-same-origin"
+            />
           </div>
-
-          <DialogFooter>
-            <Button onClick={() => setPreviewDialogOpen(false)}>Close</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
