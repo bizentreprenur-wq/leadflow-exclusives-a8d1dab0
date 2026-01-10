@@ -854,289 +854,336 @@ export default function EmbeddedSpreadsheetView({
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b bg-card">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={onBack} className="gap-2">
-            <ArrowLeft className="w-4 h-4" />
-            New Search
-          </Button>
-          <div className="flex items-center gap-2">
-            <Brain className="w-5 h-5 text-primary" />
-            <span className="font-semibold">STEP 2: Review Leads</span>
+      {/* STEP 2 Header with Instructions */}
+      <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/5 to-purple-500/10 border-b">
+        {/* Welcome & Instructions */}
+        <div className="px-6 py-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-4">
+              {/* Back Button */}
+              <Button variant="outline" size="sm" onClick={onBack} className="gap-2 shrink-0">
+                <ArrowLeft className="w-4 h-4" />
+                Back
+              </Button>
+              
+              {/* Step Badge */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 rounded-full border border-blue-500/30">
+                  <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-lg">2</div>
+                  <span className="font-semibold text-blue-600">STEP 2: Review Your Leads</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Lead Count Badge */}
+            <Badge variant="outline" className="gap-2 px-4 py-2 text-base shrink-0">
+              <Users className="w-5 h-5" />
+              <span className="font-bold">{leads.length.toLocaleString()}</span> Total Leads
+            </Badge>
           </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="gap-2 px-3 py-1">
-            <Users className="w-4 h-4" />
-            {leads.length.toLocaleString()} Total Leads
-          </Badge>
-        </div>
-      </div>
-
-      {/* AI Intelligence Summary Bar */}
-      <div className="px-4 py-3 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5 border-b">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Flame className="w-4 h-4 text-red-500" />
-              <span className="font-semibold text-red-600">{groupedLeads.hot.length}</span>
-              <span className="text-xs text-muted-foreground hidden sm:inline">Hot</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Thermometer className="w-4 h-4 text-orange-500" />
-              <span className="font-semibold text-orange-600">{groupedLeads.warm.length}</span>
-              <span className="text-xs text-muted-foreground hidden sm:inline">Warm</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Snowflake className="w-4 h-4 text-blue-500" />
-              <span className="font-semibold text-blue-600">{groupedLeads.cold.length}</span>
-              <span className="text-xs text-muted-foreground hidden sm:inline">Cold</span>
-            </div>
-            <div className="h-4 w-px bg-border hidden sm:block" />
-            <div className="flex items-center gap-2">
-              <PhoneCall className="w-4 h-4 text-emerald-500" />
-              <span className="font-semibold text-emerald-600">{groupedLeads.readyToCall.length}</span>
-              <span className="text-xs text-muted-foreground hidden sm:inline">Ready</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Globe className="w-4 h-4 text-purple-500" />
-              <span className="font-semibold text-purple-600">{groupedLeads.noWebsite.length}</span>
-              <span className="text-xs text-muted-foreground hidden sm:inline">No Site</span>
-            </div>
+          
+          {/* Helper Text */}
+          <div className="mt-4 p-4 bg-muted/40 rounded-lg border border-border/50">
+            <p className="text-sm text-muted-foreground">
+              <span className="text-foreground font-medium">👋 Here are your leads!</span> Use the filters below to find the best ones, 
+              then select them and take action. <span className="text-primary font-medium">Hot leads 🔥</span> are your best opportunities!
+            </p>
           </div>
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={handleViewPDFClick}
-              className="gap-2 border-primary/50 text-primary hover:bg-primary/10"
-            >
-              <FileText className="w-4 h-4" />
-              {hasAutoOpenedPDF ? 'View PDF Report' : 'Generate PDF Report'}
-            </Button>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Zap className="w-3 h-3 text-primary" />
-              AI scored
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filter Tabs + Search */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b bg-muted/30">
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant={activeGroup === 'all' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => handleGroupChange('all')}
-            className="gap-1"
-          >
-            <Users className="w-3 h-3" />
-            All ({leads.length})
-          </Button>
-          <Button
-            variant={activeGroup === 'hot' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => handleGroupChange('hot')}
-            className="gap-1 border-red-500/30 hover:bg-red-500/10"
-          >
-            <Flame className="w-3 h-3 text-red-500" />
-            Hot ({groupedLeads.hot.length})
-          </Button>
-          <Button
-            variant={activeGroup === 'warm' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => handleGroupChange('warm')}
-            className="gap-1 border-orange-500/30 hover:bg-orange-500/10"
-          >
-            <Thermometer className="w-3 h-3 text-orange-500" />
-            Warm ({groupedLeads.warm.length})
-          </Button>
-          <Button
-            variant={activeGroup === 'cold' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => handleGroupChange('cold')}
-            className="gap-1 border-blue-500/30 hover:bg-blue-500/10"
-          >
-            <Snowflake className="w-3 h-3 text-blue-500" />
-            Cold ({groupedLeads.cold.length})
-          </Button>
-          <Button
-            variant={activeGroup === 'ready' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => handleGroupChange('ready')}
-            className="gap-1 border-emerald-500/30 hover:bg-emerald-500/10"
-          >
-            <PhoneCall className="w-3 h-3 text-emerald-500" />
-            Ready ({groupedLeads.readyToCall.length})
-          </Button>
-          <Button
-            variant={activeGroup === 'nowebsite' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => handleGroupChange('nowebsite')}
-            className="gap-1 border-purple-500/30 hover:bg-purple-500/10"
-          >
-            <Target className="w-3 h-3 text-purple-500" />
-            No Website ({groupedLeads.noWebsite.length})
-          </Button>
         </div>
         
-        {/* Search Input */}
-        <div className="relative flex items-center">
-          <Search className="absolute left-3 w-4 h-4 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search by name, phone, or email..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 pr-8 w-64 h-9"
-          />
-          {searchQuery && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute right-1 h-7 w-7 p-0"
-              onClick={() => setSearchQuery('')}
-            >
-              <X className="w-3 h-3" />
-            </Button>
-          )}
+        {/* AI Intelligence Summary - Section Labeled */}
+        <div className="px-6 py-3 border-t border-border/50 bg-gradient-to-r from-primary/5 to-transparent">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">AI Summary:</span>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-red-500/10 rounded-md">
+                  <Flame className="w-4 h-4 text-red-500" />
+                  <span className="font-bold text-red-600">{groupedLeads.hot.length}</span>
+                  <span className="text-xs text-red-500">Hot</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-orange-500/10 rounded-md">
+                  <Thermometer className="w-4 h-4 text-orange-500" />
+                  <span className="font-bold text-orange-600">{groupedLeads.warm.length}</span>
+                  <span className="text-xs text-orange-500">Warm</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-500/10 rounded-md">
+                  <Snowflake className="w-4 h-4 text-blue-500" />
+                  <span className="font-bold text-blue-600">{groupedLeads.cold.length}</span>
+                  <span className="text-xs text-blue-500">Cold</span>
+                </div>
+                <div className="h-4 w-px bg-border hidden sm:block" />
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/10 rounded-md">
+                  <PhoneCall className="w-4 h-4 text-emerald-500" />
+                  <span className="font-bold text-emerald-600">{groupedLeads.readyToCall.length}</span>
+                  <span className="text-xs text-emerald-500">Ready</span>
+                </div>
+                <div className="flex items-center gap-1.5 px-2 py-1 bg-purple-500/10 rounded-md">
+                  <Globe className="w-4 h-4 text-purple-500" />
+                  <span className="font-bold text-purple-600">{groupedLeads.noWebsite.length}</span>
+                  <span className="text-xs text-purple-500">No Site</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleViewPDFClick}
+                className="gap-2 border-primary/50 text-primary hover:bg-primary/10"
+              >
+                <FileText className="w-4 h-4" />
+                {hasAutoOpenedPDF ? 'View PDF' : 'Generate PDF'}
+              </Button>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Zap className="w-3 h-3 text-primary" />
+                AI scored
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Action Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b bg-card">
-        <div className="flex items-center gap-4 text-sm">
-          <span className="font-medium">{selectedIds.size} selected</span>
-          <Button variant="ghost" size="sm" onClick={selectAll}>
-            {selectedIds.size === currentLeads.length ? 'Deselect All' : 'Select All'}
-          </Button>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Clear Action Buttons - Each with specific purpose */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  onClick={() => {
-                    if (selectedIds.size === 0) {
-                      toast.error('Select leads first to call them');
-                      return;
-                    }
-                    handleCallFromChoice();
-                  }}
-                  disabled={selectedIds.size === 0}
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/10"
-                >
-                  <PhoneCall className="w-4 h-4" />
-                  Call Selected ({selectedIds.size})
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Start a voice call with selected leads using AI-powered calling</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  onClick={() => {
-                    if (selectedIds.size === 0) {
-                      toast.error('Select leads first to email them');
-                      return;
-                    }
-                    handleEmailFromChoice();
-                  }}
-                  disabled={selectedIds.size === 0}
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 border-blue-500/50 text-blue-600 hover:bg-blue-500/10"
-                >
-                  <Mail className="w-4 h-4" />
-                  Email Selected ({selectedIds.size})
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Send personalized email campaigns to selected leads</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  onClick={handleAIVerifyClick}
-                  disabled={selectedIds.size === 0}
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 border-purple-500/50 text-purple-600 hover:bg-purple-500/10"
-                >
-                  <Brain className="w-4 h-4" />
-                  AI Verify ({selectedIds.size})
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Use AI to verify lead contact info and enrich data</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  onClick={handleBulkDelete}
-                  disabled={selectedIds.size === 0}
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 border-red-500/50 text-red-600 hover:bg-red-500/10 hover:text-red-700"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  Delete ({selectedIds.size})
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Remove selected leads from your current list</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          {/* Export Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Download className="w-4 h-4" />
-                Export
-                <ChevronDown className="w-3 h-3" />
+      {/* SECTION: Filter by Lead Type */}
+      <div className="px-4 py-4 border-b bg-muted/20">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide shrink-0">Filter by:</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant={activeGroup === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleGroupChange('all')}
+                className="gap-1.5"
+              >
+                <Users className="w-3.5 h-3.5" />
+                All ({leads.length})
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleExportCSV}>
-                <FileDown className="w-4 h-4 mr-2" />
-                Export as CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleExportExcel}>
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
-                Export as Excel
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => handleExportPDF(true)}>
-                <FileText className="w-4 h-4 mr-2" />
-                Preview as PDF
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExportPDF(false)}>
-                <Download className="w-4 h-4 mr-2" />
-                Download PDF
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <Button
+                variant={activeGroup === 'hot' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleGroupChange('hot')}
+                className={`gap-1.5 ${activeGroup === 'hot' ? 'bg-red-500 hover:bg-red-600' : 'border-red-500/30 hover:bg-red-500/10'}`}
+              >
+                <Flame className={`w-3.5 h-3.5 ${activeGroup === 'hot' ? 'text-white' : 'text-red-500'}`} />
+                🔥 Hot ({groupedLeads.hot.length})
+              </Button>
+              <Button
+                variant={activeGroup === 'warm' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleGroupChange('warm')}
+                className={`gap-1.5 ${activeGroup === 'warm' ? 'bg-orange-500 hover:bg-orange-600' : 'border-orange-500/30 hover:bg-orange-500/10'}`}
+              >
+                <Thermometer className={`w-3.5 h-3.5 ${activeGroup === 'warm' ? 'text-white' : 'text-orange-500'}`} />
+                ⚡ Warm ({groupedLeads.warm.length})
+              </Button>
+              <Button
+                variant={activeGroup === 'cold' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleGroupChange('cold')}
+                className={`gap-1.5 ${activeGroup === 'cold' ? 'bg-blue-500 hover:bg-blue-600' : 'border-blue-500/30 hover:bg-blue-500/10'}`}
+              >
+                <Snowflake className={`w-3.5 h-3.5 ${activeGroup === 'cold' ? 'text-white' : 'text-blue-500'}`} />
+                ❄️ Cold ({groupedLeads.cold.length})
+              </Button>
+              <div className="h-6 w-px bg-border hidden md:block" />
+              <Button
+                variant={activeGroup === 'ready' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleGroupChange('ready')}
+                className={`gap-1.5 ${activeGroup === 'ready' ? 'bg-emerald-500 hover:bg-emerald-600' : 'border-emerald-500/30 hover:bg-emerald-500/10'}`}
+              >
+                <PhoneCall className={`w-3.5 h-3.5 ${activeGroup === 'ready' ? 'text-white' : 'text-emerald-500'}`} />
+                📞 Ready ({groupedLeads.readyToCall.length})
+              </Button>
+              <Button
+                variant={activeGroup === 'nowebsite' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleGroupChange('nowebsite')}
+                className={`gap-1.5 ${activeGroup === 'nowebsite' ? 'bg-purple-500 hover:bg-purple-600' : 'border-purple-500/30 hover:bg-purple-500/10'}`}
+              >
+                <Target className={`w-3.5 h-3.5 ${activeGroup === 'nowebsite' ? 'text-white' : 'text-purple-500'}`} />
+                🌐 No Website ({groupedLeads.noWebsite.length})
+              </Button>
+            </div>
+          </div>
+          
+          {/* Search Input */}
+          <div className="relative flex items-center">
+            <Search className="absolute left-3 w-4 h-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search by name, phone, or email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-8 w-64 h-9"
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-1 h-7 w-7 p-0"
+                onClick={() => setSearchQuery('')}
+              >
+                <X className="w-3 h-3" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* SECTION: Actions - Take action on selected leads */}
+      <div className="px-4 py-4 border-b bg-card/50">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          {/* Left: Selection Info */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 px-3 py-2 bg-muted rounded-lg">
+              <Checkbox
+                checked={selectedIds.size === currentLeads.length && currentLeads.length > 0}
+                onCheckedChange={selectAll}
+              />
+              <span className="font-medium text-sm">{selectedIds.size} selected</span>
+              <span className="text-muted-foreground text-sm">of {currentLeads.length}</span>
+            </div>
+            <Button variant="ghost" size="sm" onClick={selectAll} className="text-primary">
+              {selectedIds.size === currentLeads.length ? 'Clear All' : 'Select All'}
+            </Button>
+          </div>
+
+          {/* Right: Action Buttons - Organized into groups */}
+          <div className="flex flex-wrap items-center gap-6">
+            {/* Primary Actions Group */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mr-1">Actions:</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      onClick={() => {
+                        if (selectedIds.size === 0) {
+                          toast.error('Select leads first to call them');
+                          return;
+                        }
+                        handleCallFromChoice();
+                      }}
+                      disabled={selectedIds.size === 0}
+                      size="sm"
+                      className="gap-2 bg-emerald-600 hover:bg-emerald-500 text-white"
+                    >
+                      <PhoneCall className="w-4 h-4" />
+                      📞 Call
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Start a voice call with selected leads</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      onClick={() => {
+                        if (selectedIds.size === 0) {
+                          toast.error('Select leads first to email them');
+                          return;
+                        }
+                        handleEmailFromChoice();
+                      }}
+                      disabled={selectedIds.size === 0}
+                      size="sm"
+                      className="gap-2 bg-blue-600 hover:bg-blue-500 text-white"
+                    >
+                      <Mail className="w-4 h-4" />
+                      📧 Email
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Send email campaigns to selected leads</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      onClick={handleAIVerifyClick}
+                      disabled={selectedIds.size === 0}
+                      size="sm"
+                      variant="outline"
+                      className="gap-2 border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
+                    >
+                      <Brain className="w-4 h-4" />
+                      ✨ AI Verify
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Use AI to verify and enrich lead data</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+
+            {/* Separator */}
+            <div className="h-8 w-px bg-border hidden md:block" />
+
+            {/* Tools Group */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mr-1">Tools:</span>
+              
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button 
+                      onClick={handleBulkDelete}
+                      disabled={selectedIds.size === 0}
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 border-red-500/50 text-red-600 hover:bg-red-500/10"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Remove selected leads from your list</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              {/* Export Menu */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Download className="w-4 h-4" />
+                    Export
+                    <ChevronDown className="w-3 h-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleExportCSV}>
+                    <FileDown className="w-4 h-4 mr-2" />
+                    Export as CSV
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleExportExcel}>
+                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                    Export as Excel
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => handleExportPDF(true)}>
+                    <FileText className="w-4 h-4 mr-2" />
+                    Preview as PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExportPDF(false)}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Download PDF
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
         </div>
       </div>
 
