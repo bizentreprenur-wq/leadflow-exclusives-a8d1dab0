@@ -43,6 +43,7 @@ import { exportToGoogleDrive } from '@/lib/api/googleDrive';
 import CRMIntegrationModal from './CRMIntegrationModal';
 import EmailScheduleModal from './EmailScheduleModal';
 import LeadCallModal from './LeadCallModal';
+import CallQueueModal from './CallQueueModal';
 import CreditsUpsellModal from './CreditsUpsellModal';
 import LeadActionChoiceModal from './LeadActionChoiceModal';
 
@@ -277,9 +278,11 @@ export default function LeadSpreadsheetViewer({
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showVerifyConfirm, setShowVerifyConfirm] = useState(false);
   const [showCallModal, setShowCallModal] = useState(false);
+  const [showCallQueueModal, setShowCallQueueModal] = useState(false);
   const [showCreditsModal, setShowCreditsModal] = useState(false);
   const [showActionChoice, setShowActionChoice] = useState(false);
   const [callLead, setCallLead] = useState<SearchResult | null>(null);
+  const [callQueueLeads, setCallQueueLeads] = useState<SearchResult[]>([]);
   const [userCredits] = useState(25); // Would come from API in production
   const [isExportingToDrive, setIsExportingToDrive] = useState(false);
   
@@ -405,10 +408,9 @@ export default function LeadSpreadsheetViewer({
       setCallLead(selectedLeads[0]);
       setShowCallModal(true);
     } else {
-      // For multiple leads, start with first one
-      setCallLead(selectedLeads[0]);
-      setShowCallModal(true);
-      toast.info(`Starting with ${selectedLeads[0].name}. Call each lead from the table.`);
+      // For multiple leads, open the call queue modal
+      setCallQueueLeads(selectedLeads);
+      setShowCallQueueModal(true);
     }
   };
 
@@ -1085,13 +1087,27 @@ export default function LeadSpreadsheetViewer({
         }}
       />
 
-      {/* Call Modal */}
+      {/* Single Call Modal */}
       <LeadCallModal
         open={showCallModal}
         onOpenChange={setShowCallModal}
         lead={callLead}
         onCallComplete={(leadId, outcome, duration) => {
           console.log('Call completed:', { leadId, outcome, duration });
+        }}
+      />
+
+      {/* Call Queue Modal - for multiple leads */}
+      <CallQueueModal
+        open={showCallQueueModal}
+        onOpenChange={setShowCallQueueModal}
+        leads={callQueueLeads}
+        onCallComplete={(leadId, outcome, duration) => {
+          console.log('Call completed:', { leadId, outcome, duration });
+        }}
+        onQueueComplete={() => {
+          toast.success('All queued calls completed!');
+          setShowCallQueueModal(false);
         }}
       />
 
