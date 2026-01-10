@@ -45,11 +45,11 @@ export function BackendStatusIndicator({
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const checkHealth = useCallback(async () => {
-    setIsRefreshing(true);
-    
+    // Don't set refreshing state to avoid UI flicker
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      // Reduced timeout for faster response
+      const timeoutId = setTimeout(() => controller.abort(), 2000);
       
       const response = await fetch(`${API_BASE_URL}/health.php`, {
         method: 'GET',
@@ -65,7 +65,6 @@ export function BackendStatusIndicator({
         setState('offline');
         setHealth(null);
         setLastChecked(new Date());
-        setIsRefreshing(false);
         return;
       }
       
@@ -82,14 +81,18 @@ export function BackendStatusIndicator({
     setIsRefreshing(false);
   }, []);
 
-  // Initial check and polling
+  // Initial check after a short delay (non-blocking), then poll less frequently
   useEffect(() => {
-    checkHealth();
+    // Delay initial check so it doesn't block page load
+    const initialDelay = setTimeout(checkHealth, 500);
     
-    // Poll every 30 seconds
-    const interval = setInterval(checkHealth, 30000);
+    // Poll every 60 seconds (reduced frequency)
+    const interval = setInterval(checkHealth, 60000);
     
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(initialDelay);
+      clearInterval(interval);
+    };
   }, [checkHealth]);
 
   const getStatusConfig = () => {
