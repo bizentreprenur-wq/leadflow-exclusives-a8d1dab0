@@ -841,9 +841,20 @@ export default function EmbeddedSpreadsheetView({
               <span className="text-xs text-muted-foreground hidden sm:inline">No Site</span>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Zap className="w-3 h-3 text-primary" />
-            AI scored
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => handleExportPDF(true)}
+              className="gap-2 border-primary/50 text-primary hover:bg-primary/10"
+            >
+              <FileText className="w-4 h-4" />
+              View PDF Report
+            </Button>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Zap className="w-3 h-3 text-primary" />
+              AI scored
+            </div>
           </div>
         </div>
       </div>
