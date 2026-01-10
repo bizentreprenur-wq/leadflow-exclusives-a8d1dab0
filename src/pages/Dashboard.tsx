@@ -1021,31 +1021,40 @@ export default function Dashboard() {
               <LeadVerificationModule onSendToEmail={handleSendToEmail} />
             )}
 
-            {/* Continue to Voice Calls Button */}
-            {leadsForCalling.length > 0 && (
-              <div className="mt-6 p-4 rounded-xl border-2 border-green-500/30 bg-green-500/5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="text-3xl">📞</div>
+            {/* Continue to Voice Calls Button - Always Visible */}
+            <Card className="mt-6 border-2 border-green-500/30 bg-gradient-to-r from-green-500/5 to-emerald-500/5">
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center text-3xl">
+                      📞
+                    </div>
                     <div>
-                      <p className="font-semibold text-foreground">Ready to call {leadsForCalling.length} leads?</p>
-                      <p className="text-sm text-muted-foreground">Follow up with AI voice calls after sending emails</p>
+                      <p className="text-lg font-bold text-foreground">
+                        Ready to follow up with calls?
+                      </p>
+                      <p className="text-muted-foreground">
+                        {leadsForCalling.length > 0 
+                          ? `${leadsForCalling.length} leads have phone numbers ready for AI voice calls`
+                          : 'Set up your AI voice agent to call leads after sending emails'
+                        }
+                      </p>
                     </div>
                   </div>
                   <Button 
                     onClick={() => {
-                      // Store leads for step 4
                       setEmailLeads(leadsToUse);
                       setCurrentStep(4);
                     }}
-                    className="gap-2 bg-green-600 hover:bg-green-700"
+                    size="lg"
+                    className="gap-2 bg-green-600 hover:bg-green-700 text-white px-6"
                   >
-                    <Phone className="w-4 h-4" />
-                    Continue to Calls →
+                    <Phone className="w-5 h-5" />
+                    {leadsForCalling.length > 0 ? 'Call Leads' : 'Set Up Calling'} →
                   </Button>
                 </div>
-              </div>
-            )}
+              </CardContent>
+            </Card>
           </div>
         );
       }
