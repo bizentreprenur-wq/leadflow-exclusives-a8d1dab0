@@ -82,18 +82,36 @@ function createUser($email, $password, $name = null) {
 function authenticateUser($email, $password) {
     $db = getDB();
     
+    // Check for login rate limiting (prevent brute force)
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $failedAttempts = $db->fetchOne(
+        "SELECT COUNT(*) as count FROM login_attempts WHERE ip_address = ? AND attempted_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE) AND success = 0",
+        [$ip]
+    );
+    
+    if ($failedAttempts && $failedAttempts['count'] >= 5) {
+        return ['success' => false, 'error' => 'Too many failed attempts. Please try again in 15 minutes.'];
+    }
+    
     $user = $db->fetchOne(
         "SELECT * FROM users WHERE email = ?",
         [strtolower($email)]
     );
     
     if (!$user) {
+        // Record failed attempt
+        recordLoginAttempt($db, $ip, null, false);
         return ['success' => false, 'error' => 'Invalid email or password'];
     }
     
     if (!verifyPassword($password, $user['password_hash'])) {
+        // Record failed attempt
+        recordLoginAttempt($db, $ip, $user['id'], false);
         return ['success' => false, 'error' => 'Invalid email or password'];
     }
+    
+    // Record successful login
+    recordLoginAttempt($db, $ip, $user['id'], true);
     
     // Update last login
     $db->update(
@@ -101,8 +119,9 @@ function authenticateUser($email, $password) {
         [$user['id']]
     );
     
-    // Create session
+    // Create session - regenerate session ID to prevent session fixation
     startSecureSession();
+    session_regenerate_id(true);
     $sessionToken = generateToken();
     
     // Store session in database
@@ -112,8 +131,8 @@ function authenticateUser($email, $password) {
         [
             $sessionToken,
             $user['id'],
-            $_SERVER['REMOTE_ADDR'] ?? '',
-            $_SERVER['HTTP_USER_AGENT'] ?? '',
+            $ip,
+            substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255),
             $expiresAt
         ]
     );
@@ -131,6 +150,21 @@ function authenticateUser($email, $password) {
         'token' => $sessionToken,
         'expires_at' => $expiresAt
     ];
+}
+
+/**
+ * Record login attempt for rate limiting
+ */
+function recordLoginAttempt($db, $ip, $userId, $success) {
+    try {
+        $db->insert(
+            "INSERT INTO login_attempts (ip_address, user_id, success, attempted_at) VALUES (?, ?, ?, NOW())",
+            [$ip, $userId, $success ? 1 : 0]
+        );
+    } catch (Exception $e) {
+        // Table may not exist yet, fail silently
+        error_log("Login attempt tracking failed: " . $e->getMessage());
+    }
 }
 
 /**

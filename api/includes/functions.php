@@ -11,15 +11,31 @@ require_once __DIR__ . '/../config.php';
 function setCorsHeaders() {
     $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
     
-    if (in_array($origin, ALLOWED_ORIGINS)) {
+    // Only allow whitelisted origins - never use wildcard in production
+    if (defined('ALLOWED_ORIGINS') && in_array($origin, ALLOWED_ORIGINS)) {
         header("Access-Control-Allow-Origin: $origin");
-    } else {
-        header('Access-Control-Allow-Origin: *');
+        header('Access-Control-Allow-Credentials: true');
+    } elseif (defined('DEBUG_MODE') && DEBUG_MODE) {
+        // In dev mode, allow localhost origins
+        if (preg_match('/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/', $origin)) {
+            header("Access-Control-Allow-Origin: $origin");
+            header('Access-Control-Allow-Credentials: true');
+        }
     }
+    // If origin not allowed, don't set CORS header - browser will block
     
-    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type, Authorization');
+    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
     header('Access-Control-Max-Age: 86400');
+    
+    // Security headers
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: DENY');
+    header('X-XSS-Protection: 1; mode=block');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    
+    // CSP for API responses (JSON)
+    header("Content-Security-Policy: default-src 'none'; frame-ancestors 'none'");
 }
 
 /**
@@ -113,13 +129,20 @@ function getCache($key) {
         return null;
     }
     
+    // Validate cache key to prevent directory traversal
+    if (!preg_match('/^[a-zA-Z0-9_\-]+$/', $key)) {
+        return null;
+    }
+    
     $cacheFile = CACHE_DIR . '/' . md5($key) . '.cache';
     
     if (!file_exists($cacheFile)) {
         return null;
     }
     
-    $data = unserialize(file_get_contents($cacheFile));
+    // Use JSON instead of unserialize to prevent object injection
+    $contents = file_get_contents($cacheFile);
+    $data = json_decode($contents, true);
     
     if (!$data || !isset($data['expires']) || $data['expires'] < time()) {
         @unlink($cacheFile);
@@ -137,6 +160,11 @@ function setCache($key, $value, $ttl = null) {
         return false;
     }
     
+    // Validate cache key
+    if (!preg_match('/^[a-zA-Z0-9_\-]+$/', $key)) {
+        return false;
+    }
+    
     if (!is_dir(CACHE_DIR)) {
         @mkdir(CACHE_DIR, 0755, true);
     }
@@ -149,7 +177,8 @@ function setCache($key, $value, $ttl = null) {
         'value' => $value
     ];
     
-    return file_put_contents($cacheFile, serialize($data)) !== false;
+    // Use JSON instead of serialize for security
+    return file_put_contents($cacheFile, json_encode($data)) !== false;
 }
 
 /**

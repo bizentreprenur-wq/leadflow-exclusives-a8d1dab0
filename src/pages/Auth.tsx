@@ -77,18 +77,28 @@ export default function Auth() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!loginEmail || !loginPassword) {
+    // Input validation
+    const trimmedEmail = loginEmail.trim().toLowerCase();
+    if (!trimmedEmail || !loginPassword) {
       toast.error('Please fill in all fields');
+      return;
+    }
+
+    // Basic email format validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(trimmedEmail)) {
+      toast.error('Please enter a valid email address');
       return;
     }
 
     setIsLoading(true);
     try {
-      await login(loginEmail, loginPassword);
+      await login(trimmedEmail, loginPassword);
       toast.success('Welcome back!');
       await handlePostAuthRedirect();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Login failed');
+      // Don't reveal whether email exists or password is wrong
+      toast.error('Invalid email or password');
     } finally {
       setIsLoading(false);
     }
@@ -97,13 +107,25 @@ export default function Auth() {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!registerEmail || !registerPassword) {
-      toast.error('Please fill in all required fields');
+    const trimmedEmail = registerEmail.trim().toLowerCase();
+    const trimmedName = registerName.trim();
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail || !emailRegex.test(trimmedEmail)) {
+      toast.error('Please enter a valid email address');
       return;
     }
 
+    // Password validation - require complexity
     if (registerPassword.length < 8) {
       toast.error('Password must be at least 8 characters');
+      return;
+    }
+    
+    // Check for at least one number and one letter
+    if (!/(?=.*[a-zA-Z])(?=.*\d)/.test(registerPassword)) {
+      toast.error('Password must contain at least one letter and one number');
       return;
     }
 
@@ -112,9 +134,15 @@ export default function Auth() {
       return;
     }
 
+    // Name validation (optional but if provided, sanitize)
+    if (trimmedName && trimmedName.length > 100) {
+      toast.error('Name is too long');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      await register(registerEmail, registerPassword, registerName || undefined);
+      await register(trimmedEmail, registerPassword, trimmedName || undefined);
       toast.success('Account created! Welcome to BamLead.');
       await handlePostAuthRedirect();
     } catch (error) {
