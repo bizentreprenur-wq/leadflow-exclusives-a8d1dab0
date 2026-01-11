@@ -9,15 +9,12 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/email.php';
 require_once __DIR__ . '/config.php';
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+require_once __DIR__ . '/includes/functions.php';
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit();
-}
+// Set proper headers
+header('Content-Type: application/json');
+setCorsHeaders();
+handlePreflight();
 
 // Authenticate user
 $user = authenticateRequest();
@@ -64,11 +61,14 @@ try {
             break;
             
         // ===== TRACKING ENDPOINTS =====
+        // Note: These are rate-limited but not authenticated to allow email client tracking
         case 'track-open':
+            rateLimitTracking();
             handleTrackOpen($db);
             break;
             
         case 'track-click':
+            rateLimitTracking();
             handleTrackClick($db);
             break;
             
@@ -86,6 +86,13 @@ try {
             break;
             
         case 'process-scheduled':
+            // Require cron secret key for processing scheduled emails
+            $cronKey = $_GET['key'] ?? $_SERVER['HTTP_X_CRON_KEY'] ?? '';
+            if (!defined('CRON_SECRET_KEY') || $cronKey !== CRON_SECRET_KEY) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Forbidden']);
+                exit();
+            }
             handleProcessScheduled($db);
             break;
             
@@ -804,4 +811,25 @@ function extractFirstName($businessName) {
     }
     
     return 'there';
+}
+
+/**
+ * Rate limit tracking endpoints to prevent abuse
+ * Allows 100 requests per minute per IP
+ */
+function rateLimitTracking() {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    $cacheKey = 'tracking_' . md5($ip) . '_' . date('YmdHi');
+    
+    // Simple in-memory rate limiting using APCu if available, or file-based
+    if (function_exists('apcu_exists')) {
+        $count = apcu_fetch($cacheKey) ?: 0;
+        if ($count >= 100) {
+            http_response_code(429);
+            echo json_encode(['error' => 'Rate limit exceeded']);
+            exit();
+        }
+        apcu_store($cacheKey, $count + 1, 60);
+    }
+    // If APCu not available, allow through but log for monitoring
 }

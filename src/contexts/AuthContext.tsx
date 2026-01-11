@@ -18,10 +18,16 @@ const AUTH_TIMEOUT_MS = 3000;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {
-    // Try to get cached user from localStorage for instant display
+    // Try to get cached user for instant display (non-sensitive fields only)
     try {
       const cached = localStorage.getItem('bamlead_user_cache');
-      return cached ? JSON.parse(cached) : null;
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        // Only use cached display info, not authorization data
+        // Role/subscription status MUST be verified server-side
+        return { ...parsed, _fromCache: true };
+      }
+      return null;
     } catch {
       return null;
     }
@@ -38,9 +44,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(timeoutId);
       
       setUser(currentUser);
-      // Cache for faster next load
+      // Cache non-sensitive display data only
       if (currentUser) {
-        localStorage.setItem('bamlead_user_cache', JSON.stringify(currentUser));
+        // Don't cache role/subscription for security - always verify server-side
+        const safeCache = {
+          id: currentUser.id,
+          email: currentUser.email,
+          name: currentUser.name,
+          // Authorization fields excluded from cache
+        };
+        localStorage.setItem('bamlead_user_cache', JSON.stringify(safeCache));
       } else {
         localStorage.removeItem('bamlead_user_cache');
       }
