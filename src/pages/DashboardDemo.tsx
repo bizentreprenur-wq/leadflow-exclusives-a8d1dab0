@@ -68,17 +68,17 @@ const sampleLeads = generateSampleLeads();
 
 const WORKFLOW_STEPS = [
   { id: 1, label: "Search", icon: Search },
-  { id: 2, label: "Review Leads", icon: Building2 },
+  { id: 2, label: "Leads", icon: Building2 },
   { id: 3, label: "Email", icon: Mail },
   { id: 4, label: "Call", icon: Phone },
 ];
 
 export default function DashboardDemo() {
-  const [currentStep, setCurrentStep] = useState(2); // Start at step 2 to show leads
-  const [searchQuery, setSearchQuery] = useState("Mechanics");
-  const [searchLocation, setSearchLocation] = useState("Houston");
-  const [leads] = useState(sampleLeads);
-  const [selectedLeads, setSelectedLeads] = useState<number[]>(sampleLeads.slice(0, 25).map(l => l.id)); // Pre-select first 25
+  const [currentStep, setCurrentStep] = useState(1); // Start at step 1
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchLocation, setSearchLocation] = useState("");
+  const [leads, setLeads] = useState<any[]>([]);
+  const [selectedLeads, setSelectedLeads] = useState<number[]>([]);
   const [verificationProgress, setVerificationProgress] = useState(0);
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifiedCount, setVerifiedCount] = useState(0);
@@ -88,7 +88,7 @@ export default function DashboardDemo() {
   const [isSending, setIsSending] = useState(false);
   const [sendProgress, setSendProgress] = useState(0);
   const [outreachMode, setOutreachMode] = useState<'email' | 'verify'>('email');
-  const [showSpreadsheetViewer, setShowSpreadsheetViewer] = useState(true); // Auto-open full-screen view
+  const [showSpreadsheetViewer, setShowSpreadsheetViewer] = useState(false);
 
   // Convert leads to SearchResult format for LeadSpreadsheetViewer
   const leadsAsSearchResults = leads.map(lead => ({
@@ -157,8 +157,16 @@ Best regards,
   }, [currentStep, selectedTemplate, selectedLeads.length]);
 
   const handleSearch = () => {
+    if (!searchQuery.trim() || !searchLocation.trim()) {
+      toast.error('Please enter a service and location');
+      return;
+    }
+    // Generate sample leads based on search
+    const newLeads = generateSampleLeads();
+    setLeads(newLeads);
+    setSelectedLeads([]);
     setCurrentStep(2);
-    toast.success(`Found ${leads.length} leads for "${searchQuery}" in ${searchLocation}!`);
+    toast.success(`Found ${newLeads.length} leads for "${searchQuery}" in ${searchLocation}!`);
   };
 
   const toggleLeadSelection = (id: number) => {
