@@ -80,8 +80,8 @@ interface SearchResult {
 // Step configuration - 4 simple steps
 const WORKFLOW_STEPS = [
   { id: 1, title: 'STEP 1: Search', description: 'Find businesses that need your services', icon: Search, emoji: '🔍' },
-  { id: 2, title: 'STEP 2: Review', description: 'Pick the best leads from your results', icon: Users, emoji: '📋' },
-  { id: 3, title: 'STEP 3: Email', description: 'Send email outreach to leads', icon: Send, emoji: '📧' },
+  { id: 2, title: 'STEP 2: Leads', description: 'Review and select your leads', icon: Users, emoji: '📋' },
+  { id: 3, title: 'STEP 3: Email', description: 'Configure SMTP & send outreach', icon: Send, emoji: '📧' },
   { id: 4, title: 'STEP 4: Call', description: 'Follow up with AI voice calls', icon: Phone, emoji: '📞' },
 ];
 
@@ -448,16 +448,20 @@ export default function Dashboard() {
     setAiStrategies(null);
     setShowAiGrouping(false);
     
-    // Clear sessionStorage for workflow
+    // Clear ALL stored data for fresh testing
     sessionStorage.removeItem('bamlead_current_step');
     sessionStorage.removeItem('bamlead_search_type');
     sessionStorage.removeItem('bamlead_query');
     sessionStorage.removeItem('bamlead_location');
     sessionStorage.removeItem('bamlead_search_results');
     sessionStorage.removeItem('bamlead_email_leads');
+    sessionStorage.removeItem('leadsToVerify');
+    sessionStorage.removeItem('savedLeads');
     localStorage.removeItem('bamlead_selected_leads');
+    localStorage.removeItem('bamlead_step2_visited');
+    localStorage.removeItem('bamlead_user_cache');
     
-    toast.success('Workflow reset! Start a new search.');
+    toast.success('All data cleared! Start fresh.');
   };
 
   // Only show brief loading on first paint if no cached user
@@ -955,21 +959,7 @@ export default function Dashboard() {
         );
 
       case 3: {
-        // Sample leads for demo if none selected
-        const sampleLeads: LeadForEmail[] = [
-          { email: 'contact@acmeplumbing.com', business_name: 'Acme Plumbing Co', contact_name: 'John Smith', website: 'www.acmeplumbing.com', phone: '(555) 123-4567' },
-          { email: 'info@sunsetdental.com', business_name: 'Sunset Dental Clinic', contact_name: 'Dr. Sarah Johnson', website: 'www.sunsetdental.com', phone: '(555) 234-5678' },
-          { email: 'hello@greenthumb.com', business_name: 'Green Thumb Landscaping', contact_name: 'Mike Davis', website: 'www.greenthumb.com', phone: '(555) 345-6789' },
-          { email: 'service@quickfix.com', business_name: 'QuickFix Auto Repair', contact_name: 'Carlos Martinez', website: 'www.quickfixauto.com', phone: '(555) 456-7890' },
-          { email: 'info@elegantcuts.com', business_name: 'Elegant Cuts Salon', contact_name: 'Lisa Chen', website: 'www.elegantcuts.com', phone: '(555) 567-8901' },
-          { email: 'office@smithlaw.com', business_name: 'Smith & Associates Law', contact_name: 'Robert Smith', website: 'www.smithlaw.com', phone: '(555) 678-9012' },
-          { email: 'contact@homeclean.com', business_name: 'Home Clean Services', contact_name: 'Jennifer Brown', website: 'www.homeclean.com', phone: '(555) 789-0123' },
-          { email: 'info@fitzone.com', business_name: 'FitZone Gym', contact_name: 'David Wilson', website: 'www.fitzone.com', phone: '(555) 890-1234' },
-          { email: 'hello@tastybites.com', business_name: 'Tasty Bites Restaurant', contact_name: 'Maria Garcia', website: 'www.tastybites.com', phone: '(555) 901-2345' },
-          { email: 'info@techpros.com', business_name: 'TechPros IT Solutions', contact_name: 'Alex Thompson', website: 'www.techpros.com', phone: '(555) 012-3456' },
-        ];
-
-        // Convert selected search results to email leads format
+        // Get leads from Step 2 or session storage
         const selectedSearchLeads: LeadForEmail[] = searchResults
           .filter(r => selectedLeads.includes(r.id))
           .map(r => ({
@@ -980,170 +970,125 @@ export default function Dashboard() {
             phone: r.phone || '',
           }));
 
-        const leadsToUse = emailLeads.length > 0 
-          ? emailLeads 
-          : selectedSearchLeads.length > 0 
-            ? selectedSearchLeads 
-            : sampleLeads;
-        
-        // Store leads for Step 4 (Voice Calling)
+        const leadsToUse = emailLeads.length > 0 ? emailLeads : selectedSearchLeads;
+        const leadsWithEmail = leadsToUse.filter(l => l.email);
         const leadsForCalling = leadsToUse.filter(l => l.phone);
 
-
-        // Check SMTP configuration
+        // SMTP configuration check
         const smtpConfig = JSON.parse(localStorage.getItem('smtp_config') || '{}');
         const isSmtpConfigured = smtpConfig.username && smtpConfig.password;
 
         return (
           <div className="space-y-6">
-            {/* BIG Step 3 Header */}
+            {/* Back Button */}
+            <Button
+              variant="ghost"
+              onClick={() => setCurrentStep(2)}
+              className="gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Leads
+            </Button>
+
+            {/* Step 3 Header */}
             <div className="text-center py-6 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-2xl border-2 border-blue-500/30">
-              <div className="text-6xl mb-4">📧</div>
-              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-                STEP 3: Send Your Outreach!
+              <div className="text-5xl mb-4">📧</div>
+              <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
+                STEP 3: Email Outreach
               </h2>
-              <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-                {leadsToUse.length} leads ready! Send emails now or use AI to verify first.
+              <p className="text-muted-foreground">
+                {leadsWithEmail.length > 0 
+                  ? `${leadsWithEmail.length} leads with email ready for outreach`
+                  : 'Configure your SMTP and send emails to leads'
+                }
               </p>
             </div>
 
-            {/* Back Button */}
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setCurrentStep(2)}
-                className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors px-4 py-2 rounded-lg hover:bg-muted"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to leads
-              </button>
-            </div>
-
-            {/* SMTP Configuration Check */}
+            {/* SMTP Configuration - PROMINENT */}
             <Card className={`border-2 ${isSmtpConfigured ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
-              <CardContent className="p-6">
-                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-14 h-14 rounded-full flex items-center justify-center text-3xl ${isSmtpConfigured ? 'bg-emerald-500/20' : 'bg-amber-500/20'}`}>
-                      {isSmtpConfigured ? '✅' : '⚠️'}
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold text-foreground">
-                        {isSmtpConfigured ? 'SMTP Configured!' : 'Configure SMTP First'}
-                      </p>
-                      <p className="text-muted-foreground">
-                        {isSmtpConfigured 
-                          ? `Sending via ${smtpConfig.host || 'your SMTP server'}` 
-                          : 'You need to set up your email server before sending outreach'
-                        }
-                      </p>
-                    </div>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl ${isSmtpConfigured ? 'bg-emerald-500/20' : 'bg-amber-500/20'}`}>
+                    {isSmtpConfigured ? '✅' : '⚠️'}
                   </div>
-                  <Button 
-                    onClick={() => setActiveTab('settings')}
-                    variant={isSmtpConfigured ? 'outline' : 'default'}
-                    className={`gap-2 ${!isSmtpConfigured ? 'bg-amber-500 hover:bg-amber-600' : ''}`}
-                  >
-                    <Server className="w-4 h-4" />
-                    {isSmtpConfigured ? 'View Settings' : 'Configure SMTP →'}
-                  </Button>
-                </div>
+                  <div>
+                    <p className="text-lg font-bold">
+                      {isSmtpConfigured ? 'SMTP Ready!' : 'Step 1: Configure SMTP First'}
+                    </p>
+                    <p className="text-sm text-muted-foreground font-normal">
+                      {isSmtpConfigured 
+                        ? `Sending via ${smtpConfig.host || 'your server'}` 
+                        : 'You must set up your email server before sending'
+                      }
+                    </p>
+                  </div>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Button 
+                  onClick={() => setActiveTab('settings')}
+                  variant={isSmtpConfigured ? 'outline' : 'default'}
+                  className={`gap-2 ${!isSmtpConfigured ? 'bg-amber-500 hover:bg-amber-600 animate-pulse' : ''}`}
+                  size="lg"
+                >
+                  <Server className="w-4 h-4" />
+                  {isSmtpConfigured ? 'View SMTP Settings' : 'Configure SMTP Now →'}
+                </Button>
               </CardContent>
             </Card>
 
-            {/* Two Action Cards */}
-            <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-              {/* Send Emails Card */}
-              <Card 
-                className={`cursor-pointer transition-all border-2 ${
-                  outreachMode === 'email' 
-                    ? 'border-blue-500 bg-blue-500/5 ring-2 ring-blue-500/20' 
-                    : 'border-border hover:border-blue-500/50'
-                }`}
-                onClick={() => setOutreachMode('email')}
-              >
-                <CardContent className="p-6 text-center">
-                  <div className="w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center mx-auto mb-4 text-3xl">
-                    📧
-                  </div>
-                  <h3 className="text-xl font-bold text-foreground mb-2">Send Emails Now</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Pick a template and send outreach immediately to your {leadsToUse.length} leads
-                  </p>
-                  <Badge className="bg-blue-500/20 text-blue-600 border-blue-500/30">
-                    Quick & Direct
-                  </Badge>
-                </CardContent>
-              </Card>
-
-              {/* AI Verify First Card */}
-              <Card 
-                className={`cursor-pointer transition-all border-2 ${
-                  outreachMode === 'verify' 
-                    ? 'border-amber-500 bg-amber-500/5 ring-2 ring-amber-500/20' 
-                    : 'border-border hover:border-amber-500/50'
-                }`}
-                onClick={() => setOutreachMode('verify')}
-              >
-                <CardContent className="p-6 text-center">
-                  <div className="w-16 h-16 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto mb-4 text-3xl">
-                    ✅
-                  </div>
-                  <h3 className="text-xl font-bold text-foreground mb-2">AI Verify First</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Find missing emails, score leads, and analyze websites before sending
-                  </p>
-                  <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30">
-                    <Sparkles className="w-3 h-3 mr-1" />
-                    Uses Credits
-                  </Badge>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Content based on mode */}
-            {outreachMode === 'email' ? (
+            {/* Email Outreach Module - Only show if SMTP configured */}
+            {isSmtpConfigured ? (
               <EmailOutreachModule 
                 selectedLeads={leadsToUse} 
                 onClearSelection={() => setEmailLeads([])} 
               />
             ) : (
-              <LeadVerificationModule onSendToEmail={handleSendToEmail} />
+              <Card className="border-dashed border-2 border-muted">
+                <CardContent className="py-12 text-center">
+                  <div className="text-4xl mb-4">📭</div>
+                  <h3 className="text-lg font-semibold mb-2">Email Module Locked</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Configure your SMTP settings above to unlock email sending
+                  </p>
+                  <Button onClick={() => setActiveTab('settings')} className="gap-2">
+                    <Server className="w-4 h-4" />
+                    Go to Settings
+                  </Button>
+                </CardContent>
+              </Card>
             )}
 
-            {/* Continue to Voice Calls Button - Always Visible */}
-            <Card className="mt-6 border-2 border-green-500/30 bg-gradient-to-r from-green-500/5 to-emerald-500/5">
-              <CardContent className="p-6">
-                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center text-3xl">
-                      📞
+            {/* Continue to Voice Calls */}
+            {leadsForCalling.length > 0 && (
+              <Card className="border-2 border-green-500/30 bg-gradient-to-r from-green-500/5 to-emerald-500/5">
+                <CardContent className="p-6">
+                  <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center text-2xl">
+                        📞
+                      </div>
+                      <div>
+                        <p className="font-bold text-foreground">Ready for calls?</p>
+                        <p className="text-sm text-muted-foreground">
+                          {leadsForCalling.length} leads have phone numbers
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-lg font-bold text-foreground">
-                        Ready to follow up with calls?
-                      </p>
-                      <p className="text-muted-foreground">
-                        {leadsForCalling.length > 0 
-                          ? `${leadsForCalling.length} leads have phone numbers ready for AI voice calls`
-                          : 'Set up your AI voice agent to call leads after sending emails'
-                        }
-                      </p>
-                    </div>
+                    <Button 
+                      onClick={() => {
+                        setEmailLeads(leadsToUse);
+                        setCurrentStep(4);
+                      }}
+                      className="gap-2 bg-green-600 hover:bg-green-700"
+                    >
+                      <Phone className="w-4 h-4" />
+                      Continue to Calls →
+                    </Button>
                   </div>
-                  <Button 
-                    onClick={() => {
-                      setEmailLeads(leadsToUse);
-                      setCurrentStep(4);
-                    }}
-                    size="lg"
-                    className="gap-2 bg-green-600 hover:bg-green-700 text-white px-6"
-                  >
-                    <Phone className="w-5 h-5" />
-                    {leadsForCalling.length > 0 ? 'Call Leads' : 'Set Up Calling'} →
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
           </div>
         );
       }
@@ -1156,26 +1101,25 @@ export default function Dashboard() {
 
         return (
           <div className="space-y-6">
-            {/* BIG Step 4 Header */}
+            {/* Back Button */}
+            <Button
+              variant="ghost"
+              onClick={() => setCurrentStep(3)}
+              className="gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Email
+            </Button>
+
+            {/* Step 4 Header */}
             <div className="text-center py-6 bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-2xl border-2 border-green-500/30">
-              <div className="text-6xl mb-4">📞</div>
-              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
+              <div className="text-5xl mb-4">📞</div>
+              <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
                 STEP 4: AI Voice Calls
               </h2>
-              <p className="text-lg text-muted-foreground max-w-xl mx-auto">
+              <p className="text-muted-foreground">
                 Follow up with {callableLeads.length} leads using AI-powered voice calls
               </p>
-            </div>
-
-            {/* Back Button */}
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setCurrentStep(3)}
-                className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors px-4 py-2 rounded-lg hover:bg-muted"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to emails
-              </button>
             </div>
 
             {/* Lead Call Queue */}
@@ -1525,11 +1469,17 @@ export default function Dashboard() {
                         </p>
                       </div>
                     </div>
-                    {currentStep > 1 && (
-                      <Button variant="outline" size="lg" onClick={resetWorkflow} className="gap-2">
-                        🔄 Start Over
+                    <div className="flex items-center gap-2">
+                      {currentStep > 1 && (
+                        <Button variant="outline" onClick={() => setCurrentStep(currentStep - 1)} className="gap-2">
+                          <ArrowLeft className="w-4 h-4" />
+                          Back
+                        </Button>
+                      )}
+                      <Button variant="outline" onClick={resetWorkflow} className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200">
+                        🗑️ Clear All Data
                       </Button>
-                    )}
+                    </div>
                   </div>
 
                   {/* Step Progress Bar - BIGGER */}
