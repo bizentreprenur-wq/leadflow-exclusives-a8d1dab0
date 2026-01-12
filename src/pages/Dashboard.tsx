@@ -50,12 +50,14 @@ import AutoFollowUpBuilder from '@/components/AutoFollowUpBuilder';
 import LeadResultsPanel from '@/components/LeadResultsPanel';
 import LeadDocumentViewer from '@/components/LeadDocumentViewer';
 import LeadSpreadsheetViewer from '@/components/LeadSpreadsheetViewer';
-import EmbeddedSpreadsheetView from '@/components/EmbeddedSpreadsheetView';
 import DataFieldSelector, { DATA_FIELD_OPTIONS } from '@/components/DataFieldSelector';
 import SettingsPanel from '@/components/SettingsPanel';
 import VoiceCallWidget from '@/components/VoiceCallWidget';
 import VoiceAgentSetupGuide from '@/components/VoiceAgentSetupGuide';
 import CallLogHistory from '@/components/CallLogHistory';
+import LeadDecisionPopup from '@/components/LeadDecisionPopup';
+import SimpleLeadViewer from '@/components/SimpleLeadViewer';
+import EmailSetupFlow from '@/components/EmailSetupFlow';
 
 interface SearchResult {
   id: string;
@@ -79,10 +81,10 @@ interface SearchResult {
 
 // Step configuration - 4 simple steps
 const WORKFLOW_STEPS = [
-  { id: 1, title: 'STEP 1: Search', description: 'Find businesses that need your services', icon: Search, emoji: '🔍' },
-  { id: 2, title: 'STEP 2: Leads', description: 'Review and select your leads', icon: Users, emoji: '📋' },
-  { id: 3, title: 'STEP 3: Email', description: 'Configure SMTP & send outreach', icon: Send, emoji: '📧' },
-  { id: 4, title: 'STEP 4: Call', description: 'Follow up with AI voice calls', icon: Phone, emoji: '📞' },
+  { id: 1, title: 'STEP 1: Search', description: 'Find businesses', icon: Search, emoji: '🔍' },
+  { id: 2, title: 'STEP 2: Leads', description: 'View & decide action', icon: Users, emoji: '📋' },
+  { id: 3, title: 'STEP 3: Email', description: 'SMTP → Template → Send', icon: Send, emoji: '📧' },
+  { id: 4, title: 'STEP 4: Call', description: 'AI voice calls', icon: Phone, emoji: '📞' },
 ];
 
 export default function Dashboard() {
@@ -930,17 +932,12 @@ export default function Dashboard() {
 
       case 2:
         return (
-          <EmbeddedSpreadsheetView
+          <SimpleLeadViewer
             leads={searchResults}
             isLoading={isSearching}
             loadingProgress={searchProgress}
             onBack={() => setCurrentStep(1)}
-            onProceedToVerify={(leads) => {
-              setWidgetLeads(leads);
-              sessionStorage.setItem('leadsToVerify', JSON.stringify(leads));
-              setShowVerifierWidget(true);
-            }}
-            onSendToEmail={(leads) => {
+            onProceedToEmail={(leads) => {
               const convertedLeads: LeadForEmail[] = leads.map((l) => ({
                 email: l.email || '',
                 business_name: l.name,
@@ -951,147 +948,38 @@ export default function Dashboard() {
               setEmailLeads(convertedLeads);
               setCurrentStep(3);
             }}
-            onOpenEmailSettings={() => {
+            onProceedToCall={(leads) => {
+              const convertedLeads: LeadForEmail[] = leads.map((l) => ({
+                email: l.email || '',
+                business_name: l.name,
+                contact_name: '',
+                website: l.website || '',
+                phone: l.phone || '',
+              }));
+              setEmailLeads(convertedLeads);
+              setCurrentStep(4);
+            }}
+          />
+        );
+
+      case 3:
+        return (
+          <EmailSetupFlow
+            leads={searchResults.filter(r => selectedLeads.includes(r.id)).length > 0 
+              ? searchResults.filter(r => selectedLeads.includes(r.id))
+              : searchResults
+            }
+            onBack={() => setCurrentStep(2)}
+            onComplete={() => {
+              toast.success('Email campaign sent!');
+              celebrate('email-sent');
+            }}
+            onOpenSettings={() => {
               setSettingsInitialTab('email');
               setActiveTab('settings');
             }}
           />
         );
-
-      case 3: {
-        // Get leads from Step 2 or session storage
-        const selectedSearchLeads: LeadForEmail[] = searchResults
-          .filter(r => selectedLeads.includes(r.id))
-          .map(r => ({
-            email: r.email || '',
-            business_name: r.name,
-            contact_name: '',
-            website: r.website || '',
-            phone: r.phone || '',
-          }));
-
-        const leadsToUse = emailLeads.length > 0 ? emailLeads : selectedSearchLeads;
-        const leadsWithEmail = leadsToUse.filter(l => l.email);
-        const leadsForCalling = leadsToUse.filter(l => l.phone);
-
-        // SMTP configuration check
-        const smtpConfig = JSON.parse(localStorage.getItem('smtp_config') || '{}');
-        const isSmtpConfigured = smtpConfig.username && smtpConfig.password;
-
-        return (
-          <div className="space-y-6">
-            {/* Back Button */}
-            <Button
-              variant="ghost"
-              onClick={() => setCurrentStep(2)}
-              className="gap-2 text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Leads
-            </Button>
-
-            {/* Step 3 Header */}
-            <div className="text-center py-6 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-2xl border-2 border-blue-500/30">
-              <div className="text-5xl mb-4">📧</div>
-              <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-                STEP 3: Email Outreach
-              </h2>
-              <p className="text-muted-foreground">
-                {leadsWithEmail.length > 0 
-                  ? `${leadsWithEmail.length} leads with email ready for outreach`
-                  : 'Configure your SMTP and send emails to leads'
-                }
-              </p>
-            </div>
-
-            {/* SMTP Configuration - PROMINENT */}
-            <Card className={`border-2 ${isSmtpConfigured ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-amber-500/30 bg-amber-500/5'}`}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl ${isSmtpConfigured ? 'bg-emerald-500/20' : 'bg-amber-500/20'}`}>
-                    {isSmtpConfigured ? '✅' : '⚠️'}
-                  </div>
-                  <div>
-                    <p className="text-lg font-bold">
-                      {isSmtpConfigured ? 'SMTP Ready!' : 'Step 1: Configure SMTP First'}
-                    </p>
-                    <p className="text-sm text-muted-foreground font-normal">
-                      {isSmtpConfigured 
-                        ? `Sending via ${smtpConfig.host || 'your server'}` 
-                        : 'You must set up your email server before sending'
-                      }
-                    </p>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Button 
-                  onClick={() => setActiveTab('settings')}
-                  variant={isSmtpConfigured ? 'outline' : 'default'}
-                  className={`gap-2 ${!isSmtpConfigured ? 'bg-amber-500 hover:bg-amber-600 animate-pulse' : ''}`}
-                  size="lg"
-                >
-                  <Server className="w-4 h-4" />
-                  {isSmtpConfigured ? 'View SMTP Settings' : 'Configure SMTP Now →'}
-                </Button>
-              </CardContent>
-            </Card>
-
-            {/* Email Outreach Module - Only show if SMTP configured */}
-            {isSmtpConfigured ? (
-              <EmailOutreachModule 
-                selectedLeads={leadsToUse} 
-                onClearSelection={() => setEmailLeads([])} 
-              />
-            ) : (
-              <Card className="border-dashed border-2 border-muted">
-                <CardContent className="py-12 text-center">
-                  <div className="text-4xl mb-4">📭</div>
-                  <h3 className="text-lg font-semibold mb-2">Email Module Locked</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Configure your SMTP settings above to unlock email sending
-                  </p>
-                  <Button onClick={() => setActiveTab('settings')} className="gap-2">
-                    <Server className="w-4 h-4" />
-                    Go to Settings
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Continue to Voice Calls */}
-            {leadsForCalling.length > 0 && (
-              <Card className="border-2 border-green-500/30 bg-gradient-to-r from-green-500/5 to-emerald-500/5">
-                <CardContent className="p-6">
-                  <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center text-2xl">
-                        📞
-                      </div>
-                      <div>
-                        <p className="font-bold text-foreground">Ready for calls?</p>
-                        <p className="text-sm text-muted-foreground">
-                          {leadsForCalling.length} leads have phone numbers
-                        </p>
-                      </div>
-                    </div>
-                    <Button 
-                      onClick={() => {
-                        setEmailLeads(leadsToUse);
-                        setCurrentStep(4);
-                      }}
-                      className="gap-2 bg-green-600 hover:bg-green-700"
-                    >
-                      <Phone className="w-4 h-4" />
-                      Continue to Calls →
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        );
-      }
 
       case 4: {
         // Voice Calling Step
