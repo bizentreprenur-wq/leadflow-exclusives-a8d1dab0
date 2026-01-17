@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, forwardRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,7 @@ interface AIAgent {
   badge: string;
 }
 
-const SecretAISection = () => {
+const SecretAISection = forwardRef<HTMLElement>((props, ref) => {
   const [activeAgent, setActiveAgent] = useState<string | null>(null);
 
   const agents: AIAgent[] = [
@@ -144,7 +144,7 @@ const SecretAISection = () => {
   const selectedAgent = agents.find(a => a.id === activeAgent);
 
   return (
-    <section className="py-20 bg-gradient-to-b from-background via-muted/30 to-background">
+    <section ref={ref} className="py-20 bg-gradient-to-b from-background via-muted/30 to-background" {...props}>
       <div className="container px-4">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-12">
@@ -249,6 +249,8 @@ const SecretAISection = () => {
       </Dialog>
     </section>
   );
-};
+});
+
+SecretAISection.displayName = 'SecretAISection';
 
 export default SecretAISection;

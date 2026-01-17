@@ -199,10 +199,18 @@ export default function SimpleLeadViewer({
     toast.success(`Downloaded ${dataToExport.length} leads as Excel`);
   };
 
+  const [showVerifyPrompt, setShowVerifyPrompt] = useState<'email' | 'call' | 'crm' | 'schedule' | null>(null);
+
   const handleProceedToEmail = () => {
     const leadsToUse = selectedIds.size > 0 ? selectedLeads : leads;
     if (leadsToUse.length === 0) {
       toast.error('No leads to email');
+      return;
+    }
+    // Check if leads have been verified
+    const hasUnverifiedLeads = leadsToUse.some(l => !l.aiClassification);
+    if (hasUnverifiedLeads) {
+      setShowVerifyPrompt('email');
       return;
     }
     onProceedToEmail(leadsToUse);
@@ -215,7 +223,51 @@ export default function SimpleLeadViewer({
       toast.error('No leads with phone numbers');
       return;
     }
+    // Check if leads have been verified
+    const hasUnverifiedLeads = withPhone.some(l => !l.aiClassification);
+    if (hasUnverifiedLeads) {
+      setShowVerifyPrompt('call');
+      return;
+    }
     onProceedToCall(withPhone);
+  };
+
+  const handleOpenCRM = () => {
+    const leadsToUse = selectedIds.size > 0 ? selectedLeads : leads;
+    const hasUnverifiedLeads = leadsToUse.some(l => !l.aiClassification);
+    if (hasUnverifiedLeads) {
+      setShowVerifyPrompt('crm');
+      return;
+    }
+    if (onOpenCRM) onOpenCRM();
+    else toast.info('CRM opening...');
+  };
+
+  const handleOpenSchedule = () => {
+    const leadsToUse = selectedIds.size > 0 ? selectedLeads : leads;
+    const hasUnverifiedLeads = leadsToUse.some(l => !l.aiClassification);
+    if (hasUnverifiedLeads) {
+      setShowVerifyPrompt('schedule');
+      return;
+    }
+    if (onOpenSchedule) onOpenSchedule();
+    else toast.info('Schedule feature coming soon!');
+  };
+
+  const confirmProceedWithoutVerify = () => {
+    const leadsToUse = selectedIds.size > 0 ? selectedLeads : leads;
+    const withPhone = leadsToUse.filter(l => l.phone);
+    
+    if (showVerifyPrompt === 'email') {
+      onProceedToEmail(leadsToUse);
+    } else if (showVerifyPrompt === 'call') {
+      onProceedToCall(withPhone);
+    } else if (showVerifyPrompt === 'crm') {
+      if (onOpenCRM) onOpenCRM();
+    } else if (showVerifyPrompt === 'schedule') {
+      if (onOpenSchedule) onOpenSchedule();
+    }
+    setShowVerifyPrompt(null);
   };
 
   const getClassBadge = (classification?: string) => {
@@ -295,10 +347,7 @@ export default function SimpleLeadViewer({
               variant="outline" 
               size="sm" 
               className="gap-2"
-              onClick={() => {
-                if (onOpenCRM) onOpenCRM();
-                else toast.info('CRM integration opening...');
-              }}
+              onClick={handleOpenCRM}
             >
               <Database className="w-4 h-4" />
               CRM
@@ -307,10 +356,7 @@ export default function SimpleLeadViewer({
               variant="outline" 
               size="sm" 
               className="gap-2"
-              onClick={() => {
-                if (onOpenSchedule) onOpenSchedule();
-                else toast.info('Schedule feature coming soon!');
-              }}
+              onClick={handleOpenSchedule}
             >
               <Calendar className="w-4 h-4" />
               Schedule
@@ -637,6 +683,58 @@ export default function SimpleLeadViewer({
           )}
         </CardContent>
       </Card>
+
+      {/* AI Verification Prompt Dialog */}
+      {showVerifyPrompt && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-card border border-border rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto mb-4">
+                <Sparkles className="w-8 h-8 text-amber-400" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">Wait! Have You Verified These Leads?</h3>
+              <p className="text-muted-foreground mb-6">
+                AI Verification confirms phone & email accuracy, improving your outreach success rate by up to 40%!
+              </p>
+
+              <div className="space-y-3">
+                <Button 
+                  className="w-full gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                  onClick={() => {
+                    setShowVerifyPrompt(null);
+                    toast.info('AI Verify your leads first using the button above!');
+                  }}
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Go Back & Verify Leads First
+                </Button>
+                
+                <Button 
+                  variant="outline"
+                  className="w-full"
+                  onClick={confirmProceedWithoutVerify}
+                >
+                  Continue Without Verifying
+                  {showVerifyPrompt === 'email' && ' → Step 3 (Email)'}
+                  {showVerifyPrompt === 'call' && ' → Step 4 (Call)'}
+                  {showVerifyPrompt === 'crm' && ' → CRM'}
+                  {showVerifyPrompt === 'schedule' && ' → Schedule'}
+                </Button>
+
+                <Button 
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-muted-foreground"
+                  onClick={() => setShowVerifyPrompt(null)}
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
