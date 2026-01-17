@@ -126,12 +126,12 @@ export default function LeadAnalysisFlow({ leads, onComplete }: LeadAnalysisFlow
           <div key={step.key} className="flex items-center">
             <button
               onClick={() => setCurrentStep(step.key)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm transition-all ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm transition-all cursor-pointer hover:scale-105 ${
                 currentStep === step.key
                   ? "bg-primary text-primary-foreground"
                   : index < currentStepIndex
-                  ? "bg-success/10 text-success"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+                  ? "bg-success/10 text-success hover:bg-success/20"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
               }`}
             >
               {index < currentStepIndex ? (

@@ -405,20 +405,14 @@ export default function EmailSetupFlow({
           return (
             <button
               key={phase.id}
-              onClick={() => {
-                // Only allow going back or to completed phases
-                if (isComplete || isCurrent) {
-                  setCurrentPhase(phase.id as any);
-                }
-              }}
-              disabled={!isComplete && !isCurrent}
-               className={`p-4 rounded-xl text-center transition-all border border-border ${
-                 isCurrent
-                   ? 'bg-primary text-primary-foreground shadow-elevated scale-105 border-primary/30'
-                   : isComplete
-                   ? 'bg-success/10 text-success hover:bg-success/15 cursor-pointer border-success/20'
-                   : 'bg-muted/30 text-muted-foreground opacity-50'
-               }`}
+              onClick={() => setCurrentPhase(phase.id as any)}
+              className={`p-4 rounded-xl text-center transition-all border border-border cursor-pointer hover:scale-102 ${
+                isCurrent
+                  ? 'bg-primary text-primary-foreground shadow-elevated scale-105 border-primary/30'
+                  : isComplete
+                  ? 'bg-success/10 text-success hover:bg-success/15 border-success/20'
+                  : 'bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+              }`}
             >
               <div className="flex flex-col items-center gap-2">
                 {isComplete ? (

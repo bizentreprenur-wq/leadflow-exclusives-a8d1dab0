@@ -341,13 +341,14 @@ export default function EmailComposerFlow({
     <div className="flex items-center justify-center gap-2 py-4 border-b border-border">
       {steps.map((step, index) => (
         <div key={step.key} className="flex items-center">
-          <div
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm transition-all ${
+          <button
+            onClick={() => setCurrentStep(step.key)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm transition-all cursor-pointer hover:scale-105 ${
               currentStep === step.key
                 ? "bg-primary text-primary-foreground"
                 : index < currentStepIndex
-                ? "bg-success/10 text-success"
-                : "bg-muted text-muted-foreground"
+                ? "bg-success/10 text-success hover:bg-success/20"
+                : "bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground"
             }`}
           >
             {index < currentStepIndex ? (
@@ -356,7 +357,7 @@ export default function EmailComposerFlow({
               step.icon
             )}
             <span className="hidden sm:inline">{step.label}</span>
-          </div>
+          </button>
           {index < steps.length - 1 && (
             <div className={`w-8 h-0.5 mx-1 ${
               index < currentStepIndex ? "bg-success" : "bg-border"
