@@ -78,7 +78,8 @@ export default function SimpleLeadViewer({
   loadingProgress = 0,
 }: SimpleLeadViewerProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [activeFilter, setActiveFilter] = useState<'all' | 'hot' | 'warm' | 'cold'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'hot' | 'warm' | 'cold' | 'ready' | 'nosite'>('all');
+  const [showSaved, setShowSaved] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   // Load selections from localStorage
@@ -106,13 +107,19 @@ export default function SimpleLeadViewer({
     hot: leads.filter(l => l.aiClassification === 'hot').length,
     warm: leads.filter(l => l.aiClassification === 'warm').length,
     cold: leads.filter(l => l.aiClassification === 'cold').length,
+    ready: leads.filter(l => l.readyToCall || l.phone).length,
+    nosite: leads.filter(l => !l.website || l.websiteAnalysis?.hasWebsite === false).length,
   }), [leads]);
 
   const filteredLeads = useMemo(() => {
     let result = leads;
     
-    if (activeFilter !== 'all') {
+    if (activeFilter === 'hot' || activeFilter === 'warm' || activeFilter === 'cold') {
       result = result.filter(l => l.aiClassification === activeFilter);
+    } else if (activeFilter === 'ready') {
+      result = result.filter(l => l.readyToCall || l.phone);
+    } else if (activeFilter === 'nosite') {
+      result = result.filter(l => !l.website || l.websiteAnalysis?.hasWebsite === false);
     }
     
     if (searchQuery.trim()) {
@@ -406,34 +413,71 @@ export default function SimpleLeadViewer({
         </div>
       )}
 
+      {/* Reminder Banner */}
+      <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
+        <Sparkles className="w-4 h-4 text-amber-500" />
+        <span className="text-amber-400 font-medium">⚠ REMEMBER: AI Verify your leads before contacting them!</span>
+        <Sparkles className="w-4 h-4 text-amber-500" />
+      </div>
+
       {/* Filters & Search Row */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           {[
-            { key: 'all', label: 'All', count: groupedCounts.all, color: '' },
-            { key: 'hot', label: '🔥 Hot', count: groupedCounts.hot, color: 'bg-red-500 hover:bg-red-600' },
-            { key: 'warm', label: '⚡ Warm', count: groupedCounts.warm, color: 'bg-orange-500 hover:bg-orange-600' },
-            { key: 'cold', label: '❄️ Cold', count: groupedCounts.cold, color: 'bg-blue-500 hover:bg-blue-600' },
+            { key: 'all', label: 'All', icon: Users, count: groupedCounts.all, color: '', activeColor: 'bg-primary' },
+            { key: 'hot', label: 'Hot', icon: Flame, count: groupedCounts.hot, color: 'text-red-500', activeColor: 'bg-red-500 hover:bg-red-600' },
+            { key: 'warm', label: 'Warm', icon: Thermometer, count: groupedCounts.warm, color: 'text-orange-500', activeColor: 'bg-orange-500 hover:bg-orange-600' },
+            { key: 'cold', label: 'Cold', icon: Snowflake, count: groupedCounts.cold, color: 'text-blue-500', activeColor: 'bg-blue-500 hover:bg-blue-600' },
+            { key: 'ready', label: 'Ready', icon: Phone, count: groupedCounts.ready, color: 'text-emerald-500', activeColor: 'bg-emerald-500 hover:bg-emerald-600' },
+            { key: 'nosite', label: 'No Site', icon: Globe, count: groupedCounts.nosite, color: 'text-purple-500', activeColor: 'bg-purple-500 hover:bg-purple-600' },
           ].map((filter) => (
             <Button
               key={filter.key}
               variant={activeFilter === filter.key ? 'default' : 'outline'}
               size="sm"
               onClick={() => setActiveFilter(filter.key as any)}
-              className={activeFilter === filter.key && filter.color ? filter.color : ''}
+              className={`gap-1.5 ${activeFilter === filter.key ? filter.activeColor : ''}`}
             >
+              <filter.icon className={`w-3.5 h-3.5 ${activeFilter !== filter.key ? filter.color : ''}`} />
               {filter.label} ({filter.count})
             </Button>
           ))}
         </div>
 
-        <div className="relative">
+        <div className="flex items-center gap-2">
+          <Button
+            variant={showSaved ? 'default' : 'outline'}
+            size="sm"
+            className="gap-1.5"
+            onClick={() => {
+              setShowSaved(!showSaved);
+              toast.info(showSaved ? 'Showing all leads' : 'Showing saved leads only');
+            }}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            New
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => toast.info('Saved leads feature coming soon!')}
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            Saved ({selectedIds.size})
+          </Button>
+        </div>
+      </div>
+
+      {/* Search */}
+      <div className="flex items-center gap-4">
+        <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search leads..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 w-56 h-9"
+            className="pl-9 h-9"
           />
           {searchQuery && (
             <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2">
