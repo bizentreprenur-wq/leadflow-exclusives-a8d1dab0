@@ -320,22 +320,24 @@ export default function EmailSetupFlow({
                     emailsPerHour={50}
                   />
 
-                  {/* Live sending stats */}
-                  <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-                    <CardContent className="p-4">
+                  {/* Live sending stats - with glow effect */}
+                  <Card className="relative overflow-hidden bg-gradient-to-br from-primary/10 to-primary/5 border-primary/30 shadow-[0_0_30px_rgba(20,184,166,0.3)] animate-pulse-slow">
+                    {/* Animated glow border */}
+                    <div className="absolute inset-0 rounded-lg bg-gradient-to-r from-primary/0 via-primary/20 to-primary/0 animate-shimmer" />
+                    <CardContent className="p-4 relative z-10">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                            <Zap className="w-5 h-5 text-primary" />
+                          <div className="w-10 h-10 rounded-full bg-primary/30 flex items-center justify-center shadow-[0_0_15px_rgba(20,184,166,0.5)]">
+                            <Zap className="w-5 h-5 text-primary animate-pulse" />
                           </div>
                           <div>
-                            <h4 className="font-semibold">Smart Drip Technology</h4>
+                            <h4 className="font-semibold text-primary">Smart Drip Technology</h4>
                             <p className="text-sm text-muted-foreground">
                               Emails are sent gradually to maximize deliverability
                             </p>
                           </div>
                         </div>
-                        <Badge variant="outline" className="gap-1 bg-success/10 text-success border-success/30">
+                        <Badge className="gap-1 bg-success/20 text-success border-success/50 shadow-[0_0_10px_rgba(34,197,94,0.4)]">
                           <CheckCircle2 className="w-3 h-3" />
                           Active
                         </Badge>

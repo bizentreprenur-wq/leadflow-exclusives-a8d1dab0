@@ -217,3 +217,35 @@
   50% { transform: scale(1.05); }
   100% { transform: scale(1); }
 }
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { 
+    box-shadow: 0 0 20px rgba(20, 184, 166, 0.3),
+                0 0 40px rgba(20, 184, 166, 0.2),
+                0 0 60px rgba(20, 184, 166, 0.1);
+  }
+  50% { 
+    box-shadow: 0 0 30px rgba(20, 184, 166, 0.5),
+                0 0 60px rgba(20, 184, 166, 0.3),
+                0 0 90px rgba(20, 184, 166, 0.2);
+  }
+}
+
+@layer utilities {
+  .animate-shimmer {
+    animation: shimmer 2s infinite;
+  }
+  
+  .animate-glow-pulse {
+    animation: glow-pulse 2s ease-in-out infinite;
+  }
+  
+  .animate-pulse-slow {
+    animation: pulse-slow 3s ease-in-out infinite;
+  }
+}
