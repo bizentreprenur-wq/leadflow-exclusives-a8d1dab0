@@ -5,8 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { ArrowLeft, Mail, CheckCircle } from 'lucide-react';
+import { Mail, CheckCircle } from 'lucide-react';
 import { forgotPassword } from '@/lib/api/password';
+import BackButton from '@/components/BackButton';
 
 
 export default function ForgotPassword() {
@@ -37,10 +38,7 @@ export default function ForgotPassword() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-primary/5">
       <div className="p-6">
-        <Link to="/auth" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="w-4 h-4" />
-          Back to Sign In
-        </Link>
+        <BackButton fallbackPath="/auth" />
       </div>
 
       <div className="flex-1 flex items-center justify-center p-6">
