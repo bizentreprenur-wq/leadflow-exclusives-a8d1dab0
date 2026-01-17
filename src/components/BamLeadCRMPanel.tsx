@@ -159,6 +159,25 @@ export default function BamLeadCRMPanel({ leads: initialLeads, onSync }: BamLead
 
   return (
     <div className="space-y-6">
+      {/* BamLead CRM Trial Notice */}
+      <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/30">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+            <Clock className="w-5 h-5 text-amber-400" />
+          </div>
+          <div>
+            <p className="font-semibold text-white">BamLead CRM - Free Trial</p>
+            <p className="text-sm text-amber-300/80">
+              Your CRM is <span className="font-bold text-amber-400">FREE for 14 days</span>, then $29/month. 
+              External CRM integrations below are always free!
+            </p>
+          </div>
+        </div>
+        <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+          14 Days Left
+        </Badge>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
