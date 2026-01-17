@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, ArrowRight, Server, FileText, Send, 
   CheckCircle2, Mail, Users, Loader2, Link2, Database,
-  Eye, Zap
+  Eye, Zap, Rocket
 } from 'lucide-react';
 import HighConvertingTemplateGallery from './HighConvertingTemplateGallery';
 import EmailOutreachModule from './EmailOutreachModule';
@@ -17,6 +17,7 @@ import CRMIntegrationModal from './CRMIntegrationModal';
 import MailboxDripAnimation from './MailboxDripAnimation';
 import EmailClientPreviewPanel from './EmailClientPreviewPanel';
 import BamLeadCRMPanel from './BamLeadCRMPanel';
+import AutoCampaignWizard from './AutoCampaignWizard';
 import { LeadForEmail } from '@/lib/api/email';
 
 interface SearchResult {
@@ -44,6 +45,7 @@ export default function EmailSetupFlow({
   const [currentPhase, setCurrentPhase] = useState<'smtp' | 'template' | 'send'>('smtp');
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
   const [showCRMModal, setShowCRMModal] = useState(false);
+  const [showAutoCampaign, setShowAutoCampaign] = useState(false);
   
   // Check SMTP configuration
   const [smtpConfigured, setSmtpConfigured] = useState(() => {
@@ -340,11 +342,18 @@ export default function EmailSetupFlow({
               </TabsContent>
             </Tabs>
 
-            {/* External CRM Modal */}
-            <div className="flex justify-center pt-4 border-t border-border">
+            {/* Quick Actions Footer */}
+            <div className="flex items-center justify-between pt-4 border-t border-border">
               <Button variant="outline" onClick={() => setShowCRMModal(true)} className="gap-2">
                 <Link2 className="w-4 h-4" />
-                Connect External CRM (HubSpot, Salesforce, etc.)
+                Connect External CRM
+              </Button>
+              <Button 
+                onClick={() => setShowAutoCampaign(true)} 
+                className="gap-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700"
+              >
+                <Rocket className="w-4 h-4" />
+                Auto Campaign Wizard
               </Button>
             </div>
           </div>
@@ -427,6 +436,21 @@ export default function EmailSetupFlow({
           email: l.email,
           source: 'gmb' as const,
         }))}
+      />
+
+      {/* Auto Campaign Wizard */}
+      <AutoCampaignWizard
+        open={showAutoCampaign}
+        onOpenChange={setShowAutoCampaign}
+        leads={leads.map(l => ({
+          id: l.id,
+          name: l.name,
+          email: l.email,
+          phone: l.phone,
+        }))}
+        onLaunch={(campaignData) => {
+          toast.success(`Campaign "${campaignData.name}" launched!`);
+        }}
       />
     </div>
   );
