@@ -60,6 +60,7 @@ import SimpleLeadViewer from '@/components/SimpleLeadViewer';
 import EmailSetupFlow from '@/components/EmailSetupFlow';
 import CloudCRMIntegrationsPanel from '@/components/CloudCRMIntegrationsPanel';
 import CRMIntegrationModal from '@/components/CRMIntegrationModal';
+import Step4OutreachHub from '@/components/Step4OutreachHub';
 
 interface SearchResult {
   id: string;
@@ -1018,121 +1019,37 @@ export default function Dashboard() {
         );
 
       case 4: {
-        // Voice Calling Step with Cloud & CRM Integrations
-        const callableLeads = emailLeads.length > 0 
-          ? emailLeads.filter(l => l.phone) 
-          : searchResults.filter(r => selectedLeads.includes(r.id) && r.phone);
+        // New unified Step 4 - Call, Schedule & Save
+        const step4Leads = emailLeads.length > 0 
+          ? emailLeads.map((l, i) => ({
+              id: `email-${i}`,
+              email: l.email,
+              business_name: l.business_name,
+              name: l.contact_name || l.business_name,
+              phone: l.phone,
+              website: l.website,
+            }))
+          : searchResults.filter(r => selectedLeads.includes(r.id) || selectedLeads.length === 0).map(r => ({
+              id: r.id,
+              email: r.email,
+              business_name: r.name,
+              name: r.name,
+              phone: r.phone,
+              website: r.website,
+            }));
 
         return (
-          <div className="space-y-6 max-w-5xl mx-auto">
-            {/* Back Button */}
-            <Button
-              variant="ghost"
-              onClick={() => setCurrentStep(3)}
-              className="gap-2 text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Back to Email
-            </Button>
-
-            {/* Step 4 Header - Compact */}
-            <div className="flex items-center gap-4 py-4 px-6 bg-gradient-to-r from-green-500/10 to-emerald-500/5 rounded-xl border border-green-500/30">
-              <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
-                <Phone className="w-6 h-6 text-green-500" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-foreground">
-                  STEP 4: AI Voice Calls & Integrations
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Follow up with {callableLeads.length} leads using AI-powered voice calls
-                </p>
-              </div>
-            </div>
-
-            {/* Two Column Layout - Compact */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Left Column - Call Queue */}
-              <div className="space-y-4">
-                {/* Lead Call Queue */}
-                <Card className="border-green-500/30">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Phone className="w-4 h-4 text-green-500" />
-                      Leads Ready to Call ({callableLeads.length})
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    {callableLeads.length === 0 ? (
-                      <div className="text-center py-6">
-                        <p className="text-sm text-muted-foreground mb-3">No leads with phone numbers selected</p>
-                        <Button onClick={() => setCurrentStep(2)} variant="outline" size="sm">
-                          Go back and select leads
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                        {callableLeads.slice(0, 5).map((lead: any, index: number) => (
-                          <div 
-                            key={lead.id || index}
-                            className="flex items-center justify-between p-3 rounded-lg border border-border bg-card/50 hover:border-green-500/50 transition-all"
-                          >
-                            <div>
-                              <p className="font-medium text-sm">{lead.business_name || lead.name}</p>
-                              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                <Phone className="w-3 h-3" />
-                                {lead.phone}
-                              </p>
-                            </div>
-                            <Button 
-                              size="sm" 
-                              className="bg-green-600 hover:bg-green-700 gap-1 h-8"
-                              onClick={() => {
-                                setWidgetLeads([lead]);
-                                toast.success(`Starting call to ${lead.business_name || lead.name}`);
-                              }}
-                            >
-                              <Phone className="w-3 h-3" />
-                              Call
-                            </Button>
-                          </div>
-                        ))}
-                        {callableLeads.length > 5 && (
-                          <p className="text-center text-xs text-muted-foreground pt-1">
-                            +{callableLeads.length - 5} more leads
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Voice Agent Widget - Compact */}
-                <Card className="border-dashed">
-                  <CardContent className="py-6 text-center">
-                    <Phone className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
-                    <h3 className="font-semibold mb-1">Voice Calling Not Configured</h3>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Connect your ElevenLabs agent to enable AI calls
-                    </p>
-                    <Button variant="outline" size="sm" onClick={() => setActiveTab('settings')}>
-                      Open Settings
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Right Column - Setup Guide */}
-              <div>
-                <VoiceAgentSetupGuide />
-              </div>
-            </div>
-
-            {/* CRM Integration - Full Width */}
-            <CloudCRMIntegrationsPanel 
-              onManageCRMs={() => setShowCRMModal(true)}
+          <>
+            <Step4OutreachHub
+              leads={step4Leads}
+              onBack={() => setCurrentStep(3)}
+              onOpenSettings={() => {
+                setSettingsInitialTab('voice');
+                setActiveTab('settings');
+              }}
+              onOpenCRMModal={() => setShowCRMModal(true)}
             />
-
+            
             {/* CRM Integration Modal */}
             <CRMIntegrationModal
               open={showCRMModal}
@@ -1147,7 +1064,7 @@ export default function Dashboard() {
                 source: l.source,
               }))}
             />
-          </div>
+          </>
         );
       }
 
