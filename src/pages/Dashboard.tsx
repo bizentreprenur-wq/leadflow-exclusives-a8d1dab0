@@ -323,6 +323,15 @@ export default function Dashboard() {
       setSearchProgress(100);
       toast.success(`Found ${finalResults.length} businesses!`);
       
+      // Auto-open the Intelligence Report after search completes
+      if (finalResults.length > 0) {
+        setCurrentStep(2); // Move to Step 2
+        // Delay showing report so UI updates first
+        setTimeout(() => {
+          setShowReportModal(true);
+        }, 500);
+      }
+      
       // Start AI analysis in background (non-blocking)
       if (finalResults.length > 0) {
         setIsAnalyzing(true);
@@ -1324,6 +1333,21 @@ export default function Dashboard() {
             <div className="flex-1" />
 
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
+              {/* Intelligence Report Button - only show when we have leads */}
+              {searchResults.length > 0 && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => setShowReportModal(true)}
+                  className="gap-2 border-primary/30 text-primary hover:bg-primary/10"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span className="hidden md:inline">Intelligence Report</span>
+                  <Badge variant="secondary" className="ml-1 bg-primary/20 text-primary text-xs">
+                    {searchResults.length}
+                  </Badge>
+                </Button>
+              )}
               <Link to="/pricing">
                 <Button variant="ghost" size="sm" className="gap-1">
                   <Sparkles className="w-4 h-4" />
