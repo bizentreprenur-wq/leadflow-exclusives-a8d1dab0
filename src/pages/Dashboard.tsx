@@ -354,13 +354,9 @@ export default function Dashboard() {
       setSearchProgress(100);
       toast.success(`Found ${finalResults.length} businesses!`);
       
-      // Auto-open the Intelligence Report after search completes
+      // Move to Step 2 when results are found (removed auto-open report modal)
       if (finalResults.length > 0) {
         setCurrentStep(2); // Move to Step 2
-        // Delay showing report so UI updates first
-        setTimeout(() => {
-          setShowReportModal(true);
-        }, 500);
       }
       
       // Start AI analysis in background (non-blocking)
