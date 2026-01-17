@@ -58,6 +58,8 @@ import CallLogHistory from '@/components/CallLogHistory';
 import LeadDecisionPopup from '@/components/LeadDecisionPopup';
 import SimpleLeadViewer from '@/components/SimpleLeadViewer';
 import EmailSetupFlow from '@/components/EmailSetupFlow';
+import CloudCRMIntegrationsPanel from '@/components/CloudCRMIntegrationsPanel';
+import CRMIntegrationModal from '@/components/CRMIntegrationModal';
 
 interface SearchResult {
   id: string;
@@ -185,6 +187,9 @@ export default function Dashboard() {
   
   // Settings tab to open (for deep-linking)
   const [settingsInitialTab, setSettingsInitialTab] = useState<string>('integrations');
+  
+  // CRM Modal state
+  const [showCRMModal, setShowCRMModal] = useState(false);
 
   // Form validation state
   const [validationErrors, setValidationErrors] = useState<{ query?: boolean; location?: boolean; platforms?: boolean }>({});
@@ -1017,7 +1022,7 @@ export default function Dashboard() {
         );
 
       case 4: {
-        // Voice Calling Step
+        // Voice Calling Step with Cloud & CRM Integrations
         const callableLeads = emailLeads.length > 0 
           ? emailLeads.filter(l => l.phone) 
           : searchResults.filter(r => selectedLeads.includes(r.id) && r.phone);
@@ -1038,85 +1043,113 @@ export default function Dashboard() {
             <div className="text-center py-6 bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-2xl border-2 border-green-500/30">
               <div className="text-5xl mb-4">📞</div>
               <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-                STEP 4: AI Voice Calls
+                STEP 4: AI Voice Calls & Integrations
               </h2>
               <p className="text-muted-foreground">
-                Follow up with {callableLeads.length} leads using AI-powered voice calls
+                Follow up with {callableLeads.length} leads using AI-powered voice calls and sync to your CRM
               </p>
             </div>
 
-            {/* Lead Call Queue */}
-            <Card className="border-green-500/30">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Phone className="w-5 h-5 text-green-500" />
-                  Leads Ready to Call ({callableLeads.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {callableLeads.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground mb-4">No leads with phone numbers selected</p>
-                    <Button onClick={() => setCurrentStep(2)} variant="outline">
-                      Go back and select leads
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {callableLeads.slice(0, 5).map((lead: any, index: number) => (
-                      <div 
-                        key={lead.id || index}
-                        className="flex items-center justify-between p-4 rounded-lg border border-border bg-card hover:border-green-500/50 transition-all"
-                      >
-                        <div>
-                          <p className="font-semibold">{lead.business_name || lead.name}</p>
-                          <p className="text-sm text-muted-foreground flex items-center gap-2">
-                            <Phone className="w-3 h-3" />
-                            {lead.phone}
-                          </p>
-                        </div>
-                        <Button 
-                          size="sm" 
-                          className="bg-green-600 hover:bg-green-700 gap-2"
-                          onClick={() => {
-                            setWidgetLeads([lead]);
-                            toast.success(`Starting call to ${lead.business_name || lead.name}`);
-                          }}
-                        >
-                          <Phone className="w-4 h-4" />
-                          Call Now
+            {/* Two Column Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Left Column - Call Queue */}
+              <div className="space-y-4">
+                {/* Lead Call Queue */}
+                <Card className="border-green-500/30">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Phone className="w-5 h-5 text-green-500" />
+                      Leads Ready to Call ({callableLeads.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {callableLeads.length === 0 ? (
+                      <div className="text-center py-8">
+                        <p className="text-muted-foreground mb-4">No leads with phone numbers selected</p>
+                        <Button onClick={() => setCurrentStep(2)} variant="outline">
+                          Go back and select leads
                         </Button>
                       </div>
-                    ))}
-                    {callableLeads.length > 5 && (
-                      <p className="text-center text-sm text-muted-foreground">
-                        +{callableLeads.length - 5} more leads
-                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {callableLeads.slice(0, 5).map((lead: any, index: number) => (
+                          <div 
+                            key={lead.id || index}
+                            className="flex items-center justify-between p-4 rounded-lg border border-border bg-card hover:border-green-500/50 transition-all"
+                          >
+                            <div>
+                              <p className="font-semibold">{lead.business_name || lead.name}</p>
+                              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                                <Phone className="w-3 h-3" />
+                                {lead.phone}
+                              </p>
+                            </div>
+                            <Button 
+                              size="sm" 
+                              className="bg-green-600 hover:bg-green-700 gap-2"
+                              onClick={() => {
+                                setWidgetLeads([lead]);
+                                toast.success(`Starting call to ${lead.business_name || lead.name}`);
+                              }}
+                            >
+                              <Phone className="w-4 h-4" />
+                              Call Now
+                            </Button>
+                          </div>
+                        ))}
+                        {callableLeads.length > 5 && (
+                          <p className="text-center text-sm text-muted-foreground">
+                            +{callableLeads.length - 5} more leads
+                          </p>
+                        )}
+                      </div>
                     )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
 
-            {/* Voice Agent Widget */}
-            <VoiceCallWidget 
-              leadName={(widgetLeads[0] as any)?.business_name || widgetLeads[0]?.name}
-              leadPhone={widgetLeads[0]?.phone}
-              onOpenSettings={() => setActiveTab('settings')}
+                {/* Voice Agent Widget */}
+                <VoiceCallWidget 
+                  leadName={(widgetLeads[0] as any)?.business_name || widgetLeads[0]?.name}
+                  leadPhone={widgetLeads[0]?.phone}
+                  onOpenSettings={() => setActiveTab('settings')}
+                />
+
+                {/* Setup Guide Link */}
+                <Card className="border-border">
+                  <CardContent className="p-4 flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Need to set up your AI voice agent?</p>
+                      <p className="text-sm text-muted-foreground">Configure your ElevenLabs agent ID in settings</p>
+                    </div>
+                    <Button variant="outline" onClick={() => setActiveTab('settings')}>
+                      Open Settings
+                    </Button>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Right Column - Cloud & CRM Integrations */}
+              <div>
+                <CloudCRMIntegrationsPanel 
+                  onManageCRMs={() => setShowCRMModal(true)}
+                />
+              </div>
+            </div>
+
+            {/* CRM Integration Modal */}
+            <CRMIntegrationModal
+              open={showCRMModal}
+              onOpenChange={setShowCRMModal}
+              leads={searchResults.map(l => ({
+                id: l.id,
+                name: l.name,
+                address: l.address,
+                phone: l.phone,
+                website: l.website,
+                email: l.email,
+                source: l.source,
+              }))}
             />
-
-            {/* Setup Guide Link */}
-            <Card className="border-border">
-              <CardContent className="p-4 flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Need to set up your AI voice agent?</p>
-                  <p className="text-sm text-muted-foreground">Configure your ElevenLabs agent ID in settings</p>
-                </div>
-                <Button variant="outline" onClick={() => setActiveTab('settings')}>
-                  Open Settings
-                </Button>
-              </CardContent>
-            </Card>
           </div>
         );
       }
