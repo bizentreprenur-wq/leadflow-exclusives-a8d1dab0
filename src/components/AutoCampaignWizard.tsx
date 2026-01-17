@@ -382,13 +382,13 @@ export default function AutoCampaignWizard({
                 return (
                   <button
                     key={step.id}
-                    disabled={idx > currentStepIndex}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all ${
+                    onClick={() => setCurrentStep(step.id)}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all cursor-pointer ${
                       isActive
                         ? 'bg-primary text-primary-foreground'
                         : isCompleted
                         ? 'text-foreground hover:bg-muted'
-                        : 'text-muted-foreground'
+                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
                     }`}
                   >
                     <Icon className="w-5 h-5" />
