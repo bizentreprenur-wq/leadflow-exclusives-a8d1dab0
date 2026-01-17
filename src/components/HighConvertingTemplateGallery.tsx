@@ -35,6 +35,7 @@ const getCategoryIcon = (category: string) => {
     case 'b2b': return <Briefcase className="w-4 h-4" />;
     case 'general': return <MessageSquare className="w-4 h-4" />;
     case 'follow-up': return <RotateCcw className="w-4 h-4" />;
+    case 'promotional': return <Sparkles className="w-4 h-4" />;
     default: return <Sparkles className="w-4 h-4" />;
   }
 };
@@ -46,6 +47,7 @@ const getCategoryColor = (category: string) => {
     case 'b2b': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
     case 'general': return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
     case 'follow-up': return 'bg-rose-500/20 text-rose-400 border-rose-500/30';
+    case 'promotional': return 'bg-green-500/20 text-green-400 border-green-500/30';
     default: return 'bg-muted text-muted-foreground';
   }
 };
