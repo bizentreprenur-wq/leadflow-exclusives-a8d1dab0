@@ -7,10 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Mail, Lock, User, ArrowLeft, CreditCard } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, CreditCard } from 'lucide-react';
 import mascotLogo from '@/assets/bamlead-mascot.png';
 import { BackendStatus } from '@/components/BackendStatus';
 import { createCheckoutSession } from '@/lib/api/stripe';
+import BackButton from '@/components/BackButton';
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
@@ -180,10 +181,7 @@ export default function Auth() {
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-primary/5">
       {/* Back to home */}
       <div className="p-6">
-        <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="w-4 h-4" />
-          Back to Home
-        </Link>
+        <BackButton fallbackPath="/" />
       </div>
 
       {/* Auth card */}

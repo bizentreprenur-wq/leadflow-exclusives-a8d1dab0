@@ -9,11 +9,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { 
-  ArrowLeft, Users, Search, TrendingUp, Crown, 
-  Gift, RefreshCw, AlertCircle
+  Users, Search, TrendingUp, Crown, 
+  Gift, RefreshCw, AlertCircle, Home
 } from 'lucide-react';
 import { ADMIN_ENDPOINTS, getAuthHeaders, USE_MOCK_AUTH } from '@/lib/api/config';
 import SystemStatus from '@/components/SystemStatus';
+import BackButton from '@/components/BackButton';
 
 interface AdminUser {
   id: number;
@@ -196,21 +197,25 @@ export default function Admin() {
       <header className="border-b border-border/50 bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/dashboard">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
-            </Link>
+            <BackButton fallbackPath="/dashboard" />
             <div className="flex items-center gap-2">
               <Crown className="w-6 h-6 text-amber-500" />
               <h1 className="text-xl font-bold">Admin Panel</h1>
             </div>
           </div>
 
-          <Button variant="outline" size="sm" onClick={fetchData} disabled={isLoading}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Link to="/">
+              <Button variant="outline" size="sm" className="gap-2">
+                <Home className="w-4 h-4" />
+                Home
+              </Button>
+            </Link>
+            <Button variant="outline" size="sm" onClick={fetchData} disabled={isLoading}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
         </div>
       </header>
 

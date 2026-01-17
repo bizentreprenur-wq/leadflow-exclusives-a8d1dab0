@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, ArrowRight, Server, FileText, Send, 
   CheckCircle2, Mail, Users, Loader2, Link2, Database,
-  Eye, Zap, Rocket, BarChart3
+  Eye, Zap, Rocket, BarChart3, FlaskConical
 } from 'lucide-react';
 import HighConvertingTemplateGallery from './HighConvertingTemplateGallery';
 import EmailOutreachModule from './EmailOutreachModule';
@@ -19,6 +19,7 @@ import EmailClientPreviewPanel from './EmailClientPreviewPanel';
 import BamLeadCRMPanel from './BamLeadCRMPanel';
 import AutoCampaignWizard from './AutoCampaignWizard';
 import CampaignAnalyticsDashboard from './CampaignAnalyticsDashboard';
+import ABTestingPanel from './ABTestingPanel';
 import { LeadForEmail } from '@/lib/api/email';
 
 interface SearchResult {
@@ -244,7 +245,7 @@ export default function EmailSetupFlow({
 
             {/* Tabbed Interface for all visual components */}
             <Tabs defaultValue="preview" className="w-full">
-              <TabsList className="grid w-full grid-cols-5 h-12">
+              <TabsList className="grid w-full grid-cols-6 h-12">
                 <TabsTrigger value="preview" className="gap-2 text-xs sm:text-sm">
                   <Eye className="w-4 h-4" />
                   <span className="hidden sm:inline">Preview</span>
@@ -252,6 +253,10 @@ export default function EmailSetupFlow({
                 <TabsTrigger value="crm" className="gap-2 text-xs sm:text-sm">
                   <Database className="w-4 h-4" />
                   <span className="hidden sm:inline">CRM</span>
+                </TabsTrigger>
+                <TabsTrigger value="ab-testing" className="gap-2 text-xs sm:text-sm">
+                  <FlaskConical className="w-4 h-4" />
+                  <span className="hidden sm:inline">A/B Test</span>
                 </TabsTrigger>
                 <TabsTrigger value="mailbox" className="gap-2 text-xs sm:text-sm">
                   <Mail className="w-4 h-4" />
@@ -299,6 +304,10 @@ export default function EmailSetupFlow({
                     address: l.address,
                   }))}
                 />
+              </TabsContent>
+
+              <TabsContent value="ab-testing" className="mt-4">
+                <ABTestingPanel />
               </TabsContent>
 
               <TabsContent value="mailbox" className="mt-4">

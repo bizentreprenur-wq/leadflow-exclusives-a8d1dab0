@@ -3,8 +3,9 @@ import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { ArrowLeft, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { verifyEmail } from '@/lib/api/password';
+import BackButton from '@/components/BackButton';
 
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams();
@@ -42,10 +43,7 @@ export default function VerifyEmail() {
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-background via-background to-primary/5">
       <div className="p-6">
-        <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="w-4 h-4" />
-          Back to Home
-        </Link>
+        <BackButton fallbackPath="/" />
       </div>
 
       <div className="flex-1 flex items-center justify-center p-6">

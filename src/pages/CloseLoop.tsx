@@ -32,6 +32,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import BackButton from "@/components/BackButton";
 
 // Form validation schema
 const signupSchema = z.object({
@@ -203,6 +204,11 @@ const CloseLoop = () => {
       `}</style>
 
       <Navbar />
+      
+      {/* Back Button */}
+      <div className="container px-4 pt-6">
+        <BackButton />
+      </div>
       
       {/* Giant Coming Soon Hero */}
       <section className="relative py-20 lg:py-32 overflow-hidden">
