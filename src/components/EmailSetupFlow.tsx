@@ -12,6 +12,7 @@ import {
 import HighConvertingTemplateGallery from './HighConvertingTemplateGallery';
 import EmailOutreachModule from './EmailOutreachModule';
 import CRMIntegrationModal from './CRMIntegrationModal';
+import MailboxDripAnimation from './MailboxDripAnimation';
 import { LeadForEmail } from '@/lib/api/email';
 
 interface SearchResult {
@@ -195,6 +196,14 @@ export default function EmailSetupFlow({
                 }
               </p>
             </div>
+
+            {/* Mailbox Drip Animation */}
+            <MailboxDripAnimation
+              totalEmails={emailLeads.length}
+              sentCount={0}
+              isActive={false}
+              emailsPerHour={50}
+            />
 
             <EmailOutreachModule 
               selectedLeads={emailLeads}
