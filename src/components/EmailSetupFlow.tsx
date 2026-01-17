@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, ArrowRight, Server, FileText, Send, 
   CheckCircle2, Mail, Users, Loader2, Link2, Database,
-  Eye, Zap, Rocket
+  Eye, Zap, Rocket, BarChart3
 } from 'lucide-react';
 import HighConvertingTemplateGallery from './HighConvertingTemplateGallery';
 import EmailOutreachModule from './EmailOutreachModule';
@@ -18,6 +18,7 @@ import MailboxDripAnimation from './MailboxDripAnimation';
 import EmailClientPreviewPanel from './EmailClientPreviewPanel';
 import BamLeadCRMPanel from './BamLeadCRMPanel';
 import AutoCampaignWizard from './AutoCampaignWizard';
+import CampaignAnalyticsDashboard from './CampaignAnalyticsDashboard';
 import { LeadForEmail } from '@/lib/api/email';
 
 interface SearchResult {
@@ -243,22 +244,26 @@ export default function EmailSetupFlow({
 
             {/* Tabbed Interface for all visual components */}
             <Tabs defaultValue="preview" className="w-full">
-              <TabsList className="grid w-full grid-cols-4 h-12">
-                <TabsTrigger value="preview" className="gap-2">
+              <TabsList className="grid w-full grid-cols-5 h-12">
+                <TabsTrigger value="preview" className="gap-2 text-xs sm:text-sm">
                   <Eye className="w-4 h-4" />
-                  Template Preview
+                  <span className="hidden sm:inline">Preview</span>
                 </TabsTrigger>
-                <TabsTrigger value="crm" className="gap-2">
+                <TabsTrigger value="crm" className="gap-2 text-xs sm:text-sm">
                   <Database className="w-4 h-4" />
-                  BamLead CRM
+                  <span className="hidden sm:inline">CRM</span>
                 </TabsTrigger>
-                <TabsTrigger value="mailbox" className="gap-2">
+                <TabsTrigger value="mailbox" className="gap-2 text-xs sm:text-sm">
                   <Mail className="w-4 h-4" />
-                  Email Mailbox
+                  <span className="hidden sm:inline">Mailbox</span>
                 </TabsTrigger>
-                <TabsTrigger value="send" className="gap-2">
+                <TabsTrigger value="analytics" className="gap-2 text-xs sm:text-sm">
+                  <BarChart3 className="w-4 h-4" />
+                  <span className="hidden sm:inline">Analytics</span>
+                </TabsTrigger>
+                <TabsTrigger value="send" className="gap-2 text-xs sm:text-sm">
                   <Send className="w-4 h-4" />
-                  Send Campaign
+                  <span className="hidden sm:inline">Send</span>
                 </TabsTrigger>
               </TabsList>
 
@@ -329,6 +334,10 @@ export default function EmailSetupFlow({
                     </CardContent>
                   </Card>
                 </div>
+              </TabsContent>
+
+              <TabsContent value="analytics" className="mt-4">
+                <CampaignAnalyticsDashboard />
               </TabsContent>
 
               <TabsContent value="send" className="mt-4">
