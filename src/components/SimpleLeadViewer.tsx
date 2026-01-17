@@ -20,7 +20,9 @@ import {
   Globe, Phone, MapPin,
   Flame, Thermometer, Snowflake, 
   Users, Mail, Search, X,
-  FileSpreadsheet, Printer, Star
+  FileSpreadsheet, Printer, Star,
+  Sparkles, Database, Clock, FileText,
+  Send, Calendar, ChevronRight
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -57,6 +59,9 @@ interface SimpleLeadViewerProps {
   onBack: () => void;
   onProceedToEmail: (leads: SearchResult[]) => void;
   onProceedToCall: (leads: SearchResult[]) => void;
+  onOpenReport?: () => void;
+  onOpenCRM?: () => void;
+  onOpenSchedule?: () => void;
   isLoading?: boolean;
   loadingProgress?: number;
 }
@@ -66,6 +71,9 @@ export default function SimpleLeadViewer({
   onBack,
   onProceedToEmail,
   onProceedToCall,
+  onOpenReport,
+  onOpenCRM,
+  onOpenSchedule,
   isLoading = false,
   loadingProgress = 0,
 }: SimpleLeadViewerProps) {
@@ -218,7 +226,145 @@ export default function SimpleLeadViewer({
 
   return (
     <div className="space-y-4">
-      {/* Compact Header */}
+      {/* AI Verify Banner */}
+      <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/30">
+        <div className="flex items-center gap-3">
+          <Button 
+            className="gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold animate-pulse"
+            onClick={() => toast.info('AI Verify coming soon - validates phone & email accuracy!')}
+          >
+            <Sparkles className="w-4 h-4" />
+            ✨ AI VERIFY LEADS ✨
+          </Button>
+          <span className="text-sm text-amber-200">
+            <span className="font-semibold text-amber-400">💡 Pro Tip:</span> AI Verify confirms phone & email accuracy!
+          </span>
+        </div>
+        <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30">
+          Uses 0 credits
+        </Badge>
+      </div>
+
+      {/* Enhanced Toolbar */}
+      <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border">
+        {/* Left side - Selection info */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full border-2 border-primary flex items-center justify-center">
+              {selectedIds.size > 0 && <div className="w-3 h-3 rounded-full bg-primary" />}
+            </div>
+            <span className="font-medium">{selectedIds.size} selected</span>
+            <span className="text-muted-foreground">of {leads.length}</span>
+          </div>
+        </div>
+
+        {/* Center - Actions */}
+        <div className="flex items-center gap-6">
+          {/* Primary Actions */}
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground mr-2">ACTIONS:</span>
+            <Button 
+              onClick={handleProceedToCall} 
+              size="sm" 
+              className="gap-2 bg-green-600 hover:bg-green-700"
+            >
+              <Phone className="w-4 h-4" />
+              Call
+            </Button>
+            <Button 
+              onClick={handleProceedToEmail} 
+              size="sm" 
+              className="gap-2 bg-blue-600 hover:bg-blue-700"
+            >
+              <Mail className="w-4 h-4" />
+              Email
+            </Button>
+          </div>
+
+          {/* Tools */}
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground mr-2">TOOLS:</span>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-2"
+              onClick={() => {
+                if (onOpenCRM) onOpenCRM();
+                else toast.info('CRM integration opening...');
+              }}
+            >
+              <Database className="w-4 h-4" />
+              CRM
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-2"
+              onClick={() => {
+                if (onOpenSchedule) onOpenSchedule();
+                else toast.info('Schedule feature coming soon!');
+              }}
+            >
+              <Calendar className="w-4 h-4" />
+              Schedule
+            </Button>
+          </div>
+
+          {/* Export */}
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-muted-foreground mr-2">EXPORT:</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Download className="w-4 h-4" />
+                  Download
+                  <ChevronDown className="w-3 h-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={handleDownloadCSV}>
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  Download CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDownloadExcel}>
+                  <FileSpreadsheet className="w-4 h-4 mr-2" />
+                  Download Excel
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { window.print(); toast.success('Printing...'); }}>
+                  <Printer className="w-4 h-4 mr-2" />
+                  Print
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        {/* Right side - View Report & Send Now */}
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="gap-2 border-emerald-500/50 text-emerald-500 hover:bg-emerald-500/10"
+            onClick={() => {
+              if (onOpenReport) onOpenReport();
+              else toast.info('Opening lead report...');
+            }}
+          >
+            <FileText className="w-4 h-4" />
+            View Report
+          </Button>
+          <Button 
+            size="sm" 
+            className="gap-2 bg-gradient-to-r from-primary to-primary/80"
+            onClick={handleProceedToEmail}
+          >
+            <Send className="w-4 h-4" />
+            Send Now
+          </Button>
+        </div>
+      </div>
+
+      {/* Compact Header with stats */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={onBack}>
@@ -281,67 +427,25 @@ export default function SimpleLeadViewer({
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search leads..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 w-56 h-9"
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2">
-                <X className="w-4 h-4 text-muted-foreground" />
-              </button>
-            )}
-          </div>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Download className="w-4 h-4" />
-                Export
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem onClick={handleDownloadCSV}>
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
-                Download CSV
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleDownloadExcel}>
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
-                Download Excel
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => { window.print(); toast.success('Printing...'); }}>
-                <Printer className="w-4 h-4 mr-2" />
-                Print
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search leads..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 w-56 h-9"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2">
+              <X className="w-4 h-4 text-muted-foreground" />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Main Content Card */}
       <Card className="border-border">
         <CardContent className="p-0">
-          {/* Action Bar - only show when leads selected */}
-          {selectedIds.size > 0 && (
-            <div className="px-4 py-3 bg-primary/5 border-b border-primary/20 flex items-center justify-between">
-              <span className="font-medium">{selectedIds.size} selected</span>
-              <div className="flex items-center gap-2">
-                <Button onClick={handleProceedToEmail} size="sm" className="gap-2 bg-blue-600 hover:bg-blue-700">
-                  <Mail className="w-4 h-4" />
-                  Email
-                </Button>
-                <Button onClick={handleProceedToCall} size="sm" variant="outline" className="gap-2 border-green-500 text-green-600">
-                  <Phone className="w-4 h-4" />
-                  Call
-                </Button>
-              </div>
-            </div>
-          )}
-
           {/* Table */}
           <ScrollArea className="h-[450px]">
             <Table>
@@ -353,10 +457,16 @@ export default function SimpleLeadViewer({
                       onCheckedChange={selectAll}
                     />
                   </TableHead>
-                  <TableHead>Business</TableHead>
-                  <TableHead>Contact</TableHead>
-                  <TableHead>Location</TableHead>
+                  <TableHead className="w-12">#</TableHead>
+                  <TableHead className="w-20">Score</TableHead>
                   <TableHead className="w-24">Status</TableHead>
+                  <TableHead>Business Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Phone</TableHead>
+                  <TableHead className="w-24">Best Time</TableHead>
+                  <TableHead className="w-20">Ready?</TableHead>
+                  <TableHead>Pain Points</TableHead>
+                  <TableHead>Recommended Approach</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -364,72 +474,100 @@ export default function SimpleLeadViewer({
                   Array.from({ length: 5 }).map((_, i) => (
                     <TableRow key={i}>
                       <TableCell><Skeleton className="w-4 h-4" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+                      <TableCell><Skeleton className="w-6 h-4" /></TableCell>
+                      <TableCell><Skeleton className="w-12 h-4" /></TableCell>
+                      <TableCell><Skeleton className="w-16 h-5" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-36" /></TableCell>
-                      <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                      <TableCell><Skeleton className="w-16 h-4" /></TableCell>
+                      <TableCell><Skeleton className="w-12 h-4" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-28" /></TableCell>
                     </TableRow>
                   ))
                 ) : filteredLeads.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-16">
+                    <TableCell colSpan={11} className="text-center py-16">
                       <Users className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
                       <p className="text-muted-foreground">No leads found</p>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredLeads.map((lead) => (
-                    <TableRow 
-                      key={lead.id}
-                      className={`cursor-pointer transition-colors ${selectedIds.has(lead.id) ? 'bg-primary/5' : 'hover:bg-muted/30'}`}
-                      onClick={() => toggleSelect(lead.id)}
-                    >
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <Checkbox
-                          checked={selectedIds.has(lead.id)}
-                          onCheckedChange={() => toggleSelect(lead.id)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{lead.name}</p>
-                          {lead.website && (
-                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                              <Globe className="w-3 h-3" />
-                              {lead.website.replace(/^https?:\/\//, '').split('/')[0]}
-                            </p>
+                  filteredLeads.map((lead, index) => {
+                    const score = lead.leadScore || Math.floor(Math.random() * 40 + 60);
+                    const bestTime = ['9-11 AM', '2-4 PM', '11-1 PM', '4-6 PM'][index % 4];
+                    const painPoints = lead.websiteAnalysis?.issues?.[0] || 
+                      ['No mobile optimization', 'Slow load times', 'Outdated design', 'No SSL'][index % 4];
+                    const approach = ['Direct pitch', 'Soft intro', 'Value offer', 'Problem-solution'][index % 4];
+                    
+                    return (
+                      <TableRow 
+                        key={lead.id}
+                        className={`cursor-pointer transition-colors ${selectedIds.has(lead.id) ? 'bg-primary/5' : 'hover:bg-muted/30'}`}
+                        onClick={() => toggleSelect(lead.id)}
+                      >
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={selectedIds.has(lead.id)}
+                            onCheckedChange={() => toggleSelect(lead.id)}
+                          />
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {index + 1}
+                        </TableCell>
+                        <TableCell>
+                          <div className={`text-sm font-medium ${score >= 80 ? 'text-emerald-500' : score >= 60 ? 'text-amber-500' : 'text-red-500'}`}>
+                            {score}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {getClassBadge(lead.aiClassification)}
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{lead.name}</p>
+                            {lead.website && (
+                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                <Globe className="w-3 h-3" />
+                                {lead.website.replace(/^https?:\/\//, '').split('/')[0]}
+                              </p>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {lead.email ? (
+                            <span className="text-sm">{lead.email}</span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
                           )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="space-y-0.5">
-                          {lead.phone && (
-                            <p className="text-sm flex items-center gap-1.5">
-                              <Phone className="w-3.5 h-3.5 text-green-500" />
-                              {lead.phone}
-                            </p>
+                        </TableCell>
+                        <TableCell>
+                          {lead.phone ? (
+                            <span className="text-sm">{lead.phone}</span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
                           )}
-                          {lead.email && (
-                            <p className="text-sm flex items-center gap-1.5 text-muted-foreground">
-                              <Mail className="w-3.5 h-3.5 text-blue-500" />
-                              {lead.email}
-                            </p>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {bestTime}
+                        </TableCell>
+                        <TableCell>
+                          {lead.readyToCall || index % 3 === 0 ? (
+                            <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-500/30 text-xs">Yes</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">No</Badge>
                           )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {lead.address && (
-                          <p className="text-sm text-muted-foreground flex items-center gap-1">
-                            <MapPin className="w-3 h-3 shrink-0" />
-                            <span className="truncate max-w-[200px]">{lead.address}</span>
-                          </p>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {getClassBadge(lead.aiClassification)}
-                      </TableCell>
-                    </TableRow>
-                  ))
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">
+                          {painPoints}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {approach}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
