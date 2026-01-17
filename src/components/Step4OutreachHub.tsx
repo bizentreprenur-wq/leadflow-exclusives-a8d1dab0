@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,8 +10,16 @@ import { toast } from 'sonner';
 import {
   Phone, Calendar as CalendarIcon, Database, ArrowLeft,
   CheckCircle2, ExternalLink, Clock, Users, Video, Link2,
-  Sparkles, Info, AlertTriangle, Plus, Settings2, Send, Loader2
+  Sparkles, Info, AlertTriangle, Plus, Settings2, Send, Loader2, RefreshCw
 } from 'lucide-react';
+import { 
+  connectGoogleCalendar, 
+  checkGoogleCalendarStatus, 
+  disconnectGoogleCalendar,
+  listCalendarEvents,
+  scheduleMeetingWithLead,
+  CalendarEvent
+} from '@/lib/api/googleCalendar';
 
 interface Lead {
   id?: string;
@@ -51,6 +59,13 @@ const CALENDAR_OPTIONS = [
   { id: 'apple', name: 'Apple Calendar', icon: '🍎', provider: 'iCloud Calendar', color: 'from-red-500 to-red-600' },
 ];
 
+interface LocalMeeting {
+  date: Date;
+  leadName: string;
+  type: string;
+  googleEventId?: string;
+}
+
 export default function Step4OutreachHub({ 
   leads, 
   onBack, 
@@ -60,7 +75,8 @@ export default function Step4OutreachHub({
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedCRM, setSelectedCRM] = useState<string | null>(null);
-  const [meetings, setMeetings] = useState<{ date: Date; leadName: string; type: string }[]>([]);
+  const [meetings, setMeetings] = useState<LocalMeeting[]>([]);
+  const [googleEvents, setGoogleEvents] = useState<any[]>([]);
   const [connectedCalendars, setConnectedCalendars] = useState<Set<string>>(() => {
     try {
       const saved = localStorage.getItem('bamlead_connected_calendars');
@@ -68,27 +84,94 @@ export default function Step4OutreachHub({
     } catch { return new Set(); }
   });
   const [isConnecting, setIsConnecting] = useState<string | null>(null);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
+  const [isScheduling, setIsScheduling] = useState<string | null>(null);
 
   const callableLeads = leads.filter(l => l.phone);
   const emailableLeads = leads.filter(l => l.email);
 
-  // Handle Calendar OAuth
+  // Check Google Calendar connection on mount and URL params
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('calendar_connected') === 'true') {
+      toast.success('Google Calendar connected successfully!');
+      const newConnected = new Set([...connectedCalendars, 'google']);
+      setConnectedCalendars(newConnected);
+      localStorage.setItem('bamlead_connected_calendars', JSON.stringify([...newConnected]));
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+      // Load events
+      loadGoogleEvents();
+    }
+    if (urlParams.get('calendar_error')) {
+      toast.error(`Calendar connection failed: ${urlParams.get('calendar_error')}`);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    
+    // Check actual Google Calendar status
+    checkGoogleCalendarStatus().then(status => {
+      if (status.connected && !connectedCalendars.has('google')) {
+        const newConnected = new Set([...connectedCalendars, 'google']);
+        setConnectedCalendars(newConnected);
+        localStorage.setItem('bamlead_connected_calendars', JSON.stringify([...newConnected]));
+        loadGoogleEvents();
+      } else if (!status.connected && connectedCalendars.has('google')) {
+        const newConnected = new Set(connectedCalendars);
+        newConnected.delete('google');
+        setConnectedCalendars(newConnected);
+        localStorage.setItem('bamlead_connected_calendars', JSON.stringify([...newConnected]));
+      } else if (status.connected) {
+        loadGoogleEvents();
+      }
+    });
+  }, []);
+
+  const loadGoogleEvents = async () => {
+    setIsLoadingEvents(true);
+    const result = await listCalendarEvents();
+    if (result.success && result.events) {
+      setGoogleEvents(result.events);
+    }
+    setIsLoadingEvents(false);
+  };
+
+  // Handle Calendar OAuth - Real for Google, simulated for others
   const handleConnectCalendar = async (calendarId: string) => {
     setIsConnecting(calendarId);
     
+    if (calendarId === 'google') {
+      // Real Google Calendar OAuth
+      const success = await connectGoogleCalendar();
+      if (!success) {
+        setIsConnecting(null);
+      }
+      // Connection will be confirmed via URL callback
+      setIsConnecting(null);
+      return;
+    }
+    
+    // Simulated for Outlook and Apple (show coming soon)
     const providerName = CALENDAR_OPTIONS.find(c => c.id === calendarId)?.name || 'Calendar';
-    toast.info(`Redirecting to ${providerName} for authorization...`, { duration: 2000 });
-    
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    const newConnected = new Set([...connectedCalendars, calendarId]);
-    setConnectedCalendars(newConnected);
-    localStorage.setItem('bamlead_connected_calendars', JSON.stringify([...newConnected]));
-    toast.success(`${providerName} connected successfully!`);
+    toast.info(`${providerName} integration coming soon! Currently only Google Calendar is fully supported.`, { duration: 4000 });
     setIsConnecting(null);
   };
 
-  const handleDisconnectCalendar = (calendarId: string) => {
+  const handleDisconnectCalendar = async (calendarId: string) => {
+    if (calendarId === 'google') {
+      const result = await disconnectGoogleCalendar();
+      if (result.success) {
+        const newConnected = new Set(connectedCalendars);
+        newConnected.delete(calendarId);
+        setConnectedCalendars(newConnected);
+        localStorage.setItem('bamlead_connected_calendars', JSON.stringify([...newConnected]));
+        setGoogleEvents([]);
+        toast.success('Google Calendar disconnected');
+      } else {
+        toast.error(result.error || 'Failed to disconnect');
+      }
+      return;
+    }
+    
     const newConnected = new Set(connectedCalendars);
     newConnected.delete(calendarId);
     setConnectedCalendars(newConnected);
@@ -96,17 +179,50 @@ export default function Step4OutreachHub({
     toast.success('Calendar disconnected');
   };
 
-  const handleScheduleMeeting = (lead: Lead) => {
+  const handleScheduleMeeting = async (lead: Lead) => {
     if (!selectedDate) {
       toast.error('Please select a date first');
       return;
     }
-    setMeetings(prev => [...prev, {
-      date: selectedDate,
-      leadName: lead.business_name || lead.name || 'Unknown',
-      type: 'call'
-    }]);
-    toast.success(`Meeting scheduled with ${lead.business_name || lead.name}`);
+    
+    const leadName = lead.business_name || lead.name || 'Unknown';
+    setIsScheduling(lead.id || leadName);
+    
+    // If Google Calendar is connected, create real event
+    if (connectedCalendars.has('google')) {
+      const meetingTime = new Date(selectedDate);
+      meetingTime.setHours(10, 0, 0, 0); // Default to 10 AM
+      
+      const result = await scheduleMeetingWithLead(
+        leadName,
+        lead.email,
+        meetingTime,
+        30,
+        true
+      );
+      
+      if (result.success) {
+        setMeetings(prev => [...prev, {
+          date: selectedDate,
+          leadName,
+          type: 'call',
+          googleEventId: result.event?.id
+        }]);
+        // Refresh events
+        loadGoogleEvents();
+      }
+    } else {
+      // Local-only meeting
+      setMeetings(prev => [...prev, {
+        date: selectedDate,
+        leadName,
+        type: 'call'
+      }]);
+      toast.success(`Meeting scheduled with ${leadName}`);
+      toast.info('Connect Google Calendar to sync meetings automatically', { duration: 3000 });
+    }
+    
+    setIsScheduling(null);
   };
 
   const handleSelectCRM = (crmId: string) => {
@@ -279,8 +395,18 @@ export default function Step4OutreachHub({
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm" onClick={() => handleScheduleMeeting(lead)} className="gap-1">
-                            <CalendarIcon className="w-3 h-3" />Schedule
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => handleScheduleMeeting(lead)} 
+                            disabled={isScheduling === (lead.id || lead.business_name || lead.name)}
+                            className="gap-1"
+                          >
+                            {isScheduling === (lead.id || lead.business_name || lead.name) ? (
+                              <><Loader2 className="w-3 h-3 animate-spin" />Scheduling...</>
+                            ) : (
+                              <><CalendarIcon className="w-3 h-3" />Schedule</>
+                            )}
                           </Button>
                           <Button size="sm" className="bg-green-600 hover:bg-green-700 gap-1" onClick={() => toast.success(`Starting call to ${lead.business_name || lead.name}...`)}>
                             <Phone className="w-3 h-3" />Call Now
@@ -397,12 +523,28 @@ export default function Step4OutreachHub({
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center gap-2"><Clock className="w-5 h-5 text-primary" />Upcoming Meetings ({meetings.length})</CardTitle>
-                <Button variant="outline" size="sm" className="gap-1"><Plus className="w-3 h-3" />Add Event</Button>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-primary" />
+                  Upcoming Meetings ({googleEvents.length + meetings.length})
+                </CardTitle>
+                <div className="flex items-center gap-2">
+                  {connectedCalendars.has('google') && (
+                    <Button variant="outline" size="sm" onClick={loadGoogleEvents} disabled={isLoadingEvents} className="gap-1">
+                      <RefreshCw className={`w-3 h-3 ${isLoadingEvents ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" className="gap-1"><Plus className="w-3 h-3" />Add Event</Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
-              {meetings.length === 0 ? (
+              {isLoadingEvents ? (
+                <div className="text-center py-8">
+                  <Loader2 className="w-8 h-8 mx-auto mb-3 text-primary animate-spin" />
+                  <p className="text-muted-foreground">Loading calendar events...</p>
+                </div>
+              ) : googleEvents.length === 0 && meetings.length === 0 ? (
                 <div className="text-center py-8">
                   <CalendarIcon className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
                   <p className="text-muted-foreground">No upcoming events</p>
@@ -410,18 +552,47 @@ export default function Step4OutreachHub({
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {meetings.map((meeting, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 rounded-lg border bg-card">
+                  {/* Google Calendar Events */}
+                  {googleEvents.map((event) => (
+                    <div key={event.id} className="flex items-center justify-between p-3 rounded-lg border border-blue-500/30 bg-blue-500/5">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-                          <Video className="w-5 h-5 text-blue-500" />
+                          {event.hangoutLink ? <Video className="w-5 h-5 text-blue-500" /> : <CalendarIcon className="w-5 h-5 text-blue-500" />}
+                        </div>
+                        <div>
+                          <p className="font-medium">{event.summary}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(event.start?.dateTime || event.start?.date).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {event.hangoutLink && (
+                          <Button variant="ghost" size="sm" onClick={() => window.open(event.hangoutLink, '_blank')} className="gap-1 text-blue-600">
+                            <Video className="w-3 h-3" />Meet
+                          </Button>
+                        )}
+                        <Badge className="bg-blue-500/20 text-blue-600 border-blue-500/30">
+                          <CheckCircle2 className="w-3 h-3 mr-1" />Synced
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                  {/* Local Meetings */}
+                  {meetings.map((meeting, index) => (
+                    <div key={`local-${index}`} className="flex items-center justify-between p-3 rounded-lg border bg-card">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                          <Video className="w-5 h-5 text-primary" />
                         </div>
                         <div>
                           <p className="font-medium">{meeting.leadName}</p>
                           <p className="text-xs text-muted-foreground">{meeting.date.toLocaleDateString()}</p>
                         </div>
                       </div>
-                      <Badge variant="outline">{meeting.type}</Badge>
+                      <Badge variant="outline">
+                        {meeting.googleEventId ? 'synced' : 'local only'}
+                      </Badge>
                     </div>
                   ))}
                 </div>
