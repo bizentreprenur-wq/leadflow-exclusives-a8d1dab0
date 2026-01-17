@@ -1028,7 +1028,7 @@ export default function Dashboard() {
           : searchResults.filter(r => selectedLeads.includes(r.id) && r.phone);
 
         return (
-          <div className="space-y-6">
+          <div className="space-y-6 max-w-5xl mx-auto">
             {/* Back Button */}
             <Button
               variant="ghost"
@@ -1039,66 +1039,70 @@ export default function Dashboard() {
               Back to Email
             </Button>
 
-            {/* Step 4 Header */}
-            <div className="text-center py-6 bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-2xl border-2 border-green-500/30">
-              <div className="text-5xl mb-4">📞</div>
-              <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">
-                STEP 4: AI Voice Calls & Integrations
-              </h2>
-              <p className="text-muted-foreground">
-                Follow up with {callableLeads.length} leads using AI-powered voice calls and sync to your CRM
-              </p>
+            {/* Step 4 Header - Compact */}
+            <div className="flex items-center gap-4 py-4 px-6 bg-gradient-to-r from-green-500/10 to-emerald-500/5 rounded-xl border border-green-500/30">
+              <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
+                <Phone className="w-6 h-6 text-green-500" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-foreground">
+                  STEP 4: AI Voice Calls & Integrations
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Follow up with {callableLeads.length} leads using AI-powered voice calls
+                </p>
+              </div>
             </div>
 
-            {/* Two Column Layout */}
+            {/* Two Column Layout - Compact */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Left Column - Call Queue */}
               <div className="space-y-4">
                 {/* Lead Call Queue */}
                 <Card className="border-green-500/30">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Phone className="w-5 h-5 text-green-500" />
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Phone className="w-4 h-4 text-green-500" />
                       Leads Ready to Call ({callableLeads.length})
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="pt-0">
                     {callableLeads.length === 0 ? (
-                      <div className="text-center py-8">
-                        <p className="text-muted-foreground mb-4">No leads with phone numbers selected</p>
-                        <Button onClick={() => setCurrentStep(2)} variant="outline">
+                      <div className="text-center py-6">
+                        <p className="text-sm text-muted-foreground mb-3">No leads with phone numbers selected</p>
+                        <Button onClick={() => setCurrentStep(2)} variant="outline" size="sm">
                           Go back and select leads
                         </Button>
                       </div>
                     ) : (
-                      <div className="space-y-3">
+                      <div className="space-y-2 max-h-[200px] overflow-y-auto">
                         {callableLeads.slice(0, 5).map((lead: any, index: number) => (
                           <div 
                             key={lead.id || index}
-                            className="flex items-center justify-between p-4 rounded-lg border border-border bg-card hover:border-green-500/50 transition-all"
+                            className="flex items-center justify-between p-3 rounded-lg border border-border bg-card/50 hover:border-green-500/50 transition-all"
                           >
                             <div>
-                              <p className="font-semibold">{lead.business_name || lead.name}</p>
-                              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                              <p className="font-medium text-sm">{lead.business_name || lead.name}</p>
+                              <p className="text-xs text-muted-foreground flex items-center gap-1">
                                 <Phone className="w-3 h-3" />
                                 {lead.phone}
                               </p>
                             </div>
                             <Button 
                               size="sm" 
-                              className="bg-green-600 hover:bg-green-700 gap-2"
+                              className="bg-green-600 hover:bg-green-700 gap-1 h-8"
                               onClick={() => {
                                 setWidgetLeads([lead]);
                                 toast.success(`Starting call to ${lead.business_name || lead.name}`);
                               }}
                             >
-                              <Phone className="w-4 h-4" />
-                              Call Now
+                              <Phone className="w-3 h-3" />
+                              Call
                             </Button>
                           </div>
                         ))}
                         {callableLeads.length > 5 && (
-                          <p className="text-center text-sm text-muted-foreground">
+                          <p className="text-center text-xs text-muted-foreground pt-1">
                             +{callableLeads.length - 5} more leads
                           </p>
                         )}
@@ -1107,34 +1111,31 @@ export default function Dashboard() {
                   </CardContent>
                 </Card>
 
-                {/* Voice Agent Widget */}
-                <VoiceCallWidget 
-                  leadName={(widgetLeads[0] as any)?.business_name || widgetLeads[0]?.name}
-                  leadPhone={widgetLeads[0]?.phone}
-                  onOpenSettings={() => setActiveTab('settings')}
-                />
-
-                {/* Setup Guide Link */}
-                <Card className="border-border">
-                  <CardContent className="p-4 flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Need to set up your AI voice agent?</p>
-                      <p className="text-sm text-muted-foreground">Configure your ElevenLabs agent ID in settings</p>
-                    </div>
-                    <Button variant="outline" onClick={() => setActiveTab('settings')}>
+                {/* Voice Agent Widget - Compact */}
+                <Card className="border-dashed">
+                  <CardContent className="py-6 text-center">
+                    <Phone className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
+                    <h3 className="font-semibold mb-1">Voice Calling Not Configured</h3>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Connect your ElevenLabs agent to enable AI calls
+                    </p>
+                    <Button variant="outline" size="sm" onClick={() => setActiveTab('settings')}>
                       Open Settings
                     </Button>
                   </CardContent>
                 </Card>
               </div>
 
-              {/* Right Column - Cloud & CRM Integrations */}
+              {/* Right Column - Setup Guide */}
               <div>
-                <CloudCRMIntegrationsPanel 
-                  onManageCRMs={() => setShowCRMModal(true)}
-                />
+                <VoiceAgentSetupGuide />
               </div>
             </div>
+
+            {/* CRM Integration - Full Width */}
+            <CloudCRMIntegrationsPanel 
+              onManageCRMs={() => setShowCRMModal(true)}
+            />
 
             {/* CRM Integration Modal */}
             <CRMIntegrationModal
