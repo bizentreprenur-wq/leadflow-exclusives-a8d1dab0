@@ -122,7 +122,33 @@ export default function Dashboard() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>(() => {
     try {
       const saved = sessionStorage.getItem('bamlead_search_results');
-      return saved ? JSON.parse(saved) : [];
+      if (saved) return JSON.parse(saved);
+      
+      // Generate fake leads for testing
+      const fakeLeads: SearchResult[] = Array.from({ length: 50 }, (_, i) => ({
+        id: `fake-${i + 1}`,
+        name: [
+          'Joe\'s Plumbing', 'Main Street Dental', 'Quick Fix Auto', 'Golden Dragon Restaurant',
+          'Sunset Law Firm', 'Mountain View Landscaping', 'City Lights Electric', 'Fresh Start Cleaning',
+          'Premier Roofing', 'Downtown Fitness', 'Happy Paws Vet', 'Cozy Corner Cafe',
+          'Elite Hair Salon', 'Pro Paint Services', 'Family Chiropractic', 'Green Thumb Nursery',
+          'Fast Track Courier', 'Bright Smile Orthodontics', 'Home Shield Security', 'Cloud Nine Spa'
+        ][i % 20] + ` ${Math.floor(i / 20) > 0 ? `#${Math.floor(i / 20) + 1}` : ''}`,
+        address: `${100 + i * 10} Main St, Houston, TX`,
+        phone: `(713) 555-${String(1000 + i).slice(-4)}`,
+        website: i % 5 === 0 ? undefined : `https://example${i}.com`,
+        rating: Math.round((3 + Math.random() * 2) * 10) / 10,
+        source: 'gmb' as const,
+        websiteAnalysis: i % 5 === 0 ? undefined : {
+          hasWebsite: true,
+          platform: ['WordPress', 'Wix', 'Squarespace', 'Joomla', 'Custom'][i % 5],
+          needsUpgrade: i % 3 === 0,
+          issues: i % 3 === 0 ? ['Slow loading', 'Not mobile friendly', 'Outdated design'] : [],
+          mobileScore: 40 + Math.floor(Math.random() * 50),
+          loadTime: 1 + Math.random() * 4,
+        },
+      }));
+      return fakeLeads;
     } catch { return []; }
   });
   
