@@ -13,6 +13,7 @@ import HighConvertingTemplateGallery from './HighConvertingTemplateGallery';
 import EmailOutreachModule from './EmailOutreachModule';
 import CRMIntegrationModal from './CRMIntegrationModal';
 import MailboxDripAnimation from './MailboxDripAnimation';
+import LiveEmailPreview from './LiveEmailPreview';
 import { LeadForEmail } from '@/lib/api/email';
 
 interface SearchResult {
@@ -58,6 +59,30 @@ export default function EmailSetupFlow({
 
   const leadsWithEmail = emailLeads.filter(l => l.email);
 
+  // Demo-only visual sending simulation (does not send anything)
+  const [demoSentCount, setDemoSentCount] = useState(0);
+  const [demoIsActive, setDemoIsActive] = useState(false);
+
+  useEffect(() => {
+    if (currentPhase !== 'send') return;
+
+    const total = emailLeads.length;
+    if (total <= 0) {
+      setDemoIsActive(false);
+      setDemoSentCount(0);
+      return;
+    }
+
+    setDemoIsActive(true);
+    setDemoSentCount(0);
+
+    const interval = window.setInterval(() => {
+      setDemoSentCount((c) => (c >= total ? 0 : c + 1));
+    }, 650);
+
+    return () => window.clearInterval(interval);
+  }, [currentPhase, emailLeads.length]);
+
   const phases = [
     { id: 'smtp', label: '1. SMTP Setup', icon: Server, description: 'Configure your email server' },
     { id: 'template', label: '2. Choose Template', icon: FileText, description: 'Pick an email template' },
@@ -96,10 +121,10 @@ export default function EmailSetupFlow({
               </p>
             </div>
 
-            <Card className={`border-2 ${smtpConfigured ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-amber-500/50 bg-amber-500/5'}`}>
+            <Card className={`border-2 ${smtpConfigured ? 'border-success/40 bg-success/10' : 'border-warning/40 bg-warning/10'}`}>
               <CardContent className="p-6">
                 <div className="flex items-center gap-4">
-                  <div className={`w-14 h-14 rounded-full flex items-center justify-center text-3xl ${smtpConfigured ? 'bg-emerald-500/20' : 'bg-amber-500/20'}`}>
+                  <div className={`w-14 h-14 rounded-full flex items-center justify-center text-3xl ${smtpConfigured ? 'bg-success/15' : 'bg-warning/15'}`}>
                     {smtpConfigured ? '✅' : '⚙️'}
                   </div>
                   <div className="flex-1">
@@ -135,10 +160,24 @@ export default function EmailSetupFlow({
             )}
 
             {!smtpConfigured && (
-              <div className="text-center p-6 bg-muted/50 rounded-xl border border-dashed">
-                <p className="text-muted-foreground">
-                  👆 Configure your SMTP settings first, then come back here to continue
-                </p>
+              <div className="space-y-4">
+                <div className="text-center p-6 bg-muted/30 rounded-xl border border-dashed border-border">
+                  <p className="text-muted-foreground">
+                    Configure SMTP when you’re ready — you can still preview templates and the drip campaign below.
+                  </p>
+                </div>
+
+                <div className="flex justify-center">
+                  <Button
+                    onClick={() => setCurrentPhase('template')}
+                    variant="secondary"
+                    size="lg"
+                    className="gap-2"
+                  >
+                    Preview Templates (Demo)
+                    <ArrowRight className="w-5 h-5" />
+                  </Button>
+                </div>
               </div>
             )}
           </div>
@@ -197,11 +236,25 @@ export default function EmailSetupFlow({
               </p>
             </div>
 
-            {/* Mailbox Drip Animation */}
+            {selectedTemplate && (
+              <Card className="bg-gradient-card border-border shadow-card">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Template Preview</CardTitle>
+                  <CardDescription>
+                    This is exactly what your outreach will look like (placeholders are simulated).
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <LiveEmailPreview subject={selectedTemplate.subject} body={selectedTemplate.body_html} />
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Mailbox Drip Animation (visual demo) */}
             <MailboxDripAnimation
               totalEmails={emailLeads.length}
-              sentCount={0}
-              isActive={false}
+              sentCount={demoSentCount}
+              isActive={demoIsActive}
               emailsPerHour={50}
             />
 
@@ -226,7 +279,7 @@ export default function EmailSetupFlow({
       </Button>
 
       {/* Header */}
-      <div className="text-center py-6 bg-gradient-to-r from-blue-500/10 to-indigo-500/10 rounded-2xl border-2 border-blue-500/30">
+      <div className="text-center py-6 bg-gradient-card rounded-2xl border-2 border-primary/20 shadow-card">
         <div className="text-5xl mb-4">📧</div>
         <h1 className="text-2xl md:text-3xl font-bold mb-2">STEP 3: Email Outreach</h1>
         <p className="text-muted-foreground">
@@ -250,13 +303,13 @@ export default function EmailSetupFlow({
                 }
               }}
               disabled={!isComplete && !isCurrent}
-              className={`p-4 rounded-xl text-center transition-all ${
-                isCurrent
-                  ? 'bg-primary text-primary-foreground shadow-lg scale-105'
-                  : isComplete
-                  ? 'bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30 cursor-pointer'
-                  : 'bg-muted/50 text-muted-foreground opacity-50'
-              }`}
+               className={`p-4 rounded-xl text-center transition-all border border-border ${
+                 isCurrent
+                   ? 'bg-primary text-primary-foreground shadow-elevated scale-105 border-primary/30'
+                   : isComplete
+                   ? 'bg-success/10 text-success hover:bg-success/15 cursor-pointer border-success/20'
+                   : 'bg-muted/30 text-muted-foreground opacity-50'
+               }`}
             >
               <div className="flex flex-col items-center gap-2">
                 {isComplete ? (
