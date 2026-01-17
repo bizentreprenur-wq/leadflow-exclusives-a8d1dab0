@@ -21,6 +21,7 @@ import WhenAIActivatesSection from "@/components/WhenAIActivatesSection";
 import SponsorSection from "@/components/SponsorSection";
 import AutoSearchFeature from "@/components/AutoSearchFeature";
 import VoiceCallingSection from "@/components/VoiceCallingSection";
+import ROICalculatorSection from "@/components/ROICalculatorSection";
 
 const Index = () => {
   return (
@@ -38,6 +39,7 @@ const Index = () => {
         <RevolutionaryFeaturesSection />
         <SecretAISection />
         <StatsSection />
+        <ROICalculatorSection />
         <NewFeaturesShowcase />
         <LeadGenSection />
         <EmailOutreachSection />
