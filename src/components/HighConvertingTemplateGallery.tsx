@@ -41,14 +41,22 @@ const getCategoryIcon = (category: string) => {
 };
 
 const getCategoryColor = (category: string) => {
+  // Use semantic design tokens (no hard-coded palette colors)
   switch (category) {
-    case 'web-design': return 'bg-teal-500/20 text-teal-400 border-teal-500/30';
-    case 'local-services': return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
-    case 'b2b': return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
-    case 'general': return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
-    case 'follow-up': return 'bg-rose-500/20 text-rose-400 border-rose-500/30';
-    case 'promotional': return 'bg-green-500/20 text-green-400 border-green-500/30';
-    default: return 'bg-muted text-muted-foreground';
+    case 'web-design':
+      return 'bg-primary/15 text-primary border-primary/30';
+    case 'local-services':
+      return 'bg-accent/15 text-accent border-accent/30';
+    case 'b2b':
+      return 'bg-secondary/60 text-secondary-foreground border-border';
+    case 'general':
+      return 'bg-muted/60 text-muted-foreground border-border';
+    case 'follow-up':
+      return 'bg-warning/15 text-warning border-warning/30';
+    case 'promotional':
+      return 'bg-success/15 text-success border-success/30';
+    default:
+      return 'bg-muted/60 text-muted-foreground border-border';
   }
 };
 
@@ -141,9 +149,10 @@ export default function HighConvertingTemplateGallery({
               <img 
                 src={template.previewImage} 
                 alt={template.name}
+                loading="lazy"
                 className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/30 to-transparent" />
               
               {/* Category Badge */}
               <Badge 
@@ -250,7 +259,7 @@ export default function HighConvertingTemplateGallery({
               {/* Email Preview */}
               <ScrollArea className="h-[400px] border rounded-lg">
                 <div 
-                  className="bg-[#0a0a0a] p-4"
+                  className="bg-background p-4"
                   dangerouslySetInnerHTML={{ __html: previewTemplate.body_html }}
                 />
               </ScrollArea>

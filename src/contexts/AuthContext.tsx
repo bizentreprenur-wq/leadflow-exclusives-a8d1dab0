@@ -18,15 +18,24 @@ const AUTH_TIMEOUT_MS = 3000;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {
-    // Try to get cached user for instant display (non-sensitive fields only)
+    // Use cached user ONLY if we also have a token.
+    // This prevents redirect loops where cache exists but the session/token is gone.
     try {
+      const hasToken = !!localStorage.getItem('auth_token');
       const cached = localStorage.getItem('bamlead_user_cache');
+
+      if (!hasToken) {
+        if (cached) localStorage.removeItem('bamlead_user_cache');
+        return null;
+      }
+
       if (cached) {
         const parsed = JSON.parse(cached);
         // Only use cached display info, not authorization data
         // Role/subscription status MUST be verified server-side
         return { ...parsed, _fromCache: true };
       }
+
       return null;
     } catch {
       return null;
@@ -34,6 +43,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
   const [isLoading, setIsLoading] = useState(true);
   const hasInitialized = useRef(false);
+
+  const hasToken = (() => {
+    try {
+      return !!localStorage.getItem('auth_token');
+    } catch {
+      return false;
+    }
+  })();
 
   const refreshUser = useCallback(async () => {
     try {
@@ -108,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isLoading,
-        isAuthenticated: !!user,
+        isAuthenticated: hasToken && !!user,
         login,
         register,
         logout,
