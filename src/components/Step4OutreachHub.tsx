@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,7 +8,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import {
-  Phone, Calendar as CalendarIcon, Database, ArrowLeft,
+  Phone, Calendar as CalendarIcon, Database, ArrowLeft, Home,
   CheckCircle2, ExternalLink, Clock, Users, Video, Link2,
   Sparkles, Info, AlertTriangle, Plus, Settings2, Send, Loader2, RefreshCw
 } from 'lucide-react';
@@ -20,6 +20,7 @@ import {
   scheduleMeetingWithLead,
   CalendarEvent
 } from '@/lib/api/googleCalendar';
+import VoiceAgentSetupWizard from './VoiceAgentSetupWizard';
 
 interface Lead {
   id?: string;
@@ -73,13 +74,22 @@ export default function Step4OutreachHub({
   onOpenCRMModal 
 }: Step4OutreachHubProps) {
   const [agentId, setAgentId] = useState<string | null>(null);
+  const [showWizard, setShowWizard] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   
-  // Check if Voice Agent is configured on mount
+  // Check if Voice Agent is configured and if we should show wizard
   useEffect(() => {
     const savedAgentId = localStorage.getItem('elevenlabs_agent_id');
+    const wizardCompleted = localStorage.getItem('bamlead_voice_wizard_completed');
+    const wizardSkipped = localStorage.getItem('bamlead_voice_wizard_skipped');
+    
     setAgentId(savedAgentId);
+    
+    // Show wizard if: no agent configured AND wizard not completed AND not skipped
+    if (!savedAgentId && !wizardCompleted && !wizardSkipped) {
+      setShowWizard(true);
+    }
   }, []);
   const [selectedCRM, setSelectedCRM] = useState<string | null>(null);
   const [meetings, setMeetings] = useState<LocalMeeting[]>([]);
@@ -241,17 +251,48 @@ export default function Step4OutreachHub({
     }
   };
 
+  const handleWizardComplete = () => {
+    setShowWizard(false);
+    setAgentId(localStorage.getItem('elevenlabs_agent_id'));
+    toast.success('🎉 You can now make AI calls to your leads!');
+  };
+
+  const handleWizardSkip = () => {
+    setShowWizard(false);
+  };
+
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
-      {/* Back Button */}
-      <Button
-        variant="ghost"
-        onClick={onBack}
-        className="gap-2 text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Back to Email
-      </Button>
+    <>
+      {/* Voice Agent Setup Wizard */}
+      <AnimatePresence>
+        {showWizard && (
+          <VoiceAgentSetupWizard 
+            onComplete={handleWizardComplete}
+            onSkip={handleWizardSkip}
+          />
+        )}
+      </AnimatePresence>
+
+      <div className="space-y-6 max-w-6xl mx-auto">
+        {/* Back Buttons - Home and Previous */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            onClick={onBack}
+            className="gap-2 text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Email
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => window.location.href = '/'}
+            className="gap-2 text-muted-foreground hover:text-foreground"
+          >
+            <Home className="w-4 h-4" />
+            Home
+          </Button>
+        </div>
 
       {/* Header */}
       <motion.div
@@ -753,6 +794,7 @@ export default function Step4OutreachHub({
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </>
   );
 }
