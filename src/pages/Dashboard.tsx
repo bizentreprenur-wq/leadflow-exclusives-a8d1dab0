@@ -61,6 +61,7 @@ import EmailSetupFlow from '@/components/EmailSetupFlow';
 import CloudCRMIntegrationsPanel from '@/components/CloudCRMIntegrationsPanel';
 import CRMIntegrationModal from '@/components/CRMIntegrationModal';
 import Step4OutreachHub from '@/components/Step4OutreachHub';
+import AILeadScoringDashboard from '@/components/AILeadScoringDashboard';
 
 interface SearchResult {
   id: string;
@@ -191,6 +192,7 @@ export default function Dashboard() {
   
   // CRM Modal state
   const [showCRMModal, setShowCRMModal] = useState(false);
+  const [showAIScoringDashboard, setShowAIScoringDashboard] = useState(false);
 
   // Form validation state
   const [validationErrors, setValidationErrors] = useState<{ query?: boolean; location?: boolean; platforms?: boolean }>({});
@@ -968,6 +970,45 @@ export default function Dashboard() {
         );
 
       case 2:
+        // Show AI Scoring Dashboard if enabled
+        if (showAIScoringDashboard && searchResults.length > 0) {
+          return (
+            <AILeadScoringDashboard
+              leads={searchResults.map(r => ({
+                id: r.id,
+                name: r.name,
+                business_name: r.name,
+                email: r.email,
+                phone: r.phone,
+                website: r.website,
+                address: r.address,
+                websiteAnalysis: r.websiteAnalysis,
+              }))}
+              onEmailLeads={(leads) => {
+                const convertedLeads: LeadForEmail[] = leads.map((l: any) => ({
+                  email: l.email || '',
+                  business_name: l.name || l.business_name,
+                  contact_name: '',
+                  website: l.website || '',
+                  phone: l.phone || '',
+                }));
+                setEmailLeads(convertedLeads);
+                setShowAIScoringDashboard(false);
+                setCurrentStep(3);
+              }}
+              onCallLead={(lead) => {
+                toast.success(`Starting call to ${lead.name || lead.business_name}`);
+              }}
+              onSchedule={(lead) => {
+                toast.info(`Scheduling with ${lead.name || lead.business_name}`);
+              }}
+              onExportCRM={() => setShowCRMModal(true)}
+              onViewReport={() => setShowReportModal(true)}
+              onBack={() => setShowAIScoringDashboard(false)}
+            />
+          );
+        }
+
         return (
           <SimpleLeadViewer
             leads={searchResults}
@@ -996,6 +1037,9 @@ export default function Dashboard() {
               setEmailLeads(convertedLeads);
               setCurrentStep(4);
             }}
+            onOpenAIScoring={() => setShowAIScoringDashboard(true)}
+            onOpenCRM={() => setShowCRMModal(true)}
+            onOpenReport={() => setShowReportModal(true)}
           />
         );
 

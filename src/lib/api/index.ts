@@ -70,6 +70,39 @@ export type {
   TranscriptMessage,
 } from './callLogs';
 
+// Google Calendar
+export {
+  connectGoogleCalendar,
+  checkGoogleCalendarStatus,
+  disconnectGoogleCalendar,
+  listCalendarEvents,
+  createCalendarEvent,
+  deleteCalendarEvent,
+  scheduleMeetingWithLead,
+} from './googleCalendar';
+export type { CalendarEvent } from './googleCalendar';
+
+// CRM Integration
+export {
+  getCRMStatus,
+  connectCRM,
+  disconnectCRM,
+  saveCRMApiKey,
+  exportLeadsToCRM,
+  handleCRMCallbackParams,
+} from './crmIntegration';
+export type { CRMProvider, CRMConnection, CRMExportResult } from './crmIntegration';
+
+// AI Lead Scoring
+export {
+  getAILeadScores,
+  getAILeadPrioritization,
+  getAILeadInsights,
+  getAIEmailAngles,
+  analyzeLeadWithAI,
+} from './aiLeadScoring';
+export type { ScoredLead, LeadPrioritization, LeadInsights, EmailAngle } from './aiLeadScoring';
+
 // API Configuration
 export const API_CONFIG = {
   baseUrl: import.meta.env.VITE_API_URL || '',
@@ -82,5 +115,9 @@ export const API_CONFIG = {
     analyzeLeads: '/analyze-leads.php',
     emailOutreach: '/email-outreach.php',
     callLogs: '/call-logs.php',
+    crmOAuth: '/crm-oauth.php',
+    crmExport: '/crm-export.php',
+    aiLeadScoring: '/ai-lead-scoring.php',
+    googleCalendar: '/google-calendar-auth.php',
   },
 };
