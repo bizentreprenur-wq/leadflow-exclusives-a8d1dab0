@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import {
   ArrowLeft, ArrowRight, Server, FileText, Send, 
   CheckCircle2, Mail, Users, Loader2, Link2, Database,
-  Eye, Zap, Rocket, BarChart3, FlaskConical
+  Eye, Zap, Rocket, BarChart3, FlaskConical, Home
 } from 'lucide-react';
 import HighConvertingTemplateGallery from './HighConvertingTemplateGallery';
 import EmailOutreachModule from './EmailOutreachModule';
@@ -385,11 +385,21 @@ export default function EmailSetupFlow({
 
   return (
     <div className="space-y-6">
-      {/* Back Button */}
-      <Button variant="ghost" onClick={onBack} className="gap-2">
-        <ArrowLeft className="w-4 h-4" />
-        Back to Leads
-      </Button>
+      {/* Back Buttons */}
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" onClick={onBack} className="gap-2">
+          <ArrowLeft className="w-4 h-4" />
+          Back to Leads
+        </Button>
+        <Button 
+          variant="ghost" 
+          onClick={() => window.location.href = '/'}
+          className="gap-2 text-muted-foreground hover:text-foreground"
+        >
+          <Home className="w-4 h-4" />
+          Home
+        </Button>
+      </div>
 
       {/* Header */}
       <div className="text-center py-6 bg-gradient-card rounded-2xl border-2 border-primary/20 shadow-card">

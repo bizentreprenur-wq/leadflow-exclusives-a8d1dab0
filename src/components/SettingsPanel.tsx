@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import {
   HardDrive, CheckCircle2, XCircle, Loader2, ExternalLink,
   RefreshCw, Unlink, Settings, Bell, Shield,
-  Download, Trash2, Mail, Database, Phone, MessageCircle
+  Download, Trash2, Mail, Database, Phone, MessageCircle, ArrowLeft, Home
 } from 'lucide-react';
 import {
   checkGoogleDriveStatus,
@@ -90,6 +90,28 @@ export default function SettingsPanel({ initialTab = 'integrations', onBackToSte
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
+      {/* Back Buttons */}
+      <div className="flex items-center gap-2">
+        {onBackToStep4 && (
+          <Button
+            variant="ghost"
+            onClick={onBackToStep4}
+            className="gap-2 text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Calls
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          onClick={() => window.location.href = '/'}
+          className="gap-2 text-muted-foreground hover:text-foreground"
+        >
+          <Home className="w-4 h-4" />
+          Home
+        </Button>
+      </div>
+
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
