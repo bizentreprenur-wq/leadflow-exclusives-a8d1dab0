@@ -21,7 +21,8 @@ import {
   AlertTriangle,
   Zap,
   MessageSquare,
-  Globe
+  Globe,
+  Home
 } from 'lucide-react';
 
 interface VoiceAgentSetupWizardProps {
@@ -112,20 +113,43 @@ export default function VoiceAgentSetupWizard({ onComplete, onSkip }: VoiceAgent
     >
       <div className="min-h-screen py-8 px-4">
         <div className="max-w-4xl mx-auto">
-          {/* Header */}
+          {/* Header with Back Button */}
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
-                <Phone className="w-7 h-7 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold">Voice Agent Setup</h1>
-                <p className="text-muted-foreground">Configure your AI calling assistant in 5 minutes</p>
-              </div>
+              {/* Back Button */}
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleSkip}
+                className="gap-2 text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Calls
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => window.location.href = '/'}
+                className="gap-2 text-muted-foreground hover:text-foreground"
+              >
+                <Home className="w-4 h-4" />
+                Home
+              </Button>
             </div>
             <Button variant="ghost" size="icon" onClick={handleSkip}>
               <X className="w-5 h-5" />
             </Button>
+          </div>
+
+          {/* Title */}
+          <div className="flex items-center gap-4 mb-8">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+              <Phone className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">Voice Agent Setup</h1>
+              <p className="text-muted-foreground">Configure your AI calling assistant in 5 minutes</p>
+            </div>
           </div>
 
           {/* Progress */}
@@ -136,13 +160,14 @@ export default function VoiceAgentSetupWizard({ onComplete, onSkip }: VoiceAgent
             </div>
             <Progress value={progress} className="h-2" />
             
-            {/* Step indicators */}
+            {/* Step indicators - CLICKABLE */}
             <div className="flex justify-between mt-4">
               {STEPS.map((step) => (
-                <div
+                <button
                   key={step.id}
-                  className={`flex flex-col items-center gap-1 ${
-                    step.id <= currentStep ? 'text-green-500' : 'text-muted-foreground'
+                  onClick={() => setCurrentStep(step.id)}
+                  className={`flex flex-col items-center gap-1 transition-all hover:scale-105 ${
+                    step.id <= currentStep ? 'text-green-500' : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
@@ -150,7 +175,7 @@ export default function VoiceAgentSetupWizard({ onComplete, onSkip }: VoiceAgent
                       ? 'bg-green-500 border-green-500 text-white'
                       : step.id === currentStep
                         ? 'border-green-500 bg-green-500/10'
-                        : 'border-muted bg-muted/50'
+                        : 'border-muted bg-muted/50 hover:border-green-500/50'
                   }`}>
                     {step.id < currentStep ? (
                       <CheckCircle2 className="w-5 h-5" />
@@ -159,7 +184,7 @@ export default function VoiceAgentSetupWizard({ onComplete, onSkip }: VoiceAgent
                     )}
                   </div>
                   <span className="text-xs font-medium hidden sm:block">{step.title}</span>
-                </div>
+                </button>
               ))}
             </div>
           </div>
