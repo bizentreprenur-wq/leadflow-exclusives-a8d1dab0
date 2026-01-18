@@ -470,34 +470,7 @@ export default function Step4OutreachHub({
         {/* Overview */}
         <TabsContent value="overview" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Users className="w-5 h-5 text-primary" />Your Leads Summary</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30">
-                    <p className="text-3xl font-bold text-green-500">{callableLeads.length}</p>
-                    <p className="text-sm text-muted-foreground">Ready to Call</p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30">
-                    <p className="text-3xl font-bold text-blue-500">{emailableLeads.length}</p>
-                    <p className="text-sm text-muted-foreground">Have Email</p>
-                  </div>
-                </div>
-                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Info className="w-4 h-4 text-amber-500" />
-                    <p className="font-semibold text-amber-700 dark:text-amber-300">What happens next?</p>
-                  </div>
-                  <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-                    <li>📞 Call leads using AI voice agent</li>
-                    <li>📅 Schedule follow-up meetings</li>
-                    <li>💾 Save everything to your CRM</li>
-                  </ol>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Voice Agent Status - FIRST */}
             <Card className={`border-2 ${agentId ? 'border-green-500/50 bg-green-500/5' : 'border-amber-500/50 bg-amber-500/5'}`}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -555,6 +528,36 @@ export default function Step4OutreachHub({
                     </div>
                   </>
                 )}
+              </CardContent>
+            </Card>
+
+            {/* Leads Summary - SECOND */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Users className="w-5 h-5 text-primary" />Your Leads Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30">
+                    <p className="text-3xl font-bold text-green-500">{callableLeads.length}</p>
+                    <p className="text-sm text-muted-foreground">Ready to Call</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30">
+                    <p className="text-3xl font-bold text-blue-500">{emailableLeads.length}</p>
+                    <p className="text-sm text-muted-foreground">Have Email</p>
+                  </div>
+                </div>
+                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Info className="w-4 h-4 text-amber-500" />
+                    <p className="font-semibold text-amber-700 dark:text-amber-300">What happens next?</p>
+                  </div>
+                  <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>📞 Call leads using AI voice agent</li>
+                    <li>📅 Schedule follow-up meetings</li>
+                    <li>💾 Save everything to your CRM</li>
+                  </ol>
+                </div>
               </CardContent>
             </Card>
           </div>
