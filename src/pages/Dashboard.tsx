@@ -968,22 +968,6 @@ export default function Dashboard() {
                         </>
                       )}
                     </Button>
-
-                    {/* Intelligence Report (auto-opens after search, manual access here too) */}
-                    {searchResults.length > 0 && !isSearching && (
-                      <div className="mt-3">
-                        <Button
-                          type="button"
-                          onClick={() => setShowReportModal(true)}
-                          className="relative w-full gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white border-0 shadow-lg animate-pulse"
-                        >
-                          <Brain className="w-4 h-4" />
-                          Open Intelligence Report
-                          <span className="absolute -top-1 -right-1 w-3 h-3 bg-orange-400 rounded-full animate-ping" />
-                          <span className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full" />
-                        </Button>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
