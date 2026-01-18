@@ -974,77 +974,28 @@ export default function Dashboard() {
         );
 
       case 2:
-        // Show AI Scoring Dashboard if enabled
-        if (showAIScoringDashboard && searchResults.length > 0) {
-          return (
-            <AILeadScoringDashboard
-              leads={searchResults.map(r => ({
-                id: r.id,
-                name: r.name,
-                business_name: r.name,
-                email: r.email,
-                phone: r.phone,
-                website: r.website,
-                address: r.address,
-                websiteAnalysis: r.websiteAnalysis,
-              }))}
-              onEmailLeads={(leads) => {
-                const convertedLeads: LeadForEmail[] = leads.map((l: any) => ({
-                  email: l.email || '',
-                  business_name: l.name || l.business_name,
-                  contact_name: '',
-                  website: l.website || '',
-                  phone: l.phone || '',
-                }));
-                setEmailLeads(convertedLeads);
-                setShowAIScoringDashboard(false);
-                setCurrentStep(3);
-              }}
-              onCallLead={(lead) => {
-                toast.success(`Starting call to ${lead.name || lead.business_name}`);
-              }}
-              onSchedule={(lead) => {
-                toast.info(`Scheduling with ${lead.name || lead.business_name}`);
-              }}
-              onExportCRM={() => setShowCRMModal(true)}
-              onViewReport={() => setShowReportModal(true)}
-              onBack={() => setShowAIScoringDashboard(false)}
-            />
-          );
-        }
-
+        // Step 2 is now handled by the spreadsheet popup - redirect back to step 1
+        // The spreadsheet viewer (LeadSpreadsheetViewer) opens as a popup from Step 1
+        // If user somehow lands here, show a simple message with back button
         return (
-          <SimpleLeadViewer
-            leads={searchResults}
-            isLoading={isSearching}
-            loadingProgress={searchProgress}
-            onBack={() => setCurrentStep(1)}
-            onProceedToEmail={(leads) => {
-              const convertedLeads: LeadForEmail[] = leads.map((l) => ({
-                email: l.email || '',
-                business_name: l.name,
-                contact_name: '',
-                website: l.website || '',
-                phone: l.phone || '',
-              }));
-              setEmailLeads(convertedLeads);
-              setCurrentStep(3);
-            }}
-            onProceedToCall={(leads) => {
-              const convertedLeads: LeadForEmail[] = leads.map((l) => ({
-                email: l.email || '',
-                business_name: l.name,
-                contact_name: '',
-                website: l.website || '',
-                phone: l.phone || '',
-              }));
-              setEmailLeads(convertedLeads);
-              setCurrentStep(4);
-            }}
-            onOpenAIScoring={() => setShowAIScoringDashboard(true)}
-            onOpenCRM={() => setShowCRMModal(true)}
-            onOpenReport={() => setShowReportModal(true)}
-          />
+          <div className="flex flex-col items-center justify-center py-20 space-y-6">
+            <div className="text-6xl">📋</div>
+            <h2 className="text-2xl font-bold">Leads Are in the Popup!</h2>
+            <p className="text-muted-foreground text-center max-w-md">
+              Your leads appear in the spreadsheet popup after searching. 
+              Click "Back to Search" to find more leads.
+            </p>
+            <Button onClick={() => setCurrentStep(1)} className="gap-2">
+              <ArrowLeft className="w-4 h-4" />
+              Back to Search
+            </Button>
+            {searchResults.length > 0 && (
+              <Button variant="outline" onClick={() => setShowSpreadsheetViewer(true)} className="gap-2">
+                <FileText className="w-4 h-4" />
+                Open Lead Report
+              </Button>
+            )}
+          </div>
         );
 
       case 3:
