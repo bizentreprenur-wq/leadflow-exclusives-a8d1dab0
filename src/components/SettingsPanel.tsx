@@ -25,9 +25,10 @@ import ChatConfigurationPanel from './ChatConfigurationPanel';
 
 interface SettingsPanelProps {
   initialTab?: string;
+  onBackToStep4?: () => void;
 }
 
-export default function SettingsPanel({ initialTab = 'integrations' }: SettingsPanelProps) {
+export default function SettingsPanel({ initialTab = 'integrations', onBackToStep4 }: SettingsPanelProps) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState(initialTab);
   const [driveConnected, setDriveConnected] = useState(false);
@@ -101,28 +102,46 @@ export default function SettingsPanel({ initialTab = 'integrations' }: SettingsP
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="integrations" className="gap-2">
+        <TabsList className="grid w-full grid-cols-6 bg-muted/50 p-1">
+          <TabsTrigger 
+            value="integrations" 
+            className="gap-2 data-[state=active]:bg-blue-500 data-[state=active]:text-white transition-all"
+          >
             <Database className="w-4 h-4" />
             <span className="hidden sm:inline">Integrations</span>
           </TabsTrigger>
-          <TabsTrigger value="voice" className="gap-2">
+          <TabsTrigger 
+            value="voice" 
+            className="gap-2 data-[state=active]:bg-green-500 data-[state=active]:text-white transition-all"
+          >
             <Phone className="w-4 h-4" />
             <span className="hidden sm:inline">Voice</span>
           </TabsTrigger>
-          <TabsTrigger value="chat" className="gap-2">
+          <TabsTrigger 
+            value="chat" 
+            className="gap-2 data-[state=active]:bg-violet-500 data-[state=active]:text-white transition-all"
+          >
             <MessageCircle className="w-4 h-4" />
             <span className="hidden sm:inline">Chat</span>
           </TabsTrigger>
-          <TabsTrigger value="email" className="gap-2">
+          <TabsTrigger 
+            value="email" 
+            className="gap-2 data-[state=active]:bg-amber-500 data-[state=active]:text-white transition-all"
+          >
             <Mail className="w-4 h-4" />
             <span className="hidden sm:inline">Email</span>
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="gap-2">
+          <TabsTrigger 
+            value="notifications" 
+            className="gap-2 data-[state=active]:bg-red-500 data-[state=active]:text-white transition-all"
+          >
             <Bell className="w-4 h-4" />
             <span className="hidden sm:inline">Alerts</span>
           </TabsTrigger>
-          <TabsTrigger value="account" className="gap-2">
+          <TabsTrigger 
+            value="account" 
+            className="gap-2 data-[state=active]:bg-cyan-500 data-[state=active]:text-white transition-all"
+          >
             <Shield className="w-4 h-4" />
             <span className="hidden sm:inline">Account</span>
           </TabsTrigger>
@@ -273,7 +292,10 @@ export default function SettingsPanel({ initialTab = 'integrations' }: SettingsP
 
         {/* Voice Agent Tab */}
         <TabsContent value="voice" className="space-y-4">
-          <VoiceAgentSettings onShowGuide={() => setActiveTab('voice-guide')} />
+          <VoiceAgentSettings 
+            onShowGuide={() => setActiveTab('voice-guide')} 
+            onBackToStep4={onBackToStep4}
+          />
         </TabsContent>
 
         {/* Chat Configuration Tab */}

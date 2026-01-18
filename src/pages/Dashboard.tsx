@@ -1226,7 +1226,13 @@ export default function Dashboard() {
           icon: Target,
           iconColor: 'text-slate-500',
           iconBg: 'bg-slate-500/10',
-          component: <SettingsPanel initialTab={settingsInitialTab} />,
+          component: <SettingsPanel 
+            initialTab={settingsInitialTab} 
+            onBackToStep4={() => {
+              setActiveTab('search');
+              setCurrentStep(4);
+            }}
+          />,
         };
       case 'voice-calling':
         return {
