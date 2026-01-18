@@ -48,6 +48,7 @@ import {
   HardDrive,
   Phone,
   History,
+  Video,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import bamMascot from '@/assets/bamlead-mascot.png';
@@ -117,6 +118,13 @@ const otherTools = [
 ];
 
 const resourceTools = [
+  {
+    id: 'video-tutorials',
+    title: 'Video Tutorials',
+    icon: Video,
+    description: 'SMTP & campaign guides',
+    badge: 'New',
+  },
   {
     id: 'user-manual',
     title: 'User Manual',

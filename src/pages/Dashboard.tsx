@@ -63,6 +63,7 @@ import CRMIntegrationModal from '@/components/CRMIntegrationModal';
 import Step4OutreachHub from '@/components/Step4OutreachHub';
 import AILeadScoringDashboard from '@/components/AILeadScoringDashboard';
 import UserManualDownload from '@/components/UserManualDownload';
+import { VideoTutorialSection } from '@/components/VideoTutorialSection';
 
 interface SearchResult {
   id: string;
@@ -1196,6 +1197,15 @@ export default function Dashboard() {
           iconColor: 'text-amber-500',
           iconBg: 'bg-amber-500/10',
           component: <AIJourneyExplainer />,
+        };
+      case 'video-tutorials':
+        return {
+          title: 'Quick Start Tutorials',
+          description: 'Learn SMTP setup and send your first campaign',
+          icon: FileText,
+          iconColor: 'text-blue-500',
+          iconBg: 'bg-blue-500/10',
+          component: <VideoTutorialSection />,
         };
       case 'user-manual':
         return {
