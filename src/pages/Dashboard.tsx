@@ -974,12 +974,13 @@ export default function Dashboard() {
                       <div className="mt-3">
                         <Button
                           type="button"
-                          variant="outline"
                           onClick={() => setShowReportModal(true)}
-                          className="w-full gap-2"
+                          className="relative w-full gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white border-0 shadow-lg animate-pulse"
                         >
                           <Brain className="w-4 h-4" />
                           Open Intelligence Report
+                          <span className="absolute -top-1 -right-1 w-3 h-3 bg-orange-400 rounded-full animate-ping" />
+                          <span className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full" />
                         </Button>
                       </div>
                     )}
@@ -1005,9 +1006,14 @@ export default function Dashboard() {
                 Back to Search
               </Button>
               {searchResults.length > 0 && (
-                <Button variant="outline" onClick={() => setShowReportModal(true)} className="gap-2">
+                <Button 
+                  onClick={() => setShowReportModal(true)} 
+                  className="relative gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white border-0 shadow-lg animate-pulse"
+                >
                   <Brain className="w-4 h-4" />
                   Open Intelligence Report
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-orange-400 rounded-full animate-ping" />
+                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full" />
                 </Button>
               )}
             </div>
