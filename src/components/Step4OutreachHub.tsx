@@ -317,7 +317,7 @@ export default function Step4OutreachHub({
       {/* 3 Action Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
-          { tab: 'calls', icon: Phone, title: '📞 Make Calls', desc: `Call ${callableLeads.length} leads with AI voice agent`, badge: `${callableLeads.length} with phone`, color: 'green' },
+          { tab: 'calls', icon: Phone, title: '📞 Make Calls', desc: 'Call leads with AI voice agent', badge: 'Ready to call', color: 'green' },
           { tab: 'calendar', icon: CalendarIcon, title: '📅 Schedule', desc: 'Book meetings with your leads', badge: `${meetings.length} meetings`, color: 'blue' },
           { tab: 'crm', icon: Database, title: '💾 Save to CRM', desc: 'Export leads to your favorite CRM', badge: '11 CRMs available', color: 'purple' },
         ].map((item, index) => (
