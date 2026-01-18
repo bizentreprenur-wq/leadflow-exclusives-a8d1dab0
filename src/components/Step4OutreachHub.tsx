@@ -316,34 +316,81 @@ export default function Step4OutreachHub({
 
       {/* 3 Action Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[
-          { tab: 'calls', icon: Phone, title: '📞 Make Calls', desc: 'Call leads with AI voice agent', badge: 'Ready to call', color: 'green' },
-          { tab: 'calendar', icon: CalendarIcon, title: '📅 Schedule', desc: 'Book meetings with your leads', badge: `${meetings.length} meetings`, color: 'blue' },
-          { tab: 'crm', icon: Database, title: '💾 Save to CRM', desc: 'Export leads to your favorite CRM', badge: '11 CRMs available', color: 'purple' },
-        ].map((item, index) => (
-          <motion.div
-            key={item.tab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 * (index + 1) }}
-            whileHover={{ scale: 1.02 }}
-            className="cursor-pointer"
-            onClick={() => setActiveTab(item.tab)}
-          >
-            <Card className={`h-full border-2 transition-all ${activeTab === item.tab ? `border-${item.color}-500 bg-${item.color}-500/5` : 'border-border hover:border-primary/50'}`}>
-              <CardContent className="pt-6 text-center">
-                <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-${item.color}-500 to-${item.color}-600 flex items-center justify-center`}>
-                  <item.icon className="w-8 h-8 text-white" />
-                </div>
-                <h3 className="text-xl font-bold mb-2">{item.title}</h3>
-                <p className="text-sm text-muted-foreground">{item.desc}</p>
-                <Badge className={`mt-3 bg-${item.color}-500/20 text-${item.color}-600 border-${item.color}-500/30`}>
-                  {item.badge}
-                </Badge>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
+        {/* Make Calls Card - Special handling for wizard */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          whileHover={{ scale: 1.02 }}
+          className="cursor-pointer"
+          onClick={() => {
+            if (!agentId) {
+              // No agent configured - show setup wizard
+              setShowWizard(true);
+            } else {
+              setActiveTab('calls');
+            }
+          }}
+        >
+          <Card className={`h-full border-2 transition-all ${activeTab === 'calls' ? 'border-green-500 bg-green-500/5' : 'border-border hover:border-primary/50'}`}>
+            <CardContent className="pt-6 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
+                <Phone className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">📞 Make Calls</h3>
+              <p className="text-sm text-muted-foreground">Call leads with AI voice agent</p>
+              <Badge className={`mt-3 ${agentId ? 'bg-green-500/20 text-green-600 border-green-500/30' : 'bg-amber-500/20 text-amber-600 border-amber-500/30 animate-pulse'}`}>
+                {agentId ? 'Ready to call' : 'Setup required'}
+              </Badge>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Schedule Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          whileHover={{ scale: 1.02 }}
+          className="cursor-pointer"
+          onClick={() => setActiveTab('calendar')}
+        >
+          <Card className={`h-full border-2 transition-all ${activeTab === 'calendar' ? 'border-blue-500 bg-blue-500/5' : 'border-border hover:border-primary/50'}`}>
+            <CardContent className="pt-6 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                <CalendarIcon className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">📅 Schedule</h3>
+              <p className="text-sm text-muted-foreground">Book meetings with your leads</p>
+              <Badge className="mt-3 bg-blue-500/20 text-blue-600 border-blue-500/30">
+                {meetings.length} meetings
+              </Badge>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Save to CRM Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          whileHover={{ scale: 1.02 }}
+          className="cursor-pointer"
+          onClick={() => setActiveTab('crm')}
+        >
+          <Card className={`h-full border-2 transition-all ${activeTab === 'crm' ? 'border-purple-500 bg-purple-500/5' : 'border-border hover:border-primary/50'}`}>
+            <CardContent className="pt-6 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center">
+                <Database className="w-8 h-8 text-white" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">💾 Save to CRM</h3>
+              <p className="text-sm text-muted-foreground">Export leads to your favorite CRM</p>
+              <Badge className="mt-3 bg-purple-500/20 text-purple-600 border-purple-500/30">
+                11 CRMs available
+              </Badge>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
 
       {/* Tabs Content */}
