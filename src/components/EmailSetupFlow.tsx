@@ -246,28 +246,29 @@ export default function EmailSetupFlow({
 
             {/* Tabbed Interface for all visual components */}
             <Tabs defaultValue="preview" className="w-full">
-              <TabsList className="grid w-full grid-cols-6 h-12">
-                <TabsTrigger value="preview" className="gap-2 text-xs sm:text-sm">
+              <TabsList className="grid w-full grid-cols-6 h-12 bg-muted/50">
+                <TabsTrigger value="preview" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-blue-500 data-[state=active]:text-white">
                   <Eye className="w-4 h-4" />
                   <span className="hidden sm:inline">Preview</span>
                 </TabsTrigger>
-                <TabsTrigger value="crm" className="gap-2 text-xs sm:text-sm">
+                <TabsTrigger value="crm" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-violet-500 data-[state=active]:text-white">
                   <Database className="w-4 h-4" />
                   <span className="hidden sm:inline">CRM</span>
                 </TabsTrigger>
-                <TabsTrigger value="ab-testing" className="gap-2 text-xs sm:text-sm">
+                <TabsTrigger value="ab-testing" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-pink-500 data-[state=active]:text-white">
                   <FlaskConical className="w-4 h-4" />
                   <span className="hidden sm:inline">A/B Test</span>
                 </TabsTrigger>
-                <TabsTrigger value="mailbox" className="gap-2 text-xs sm:text-sm">
+                <TabsTrigger value="mailbox" className="relative gap-2 text-xs sm:text-sm data-[state=active]:bg-amber-500 data-[state=active]:text-white animate-pulse">
                   <Mail className="w-4 h-4" />
                   <span className="hidden sm:inline">Mailbox</span>
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full animate-ping" />
                 </TabsTrigger>
-                <TabsTrigger value="analytics" className="gap-2 text-xs sm:text-sm">
+                <TabsTrigger value="analytics" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
                   <BarChart3 className="w-4 h-4" />
                   <span className="hidden sm:inline">Analytics</span>
                 </TabsTrigger>
-                <TabsTrigger value="send" className="gap-2 text-xs sm:text-sm">
+                <TabsTrigger value="send" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-red-500 data-[state=active]:text-white">
                   <Send className="w-4 h-4" />
                   <span className="hidden sm:inline">Send</span>
                 </TabsTrigger>

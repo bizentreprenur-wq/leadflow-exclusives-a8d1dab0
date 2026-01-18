@@ -105,13 +105,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     const response = await apiLogin({ email, password });
     setUser(response.user);
-    localStorage.setItem('bamlead_user_cache', JSON.stringify(response.user));
+    // Cache only non-sensitive display fields - role/subscription MUST be verified server-side
+    const safeCache = {
+      id: response.user.id,
+      email: response.user.email,
+      name: response.user.name,
+    };
+    localStorage.setItem('bamlead_user_cache', JSON.stringify(safeCache));
   };
 
   const register = async (email: string, password: string, name?: string) => {
     const response = await apiRegister({ email, password, name });
     setUser(response.user);
-    localStorage.setItem('bamlead_user_cache', JSON.stringify(response.user));
+    // Cache only non-sensitive display fields - role/subscription MUST be verified server-side
+    const safeCache = {
+      id: response.user.id,
+      email: response.user.email,
+      name: response.user.name,
+    };
+    localStorage.setItem('bamlead_user_cache', JSON.stringify(safeCache));
   };
 
   const logout = async () => {

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { sanitizeEmailHTML } from '@/lib/sanitize';
 import {
   Dialog,
   DialogContent,
@@ -539,7 +540,7 @@ export default function EmailScheduleModal({
                       <Label className="text-xs text-muted-foreground">Body:</Label>
                       <div 
                         className="text-sm prose prose-sm max-w-none mt-1"
-                        dangerouslySetInnerHTML={{ __html: previewTemplate.body_html }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(previewTemplate.body_html) }}
                       />
                     </div>
                   </div>
