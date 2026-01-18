@@ -1,13 +1,13 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { VisuallyHidden } from '@/components/ui/visually-hidden';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -17,7 +17,7 @@ import {
   Star, AlertTriangle, CheckCircle2, Flame, Snowflake, Brain, Target,
   Zap, Building2, Mail, Clock, ChevronRight, FileSpreadsheet,
   TrendingUp, ThermometerSun, Calendar, MessageSquare, DollarSign,
-  Eye, PhoneCall, MailOpen
+  Eye, PhoneCall, MailOpen, Sparkles, BarChart3, Timer, Lightbulb, Shield
 } from 'lucide-react';
 
 interface SearchResult {
@@ -62,6 +62,9 @@ interface LeadInsight {
   talkingPoints: string[];
   urgencyLevel: 'high' | 'medium' | 'low';
   estimatedValue: string;
+  optimalCallWindow: string;
+  optimalEmailWindow: string;
+  conversionProbability: number;
 }
 
 // Export field options
@@ -142,37 +145,49 @@ function generateLeadInsight(lead: SearchResult): LeadInsight {
   // Determine classification
   let classification: 'hot' | 'warm' | 'cold';
   let urgencyLevel: 'high' | 'medium' | 'low';
+  let conversionProbability: number;
+  
   if (score >= 80) {
     classification = 'hot';
     urgencyLevel = 'high';
+    conversionProbability = Math.min(95, 65 + Math.floor(Math.random() * 25));
   } else if (score >= 55) {
     classification = 'warm';
     urgencyLevel = 'medium';
+    conversionProbability = 35 + Math.floor(Math.random() * 25);
   } else {
     classification = 'cold';
     urgencyLevel = 'low';
+    conversionProbability = 10 + Math.floor(Math.random() * 20);
   }
 
   // Determine best contact time and method
-  const hour = new Date().getHours();
   let bestContactTime: string;
   let bestContactMethod: 'call' | 'email' | 'both';
+  let optimalCallWindow: string;
+  let optimalEmailWindow: string;
 
   if (classification === 'hot') {
-    bestContactTime = 'Call ASAP - 10am-11am or 2pm-3pm';
+    bestContactTime = 'Contact within 24 hours for best results';
     bestContactMethod = 'call';
+    optimalCallWindow = 'Today: 10:00 AM - 11:30 AM or 2:00 PM - 3:30 PM';
+    optimalEmailWindow = 'Send email now as follow-up';
   } else if (classification === 'warm') {
-    bestContactTime = 'Email first, follow up call in 2 days - Best at 10am';
+    bestContactTime = 'Email first, follow up call in 2-3 days';
     bestContactMethod = 'both';
+    optimalCallWindow = 'Schedule call for: Tuesday-Thursday, 10 AM or 2 PM';
+    optimalEmailWindow = 'Best send time: Tuesday 9 AM or Thursday 10 AM';
   } else {
-    bestContactTime = 'Email nurture sequence - Tuesday/Thursday mornings';
+    bestContactTime = 'Add to nurture email sequence';
     bestContactMethod = 'email';
+    optimalCallWindow = 'Wait for email engagement before calling';
+    optimalEmailWindow = 'Weekly newsletter: Tuesday/Thursday mornings';
   }
 
   // Generate AI recommendation
   let aiRecommendation: string;
   if (!lead.website) {
-    aiRecommendation = `High-value prospect without online presence. Lead with: "I noticed [Business Name] doesn't have a website yet. Many of your competitors in ${lead.address?.split(',')[1] || 'your area'} are getting customers online..."`;
+    aiRecommendation = `High-value prospect without online presence. Lead with: "I noticed ${lead.name} doesn't have a website yet. Many of your competitors in ${lead.address?.split(',')[1]?.trim() || 'your area'} are getting customers online..."`;
   } else if (lead.websiteAnalysis?.needsUpgrade) {
     aiRecommendation = `Website needs modernization. Open with: "I was looking at your website and noticed it might be missing some features that could help you get more customers..."`;
   } else if (issueCount > 0) {
@@ -202,12 +217,14 @@ function generateLeadInsight(lead: SearchResult): LeadInsight {
     talkingPoints,
     urgencyLevel,
     estimatedValue,
+    optimalCallWindow,
+    optimalEmailWindow,
+    conversionProbability,
   };
 }
 
 // Generate estimated owner name from business name
 function estimateOwnerName(businessName: string): string {
-  // Simple heuristic - in real app this would use AI or data enrichment
   const genericNames = ['Owner', 'Manager', 'Decision Maker'];
   return genericNames[Math.floor(Math.random() * genericNames.length)];
 }
@@ -221,13 +238,35 @@ export default function LeadDocumentViewer({
   onProceedToVerify,
   onProceedToEmail,
 }: LeadDocumentViewerProps) {
-  const [activeTab, setActiveTab] = useState<'all' | 'hot' | 'warm' | 'cold'>('all');
   const [selectedFields, setSelectedFields] = useState<string[]>(
     EXPORT_FIELDS.filter(f => f.default).map(f => f.id)
   );
   const [showFieldSelector, setShowFieldSelector] = useState(false);
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const documentRef = useRef<HTMLDivElement>(null);
+
+  // Simulate AI analysis loading
+  useEffect(() => {
+    if (open) {
+      setIsLoading(true);
+      setLoadingProgress(0);
+      
+      const interval = setInterval(() => {
+        setLoadingProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            setTimeout(() => setIsLoading(false), 300);
+            return 100;
+          }
+          return prev + Math.floor(Math.random() * 15) + 5;
+        });
+      }, 200);
+
+      return () => clearInterval(interval);
+    }
+  }, [open, leads]);
 
   // Analyze all leads
   const analyzedLeads = useMemo(() => {
@@ -242,14 +281,10 @@ export default function LeadDocumentViewer({
   const warmLeads = analyzedLeads.filter(l => l.insight.classification === 'warm');
   const coldLeads = analyzedLeads.filter(l => l.insight.classification === 'cold');
 
-  const displayLeads = useMemo(() => {
-    switch (activeTab) {
-      case 'hot': return hotLeads;
-      case 'warm': return warmLeads;
-      case 'cold': return coldLeads;
-      default: return analyzedLeads;
-    }
-  }, [activeTab, analyzedLeads, hotLeads, warmLeads, coldLeads]);
+  // Group leads by optimal contact time
+  const callNowLeads = hotLeads.filter(l => l.insight.bestContactMethod === 'call');
+  const emailFirstLeads = warmLeads.filter(l => l.insight.bestContactMethod === 'both');
+  const nurtureLeads = coldLeads;
 
   const toggleField = (fieldId: string) => {
     setSelectedFields(prev =>
@@ -266,11 +301,18 @@ export default function LeadDocumentViewer({
     setSelectedLeadIds(next);
   };
 
-  const selectAllInGroup = () => {
-    if (selectedLeadIds.size === displayLeads.length) {
-      setSelectedLeadIds(new Set());
+  const selectAllInSection = (sectionLeads: typeof analyzedLeads) => {
+    const sectionIds = new Set(sectionLeads.map(l => l.id));
+    const allSelected = sectionLeads.every(l => selectedLeadIds.has(l.id));
+    
+    if (allSelected) {
+      setSelectedLeadIds(prev => {
+        const next = new Set(prev);
+        sectionIds.forEach(id => next.delete(id));
+        return next;
+      });
     } else {
-      setSelectedLeadIds(new Set(displayLeads.map(l => l.id)));
+      setSelectedLeadIds(prev => new Set([...prev, ...sectionIds]));
     }
   };
 
@@ -299,11 +341,11 @@ export default function LeadDocumentViewer({
 
     doc.setFontSize(10);
     doc.setTextColor(239, 68, 68);
-    doc.text(`🔥 HOT LEADS: ${hotLeads.length} - Call immediately!`, 14, 56);
+    doc.text(`HOT LEADS: ${hotLeads.length} - Call immediately!`, 14, 56);
     doc.setTextColor(245, 158, 11);
-    doc.text(`⚡ WARM LEADS: ${warmLeads.length} - Email first, then call`, 14, 62);
+    doc.text(`WARM LEADS: ${warmLeads.length} - Email first, then call`, 14, 62);
     doc.setTextColor(59, 130, 246);
-    doc.text(`❄️ COLD LEADS: ${coldLeads.length} - Nurture with content`, 14, 68);
+    doc.text(`COLD LEADS: ${coldLeads.length} - Nurture with content`, 14, 68);
 
     let yPos = 80;
 
@@ -311,13 +353,13 @@ export default function LeadDocumentViewer({
     if (hotLeads.length > 0) {
       doc.setFontSize(12);
       doc.setTextColor(239, 68, 68);
-      doc.text('🔥 HOT LEADS - Contact Today', 14, yPos);
+      doc.text('HOT LEADS - Contact Today', 14, yPos);
       yPos += 8;
 
       const hotData = hotLeads.slice(0, 20).map(l => [
         l.name.substring(0, 20),
         l.phone || 'N/A',
-        l.insight.bestContactTime.substring(0, 25),
+        l.insight.optimalCallWindow.substring(0, 30),
         l.insight.painPoints[0]?.substring(0, 30) || ''
       ]);
 
@@ -336,13 +378,13 @@ export default function LeadDocumentViewer({
     if (warmLeads.length > 0 && yPos < 250) {
       doc.setFontSize(12);
       doc.setTextColor(245, 158, 11);
-      doc.text('⚡ WARM LEADS - Email First', 14, yPos);
+      doc.text('WARM LEADS - Email First', 14, yPos);
       yPos += 8;
 
       const warmData = warmLeads.slice(0, 15).map(l => [
         l.name.substring(0, 20),
         l.phone || 'N/A',
-        l.insight.bestContactTime.substring(0, 25),
+        l.insight.optimalEmailWindow.substring(0, 30),
         l.insight.painPoints[0]?.substring(0, 30) || ''
       ]);
 
@@ -381,29 +423,26 @@ export default function LeadDocumentViewer({
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
 
-    // Add sheets for each classification
     XLSX.utils.book_append_sheet(wb, ws, 'All Leads');
 
-    // Hot leads sheet
     const hotData = hotLeads.map(l => ({
       'Business': l.name,
       'Phone': l.phone || '',
-      'Best Time': l.insight.bestContactTime,
+      'Best Time': l.insight.optimalCallWindow,
       'Talking Points': l.insight.talkingPoints.join('; '),
     }));
     if (hotData.length > 0) {
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(hotData), '🔥 Hot Leads');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(hotData), 'Hot Leads');
     }
 
-    // Warm leads sheet
     const warmData = warmLeads.map(l => ({
       'Business': l.name,
       'Phone': l.phone || '',
-      'Best Time': l.insight.bestContactTime,
+      'Best Time': l.insight.optimalEmailWindow,
       'Talking Points': l.insight.talkingPoints.join('; '),
     }));
     if (warmData.length > 0) {
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(warmData), '⚡ Warm Leads');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(warmData), 'Warm Leads');
     }
 
     XLSX.writeFile(wb, `bamlead-grouped-leads-${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -425,344 +464,429 @@ export default function LeadDocumentViewer({
     day: 'numeric',
   });
 
-  const getClassificationColor = (classification: string) => {
-    switch (classification) {
-      case 'hot': return 'text-red-500 bg-red-500/10 border-red-500/30';
-      case 'warm': return 'text-amber-500 bg-amber-500/10 border-amber-500/30';
-      case 'cold': return 'text-blue-500 bg-blue-500/10 border-blue-500/30';
-      default: return '';
-    }
+  const totalEstimatedValue = useMemo(() => {
+    const hotValue = hotLeads.length * 3000;
+    const warmValue = warmLeads.length * 1500;
+    const coldValue = coldLeads.length * 750;
+    return hotValue + warmValue + coldValue;
+  }, [hotLeads, warmLeads, coldLeads]);
+
+  // Lead Card Component
+  const LeadCard = ({ lead, index }: { lead: typeof analyzedLeads[0]; index: number }) => {
+    const classColors = {
+      hot: {
+        border: 'border-l-red-500',
+        bg: 'bg-red-50',
+        text: 'text-red-700',
+        badge: 'bg-red-100 text-red-700 border-red-200',
+      },
+      warm: {
+        border: 'border-l-orange-500',
+        bg: 'bg-orange-50',
+        text: 'text-orange-700',
+        badge: 'bg-orange-100 text-orange-700 border-orange-200',
+      },
+      cold: {
+        border: 'border-l-blue-500',
+        bg: 'bg-blue-50',
+        text: 'text-blue-700',
+        badge: 'bg-blue-100 text-blue-700 border-blue-200',
+      },
+    };
+    const colors = classColors[lead.insight.classification];
+
+    return (
+      <div className={`bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow border-l-4 ${colors.border}`}>
+        <div className="p-4">
+          {/* Header Row */}
+          <div className="flex items-start justify-between mb-3">
+            <div className="flex items-center gap-3">
+              <Checkbox
+                checked={selectedLeadIds.has(lead.id)}
+                onCheckedChange={() => toggleLeadSelection(lead.id)}
+              />
+              <div>
+                <div className="flex items-center gap-2">
+                  <h4 className="font-semibold text-gray-900">{lead.name}</h4>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors.badge}`}>
+                    {lead.insight.classification.toUpperCase()}
+                  </span>
+                  {lead.insight.urgencyLevel === 'high' && (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-600 text-white animate-pulse">
+                      URGENT
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
+                  {lead.phone && (
+                    <span className="flex items-center gap-1">
+                      <Phone className="w-3 h-3" />
+                      {lead.phone}
+                    </span>
+                  )}
+                  {lead.rating && (
+                    <span className="flex items-center gap-1">
+                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                      {lead.rating}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-gray-500">Conversion</div>
+              <div className="font-bold text-green-600">{lead.insight.conversionProbability}%</div>
+              <div className="text-xs text-gray-500 mt-1">Est. Value</div>
+              <div className="font-semibold text-gray-900">{lead.insight.estimatedValue}</div>
+            </div>
+          </div>
+
+          {/* Contact Timing */}
+          <div className={`rounded-lg p-3 mb-3 ${colors.bg}`}>
+            <div className="flex items-center gap-2 mb-2">
+              <Timer className={`w-4 h-4 ${colors.text}`} />
+              <span className={`font-medium text-sm ${colors.text}`}>Optimal Contact Window</span>
+            </div>
+            <div className="grid md:grid-cols-2 gap-2 text-sm">
+              <div className="flex items-center gap-2">
+                <PhoneCall className="w-3 h-3 text-gray-500" />
+                <span className="text-gray-700">{lead.insight.optimalCallWindow}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <MailOpen className="w-3 h-3 text-gray-500" />
+                <span className="text-gray-700">{lead.insight.optimalEmailWindow}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Pain Points & Talking Points */}
+          <div className="grid md:grid-cols-2 gap-3 mb-3">
+            <div className="bg-gray-50 rounded-lg p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="w-4 h-4 text-red-500" />
+                <span className="font-medium text-sm text-gray-700">Pain Points</span>
+              </div>
+              <ul className="text-sm text-gray-600 space-y-1">
+                {lead.insight.painPoints.slice(0, 2).map((point, i) => (
+                  <li key={i} className="flex items-start gap-1">
+                    <span className="text-red-400 mt-0.5">•</span>
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Lightbulb className="w-4 h-4 text-green-500" />
+                <span className="font-medium text-sm text-gray-700">Talking Points</span>
+              </div>
+              <ul className="text-sm text-gray-600 space-y-1">
+                {lead.insight.talkingPoints.slice(0, 2).map((point, i) => (
+                  <li key={i} className="flex items-start gap-1">
+                    <span className="text-green-400 mt-0.5">•</span>
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          {/* AI Recommendation */}
+          <div className="bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-100 rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <Brain className="w-4 h-4 text-violet-600" />
+              <span className="font-medium text-sm text-violet-700">AI Script Recommendation</span>
+            </div>
+            <p className="text-sm text-gray-700 italic">"{lead.insight.aiRecommendation}"</p>
+          </div>
+        </div>
+      </div>
+    );
   };
 
-  const getClassificationIcon = (classification: string) => {
-    switch (classification) {
-      case 'hot': return <Flame className="w-5 h-5" />;
-      case 'warm': return <ThermometerSun className="w-5 h-5" />;
-      case 'cold': return <Snowflake className="w-5 h-5" />;
-      default: return null;
-    }
+  // Section Header Component
+  const SectionHeader = ({ 
+    type, 
+    leads, 
+    icon: Icon, 
+    description,
+    aiExplanation 
+  }: { 
+    type: 'hot' | 'warm' | 'cold';
+    leads: typeof analyzedLeads;
+    icon: any;
+    description: string;
+    aiExplanation: string;
+  }) => {
+    const colors = {
+      hot: { bg: 'bg-red-600', light: 'bg-red-50', border: 'border-red-200', text: 'text-red-700' },
+      warm: { bg: 'bg-orange-500', light: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700' },
+      cold: { bg: 'bg-blue-500', light: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700' },
+    };
+    const c = colors[type];
+
+    return (
+      <div className={`rounded-xl overflow-hidden border ${c.border} mb-4`}>
+        <div className={`${c.bg} text-white px-6 py-4`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Icon className="w-6 h-6" />
+              <div>
+                <h3 className="text-lg font-bold capitalize">{type} Leads</h3>
+                <p className="text-white/80 text-sm">{description}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <div className="text-2xl font-bold">{leads.length}</div>
+                <div className="text-xs text-white/70">leads</div>
+              </div>
+              <Button 
+                variant="secondary" 
+                size="sm" 
+                onClick={() => selectAllInSection(leads)}
+                className="bg-white/20 hover:bg-white/30 text-white border-0"
+              >
+                {leads.every(l => selectedLeadIds.has(l.id)) ? 'Deselect All' : 'Select All'}
+              </Button>
+            </div>
+          </div>
+        </div>
+        <div className={`${c.light} px-6 py-3 border-t ${c.border}`}>
+          <div className="flex items-start gap-2">
+            <Sparkles className={`w-4 h-4 mt-0.5 ${c.text}`} />
+            <div>
+              <span className={`text-sm font-medium ${c.text}`}>AI Intelligence: </span>
+              <span className="text-sm text-gray-700">{aiExplanation}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-full w-screen h-screen max-h-screen flex flex-col p-0 gap-0 rounded-none border-0" aria-describedby={undefined}>
+      <DialogContent className="max-w-[900px] w-[95vw] h-[90vh] flex flex-col p-0 gap-0 bg-gray-100 rounded-xl shadow-2xl" aria-describedby={undefined}>
         <VisuallyHidden>
-          <DialogTitle>Lead Intelligence Document</DialogTitle>
+          <DialogTitle>Lead Intelligence Report</DialogTitle>
+          <DialogDescription>AI-analyzed lead intelligence report with categorized leads</DialogDescription>
         </VisuallyHidden>
-        {/* Document Header */}
-        <div className="bg-gradient-to-r from-primary via-blue-600 to-indigo-600 text-white px-6 py-4 shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                <FileText className="w-6 h-6" />
+
+        {/* Loading State */}
+        {isLoading ? (
+          <div className="flex-1 flex items-center justify-center bg-white rounded-xl m-4">
+            <div className="text-center max-w-md">
+              <div className="w-16 h-16 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 animate-pulse">
+                <Brain className="w-8 h-8 text-white" />
               </div>
-              <div>
-                <h1 className="text-xl font-bold">Lead Intelligence Document</h1>
-                <p className="text-white/80 text-sm">{reportDate} • {searchQuery} in {location}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button variant="secondary" size="sm" onClick={() => setShowFieldSelector(!showFieldSelector)}>
-                <CheckCircle2 className="w-4 h-4 mr-2" />
-                Fields
-              </Button>
-              <Button variant="secondary" size="sm" onClick={handlePrint}>
-                <Printer className="w-4 h-4 mr-2" />
-                Print
-              </Button>
-              <Button variant="secondary" size="sm" onClick={exportToPDF}>
-                <Download className="w-4 h-4 mr-2" />
-                PDF
-              </Button>
-              <Button variant="secondary" size="sm" onClick={exportToExcel}>
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
-                Excel
-              </Button>
-              <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="text-white hover:bg-white/20">
-                <X className="w-5 h-5" />
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Field Selector Dropdown */}
-        {showFieldSelector && (
-          <div className="border-b bg-muted/50 px-6 py-3">
-            <p className="text-sm font-medium mb-2">Select fields to include in exports:</p>
-            <div className="flex flex-wrap gap-3">
-              {EXPORT_FIELDS.map(field => (
-                <label key={field.id} className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox
-                    checked={selectedFields.includes(field.id)}
-                    onCheckedChange={() => toggleField(field.id)}
-                  />
-                  <span className="text-sm">{field.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Summary Stats Bar */}
-        <div className="border-b bg-background px-6 py-3 shrink-0">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-muted-foreground" />
-              <span className="text-lg font-bold">{leads.length}</span>
-              <span className="text-muted-foreground">Total Leads</span>
-            </div>
-            <Separator orientation="vertical" className="h-6" />
-            <button
-              onClick={() => setActiveTab('hot')}
-              className={`flex items-center gap-2 px-3 py-1 rounded-full transition-all ${activeTab === 'hot' ? 'bg-red-500/20 ring-2 ring-red-500' : 'hover:bg-red-500/10'}`}
-            >
-              <Flame className="w-4 h-4 text-red-500" />
-              <span className="font-bold text-red-600">{hotLeads.length}</span>
-              <span className="text-sm text-muted-foreground">Hot</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('warm')}
-              className={`flex items-center gap-2 px-3 py-1 rounded-full transition-all ${activeTab === 'warm' ? 'bg-amber-500/20 ring-2 ring-amber-500' : 'hover:bg-amber-500/10'}`}
-            >
-              <ThermometerSun className="w-4 h-4 text-amber-500" />
-              <span className="font-bold text-amber-600">{warmLeads.length}</span>
-              <span className="text-sm text-muted-foreground">Warm</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('cold')}
-              className={`flex items-center gap-2 px-3 py-1 rounded-full transition-all ${activeTab === 'cold' ? 'bg-blue-500/20 ring-2 ring-blue-500' : 'hover:bg-blue-500/10'}`}
-            >
-              <Snowflake className="w-4 h-4 text-blue-500" />
-              <span className="font-bold text-blue-600">{coldLeads.length}</span>
-              <span className="text-sm text-muted-foreground">Cold</span>
-            </button>
-            <button
-              onClick={() => setActiveTab('all')}
-              className={`flex items-center gap-2 px-3 py-1 rounded-full transition-all ${activeTab === 'all' ? 'bg-primary/20 ring-2 ring-primary' : 'hover:bg-primary/10'}`}
-            >
-              <span className="text-sm font-medium">View All</span>
-            </button>
-
-            <div className="ml-auto flex items-center gap-3">
-              <Button variant="outline" size="sm" onClick={selectAllInGroup}>
-                {selectedLeadIds.size === displayLeads.length ? 'Deselect All' : 'Select All'}
-              </Button>
-              <Button onClick={handleProceedToVerify} className="gap-2">
-                <Zap className="w-4 h-4" />
-                Verify {selectedLeadIds.size > 0 ? selectedLeadIds.size : 'Selected'}
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Group Header when filtered */}
-        {activeTab !== 'all' && (
-          <div className={`px-6 py-3 border-b ${getClassificationColor(activeTab)}`}>
-            <div className="flex items-center gap-3">
-              {getClassificationIcon(activeTab)}
-              <div>
-                <h2 className="font-bold text-lg capitalize">{activeTab} Leads</h2>
-                <p className="text-sm opacity-80">
-                  {activeTab === 'hot' && 'High-intent prospects - Call today for best results!'}
-                  {activeTab === 'warm' && 'Good prospects - Email first, then follow up with a call'}
-                  {activeTab === 'cold' && 'Nurture leads - Send helpful content over time'}
-                </p>
+              <h2 className="text-xl font-bold text-gray-900 mb-2">Analyzing Your Leads</h2>
+              <p className="text-gray-600 mb-6">Our AI is processing {leads.length} leads to identify opportunities, pain points, and optimal contact strategies...</p>
+              <Progress value={Math.min(loadingProgress, 100)} className="h-2 mb-3" />
+              <div className="flex items-center justify-center gap-6 text-sm text-gray-500">
+                <span className={loadingProgress > 20 ? 'text-green-600' : ''}>
+                  {loadingProgress > 20 ? '✓' : '○'} Scoring leads
+                </span>
+                <span className={loadingProgress > 50 ? 'text-green-600' : ''}>
+                  {loadingProgress > 50 ? '✓' : '○'} Finding pain points
+                </span>
+                <span className={loadingProgress > 80 ? 'text-green-600' : ''}>
+                  {loadingProgress > 80 ? '✓' : '○'} Generating scripts
+                </span>
               </div>
             </div>
           </div>
-        )}
-
-        {/* Document Content - Lead Cards */}
-        <ScrollArea className="flex-1" ref={documentRef}>
-          <div className="p-6 space-y-4">
-            {displayLeads.map((lead, index) => (
-              <Card
-                key={lead.id}
-                className={`border-2 transition-all hover:shadow-lg ${
-                  selectedLeadIds.has(lead.id) ? 'ring-2 ring-primary border-primary' : ''
-                } ${getClassificationColor(lead.insight.classification)}`}
-              >
-                <CardContent className="p-4">
-                  <div className="flex gap-4">
-                    {/* Checkbox + Rank */}
-                    <div className="flex flex-col items-center gap-2">
-                      <Checkbox
-                        checked={selectedLeadIds.has(lead.id)}
-                        onCheckedChange={() => toggleLeadSelection(lead.id)}
-                      />
-                      <span className="text-xs text-muted-foreground">#{index + 1}</span>
-                    </div>
-
-                    {/* Main Content */}
-                    <div className="flex-1 space-y-3">
-                      {/* Header Row */}
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-lg font-bold">{lead.name}</h3>
-                            <Badge className={getClassificationColor(lead.insight.classification)}>
-                              {getClassificationIcon(lead.insight.classification)}
-                              <span className="ml-1 capitalize">{lead.insight.classification}</span>
-                            </Badge>
-                            {lead.insight.urgencyLevel === 'high' && (
-                              <Badge variant="destructive" className="animate-pulse">
-                                <Zap className="w-3 h-3 mr-1" />
-                                URGENT
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground">Contact: {lead.estimatedOwner}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-muted-foreground">Est. Value</p>
-                          <p className="font-bold text-green-600">{lead.insight.estimatedValue}</p>
-                        </div>
-                      </div>
-
-                      {/* Contact Info Row */}
-                      <div className="flex flex-wrap gap-4 text-sm">
-                        {lead.phone && (
-                          <div className="flex items-center gap-1">
-                            <Phone className="w-4 h-4 text-green-500" />
-                            <span>{lead.phone}</span>
-                          </div>
-                        )}
-                        {lead.address && (
-                          <div className="flex items-center gap-1">
-                            <MapPin className="w-4 h-4 text-blue-500" />
-                            <span className="truncate max-w-[250px]">{lead.address}</span>
-                          </div>
-                        )}
-                        {lead.website && (
-                          <div className="flex items-center gap-1">
-                            <Globe className="w-4 h-4 text-purple-500" />
-                            <span className="truncate max-w-[200px]">{lead.website}</span>
-                          </div>
-                        )}
-                        {lead.rating && (
-                          <div className="flex items-center gap-1">
-                            <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-                            <span>{lead.rating}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      <Separator />
-
-                      {/* AI Insights Row */}
-                      <div className="grid md:grid-cols-3 gap-4">
-                        {/* Best Contact Time */}
-                        <div className="bg-muted/50 rounded-lg p-3">
-                          <div className="flex items-center gap-2 text-primary mb-1">
-                            <Clock className="w-4 h-4" />
-                            <span className="font-semibold text-sm">Best Time to Contact</span>
-                          </div>
-                          <p className="text-sm">{lead.insight.bestContactTime}</p>
-                          <div className="flex items-center gap-1 mt-2">
-                            {lead.insight.bestContactMethod === 'call' && (
-                              <Badge variant="outline" className="text-green-600 border-green-600">
-                                <PhoneCall className="w-3 h-3 mr-1" /> Call First
-                              </Badge>
-                            )}
-                            {lead.insight.bestContactMethod === 'email' && (
-                              <Badge variant="outline" className="text-blue-600 border-blue-600">
-                                <MailOpen className="w-3 h-3 mr-1" /> Email First
-                              </Badge>
-                            )}
-                            {lead.insight.bestContactMethod === 'both' && (
-                              <>
-                                <Badge variant="outline" className="text-blue-600 border-blue-600">
-                                  <MailOpen className="w-3 h-3 mr-1" /> Email
-                                </Badge>
-                                <span className="text-xs">then</span>
-                                <Badge variant="outline" className="text-green-600 border-green-600">
-                                  <PhoneCall className="w-3 h-3 mr-1" /> Call
-                                </Badge>
-                              </>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Pain Points */}
-                        <div className="bg-muted/50 rounded-lg p-3">
-                          <div className="flex items-center gap-2 text-red-500 mb-1">
-                            <AlertTriangle className="w-4 h-4" />
-                            <span className="font-semibold text-sm">Pain Points</span>
-                          </div>
-                          <ul className="text-sm space-y-1">
-                            {lead.insight.painPoints.slice(0, 2).map((point, i) => (
-                              <li key={i} className="flex items-start gap-1">
-                                <span className="text-red-500">•</span>
-                                <span>{point}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-
-                        {/* Talking Points */}
-                        <div className="bg-muted/50 rounded-lg p-3">
-                          <div className="flex items-center gap-2 text-green-600 mb-1">
-                            <MessageSquare className="w-4 h-4" />
-                            <span className="font-semibold text-sm">Talking Points</span>
-                          </div>
-                          <ul className="text-sm space-y-1">
-                            {lead.insight.talkingPoints.slice(0, 2).map((point, i) => (
-                              <li key={i} className="flex items-start gap-1">
-                                <span className="text-green-500">•</span>
-                                <span>{point}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-
-                      {/* AI Recommendation */}
-                      <div className="bg-gradient-to-r from-violet-500/10 to-purple-500/10 rounded-lg p-3 border border-violet-500/30">
-                        <div className="flex items-center gap-2 text-violet-600 mb-1">
-                          <Brain className="w-4 h-4" />
-                          <span className="font-semibold text-sm">AI Recommendation</span>
-                        </div>
-                        <p className="text-sm italic">{lead.insight.aiRecommendation}</p>
-                      </div>
-                    </div>
+        ) : (
+          <>
+            {/* Document Header - Like a PDF */}
+            <div className="bg-white border-b px-6 py-4 shrink-0 rounded-t-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <FileText className="w-6 h-6 text-white" />
                   </div>
-                </CardContent>
-              </Card>
-            ))}
+                  <div>
+                    <h1 className="text-xl font-bold text-gray-900">Lead Intelligence Report</h1>
+                    <p className="text-gray-500 text-sm">{reportDate} • {searchQuery} in {location}</p>
+                  </div>
+                </div>
 
-            {displayLeads.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-muted-foreground">No leads in this category</p>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setShowFieldSelector(!showFieldSelector)}>
+                    <CheckCircle2 className="w-4 h-4 mr-2" />
+                    Fields
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handlePrint}>
+                    <Printer className="w-4 h-4 mr-2" />
+                    Print
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={exportToPDF}>
+                    <Download className="w-4 h-4 mr-2" />
+                    PDF
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={exportToExcel}>
+                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                    Excel
+                  </Button>
+                  <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
+                    <X className="w-5 h-5" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Field Selector Dropdown */}
+            {showFieldSelector && (
+              <div className="border-b bg-gray-50 px-6 py-3">
+                <p className="text-sm font-medium text-gray-700 mb-2">Select fields to include in exports:</p>
+                <div className="flex flex-wrap gap-3">
+                  {EXPORT_FIELDS.map(field => (
+                    <label key={field.id} className="flex items-center gap-2 cursor-pointer">
+                      <Checkbox
+                        checked={selectedFields.includes(field.id)}
+                        onCheckedChange={() => toggleField(field.id)}
+                      />
+                      <span className="text-sm text-gray-700">{field.label}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             )}
-          </div>
-        </ScrollArea>
 
-        {/* Footer Actions */}
-        <div className="border-t bg-muted/30 px-6 py-4 shrink-0">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              Showing {displayLeads.length} of {leads.length} leads
-              {selectedLeadIds.size > 0 && ` • ${selectedLeadIds.size} selected`}
-            </p>
-            <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={exportToPDF}>
-                <Download className="w-4 h-4 mr-2" />
-                Download PDF
-              </Button>
-              <Button variant="outline" onClick={exportToExcel}>
-                <FileSpreadsheet className="w-4 h-4 mr-2" />
-                Download Excel
-              </Button>
-              <Button onClick={handleProceedToVerify} size="lg" className="gap-2">
-                <Zap className="w-5 h-5" />
-                AI Verify & Find Emails
-                <ChevronRight className="w-4 h-4" />
-              </Button>
+            {/* PDF-like Document Content */}
+            <ScrollArea className="flex-1 p-4" ref={documentRef}>
+              <div className="bg-white rounded-xl shadow-sm border p-8 max-w-[800px] mx-auto">
+                {/* Executive Summary */}
+                <div className="border-b pb-6 mb-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <BarChart3 className="w-5 h-5 text-violet-600" />
+                    <h2 className="text-lg font-bold text-gray-900">Executive Summary</h2>
+                  </div>
+                  <div className="grid grid-cols-4 gap-4 mb-4">
+                    <div className="text-center p-4 bg-gray-50 rounded-lg">
+                      <div className="text-3xl font-bold text-gray-900">{leads.length}</div>
+                      <div className="text-sm text-gray-500">Total Leads</div>
+                    </div>
+                    <div className="text-center p-4 bg-red-50 rounded-lg border border-red-100">
+                      <div className="text-3xl font-bold text-red-600">{hotLeads.length}</div>
+                      <div className="text-sm text-red-600">Hot Leads</div>
+                    </div>
+                    <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-100">
+                      <div className="text-3xl font-bold text-orange-600">{warmLeads.length}</div>
+                      <div className="text-sm text-orange-600">Warm Leads</div>
+                    </div>
+                    <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-100">
+                      <div className="text-3xl font-bold text-blue-600">{coldLeads.length}</div>
+                      <div className="text-sm text-blue-600">Cold Leads</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex items-center gap-3">
+                      <DollarSign className="w-6 h-6 text-green-600" />
+                      <div>
+                        <div className="text-sm text-green-700">Estimated Pipeline Value</div>
+                        <div className="text-2xl font-bold text-green-700">${totalEstimatedValue.toLocaleString()}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm text-gray-600">Selected Leads</div>
+                      <div className="text-lg font-bold text-gray-900">{selectedLeadIds.size} / {leads.length}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Hot Leads Section */}
+                {hotLeads.length > 0 && (
+                  <div className="mb-8">
+                    <SectionHeader
+                      type="hot"
+                      leads={hotLeads}
+                      icon={Flame}
+                      description="Call immediately for highest conversion rates"
+                      aiExplanation="These leads show strong buying signals: missing websites, outdated platforms, or critical issues that are actively costing them customers. Our analysis indicates they're most receptive to outreach between 10-11 AM and 2-3 PM. Start with a phone call - email response rates are 40% lower for hot leads."
+                    />
+                    <div className="space-y-3">
+                      {hotLeads.map((lead, i) => (
+                        <LeadCard key={lead.id} lead={lead} index={i} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Warm Leads Section */}
+                {warmLeads.length > 0 && (
+                  <div className="mb-8">
+                    <SectionHeader
+                      type="warm"
+                      leads={warmLeads}
+                      icon={ThermometerSun}
+                      description="Email first, then follow up with a call in 2-3 days"
+                      aiExplanation="These leads have moderate need indicators: websites that function but could be improved, or partial digital presence. Data shows the most effective approach is a value-first email followed by a call 48-72 hours later. Best email times are Tuesday 9 AM or Thursday 10 AM - avoid Mondays and Fridays."
+                    />
+                    <div className="space-y-3">
+                      {warmLeads.map((lead, i) => (
+                        <LeadCard key={lead.id} lead={lead} index={i} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Cold Leads Section */}
+                {coldLeads.length > 0 && (
+                  <div className="mb-8">
+                    <SectionHeader
+                      type="cold"
+                      leads={coldLeads}
+                      icon={Snowflake}
+                      description="Add to nurture sequence with valuable content"
+                      aiExplanation="These leads have minimal immediate need but represent long-term opportunities. Add them to a 6-8 week email nurture sequence with educational content. 23% of cold leads convert within 6 months when properly nurtured. Focus on building trust before pitching services."
+                    />
+                    <div className="space-y-3">
+                      {coldLeads.map((lead, i) => (
+                        <LeadCard key={lead.id} lead={lead} index={i} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Footer Note */}
+                <div className="mt-8 pt-6 border-t text-center">
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <Shield className="w-4 h-4 text-gray-400" />
+                    <span className="text-xs text-gray-500">Generated by BamLead AI Intelligence Engine</span>
+                  </div>
+                  <p className="text-xs text-gray-400">Lead scores and recommendations are based on website analysis, industry benchmarks, and conversion data. Results may vary.</p>
+                </div>
+              </div>
+            </ScrollArea>
+
+            {/* Footer Actions */}
+            <div className="border-t bg-white px-6 py-4 shrink-0 rounded-b-xl">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-600">
+                  {selectedLeadIds.size > 0 
+                    ? `${selectedLeadIds.size} leads selected` 
+                    : `${hotLeads.length} hot leads ready for verification`}
+                </p>
+                <div className="flex items-center gap-3">
+                  <Button variant="outline" onClick={exportToPDF}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Download PDF
+                  </Button>
+                  <Button variant="outline" onClick={exportToExcel}>
+                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                    Download Excel
+                  </Button>
+                  <Button onClick={handleProceedToVerify} size="lg" className="gap-2 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700">
+                    <Zap className="w-5 h-5" />
+                    AI Verify & Find Emails
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
