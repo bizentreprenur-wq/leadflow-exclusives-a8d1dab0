@@ -13,14 +13,16 @@ import {
   ExternalLink,
   HelpCircle,
   Loader2,
-  TestTube
+  TestTube,
+  ArrowLeft
 } from 'lucide-react';
 
 interface VoiceAgentSettingsProps {
   onShowGuide?: () => void;
+  onBackToStep4?: () => void;
 }
 
-export default function VoiceAgentSettings({ onShowGuide }: VoiceAgentSettingsProps) {
+export default function VoiceAgentSettings({ onShowGuide, onBackToStep4 }: VoiceAgentSettingsProps) {
   const [agentId, setAgentId] = useState('');
   const [savedAgentId, setSavedAgentId] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -57,7 +59,16 @@ export default function VoiceAgentSettings({ onShowGuide }: VoiceAgentSettingsPr
     
     setTimeout(() => {
       setIsSaving(false);
-      toast.success(agentId ? 'Voice Agent ID saved!' : 'Voice Agent ID removed');
+      if (agentId) {
+        toast.success('Voice Agent ID saved! You can now make calls.', {
+          action: onBackToStep4 ? {
+            label: '📞 Start Calling',
+            onClick: onBackToStep4
+          } : undefined
+        });
+      } else {
+        toast.success('Voice Agent ID removed');
+      }
     }, 500);
   };
 
@@ -220,6 +231,17 @@ export default function VoiceAgentSettings({ onShowGuide }: VoiceAgentSettingsPr
             </a>
           </Button>
         </div>
+
+        {/* Back to Calls Button - show when configured and callback exists */}
+        {onBackToStep4 && isConfigured && (
+          <Button 
+            onClick={onBackToStep4}
+            className="w-full gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Call Queue
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
