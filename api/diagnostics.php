@@ -6,8 +6,10 @@
  * Access: https://bamlead.com/api/diagnostics.php?key=YOUR_CRON_SECRET_KEY
  */
 
+require_once __DIR__ . '/includes/functions.php';
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
+setCorsHeaders();
+handlePreflight();
 
 // Security check
 $cronKey = $_GET['key'] ?? '';
