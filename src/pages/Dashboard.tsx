@@ -359,9 +359,11 @@ export default function Dashboard() {
       setSearchProgress(100);
       toast.success(`Found ${finalResults.length} businesses!`);
       
-      // Move to Step 2 when results are found (removed auto-open report modal)
+      // Keep on Step 1 but show the spreadsheet popup with AI report
+      // Do NOT move to Step 2 (SimpleLeadViewer) - user wants only the popup
       if (finalResults.length > 0) {
-        setCurrentStep(2); // Move to Step 2
+        // Spreadsheet viewer is already open from line 303
+        // Stay on step 1, popup shows the report
       }
       
       // Start AI analysis in background (non-blocking)
