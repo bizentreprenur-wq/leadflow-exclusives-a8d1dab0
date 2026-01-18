@@ -7,6 +7,7 @@
 require_once __DIR__ . '/includes/database.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/ratelimit.php';
 require_once __DIR__ . '/config.php';
 
 header('Content-Type: application/json');
@@ -20,6 +21,9 @@ if (!$user) {
     echo json_encode(['success' => false, 'error' => 'Unauthorized']);
     exit();
 }
+
+// Enforce rate limiting
+enforceRateLimit($user, 'call_logs');
 
 $action = $_GET['action'] ?? '';
 $db = getDB();
