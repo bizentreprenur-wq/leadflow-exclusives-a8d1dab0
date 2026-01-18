@@ -1229,7 +1229,7 @@ export default function Dashboard() {
           component: <SettingsPanel 
             initialTab={settingsInitialTab} 
             onBackToStep4={() => {
-              setActiveTab('search');
+              setActiveTab('workflow');
               setCurrentStep(4);
             }}
           />,
