@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { sanitizeEmailHTML } from "@/lib/sanitize";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -892,7 +893,7 @@ export default function EmailComposerFlow({
                     <div className="p-3 rounded-lg bg-secondary/50 text-sm">
                       <div
                         className="prose prose-sm dark:prose-invert max-w-none line-clamp-4"
-                        dangerouslySetInnerHTML={{ __html: customBody }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(customBody) }}
                       />
                     </div>
                   </div>

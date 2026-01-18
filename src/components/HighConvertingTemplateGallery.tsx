@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { sanitizeEmailHTML } from "@/lib/sanitize";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -361,7 +362,7 @@ export default function HighConvertingTemplateGallery({
                   <ScrollArea className="h-[400px] border rounded-lg">
                     <div 
                       className="bg-background p-4"
-                      dangerouslySetInnerHTML={{ __html: previewTemplate.body_html }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(previewTemplate.body_html) }}
                     />
                   </ScrollArea>
                 </>

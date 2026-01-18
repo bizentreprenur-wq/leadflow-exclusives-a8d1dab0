@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { sanitizeEmailHTML } from '@/lib/sanitize';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -257,7 +258,7 @@ export default function EmailTemplateLibrary({ onUseTemplate }: EmailTemplateLib
                 <div
                   className="bg-muted/50 p-4 rounded-md text-sm prose prose-sm max-w-none"
                   dangerouslySetInnerHTML={{
-                    __html: previewTemplate?.body_html || '',
+                    __html: sanitizeEmailHTML(previewTemplate?.body_html || ''),
                   }}
                 />
               </div>

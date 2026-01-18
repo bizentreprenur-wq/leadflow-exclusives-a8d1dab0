@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { sanitizeEmailHTML } from "@/lib/sanitize";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -597,7 +598,7 @@ export default function EmailTemplateGallery({
                     </div>
                     <div
                       className="prose prose-sm dark:prose-invert max-w-none"
-                      dangerouslySetInnerHTML={{ __html: previewTemplate.body_html }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(previewTemplate.body_html) }}
                     />
                   </div>
 
