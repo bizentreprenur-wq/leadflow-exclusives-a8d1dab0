@@ -2,8 +2,8 @@
 /**
  * Health Check Endpoint
  * Returns JSON status to verify API is reachable and configured correctly
- * Deployed: 2026-01-10 v4
- * Trigger full API sync to Hostinger
+ * Deployed: 2026-01-18 v5
+ * GitHub sync test - verifying connection
  */
 
 header('Content-Type: application/json');
@@ -52,7 +52,7 @@ $allGood = $checks['includes_exists'] && $checks['auth_exists'] && $checks['data
 
 echo json_encode([
     'status' => $allGood ? 'ok' : 'degraded',
-    'version' => '1.0.2',
-    'deployed' => '2025-01-04T06:00:00Z',
+    'version' => '1.0.3',
+    'deployed' => '2026-01-18T00:00:00Z',
     'checks' => $checks,
 ], JSON_PRETTY_PRINT);
