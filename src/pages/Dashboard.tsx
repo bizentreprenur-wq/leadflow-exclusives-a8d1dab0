@@ -49,7 +49,6 @@ import { HIGH_CONVERTING_TEMPLATES } from '@/lib/highConvertingTemplates';
 import AutoFollowUpBuilder from '@/components/AutoFollowUpBuilder';
 import LeadResultsPanel from '@/components/LeadResultsPanel';
 import LeadDocumentViewer from '@/components/LeadDocumentViewer';
-import LeadSpreadsheetViewer from '@/components/LeadSpreadsheetViewer';
 import DataFieldSelector, { DATA_FIELD_OPTIONS } from '@/components/DataFieldSelector';
 import SettingsPanel from '@/components/SettingsPanel';
 import VoiceCallWidget from '@/components/VoiceCallWidget';
@@ -179,7 +178,6 @@ export default function Dashboard() {
   const [showVerifierWidget, setShowVerifierWidget] = useState(false);
   const [showResultsPanel, setShowResultsPanel] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
-  const [showSpreadsheetViewer, setShowSpreadsheetViewer] = useState(false); // Don't auto-open
   const [widgetLeads, setWidgetLeads] = useState<SearchResult[]>([]);
   const [verifiedWidgetLeads, setVerifiedWidgetLeads] = useState<any[]>([]);
   
@@ -280,8 +278,8 @@ export default function Dashboard() {
     setValidationErrors(errors);
     
     if (errors.query || errors.location || errors.platforms) {
-      // If the spreadsheet/report is open from a previous search, close it.
-      setShowSpreadsheetViewer(false);
+      // If a previous Intelligence Report is open, close it.
+      setShowReportModal(false);
       toast.error('Please fill in the highlighted fields above');
       return;
     }
@@ -295,14 +293,14 @@ export default function Dashboard() {
     setAiSummary(null);
     setAiStrategies(null);
     setShowAiGrouping(false);
+
+    // Ensure the Intelligence Report is closed while running a new search
+    setShowReportModal(false);
     
     // Clear sessionStorage for previous search data
     sessionStorage.removeItem('bamlead_search_results');
     sessionStorage.removeItem('bamlead_email_leads');
     localStorage.removeItem('bamlead_selected_leads');
-
-    // Keep the spreadsheet viewer closed; only open it once real results exist
-    setShowSpreadsheetViewer(false);
 
     try {
       let finalResults: SearchResult[] = [];
@@ -362,11 +360,11 @@ export default function Dashboard() {
 
       if (finalResults.length > 0) {
         toast.success(`Found ${finalResults.length} businesses!`);
-        // Do NOT auto-open the spreadsheet/report. User can open it manually.
-        setShowSpreadsheetViewer(false);
+        // Auto-open the Intelligence Report (PDF-style). The spreadsheet viewer is disabled.
+        setShowReportModal(true);
       } else {
         toast.info('No businesses found. Try a different search.');
-        setShowSpreadsheetViewer(false);
+        setShowReportModal(false);
       }
 
       // Start AI analysis in background (non-blocking)
@@ -391,7 +389,7 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error('Search error:', error);
-      setShowSpreadsheetViewer(false);
+      setShowReportModal(false);
       toast.error('Search failed. Please try again.');
     } finally {
       setIsSearching(false);
@@ -971,26 +969,17 @@ export default function Dashboard() {
                       )}
                     </Button>
 
-                    {/* Manual report access (no auto-popups) */}
+                    {/* Intelligence Report (auto-opens after search, manual access here too) */}
                     {searchResults.length > 0 && !isSearching && (
-                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setShowSpreadsheetViewer(true)}
-                          className="gap-2"
-                        >
-                          <FileText className="w-4 h-4" />
-                          Open Lead Report
-                        </Button>
+                      <div className="mt-3">
                         <Button
                           type="button"
                           variant="outline"
                           onClick={() => setShowReportModal(true)}
-                          className="gap-2"
+                          className="w-full gap-2"
                         >
                           <Brain className="w-4 h-4" />
-                          Intelligence Report
+                          Open Intelligence Report
                         </Button>
                       </div>
                     )}
@@ -1002,27 +991,26 @@ export default function Dashboard() {
         );
 
       case 2:
-        // Step 2 is now handled by the spreadsheet popup - redirect back to step 1
-        // The spreadsheet viewer (LeadSpreadsheetViewer) opens as a popup from Step 1
-        // If user somehow lands here, show a simple message with back button
+        // Step 2: simple transition page (the Intelligence Report opens automatically after search)
         return (
           <div className="flex flex-col items-center justify-center py-20 space-y-6">
             <div className="text-6xl">📋</div>
-            <h2 className="text-2xl font-bold">Leads Are in the Popup!</h2>
+            <h2 className="text-2xl font-bold">Your Intelligence Report Is Ready</h2>
             <p className="text-muted-foreground text-center max-w-md">
-              Your leads appear in the spreadsheet popup after searching. 
-              Click "Back to Search" to find more leads.
+              We generate a clean, PDF-style Intelligence Report after each successful search.
             </p>
-            <Button onClick={() => setCurrentStep(1)} className="gap-2">
-              <ArrowLeft className="w-4 h-4" />
-              Back to Search
-            </Button>
-            {searchResults.length > 0 && (
-              <Button variant="outline" onClick={() => setShowSpreadsheetViewer(true)} className="gap-2">
-                <FileText className="w-4 h-4" />
-                Open Lead Report
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button onClick={() => setCurrentStep(1)} className="gap-2">
+                <ArrowLeft className="w-4 h-4" />
+                Back to Search
               </Button>
-            )}
+              {searchResults.length > 0 && (
+                <Button variant="outline" onClick={() => setShowReportModal(true)} className="gap-2">
+                  <Brain className="w-4 h-4" />
+                  Open Intelligence Report
+                </Button>
+              )}
+            </div>
           </div>
         );
 
@@ -1572,28 +1560,6 @@ export default function Dashboard() {
         onProceedToVerify={handleResultsPanelProceed}
       />
 
-      {/* Lead Spreadsheet Viewer */}
-      <LeadSpreadsheetViewer
-        open={showSpreadsheetViewer}
-        onOpenChange={setShowSpreadsheetViewer}
-        leads={searchResults}
-        onProceedToVerify={(leads) => {
-          setShowSpreadsheetViewer(false);
-          setWidgetLeads(leads);
-          sessionStorage.setItem('leadsToVerify', JSON.stringify(leads));
-          setShowVerifierWidget(true);
-        }}
-        onSaveToDatabase={(leads) => {
-          // Save to session storage for now
-          sessionStorage.setItem('savedLeads', JSON.stringify(leads));
-          toast.success(`${leads.length} leads saved to database`);
-        }}
-        onSendToEmail={(leads) => {
-          setShowSpreadsheetViewer(false);
-          setVerifiedWidgetLeads(leads);
-          setShowEmailWidget(true);
-        }}
-      />
     </SidebarProvider>
   );
 }
