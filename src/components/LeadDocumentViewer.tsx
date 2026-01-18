@@ -732,10 +732,9 @@ export default function LeadDocumentViewer({
                     variant="ghost" 
                     size="icon" 
                     onClick={() => onOpenChange(false)}
-                    className="relative bg-orange-500 hover:bg-orange-600 text-white rounded-full w-10 h-10 shadow-lg animate-pulse"
+                    className="bg-orange-500 hover:bg-orange-600 text-white rounded-full w-10 h-10 shadow-lg"
                   >
                     <X className="w-5 h-5" />
-                    <span className="absolute inset-0 rounded-full bg-orange-400 animate-ping opacity-50" />
                   </Button>
                 </div>
               </div>
@@ -883,7 +882,7 @@ export default function LeadDocumentViewer({
                     <FileSpreadsheet className="w-4 h-4 mr-2" />
                     Download Excel
                   </Button>
-                  <Button onClick={handleProceedToVerify} size="lg" className="gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg">
+                  <Button onClick={handleProceedToVerify} size="lg" className="relative gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg animate-pulse">
                     <Zap className="w-5 h-5" />
                     AI Verify & Find Emails
                     <ChevronRight className="w-4 h-4" />
