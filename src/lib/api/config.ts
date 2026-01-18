@@ -2,7 +2,7 @@
 // Set VITE_API_URL environment variable to connect to your backend
 
 // Set to true to use mock data when backend is unavailable
-export const USE_MOCK_AUTH = true; // Temporarily enabled for testing
+export const USE_MOCK_AUTH = false; // Backend is live at bamlead.com/api
 
 // API Base URL
 export const API_BASE_URL = 'https://bamlead.com/api';
