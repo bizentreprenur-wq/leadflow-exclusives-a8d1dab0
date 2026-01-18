@@ -444,13 +444,23 @@ export default function Step4OutreachHub({
                     </div>
                     <h3 className="font-semibold text-amber-600 mb-2">Voice Agent Not Configured</h3>
                     <p className="text-sm text-muted-foreground mb-4">Connect your ElevenLabs agent to enable AI-powered calls</p>
-                    <Button 
-                      onClick={onOpenSettings} 
-                      className="gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white animate-pulse"
-                    >
-                      <Settings2 className="w-4 h-4" />
-                      Setup Voice Agent
-                    </Button>
+                    <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                      <Button 
+                        onClick={() => setShowWizard(true)} 
+                        className="gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        Setup Wizard
+                      </Button>
+                      <Button 
+                        onClick={onOpenSettings} 
+                        variant="outline"
+                        className="gap-2"
+                      >
+                        <Settings2 className="w-4 h-4" />
+                        Manual Setup
+                      </Button>
+                    </div>
                   </>
                 )}
               </CardContent>
