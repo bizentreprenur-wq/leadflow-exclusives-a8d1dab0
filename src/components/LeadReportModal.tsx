@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { VisuallyHidden } from '@/components/ui/visually-hidden';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -290,7 +291,10 @@ export default function LeadReportModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-[1400px] h-[90vh] p-0 overflow-hidden flex flex-col">
+      <DialogContent className="max-w-[95vw] w-[1400px] h-[90vh] p-0 overflow-hidden flex flex-col" aria-describedby={undefined}>
+        <VisuallyHidden>
+          <DialogTitle>Lead Intelligence Report</DialogTitle>
+        </VisuallyHidden>
         {/* PDF-style header */}
         <div className="bg-gradient-to-r from-primary via-blue-600 to-indigo-600 text-white px-8 py-6">
           <div className="flex items-start justify-between">

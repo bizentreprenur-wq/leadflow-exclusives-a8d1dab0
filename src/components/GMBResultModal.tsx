@@ -2,6 +2,7 @@ import { GMBResult } from "@/lib/api/gmb";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -27,6 +28,7 @@ const GMBResultModal = ({ result, open, onOpenChange }: GMBResultModalProps) => 
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl font-display pr-8">{result.name}</DialogTitle>
+          <DialogDescription>Business details and website analysis</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 pt-2">

@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { VisuallyHidden } from '@/components/ui/visually-hidden';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -504,7 +505,10 @@ export default function LeadSpreadsheetViewer({
     />
 
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-screen h-screen max-w-none m-0 p-0 rounded-none flex flex-col bg-background">
+      <DialogContent className="w-screen h-screen max-w-none m-0 p-0 rounded-none flex flex-col bg-background" aria-describedby={undefined}>
+        <VisuallyHidden>
+          <DialogTitle>AI-Powered Lead Intelligence</DialogTitle>
+        </VisuallyHidden>
         {/* Header - Compact */}
         <div className="flex items-center justify-between px-4 py-2 border-b bg-card">
           <div className="flex items-center gap-3">

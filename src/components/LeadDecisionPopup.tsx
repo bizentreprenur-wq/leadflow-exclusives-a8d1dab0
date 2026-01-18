@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -66,7 +67,7 @@ export default function LeadDecisionPopup({
   if (showAIReminder) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3 text-xl">
               <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center">
@@ -74,6 +75,7 @@ export default function LeadDecisionPopup({
               </div>
               Wait! AI Verify First?
             </DialogTitle>
+            <DialogDescription>Recommendation before proceeding with your action</DialogDescription>
           </DialogHeader>
           
           <div className="space-y-6 py-4">
@@ -126,7 +128,7 @@ export default function LeadDecisionPopup({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl" aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3 text-2xl">
             <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary/20 to-blue-500/20 flex items-center justify-center">
@@ -139,6 +141,7 @@ export default function LeadDecisionPopup({
               </p>
             </div>
           </DialogTitle>
+          <DialogDescription className="sr-only">Choose an action for your leads</DialogDescription>
         </DialogHeader>
         
         <div className="space-y-6 py-4">
