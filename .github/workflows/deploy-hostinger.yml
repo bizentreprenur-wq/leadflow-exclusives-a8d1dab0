@@ -3,62 +3,53 @@ name: Deploy to Hostinger (Safe - Protects /api/)
 on:
   push:
     branches: [main]
-  workflow_dispatch: # Allow manual trigger
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     
     steps:
-      - name: Checkout code
+      - name: 🚚 Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build project
-        run: npm run build
-
-      - name: Create .ftp-deploy-sync-state placeholder
+      - name: 🏗️ Install and Build (Fixes ERESOLVE error)
         run: |
-          echo "# FTP Deploy - NEVER delete api folder" > ./dist/.ftp-deploy-note.txt
+          # The next line uses --legacy-peer-deps to bypass the conflict
+          npm ci --legacy-peer-deps
+          npm run build
 
-      - name: Deploy Frontend to Hostinger
+      - name: 🚀 Deploy Frontend
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftp
+          port: 21
           local-dir: ./dist/
-          server-dir: /public_html/
+          server-dir: public_html/
           dangerous-clean-slate: false
           exclude: |
             **/api/**
-            **/api
-            api/**
-            api/
-            api
             **/config.php
-          log-level: standard
+            .git*
+            node_modules/**
 
-      - name: Deploy Backend API to Hostinger
+      - name: 🚀 Deploy Backend
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftp
+          port: 21
           local-dir: ./api/
-          server-dir: /public_html/api/
+          server-dir: public_html/api/
           dangerous-clean-slate: false
           exclude: |
             **/config.php
-            config.php
-          log-level: standard
