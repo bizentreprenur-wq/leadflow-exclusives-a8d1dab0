@@ -16,8 +16,19 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import {
   Database, ExternalLink, CheckCircle2, Loader2, AlertCircle,
-  Key, Link2, Users, Building2, Zap, ArrowRight, Settings2
+  Key, Link2, Users, Building2, Zap, ArrowRight, Settings2, Sparkles, Brain
 } from 'lucide-react';
+import { 
+  getCRMStatus, 
+  connectCRM, 
+  disconnectCRM, 
+  saveCRMApiKey, 
+  exportLeadsToCRM,
+  handleCRMCallbackParams,
+  CRMProvider as BackendCRMProvider,
+  CRMConnection
+} from '@/lib/api/crmIntegration';
+import { getAILeadScores, ScoredLead } from '@/lib/api/aiLeadScoring';
 
 interface SearchResult {
   id: string;
@@ -265,34 +276,82 @@ export default function CRMIntegrationModal({
   const [isExporting, setIsExporting] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [step, setStep] = useState<'connect' | 'export'>('connect');
+  const [crmConnections, setCrmConnections] = useState<Record<string, CRMConnection>>({});
+  const [isCheckingStatus, setIsCheckingStatus] = useState(true);
+  const [aiScores, setAiScores] = useState<ScoredLead[]>([]);
+  const [isAIScoring, setIsAIScoring] = useState(false);
 
-  // Load saved API keys from localStorage
+  // Check for OAuth callback params and load CRM status
+  useEffect(() => {
+    handleCRMCallbackParams();
+    loadCRMStatus();
+  }, []);
+
+  const loadCRMStatus = async () => {
+    setIsCheckingStatus(true);
+    const status = await getCRMStatus();
+    if (status.success && status.connections) {
+      setCrmConnections(status.connections);
+      const connected = new Set<CRMProvider>();
+      Object.entries(status.connections).forEach(([key, value]) => {
+        if (value.connected) connected.add(key as CRMProvider);
+      });
+      setConnectedCRMs(connected);
+      if (connected.size > 0) setStep('export');
+    }
+    setIsCheckingStatus(false);
+  };
+
+  // Load AI scores when entering export step
+  useEffect(() => {
+    if (step === 'export' && leads.length > 0 && aiScores.length === 0) {
+      loadAIScores();
+    }
+  }, [step, leads]);
+
+  const loadAIScores = async () => {
+    setIsAIScoring(true);
+    const result = await getAILeadScores(leads);
+    if (result.success && result.results) {
+      setAiScores(result.results);
+    }
+    setIsAIScoring(false);
+  };
+
+  // Load saved API keys from localStorage (fallback)
   useEffect(() => {
     const savedKeys = localStorage.getItem('crm_api_keys');
     if (savedKeys) {
       try {
         const parsed = JSON.parse(savedKeys);
         setApiKeys(parsed);
-        const connected = new Set<CRMProvider>();
-        Object.entries(parsed).forEach(([key, value]) => {
-          if (value) connected.add(key as CRMProvider);
-        });
-        setConnectedCRMs(connected);
-        if (connected.size > 0) setStep('export');
       } catch (e) {
         console.error('Failed to parse saved CRM keys');
       }
     }
   }, []);
 
-  const handleSaveApiKey = (provider: CRMProvider) => {
+  const handleSaveApiKey = async (provider: CRMProvider) => {
     const key = apiKeys[provider];
     if (!key.trim()) {
       toast.error('Please enter an API key');
       return;
     }
 
-    // Save to localStorage (in production, this should go to a secure backend)
+    // Try to save via backend first
+    const isBackendProvider = ['hubspot', 'salesforce', 'pipedrive'].includes(provider);
+    if (isBackendProvider) {
+      const result = await saveCRMApiKey(provider as BackendCRMProvider, key);
+      if (result.success) {
+        setConnectedCRMs(prev => new Set([...prev, provider]));
+        toast.success(`${CRM_CONFIGS.find(c => c.id === provider)?.name} connected successfully!`);
+        setStep('export');
+        loadCRMStatus();
+        return;
+      }
+    }
+
+    // Fallback to localStorage for other CRMs
     const updatedKeys = { ...apiKeys, [provider]: key };
     localStorage.setItem('crm_api_keys', JSON.stringify(updatedKeys));
     
@@ -301,7 +360,36 @@ export default function CRMIntegrationModal({
     setStep('export');
   };
 
-  const handleDisconnect = (provider: CRMProvider) => {
+  const handleOAuthConnect = async (provider: CRMProvider) => {
+    if (!['hubspot', 'salesforce', 'pipedrive'].includes(provider)) {
+      toast.info('This CRM uses API key authentication');
+      return;
+    }
+    
+    const result = await connectCRM(provider as BackendCRMProvider);
+    if (result.requires_api_key) {
+      toast.info('OAuth not configured. Please use API key instead.');
+    }
+  };
+
+  const handleDisconnect = async (provider: CRMProvider) => {
+    const isBackendProvider = ['hubspot', 'salesforce', 'pipedrive'].includes(provider);
+    
+    if (isBackendProvider) {
+      const result = await disconnectCRM(provider as BackendCRMProvider);
+      if (result.success) {
+        setConnectedCRMs(prev => {
+          const next = new Set(prev);
+          next.delete(provider);
+          return next;
+        });
+        toast.success(`${CRM_CONFIGS.find(c => c.id === provider)?.name} disconnected`);
+        loadCRMStatus();
+        return;
+      }
+    }
+
+    // Fallback for other CRMs
     const updatedKeys = { ...apiKeys, [provider]: '' };
     setApiKeys(updatedKeys);
     localStorage.setItem('crm_api_keys', JSON.stringify(updatedKeys));
@@ -468,42 +556,51 @@ export default function CRMIntegrationModal({
     setExportProgress(0);
 
     try {
+      const isBackendProvider = ['hubspot', 'salesforce', 'pipedrive'].includes(selectedCRM);
       let results;
-      switch (selectedCRM) {
-        case 'hubspot':
-          results = await exportToHubSpot(leads);
-          break;
-        case 'salesforce':
-          results = await exportToSalesforce(leads);
-          break;
-        case 'pipedrive':
-          results = await exportToPipedrive(leads);
-          break;
-        case 'zoho':
-        case 'freshsales':
-        case 'close':
-        case 'monday':
-        case 'airtable':
-        case 'notion':
-        case 'systeme':
-          results = await exportToGenericCRM(leads, selectedCRM);
-          break;
-        default:
-          results = await exportToGenericCRM(leads, selectedCRM);
+      
+      if (isBackendProvider) {
+        // Use backend API for real CRM export
+        setExportProgress(50);
+        const exportResult = await exportLeadsToCRM(selectedCRM as BackendCRMProvider, leads);
+        setExportProgress(100);
+        
+        if (!exportResult.success) {
+          if (exportResult.needs_auth) {
+            setStep('connect');
+          }
+          throw new Error(exportResult.error);
+        }
+        
+        results = exportResult.results;
+      } else {
+        // Use existing client-side logic for other CRMs
+        switch (selectedCRM) {
+          case 'hubspot':
+            results = await exportToHubSpot(leads);
+            break;
+          case 'salesforce':
+            results = await exportToSalesforce(leads);
+            break;
+          case 'pipedrive':
+            results = await exportToPipedrive(leads);
+            break;
+          default:
+            results = await exportToGenericCRM(leads, selectedCRM);
+        }
+        setExportProgress(100);
       }
-
-      setExportProgress(100);
 
       if (results && results.success > 0) {
         toast.success(
           `Exported ${results.success} leads to ${CRM_CONFIGS.find(c => c.id === selectedCRM)?.name}!`,
           { description: results.failed > 0 ? `${results.failed} failed` : undefined }
         );
-      } else {
+      } else if (!isBackendProvider) {
         toast.error('Export failed. Please check your API key and try again.');
       }
-    } catch (error) {
-      toast.error('Export failed. Please check your connection and try again.');
+    } catch (error: any) {
+      toast.error(error.message || 'Export failed. Please check your connection and try again.');
     } finally {
       setIsExporting(false);
       setExportProgress(0);
