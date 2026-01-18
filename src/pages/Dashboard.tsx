@@ -1356,28 +1356,27 @@ export default function Dashboard() {
               {/* Intelligence Report Button - only show when we have leads */}
               {searchResults.length > 0 && (
                 <div className="relative">
-                  {/* Pulsing glow effect behind button */}
-                  <div className="absolute inset-0 bg-primary/30 rounded-md blur-md animate-pulse" />
+                  {/* Pulsing glow effect behind button - ORANGE */}
+                  <div className="absolute inset-0 bg-orange-500/30 rounded-md blur-md animate-pulse" />
                   
                   <Button 
-                    variant="outline" 
                     size="sm" 
                     onClick={() => setShowReportModal(true)}
-                    className="relative gap-2 border-primary text-primary hover:bg-primary/10 bg-primary/5 shadow-lg shadow-primary/20"
+                    className="relative gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white border-0 shadow-lg shadow-orange-500/30 animate-pulse"
                   >
                     {/* Animated icon */}
-                    <FileText className="w-4 h-4 animate-pulse" />
+                    <FileText className="w-4 h-4" />
                     <span className="hidden md:inline font-semibold">Intelligence Report</span>
                     
                     {/* Lead count badge with pulse */}
-                    <Badge className="ml-1 bg-primary text-primary-foreground text-xs animate-pulse">
+                    <Badge className="ml-1 bg-white/20 text-white text-xs">
                       {searchResults.length}
                     </Badge>
                     
-                    {/* NEW indicator dot */}
+                    {/* NEW indicator dot - ORANGE */}
                     <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-orange-500"></span>
                     </span>
                   </Button>
                 </div>
