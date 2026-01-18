@@ -5,6 +5,7 @@
  */
 
 require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/includes/ratelimit.php';
 header('Content-Type: application/json');
 setCorsHeaders();
 handlePreflight();
@@ -19,6 +20,9 @@ if (!$user) {
     echo json_encode(['error' => 'Authentication required']);
     exit;
 }
+
+// Enforce rate limiting
+enforceRateLimit($user, 'google_drive');
 
 // Check if Google Drive is configured
 if (empty(GOOGLE_DRIVE_CLIENT_ID) || empty(GOOGLE_DRIVE_CLIENT_SECRET)) {
