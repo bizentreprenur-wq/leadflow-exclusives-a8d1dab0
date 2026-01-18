@@ -122,9 +122,10 @@ export default function EmailSetupFlow({
               <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
                 <Server className="w-10 h-10 text-primary" />
               </div>
-              <h2 className="text-2xl font-bold mb-2">Step 1: Configure Email Server</h2>
-              <p className="text-muted-foreground max-w-md mx-auto">
-                Before sending emails, you need to set up your SMTP server. This tells BamLead how to send your emails.
+              <h2 className="text-2xl font-bold mb-2">Step 1: Configure Your Email Server</h2>
+              <p className="text-muted-foreground max-w-lg mx-auto">
+                Emails are sent through <strong>your own SMTP server</strong> (Gmail, Outlook, custom domain). 
+                This ensures better deliverability and keeps your brand consistent.
               </p>
             </div>
 

@@ -62,6 +62,7 @@ import CloudCRMIntegrationsPanel from '@/components/CloudCRMIntegrationsPanel';
 import CRMIntegrationModal from '@/components/CRMIntegrationModal';
 import Step4OutreachHub from '@/components/Step4OutreachHub';
 import AILeadScoringDashboard from '@/components/AILeadScoringDashboard';
+import UserManualDownload from '@/components/UserManualDownload';
 
 interface SearchResult {
   id: string;
@@ -1195,6 +1196,23 @@ export default function Dashboard() {
           iconColor: 'text-amber-500',
           iconBg: 'bg-amber-500/10',
           component: <AIJourneyExplainer />,
+        };
+      case 'user-manual':
+        return {
+          title: 'User Manual',
+          description: 'Download your comprehensive PDF guide',
+          icon: FileText,
+          iconColor: 'text-primary',
+          iconBg: 'bg-primary/10',
+          component: (
+            <div className="max-w-2xl mx-auto">
+              <UserManualDownload 
+                isPaidUser={user?.subscription_status === 'active' || user?.email === 'admin@bamlead.com'}
+                planName="Pro"
+                onUpgrade={() => setActiveTab('subscription')}
+              />
+            </div>
+          ),
         };
       case 'scalability':
         return {

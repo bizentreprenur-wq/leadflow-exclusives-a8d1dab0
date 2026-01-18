@@ -118,6 +118,13 @@ const otherTools = [
 
 const resourceTools = [
   {
+    id: 'user-manual',
+    title: 'User Manual',
+    icon: FileText,
+    description: 'Download PDF guide',
+    badge: 'PDF',
+  },
+  {
     id: 'ai-journey',
     title: 'AI Features Guide',
     icon: Brain,
