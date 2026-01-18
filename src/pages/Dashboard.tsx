@@ -958,23 +958,10 @@ export default function Dashboard() {
             <p className="text-muted-foreground text-center max-w-md">
               We generate a clean, PDF-style Intelligence Report after each successful search.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button onClick={() => setCurrentStep(1)} className="gap-2">
-                <ArrowLeft className="w-4 h-4" />
-                Back to Search
-              </Button>
-              {searchResults.length > 0 && (
-                <Button 
-                  onClick={() => setShowReportModal(true)} 
-                  className="relative gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white border-0 shadow-lg animate-pulse"
-                >
-                  <Brain className="w-4 h-4" />
-                  Open Intelligence Report
-                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-orange-400 rounded-full animate-ping" />
-                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full" />
-                </Button>
-              )}
-            </div>
+            <Button onClick={() => setCurrentStep(1)} className="gap-2">
+              <ArrowLeft className="w-4 h-4" />
+              Back to Search
+            </Button>
           </div>
         );
 
