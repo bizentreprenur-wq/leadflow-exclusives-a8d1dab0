@@ -298,10 +298,10 @@ export default function Dashboard() {
     sessionStorage.removeItem('bamlead_search_results');
     sessionStorage.removeItem('bamlead_email_leads');
     localStorage.removeItem('bamlead_selected_leads');
-    
-    // Open spreadsheet viewer immediately to show loading state
-    setShowSpreadsheetViewer(true);
-    
+
+    // Keep the spreadsheet viewer closed; only open it once real results exist
+    setShowSpreadsheetViewer(false);
+
     try {
       let finalResults: SearchResult[] = [];
       
@@ -357,15 +357,16 @@ export default function Dashboard() {
       
       setSearchResults(finalResults);
       setSearchProgress(100);
-      toast.success(`Found ${finalResults.length} businesses!`);
-      
-      // Keep on Step 1 but show the spreadsheet popup with AI report
-      // Do NOT move to Step 2 (SimpleLeadViewer) - user wants only the popup
+
       if (finalResults.length > 0) {
-        // Spreadsheet viewer is already open from line 303
-        // Stay on step 1, popup shows the report
+        toast.success(`Found ${finalResults.length} businesses!`);
+        // Open the spreadsheet only when we actually have results
+        setShowSpreadsheetViewer(true);
+      } else {
+        toast.info('No businesses found. Try a different search.');
+        setShowSpreadsheetViewer(false);
       }
-      
+
       // Start AI analysis in background (non-blocking)
       if (finalResults.length > 0) {
         setIsAnalyzing(true);
@@ -388,6 +389,7 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error('Search error:', error);
+      setShowSpreadsheetViewer(false);
       toast.error('Search failed. Please try again.');
     } finally {
       setIsSearching(false);
