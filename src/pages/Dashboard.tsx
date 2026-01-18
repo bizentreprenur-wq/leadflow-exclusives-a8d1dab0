@@ -280,6 +280,8 @@ export default function Dashboard() {
     setValidationErrors(errors);
     
     if (errors.query || errors.location || errors.platforms) {
+      // If the spreadsheet/report is open from a previous search, close it.
+      setShowSpreadsheetViewer(false);
       toast.error('Please fill in the highlighted fields above');
       return;
     }
@@ -360,8 +362,8 @@ export default function Dashboard() {
 
       if (finalResults.length > 0) {
         toast.success(`Found ${finalResults.length} businesses!`);
-        // Open the spreadsheet only when we actually have results
-        setShowSpreadsheetViewer(true);
+        // Do NOT auto-open the spreadsheet/report. User can open it manually.
+        setShowSpreadsheetViewer(false);
       } else {
         toast.info('No businesses found. Try a different search.');
         setShowSpreadsheetViewer(false);
@@ -968,6 +970,30 @@ export default function Dashboard() {
                         </>
                       )}
                     </Button>
+
+                    {/* Manual report access (no auto-popups) */}
+                    {searchResults.length > 0 && !isSearching && (
+                      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setShowSpreadsheetViewer(true)}
+                          className="gap-2"
+                        >
+                          <FileText className="w-4 h-4" />
+                          Open Lead Report
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setShowReportModal(true)}
+                          className="gap-2"
+                        >
+                          <Brain className="w-4 h-4" />
+                          Intelligence Report
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
