@@ -11,7 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import {
   FileText, Download, Printer, X, Users, Globe, Phone, MapPin,
   Star, AlertTriangle, CheckCircle2, Flame, Snowflake, Brain, Target,

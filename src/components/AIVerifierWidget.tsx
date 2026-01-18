@@ -12,7 +12,7 @@ import {
   Calendar, BarChart3, Zap, Users, Send, Star, Download, Cloud, FileSpreadsheet
 } from 'lucide-react';
 import { VerificationSkeleton } from '@/components/ui/loading-skeletons';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { getGoogleDriveAuthUrl, exportToGoogleDrive, checkGoogleDriveStatus } from '@/lib/api/googleDrive';
 
 interface Lead {
