@@ -7,12 +7,13 @@ import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
   Brain, Sparkles, TrendingUp, Phone, Mail, Calendar, Database,
   Download, FileText, Send, ChevronRight, Flame, ThermometerSun,
   Snowflake, Target, Zap, BarChart3, Users, Clock, ArrowUpRight,
-  CheckCircle2, AlertCircle, Loader2, RefreshCw, Filter, Star
+  CheckCircle2, AlertCircle, Loader2, RefreshCw, Filter, Star, Wand2
 } from 'lucide-react';
 import { 
   getAILeadScores, 
@@ -22,6 +23,7 @@ import {
   LeadPrioritization, 
   LeadInsights 
 } from '@/lib/api/aiLeadScoring';
+import AIEmailWriter from '@/components/AIEmailWriter';
 
 interface Lead {
   id: string;
@@ -66,6 +68,11 @@ export default function AILeadScoringDashboard({
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState('all');
   const [aiMethod, setAiMethod] = useState<string>('');
+  
+  // AI Email Writer modal state
+  const [showEmailWriter, setShowEmailWriter] = useState(false);
+  const [emailWriterLead, setEmailWriterLead] = useState<Lead | null>(null);
+  const [emailWriterScoredLead, setEmailWriterScoredLead] = useState<ScoredLead | null>(null);
 
   useEffect(() => {
     if (leads.length > 0) {
@@ -138,6 +145,23 @@ export default function AILeadScoringDashboard({
 
   const getSelectedLeadObjects = () => {
     return leads.filter(l => selectedLeads.has(l.id));
+  };
+
+  const openEmailWriter = (lead: Lead, scored?: ScoredLead) => {
+    setEmailWriterLead(lead);
+    setEmailWriterScoredLead(scored || null);
+    setShowEmailWriter(true);
+  };
+
+  const handleEmailWriterUseTemplate = (subject: string, body: string) => {
+    // Store in localStorage for EmailSetupFlow to pick up
+    localStorage.setItem('ai_email_template', JSON.stringify({ subject, body }));
+    setShowEmailWriter(false);
+    
+    // Navigate to email with selected leads
+    if (emailWriterLead) {
+      onEmailLeads([emailWriterLead]);
+    }
   };
 
   const getPriorityIcon = (priority: string) => {
@@ -275,6 +299,19 @@ export default function AILeadScoringDashboard({
                   disabled={selectedLeads.size === 0}
                 >
                   <Mail className="w-3 h-3" /> Email
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  className="gap-1 border-purple-500/50 text-purple-500 hover:bg-purple-500/10"
+                  onClick={() => {
+                    const selected = getSelectedLeadObjects();
+                    const scored = scoredLeads.find(s => s.id === selected[0]?.id);
+                    if (selected[0]) openEmailWriter(selected[0], scored);
+                  }}
+                  disabled={selectedLeads.size === 0}
+                >
+                  <Wand2 className="w-3 h-3" /> AI Write
                 </Button>
               </div>
               
@@ -639,6 +676,28 @@ export default function AILeadScoringDashboard({
           </Card>
         </div>
       </div>
+
+      {/* AI Email Writer Modal */}
+      <Dialog open={showEmailWriter} onOpenChange={setShowEmailWriter}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wand2 className="w-5 h-5 text-primary" />
+              AI Email Writer
+            </DialogTitle>
+          </DialogHeader>
+          {emailWriterLead && (
+            <AIEmailWriter
+              lead={emailWriterLead}
+              scoredLead={emailWriterScoredLead || undefined}
+              painPoints={insights?.painPoints || []}
+              mode="advanced"
+              onUseTemplate={handleEmailWriterUseTemplate}
+              onClose={() => setShowEmailWriter(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
