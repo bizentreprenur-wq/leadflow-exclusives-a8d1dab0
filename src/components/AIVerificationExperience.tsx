@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -192,7 +193,7 @@ export default function AIVerificationExperience({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" aria-describedby={undefined}>
         {/* CREDITS PHASE */}
         {phase === "credits" && (
           <>
@@ -208,9 +209,9 @@ export default function AIVerificationExperience({
                 </div>
               </div>
               <DialogTitle className="text-2xl font-bold">AI Verification Credits</DialogTitle>
-              <p className="text-muted-foreground mt-2">
+              <DialogDescription>
                 Review your credits before starting verification
-              </p>
+              </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">

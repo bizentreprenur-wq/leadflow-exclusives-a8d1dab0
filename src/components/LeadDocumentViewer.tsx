@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { VisuallyHidden } from '@/components/ui/visually-hidden';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -444,7 +445,10 @@ export default function LeadDocumentViewer({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-full w-screen h-screen max-h-screen flex flex-col p-0 gap-0 rounded-none border-0">
+      <DialogContent className="max-w-full w-screen h-screen max-h-screen flex flex-col p-0 gap-0 rounded-none border-0" aria-describedby={undefined}>
+        <VisuallyHidden>
+          <DialogTitle>Lead Intelligence Document</DialogTitle>
+        </VisuallyHidden>
         {/* Document Header */}
         <div className="bg-gradient-to-r from-primary via-blue-600 to-indigo-600 text-white px-6 py-4 shrink-0">
           <div className="flex items-center justify-between">

@@ -14,6 +14,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -596,9 +597,10 @@ export default function CallLogHistory() {
 
       {/* Notes Dialog */}
       <Dialog open={!!selectedLog} onOpenChange={() => setSelectedLog(null)}>
-        <DialogContent>
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>Call Notes</DialogTitle>
+            <DialogDescription>Add or edit notes for this call</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {selectedLog && (

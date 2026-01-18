@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { VisuallyHidden } from '@/components/ui/visually-hidden';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -359,7 +360,10 @@ export default function AutoCampaignWizard({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl p-0 gap-0 overflow-hidden bg-background">
+      <DialogContent className="max-w-4xl p-0 gap-0 overflow-hidden bg-background" aria-describedby={undefined}>
+        <VisuallyHidden>
+          <DialogTitle>Auto Campaign Wizard</DialogTitle>
+        </VisuallyHidden>
         <div className="flex h-[600px]">
           {/* Sidebar */}
           <div className="w-56 bg-muted/30 border-r border-border p-6 flex flex-col">
