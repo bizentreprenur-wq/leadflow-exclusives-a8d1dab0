@@ -55,6 +55,38 @@ export default function EmailSetupFlow({
     return Boolean(config.username && config.password);
   });
 
+  // Load AI-generated email template from AIEmailWriter if available
+  useEffect(() => {
+    const savedAiTemplate = localStorage.getItem('ai_email_template');
+    if (savedAiTemplate && !selectedTemplate) {
+      try {
+        const { subject, body } = JSON.parse(savedAiTemplate);
+        if (subject && body) {
+          // Create a template object from the AI-generated content
+          setSelectedTemplate({
+            id: 'ai-generated',
+            name: 'AI-Generated Template',
+            subject,
+            body,
+            category: 'ai-generated',
+            conversionRate: '0%',
+            useCase: 'Custom AI-generated email',
+          });
+          // Auto-skip to send phase if SMTP is configured
+          if (smtpConfigured) {
+            setCurrentPhase('send');
+          } else {
+            setCurrentPhase('template');
+          }
+          // Clear the stored template after loading
+          localStorage.removeItem('ai_email_template');
+        }
+      } catch (e) {
+        console.error('Failed to parse AI email template:', e);
+      }
+    }
+  }, [smtpConfigured, selectedTemplate]);
+
   // Convert leads to email format
   const emailLeads: LeadForEmail[] = leads.map(l => ({
     email: l.email || '',
@@ -65,6 +97,13 @@ export default function EmailSetupFlow({
   }));
 
   const leadsWithEmail = emailLeads.filter(l => l.email);
+
+  // Persist email leads to sessionStorage for Step 4 access
+  useEffect(() => {
+    if (emailLeads.length > 0) {
+      sessionStorage.setItem('bamlead_email_leads', JSON.stringify(emailLeads));
+    }
+  }, [emailLeads]);
 
   // Demo-only visual sending simulation (does not send anything)
   const [demoSentCount, setDemoSentCount] = useState(0);
