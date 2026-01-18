@@ -62,6 +62,7 @@ interface SimpleLeadViewerProps {
   onOpenReport?: () => void;
   onOpenCRM?: () => void;
   onOpenSchedule?: () => void;
+  onOpenAIScoring?: () => void;
   isLoading?: boolean;
   loadingProgress?: number;
 }
@@ -74,6 +75,7 @@ export default function SimpleLeadViewer({
   onOpenReport,
   onOpenCRM,
   onOpenSchedule,
+  onOpenAIScoring,
   isLoading = false,
   loadingProgress = 0,
 }: SimpleLeadViewerProps) {
@@ -290,7 +292,7 @@ export default function SimpleLeadViewer({
         <div className="flex items-center gap-3">
           <Button 
             className="gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-semibold animate-pulse"
-            onClick={() => toast.info('AI Verify coming soon - validates phone & email accuracy!')}
+            onClick={() => onOpenAIScoring ? onOpenAIScoring() : toast.info('AI Scoring Dashboard opening...')}
           >
             <Sparkles className="w-4 h-4" />
             ✨ AI VERIFY LEADS ✨
