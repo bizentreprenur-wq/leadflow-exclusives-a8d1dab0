@@ -72,8 +72,15 @@ export default function Step4OutreachHub({
   onOpenSettings,
   onOpenCRMModal 
 }: Step4OutreachHubProps) {
+  const [agentId, setAgentId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  
+  // Check if Voice Agent is configured on mount
+  useEffect(() => {
+    const savedAgentId = localStorage.getItem('elevenlabs_agent_id');
+    setAgentId(savedAgentId);
+  }, []);
   const [selectedCRM, setSelectedCRM] = useState<string | null>(null);
   const [meetings, setMeetings] = useState<LocalMeeting[]>([]);
   const [googleEvents, setGoogleEvents] = useState<any[]>([]);
@@ -301,10 +308,30 @@ export default function Step4OutreachHub({
       {/* Tabs Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid grid-cols-4 w-full max-w-2xl mx-auto bg-muted/50 p-1">
-          <TabsTrigger value="overview" className="gap-2"><Sparkles className="w-4 h-4" />Overview</TabsTrigger>
-          <TabsTrigger value="calls" className="gap-2"><Phone className="w-4 h-4" />Calls</TabsTrigger>
-          <TabsTrigger value="calendar" className="gap-2"><CalendarIcon className="w-4 h-4" />Calendar</TabsTrigger>
-          <TabsTrigger value="crm" className="gap-2"><Database className="w-4 h-4" />CRM</TabsTrigger>
+          <TabsTrigger 
+            value="overview" 
+            className="gap-2 data-[state=active]:bg-violet-500 data-[state=active]:text-white transition-all"
+          >
+            <Sparkles className="w-4 h-4" />Overview
+          </TabsTrigger>
+          <TabsTrigger 
+            value="calls" 
+            className="gap-2 data-[state=active]:bg-green-500 data-[state=active]:text-white transition-all"
+          >
+            <Phone className="w-4 h-4" />Calls
+          </TabsTrigger>
+          <TabsTrigger 
+            value="calendar" 
+            className="gap-2 data-[state=active]:bg-blue-500 data-[state=active]:text-white transition-all"
+          >
+            <CalendarIcon className="w-4 h-4" />Calendar
+          </TabsTrigger>
+          <TabsTrigger 
+            value="crm" 
+            className="gap-2 data-[state=active]:bg-purple-500 data-[state=active]:text-white transition-all"
+          >
+            <Database className="w-4 h-4" />CRM
+          </TabsTrigger>
         </TabsList>
 
         {/* Overview */}
@@ -338,17 +365,53 @@ export default function Step4OutreachHub({
                 </div>
               </CardContent>
             </Card>
-            <Card className="border-dashed">
+            <Card className={`border-2 ${agentId ? 'border-green-500/50 bg-green-500/5' : 'border-amber-500/50 bg-amber-500/5'}`}>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Phone className="w-5 h-5 text-green-500" />Voice Agent Status</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Phone className={`w-5 h-5 ${agentId ? 'text-green-500' : 'text-amber-500'}`} />
+                  Voice Agent Status
+                  {agentId ? (
+                    <Badge className="bg-green-500/20 text-green-600 border-green-500/30 gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Ready
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30 gap-1 animate-pulse">
+                      <AlertTriangle className="w-3 h-3" />
+                      Setup Required
+                    </Badge>
+                  )}
+                </CardTitle>
               </CardHeader>
               <CardContent className="text-center py-6">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-                  <Phone className="w-8 h-8 text-muted-foreground" />
-                </div>
-                <h3 className="font-semibold mb-2">Voice Agent Not Configured</h3>
-                <p className="text-sm text-muted-foreground mb-4">Connect your ElevenLabs agent to enable AI-powered calls</p>
-                <Button onClick={onOpenSettings} className="gap-2"><Settings2 className="w-4 h-4" />Setup Voice Agent</Button>
+                {agentId ? (
+                  <>
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-500/20 flex items-center justify-center">
+                      <CheckCircle2 className="w-8 h-8 text-green-500" />
+                    </div>
+                    <h3 className="font-semibold text-green-600 mb-2">Voice Agent Configured!</h3>
+                    <p className="text-sm text-muted-foreground mb-4">Your ElevenLabs agent is connected and ready to make calls</p>
+                    <Button onClick={onOpenSettings} variant="outline" className="gap-2">
+                      <Settings2 className="w-4 h-4" />
+                      Manage Settings
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-500/20 flex items-center justify-center animate-pulse">
+                      <Phone className="w-8 h-8 text-amber-500" />
+                    </div>
+                    <h3 className="font-semibold text-amber-600 mb-2">Voice Agent Not Configured</h3>
+                    <p className="text-sm text-muted-foreground mb-4">Connect your ElevenLabs agent to enable AI-powered calls</p>
+                    <Button 
+                      onClick={onOpenSettings} 
+                      className="gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white animate-pulse"
+                    >
+                      <Settings2 className="w-4 h-4" />
+                      Setup Voice Agent
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
