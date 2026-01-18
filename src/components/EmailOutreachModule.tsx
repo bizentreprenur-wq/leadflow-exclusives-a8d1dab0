@@ -2822,10 +2822,10 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
                 <div className="text-sm">
                   <p className="font-semibold text-blue-700 dark:text-blue-400 mb-1">📧 How Email Sending Works</p>
                   <ul className="text-muted-foreground space-y-1">
-                    <li>• <strong>Emails are sent from your server</strong> (Hostinger SMTP)</li>
+                    <li>• <strong>Emails are sent through YOUR SMTP server</strong> (Gmail, Outlook, or your domain)</li>
+                    <li>• <strong>Your brand:</strong> Recipients see your email address, not ours</li>
                     <li>• <strong>Legal rate:</strong> ~100 emails/hour max to avoid spam filters</li>
                     <li>• <strong>You can leave!</strong> Scheduled emails send automatically in the background</li>
-                    <li>• Our cron job sends emails even when you are away</li>
                   </ul>
                 </div>
               </div>

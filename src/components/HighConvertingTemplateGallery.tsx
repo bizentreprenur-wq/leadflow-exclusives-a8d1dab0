@@ -3,6 +3,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,7 +20,10 @@ import {
   RotateCcw,
   Sparkles,
   Copy,
-  X
+  X,
+  Edit3,
+  Save,
+  Wand2
 } from "lucide-react";
 import { HIGH_CONVERTING_TEMPLATES, TEMPLATE_CATEGORIES, EmailTemplate } from "@/lib/highConvertingTemplates";
 import { toast } from "sonner";
@@ -67,6 +72,11 @@ export default function HighConvertingTemplateGallery({
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
   const [previewTemplate, setPreviewTemplate] = useState<EmailTemplate | null>(null);
+  
+  // Edit mode state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedSubject, setEditedSubject] = useState("");
+  const [editedBody, setEditedBody] = useState("");
 
   const filteredTemplates = HIGH_CONVERTING_TEMPLATES.filter(template => {
     const matchesSearch = 
@@ -85,6 +95,44 @@ export default function HighConvertingTemplateGallery({
   const handleSelect = (template: EmailTemplate) => {
     onSelectTemplate?.(template);
     toast.success(`Selected: ${template.name}`);
+  };
+
+  const handleEditTemplate = (template: EmailTemplate) => {
+    setPreviewTemplate(template);
+    setEditedSubject(template.subject);
+    // Convert HTML to plain text for editing
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = template.body_html;
+    setEditedBody(tempDiv.textContent || tempDiv.innerText || '');
+    setIsEditing(true);
+  };
+
+  const handleSaveCustomTemplate = () => {
+    if (!previewTemplate) return;
+    
+    const customTemplate: EmailTemplate = {
+      ...previewTemplate,
+      id: `custom-${Date.now()}`,
+      name: `Custom: ${previewTemplate.name}`,
+      subject: editedSubject,
+      body_html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        ${editedBody.split('\n').map(p => `<p style="margin: 0 0 15px 0; line-height: 1.6;">${p}</p>`).join('')}
+      </div>`,
+    };
+    
+    onSelectTemplate?.(customTemplate);
+    setPreviewTemplate(null);
+    setIsEditing(false);
+    toast.success('Custom template saved and selected!');
+  };
+
+  const openPreview = (template: EmailTemplate) => {
+    setPreviewTemplate(template);
+    setEditedSubject(template.subject);
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = template.body_html;
+    setEditedBody(tempDiv.textContent || tempDiv.innerText || '');
+    setIsEditing(false);
   };
 
   return (
@@ -216,22 +264,38 @@ export default function HighConvertingTemplateGallery({
         </div>
       )}
 
-      {/* Preview Dialog */}
-      <Dialog open={!!previewTemplate} onOpenChange={() => setPreviewTemplate(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] p-0 overflow-hidden">
+      {/* Preview/Edit Dialog */}
+      <Dialog open={!!previewTemplate} onOpenChange={() => { setPreviewTemplate(null); setIsEditing(false); }}>
+        <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden">
           <DialogHeader className="p-6 pb-0">
             <div className="flex items-start justify-between">
               <div>
-                <DialogTitle className="text-xl">{previewTemplate?.name}</DialogTitle>
-                <p className="text-muted-foreground text-sm mt-1">{previewTemplate?.description}</p>
+                <DialogTitle className="text-xl flex items-center gap-2">
+                  {isEditing ? <Edit3 className="w-5 h-5 text-primary" /> : <Eye className="w-5 h-5" />}
+                  {isEditing ? 'Edit Template' : previewTemplate?.name}
+                </DialogTitle>
+                <p className="text-muted-foreground text-sm mt-1">
+                  {isEditing ? 'Customize the subject and body to match your needs' : previewTemplate?.description}
+                </p>
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => setPreviewTemplate(null)}
-              >
-                <X className="w-4 h-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant={isEditing ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setIsEditing(!isEditing)}
+                  className="gap-2"
+                >
+                  {isEditing ? <Eye className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
+                  {isEditing ? 'Preview' : 'Edit & Customize'}
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => { setPreviewTemplate(null); setIsEditing(false); }}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </DialogHeader>
           
@@ -244,40 +308,97 @@ export default function HighConvertingTemplateGallery({
                   <span className="ml-1">{previewTemplate.category}</span>
                 </Badge>
                 <Badge variant="outline">{previewTemplate.industry}</Badge>
-                <div className="flex items-center gap-1 text-amber-500 text-sm">
-                  <Lightbulb className="w-4 h-4" />
-                  <span className="text-muted-foreground">{previewTemplate.conversionTip}</span>
-                </div>
+                {!isEditing && (
+                  <div className="flex items-center gap-1 text-amber-500 text-sm">
+                    <Lightbulb className="w-4 h-4" />
+                    <span className="text-muted-foreground">{previewTemplate.conversionTip}</span>
+                  </div>
+                )}
+                {isEditing && (
+                  <Badge variant="secondary" className="gap-1">
+                    <Wand2 className="w-3 h-3" />
+                    Editing Mode
+                  </Badge>
+                )}
               </div>
 
-              {/* Subject Line Preview */}
-              <div className="bg-muted/50 rounded-lg p-4">
-                <p className="text-xs text-muted-foreground mb-1">Subject Line</p>
-                <p className="font-medium">{previewTemplate.subject}</p>
-              </div>
+              {isEditing ? (
+                <>
+                  {/* Editable Subject Line */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Subject Line</Label>
+                    <Input
+                      value={editedSubject}
+                      onChange={(e) => setEditedSubject(e.target.value)}
+                      placeholder="Enter your email subject..."
+                      className="font-medium"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Use placeholders: {'{{first_name}}'}, {'{{business_name}}'}, {'{{website}}'}
+                    </p>
+                  </div>
 
-              {/* Email Preview */}
-              <ScrollArea className="h-[400px] border rounded-lg">
-                <div 
-                  className="bg-background p-4"
-                  dangerouslySetInnerHTML={{ __html: previewTemplate.body_html }}
-                />
-              </ScrollArea>
+                  {/* Editable Body */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Email Body</Label>
+                    <Textarea
+                      value={editedBody}
+                      onChange={(e) => setEditedBody(e.target.value)}
+                      placeholder="Write your email content..."
+                      className="min-h-[350px] font-mono text-sm"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Subject Line Preview */}
+                  <div className="bg-muted/50 rounded-lg p-4">
+                    <p className="text-xs text-muted-foreground mb-1">Subject Line</p>
+                    <p className="font-medium">{editedSubject || previewTemplate.subject}</p>
+                  </div>
+
+                  {/* Email Preview */}
+                  <ScrollArea className="h-[400px] border rounded-lg">
+                    <div 
+                      className="bg-background p-4"
+                      dangerouslySetInnerHTML={{ __html: previewTemplate.body_html }}
+                    />
+                  </ScrollArea>
+                </>
+              )}
 
               {/* Actions */}
               <div className="flex gap-3 justify-end">
-                <Button variant="outline" onClick={() => handleCopy(previewTemplate)}>
-                  <Copy className="w-4 h-4 mr-2" />
-                  Copy HTML
-                </Button>
-                {onSelectTemplate && (
-                  <Button onClick={() => {
-                    handleSelect(previewTemplate);
-                    setPreviewTemplate(null);
-                  }}>
-                    <Check className="w-4 h-4 mr-2" />
-                    Use This Template
-                  </Button>
+                {isEditing ? (
+                  <>
+                    <Button variant="outline" onClick={() => setIsEditing(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleSaveCustomTemplate} className="gap-2 bg-gradient-to-r from-primary to-purple-600">
+                      <Save className="w-4 h-4" />
+                      Save & Use Custom Template
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="outline" onClick={() => handleCopy(previewTemplate)}>
+                      <Copy className="w-4 h-4 mr-2" />
+                      Copy HTML
+                    </Button>
+                    <Button variant="outline" onClick={() => setIsEditing(true)} className="gap-2">
+                      <Edit3 className="w-4 h-4" />
+                      Edit Template
+                    </Button>
+                    {onSelectTemplate && (
+                      <Button onClick={() => {
+                        handleSelect(previewTemplate);
+                        setPreviewTemplate(null);
+                      }}>
+                        <Check className="w-4 h-4 mr-2" />
+                        Use This Template
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
