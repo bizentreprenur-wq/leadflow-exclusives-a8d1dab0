@@ -294,6 +294,51 @@ export default function Step4OutreachHub({
           </Button>
         </div>
 
+      {/* Voice Agent Not Configured Banner */}
+      {!agentId && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-amber-500/20 via-orange-500/10 to-amber-500/20 border-2 border-amber-500/50 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-amber-500/20 flex items-center justify-center animate-pulse">
+              <AlertTriangle className="w-6 h-6 text-amber-500" />
+            </div>
+            <div>
+              <h3 className="font-bold text-amber-600 dark:text-amber-400">Voice Agent Not Configured</h3>
+              <p className="text-sm text-muted-foreground">Set up your ElevenLabs AI agent to start making calls</p>
+            </div>
+          </div>
+          <Button 
+            onClick={() => setShowWizard(true)}
+            className="gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white whitespace-nowrap"
+          >
+            <Sparkles className="w-4 h-4" />
+            Setup Now (5 min)
+          </Button>
+        </motion.div>
+      )}
+
+      {/* Voice Agent Ready Banner */}
+      {agentId && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-green-500/20 via-emerald-500/10 to-green-500/20 border-2 border-green-500/50 rounded-2xl p-4 flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center">
+              <CheckCircle2 className="w-6 h-6 text-green-500" />
+            </div>
+            <div>
+              <h3 className="font-bold text-green-600 dark:text-green-400">🎉 AI Voice Agent Ready!</h3>
+              <p className="text-sm text-muted-foreground">Your ElevenLabs agent is configured and ready to make calls</p>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
