@@ -23,6 +23,7 @@ import CampaignAnalyticsDashboard from './CampaignAnalyticsDashboard';
 import ABTestingPanel from './ABTestingPanel';
 import CRMSelectionPanel from './CRMSelectionPanel';
 import AITemplateSuggestions from './AITemplateSuggestions';
+import AIEmailAssistant from './AIEmailAssistant';
 import { LeadForEmail } from '@/lib/api/email';
 
 interface SearchResult {
@@ -362,52 +363,74 @@ export default function EmailSetupFlow({
               </Card>
             )}
 
-            {/* Template Editor Modal */}
+            {/* Template Editor Modal with AI Assistant */}
             {showTemplateEditor && selectedTemplate && (
-              <Card className="border-2 border-primary/30 bg-card">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-primary" />
-                    Edit Your Template
-                  </CardTitle>
-                  <CardDescription>
-                    Customize the subject line and body to match your voice. Your changes are saved automatically.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="subject">Subject Line</Label>
-                    <Input 
-                      id="subject"
-                      defaultValue={customizedContent?.subject || selectedTemplate.subject}
-                      placeholder="Enter your subject line..."
-                      className="mt-1"
-                      onChange={(e) => {
-                        const body = customizedContent?.body || selectedTemplate.body || '';
-                        handleSaveCustomization(e.target.value, body);
-                      }}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="body">Email Body</Label>
-                    <textarea 
-                      id="body"
-                      defaultValue={(customizedContent?.body || selectedTemplate.body || '').replace(/<[^>]*>/g, '')}
-                      placeholder="Enter your email content..."
-                      className="mt-1 w-full h-40 p-3 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-                      onChange={(e) => {
-                        const subject = customizedContent?.subject || selectedTemplate.subject;
-                        handleSaveCustomization(subject, e.target.value);
-                      }}
-                    />
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setShowTemplateEditor(false)}>
-                      Done Editing
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Editor Panel */}
+                <Card className="border-2 border-primary/30 bg-card">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-primary" />
+                      Edit Your Template
+                    </CardTitle>
+                    <CardDescription>
+                      Customize the subject line and body to match your voice. Your changes are saved automatically.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label htmlFor="subject">Subject Line</Label>
+                      <Input 
+                        id="subject"
+                        value={customizedContent?.subject || selectedTemplate.subject}
+                        placeholder="Enter your subject line..."
+                        className="mt-1"
+                        onChange={(e) => {
+                          const body = customizedContent?.body || selectedTemplate.body || '';
+                          handleSaveCustomization(e.target.value, body);
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="body">Email Body</Label>
+                      <textarea 
+                        id="body"
+                        value={(customizedContent?.body || selectedTemplate.body || '').replace(/<[^>]*>/g, '')}
+                        placeholder="Enter your email content..."
+                        className="mt-1 w-full h-48 p-3 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                        onChange={(e) => {
+                          const subject = customizedContent?.subject || selectedTemplate.subject;
+                          handleSaveCustomization(subject, e.target.value);
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setShowTemplateEditor(false)}>
+                        Done Editing
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* AI Assistant Panel */}
+                <AIEmailAssistant
+                  template={selectedTemplate}
+                  leads={leads}
+                  currentSubject={customizedContent?.subject || selectedTemplate.subject}
+                  currentBody={customizedContent?.body || selectedTemplate.body}
+                  onApplySubject={(subject) => {
+                    const body = customizedContent?.body || selectedTemplate.body || '';
+                    handleSaveCustomization(subject, body);
+                  }}
+                  onApplyBody={(newBody) => {
+                    const subject = customizedContent?.subject || selectedTemplate.subject;
+                    const currentBody = customizedContent?.body || selectedTemplate.body || '';
+                    // Append to existing body or replace if empty
+                    const updatedBody = currentBody ? `${currentBody}\n\n${newBody}` : newBody;
+                    handleSaveCustomization(subject, updatedBody.replace(/<[^>]*>/g, ''));
+                  }}
+                />
+              </div>
             )}
 
             {/* AI Template Suggestions - Smart recommendations based on leads */}
