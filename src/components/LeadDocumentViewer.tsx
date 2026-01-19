@@ -712,19 +712,19 @@ export default function LeadDocumentViewer({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setShowFieldSelector(!showFieldSelector)}>
+                  <Button variant="outline" size="sm" onClick={() => setShowFieldSelector(!showFieldSelector)} className="border-gray-300 text-gray-700 hover:bg-gray-100">
                     <CheckCircle2 className="w-4 h-4 mr-2" />
                     Fields
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handlePrint}>
+                  <Button variant="outline" size="sm" onClick={handlePrint} className="border-gray-300 text-gray-700 hover:bg-gray-100">
                     <Printer className="w-4 h-4 mr-2" />
                     Print
                   </Button>
-                  <Button variant="outline" size="sm" onClick={exportToPDF}>
+                  <Button variant="outline" size="sm" onClick={exportToPDF} className="border-gray-300 text-gray-700 hover:bg-gray-100">
                     <Download className="w-4 h-4 mr-2" />
                     PDF
                   </Button>
-                  <Button variant="outline" size="sm" onClick={exportToExcel}>
+                  <Button variant="outline" size="sm" onClick={exportToExcel} className="border-gray-300 text-gray-700 hover:bg-gray-100">
                     <FileSpreadsheet className="w-4 h-4 mr-2" />
                     Excel
                   </Button>
@@ -874,11 +874,11 @@ export default function LeadDocumentViewer({
                     : `${hotLeads.length} hot leads ready for verification`}
                 </p>
                 <div className="flex items-center gap-3">
-                  <Button variant="outline" onClick={exportToPDF}>
+                  <Button variant="outline" onClick={exportToPDF} className="border-gray-300 text-gray-700 hover:bg-gray-100">
                     <Download className="w-4 h-4 mr-2" />
                     Download PDF
                   </Button>
-                  <Button variant="outline" onClick={exportToExcel}>
+                  <Button variant="outline" onClick={exportToExcel} className="border-gray-300 text-gray-700 hover:bg-gray-100">
                     <FileSpreadsheet className="w-4 h-4 mr-2" />
                     Download Excel
                   </Button>

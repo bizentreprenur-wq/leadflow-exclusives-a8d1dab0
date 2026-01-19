@@ -995,19 +995,46 @@ export default function Dashboard() {
         );
 
       case 2:
-        // Step 2: simple transition page (the Intelligence Report opens automatically after search)
+        // Step 2: Show leads in SimpleLeadViewer + Intelligence Report is available via header button
+        if (searchResults.length === 0) {
+          return (
+            <div className="flex flex-col items-center justify-center py-20 space-y-6">
+              <div className="text-6xl">🔍</div>
+              <h2 className="text-2xl font-bold">No Leads Found Yet</h2>
+              <p className="text-muted-foreground text-center max-w-md">
+                Run a search in Step 1 to find leads, then come back here to review them.
+              </p>
+              <Button onClick={() => setCurrentStep(1)} className="gap-2">
+                <ArrowLeft className="w-4 h-4" />
+                Back to Search
+              </Button>
+            </div>
+          );
+        }
         return (
-          <div className="flex flex-col items-center justify-center py-20 space-y-6">
-            <div className="text-6xl">📋</div>
-            <h2 className="text-2xl font-bold">Your Intelligence Report Is Ready</h2>
-            <p className="text-muted-foreground text-center max-w-md">
-              We generate a clean, PDF-style Intelligence Report after each successful search.
-            </p>
-            <Button onClick={() => setCurrentStep(1)} className="gap-2">
-              <ArrowLeft className="w-4 h-4" />
-              Back to Search
-            </Button>
-          </div>
+          <SimpleLeadViewer
+            leads={searchResults}
+            onBack={() => setCurrentStep(1)}
+            onProceedToEmail={(selectedLeadsToEmail) => {
+              // Set selected leads if any
+              if (selectedLeadsToEmail.length > 0) {
+                setSelectedLeads(selectedLeadsToEmail.map(l => l.id));
+              }
+              setCurrentStep(3);
+            }}
+            onProceedToCall={(selectedLeadsToCall) => {
+              if (selectedLeadsToCall.length > 0) {
+                setSelectedLeads(selectedLeadsToCall.map(l => l.id));
+              }
+              setCurrentStep(4);
+            }}
+            onOpenReport={() => setShowReportModal(true)}
+            onOpenCRM={() => setShowCRMModal(true)}
+            onOpenSchedule={() => {
+              setCurrentStep(4);
+            }}
+            onOpenAIScoring={() => setShowAIScoringDashboard(true)}
+          />
         );
 
       case 3:
