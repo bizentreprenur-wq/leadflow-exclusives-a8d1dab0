@@ -536,7 +536,9 @@ export default function Dashboard() {
                   }));
                   setEmailLeads(emailLeadsFormat);
                   setCurrentStep(2);
-                  toast.success('✅ Loaded 200 test mechanic leads! Proceeding to Step 2...');
+                  // Auto-open the Intelligence Report
+                  setShowReportModal(true);
+                  toast.success('✅ Loaded 200 test mechanic leads! Opening Intelligence Report...');
                 }}
                 className="gap-2 border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
               >
