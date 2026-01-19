@@ -1,9 +1,38 @@
-import { Mail, Send, Clock, FileText, BarChart3, Users, CheckCircle2, ArrowRight } from "lucide-react";
+import { Mail, Send, Clock, FileText, BarChart3, Users, CheckCircle2, ArrowRight, Sparkles, Wand2, Brain, Target } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 const EmailOutreachSection = () => {
   const features = [
+    {
+      icon: Sparkles,
+      title: "AI Template Suggestions",
+      description: "AI analyzes your leads and recommends the best-converting templates for their industry",
+      stat: "Smart",
+      isNew: true
+    },
+    {
+      icon: Wand2,
+      title: "AI Email Assistant",
+      description: "Get personalized subject lines, openers, and CTAs with one click",
+      stat: "1-Click",
+      isNew: true
+    },
+    {
+      icon: Brain,
+      title: "Industry Detection",
+      description: "Automatically detects lead industries for targeted outreach",
+      stat: "Auto",
+      isNew: true
+    },
+    {
+      icon: Target,
+      title: "Smart Personalization",
+      description: "AI creates unique messages based on each lead's business details",
+      stat: "100%",
+      isNew: true
+    },
     {
       icon: FileText,
       title: "Email Templates",
@@ -45,17 +74,23 @@ const EmailOutreachSection = () => {
         {/* Section Header */}
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 border border-accent/20 mb-6">
-            <Mail className="w-4 h-4 text-accent" />
-            <span className="text-sm font-semibold text-accent">Email Outreach</span>
+            <Sparkles className="w-4 h-4 text-accent" />
+            <span className="text-sm font-semibold text-accent">AI-Powered Email Outreach</span>
           </div>
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold text-foreground mb-4">
-            Send personalized emails
+            AI writes your emails
             <br />
-            <span className="text-accent">at scale</span>
+            <span className="text-accent">you just click send</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Turn verified leads into clients with our powerful email outreach system
+            Our AI analyzes your leads, suggests the perfect templates, and writes personalized content automatically
           </p>
+          
+          {/* New Feature Highlight */}
+          <div className="mt-8 inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 border border-primary/20">
+            <Badge className="bg-gradient-to-r from-primary to-accent text-white border-0">NEW</Badge>
+            <span className="text-sm font-medium text-foreground">AI Template Suggestions + AI Email Assistant now available!</span>
+          </div>
         </div>
 
         {/* Main Feature Grid */}
@@ -65,13 +100,26 @@ const EmailOutreachSection = () => {
             {features.map((feature, index) => (
               <div 
                 key={index}
-                className="bg-background rounded-2xl border border-border p-6 hover:border-accent/50 transition-all duration-300"
+                className={`bg-background rounded-2xl border p-6 transition-all duration-300 relative ${
+                  feature.isNew 
+                    ? 'border-primary/50 hover:border-primary shadow-lg shadow-primary/5' 
+                    : 'border-border hover:border-accent/50'
+                }`}
               >
+                {feature.isNew && (
+                  <Badge className="absolute -top-2 -right-2 bg-gradient-to-r from-primary to-accent text-white text-[10px] px-2 py-0.5 border-0">
+                    NEW
+                  </Badge>
+                )}
                 <div className="flex items-start justify-between mb-4">
-                  <div className="w-10 h-10 rounded-lg bg-accent/10 flex items-center justify-center">
-                    <feature.icon className="w-5 h-5 text-accent" />
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    feature.isNew ? 'bg-primary/10' : 'bg-accent/10'
+                  }`}>
+                    <feature.icon className={`w-5 h-5 ${feature.isNew ? 'text-primary' : 'text-accent'}`} />
                   </div>
-                  <span className="text-2xl font-bold text-accent">{feature.stat}</span>
+                  <span className={`text-2xl font-bold ${feature.isNew ? 'text-primary' : 'text-accent'}`}>
+                    {feature.stat}
+                  </span>
                 </div>
                 <h3 className="text-base font-display font-bold text-foreground mb-1">
                   {feature.title}
