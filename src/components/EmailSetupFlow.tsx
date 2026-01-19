@@ -368,14 +368,38 @@ export default function EmailSetupFlow({
             {/* Tabbed Interface for all visual components */}
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
               <TabsList className="grid w-full grid-cols-6 h-12 bg-muted/50">
-                <TabsTrigger value="preview" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-blue-500 data-[state=active]:text-white">
-                  <Eye className="w-4 h-4" />
-                  <span className="hidden sm:inline">Preview</span>
-                </TabsTrigger>
-                <TabsTrigger value="crm" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-violet-500 data-[state=active]:text-white">
-                  <Database className="w-4 h-4" />
-                  <span className="hidden sm:inline">CRM</span>
-                </TabsTrigger>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger value="preview" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-blue-500 data-[state=active]:text-white">
+                        <Eye className="w-4 h-4" />
+                        <span className="hidden sm:inline">Preview</span>
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs p-3 text-center">
+                      <p className="font-semibold mb-1">👁️ Email Preview</p>
+                      <p className="text-xs text-muted-foreground">
+                        See exactly how your email will appear in Gmail, Outlook, and Apple Mail before sending.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger value="crm" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-violet-500 data-[state=active]:text-white">
+                        <Database className="w-4 h-4" />
+                        <span className="hidden sm:inline">CRM</span>
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs p-3 text-center">
+                      <p className="font-semibold mb-1">🗂️ Lead Management (CRM)</p>
+                      <p className="text-xs text-muted-foreground">
+                        Organize, filter, and track your leads. Update statuses, add notes, and monitor email campaign results.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -393,19 +417,55 @@ export default function EmailSetupFlow({
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-                <TabsTrigger value="mailbox" className="relative gap-2 text-xs sm:text-sm data-[state=active]:bg-amber-500 data-[state=active]:text-white">
-                  <Mail className="w-4 h-4" />
-                  <span className="hidden sm:inline">Mailbox</span>
-                  {!visitedTabs.includes('mailbox') && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full animate-ping" />}
-                </TabsTrigger>
-                <TabsTrigger value="analytics" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
-                  <BarChart3 className="w-4 h-4" />
-                  <span className="hidden sm:inline">Analytics</span>
-                </TabsTrigger>
-                <TabsTrigger value="send" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-red-500 data-[state=active]:text-white">
-                  <Send className="w-4 h-4" />
-                  <span className="hidden sm:inline">Send</span>
-                </TabsTrigger>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger value="mailbox" className="relative gap-2 text-xs sm:text-sm data-[state=active]:bg-amber-500 data-[state=active]:text-white">
+                        <Mail className="w-4 h-4" />
+                        <span className="hidden sm:inline">Mailbox</span>
+                        {!visitedTabs.includes('mailbox') && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full animate-ping" />}
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs p-3 text-center">
+                      <p className="font-semibold mb-1">📬 Drip Mailbox</p>
+                      <p className="text-xs text-muted-foreground">
+                        Watch your emails being sent in real-time. Drip sending spaces out emails to avoid spam filters and improve deliverability.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger value="analytics" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
+                        <BarChart3 className="w-4 h-4" />
+                        <span className="hidden sm:inline">Analytics</span>
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs p-3 text-center">
+                      <p className="font-semibold mb-1">📈 Campaign Analytics</p>
+                      <p className="text-xs text-muted-foreground">
+                        Track open rates, click rates, and engagement. See which emails perform best and optimize your outreach strategy.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger value="send" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-red-500 data-[state=active]:text-white">
+                        <Send className="w-4 h-4" />
+                        <span className="hidden sm:inline">Send</span>
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs p-3 text-center">
+                      <p className="font-semibold mb-1">🚀 Send Campaign</p>
+                      <p className="text-xs text-muted-foreground">
+                        Launch your email campaign! Review final settings, select recipients, and hit send to start your outreach.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </TabsList>
 
               <TabsContent value="preview" className="mt-4">
