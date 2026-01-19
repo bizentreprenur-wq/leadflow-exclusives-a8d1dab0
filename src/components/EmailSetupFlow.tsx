@@ -249,10 +249,23 @@ export default function EmailSetupFlow({
                 <ArrowLeft className="w-4 h-4" />
                 Back to SMTP
               </Button>
-              <Badge variant="outline" className="gap-2">
-                <Mail className="w-4 h-4" />
-                {leadsWithEmail.length} leads with email
+              <Badge variant="outline" className="gap-2 text-lg px-4 py-2 bg-primary/10 border-primary/30">
+                <Mail className="w-5 h-5 text-primary" />
+                <span className="font-bold text-primary">{leadsWithEmail.length}</span> leads ready to email
               </Badge>
+            </div>
+
+            {/* Instruction Banner */}
+            <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-2 border-green-500/50 rounded-xl p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-green-500/30 flex items-center justify-center animate-pulse">
+                  <ArrowRight className="w-6 h-6 text-green-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-green-400 text-lg">👆 Click "READY TO SEND" on any template below</h3>
+                  <p className="text-sm text-green-300/80">This will automatically take you to the next step to send your emails</p>
+                </div>
+              </div>
             </div>
 
             <div className="text-center py-4">

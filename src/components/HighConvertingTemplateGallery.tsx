@@ -191,10 +191,12 @@ export default function HighConvertingTemplateGallery({
             className={`group cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-lg overflow-hidden ${
               selectedTemplateId === template.id ? 'ring-2 ring-primary' : ''
             }`}
-            onClick={() => setPreviewTemplate(template)}
           >
             {/* Preview Image */}
-            <div className="relative aspect-[4/3] overflow-hidden">
+            <div 
+              className="relative aspect-[4/3] overflow-hidden"
+              onClick={() => openPreview(template)}
+            >
               <img 
                 src={template.previewImage} 
                 alt={template.name}
@@ -217,7 +219,7 @@ export default function HighConvertingTemplateGallery({
                 </div>
               )}
 
-              {/* Hover Actions */}
+              {/* Preview Button */}
               <div className="absolute bottom-2 left-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <Button 
                   size="sm" 
@@ -225,33 +227,35 @@ export default function HighConvertingTemplateGallery({
                   className="flex-1 text-xs h-8"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setPreviewTemplate(template);
+                    openPreview(template);
                   }}
                 >
                   <Eye className="w-3 h-3 mr-1" />
                   Preview
                 </Button>
-                {onSelectTemplate && (
-                  <Button 
-                    size="sm" 
-                    className="flex-1 text-xs h-8"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleSelect(template);
-                    }}
-                  >
-                    <Check className="w-3 h-3 mr-1" />
-                    Use
-                  </Button>
-                )}
               </div>
             </div>
 
-            <CardContent className="p-3">
+            <CardContent className="p-3 space-y-2">
               <h3 className="font-medium text-sm truncate">{template.name}</h3>
-              <p className="text-xs text-muted-foreground truncate mt-1">
+              <p className="text-xs text-muted-foreground truncate">
                 {template.description}
               </p>
+              
+              {/* 🔥 BIG PULSING "READY TO SEND" BUTTON */}
+              {onSelectTemplate && (
+                <Button 
+                  size="lg"
+                  className="w-full h-12 text-base font-bold gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 animate-pulse shadow-lg shadow-green-500/30"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSelect(template);
+                  }}
+                >
+                  <Check className="w-5 h-5" />
+                  ✅ READY TO SEND
+                </Button>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -369,38 +373,46 @@ export default function HighConvertingTemplateGallery({
               )}
 
               {/* Actions */}
-              <div className="flex gap-3 justify-end">
-                {isEditing ? (
-                  <>
-                    <Button variant="outline" onClick={() => setIsEditing(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleSaveCustomTemplate} className="gap-2 bg-gradient-to-r from-primary to-purple-600">
-                      <Save className="w-4 h-4" />
-                      Save & Use Custom Template
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <Button variant="outline" onClick={() => handleCopy(previewTemplate)}>
-                      <Copy className="w-4 h-4 mr-2" />
-                      Copy HTML
-                    </Button>
-                    <Button variant="outline" onClick={() => setIsEditing(true)} className="gap-2">
-                      <Edit3 className="w-4 h-4" />
-                      Edit Template
-                    </Button>
-                    {onSelectTemplate && (
-                      <Button onClick={() => {
-                        handleSelect(previewTemplate);
-                        setPreviewTemplate(null);
-                      }}>
-                        <Check className="w-4 h-4 mr-2" />
-                        Use This Template
-                      </Button>
-                    )}
-                  </>
+              <div className="flex flex-col gap-3">
+                {/* 🔥 BIG PULSING BUTTON AT TOP */}
+                {!isEditing && onSelectTemplate && (
+                  <Button 
+                    size="lg"
+                    className="w-full h-14 text-lg font-bold gap-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 animate-pulse shadow-xl shadow-green-500/40"
+                    onClick={() => {
+                      handleSelect(previewTemplate);
+                      setPreviewTemplate(null);
+                    }}
+                  >
+                    <Check className="w-6 h-6" />
+                    ✅ READY TO SEND — USE THIS TEMPLATE
+                  </Button>
                 )}
+
+                <div className="flex gap-3 justify-end">
+                  {isEditing ? (
+                    <>
+                      <Button variant="outline" onClick={() => setIsEditing(false)}>
+                        Cancel
+                      </Button>
+                      <Button onClick={handleSaveCustomTemplate} className="gap-2 bg-gradient-to-r from-primary to-purple-600">
+                        <Save className="w-4 h-4" />
+                        Save & Use Custom Template
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button variant="outline" onClick={() => handleCopy(previewTemplate)}>
+                        <Copy className="w-4 h-4 mr-2" />
+                        Copy HTML
+                      </Button>
+                      <Button variant="outline" onClick={() => setIsEditing(true)} className="gap-2">
+                        <Edit3 className="w-4 h-4" />
+                        Edit Template
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           )}
