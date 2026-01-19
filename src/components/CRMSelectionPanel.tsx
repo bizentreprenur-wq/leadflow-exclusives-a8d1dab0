@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import { Database, Check, ExternalLink, HelpCircle, Loader2, Link2 } from 'lucide-react';
+import { Database, Check, ExternalLink, HelpCircle, Loader2, Link2, Clock } from 'lucide-react';
 import { connectCRM, getCRMStatus, CRMProvider } from '@/lib/api/crmIntegration';
 
 interface CRMOption {
@@ -103,28 +103,19 @@ export default function CRMSelectionPanel({ leadCount, onCRMSelected }: CRMSelec
 
   return (
     <div className="space-y-4">
-      {/* BAMLEAD CRM Banner */}
-      <Card className="border-2 border-primary/40 bg-gradient-to-r from-primary/10 to-emerald-500/10">
+      {/* BamLead CRM Free Trial Banner */}
+      <Card className="border-l-4 border-l-amber-500 border-t-0 border-r-0 border-b-0 bg-gradient-to-r from-amber-500/15 to-transparent">
         <CardContent className="p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center text-2xl">
-                🎯
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-lg">BAMLEAD CRM</h3>
-                  <Badge className="bg-amber-500 text-white text-xs">14-Day Free Trial</Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  You're currently using BAMLEAD CRM. After 14 days, a subscription is required to continue using premium CRM features.
-                </p>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full border-2 border-amber-500 flex items-center justify-center">
+              <Clock className="w-5 h-5 text-amber-500" />
             </div>
-            <Button variant="outline" size="sm" className="gap-2">
-              <HelpCircle className="w-4 h-4" />
-              Learn More
-            </Button>
+            <div>
+              <h3 className="font-bold text-base">BamLead CRM - Free Trial</h3>
+              <p className="text-sm text-muted-foreground">
+                Your CRM is <span className="font-bold text-amber-500">FREE for 14 days</span>, then $29/month. External CRM integrations below are always free!
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
