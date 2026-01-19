@@ -23,6 +23,24 @@ import {
 
 const features = [
   {
+    icon: Sparkles,
+    title: "AI Template Suggestions",
+    description: "Smart AI analyzes your leads' industry and recommends the highest-converting email templates automatically",
+    badge: "NEW",
+    badgeColor: "bg-gradient-to-r from-primary to-accent text-white",
+    color: "text-primary",
+    bgColor: "bg-primary/10",
+  },
+  {
+    icon: Wand2,
+    title: "AI Email Assistant",
+    description: "Get AI-powered subject lines, opening hooks, and CTAs personalized for each lead with one click",
+    badge: "NEW",
+    badgeColor: "bg-gradient-to-r from-primary to-accent text-white",
+    color: "text-accent",
+    bgColor: "bg-accent/10",
+  },
+  {
     icon: Bot,
     title: "AI Sales Mentor",
     description: "Personal AI coach that helps you practice pitches, handle objections, and close more deals",
@@ -68,11 +86,11 @@ const features = [
     bgColor: "bg-violet-500/10",
   },
   {
-    icon: Wand2,
-    title: "AI Email Writer",
-    description: "Generate personalized cold emails in seconds with AI",
-    badge: "AI Powered",
-    badgeColor: "bg-warning text-warning-foreground",
+    icon: Mail,
+    title: "Smart Email Builder",
+    description: "Build and customize email campaigns with real-time preview and personalization tokens",
+    badge: "Pro",
+    badgeColor: "bg-blue-500 text-white",
     color: "text-blue-500",
     bgColor: "bg-blue-500/10",
   },
@@ -102,6 +120,15 @@ const features = [
     badgeColor: "bg-emerald-500 text-white",
     color: "text-emerald-500",
     bgColor: "bg-emerald-500/10",
+  },
+  {
+    icon: Target,
+    title: "Industry Detection",
+    description: "AI automatically detects lead industries and tailors your outreach strategy",
+    badge: "Smart",
+    badgeColor: "bg-orange-500 text-white",
+    color: "text-orange-500",
+    bgColor: "bg-orange-500/10",
   },
 ];
 
