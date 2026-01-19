@@ -34,6 +34,12 @@ interface HighConvertingTemplateGalleryProps {
   selectedTemplateId?: string;
 }
 
+// Track the currently highlighted template for the sticky bar
+interface SelectedTemplateState {
+  template: EmailTemplate;
+  isSelected: boolean;
+}
+
 const getCategoryIcon = (category: string) => {
   switch (category) {
     case 'web-design': return <Globe className="w-4 h-4" />;
@@ -73,6 +79,9 @@ export default function HighConvertingTemplateGallery({
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
   const [previewTemplate, setPreviewTemplate] = useState<EmailTemplate | null>(null);
+  
+  // Track highlighted template for sticky bar (before final selection)
+  const [highlightedTemplate, setHighlightedTemplate] = useState<EmailTemplate | null>(null);
   
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
@@ -184,81 +193,77 @@ export default function HighConvertingTemplateGallery({
       </div>
 
       {/* Template Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-        {filteredTemplates.map((template) => (
-          <Card 
-            key={template.id}
-            className={`group cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-lg overflow-hidden ${
-              selectedTemplateId === template.id ? 'ring-2 ring-primary' : ''
-            }`}
-          >
-            {/* Preview Image */}
-            <div 
-              className="relative aspect-[4/3] overflow-hidden"
-              onClick={() => openPreview(template)}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-24">
+        {filteredTemplates.map((template) => {
+          const isHighlighted = highlightedTemplate?.id === template.id;
+          const isSelected = selectedTemplateId === template.id;
+          
+          return (
+            <Card 
+              key={template.id}
+              className={`group cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-lg overflow-hidden ${
+                isSelected ? 'ring-2 ring-primary' : ''
+              } ${isHighlighted ? 'ring-2 ring-emerald-500' : ''}`}
+              onClick={() => setHighlightedTemplate(template)}
             >
-              <img 
-                src={template.previewImage} 
-                alt={template.name}
-                loading="lazy"
-                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/30 to-transparent" />
-              
-              {/* Category Badge */}
-              <Badge 
-                className={`absolute top-2 left-2 text-xs ${getCategoryColor(template.category)}`}
+              {/* Preview Image */}
+              <div 
+                className="relative aspect-[4/3] overflow-hidden"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openPreview(template);
+                }}
               >
-                {template.industry}
-              </Badge>
+                <img 
+                  src={template.previewImage} 
+                  alt={template.name}
+                  loading="lazy"
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/30 to-transparent" />
+                
+                {/* Category Badge */}
+                <Badge 
+                  className={`absolute top-2 left-2 text-xs ${getCategoryColor(template.category)}`}
+                >
+                  {template.industry}
+                </Badge>
 
-              {/* Selected Indicator */}
-              {selectedTemplateId === template.id && (
-                <div className="absolute top-2 right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
-                  <Check className="w-4 h-4 text-primary-foreground" />
+                {/* Selected/Highlighted Indicator */}
+                {(isSelected || isHighlighted) && (
+                  <div className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center ${
+                    isSelected ? 'bg-primary' : 'bg-emerald-500'
+                  }`}>
+                    <Check className="w-4 h-4 text-white" />
+                  </div>
+                )}
+
+                {/* Preview Button on Hover */}
+                <div className="absolute bottom-2 left-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button 
+                    size="sm" 
+                    variant="secondary" 
+                    className="flex-1 text-xs h-8"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openPreview(template);
+                    }}
+                  >
+                    <Eye className="w-3 h-3 mr-1" />
+                    Preview
+                  </Button>
                 </div>
-              )}
-
-              {/* Preview Button */}
-              <div className="absolute bottom-2 left-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button 
-                  size="sm" 
-                  variant="secondary" 
-                  className="flex-1 text-xs h-8"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openPreview(template);
-                  }}
-                >
-                  <Eye className="w-3 h-3 mr-1" />
-                  Preview
-                </Button>
               </div>
-            </div>
 
-            <CardContent className="p-3 space-y-2">
-              <h3 className="font-medium text-sm truncate">{template.name}</h3>
-              <p className="text-xs text-muted-foreground truncate">
-                {template.description}
-              </p>
-              
-              {/* 🔥 BIG PULSING "READY TO SEND" BUTTON */}
-              {onSelectTemplate && (
-                <Button 
-                  size="lg"
-                  className="w-full h-12 text-base font-bold gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 animate-pulse shadow-lg shadow-green-500/30"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleSelect(template);
-                  }}
-                >
-                  <Check className="w-5 h-5" />
-                  ✅ READY TO SEND
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+              <CardContent className="p-3 space-y-1">
+                <h3 className="font-medium text-sm truncate">{template.name}</h3>
+                <p className="text-xs text-muted-foreground truncate">
+                  {template.description}
+                </p>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* No Results */}
@@ -373,51 +378,102 @@ export default function HighConvertingTemplateGallery({
               )}
 
               {/* Actions */}
-              <div className="flex flex-col gap-3">
-                {/* 🔥 BIG PULSING BUTTON AT TOP */}
-                {!isEditing && onSelectTemplate && (
-                  <Button 
-                    size="lg"
-                    className="w-full h-14 text-lg font-bold gap-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 animate-pulse shadow-xl shadow-green-500/40"
-                    onClick={() => {
-                      handleSelect(previewTemplate);
-                      setPreviewTemplate(null);
-                    }}
-                  >
-                    <Check className="w-6 h-6" />
-                    ✅ READY TO SEND — USE THIS TEMPLATE
-                  </Button>
+              <div className="flex gap-3 justify-end">
+                {isEditing ? (
+                  <>
+                    <Button variant="outline" onClick={() => setIsEditing(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleSaveCustomTemplate} className="gap-2 bg-gradient-to-r from-primary to-purple-600">
+                      <Save className="w-4 h-4" />
+                      Save & Use Custom Template
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="outline" onClick={() => handleCopy(previewTemplate)}>
+                      <Copy className="w-4 h-4 mr-2" />
+                      Copy HTML
+                    </Button>
+                    <Button variant="outline" onClick={() => setIsEditing(true)} className="gap-2">
+                      <Edit3 className="w-4 h-4" />
+                      Edit Template
+                    </Button>
+                    {onSelectTemplate && (
+                      <Button 
+                        size="lg"
+                        className="gap-2 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-semibold px-8"
+                        onClick={() => {
+                          handleSelect(previewTemplate);
+                          setPreviewTemplate(null);
+                        }}
+                      >
+                        <Check className="w-5 h-5" />
+                        Use This Template
+                      </Button>
+                    )}
+                  </>
                 )}
-
-                <div className="flex gap-3 justify-end">
-                  {isEditing ? (
-                    <>
-                      <Button variant="outline" onClick={() => setIsEditing(false)}>
-                        Cancel
-                      </Button>
-                      <Button onClick={handleSaveCustomTemplate} className="gap-2 bg-gradient-to-r from-primary to-purple-600">
-                        <Save className="w-4 h-4" />
-                        Save & Use Custom Template
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button variant="outline" onClick={() => handleCopy(previewTemplate)}>
-                        <Copy className="w-4 h-4 mr-2" />
-                        Copy HTML
-                      </Button>
-                      <Button variant="outline" onClick={() => setIsEditing(true)} className="gap-2">
-                        <Edit3 className="w-4 h-4" />
-                        Edit Template
-                      </Button>
-                    </>
-                  )}
-                </div>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {/* STICKY BOTTOM BAR - Clean "Ready to Send" */}
+      {highlightedTemplate && onSelectTemplate && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-r from-emerald-600 to-green-600 border-t border-emerald-400/30 shadow-2xl shadow-emerald-900/50">
+          <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
+            {/* Template Info */}
+            <div className="flex items-center gap-4 min-w-0">
+              <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 border-2 border-white/30">
+                <img 
+                  src={highlightedTemplate.previewImage} 
+                  alt={highlightedTemplate.name}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="min-w-0">
+                <p className="text-white/70 text-xs uppercase tracking-wide">Selected Template</p>
+                <p className="text-white font-semibold truncate">{highlightedTemplate.name}</p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setHighlightedTemplate(null)}
+                className="text-white/80 hover:text-white hover:bg-white/10"
+              >
+                <X className="w-4 h-4 mr-1" />
+                Cancel
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => openPreview(highlightedTemplate)}
+                className="text-white/80 hover:text-white hover:bg-white/10"
+              >
+                <Eye className="w-4 h-4 mr-1" />
+                Preview
+              </Button>
+              <Button
+                size="lg"
+                onClick={() => {
+                  handleSelect(highlightedTemplate);
+                  setHighlightedTemplate(null);
+                }}
+                className="bg-white text-emerald-700 hover:bg-white/90 font-bold px-8 h-12 text-base shadow-lg"
+              >
+                <Check className="w-5 h-5 mr-2" />
+                Ready to Send
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
