@@ -466,13 +466,76 @@ export default function EmailSetupFlow({
                 <Link2 className="w-4 h-4" />
                 Connect External CRM
               </Button>
-              <Button 
-                onClick={() => setShowAutoCampaign(true)} 
-                className="gap-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700"
-              >
-                <Rocket className="w-4 h-4" />
-                Auto Campaign Wizard
-              </Button>
+              <div className="flex items-center gap-3">
+                {/* Dynamic Next Step Button */}
+                {activeTab === 'preview' && (
+                  <Button 
+                    onClick={() => handleTabChange('crm')} 
+                    size="sm"
+                    className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse"
+                  >
+                    <ArrowRight className="w-4 h-4" />
+                    Next Step: Setup CRM
+                  </Button>
+                )}
+                {activeTab === 'crm' && (
+                  <Button 
+                    onClick={() => handleTabChange('ab-testing')} 
+                    size="sm"
+                    className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse"
+                  >
+                    <ArrowRight className="w-4 h-4" />
+                    Next Step: A/B Testing
+                  </Button>
+                )}
+                {activeTab === 'ab-testing' && (
+                  <Button 
+                    onClick={() => handleTabChange('mailbox')} 
+                    size="sm"
+                    className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse"
+                  >
+                    <ArrowRight className="w-4 h-4" />
+                    Next Step: Mailbox
+                  </Button>
+                )}
+                {activeTab === 'mailbox' && (
+                  <Button 
+                    onClick={() => handleTabChange('analytics')} 
+                    size="sm"
+                    className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse"
+                  >
+                    <ArrowRight className="w-4 h-4" />
+                    Next Step: Analytics
+                  </Button>
+                )}
+                {activeTab === 'analytics' && (
+                  <Button 
+                    onClick={() => handleTabChange('send')} 
+                    size="sm"
+                    className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse"
+                  >
+                    <ArrowRight className="w-4 h-4" />
+                    Next Step: Send Emails
+                  </Button>
+                )}
+                {activeTab === 'send' && (
+                  <Button 
+                    onClick={onComplete} 
+                    size="sm"
+                    className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse"
+                  >
+                    <ArrowRight className="w-4 h-4" />
+                    Next Step: Outreach Hub
+                  </Button>
+                )}
+                <Button 
+                  onClick={() => setShowAutoCampaign(true)} 
+                  className="gap-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700"
+                >
+                  <Rocket className="w-4 h-4" />
+                  Auto Campaign Wizard
+                </Button>
+              </div>
             </div>
           </div>
         );
