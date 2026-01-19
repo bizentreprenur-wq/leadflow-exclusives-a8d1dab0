@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import {
   ArrowLeft, ArrowRight, Server, FileText, Send, 
@@ -375,10 +376,23 @@ export default function EmailSetupFlow({
                   <Database className="w-4 h-4" />
                   <span className="hidden sm:inline">CRM</span>
                 </TabsTrigger>
-                <TabsTrigger value="ab-testing" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-pink-500 data-[state=active]:text-white">
-                  <FlaskConical className="w-4 h-4" />
-                  <span className="hidden sm:inline">A/B Test</span>
-                </TabsTrigger>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger value="ab-testing" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-pink-500 data-[state=active]:text-white">
+                        <FlaskConical className="w-4 h-4" />
+                        <span className="hidden sm:inline">A/B Test</span>
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs p-3 text-center">
+                      <p className="font-semibold mb-1">📊 What is A/B Testing?</p>
+                      <p className="text-xs text-muted-foreground">
+                        Compare two email versions (subject lines, content, CTAs) to see which gets more opens & clicks. 
+                        This helps you send winning emails every time!
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <TabsTrigger value="mailbox" className="relative gap-2 text-xs sm:text-sm data-[state=active]:bg-amber-500 data-[state=active]:text-white">
                   <Mail className="w-4 h-4" />
                   <span className="hidden sm:inline">Mailbox</span>
