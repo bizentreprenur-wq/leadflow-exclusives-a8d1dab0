@@ -22,6 +22,7 @@ import AutoCampaignWizard from './AutoCampaignWizard';
 import CampaignAnalyticsDashboard from './CampaignAnalyticsDashboard';
 import ABTestingPanel from './ABTestingPanel';
 import CRMSelectionPanel from './CRMSelectionPanel';
+import AITemplateSuggestions from './AITemplateSuggestions';
 import { LeadForEmail } from '@/lib/api/email';
 
 interface SearchResult {
@@ -409,15 +410,31 @@ export default function EmailSetupFlow({
               </Card>
             )}
 
+            {/* AI Template Suggestions - Smart recommendations based on leads */}
+            {!selectedTemplate && (
+              <AITemplateSuggestions
+                leads={leads.map(l => ({
+                  id: l.id,
+                  name: l.name,
+                  email: l.email,
+                  phone: l.phone,
+                  website: l.website,
+                  address: l.address,
+                }))}
+                onSelectTemplate={handleTemplateSelect}
+                selectedTemplateId={selectedTemplate?.id}
+              />
+            )}
+
             {/* Browse Templates Section */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-bold text-lg">
-                    {selectedTemplate ? 'Or Choose a Different Template' : 'Choose Your Email Template'}
+                    {selectedTemplate ? 'Or Choose a Different Template' : 'Browse All Templates'}
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    {selectedTemplate 
+                    {selectedTemplate
                       ? 'Browse our library of high-converting templates' 
                       : 'Pick a template that matches your outreach style. You can customize it after selection.'}
                   </p>
