@@ -31,6 +31,7 @@ interface Lead {
   starred: boolean;
   score: number;
   followUpDate?: string;
+  emailStatus?: 'not_sent' | 'pending' | 'sent' | 'failed';
 }
 
 interface BamLeadCRMPanelProps {
@@ -43,6 +44,7 @@ interface BamLeadCRMPanelProps {
     address?: string;
   }>;
   onSync?: () => void;
+  emailStatuses?: Record<string, 'pending' | 'sending' | 'sent' | 'failed'>;
 }
 
 const STATUS_CONFIG = {
@@ -56,11 +58,20 @@ const STATUS_CONFIG = {
   email_response: { label: 'Email Response', icon: CheckCircle2, color: 'bg-pink-500' },
 };
 
-export default function BamLeadCRMPanel({ leads: initialLeads, onSync }: BamLeadCRMPanelProps) {
+const EMAIL_STATUS_CONFIG = {
+  all: { label: 'All Email Status', color: 'bg-gray-500' },
+  not_sent: { label: 'Not Sent', color: 'bg-gray-500' },
+  pending: { label: 'Pending', color: 'bg-amber-500' },
+  sent: { label: 'Sent ✅', color: 'bg-green-500' },
+  failed: { label: 'Failed ❌', color: 'bg-red-500' },
+};
+
+export default function BamLeadCRMPanel({ leads: initialLeads, onSync, emailStatuses = {} }: BamLeadCRMPanelProps) {
   const [crmLeads, setCrmLeads] = useState<Lead[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [emailStatusFilter, setEmailStatusFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('score');
 
   // Initialize CRM leads
@@ -106,6 +117,9 @@ export default function BamLeadCRMPanel({ leads: initialLeads, onSync }: BamLead
       ? Math.round(crmLeads.reduce((sum, l) => sum + l.score, 0) / crmLeads.length)
       : 0,
     followUps: crmLeads.filter(l => l.followUpDate).length,
+    emailsSent: Object.values(emailStatuses).filter(s => s === 'sent').length,
+    emailsPending: Object.values(emailStatuses).filter(s => s === 'pending' || s === 'sending').length,
+    emailsFailed: Object.values(emailStatuses).filter(s => s === 'failed').length,
   };
 
   // Status counts
@@ -116,6 +130,15 @@ export default function BamLeadCRMPanel({ leads: initialLeads, onSync }: BamLead
     return acc;
   }, {} as Record<string, number>);
 
+  // Email status counts
+  const emailStatusCounts = {
+    all: crmLeads.length,
+    not_sent: crmLeads.filter(l => !emailStatuses[l.id]).length,
+    pending: crmLeads.filter(l => emailStatuses[l.id] === 'pending' || emailStatuses[l.id] === 'sending').length,
+    sent: crmLeads.filter(l => emailStatuses[l.id] === 'sent').length,
+    failed: crmLeads.filter(l => emailStatuses[l.id] === 'failed').length,
+  };
+
   // Filtered and sorted leads
   const filteredLeads = crmLeads
     .filter(lead => {
@@ -125,11 +148,21 @@ export default function BamLeadCRMPanel({ leads: initialLeads, onSync }: BamLead
         lead.phone?.includes(searchQuery);
       const matchesStatus = activeFilter === 'all' || lead.status === activeFilter;
       const matchesPriority = priorityFilter === 'all' || lead.priority === priorityFilter;
-      return matchesSearch && matchesStatus && matchesPriority;
+      const leadEmailStatus = emailStatuses[lead.id] || 'not_sent';
+      const matchesEmailStatus = emailStatusFilter === 'all' || 
+        (emailStatusFilter === 'pending' && (leadEmailStatus === 'pending' || leadEmailStatus === 'sending')) ||
+        leadEmailStatus === emailStatusFilter;
+      return matchesSearch && matchesStatus && matchesPriority && matchesEmailStatus;
     })
     .sort((a, b) => {
       if (sortBy === 'score') return b.score - a.score;
       if (sortBy === 'name') return a.name.localeCompare(b.name);
+      if (sortBy === 'email_status') {
+        const statusOrder = { 'sent': 0, 'pending': 1, 'sending': 1, 'failed': 2, 'not_sent': 3 };
+        const aStatus = emailStatuses[a.id] || 'not_sent';
+        const bStatus = emailStatuses[b.id] || 'not_sent';
+        return (statusOrder[aStatus] || 3) - (statusOrder[bStatus] || 3);
+      }
       return 0;
     });
 
@@ -196,65 +229,120 @@ export default function BamLeadCRMPanel({ leads: initialLeads, onSync }: BamLead
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
         <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
-          <CardContent className="p-5">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Leads</p>
-                <p className="text-3xl font-bold mt-1">{stats.total}</p>
+                <p className="text-xs text-muted-foreground">Total Leads</p>
+                <p className="text-2xl font-bold mt-1">{stats.total}</p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                <Users className="w-6 h-6 text-blue-500" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-red-500/10 to-orange-500/5 border-red-500/20">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">High Priority</p>
-                <p className="text-3xl font-bold mt-1">{stats.highPriority}</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center">
-                <AlertCircle className="w-6 h-6 text-red-500" />
+              <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                <Users className="w-5 h-5 text-blue-500" />
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/5 border-green-500/20">
-          <CardContent className="p-5">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Avg Score</p>
-                <p className="text-3xl font-bold mt-1">{stats.avgScore}</p>
+                <p className="text-xs text-muted-foreground">📧 Emails Sent</p>
+                <p className="text-2xl font-bold mt-1 text-green-500">{stats.emailsSent}</p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-green-500" />
+              <div className="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center">
+                <CheckCircle2 className="w-5 h-5 text-green-500" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-500/10 to-violet-500/5 border-purple-500/20">
-          <CardContent className="p-5">
+        <Card className="bg-gradient-to-br from-amber-500/10 to-orange-500/5 border-amber-500/20">
+          <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Follow-ups</p>
-                <p className="text-3xl font-bold mt-1">{stats.followUps}</p>
+                <p className="text-xs text-muted-foreground">📤 Pending</p>
+                <p className="text-2xl font-bold mt-1 text-amber-500">{stats.emailsPending}</p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                <Clock className="w-6 h-6 text-purple-500" />
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                <Clock className="w-5 h-5 text-amber-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-red-500/10 to-red-600/5 border-red-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">❌ Failed</p>
+                <p className="text-2xl font-bold mt-1 text-red-500">{stats.emailsFailed}</p>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-red-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-violet-500/10 to-purple-500/5 border-violet-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Avg Score</p>
+                <p className="text-2xl font-bold mt-1">{stats.avgScore}</p>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-violet-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-cyan-500/10 to-blue-500/5 border-cyan-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">High Priority</p>
+                <p className="text-2xl font-bold mt-1">{stats.highPriority}</p>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                <Star className="w-5 h-5 text-cyan-500" />
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Lead Pipeline */}
+      {/* Email Status Filter Buttons */}
+      <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-green-500/5">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <Mail className="w-5 h-5 text-primary" />
+            <h3 className="font-bold">📊 Email Campaign Report</h3>
+            <Badge variant="outline" className="ml-auto">Filter by email status</Badge>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(EMAIL_STATUS_CONFIG).map(([key, config]) => (
+              <button
+                key={key}
+                onClick={() => setEmailStatusFilter(key)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${
+                  emailStatusFilter === key
+                    ? `${config.color} text-white`
+                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {config.label}
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                  {emailStatusCounts[key as keyof typeof emailStatusCounts] || 0}
+                </Badge>
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
       <Card className="border-border">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">

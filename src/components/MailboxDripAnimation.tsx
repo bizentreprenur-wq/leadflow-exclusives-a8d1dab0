@@ -1,12 +1,16 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, CheckCircle2, Clock, Zap, Info, ArrowRight, Shield, TrendingUp } from 'lucide-react';
+import { Mail, CheckCircle2, Clock, Zap, Info, ArrowRight, Shield, TrendingUp, Eye } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface MailboxDripAnimationProps {
   totalEmails: number;
   sentCount: number;
   isActive: boolean;
   emailsPerHour?: number;
+  leads?: Array<{ id: string; name: string; email?: string }>;
+  onEmailStatusUpdate?: (statuses: Record<string, 'pending' | 'sending' | 'sent' | 'failed'>) => void;
 }
 
 export default function MailboxDripAnimation({
@@ -14,10 +18,58 @@ export default function MailboxDripAnimation({
   sentCount,
   isActive,
   emailsPerHour = 50,
+  leads = [],
+  onEmailStatusUpdate,
 }: MailboxDripAnimationProps) {
   const [flyingEmails, setFlyingEmails] = useState<number[]>([]);
   const [emailId, setEmailId] = useState(0);
   const [showExplanation, setShowExplanation] = useState(false);
+  const [currentSendingIndex, setCurrentSendingIndex] = useState(0);
+  const [emailStatuses, setEmailStatuses] = useState<Record<string, 'pending' | 'sending' | 'sent' | 'failed'>>({});
+
+  // Initialize email statuses from leads
+  useEffect(() => {
+    if (leads.length > 0) {
+      const initialStatuses: Record<string, 'pending' | 'sending' | 'sent' | 'failed'> = {};
+      leads.forEach(lead => {
+        if (lead.email) {
+          initialStatuses[lead.id] = 'pending';
+        }
+      });
+      setEmailStatuses(initialStatuses);
+      setCurrentSendingIndex(0);
+    }
+  }, [leads]);
+
+  // Simulate sending each lead's email
+  useEffect(() => {
+    if (!isActive || leads.length === 0) return;
+
+    const leadsWithEmail = leads.filter(l => l.email);
+    if (currentSendingIndex >= leadsWithEmail.length) return;
+
+    const interval = setInterval(() => {
+      if (currentSendingIndex < leadsWithEmail.length) {
+        const currentLead = leadsWithEmail[currentSendingIndex];
+        
+        // Mark as sending
+        setEmailStatuses(prev => ({ ...prev, [currentLead.id]: 'sending' }));
+        
+        // After animation, mark as sent
+        setTimeout(() => {
+          setEmailStatuses(prev => {
+            const updated = { ...prev, [currentLead.id]: 'sent' as const };
+            onEmailStatusUpdate?.(updated);
+            return updated;
+          });
+        }, 1500);
+        
+        setCurrentSendingIndex(prev => prev + 1);
+      }
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [isActive, currentSendingIndex, leads, onEmailStatusUpdate]);
 
   // Simulate email flying animation
   useEffect(() => {
@@ -42,8 +94,101 @@ export default function MailboxDripAnimation({
   const etaHours = Math.floor(etaMinutes / 60);
   const etaRemainingMins = etaMinutes % 60;
 
+  // Get leads with email
+  const leadsWithEmail = leads.filter(l => l.email);
+
   return (
     <div className="space-y-4">
+      {/* ⚠️ PREVIEW MODE BANNER */}
+      <div className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-2 border-amber-500/50">
+        <div className="w-12 h-12 rounded-full bg-amber-500/30 flex items-center justify-center">
+          <Eye className="w-6 h-6 text-amber-400" />
+        </div>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <h3 className="font-bold text-amber-400 text-lg">📧 PREVIEW MODE</h3>
+            <Badge className="bg-amber-500/30 text-amber-300 border-amber-500/50">
+              Demo Only
+            </Badge>
+          </div>
+          <p className="text-sm text-amber-200/80">
+            This is a <strong>simulation</strong> showing how your emails will be sent. 
+            <strong className="text-white"> No emails are being sent yet.</strong> Go to the "Send" tab to launch your campaign.
+          </p>
+        </div>
+      </div>
+
+      {/* Live Email Queue - Shows each lead */}
+      {leadsWithEmail.length > 0 && (
+        <div className="bg-gradient-to-br from-slate-900/50 to-slate-800/50 rounded-xl border border-white/10 overflow-hidden">
+          <div className="p-3 border-b border-white/10 flex items-center justify-between bg-white/5">
+            <h4 className="font-semibold text-white flex items-center gap-2">
+              <Mail className="w-4 h-4 text-primary" />
+              Email Queue Preview
+            </h4>
+            <div className="flex items-center gap-2 text-xs">
+              <Badge variant="outline" className="bg-green-500/20 text-green-400 border-green-500/30">
+                {Object.values(emailStatuses).filter(s => s === 'sent').length} Simulated
+              </Badge>
+              <Badge variant="outline" className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                {Object.values(emailStatuses).filter(s => s === 'pending').length} Pending
+              </Badge>
+            </div>
+          </div>
+          
+          <ScrollArea className="h-48">
+            <div className="p-2 space-y-1">
+              {leadsWithEmail.slice(0, 20).map((lead, idx) => {
+                const status = emailStatuses[lead.id] || 'pending';
+                return (
+                  <motion.div
+                    key={lead.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className={`flex items-center gap-3 p-2 rounded-lg transition-all ${
+                      status === 'sending' 
+                        ? 'bg-primary/20 border border-primary/50 animate-pulse' 
+                        : status === 'sent'
+                          ? 'bg-green-500/10 border border-green-500/30'
+                          : 'bg-white/5 border border-transparent'
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                      status === 'sending'
+                        ? 'bg-primary/30 text-primary'
+                        : status === 'sent'
+                          ? 'bg-green-500/30 text-green-400'
+                          : 'bg-white/10 text-muted-foreground'
+                    }`}>
+                      {status === 'sent' ? <CheckCircle2 className="w-4 h-4" /> : idx + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{lead.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{lead.email}</p>
+                    </div>
+                    <Badge className={`text-xs ${
+                      status === 'sending'
+                        ? 'bg-primary/30 text-primary border-primary/50 animate-pulse'
+                        : status === 'sent'
+                          ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                          : 'bg-white/10 text-muted-foreground border-white/20'
+                    }`}>
+                      {status === 'sending' ? '📤 Simulating...' : status === 'sent' ? '✅ Preview Sent' : '⏳ Queued'}
+                    </Badge>
+                  </motion.div>
+                );
+              })}
+              {leadsWithEmail.length > 20 && (
+                <div className="text-center py-2 text-sm text-muted-foreground">
+                  + {leadsWithEmail.length - 20} more leads in queue
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </div>
+      )}
+
       {/* Main Animation Container */}
       <div className="relative bg-gradient-to-br from-blue-900/30 to-indigo-900/30 rounded-2xl p-6 border border-blue-500/30 overflow-hidden">
         {/* Background glow */}
@@ -69,7 +214,7 @@ export default function MailboxDripAnimation({
               <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-4 bg-blue-800" />
             </div>
             <div>
-              <h3 className="font-bold text-white">Smart Drip Campaign</h3>
+              <h3 className="font-bold text-white">Smart Drip Campaign Preview</h3>
               <div className="flex items-center gap-2 text-sm text-blue-300/80">
                 <span className="font-semibold text-primary">{emailsPerHour} emails/hour</span>
                 <span>•</span>
@@ -86,9 +231,9 @@ export default function MailboxDripAnimation({
               <Info className="w-4 h-4 text-blue-300" />
             </button>
             {isActive && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/20 rounded-full border border-green-500/30">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                <span className="text-xs font-medium text-green-400">SENDING</span>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/20 rounded-full border border-amber-500/30">
+                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
+                <span className="text-xs font-medium text-amber-400">PREVIEW</span>
               </div>
             )}
           </div>
