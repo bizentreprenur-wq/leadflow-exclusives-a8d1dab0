@@ -21,6 +21,7 @@ import BamLeadCRMPanel from './BamLeadCRMPanel';
 import AutoCampaignWizard from './AutoCampaignWizard';
 import CampaignAnalyticsDashboard from './CampaignAnalyticsDashboard';
 import ABTestingPanel from './ABTestingPanel';
+import CRMSelectionPanel from './CRMSelectionPanel';
 import { LeadForEmail } from '@/lib/api/email';
 
 interface SearchResult {
@@ -490,16 +491,28 @@ export default function EmailSetupFlow({
               </TabsContent>
 
               <TabsContent value="crm" className="mt-4">
-                <BamLeadCRMPanel 
-                  leads={leads.map(l => ({
-                    id: l.id,
-                    name: l.name,
-                    email: l.email,
-                    phone: l.phone,
-                    website: l.website,
-                    address: l.address,
-                  }))}
-                />
+                <div className="space-y-6">
+                  {/* CRM Selection Panel */}
+                  <CRMSelectionPanel leadCount={leads.length} />
+                  
+                  {/* Lead Management CRM Panel */}
+                  <div className="border-t border-border pt-6">
+                    <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                      <Database className="w-5 h-5 text-violet-500" />
+                      Lead Management
+                    </h3>
+                    <BamLeadCRMPanel 
+                      leads={leads.map(l => ({
+                        id: l.id,
+                        name: l.name,
+                        email: l.email,
+                        phone: l.phone,
+                        website: l.website,
+                        address: l.address,
+                      }))}
+                    />
+                  </div>
+                </div>
               </TabsContent>
 
               <TabsContent value="ab-testing" className="mt-4">
@@ -541,65 +554,65 @@ export default function EmailSetupFlow({
                 Connect External CRM
               </Button>
               <div className="flex items-center gap-3">
-                {/* Dynamic Next Step Button */}
+                {/* Dynamic Next Step Button - Color matches next tab */}
                 {activeTab === 'preview' && (
                   <Button 
                     onClick={() => handleTabChange('crm')} 
                     size="sm"
-                    className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse"
+                    className="gap-2 bg-violet-500 hover:bg-violet-600 text-white transition-all hover:scale-105"
                   >
                     <ArrowRight className="w-4 h-4" />
-                    Next Step: Setup CRM
+                    Next: Setup CRM
                   </Button>
                 )}
                 {activeTab === 'crm' && (
                   <Button 
                     onClick={() => handleTabChange('ab-testing')} 
                     size="sm"
-                    className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse"
+                    className="gap-2 bg-pink-500 hover:bg-pink-600 text-white transition-all hover:scale-105"
                   >
                     <ArrowRight className="w-4 h-4" />
-                    Next Step: A/B Testing
+                    Next: A/B Testing
                   </Button>
                 )}
                 {activeTab === 'ab-testing' && (
                   <Button 
                     onClick={() => handleTabChange('mailbox')} 
                     size="sm"
-                    className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse"
+                    className="gap-2 bg-amber-500 hover:bg-amber-600 text-white transition-all hover:scale-105"
                   >
                     <ArrowRight className="w-4 h-4" />
-                    Next Step: Mailbox
+                    Next: Mailbox
                   </Button>
                 )}
                 {activeTab === 'mailbox' && (
                   <Button 
                     onClick={() => handleTabChange('analytics')} 
                     size="sm"
-                    className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse"
+                    className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white transition-all hover:scale-105"
                   >
                     <ArrowRight className="w-4 h-4" />
-                    Next Step: Analytics
+                    Next: Analytics
                   </Button>
                 )}
                 {activeTab === 'analytics' && (
                   <Button 
                     onClick={() => handleTabChange('send')} 
                     size="sm"
-                    className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse"
+                    className="gap-2 bg-red-500 hover:bg-red-600 text-white transition-all hover:scale-105"
                   >
                     <ArrowRight className="w-4 h-4" />
-                    Next Step: Send Emails
+                    Next: Send Emails
                   </Button>
                 )}
                 {activeTab === 'send' && (
                   <Button 
                     onClick={onComplete} 
                     size="sm"
-                    className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white animate-pulse"
+                    className="gap-2 bg-violet-600 hover:bg-violet-700 text-white transition-all hover:scale-105"
                   >
                     <ArrowRight className="w-4 h-4" />
-                    Next Step: Outreach Hub
+                    Next: Outreach Hub
                   </Button>
                 )}
                 <Button 
