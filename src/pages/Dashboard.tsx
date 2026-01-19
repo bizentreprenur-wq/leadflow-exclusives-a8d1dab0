@@ -46,6 +46,7 @@ import { searchGMB, GMBResult } from '@/lib/api/gmb';
 import { searchPlatforms, PlatformResult } from '@/lib/api/platforms';
 import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } from '@/lib/api/leadAnalysis';
 import { HIGH_CONVERTING_TEMPLATES } from '@/lib/highConvertingTemplates';
+import { generateMechanicLeads, injectTestLeads } from '@/lib/testMechanicLeads';
 import AutoFollowUpBuilder from '@/components/AutoFollowUpBuilder';
 import LeadResultsPanel from '@/components/LeadResultsPanel';
 import LeadDocumentViewer from '@/components/LeadDocumentViewer';
@@ -502,6 +503,48 @@ export default function Dashboard() {
       case 1:
         return (
           <div className="space-y-8">
+            {/* DEV: Test Data Button - Load 200 mechanic leads */}
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const testLeads = generateMechanicLeads(200);
+                  const searchResultsFormat = testLeads.map(l => ({
+                    id: l.id,
+                    name: l.name,
+                    address: l.address,
+                    phone: l.phone,
+                    website: l.website,
+                    email: l.email,
+                    rating: l.rating,
+                    source: l.source,
+                    platform: l.platform,
+                    websiteAnalysis: l.websiteAnalysis,
+                  }));
+                  setSearchResults(searchResultsFormat);
+                  setQuery('auto mechanic');
+                  setLocation('Los Angeles');
+                  setSearchType('gmb');
+                  // Also set email leads for Step 3/4
+                  const emailLeadsFormat = testLeads.map(l => ({
+                    email: l.email,
+                    business_name: l.name,
+                    contact_name: '',
+                    website: l.website,
+                    phone: l.phone,
+                  }));
+                  setEmailLeads(emailLeadsFormat);
+                  setCurrentStep(2);
+                  toast.success('✅ Loaded 200 test mechanic leads! Proceeding to Step 2...');
+                }}
+                className="gap-2 border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
+              >
+                <Zap className="w-4 h-4" />
+                🧪 DEV: Load 200 Test Mechanic Leads
+              </Button>
+            </div>
+
             {/* Step 1: Choose Search Type */}
             {!searchType ? (
               <div className="space-y-8 max-w-5xl mx-auto">
