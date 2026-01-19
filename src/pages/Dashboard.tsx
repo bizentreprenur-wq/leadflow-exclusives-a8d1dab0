@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
   Search, Globe, Mail, Target, TrendingUp,
@@ -1587,6 +1588,58 @@ export default function Dashboard() {
         location={location}
         onProceedToVerify={handleResultsPanelProceed}
       />
+
+      {/* AI Lead Scoring Dashboard Modal */}
+      <Dialog open={showAIScoringDashboard} onOpenChange={setShowAIScoringDashboard}>
+        <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden p-0">
+          <ScrollArea className="h-[90vh]">
+            <div className="p-6">
+              <AILeadScoringDashboard
+                leads={searchResults.map(r => ({
+                  id: r.id,
+                  name: r.name,
+                  business_name: r.name,
+                  email: r.email,
+                  phone: r.phone,
+                  website: r.website,
+                  address: r.address,
+                  websiteAnalysis: r.websiteAnalysis,
+                }))}
+                onEmailLeads={(selectedLeadsToEmail) => {
+                  setShowAIScoringDashboard(false);
+                  setEmailLeads(selectedLeadsToEmail.map(l => ({
+                    email: l.email || '',
+                    business_name: l.business_name || l.name || '',
+                    contact_name: '',
+                    website: l.website,
+                    phone: l.phone,
+                  })));
+                  setCurrentStep(3);
+                }}
+                onCallLead={(lead) => {
+                  setShowAIScoringDashboard(false);
+                  setSelectedLeads([lead.id]);
+                  setCurrentStep(4);
+                }}
+                onSchedule={(lead) => {
+                  setShowAIScoringDashboard(false);
+                  setSelectedLeads([lead.id]);
+                  setCurrentStep(4);
+                }}
+                onExportCRM={() => {
+                  setShowAIScoringDashboard(false);
+                  setShowCRMModal(true);
+                }}
+                onViewReport={() => {
+                  setShowAIScoringDashboard(false);
+                  setShowReportModal(true);
+                }}
+                onBack={() => setShowAIScoringDashboard(false)}
+              />
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
 
     </SidebarProvider>
   );
