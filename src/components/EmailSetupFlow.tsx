@@ -49,6 +49,17 @@ export default function EmailSetupFlow({
   const [showCRMModal, setShowCRMModal] = useState(false);
   const [showAutoCampaign, setShowAutoCampaign] = useState(false);
   
+  // Guided tab tracking - prompts user to visit each section
+  const [activeTab, setActiveTab] = useState('preview');
+  const [visitedTabs, setVisitedTabs] = useState<string[]>(['preview']);
+  
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    if (!visitedTabs.includes(tab)) {
+      setVisitedTabs(prev => [...prev, tab]);
+    }
+  };
+  
   // Check SMTP configuration
   const [smtpConfigured, setSmtpConfigured] = useState(() => {
     const config = JSON.parse(localStorage.getItem('smtp_config') || '{}');
@@ -283,8 +294,65 @@ export default function EmailSetupFlow({
               </p>
             </div>
 
+            {/* GUIDED SETUP CHECKLIST - Prompts user to configure each section */}
+            <Card className="mb-6 border-2 border-primary/30 bg-gradient-to-r from-primary/5 to-blue-500/5">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                    <CheckCircle2 className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg">📋 Setup Checklist — Click Each Tab Below</h3>
+                    <p className="text-sm text-muted-foreground">Complete each section to launch your campaign</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                  {[
+                    { tab: 'preview', icon: Eye, label: 'Preview Email', color: 'blue', desc: 'See how it looks' },
+                    { tab: 'crm', icon: Database, label: 'Setup CRM', color: 'violet', desc: 'Organize leads' },
+                    { tab: 'ab-testing', icon: FlaskConical, label: 'A/B Testing', color: 'pink', desc: 'Test variations' },
+                    { tab: 'mailbox', icon: Mail, label: 'Mailbox', color: 'amber', desc: 'View drip queue' },
+                    { tab: 'analytics', icon: BarChart3, label: 'Analytics', color: 'emerald', desc: 'Track results' },
+                    { tab: 'send', icon: Send, label: 'Send Emails', color: 'red', desc: 'Launch campaign!' },
+                  ].map((item, idx) => (
+                    <button
+                      key={item.tab}
+                      onClick={() => setActiveTab(item.tab)}
+                      className={`p-3 rounded-lg border-2 transition-all hover:scale-105 cursor-pointer text-left
+                        ${activeTab === item.tab 
+                          ? `border-${item.color}-500 bg-${item.color}-500/20 ring-2 ring-${item.color}-500/50` 
+                          : visitedTabs.includes(item.tab)
+                            ? 'border-success/50 bg-success/10'
+                            : 'border-border bg-muted/30 hover:border-primary/50'
+                        }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <item.icon className={`w-4 h-4 ${activeTab === item.tab ? `text-${item.color}-500` : visitedTabs.includes(item.tab) ? 'text-success' : 'text-muted-foreground'}`} />
+                        <span className="text-xs font-bold">{idx + 1}</span>
+                        {visitedTabs.includes(item.tab) && <CheckCircle2 className="w-3 h-3 text-success ml-auto" />}
+                      </div>
+                      <p className="font-semibold text-sm">{item.label}</p>
+                      <p className="text-xs text-muted-foreground">{item.desc}</p>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="mt-4 flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Progress: <span className="font-bold text-primary">{visitedTabs.length}/6</span> sections viewed
+                  </p>
+                  {visitedTabs.length >= 6 && (
+                    <Badge className="bg-success text-white animate-pulse gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> All Setup Complete!
+                    </Badge>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Tabbed Interface for all visual components */}
-            <Tabs defaultValue="preview" className="w-full">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
               <TabsList className="grid w-full grid-cols-6 h-12 bg-muted/50">
                 <TabsTrigger value="preview" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-blue-500 data-[state=active]:text-white">
                   <Eye className="w-4 h-4" />
@@ -298,10 +366,10 @@ export default function EmailSetupFlow({
                   <FlaskConical className="w-4 h-4" />
                   <span className="hidden sm:inline">A/B Test</span>
                 </TabsTrigger>
-                <TabsTrigger value="mailbox" className="relative gap-2 text-xs sm:text-sm data-[state=active]:bg-amber-500 data-[state=active]:text-white animate-pulse">
+                <TabsTrigger value="mailbox" className="relative gap-2 text-xs sm:text-sm data-[state=active]:bg-amber-500 data-[state=active]:text-white">
                   <Mail className="w-4 h-4" />
                   <span className="hidden sm:inline">Mailbox</span>
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full animate-ping" />
+                  {!visitedTabs.includes('mailbox') && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full animate-ping" />}
                 </TabsTrigger>
                 <TabsTrigger value="analytics" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
                   <BarChart3 className="w-4 h-4" />
