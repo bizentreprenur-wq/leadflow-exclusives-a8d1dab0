@@ -1,7 +1,14 @@
-# BamLead Routing
+# BamLead Routing - SPA Support
+Options -MultiViews
+DirectoryIndex index.html
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
+
+  # Force HTTPS (uncomment if needed)
+  # RewriteCond %{HTTPS} off
+  # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
   # Never rewrite API requests
   RewriteRule ^api(/.*)?$ - [L]
@@ -11,7 +18,14 @@
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  # SPA fallback (everything else goes to index.html in root)
-  RewriteRule ^ index.html [L]
+  # SPA fallback - all routes go to index.html
+  RewriteRule ^.*$ index.html [L]
+</IfModule>
+
+# Ensure proper MIME types
+<IfModule mod_mime.c>
+  AddType text/html .html
+  AddType application/javascript .js
+  AddType text/css .css
 </IfModule>
 
