@@ -14,12 +14,22 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/database.php';
 require_once __DIR__ . '/includes/email.php';
+require_once __DIR__ . '/includes/functions.php';
 
-// Security: Check for cron key if called via HTTP (header-based, not URL)
+// Security: Check IP whitelist AND cron key if called via HTTP
 if (php_sapi_name() !== 'cli') {
-    // Accept from header (preferred) or legacy URL parameter (deprecated)
+    // Check IP whitelist first
+    if (!isAllowedCronIP()) {
+        error_log("Cron email access denied - IP not whitelisted: " . getClientIP());
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Forbidden - IP not allowed']);
+        exit();
+    }
+    
+    // Then check cron secret key (header preferred, URL deprecated)
     $cronKey = $_SERVER['HTTP_X_CRON_SECRET'] ?? $_GET['key'] ?? '';
     if (!defined('CRON_SECRET_KEY') || !hash_equals(CRON_SECRET_KEY, $cronKey)) {
+        error_log("Cron email access denied - invalid key from IP: " . getClientIP());
         http_response_code(403);
         echo json_encode(['success' => false, 'error' => 'Forbidden']);
         exit();

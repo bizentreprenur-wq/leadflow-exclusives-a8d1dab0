@@ -15,15 +15,26 @@ header('Content-Type: application/json');
 setCorsHeaders();
 handlePreflight();
 
-// Security check - prefer header-based auth, fallback to URL param (deprecated)
+// Security check - IP whitelist + header-based auth
 $cronKey = $_SERVER['HTTP_X_CRON_SECRET'] ?? $_GET['key'] ?? '';
 $configExists = file_exists(__DIR__ . '/config.php');
 
 if ($configExists) {
     require_once __DIR__ . '/config.php';
-    if (defined('CRON_SECRET_KEY') && !hash_equals(CRON_SECRET_KEY, $cronKey)) {
+    
+    // Check IP whitelist first
+    if (!isAllowedCronIP()) {
+        error_log("Diagnostics access denied - IP not whitelisted: " . getClientIP());
         http_response_code(403);
-        echo json_encode(['error' => 'Forbidden. Use header: X-Cron-Secret: YOUR_KEY']);
+        echo json_encode(['error' => 'Forbidden - IP not allowed']);
+        exit;
+    }
+    
+    // Then check cron secret key
+    if (defined('CRON_SECRET_KEY') && !hash_equals(CRON_SECRET_KEY, $cronKey)) {
+        error_log("Diagnostics access denied - invalid key from IP: " . getClientIP());
+        http_response_code(403);
+        echo json_encode(['error' => 'Forbidden']);
         exit;
     }
 }
