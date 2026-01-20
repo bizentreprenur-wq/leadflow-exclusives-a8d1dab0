@@ -86,9 +86,9 @@ try {
             break;
             
         case 'process-scheduled':
-            // Require cron secret key for processing scheduled emails
-            $cronKey = $_GET['key'] ?? $_SERVER['HTTP_X_CRON_KEY'] ?? '';
-            if (!defined('CRON_SECRET_KEY') || $cronKey !== CRON_SECRET_KEY) {
+            // Require cron secret key for processing scheduled emails (header preferred, URL deprecated)
+            $cronKey = $_SERVER['HTTP_X_CRON_SECRET'] ?? $_GET['key'] ?? '';
+            if (!defined('CRON_SECRET_KEY') || !hash_equals(CRON_SECRET_KEY, $cronKey)) {
                 http_response_code(403);
                 echo json_encode(['success' => false, 'error' => 'Forbidden']);
                 exit();
