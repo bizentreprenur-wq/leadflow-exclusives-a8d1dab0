@@ -16,8 +16,16 @@ function sendEmail($to, $subject, $htmlBody, $textBody = '') {
     if (defined('SMTP_HOST') && SMTP_HOST) {
         return sendEmailSMTP($to, $subject, $htmlBody, $textBody);
     }
-    
-    // Fallback to native mail()
+
+    return sendEmailNative($to, $subject, $htmlBody);
+}
+
+/**
+ * Send HTML email using PHP's native mail() with the correct headers.
+ * IMPORTANT: This must always include the Content-Type header; otherwise
+ * recipients may see raw HTML markup instead of a rendered email.
+ */
+function sendEmailNative($to, $subject, $htmlBody) {
     $headers = [
         'MIME-Version: 1.0',
         'Content-type: text/html; charset=UTF-8',
@@ -25,9 +33,8 @@ function sendEmail($to, $subject, $htmlBody, $textBody = '') {
         'Reply-To: ' . MAIL_FROM_ADDRESS,
         'X-Mailer: PHP/' . phpversion()
     ];
-    
+
     $headerString = implode("\r\n", $headers);
-    
     return mail($to, $subject, $htmlBody, $headerString);
 }
 
@@ -38,7 +45,7 @@ function sendEmail($to, $subject, $htmlBody, $textBody = '') {
 function sendEmailSMTP($to, $subject, $htmlBody, $textBody = '') {
     // If PHPMailer is not installed, fall back to native mail
     if (!class_exists('PHPMailer\PHPMailer\PHPMailer')) {
-        return mail($to, $subject, $htmlBody);
+        return sendEmailNative($to, $subject, $htmlBody);
     }
     
     $mail = new \PHPMailer\PHPMailer\PHPMailer(true);

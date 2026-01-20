@@ -1,8 +1,9 @@
 // API configuration for backend
 // Set VITE_API_URL environment variable to connect to your backend
 
-// Set to true to use mock data when backend is unavailable
-export const USE_MOCK_AUTH = true; // Disabled - using real Hostinger authentication
+// Mock auth is ONLY enabled in development when explicitly set via env variable
+// NEVER enable in production - this bypasses all server-side authentication
+export const USE_MOCK_AUTH = import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOCK_AUTH === 'true';
 
 // API Base URL
 export const API_BASE_URL = 'https://bamlead.com/api';

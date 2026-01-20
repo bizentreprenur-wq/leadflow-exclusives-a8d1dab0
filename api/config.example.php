@@ -124,6 +124,22 @@ define('ENABLE_CACHE', true);
 define('CACHE_DIR', __DIR__ . '/cache');
 
 // =====================================
+// CRON & DIAGNOSTICS SECURITY
+// =====================================
+// Secret key for cron job authentication (use X-Cron-Secret header)
+// Generate at: https://randomkeygen.com/
+define('CRON_SECRET_KEY', 'REPLACE_WITH_RANDOM_32_CHAR_STRING'); // <-- REPLACE THIS
+
+// IP whitelist for cron endpoints (optional but recommended)
+// Add your server's IP address and any allowed cron service IPs
+// To find your server IP: curl ifconfig.me
+define('CRON_ALLOWED_IPS', [
+    '127.0.0.1',      // Localhost
+    '::1',            // IPv6 localhost
+    // 'YOUR_SERVER_IP', // <-- Add your Hostinger server IP here
+]);
+
+// =====================================
 // SESSION SETTINGS
 // =====================================
 define('SESSION_LIFETIME', 604800); // 7 days in seconds

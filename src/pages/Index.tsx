@@ -22,6 +22,7 @@ import SponsorSection from "@/components/SponsorSection";
 import AutoSearchFeature from "@/components/AutoSearchFeature";
 import VoiceCallingSection from "@/components/VoiceCallingSection";
 import ROICalculatorSection from "@/components/ROICalculatorSection";
+import AIEmailAssistantDemo from "@/components/AIEmailAssistantDemo";
 
 const Index = () => {
   return (
@@ -42,8 +43,8 @@ const Index = () => {
         <ROICalculatorSection />
         <NewFeaturesShowcase />
         <LeadGenSection />
+        <AIEmailAssistantDemo />
         <EmailOutreachSection />
-        <ChromeExtensionSection />
         <WhoThisIsForSection />
         <WhyItWorksSection />
         <FAQSection />

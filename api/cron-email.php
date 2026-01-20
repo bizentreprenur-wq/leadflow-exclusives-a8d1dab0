@@ -4,23 +4,34 @@
  * 
  * This script should be set up as a cron job on Hostinger to run every minute:
  * 
- * Cron command:
+ * Cron command (preferred - runs via CLI, no HTTP auth needed):
  * * * * * * /usr/bin/php /home/u497238762/public_html/api/cron-email.php >> /home/u497238762/logs/email-cron.log 2>&1
  * 
- * Or via wget:
- * * * * * * wget -q -O /dev/null "https://bamlead.com/api/cron-email.php?key=YOUR_CRON_SECRET_KEY"
+ * Or via curl with header authentication:
+ * * * * * * curl -s -H "X-Cron-Secret: YOUR_CRON_SECRET_KEY" "https://bamlead.com/api/cron-email.php"
  */
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/database.php';
 require_once __DIR__ . '/includes/email.php';
+require_once __DIR__ . '/includes/functions.php';
 
-// Security: Check for cron key if called via HTTP
+// Security: Check IP whitelist AND cron key if called via HTTP
 if (php_sapi_name() !== 'cli') {
-    $cronKey = $_GET['key'] ?? '';
-    if (!defined('CRON_SECRET_KEY') || $cronKey !== CRON_SECRET_KEY) {
+    // Check IP whitelist first
+    if (!isAllowedCronIP()) {
+        error_log("Cron email access denied - IP not whitelisted: " . getClientIP());
         http_response_code(403);
-        echo json_encode(['success' => false, 'error' => 'Invalid cron key']);
+        echo json_encode(['success' => false, 'error' => 'Forbidden - IP not allowed']);
+        exit();
+    }
+    
+    // Then check cron secret key (header preferred, URL deprecated)
+    $cronKey = $_SERVER['HTTP_X_CRON_SECRET'] ?? $_GET['key'] ?? '';
+    if (!defined('CRON_SECRET_KEY') || !hash_equals(CRON_SECRET_KEY, $cronKey)) {
+        error_log("Cron email access denied - invalid key from IP: " . getClientIP());
+        http_response_code(403);
+        echo json_encode(['success' => false, 'error' => 'Forbidden']);
         exit();
     }
 }

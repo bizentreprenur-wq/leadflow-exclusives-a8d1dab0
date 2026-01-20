@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 import {
   ArrowLeft, ArrowRight, Server, FileText, Send, 
@@ -20,6 +21,9 @@ import BamLeadCRMPanel from './BamLeadCRMPanel';
 import AutoCampaignWizard from './AutoCampaignWizard';
 import CampaignAnalyticsDashboard from './CampaignAnalyticsDashboard';
 import ABTestingPanel from './ABTestingPanel';
+import CRMSelectionPanel from './CRMSelectionPanel';
+import AITemplateSuggestions from './AITemplateSuggestions';
+import AIEmailAssistant from './AIEmailAssistant';
 import { LeadForEmail } from '@/lib/api/email';
 
 interface SearchResult {
@@ -45,9 +49,19 @@ export default function EmailSetupFlow({
   onOpenSettings,
 }: EmailSetupFlowProps) {
   const [currentPhase, setCurrentPhase] = useState<'smtp' | 'template' | 'send'>('smtp');
-  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(() => {
+    // Load previously selected template from localStorage
+    const saved = localStorage.getItem('bamlead_selected_template');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [customizedContent, setCustomizedContent] = useState<{ subject: string; body: string } | null>(() => {
+    // Load customer's edits to their template
+    const saved = localStorage.getItem('bamlead_template_customizations');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [showCRMModal, setShowCRMModal] = useState(false);
   const [showAutoCampaign, setShowAutoCampaign] = useState(false);
+  const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   
   // Guided tab tracking - prompts user to visit each section
   const [activeTab, setActiveTab] = useState('preview');
@@ -159,8 +173,26 @@ export default function EmailSetupFlow({
 
   const handleTemplateSelect = (template: any) => {
     setSelectedTemplate(template);
+    // Persist selected template
+    localStorage.setItem('bamlead_selected_template', JSON.stringify(template));
     setCurrentPhase('send');
     toast.success(`Template "${template.name}" selected!`);
+  };
+
+  const handleSaveCustomization = (subject: string, body: string) => {
+    const customizations = { subject, body };
+    setCustomizedContent(customizations);
+    localStorage.setItem('bamlead_template_customizations', JSON.stringify(customizations));
+    toast.success('Your template edits have been saved!');
+    setShowTemplateEditor(false);
+  };
+
+  const handleClearTemplate = () => {
+    setSelectedTemplate(null);
+    setCustomizedContent(null);
+    localStorage.removeItem('bamlead_selected_template');
+    localStorage.removeItem('bamlead_template_customizations');
+    toast.info('Template cleared. Choose a new one below.');
   };
 
   const renderPhaseContent = () => {
@@ -255,29 +287,202 @@ export default function EmailSetupFlow({
               </Badge>
             </div>
 
-            {/* Instruction Banner */}
-            <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-2 border-green-500/50 rounded-xl p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-green-500/30 flex items-center justify-center animate-pulse">
-                  <ArrowRight className="w-6 h-6 text-green-400" />
-                </div>
+            {/* Previously Selected Template - Show if customer already chose one */}
+            {selectedTemplate && (
+              <Card className="border-2 border-emerald-500/50 bg-gradient-to-r from-emerald-500/10 to-green-500/5">
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                        <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-lg">Your Selected Template</h3>
+                          <Badge className="bg-emerald-500 text-white text-xs">Active</Badge>
+                          {customizedContent && (
+                            <Badge variant="outline" className="border-amber-500 text-amber-500 text-xs">Customized</Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {selectedTemplate.name} • {selectedTemplate.category || 'General'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => setShowTemplateEditor(true)}
+                        className="gap-2"
+                      >
+                        <FileText className="w-4 h-4" />
+                        Edit Template
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={handleClearTemplate}
+                        className="text-muted-foreground hover:text-red-500"
+                      >
+                        Choose Different
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Template Preview */}
+                  <div className="bg-background/80 rounded-lg p-4 border border-border">
+                    <div className="mb-3">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Subject Line</p>
+                      <p className="font-semibold text-foreground">
+                        {customizedContent?.subject || selectedTemplate.subject}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Preview</p>
+                      <p className="text-sm text-muted-foreground line-clamp-3">
+                        {(customizedContent?.body || selectedTemplate.body || '').replace(/<[^>]*>/g, '').slice(0, 200)}...
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+                    <p className="text-sm text-muted-foreground">
+                      Ready to send to <span className="font-bold text-emerald-500">{leadsWithEmail.length}</span> leads
+                    </p>
+                    <Button 
+                      onClick={() => setCurrentPhase('send')}
+                      className="gap-2 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700"
+                    >
+                      <Send className="w-4 h-4" />
+                      Use This Template & Continue
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Template Editor Modal with AI Assistant */}
+            {showTemplateEditor && selectedTemplate && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Editor Panel */}
+                <Card className="border-2 border-primary/30 bg-card">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="w-5 h-5 text-primary" />
+                      Edit Your Template
+                    </CardTitle>
+                    <CardDescription>
+                      Customize the subject line and body to match your voice. Your changes are saved automatically.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <Label htmlFor="subject">Subject Line</Label>
+                      <Input 
+                        id="subject"
+                        value={customizedContent?.subject || selectedTemplate.subject}
+                        placeholder="Enter your subject line..."
+                        className="mt-1"
+                        onChange={(e) => {
+                          const body = customizedContent?.body || selectedTemplate.body || '';
+                          handleSaveCustomization(e.target.value, body);
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="body">Email Body</Label>
+                      <textarea 
+                        id="body"
+                        value={(customizedContent?.body || selectedTemplate.body || '').replace(/<[^>]*>/g, '')}
+                        placeholder="Enter your email content..."
+                        className="mt-1 w-full h-48 p-3 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                        onChange={(e) => {
+                          const subject = customizedContent?.subject || selectedTemplate.subject;
+                          handleSaveCustomization(subject, e.target.value);
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setShowTemplateEditor(false)}>
+                        Done Editing
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* AI Assistant Panel */}
+                <AIEmailAssistant
+                  template={selectedTemplate}
+                  leads={leads}
+                  currentSubject={customizedContent?.subject || selectedTemplate.subject}
+                  currentBody={customizedContent?.body || selectedTemplate.body}
+                  onApplySubject={(subject) => {
+                    const body = customizedContent?.body || selectedTemplate.body || '';
+                    handleSaveCustomization(subject, body);
+                  }}
+                  onApplyBody={(newBody) => {
+                    const subject = customizedContent?.subject || selectedTemplate.subject;
+                    const currentBody = customizedContent?.body || selectedTemplate.body || '';
+                    // Append to existing body or replace if empty
+                    const updatedBody = currentBody ? `${currentBody}\n\n${newBody}` : newBody;
+                    handleSaveCustomization(subject, updatedBody.replace(/<[^>]*>/g, ''));
+                  }}
+                />
+              </div>
+            )}
+
+            {/* AI Template Suggestions - Smart recommendations based on leads */}
+            {!selectedTemplate && (
+              <AITemplateSuggestions
+                leads={leads.map(l => ({
+                  id: l.id,
+                  name: l.name,
+                  email: l.email,
+                  phone: l.phone,
+                  website: l.website,
+                  address: l.address,
+                }))}
+                onSelectTemplate={handleTemplateSelect}
+                selectedTemplateId={selectedTemplate?.id}
+              />
+            )}
+
+            {/* Browse Templates Section */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="font-bold text-green-400 text-lg">👆 Click "READY TO SEND" on any template below</h3>
-                  <p className="text-sm text-green-300/80">This will automatically take you to the next step to send your emails</p>
+                  <h3 className="font-bold text-lg">
+                    {selectedTemplate ? 'Or Choose a Different Template' : 'Browse All Templates'}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedTemplate
+                      ? 'Browse our library of high-converting templates' 
+                      : 'Pick a template that matches your outreach style. You can customize it after selection.'}
+                  </p>
                 </div>
               </div>
-            </div>
 
-            <div className="text-center py-4">
-              <h2 className="text-2xl font-bold mb-2">Step 2: Choose Your Email Template</h2>
-              <p className="text-muted-foreground">
-                Pick a template that matches your outreach style. You can customize it before sending.
-              </p>
-            </div>
+              {!selectedTemplate && (
+                <div className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-2 border-green-500/50 rounded-xl p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-green-500/30 flex items-center justify-center">
+                      <ArrowRight className="w-6 h-6 text-green-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-green-400 text-lg">👆 Click "READY TO SEND" on any template below</h3>
+                      <p className="text-sm text-green-300/80">This will automatically take you to the next step to send your emails</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-            <HighConvertingTemplateGallery 
-              onSelectTemplate={handleTemplateSelect}
-            />
+              <HighConvertingTemplateGallery 
+                onSelectTemplate={handleTemplateSelect}
+                selectedTemplateId={selectedTemplate?.id}
+              />
+            </div>
           </div>
         );
 
@@ -367,31 +572,104 @@ export default function EmailSetupFlow({
             {/* Tabbed Interface for all visual components */}
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
               <TabsList className="grid w-full grid-cols-6 h-12 bg-muted/50">
-                <TabsTrigger value="preview" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-blue-500 data-[state=active]:text-white">
-                  <Eye className="w-4 h-4" />
-                  <span className="hidden sm:inline">Preview</span>
-                </TabsTrigger>
-                <TabsTrigger value="crm" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-violet-500 data-[state=active]:text-white">
-                  <Database className="w-4 h-4" />
-                  <span className="hidden sm:inline">CRM</span>
-                </TabsTrigger>
-                <TabsTrigger value="ab-testing" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-pink-500 data-[state=active]:text-white">
-                  <FlaskConical className="w-4 h-4" />
-                  <span className="hidden sm:inline">A/B Test</span>
-                </TabsTrigger>
-                <TabsTrigger value="mailbox" className="relative gap-2 text-xs sm:text-sm data-[state=active]:bg-amber-500 data-[state=active]:text-white">
-                  <Mail className="w-4 h-4" />
-                  <span className="hidden sm:inline">Mailbox</span>
-                  {!visitedTabs.includes('mailbox') && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full animate-ping" />}
-                </TabsTrigger>
-                <TabsTrigger value="analytics" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
-                  <BarChart3 className="w-4 h-4" />
-                  <span className="hidden sm:inline">Analytics</span>
-                </TabsTrigger>
-                <TabsTrigger value="send" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-red-500 data-[state=active]:text-white">
-                  <Send className="w-4 h-4" />
-                  <span className="hidden sm:inline">Send</span>
-                </TabsTrigger>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger value="preview" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-blue-500 data-[state=active]:text-white">
+                        <Eye className="w-4 h-4" />
+                        <span className="hidden sm:inline">Preview</span>
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs p-3 text-center">
+                      <p className="font-semibold mb-1">👁️ Email Preview</p>
+                      <p className="text-xs text-muted-foreground">
+                        See exactly how your email will appear in Gmail, Outlook, and Apple Mail before sending.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger value="crm" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-violet-500 data-[state=active]:text-white">
+                        <Database className="w-4 h-4" />
+                        <span className="hidden sm:inline">CRM</span>
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs p-3 text-center">
+                      <p className="font-semibold mb-1">🗂️ Lead Management (CRM)</p>
+                      <p className="text-xs text-muted-foreground">
+                        Organize, filter, and track your leads. Update statuses, add notes, and monitor email campaign results.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger value="ab-testing" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-pink-500 data-[state=active]:text-white">
+                        <FlaskConical className="w-4 h-4" />
+                        <span className="hidden sm:inline">A/B Test</span>
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs p-3 text-center">
+                      <p className="font-semibold mb-1">📊 What is A/B Testing?</p>
+                      <p className="text-xs text-muted-foreground">
+                        Compare two email versions (subject lines, content, CTAs) to see which gets more opens & clicks. 
+                        This helps you send winning emails every time!
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger value="mailbox" className="relative gap-2 text-xs sm:text-sm data-[state=active]:bg-amber-500 data-[state=active]:text-white">
+                        <Mail className="w-4 h-4" />
+                        <span className="hidden sm:inline">Mailbox</span>
+                        {!visitedTabs.includes('mailbox') && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full animate-ping" />}
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs p-3 text-center">
+                      <p className="font-semibold mb-1">📬 Drip Mailbox</p>
+                      <p className="text-xs text-muted-foreground">
+                        Watch your emails being sent in real-time. Drip sending spaces out emails to avoid spam filters and improve deliverability.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger value="analytics" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
+                        <BarChart3 className="w-4 h-4" />
+                        <span className="hidden sm:inline">Analytics</span>
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs p-3 text-center">
+                      <p className="font-semibold mb-1">📈 Campaign Analytics</p>
+                      <p className="text-xs text-muted-foreground">
+                        Track open rates, click rates, and engagement. See which emails perform best and optimize your outreach strategy.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <TabsTrigger value="send" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-red-500 data-[state=active]:text-white">
+                        <Send className="w-4 h-4" />
+                        <span className="hidden sm:inline">Send</span>
+                      </TabsTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="max-w-xs p-3 text-center">
+                      <p className="font-semibold mb-1">🚀 Send Campaign</p>
+                      <p className="text-xs text-muted-foreground">
+                        Launch your email campaign! Review final settings, select recipients, and hit send to start your outreach.
+                      </p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               </TabsList>
 
               <TabsContent value="preview" className="mt-4">
@@ -416,16 +694,28 @@ export default function EmailSetupFlow({
               </TabsContent>
 
               <TabsContent value="crm" className="mt-4">
-                <BamLeadCRMPanel 
-                  leads={leads.map(l => ({
-                    id: l.id,
-                    name: l.name,
-                    email: l.email,
-                    phone: l.phone,
-                    website: l.website,
-                    address: l.address,
-                  }))}
-                />
+                <div className="space-y-6">
+                  {/* CRM Selection Panel */}
+                  <CRMSelectionPanel leadCount={leads.length} />
+                  
+                  {/* Lead Management CRM Panel */}
+                  <div className="border-t border-border pt-6">
+                    <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                      <Database className="w-5 h-5 text-violet-500" />
+                      Lead Management
+                    </h3>
+                    <BamLeadCRMPanel 
+                      leads={leads.map(l => ({
+                        id: l.id,
+                        name: l.name,
+                        email: l.email,
+                        phone: l.phone,
+                        website: l.website,
+                        address: l.address,
+                      }))}
+                    />
+                  </div>
+                </div>
               </TabsContent>
 
               <TabsContent value="ab-testing" className="mt-4">
@@ -466,13 +756,76 @@ export default function EmailSetupFlow({
                 <Link2 className="w-4 h-4" />
                 Connect External CRM
               </Button>
-              <Button 
-                onClick={() => setShowAutoCampaign(true)} 
-                className="gap-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700"
-              >
-                <Rocket className="w-4 h-4" />
-                Auto Campaign Wizard
-              </Button>
+              <div className="flex items-center gap-3">
+                {/* Dynamic Next Step Button - Color matches next tab */}
+                {activeTab === 'preview' && (
+                  <Button 
+                    onClick={() => handleTabChange('crm')} 
+                    size="sm"
+                    className="gap-2 bg-violet-500 hover:bg-violet-600 text-white transition-all hover:scale-105"
+                  >
+                    <ArrowRight className="w-4 h-4" />
+                    Next: Setup CRM
+                  </Button>
+                )}
+                {activeTab === 'crm' && (
+                  <Button 
+                    onClick={() => handleTabChange('ab-testing')} 
+                    size="sm"
+                    className="gap-2 bg-pink-500 hover:bg-pink-600 text-white transition-all hover:scale-105"
+                  >
+                    <ArrowRight className="w-4 h-4" />
+                    Next: A/B Testing
+                  </Button>
+                )}
+                {activeTab === 'ab-testing' && (
+                  <Button 
+                    onClick={() => handleTabChange('mailbox')} 
+                    size="sm"
+                    className="gap-2 bg-amber-500 hover:bg-amber-600 text-white transition-all hover:scale-105"
+                  >
+                    <ArrowRight className="w-4 h-4" />
+                    Next: Mailbox
+                  </Button>
+                )}
+                {activeTab === 'mailbox' && (
+                  <Button 
+                    onClick={() => handleTabChange('analytics')} 
+                    size="sm"
+                    className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white transition-all hover:scale-105"
+                  >
+                    <ArrowRight className="w-4 h-4" />
+                    Next: Analytics
+                  </Button>
+                )}
+                {activeTab === 'analytics' && (
+                  <Button 
+                    onClick={() => handleTabChange('send')} 
+                    size="sm"
+                    className="gap-2 bg-red-500 hover:bg-red-600 text-white transition-all hover:scale-105"
+                  >
+                    <ArrowRight className="w-4 h-4" />
+                    Next: Send Emails
+                  </Button>
+                )}
+                {activeTab === 'send' && (
+                  <Button 
+                    onClick={onComplete} 
+                    size="sm"
+                    className="gap-2 bg-violet-600 hover:bg-violet-700 text-white transition-all hover:scale-105"
+                  >
+                    <ArrowRight className="w-4 h-4" />
+                    Next: Outreach Hub
+                  </Button>
+                )}
+                <Button 
+                  onClick={() => setShowAutoCampaign(true)} 
+                  className="gap-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700"
+                >
+                  <Rocket className="w-4 h-4" />
+                  Auto Campaign Wizard
+                </Button>
+              </div>
             </div>
           </div>
         );

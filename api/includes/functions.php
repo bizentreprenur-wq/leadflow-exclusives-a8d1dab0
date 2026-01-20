@@ -438,3 +438,40 @@ function extractEmails($text) {
 function generateId($prefix = '') {
     return $prefix . uniqid() . '_' . bin2hex(random_bytes(4));
 }
+
+/**
+ * Get the client's real IP address (handles proxies)
+ */
+function getClientIP() {
+    // Check for forwarded IP (when behind proxy/load balancer)
+    $forwardedFor = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '';
+    if (!empty($forwardedFor)) {
+        // Take the first IP (original client) if comma-separated
+        $ips = explode(',', $forwardedFor);
+        return trim($ips[0]);
+    }
+    
+    // Check X-Real-IP header
+    if (!empty($_SERVER['HTTP_X_REAL_IP'])) {
+        return $_SERVER['HTTP_X_REAL_IP'];
+    }
+    
+    // Fall back to remote address
+    return $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+}
+
+/**
+ * Check if request IP is allowed for cron endpoints
+ * Returns true if CRON_ALLOWED_IPS is not defined or empty (backwards compatible)
+ */
+function isAllowedCronIP() {
+    // If whitelist not configured, allow all (backwards compatible)
+    if (!defined('CRON_ALLOWED_IPS') || !is_array(CRON_ALLOWED_IPS) || empty(CRON_ALLOWED_IPS)) {
+        return true;
+    }
+    
+    $clientIP = getClientIP();
+    
+    // Check if IP is in whitelist
+    return in_array($clientIP, CRON_ALLOWED_IPS, true);
+}
