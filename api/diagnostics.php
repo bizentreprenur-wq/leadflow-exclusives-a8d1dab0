@@ -3,7 +3,11 @@
  * System Diagnostics Endpoint
  * Comprehensive check of all backend systems
  * 
- * Access: https://bamlead.com/api/diagnostics.php?key=YOUR_CRON_SECRET_KEY
+ * Access via header authentication (preferred):
+ * curl -H "X-Cron-Secret: YOUR_CRON_SECRET_KEY" https://bamlead.com/api/diagnostics.php
+ * 
+ * Legacy URL parameter still supported but deprecated:
+ * https://bamlead.com/api/diagnostics.php?key=YOUR_CRON_SECRET_KEY
  */
 
 require_once __DIR__ . '/includes/functions.php';
@@ -11,19 +15,16 @@ header('Content-Type: application/json');
 setCorsHeaders();
 handlePreflight();
 
-// Security check
-$cronKey = $_GET['key'] ?? '';
+// Security check - prefer header-based auth, fallback to URL param (deprecated)
+$cronKey = $_SERVER['HTTP_X_CRON_SECRET'] ?? $_GET['key'] ?? '';
 $configExists = file_exists(__DIR__ . '/config.php');
 
 if ($configExists) {
     require_once __DIR__ . '/config.php';
-    if (defined('CRON_SECRET_KEY') && $cronKey !== CRON_SECRET_KEY) {
-        // Allow without key if DEBUG_MODE is on
-        if (!defined('DEBUG_MODE') || !DEBUG_MODE) {
-            http_response_code(403);
-            echo json_encode(['error' => 'Invalid key. Add ?key=YOUR_CRON_SECRET_KEY']);
-            exit;
-        }
+    if (defined('CRON_SECRET_KEY') && !hash_equals(CRON_SECRET_KEY, $cronKey)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Forbidden. Use header: X-Cron-Secret: YOUR_KEY']);
+        exit;
     }
 }
 
