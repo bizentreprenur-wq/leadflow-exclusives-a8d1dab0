@@ -104,6 +104,15 @@ try {
             handleProcessScheduled($db);
             break;
             
+        // ===== SMTP TEST ENDPOINTS =====
+        case 'test_smtp':
+            handleTestSMTP($db, $user);
+            break;
+            
+        case 'send_test':
+            handleSendTestEmail($db, $user);
+            break;
+            
         default:
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Invalid action']);
@@ -840,4 +849,176 @@ function rateLimitTracking() {
         apcu_store($cacheKey, $count + 1, 60);
     }
     // If APCu not available, allow through but log for monitoring
+}
+
+// ===== SMTP TEST HANDLERS =====
+
+/**
+ * Test SMTP connection using configured or provided credentials
+ */
+function handleTestSMTP($db, $user) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+        return;
+    }
+    
+    $data = json_decode(file_get_contents('php://input'), true);
+    
+    $host = $data['host'] ?? (defined('SMTP_HOST') ? SMTP_HOST : '');
+    $port = $data['port'] ?? (defined('SMTP_PORT') ? SMTP_PORT : '465');
+    $username = $data['username'] ?? (defined('SMTP_USER') ? SMTP_USER : '');
+    $password = $data['password'] ?? (defined('SMTP_PASS') ? SMTP_PASS : '');
+    $secure = $data['secure'] ?? (defined('SMTP_SECURE') ? SMTP_SECURE : 'ssl');
+    
+    if (empty($host) || empty($username) || empty($password)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'SMTP host, username, and password are required']);
+        return;
+    }
+    
+    // Test connection
+    try {
+        $errno = 0;
+        $errstr = '';
+        $timeout = 10;
+        
+        // Try to connect to the SMTP server
+        $protocol = ($secure === 'ssl' || $port == 465) ? 'ssl://' : '';
+        $connection = @fsockopen($protocol . $host, (int)$port, $errno, $errstr, $timeout);
+        
+        if ($connection) {
+            $response = fgets($connection, 512);
+            fclose($connection);
+            
+            if (strpos($response, '220') === 0) {
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'SMTP connection successful',
+                    'server_response' => trim($response)
+                ]);
+                return;
+            }
+        }
+        
+        echo json_encode([
+            'success' => false,
+            'error' => $errstr ?: 'Could not connect to SMTP server',
+            'errno' => $errno
+        ]);
+        
+    } catch (Exception $e) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Connection test failed: ' . $e->getMessage()]);
+    }
+}
+
+/**
+ * Send a test email to verify SMTP is working
+ */
+function handleSendTestEmail($db, $user) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+        return;
+    }
+    
+    $data = json_decode(file_get_contents('php://input'), true);
+    
+    // Support both field naming conventions
+    $toEmail = $data['to_email'] ?? $data['test_email'] ?? '';
+    
+    if (empty($toEmail) || !filter_var($toEmail, FILTER_VALIDATE_EMAIL)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Valid email address is required']);
+        return;
+    }
+    
+    // Build test email content
+    $subject = '✅ BamLead SMTP Test - ' . date('Y-m-d H:i:s');
+    $htmlBody = '
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #333; background: #f5f5f5; margin: 0; padding: 20px; }
+                .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+                .header { background: linear-gradient(135deg, #14b8a6, #0ea5e9); color: white; padding: 30px; text-align: center; }
+                .header h1 { margin: 0; font-size: 24px; }
+                .content { padding: 30px; }
+                .success-badge { background: #10b981; color: white; padding: 8px 16px; border-radius: 20px; display: inline-block; margin-bottom: 20px; }
+                .info-box { background: #f0fdfa; border: 1px solid #14b8a6; border-radius: 8px; padding: 20px; margin: 20px 0; }
+                .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e0f2f1; }
+                .info-row:last-child { border-bottom: none; }
+                .label { color: #64748b; }
+                .value { font-weight: 600; color: #0f172a; }
+                .footer { background: #f8fafc; padding: 20px; text-align: center; color: #64748b; font-size: 14px; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🎉 BamLead SMTP Test</h1>
+                </div>
+                <div class="content">
+                    <span class="success-badge">✓ Email Delivered Successfully</span>
+                    <h2>Your SMTP Configuration Works!</h2>
+                    <p>This test email confirms that your email outreach system is properly configured and ready to send emails.</p>
+                    
+                    <div class="info-box">
+                        <div class="info-row">
+                            <span class="label">Sent To:</span>
+                            <span class="value">' . htmlspecialchars($toEmail) . '</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Sent At:</span>
+                            <span class="value">' . date('F j, Y g:i A T') . '</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">SMTP Server:</span>
+                            <span class="value">' . (defined('SMTP_HOST') ? SMTP_HOST : 'System Default') . '</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="label">Status:</span>
+                            <span class="value" style="color: #10b981;">Operational ✓</span>
+                        </div>
+                    </div>
+                    
+                    <p>You can now confidently send emails to your leads. Happy prospecting! 🚀</p>
+                </div>
+                <div class="footer">
+                    <p>Sent with ❤️ by BamLead Email Outreach System</p>
+                </div>
+            </div>
+        </body>
+        </html>
+    ';
+    
+    $textBody = "BamLead SMTP Test - SUCCESS!\n\nYour email configuration is working properly.\n\nSent to: $toEmail\nTime: " . date('Y-m-d H:i:s T') . "\n\nYou can now send emails to your leads!";
+    
+    // Send the test email
+    $sent = sendEmail($toEmail, $subject, $htmlBody, $textBody);
+    
+    if ($sent) {
+        // Log the successful test
+        $db->insert(
+            "INSERT INTO email_sends (user_id, recipient_email, subject, body_html, status, sent_at) VALUES (?, ?, ?, ?, 'sent', NOW())",
+            [$user['id'], $toEmail, $subject, $htmlBody]
+        );
+        
+        echo json_encode([
+            'success' => true,
+            'message' => 'Test email sent successfully',
+            'to' => $toEmail,
+            'sent_at' => date('Y-m-d H:i:s')
+        ]);
+    } else {
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Failed to send test email. Please check your SMTP configuration.',
+            'smtp_configured' => defined('SMTP_HOST') && !empty(SMTP_HOST)
+        ]);
+    }
 }
