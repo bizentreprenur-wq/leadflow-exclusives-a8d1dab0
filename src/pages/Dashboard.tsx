@@ -67,6 +67,7 @@ import AILeadScoringDashboard from '@/components/AILeadScoringDashboard';
 import UserManualDownload from '@/components/UserManualDownload';
 import { VideoTutorialSection } from '@/components/VideoTutorialSection';
 import AIProcessingPipeline from '@/components/AIProcessingPipeline';
+import StreamingLeadsIndicator from '@/components/StreamingLeadsIndicator';
 
 interface SearchResult {
   id: string;
@@ -1014,18 +1015,14 @@ export default function Dashboard() {
                       )}
                     </Button>
 
-                    {/* Progress bar during search */}
-                    {isSearching && searchProgress > 0 && (
-                      <div className="mt-3">
-                        <div className="h-2 bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-primary transition-all duration-300 ease-out"
-                            style={{ width: `${searchProgress}%` }}
-                          />
-                        </div>
-                        <p className="text-xs text-muted-foreground text-center mt-1">
-                          Finding leads... {searchResults.length > 0 && `${searchResults.length} found so far`}
-                        </p>
+                    {/* Streaming Leads Indicator - Shows while searching */}
+                    {(isSearching || searchResults.length > 0) && searchProgress > 0 && searchProgress < 100 && (
+                      <div className="mt-4">
+                        <StreamingLeadsIndicator
+                          currentCount={searchResults.length}
+                          isStreaming={isSearching}
+                          progress={searchProgress}
+                        />
                       </div>
                     )}
 
