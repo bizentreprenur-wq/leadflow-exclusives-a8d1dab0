@@ -90,18 +90,23 @@ export default function SettingsPanel({ initialTab = 'integrations', onBackToSte
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
-      {/* Back Buttons */}
+      {/* Back Buttons - ALWAYS VISIBLE */}
       <div className="flex items-center gap-2">
-        {onBackToStep4 && (
-          <Button
-            variant="ghost"
-            onClick={onBackToStep4}
-            className="gap-2 text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Back to Calls
-          </Button>
-        )}
+        {/* Primary Back Button - Always shows */}
+        <Button
+          variant="outline"
+          onClick={() => {
+            if (onBackToStep4) {
+              onBackToStep4();
+            } else {
+              window.location.href = '/dashboard';
+            }
+          }}
+          className="gap-2 text-emerald-400 border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-300 shadow-[0_0_10px_rgba(52,211,153,0.3)]"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          {onBackToStep4 ? 'Back to Calls' : 'Back to Dashboard'}
+        </Button>
         <Button
           variant="ghost"
           onClick={() => window.location.href = '/'}
