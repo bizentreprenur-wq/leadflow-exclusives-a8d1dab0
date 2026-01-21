@@ -185,6 +185,17 @@ export default function AIProcessingPipeline({
     return agentInsights[Math.floor(Math.random() * agentInsights.length)];
   }, []);
 
+  // Reset when isActive changes to false
+  useEffect(() => {
+    if (!isActive) {
+      setIsProcessing(false);
+      setCurrentAgentIndex(-1);
+      setCompletedAgents([]);
+      setProgress(0);
+      setAgentInsights({});
+    }
+  }, [isActive]);
+
   // Run the processing pipeline
   useEffect(() => {
     if (!isActive || leads.length === 0 || isProcessing) return;
@@ -197,9 +208,12 @@ export default function AIProcessingPipeline({
 
     let agentIndex = 0;
     const totalAgents = AI_AGENTS.length;
-    const timePerAgent = 800; // ms per agent
+    const timePerAgent = 600; // Faster: 600ms per agent instead of 800ms
+    let cancelled = false;
 
     const processAgent = () => {
+      if (cancelled) return;
+      
       if (agentIndex >= totalAgents) {
         // All agents complete
         setProgress(100);
@@ -261,15 +275,19 @@ export default function AIProcessingPipeline({
 
       // Mark as complete after brief delay
       setTimeout(() => {
+        if (cancelled) return;
         setCompletedAgents((prev) => [...prev, agent.id]);
         agentIndex++;
-        setTimeout(processAgent, 200);
+        setTimeout(processAgent, 150); // Faster transition
       }, timePerAgent);
     };
 
-    // Start after a brief delay
-    const startTimer = setTimeout(processAgent, 500);
-    return () => clearTimeout(startTimer);
+    // Start immediately
+    const startTimer = setTimeout(processAgent, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(startTimer);
+    };
   }, [isActive, leads, onComplete, onProgressUpdate, generateAgentInsight, isProcessing]);
 
   if (!isActive && completedAgents.length === 0) return null;

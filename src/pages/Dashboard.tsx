@@ -186,6 +186,9 @@ export default function Dashboard() {
   const [showAIPipeline, setShowAIPipeline] = useState(false);
   const [aiPipelineProgress, setAIPipelineProgress] = useState(0);
   const [currentAIAgent, setCurrentAIAgent] = useState<string>('');
+  
+  // Live data mode indicator (true when real SerpAPI data is being used)
+  const [isLiveDataMode, setIsLiveDataMode] = useState(false);
 
   // Form validation state
   const [validationErrors, setValidationErrors] = useState<{ query?: boolean; location?: boolean; platforms?: boolean }>({});
@@ -379,13 +382,18 @@ export default function Dashboard() {
       
       setSearchResults(scoredResults);
       setSearchProgress(100);
+      
+      // Detect if we got real data (live SerpAPI) or mock data
+      // Mock results have IDs starting with "mock_"
+      const hasRealData = scoredResults.some(r => !r.id.startsWith('mock_'));
+      setIsLiveDataMode(hasRealData);
 
       if (scoredResults.length > 0) {
         // Show AI Pipeline processing the leads
         setShowAIPipeline(true);
         
         const hotCount = scoredResults.filter(r => r.aiClassification === 'hot').length;
-        toast.success(`Found ${scoredResults.length} businesses! Now running 8 AI agents...`);
+        toast.success(`Found ${scoredResults.length} ${hasRealData ? 'LIVE' : 'demo'} businesses! Now running 8 AI agents...`);
       } else {
         toast.info('No businesses found. Try a different search.');
         setShowReportModal(false);
@@ -1441,6 +1449,32 @@ export default function Dashboard() {
                 </button>
               );
             })()}
+            
+            {/* Live Data Mode Badge */}
+            {searchResults.length > 0 && (
+              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                isLiveDataMode 
+                  ? 'bg-green-500/15 text-green-600 border border-green-500/30' 
+                  : 'bg-amber-500/15 text-amber-600 border border-amber-500/30'
+              }`}>
+                {isLiveDataMode ? (
+                  <>
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    <span className="hidden sm:inline">LIVE DATA</span>
+                    <span className="sm:hidden">LIVE</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                    <span className="hidden sm:inline">DEMO MODE</span>
+                    <span className="sm:hidden">DEMO</span>
+                  </>
+                )}
+              </div>
+            )}
 
             <div className="flex-1" />
 
