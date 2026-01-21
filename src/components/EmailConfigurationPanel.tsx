@@ -310,10 +310,10 @@ export default function EmailConfigurationPanel() {
           <TabsList className="inline-flex w-max min-w-full gap-1 bg-transparent p-1">
             <TabsTrigger 
               value="mailbox" 
-              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-cyan-500/50 bg-black/60 text-white data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 data-[state=active]:text-white whitespace-nowrap"
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-cyan-500/50 bg-black/60 whitespace-nowrap data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 [&>*]:text-white"
             >
-              <MailOpen className="w-3.5 h-3.5 text-white" />
-              <span className="text-white font-medium">Mailbox</span>
+              <MailOpen className="w-3.5 h-3.5 !text-white" />
+              <span className="!text-white font-medium">Mailbox</span>
             </TabsTrigger>
             <TabsTrigger 
               value="preview" 
