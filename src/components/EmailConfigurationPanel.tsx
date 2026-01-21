@@ -8,18 +8,22 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
   Mail, Server, Shield, Send, Inbox, Settings, Eye, EyeOff,
   CheckCircle2, XCircle, Loader2, RefreshCw, Trash2, Archive,
   Star, AlertCircle, Clock, ExternalLink, Key, MailOpen, Copy, Webhook, Link2,
-  Users, FlaskConical, Pencil, Reply, Forward, PenSquare, Download, ArrowLeft
+  Users, FlaskConical, Pencil, Reply, Forward, PenSquare, Download, ArrowLeft,
+  LayoutGrid
 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import OutgoingMailbox from './OutgoingMailbox';
 import WebhookURLConfiguration from './WebhookURLConfiguration';
 import EmailClientPreviewPanel from './EmailClientPreviewPanel';
+import HighConvertingTemplateGallery from './HighConvertingTemplateGallery';
 import { sendSingleEmail, getSentEmails } from '@/lib/emailService';
+import { EmailTemplate } from '@/lib/highConvertingTemplates';
 
 interface SMTPConfig {
   host: string;
@@ -78,7 +82,7 @@ export default function EmailConfigurationPanel() {
     return saved ? JSON.parse(saved) : null;
   });
   const [isEditingTemplate, setIsEditingTemplate] = useState(false);
-
+  const [showTemplateGallery, setShowTemplateGallery] = useState(false);
   // Load saved config on mount
   useEffect(() => {
     const savedConfig = localStorage.getItem('smtp_config');
@@ -303,6 +307,16 @@ export default function EmailConfigurationPanel() {
   const getCurrentSubject = () => customizedContent?.subject || selectedTemplate?.subject || '';
   const getCurrentBody = () => customizedContent?.body || selectedTemplate?.body_html || selectedTemplate?.body || '';
 
+  // Handle template selection from gallery
+  const handleTemplateSelect = (template: EmailTemplate) => {
+    setSelectedTemplate(template);
+    localStorage.setItem('bamlead_selected_template', JSON.stringify(template));
+    setCustomizedContent(null);
+    localStorage.removeItem('bamlead_template_customizations');
+    setShowTemplateGallery(false);
+    toast.success(`Template "${template.name}" selected!`);
+  };
+
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -399,6 +413,15 @@ export default function EmailConfigurationPanel() {
                       <Pencil className="w-4 h-4" />
                       Edit
                     </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowTemplateGallery(true)}
+                      className="gap-1"
+                    >
+                      <LayoutGrid className="w-4 h-4" />
+                      Change
+                    </Button>
                   </div>
                 </div>
               </CardHeader>
@@ -422,7 +445,13 @@ export default function EmailConfigurationPanel() {
                 <Mail className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
                 <p className="font-medium">No Template Selected</p>
                 <p className="text-sm text-muted-foreground mb-4">Select a template from the gallery to get started</p>
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowTemplateGallery(true)}
+                  className="gap-2"
+                >
+                  <LayoutGrid className="w-4 h-4" />
                   Browse Templates
                 </Button>
               </CardContent>
@@ -1339,6 +1368,27 @@ export default function EmailConfigurationPanel() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Template Gallery Modal */}
+      <Dialog open={showTemplateGallery} onOpenChange={setShowTemplateGallery}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b">
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <LayoutGrid className="w-5 h-5" />
+              Template Gallery
+            </DialogTitle>
+            <DialogDescription>
+              Choose from 60+ high-converting email templates designed for maximum engagement
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-y-auto max-h-[calc(90vh-120px)] px-6 pb-6">
+            <HighConvertingTemplateGallery 
+              onSelectTemplate={handleTemplateSelect}
+              selectedTemplateId={selectedTemplate?.id}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
