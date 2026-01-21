@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -123,6 +123,10 @@ export default function AIProcessingPipeline({
   const [progress, setProgress] = useState(0);
   const [agentInsights, setAgentInsights] = useState<Record<string, string>>({});
   const [isProcessing, setIsProcessing] = useState(false);
+  const leadsRef = useRef(leads);
+  const isProcessingRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+  const onProgressUpdateRef = useRef(onProgressUpdate);
   const [processingStats, setProcessingStats] = useState({
     hotLeads: 0,
     warmLeads: 0,
@@ -185,12 +189,22 @@ export default function AIProcessingPipeline({
     return agentInsights[Math.floor(Math.random() * agentInsights.length)];
   }, []);
 
-  // Generate a unique key for the current leads set
-  const leadsKey = leads.map(l => l.id).join(',');
+  useEffect(() => {
+    leadsRef.current = leads;
+  }, [leads]);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
+
+  useEffect(() => {
+    onProgressUpdateRef.current = onProgressUpdate;
+  }, [onProgressUpdate]);
 
   // Reset when isActive changes to false OR when leads change (new search)
   useEffect(() => {
     if (!isActive) {
+      isProcessingRef.current = false;
       setIsProcessing(false);
       setCurrentAgentIndex(-1);
       setCompletedAgents([]);
@@ -199,21 +213,12 @@ export default function AIProcessingPipeline({
     }
   }, [isActive]);
 
-  // Reset processing state when leads change (new search started)
-  useEffect(() => {
-    setIsProcessing(false);
-    setCurrentAgentIndex(-1);
-    setCompletedAgents([]);
-    setProgress(0);
-    setAgentInsights({});
-  }, [leadsKey]);
-
   // Run the processing pipeline
   useEffect(() => {
-    if (!isActive || leads.length === 0) return;
-    // Allow a fresh run after leadsKey changes
-    if (isProcessing) return;
+    if (!isActive || leadsRef.current.length === 0) return;
+    if (isProcessingRef.current) return;
 
+    isProcessingRef.current = true;
     setIsProcessing(true);
     setCurrentAgentIndex(0);
     setCompletedAgents([]);
@@ -233,14 +238,18 @@ export default function AIProcessingPipeline({
         setProgress(100);
         setCurrentAgentIndex(-1);
         setIsProcessing(false);
+        isProcessingRef.current = false;
 
+        const latestLeads = leadsRef.current;
         // Calculate final stats
-        const hot = leads.filter((l) => l.aiClassification === "hot").length;
-        const warm = leads.filter((l) => l.aiClassification === "warm").length;
-        const cold = leads.filter((l) => l.aiClassification === "cold").length;
-        const avgSuccess = leads.reduce((acc, l) => acc + (l.successProbability || 50), 0) / leads.length;
-        const callCount = leads.filter((l) => l.recommendedAction === "call").length;
-        const emailCount = leads.filter((l) => l.recommendedAction === "email").length;
+        const hot = latestLeads.filter((l) => l.aiClassification === "hot").length;
+        const warm = latestLeads.filter((l) => l.aiClassification === "warm").length;
+        const cold = latestLeads.filter((l) => l.aiClassification === "cold").length;
+        const avgSuccess =
+          latestLeads.reduce((acc, l) => acc + (l.successProbability || 50), 0) /
+          Math.max(1, latestLeads.length);
+        const callCount = latestLeads.filter((l) => l.recommendedAction === "call").length;
+        const emailCount = latestLeads.filter((l) => l.recommendedAction === "email").length;
 
         setProcessingStats({
           hotLeads: hot,
@@ -251,7 +260,7 @@ export default function AIProcessingPipeline({
         });
 
         // Enhance leads with AI insights
-        const enhancedLeads = leads.map((lead) => ({
+        const enhancedLeads = latestLeads.map((lead) => ({
           ...lead,
           aiEnhanced: true,
           psychProfile: {
@@ -271,7 +280,7 @@ export default function AIProcessingPipeline({
           },
         }));
 
-        onComplete(enhancedLeads);
+        onCompleteRef.current(enhancedLeads);
         return;
       }
 
@@ -279,12 +288,13 @@ export default function AIProcessingPipeline({
       setCurrentAgentIndex(agentIndex);
       setProgress(Math.round(((agentIndex + 1) / totalAgents) * 100));
 
-      if (onProgressUpdate) {
-        onProgressUpdate(Math.round(((agentIndex + 1) / totalAgents) * 100), agent.name);
-      }
+      onProgressUpdateRef.current?.(
+        Math.round(((agentIndex + 1) / totalAgents) * 100),
+        agent.name
+      );
 
       // Generate insight for this agent
-      const insight = generateAgentInsight(agent.id, leads);
+      const insight = generateAgentInsight(agent.id, leadsRef.current);
       setAgentInsights((prev) => ({ ...prev, [agent.id]: insight }));
 
       // Mark as complete after brief delay
@@ -301,8 +311,9 @@ export default function AIProcessingPipeline({
     return () => {
       cancelled = true;
       clearTimeout(startTimer);
+      isProcessingRef.current = false;
     };
-  }, [isActive, leads, onComplete, onProgressUpdate, generateAgentInsight, isProcessing]);
+  }, [isActive, generateAgentInsight]);
 
   if (!isActive && completedAgents.length === 0) return null;
 
