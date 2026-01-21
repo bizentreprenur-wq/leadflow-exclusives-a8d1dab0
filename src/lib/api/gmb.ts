@@ -3,14 +3,15 @@
  * Falls back to mock data when no backend configured
  */
 
-import { API_BASE_URL } from './config';
+import { API_BASE_URL, USE_MOCK_AUTH, getAuthHeaders } from './config';
 
 // Set to true to force mock data for testing (normally false)
 // Only uses mock if explicitly enabled OR no API URL configured
 const FORCE_MOCK_DATA = false;
-const USE_MOCK_DATA = FORCE_MOCK_DATA || !API_BASE_URL;
+// In Demo/Mock Auth mode, always use mock search data so the dashboard works without the live backend.
+const USE_MOCK_DATA = FORCE_MOCK_DATA || USE_MOCK_AUTH || !API_BASE_URL;
 
-console.log('[GMB API] Config:', { API_BASE_URL, USE_MOCK_DATA, FORCE_MOCK_DATA });
+console.log('[GMB API] Config:', { API_BASE_URL, USE_MOCK_AUTH, USE_MOCK_DATA, FORCE_MOCK_DATA });
 
 export interface WebsiteAnalysis {
   hasWebsite: boolean;
@@ -171,9 +172,7 @@ export async function searchGMB(
     
     const response = await fetch(`${API_BASE_URL}/gmb-search.php`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ service, location, limit }),
     });
 

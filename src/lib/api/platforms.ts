@@ -3,9 +3,10 @@
  * Falls back to mock data when no backend configured
  */
 
-import { API_BASE_URL } from './config';
+import { API_BASE_URL, USE_MOCK_AUTH, getAuthHeaders } from './config';
 
-const USE_MOCK_DATA = !API_BASE_URL;
+// In Demo/Mock Auth mode, always use mock data so the dashboard works without the live backend.
+const USE_MOCK_DATA = USE_MOCK_AUTH || !API_BASE_URL;
 
 export interface PlatformResult {
   id: string;
@@ -120,9 +121,7 @@ export async function searchPlatforms(
   try {
     const response = await fetch(`${API_BASE_URL}/platform-search.php`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ service, location, platforms }),
     });
 
