@@ -10,6 +10,29 @@ const USE_MOCK_DATA = !API_BASE_URL;
 
 console.log('[GMB API] Config:', { API_BASE_URL, USE_MOCK_AUTH, USE_MOCK_DATA });
 
+function summarizeHtmlError(text: string): string {
+  if (!text) return '';
+  const trimmed = text.trim();
+  // If it's not HTML, return as-is (trimmed).
+  if (!/[<][a-z!/]/i.test(trimmed)) return trimmed;
+
+  const pick = (re: RegExp) => {
+    const m = trimmed.match(re);
+    return m?.[1] ? m[1].replace(/<[^>]*>/g, '').trim() : '';
+  };
+
+  const h2 = pick(/<h2[^>]*>([\s\S]*?)<\/h2>/i);
+  const p = pick(/<p[^>]*>([\s\S]*?)<\/p>/i);
+  const title = pick(/<title[^>]*>([\s\S]*?)<\/title>/i);
+
+  return (
+    h2 ||
+    p ||
+    title ||
+    'Server returned an error (non-JSON response).'
+  );
+}
+
 export interface WebsiteAnalysis {
   hasWebsite: boolean;
   platform: string | null;
@@ -148,12 +171,26 @@ export async function searchGMB(
     throw new Error('GMB search backend is not configured. Set VITE_API_URL or deploy /api.');
   }
 
-  // Try streaming endpoint first, fall back to regular endpoint
+  // Prefer streaming endpoint to avoid server timeouts.
+  // We only fall back to the regular endpoint in a very narrow case
+  // (streaming endpoint missing + small limits).
   try {
     return await searchGMBStreaming(service, location, limit, onProgress);
   } catch (streamError) {
-    console.warn('[GMB API] Streaming failed, falling back to regular endpoint:', streamError);
-    return await searchGMBRegular(service, location, limit, onProgress);
+    const err = streamError instanceof Error ? streamError : new Error(String(streamError));
+    console.warn('[GMB API] Streaming failed:', err);
+
+    const message = (err.message || '').toLowerCase();
+    const streamMissing = message.includes('404') || message.includes('not found');
+
+    // Only fall back if streaming endpoint is missing AND the requested lead count is small.
+    // Otherwise, fail explicitly (no fake results, and no slow fallback that times out).
+    if (streamMissing && limit <= 50) {
+      console.warn('[GMB API] Streaming endpoint appears missing; falling back to regular endpoint for small limit');
+      return await searchGMBRegular(service, location, limit, onProgress);
+    }
+
+    throw err;
   }
 }
 
@@ -172,6 +209,11 @@ async function searchGMBStreaming(
   
   return new Promise((resolve, reject) => {
     const controller = new AbortController();
+    const initialTimeoutId = setTimeout(() => {
+      controller.abort();
+      reject(new Error('Search timed out before streaming started.'));
+    }, 25000); // 25s to receive headers / first bytes
+
     const timeoutId = setTimeout(() => {
       controller.abort();
       reject(new Error('Stream timeout after 120 seconds'));
@@ -184,9 +226,11 @@ async function searchGMBStreaming(
       signal: controller.signal,
     })
       .then(async (response) => {
+        clearTimeout(initialTimeoutId);
         if (!response.ok) {
           const text = await response.text();
-          throw new Error(text || `HTTP ${response.status}`);
+          const summarized = summarizeHtmlError(text);
+          throw new Error(summarized || `HTTP ${response.status}`);
         }
         
         const reader = response.body?.getReader();
@@ -264,6 +308,7 @@ async function searchGMBStreaming(
         }
         
         clearTimeout(timeoutId);
+        clearTimeout(initialTimeoutId);
         
         if (allResults.length === 0) {
           throw new Error('No results received from stream');
@@ -277,6 +322,13 @@ async function searchGMBStreaming(
       })
       .catch((error) => {
         clearTimeout(timeoutId);
+        clearTimeout(initialTimeoutId);
+
+        if (error?.name === 'AbortError') {
+          reject(new Error('Search timed out — server did not start streaming.'));
+          return;
+        }
+
         reject(error);
       });
   });
@@ -309,7 +361,7 @@ async function searchGMBRegular(
       errorMessage = errorData.error || errorData.message || errorMessage;
     } catch {
       if (errorText) {
-        errorMessage = errorText.slice(0, 200);
+        errorMessage = summarizeHtmlError(errorText).slice(0, 200);
       }
     }
     
