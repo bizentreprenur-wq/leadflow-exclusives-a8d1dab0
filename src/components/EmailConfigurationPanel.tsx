@@ -18,6 +18,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import OutgoingMailbox from './OutgoingMailbox';
 import WebhookURLConfiguration from './WebhookURLConfiguration';
+import EmailClientPreviewPanel from './EmailClientPreviewPanel';
 import { sendSingleEmail, getSentEmails } from '@/lib/emailService';
 
 interface SMTPConfig {
@@ -66,6 +67,17 @@ export default function EmailConfigurationPanel() {
   const [isReplying, setIsReplying] = useState(false);
   const [composeData, setComposeData] = useState({ to: '', subject: '', body: '' });
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  
+  // Template state from localStorage
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(() => {
+    const saved = localStorage.getItem('bamlead_selected_template');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [customizedContent, setCustomizedContent] = useState<{ subject: string; body: string } | null>(() => {
+    const saved = localStorage.getItem('bamlead_template_customizations');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [isEditingTemplate, setIsEditingTemplate] = useState(false);
 
   // Load saved config on mount
   useEffect(() => {
@@ -279,6 +291,18 @@ export default function EmailConfigurationPanel() {
     return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
   };
 
+  // Save template customizations
+  const handleSaveCustomization = (subject: string, body: string) => {
+    const customization = { subject, body };
+    setCustomizedContent(customization);
+    localStorage.setItem('bamlead_template_customizations', JSON.stringify(customization));
+    toast.success('Template saved!');
+  };
+
+  // Get current template content (customized or original)
+  const getCurrentSubject = () => customizedContent?.subject || selectedTemplate?.subject || '';
+  const getCurrentBody = () => customizedContent?.body || selectedTemplate?.body_html || selectedTemplate?.body || '';
+
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -336,13 +360,204 @@ export default function EmailConfigurationPanel() {
           </TabsList>
         </div>
 
-        {/* Visual Mailbox Tab */}
+        {/* Visual Mailbox Tab with Template Preview */}
         <TabsContent value="mailbox" className="space-y-4">
           <OutgoingMailbox 
             smtpConnected={isConnected}
             smtpHost={smtpConfig.host || 'Your SMTP Server'}
             onConfigureClick={() => setActiveTab('smtp')}
           />
+          
+          {/* Template Preview in Mailbox */}
+          {selectedTemplate && (
+            <Card className="border-primary/20">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Mail className="w-4 h-4" />
+                      Active Template: {selectedTemplate.name}
+                    </CardTitle>
+                    <CardDescription>This template will be used for your outreach</CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setActiveTab('preview')}
+                      className="gap-1"
+                    >
+                      <Eye className="w-4 h-4" />
+                      Preview
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setActiveTab('edit')}
+                      className="gap-1"
+                    >
+                      <Pencil className="w-4 h-4" />
+                      Edit
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="p-4 rounded-lg bg-muted/30 border">
+                  <p className="font-medium text-sm mb-2">Subject: {getCurrentSubject()}</p>
+                  <div 
+                    className="text-sm text-muted-foreground line-clamp-3"
+                    dangerouslySetInnerHTML={{ 
+                      __html: getCurrentBody().substring(0, 200) + '...' 
+                    }}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {!selectedTemplate && (
+            <Card className="border-dashed border-2">
+              <CardContent className="py-8 text-center">
+                <Mail className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
+                <p className="font-medium">No Template Selected</p>
+                <p className="text-sm text-muted-foreground mb-4">Select a template from the gallery to get started</p>
+                <Button variant="outline" size="sm">
+                  Browse Templates
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Preview Tab - Full Email Client Preview */}
+        <TabsContent value="preview" className="space-y-4">
+          {selectedTemplate ? (
+            <EmailClientPreviewPanel 
+              subject={getCurrentSubject()} 
+              body={getCurrentBody()}
+              templateName={selectedTemplate.name}
+              senderName={smtpConfig.fromName}
+              senderEmail={smtpConfig.fromEmail}
+            />
+          ) : (
+            <Card className="border-dashed border-2">
+              <CardContent className="py-12 text-center">
+                <Eye className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
+                <p className="font-medium">No Template to Preview</p>
+                <p className="text-sm text-muted-foreground">Select a template first to see the preview</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Edit Tab - Template Editor */}
+        <TabsContent value="edit" className="space-y-4">
+          {selectedTemplate ? (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Pencil className="w-5 h-5" />
+                      Edit Template
+                    </CardTitle>
+                    <CardDescription>Customize "{selectedTemplate.name}" for your outreach</CardDescription>
+                  </div>
+                  <Badge variant="outline">{selectedTemplate.category || 'Custom'}</Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Editor Side */}
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="template-subject">Subject Line</Label>
+                      <Input
+                        id="template-subject"
+                        value={getCurrentSubject()}
+                        onChange={(e) => handleSaveCustomization(e.target.value, getCurrentBody())}
+                        placeholder="Enter subject line..."
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="template-body">Email Body</Label>
+                      <Textarea
+                        id="template-body"
+                        value={getCurrentBody().replace(/<[^>]*>/g, '')}
+                        onChange={(e) => handleSaveCustomization(getCurrentSubject(), e.target.value)}
+                        placeholder="Enter email content..."
+                        className="min-h-[300px] font-mono text-sm"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => {
+                          setCustomizedContent(null);
+                          localStorage.removeItem('bamlead_template_customizations');
+                          toast.success('Template reset to original');
+                        }}
+                      >
+                        Reset to Original
+                      </Button>
+                      <Button 
+                        size="sm"
+                        onClick={() => setActiveTab('preview')}
+                        className="gap-1"
+                      >
+                        <Eye className="w-4 h-4" />
+                        Preview Changes
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  {/* Live Preview Side */}
+                  <div className="space-y-2">
+                    <Label>Live Preview</Label>
+                    <div className="border rounded-lg p-4 bg-background min-h-[350px]">
+                      <div className="mb-3 pb-3 border-b">
+                        <p className="font-medium">{getCurrentSubject() || 'Subject line...'}</p>
+                      </div>
+                      <div 
+                        className="prose prose-sm dark:prose-invert max-w-none"
+                        dangerouslySetInnerHTML={{ __html: getCurrentBody() || '<p>Email content...</p>' }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Personalization Tokens */}
+                <div className="mt-4 p-3 rounded-lg bg-muted/50 border">
+                  <p className="text-sm font-medium mb-2">Available Tokens (click to copy):</p>
+                  <div className="flex flex-wrap gap-2">
+                    {['{{first_name}}', '{{business_name}}', '{{website}}', '{{phone}}', '{{email}}'].map((token) => (
+                      <Badge
+                        key={token}
+                        variant="secondary"
+                        className="cursor-pointer hover:bg-secondary/80"
+                        onClick={() => {
+                          navigator.clipboard.writeText(token);
+                          toast.success(`Copied ${token}`);
+                        }}
+                      >
+                        {token}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-dashed border-2">
+              <CardContent className="py-12 text-center">
+                <Pencil className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
+                <p className="font-medium">No Template to Edit</p>
+                <p className="text-sm text-muted-foreground">Select a template first to customize it</p>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* SMTP Configuration Tab */}
