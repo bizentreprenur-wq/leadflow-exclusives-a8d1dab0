@@ -3,10 +3,12 @@
  * Falls back to mock data when no backend configured
  */
 
-import { API_BASE_URL, USE_MOCK_AUTH, getAuthHeaders } from './config';
+import { API_BASE_URL, getAuthHeaders } from './config';
 
-// In Demo/Mock Auth mode, always use mock data so the dashboard works without the live backend.
-const USE_MOCK_DATA = USE_MOCK_AUTH || !API_BASE_URL;
+// IMPORTANT:
+// Demo/Mock Auth is for logging into the UI in preview environments.
+// It should NOT force dummy results if the real backend is reachable.
+const USE_MOCK_DATA = !API_BASE_URL;
 
 export interface PlatformResult {
   id: string;
@@ -97,25 +99,9 @@ export async function searchPlatforms(
   platforms: string[],
   onProgress?: PlatformProgressCallback
 ): Promise<PlatformSearchResponse> {
-  // Use mock data if no API URL is configured
+  // If there's no backend configured, do not fabricate dummy leads.
   if (USE_MOCK_DATA) {
-    const allResults = generateMockPlatformResults(service, location, platforms);
-    
-    // Simulate progressive loading
-    if (onProgress) {
-      for (let i = 0; i < allResults.length; i++) {
-        await new Promise(resolve => setTimeout(resolve, 100 + Math.random() * 50));
-        onProgress(allResults.slice(0, i + 1), ((i + 1) / allResults.length) * 100);
-      }
-    } else {
-      await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 700));
-    }
-    
-    return {
-      success: true,
-      data: allResults,
-      query: { service, location, platforms },
-    };
+    throw new Error('Platform search backend is not configured. Set VITE_API_URL or deploy /api.');
   }
 
   try {
@@ -126,37 +112,22 @@ export async function searchPlatforms(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      // Fall back to mock data on API error
-      console.log('Platform API error, falling back to mock data');
-      const mockResults = generateMockPlatformResults(service, location, platforms);
-      if (onProgress) {
-        onProgress(mockResults, 100);
+      const errorText = await response.text().catch(() => '');
+      let msg = `Platform search failed (${response.status})`;
+      try {
+        const parsed = errorText ? JSON.parse(errorText) : null;
+        msg = parsed?.error || parsed?.message || msg;
+      } catch {
+        // ignore
       }
-      return {
-        success: true,
-        data: mockResults,
-        query: { service, location, platforms },
-      };
+      throw new Error(msg);
     }
 
     const data = await response.json();
     
-    // If API returned 0 results, fall back to mock data for testing
+    // If API returned 0 results, surface it (no dummy leads)
     if (data.success && (!data.data || data.data.length === 0)) {
-      console.log('Platform API returned 0 results, falling back to mock data');
-      const mockResults = generateMockPlatformResults(service, location, platforms);
-      if (onProgress) {
-        for (let i = 0; i < mockResults.length; i++) {
-          await new Promise(resolve => setTimeout(resolve, 80));
-          onProgress(mockResults.slice(0, i + 1), ((i + 1) / mockResults.length) * 100);
-        }
-      }
-      return {
-        success: true,
-        data: mockResults,
-        query: { service, location, platforms },
-      };
+      throw new Error('Platform search returned 0 results. Try different platforms/keywords or verify API keys.');
     }
     
     // Progressive reveal for platform results
@@ -177,16 +148,6 @@ export async function searchPlatforms(
     return data;
   } catch (error) {
     console.error('Platform Search error:', error);
-    // Fall back to mock data on network error
-    console.log('Network error, falling back to mock data');
-    const mockResults = generateMockPlatformResults(service, location, platforms);
-    if (onProgress) {
-      onProgress(mockResults, 100);
-    }
-    return {
-      success: true,
-      data: mockResults,
-      query: { service, location, platforms },
-    };
+    throw error;
   }
 }
