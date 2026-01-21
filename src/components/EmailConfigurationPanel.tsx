@@ -12,9 +12,10 @@ import { toast } from 'sonner';
 import {
   Mail, Server, Shield, Send, Inbox, Settings, Eye, EyeOff,
   CheckCircle2, XCircle, Loader2, RefreshCw, Trash2, Archive,
-  Star, AlertCircle, Clock, ExternalLink, Key, MailOpen
+  Star, AlertCircle, Clock, ExternalLink, Key, MailOpen, Copy, Webhook, Link2
 } from 'lucide-react';
 import OutgoingMailbox from './OutgoingMailbox';
+import WebhookURLConfiguration from './WebhookURLConfiguration';
 
 interface SMTPConfig {
   host: string;
@@ -427,6 +428,11 @@ export default function EmailConfigurationPanel() {
                   onCheckedChange={(checked) => setSMTPConfig(prev => ({ ...prev, secure: checked }))}
                 />
               </div>
+
+              <Separator />
+
+              {/* Webhook URL Configuration */}
+              <WebhookURLConfiguration />
 
               {/* Action Buttons */}
               <div className="space-y-4">
