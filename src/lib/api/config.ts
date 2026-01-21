@@ -20,11 +20,18 @@ function isLovablePreviewHost(hostname: string): boolean {
   return false;
 }
 
+const MOCK_AUTH_STORAGE_KEY = 'bamlead_mock_auth_override';
+
 function getMockAuthOverride(): 'true' | 'false' | null {
   try {
     if (typeof window === 'undefined') return null;
     const v = new URLSearchParams(window.location.search).get('mockAuth');
-    return v === 'true' || v === 'false' ? v : null;
+    if (v === 'true' || v === 'false') return v;
+
+    // Persist override across reloads in preview environments.
+    // This prevents falling back into Demo Mode when navigating/refreshing.
+    const stored = window.localStorage?.getItem(MOCK_AUTH_STORAGE_KEY);
+    return stored === 'true' || stored === 'false' ? stored : null;
   } catch {
     return null;
   }
