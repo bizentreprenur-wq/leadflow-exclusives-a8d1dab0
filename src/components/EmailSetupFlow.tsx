@@ -512,27 +512,35 @@ export default function EmailSetupFlow({
                 
                 {/* UNIFIED TAB BAR - ALWAYS VISIBLE, SAME POSITION */}
                 <div className="flex items-center gap-1 pb-4">
-                  {[
-                    { tab: 'mailbox', icon: Mail, label: 'Mailbox', color: 'blue' },
-                    { tab: 'preview', icon: Eye, label: 'Preview', color: 'cyan' },
-                    { tab: 'crm', icon: Database, label: 'CRM', color: 'violet' },
-                    { tab: 'ab-testing', icon: FlaskConical, label: 'A/B', color: 'pink' },
-                    { tab: 'edit-template', icon: FileText, label: 'Edit', color: 'emerald' },
-                    { tab: 'settings', icon: Settings, label: 'SMTP', color: 'slate' },
-                  ].map((item) => (
-                    <button
-                      key={item.tab}
-                      onClick={() => handleTabChange(item.tab)}
-                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-all
-                        ${activeTab === item.tab
-                          ? 'border-blue-500 bg-blue-500/20 text-blue-300 shadow-lg shadow-blue-500/20' 
-                          : 'border-transparent bg-muted/20 text-muted-foreground hover:bg-muted/40 hover:text-foreground'
-                        }`}
-                    >
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.label}</span>
-                    </button>
-                  ))}
+                  <TooltipProvider delayDuration={200}>
+                    {[
+                      { tab: 'mailbox', icon: Mail, label: 'Mailbox', color: 'blue', tooltip: 'View live email queue, sending progress & campaign stats' },
+                      { tab: 'preview', icon: Eye, label: 'Preview', color: 'cyan', tooltip: 'Preview how your email looks in Gmail, Outlook & Apple Mail' },
+                      { tab: 'crm', icon: Database, label: 'CRM', color: 'violet', tooltip: 'Connect HubSpot, Salesforce, or use BamLead CRM to manage leads' },
+                      { tab: 'ab-testing', icon: FlaskConical, label: 'A/B', color: 'pink', tooltip: 'Create email variants & test which performs best' },
+                      { tab: 'edit-template', icon: FileText, label: 'Edit', color: 'emerald', tooltip: 'Customize your email subject & body with AI assistance' },
+                      { tab: 'settings', icon: Settings, label: 'SMTP', color: 'slate', tooltip: 'Configure your email server (Gmail, Outlook, custom SMTP)' },
+                    ].map((item) => (
+                      <Tooltip key={item.tab}>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => handleTabChange(item.tab)}
+                            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-all
+                              ${activeTab === item.tab
+                                ? 'border-primary bg-primary/20 text-primary-foreground shadow-lg shadow-primary/20' 
+                                : 'border-transparent bg-muted/20 text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                              }`}
+                          >
+                            <item.icon className="w-4 h-4" />
+                            <span>{item.label}</span>
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-[200px] text-center">
+                          <p>{item.tooltip}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </TooltipProvider>
                 </div>
               </CardHeader>
 
