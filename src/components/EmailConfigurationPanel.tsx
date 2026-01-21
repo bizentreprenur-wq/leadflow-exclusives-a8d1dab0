@@ -426,14 +426,32 @@ export default function EmailConfigurationPanel() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="p-4 rounded-lg bg-muted/30 border">
-                  <p className="font-medium text-sm mb-2">Subject: {getCurrentSubject()}</p>
-                  <div 
-                    className="text-sm text-muted-foreground line-clamp-3"
-                    dangerouslySetInnerHTML={{ 
-                      __html: getCurrentBody().substring(0, 200) + '...' 
-                    }}
-                  />
+                <div className="flex gap-4">
+                  {/* Template Thumbnail */}
+                  {selectedTemplate.previewImage && (
+                    <div className="shrink-0">
+                      <div className="w-32 h-20 rounded-lg overflow-hidden border bg-muted">
+                        <img 
+                          src={selectedTemplate.previewImage} 
+                          alt={selectedTemplate.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Template Content Preview */}
+                  <div className="flex-1 min-w-0">
+                    <div className="p-3 rounded-lg bg-muted/30 border">
+                      <p className="font-medium text-sm mb-1 truncate">Subject: {getCurrentSubject()}</p>
+                      <div 
+                        className="text-sm text-muted-foreground line-clamp-2"
+                        dangerouslySetInnerHTML={{ 
+                          __html: getCurrentBody().replace(/<[^>]*>/g, ' ').substring(0, 150) + '...' 
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
