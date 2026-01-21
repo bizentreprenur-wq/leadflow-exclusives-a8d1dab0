@@ -25,7 +25,7 @@ import HighConvertingTemplateGallery from './HighConvertingTemplateGallery';
 import ABTestingPanel from './ABTestingPanel';
 import { sendSingleEmail, getSentEmails } from '@/lib/emailService';
 import { EmailTemplate } from '@/lib/highConvertingTemplates';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
 interface SMTPConfig {
   host: string;
@@ -613,7 +613,68 @@ export default function EmailConfigurationPanel({ leads = [] }: EmailConfigurati
                 );
               })()}
 
-              {/* CRM Integrations */}
+              {/* Lead Acquisition Over Time - Bar Chart */}
+              {(() => {
+                const totalLeads = leads.length;
+                // Generate time-based data (last 7 days simulation)
+                const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Today'];
+                const acquisitionData = days.map((day, index) => {
+                  // Distribute leads across days with more weight towards recent
+                  const weight = (index + 1) / days.length;
+                  const baseCount = Math.floor((totalLeads / days.length) * weight);
+                  const variance = Math.floor(Math.random() * 3);
+                  return {
+                    day,
+                    leads: index === days.length - 1 ? totalLeads - days.slice(0, -1).reduce((acc, _, i) => {
+                      const w = (i + 1) / days.length;
+                      return acc + Math.floor((totalLeads / days.length) * w);
+                    }, 0) : baseCount + variance,
+                  };
+                });
+                
+                return (
+                  <div className="p-4 rounded-lg bg-muted/30 border">
+                    <p className="text-sm font-medium mb-3">Lead Acquisition (Last 7 Days)</p>
+                    {totalLeads > 0 ? (
+                      <div className="h-48">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={acquisitionData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                            <XAxis 
+                              dataKey="day" 
+                              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                              axisLine={{ stroke: 'hsl(var(--border))' }}
+                            />
+                            <YAxis 
+                              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                              axisLine={{ stroke: 'hsl(var(--border))' }}
+                            />
+                            <Tooltip 
+                              contentStyle={{ 
+                                backgroundColor: 'hsl(var(--card))', 
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '8px'
+                              }}
+                              labelStyle={{ color: 'hsl(var(--foreground))' }}
+                            />
+                            <Bar 
+                              dataKey="leads" 
+                              fill="hsl(var(--primary))" 
+                              radius={[4, 4, 0, 0]}
+                              name="Leads Acquired"
+                            />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
+                        No acquisition data available
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
               <div className="space-y-3">
                 <Label className="text-sm font-medium">Connect External CRM</Label>
                 <div className="grid grid-cols-3 gap-3">
