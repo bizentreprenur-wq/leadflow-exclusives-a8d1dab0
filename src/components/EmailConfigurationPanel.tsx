@@ -18,6 +18,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import OutgoingMailbox from './OutgoingMailbox';
 import WebhookURLConfiguration from './WebhookURLConfiguration';
+import { sendSingleEmail, getSentEmails } from '@/lib/emailService';
 
 interface SMTPConfig {
   host: string;
@@ -638,28 +639,53 @@ export default function EmailConfigurationPanel() {
                         toast.error('Please fill in all fields');
                         return;
                       }
+                      
+                      // Validate email format
+                      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                      if (!emailRegex.test(composeData.to)) {
+                        toast.error('Please enter a valid email address');
+                        return;
+                      }
+                      
                       setIsSendingEmail(true);
-                      // Simulate sending
-                      await new Promise(resolve => setTimeout(resolve, 1500));
-                      const newEmail: EmailMessage = {
-                        id: Date.now().toString(),
-                        from: smtpConfig.fromEmail || 'noreply@bamlead.com',
-                        to: composeData.to,
-                        subject: composeData.subject,
-                        preview: composeData.body.substring(0, 100),
-                        date: new Date().toISOString(),
-                        read: true,
-                        starred: false,
-                        type: 'sent',
-                      };
-                      setEmails(prev => [newEmail, ...prev]);
-                      setIsSendingEmail(false);
-                      setIsComposing(false);
-                      setIsReplying(false);
-                      setComposeData({ to: '', subject: '', body: '' });
-                      toast.success('Email sent successfully!');
+                      
+                      try {
+                        // Send via real SMTP backend
+                        const result = await sendSingleEmail({
+                          to: composeData.to,
+                          subject: composeData.subject,
+                          bodyHtml: `<div style="font-family: Arial, sans-serif; line-height: 1.6;">${composeData.body.replace(/\n/g, '<br>')}</div>`,
+                          bodyText: composeData.body,
+                        });
+                        
+                        if (result.success) {
+                          const newEmail: EmailMessage = {
+                            id: Date.now().toString(),
+                            from: smtpConfig.fromEmail || 'noreply@bamlead.com',
+                            to: composeData.to,
+                            subject: composeData.subject,
+                            preview: composeData.body.substring(0, 100),
+                            date: new Date().toISOString(),
+                            read: true,
+                            starred: false,
+                            type: 'sent',
+                          };
+                          setEmails(prev => [newEmail, ...prev]);
+                          setIsComposing(false);
+                          setIsReplying(false);
+                          setComposeData({ to: '', subject: '', body: '' });
+                          toast.success('Email sent successfully via SMTP!');
+                        } else {
+                          toast.error(result.error || 'Failed to send email');
+                        }
+                      } catch (error) {
+                        console.error('Send error:', error);
+                        toast.error('Failed to send email. Check SMTP settings.');
+                      } finally {
+                        setIsSendingEmail(false);
+                      }
                     }}
-                    disabled={isSendingEmail}
+                    disabled={isSendingEmail || !isConnected}
                     className="gap-2"
                   >
                     {isSendingEmail ? (
@@ -667,7 +693,7 @@ export default function EmailConfigurationPanel() {
                     ) : (
                       <Send className="w-4 h-4" />
                     )}
-                    Send Email
+                    {!isConnected ? 'Configure SMTP First' : 'Send Email'}
                   </Button>
                 </div>
               </CardContent>
