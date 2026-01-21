@@ -276,36 +276,59 @@ export default function EmailConfigurationPanel() {
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-7">
-          <TabsTrigger value="mailbox" className="gap-1 text-xs px-2">
-            <MailOpen className="w-3 h-3" />
-            Mailbox
-          </TabsTrigger>
-          <TabsTrigger value="preview" className="gap-1 text-xs px-2">
-            <Eye className="w-3 h-3" />
-            Preview
-          </TabsTrigger>
-          <TabsTrigger value="crm" className="gap-1 text-xs px-2">
-            <Users className="w-3 h-3" />
-            CRM
-          </TabsTrigger>
-          <TabsTrigger value="ab" className="gap-1 text-xs px-2">
-            <FlaskConical className="w-3 h-3" />
-            A/B
-          </TabsTrigger>
-          <TabsTrigger value="edit" className="gap-1 text-xs px-2">
-            <Pencil className="w-3 h-3" />
-            Edit
-          </TabsTrigger>
-          <TabsTrigger value="smtp" className="gap-1 text-xs px-2">
-            <Server className="w-3 h-3" />
-            SMTP
-          </TabsTrigger>
-          <TabsTrigger value="inbox" className="gap-1 text-xs px-2">
-            <Inbox className="w-3 h-3" />
-            Inbox
-          </TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto scrollbar-hide -mx-2 px-2">
+          <TabsList className="inline-flex w-max min-w-full gap-1 bg-transparent p-1">
+            <TabsTrigger 
+              value="mailbox" 
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-cyan-500/50 bg-black/60 text-white data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 data-[state=active]:text-white whitespace-nowrap"
+            >
+              <MailOpen className="w-3.5 h-3.5 text-white" />
+              <span className="text-white font-medium">Mailbox</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="preview" 
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 text-muted-foreground data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 data-[state=active]:text-white whitespace-nowrap"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              Preview
+            </TabsTrigger>
+            <TabsTrigger 
+              value="crm" 
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 text-muted-foreground data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 data-[state=active]:text-white whitespace-nowrap"
+            >
+              <Users className="w-3.5 h-3.5" />
+              CRM
+            </TabsTrigger>
+            <TabsTrigger 
+              value="ab" 
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 text-muted-foreground data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 data-[state=active]:text-white whitespace-nowrap"
+            >
+              <FlaskConical className="w-3.5 h-3.5" />
+              A/B
+            </TabsTrigger>
+            <TabsTrigger 
+              value="edit" 
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 text-muted-foreground data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 data-[state=active]:text-white whitespace-nowrap"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              Edit
+            </TabsTrigger>
+            <TabsTrigger 
+              value="smtp" 
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 text-muted-foreground data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 data-[state=active]:text-white whitespace-nowrap"
+            >
+              <Server className="w-3.5 h-3.5" />
+              SMTP
+            </TabsTrigger>
+            <TabsTrigger 
+              value="inbox" 
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 text-muted-foreground data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 data-[state=active]:text-white whitespace-nowrap"
+            >
+              <Inbox className="w-3.5 h-3.5" />
+              Inbox
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* Visual Mailbox Tab */}
         <TabsContent value="mailbox" className="space-y-4">
