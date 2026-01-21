@@ -1015,18 +1015,35 @@ export default function Dashboard() {
                       )}
                     </Button>
 
-                    {/* Streaming Leads Indicator - Shows while searching */}
-                    {(isSearching || searchResults.length > 0) && searchProgress > 0 && searchProgress < 100 && (
-                      <div className="mt-4">
-                        <StreamingLeadsIndicator
-                          currentCount={searchResults.length}
-                          isStreaming={isSearching}
-                          progress={searchProgress}
+                    {/* AI Processing Pipeline - Shows DURING search */}
+                    {isSearching && searchProgress > 0 && (
+                      <div className="mt-6">
+                        <AIProcessingPipeline
+                          isActive={true}
+                          leads={searchResults.length > 0 ? searchResults : [{ id: 'placeholder', name: 'Analyzing...', source: 'gmb' as const }]}
+                          onComplete={() => {
+                            // Don't auto-complete during search - we control this via search flow
+                          }}
+                          onProgressUpdate={(progress, agentName) => {
+                            setAIPipelineProgress(progress);
+                            setCurrentAIAgent(agentName);
+                          }}
                         />
+                        
+                        {/* Streaming Leads Indicator - Shows count below AI Pipeline */}
+                        {searchResults.length > 0 && (
+                          <div className="mt-4">
+                            <StreamingLeadsIndicator
+                              currentCount={searchResults.length}
+                              isStreaming={isSearching}
+                              progress={searchProgress}
+                            />
+                          </div>
+                        )}
                       </div>
                     )}
 
-                    {/* AI Processing Pipeline - Shows after search completes */}
+                    {/* AI Processing Pipeline - Shows after search completes for final processing */}
                     {showAIPipeline && searchResults.length > 0 && !isSearching && (
                       <div className="mt-6">
                         <AIProcessingPipeline
