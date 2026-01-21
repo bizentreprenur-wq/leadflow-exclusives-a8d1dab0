@@ -149,10 +149,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// Default context value for when AuthProvider hasn't mounted yet
+// This prevents crashes during React error recovery or concurrent rendering
+const defaultAuthContext: AuthContextType = {
+  user: null,
+  isLoading: true,
+  isAuthenticated: false,
+  login: async () => { throw new Error('AuthProvider not mounted'); },
+  register: async () => { throw new Error('AuthProvider not mounted'); },
+  logout: async () => { throw new Error('AuthProvider not mounted'); },
+  refreshUser: async () => { throw new Error('AuthProvider not mounted'); },
+};
+
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  // Return default context instead of throwing to prevent crashes during
+  // React error recovery or when components briefly render outside provider
+  return context ?? defaultAuthContext;
 }
