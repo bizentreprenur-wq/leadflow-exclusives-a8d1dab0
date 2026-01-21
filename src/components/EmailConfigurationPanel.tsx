@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,7 @@ import HighConvertingTemplateGallery from './HighConvertingTemplateGallery';
 import ABTestingPanel from './ABTestingPanel';
 import { sendSingleEmail, getSentEmails } from '@/lib/emailService';
 import { EmailTemplate } from '@/lib/highConvertingTemplates';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
 interface SMTPConfig {
   host: string;
@@ -340,49 +341,49 @@ export default function EmailConfigurationPanel({ leads = [] }: EmailConfigurati
           <TabsList className="inline-flex w-max min-w-full gap-1 bg-transparent p-1">
             <TabsTrigger 
               value="mailbox" 
-              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-cyan-500/50 bg-black/60 whitespace-nowrap data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 [&>*]:text-white"
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-cyan-500/50 bg-black/60 whitespace-nowrap data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 text-white"
             >
-              <MailOpen className="w-3.5 h-3.5 !text-white" />
-              <span className="!text-white font-medium">Mailbox</span>
+              <MailOpen className="w-3.5 h-3.5 text-white" />
+              <span className="text-white font-medium">Mailbox</span>
             </TabsTrigger>
             <TabsTrigger 
               value="preview" 
-              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 text-muted-foreground data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 data-[state=active]:text-white whitespace-nowrap"
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 whitespace-nowrap data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 text-white/70 data-[state=active]:text-white"
             >
               <Eye className="w-3.5 h-3.5" />
               Preview
             </TabsTrigger>
             <TabsTrigger 
               value="crm" 
-              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 text-muted-foreground data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 data-[state=active]:text-white whitespace-nowrap"
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 whitespace-nowrap data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 text-white/70 data-[state=active]:text-white"
             >
               <Users className="w-3.5 h-3.5" />
               CRM
             </TabsTrigger>
             <TabsTrigger 
               value="ab" 
-              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 text-muted-foreground data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 data-[state=active]:text-white whitespace-nowrap"
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 whitespace-nowrap data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 text-white/70 data-[state=active]:text-white"
             >
               <FlaskConical className="w-3.5 h-3.5" />
               A/B
             </TabsTrigger>
             <TabsTrigger 
               value="edit" 
-              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 text-muted-foreground data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 data-[state=active]:text-white whitespace-nowrap"
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 whitespace-nowrap data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 text-white/70 data-[state=active]:text-white"
             >
               <Pencil className="w-3.5 h-3.5" />
               Edit
             </TabsTrigger>
             <TabsTrigger 
               value="smtp" 
-              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 text-muted-foreground data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 data-[state=active]:text-white whitespace-nowrap"
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 whitespace-nowrap data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 text-white/70 data-[state=active]:text-white"
             >
               <Server className="w-3.5 h-3.5" />
               SMTP
             </TabsTrigger>
             <TabsTrigger 
               value="inbox" 
-              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 text-muted-foreground data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 data-[state=active]:text-white whitespace-nowrap"
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 whitespace-nowrap data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 text-white/70 data-[state=active]:text-white"
             >
               <Inbox className="w-3.5 h-3.5" />
               Inbox
@@ -533,31 +534,80 @@ export default function EmailConfigurationPanel({ leads = [] }: EmailConfigurati
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Quick Stats - Real-time from leads prop */}
+              {/* Lead Distribution Chart + Quick Stats */}
               {(() => {
                 const totalLeads = leads.length;
                 const hotLeads = leads.filter(l => l.aiClassification === 'hot').length;
                 const warmLeads = leads.filter(l => l.aiClassification === 'warm').length;
+                const coldLeads = leads.filter(l => l.aiClassification === 'cold').length;
                 const withEmail = leads.filter(l => l.email).length;
-                const emailRate = totalLeads > 0 ? Math.round((withEmail / totalLeads) * 100) : 0;
+                
+                const chartData = [
+                  { name: 'Hot 🔥', value: hotLeads, color: '#ef4444' },
+                  { name: 'Warm 🌡️', value: warmLeads, color: '#f59e0b' },
+                  { name: 'Cold ❄️', value: coldLeads || (totalLeads - hotLeads - warmLeads), color: '#3b82f6' },
+                ];
                 
                 return (
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20 text-center">
-                      <p className="text-2xl font-bold text-blue-600">{totalLeads}</p>
-                      <p className="text-xs text-blue-600/80">Total Leads</p>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Pie Chart */}
+                    <div className="p-4 rounded-lg bg-muted/30 border">
+                      <p className="text-sm font-medium mb-3 text-center">Lead Classification</p>
+                      {totalLeads > 0 ? (
+                        <div className="h-48">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={chartData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={40}
+                                outerRadius={70}
+                                paddingAngle={2}
+                                dataKey="value"
+                                label={({ name, value }) => `${name}: ${value}`}
+                                labelLine={false}
+                              >
+                                {chartData.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={entry.color} />
+                                ))}
+                              </Pie>
+                              <Tooltip 
+                                contentStyle={{ 
+                                  backgroundColor: 'hsl(var(--card))', 
+                                  border: '1px solid hsl(var(--border))',
+                                  borderRadius: '8px'
+                                }} 
+                              />
+                              <Legend />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
+                          No leads to display
+                        </div>
+                      )}
                     </div>
-                    <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-center">
-                      <p className="text-2xl font-bold text-red-600">{hotLeads}</p>
-                      <p className="text-xs text-red-600/80">🔥 Hot Leads</p>
-                    </div>
-                    <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
-                      <p className="text-2xl font-bold text-amber-600">{warmLeads}</p>
-                      <p className="text-xs text-amber-600/80">🌡️ Warm Leads</p>
-                    </div>
-                    <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-center">
-                      <p className="text-2xl font-bold text-emerald-600">{withEmail}</p>
-                      <p className="text-xs text-emerald-600/80">📧 With Email</p>
+                    
+                    {/* Stats Cards */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20 text-center">
+                        <p className="text-2xl font-bold text-blue-600">{totalLeads}</p>
+                        <p className="text-xs text-blue-600/80">Total Leads</p>
+                      </div>
+                      <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-center">
+                        <p className="text-2xl font-bold text-red-600">{hotLeads}</p>
+                        <p className="text-xs text-red-600/80">🔥 Hot Leads</p>
+                      </div>
+                      <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
+                        <p className="text-2xl font-bold text-amber-600">{warmLeads}</p>
+                        <p className="text-xs text-amber-600/80">🌡️ Warm Leads</p>
+                      </div>
+                      <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-center">
+                        <p className="text-2xl font-bold text-emerald-600">{withEmail}</p>
+                        <p className="text-xs text-emerald-600/80">📧 With Email</p>
+                      </div>
                     </div>
                   </div>
                 );
