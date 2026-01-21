@@ -66,11 +66,9 @@ export default function EmailSetupFlow({
   const [showAutoCampaign, setShowAutoCampaign] = useState(false);
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   
-  // Guided tab tracking
-  const [activeTab, setActiveTab] = useState('preview');
-  const [visitedTabs, setVisitedTabs] = useState<string[]>(['preview']);
-  // Full page views for CRM, A/B, Settings
-  const [activePageView, setActivePageView] = useState<string | null>(null);
+  // Unified mailbox tab tracking - default to mailbox view
+  const [activeTab, setActiveTab] = useState('mailbox');
+  const [visitedTabs, setVisitedTabs] = useState<string[]>(['mailbox']);
   
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -488,11 +486,12 @@ export default function EmailSetupFlow({
             </div>
 
             {/* ============================================= */}
-            {/* 📬 THE MAILBOX - WITH TOOLS INSIDE ON LEFT */}
+            {/* 📬 UNIFIED MAILBOX - PERSISTENT SHELL */}
             {/* ============================================= */}
             <Card className="border-2 border-blue-500/40 bg-gradient-to-br from-blue-900/20 to-indigo-900/20 overflow-hidden">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
+              {/* PERSISTENT TOP NAVIGATION BAR - NEVER CHANGES */}
+              <CardHeader className="pb-0 border-b border-blue-500/20">
+                <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
                       <Mail className="w-6 h-6 text-blue-400" />
@@ -505,192 +504,265 @@ export default function EmailSetupFlow({
                         </Badge>
                       </CardTitle>
                       <CardDescription>
-                        Watch your emails being delivered to each business in real-time
+                        Your unified outreach command center
                       </CardDescription>
                     </div>
                   </div>
-                  
-                  {/* TOOLS BAR - INSIDE MAILBOX HEADER ON RIGHT */}
-                  <div className="flex items-center gap-1">
-                    {[
-                      { tab: 'preview', icon: Eye, label: 'Preview', color: 'blue', isPage: false },
-                      { tab: 'crm', icon: Database, label: 'CRM', color: 'violet', isPage: true },
-                      { tab: 'ab-testing', icon: FlaskConical, label: 'A/B', color: 'pink', isPage: true },
-                      { tab: 'edit-template', icon: FileText, label: 'Edit', color: 'emerald', isPage: false },
-                      { tab: 'settings', icon: Settings, label: 'SMTP', color: 'slate', isPage: true },
-                    ].map((item) => (
-                      <button
-                        key={item.tab}
-                        onClick={() => {
-                          if (item.isPage) {
-                            // Set the active page view
-                            setActivePageView(item.tab);
-                          } else {
-                            handleTabChange(item.tab);
-                          }
-                        }}
-                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs font-medium transition-all hover:scale-105
-                          ${(item.isPage ? activePageView === item.tab : activeTab === item.tab)
-                            ? 'border-blue-500 bg-blue-500/20 text-blue-400' 
-                            : 'border-border/50 bg-muted/30 text-muted-foreground hover:border-primary/50 hover:text-foreground'
-                          }`}
-                      >
-                        <item.icon className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">{item.label}</span>
-                      </button>
-                    ))}
-                  </div>
+                </div>
+                
+                {/* UNIFIED TAB BAR - ALWAYS VISIBLE, SAME POSITION */}
+                <div className="flex items-center gap-1 pb-4">
+                  {[
+                    { tab: 'mailbox', icon: Mail, label: 'Mailbox', color: 'blue' },
+                    { tab: 'preview', icon: Eye, label: 'Preview', color: 'cyan' },
+                    { tab: 'crm', icon: Database, label: 'CRM', color: 'violet' },
+                    { tab: 'ab-testing', icon: FlaskConical, label: 'A/B', color: 'pink' },
+                    { tab: 'edit-template', icon: FileText, label: 'Edit', color: 'emerald' },
+                    { tab: 'settings', icon: Settings, label: 'SMTP', color: 'slate' },
+                  ].map((item) => (
+                    <button
+                      key={item.tab}
+                      onClick={() => handleTabChange(item.tab)}
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-all
+                        ${activeTab === item.tab
+                          ? 'border-blue-500 bg-blue-500/20 text-blue-300 shadow-lg shadow-blue-500/20' 
+                          : 'border-transparent bg-muted/20 text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                        }`}
+                    >
+                      <item.icon className="w-4 h-4" />
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
                 </div>
               </CardHeader>
-              <CardContent className="pt-0">
-                {/* The Mailbox Animation - THE STAR OF THE SHOW */}
-                <MailboxDripAnimation
-                  totalEmails={emailLeads.length}
-                  sentCount={demoSentCount}
-                  isActive={demoIsActive}
-                  emailsPerHour={50}
-                  leads={leads.map(l => ({ id: l.id, name: l.name, email: l.email }))}
-                />
-                
-                {/* Total Leads Count */}
-                <div className="flex items-center justify-between mt-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                  <span className="text-sm text-muted-foreground">Total Leads Ready</span>
-                  <span className="text-2xl font-bold text-blue-400">{leadsWithEmail.length}</span>
-                </div>
-                
-                {/* SEND EMAILS BUTTON - INSIDE THE MAILBOX */}
-                <div className="mt-6 pt-4 border-t border-blue-500/30">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-white">Ready to launch your campaign?</p>
-                      <p className="text-sm text-muted-foreground">
-                        {leadsWithEmail.length} businesses will receive your email via drip sending
-                      </p>
-                    </div>
-                    <Button 
-                      size="lg"
-                      onClick={() => {
-                        sessionStorage.setItem('emails_sent', 'true');
-                        setDemoIsActive(true);
-                        toast.success('🚀 Campaign launched! Emails are being sent...');
-                      }}
-                      className="gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold px-8 py-6 text-lg shadow-lg shadow-blue-500/30"
-                    >
-                      <Send className="w-5 h-5" />
-                      Send Emails Now
-                    </Button>
-                  </div>
-                </div>
 
-                {/* Conditional Analytics - INSIDE MAILBOX after sending */}
-                {hasEmailsSent && demoSentCount > 0 && (
-                  <div className="mt-6 pt-4 border-t border-emerald-500/30">
-                    <div className="flex items-center gap-2 mb-3">
-                      <BarChart3 className="w-5 h-5 text-emerald-400" />
-                      <h4 className="font-bold text-emerald-400">Campaign Analytics</h4>
-                    </div>
-                    <CampaignAnalyticsDashboard />
-                  </div>
-                )}
+              {/* CONTENT AREA - ONLY THIS CHANGES */}
+              <CardContent className="pt-6 min-h-[500px]">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={activeTab}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    {/* MAILBOX VIEW - Default home */}
+                    {activeTab === 'mailbox' && (
+                      <div className="space-y-6">
+                        {/* The Mailbox Animation - THE STAR OF THE SHOW */}
+                        <MailboxDripAnimation
+                          totalEmails={emailLeads.length}
+                          sentCount={demoSentCount}
+                          isActive={demoIsActive}
+                          emailsPerHour={50}
+                          leads={leads.map(l => ({ id: l.id, name: l.name, email: l.email }))}
+                        />
+                        
+                        {/* Total Leads Count */}
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                          <span className="text-sm text-muted-foreground">Total Leads Ready</span>
+                          <span className="text-2xl font-bold text-blue-400">{leadsWithEmail.length}</span>
+                        </div>
+                        
+                        {/* SEND EMAILS BUTTON */}
+                        <div className="pt-4 border-t border-blue-500/30">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-semibold text-white">Ready to launch your campaign?</p>
+                              <p className="text-sm text-muted-foreground">
+                                {leadsWithEmail.length} businesses will receive your email via drip sending
+                              </p>
+                            </div>
+                            <Button 
+                              size="lg"
+                              onClick={() => {
+                                sessionStorage.setItem('emails_sent', 'true');
+                                setDemoIsActive(true);
+                                toast.success('🚀 Campaign launched! Emails are being sent...');
+                              }}
+                              className="gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold px-8 py-6 text-lg shadow-lg shadow-blue-500/30"
+                            >
+                              <Send className="w-5 h-5" />
+                              Send Emails Now
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Conditional Analytics */}
+                        {hasEmailsSent && demoSentCount > 0 && (
+                          <div className="pt-4 border-t border-emerald-500/30">
+                            <div className="flex items-center gap-2 mb-3">
+                              <BarChart3 className="w-5 h-5 text-emerald-400" />
+                              <h4 className="font-bold text-emerald-400">Campaign Analytics</h4>
+                            </div>
+                            <CampaignAnalyticsDashboard />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* PREVIEW VIEW */}
+                    {activeTab === 'preview' && (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Eye className="w-5 h-5 text-cyan-400" />
+                          <h3 className="font-bold text-lg">Email Preview</h3>
+                        </div>
+                        {selectedTemplate ? (
+                          <EmailClientPreviewPanel 
+                            subject={customizedContent?.subject || selectedTemplate.subject} 
+                            body={customizedContent?.body || selectedTemplate.body_html || selectedTemplate.body}
+                            templateName={selectedTemplate.name}
+                          />
+                        ) : (
+                          <div className="text-center py-12 bg-muted/20 rounded-xl border border-dashed border-border">
+                            <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
+                            <h3 className="font-semibold mb-2">No Template Selected</h3>
+                            <p className="text-muted-foreground text-sm mb-4">Go back and select a template first</p>
+                            <Button size="sm" onClick={() => setCurrentPhase('template')}>Choose Template</Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* CRM VIEW */}
+                    {activeTab === 'crm' && (
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Database className="w-5 h-5 text-violet-400" />
+                          <h3 className="font-bold text-lg">CRM Integration</h3>
+                        </div>
+                        
+                        <div className="space-y-6">
+                          <div>
+                            <h4 className="font-semibold mb-3 flex items-center gap-2">
+                              <Database className="w-4 h-4 text-violet-400" />
+                              Connect External CRM
+                            </h4>
+                            <CRMSelectionPanel leadCount={leads.length} />
+                          </div>
+                          
+                          <Separator className="my-4" />
+                          
+                          <div>
+                            <h4 className="font-semibold mb-3 flex items-center gap-2">
+                              <Database className="w-4 h-4 text-emerald-400" />
+                              BamLead CRM
+                              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/40 text-xs">Built-in</Badge>
+                            </h4>
+                            <p className="text-muted-foreground text-sm mb-4">
+                              Manage your leads directly without any external integrations.
+                            </p>
+                            <BamLeadCRMPanel 
+                              leads={leads.map(l => ({
+                                id: l.id,
+                                name: l.name,
+                                email: l.email,
+                                phone: l.phone,
+                                website: l.website,
+                                address: l.address,
+                              }))}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* A/B TESTING VIEW */}
+                    {activeTab === 'ab-testing' && (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 mb-4">
+                          <FlaskConical className="w-5 h-5 text-pink-400" />
+                          <h3 className="font-bold text-lg">A/B Testing</h3>
+                        </div>
+                        <ABTestingPanel />
+                      </div>
+                    )}
+
+                    {/* EDIT TEMPLATE VIEW */}
+                    {activeTab === 'edit-template' && (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 mb-4">
+                          <FileText className="w-5 h-5 text-emerald-400" />
+                          <h3 className="font-bold text-lg">Edit Template</h3>
+                        </div>
+                        {selectedTemplate ? (
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <div className="space-y-4">
+                              <div>
+                                <Label htmlFor="edit-subject">Subject Line</Label>
+                                <Input 
+                                  id="edit-subject"
+                                  value={customizedContent?.subject || selectedTemplate.subject}
+                                  placeholder="Enter your subject line..."
+                                  className="mt-1"
+                                  onChange={(e) => {
+                                    const body = customizedContent?.body || selectedTemplate.body || '';
+                                    handleSaveCustomization(e.target.value, body);
+                                  }}
+                                />
+                              </div>
+                              <div>
+                                <Label htmlFor="edit-body">Email Body</Label>
+                                <textarea 
+                                  id="edit-body"
+                                  value={(customizedContent?.body || selectedTemplate.body || '').replace(/<[^>]*>/g, '')}
+                                  placeholder="Enter your email content..."
+                                  className="mt-1 w-full h-64 p-3 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                                  onChange={(e) => {
+                                    const subject = customizedContent?.subject || selectedTemplate.subject;
+                                    handleSaveCustomization(subject, e.target.value);
+                                  }}
+                                />
+                              </div>
+                              {customizedContent && (
+                                <Badge variant="outline" className="border-success text-success">
+                                  ✓ Your edits are saved automatically
+                                </Badge>
+                              )}
+                            </div>
+                            <AIEmailAssistant
+                              template={selectedTemplate}
+                              leads={leads}
+                              currentSubject={customizedContent?.subject || selectedTemplate.subject}
+                              currentBody={customizedContent?.body || selectedTemplate.body}
+                              onApplySubject={(subject) => {
+                                const body = customizedContent?.body || selectedTemplate.body || '';
+                                handleSaveCustomization(subject, body);
+                              }}
+                              onApplyBody={(newBody) => {
+                                const subject = customizedContent?.subject || selectedTemplate.subject;
+                                const currentBody = customizedContent?.body || selectedTemplate.body || '';
+                                const updatedBody = currentBody ? `${currentBody}\n\n${newBody}` : newBody;
+                                handleSaveCustomization(subject, updatedBody.replace(/<[^>]*>/g, ''));
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="text-center py-12 bg-muted/20 rounded-xl border border-dashed border-border">
+                            <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
+                            <h3 className="font-semibold mb-2">No Template Selected</h3>
+                            <p className="text-muted-foreground text-sm mb-4">Select a template first to edit it</p>
+                            <Button size="sm" onClick={() => setCurrentPhase('template')}>Choose Template</Button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* SMTP SETTINGS VIEW */}
+                    {activeTab === 'settings' && (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Settings className="w-5 h-5 text-slate-400" />
+                          <h3 className="font-bold text-lg">Email Settings (SMTP)</h3>
+                        </div>
+                        <EmailConfigurationPanel />
+                      </div>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
               </CardContent>
             </Card>
-
-            {/* TOOL CONTENT - Shows below when preview or edit is selected */}
-            {activeTab && (activeTab === 'preview' || activeTab === 'edit-template') && (
-              <Card className="border-2 border-primary/20 bg-muted/10">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      {activeTab === 'preview' && <><Eye className="w-5 h-5 text-blue-400" /> Email Preview</>}
-                      {activeTab === 'edit-template' && <><FileText className="w-5 h-5 text-emerald-400" /> Edit Template</>}
-                    </CardTitle>
-                    <Button variant="ghost" size="sm" onClick={() => setActiveTab('')} className="text-muted-foreground">
-                      ✕ Close
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {activeTab === 'preview' && (
-                    selectedTemplate ? (
-                      <EmailClientPreviewPanel 
-                        subject={customizedContent?.subject || selectedTemplate.subject} 
-                        body={customizedContent?.body || selectedTemplate.body_html || selectedTemplate.body}
-                        templateName={selectedTemplate.name}
-                      />
-                    ) : (
-                      <div className="text-center py-8">
-                        <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
-                        <h3 className="font-semibold mb-2">No Template Selected</h3>
-                        <p className="text-muted-foreground text-sm mb-3">Go back and select a template</p>
-                        <Button size="sm" onClick={() => setCurrentPhase('template')}>Choose Template</Button>
-                      </div>
-                    )
-                  )}
-                  {activeTab === 'edit-template' && (
-                    selectedTemplate ? (
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <div className="space-y-4">
-                          <div>
-                            <Label htmlFor="edit-subject">Subject Line</Label>
-                            <Input 
-                              id="edit-subject"
-                              value={customizedContent?.subject || selectedTemplate.subject}
-                              placeholder="Enter your subject line..."
-                              className="mt-1"
-                              onChange={(e) => {
-                                const body = customizedContent?.body || selectedTemplate.body || '';
-                                handleSaveCustomization(e.target.value, body);
-                              }}
-                            />
-                          </div>
-                          <div>
-                            <Label htmlFor="edit-body">Email Body</Label>
-                            <textarea 
-                              id="edit-body"
-                              value={(customizedContent?.body || selectedTemplate.body || '').replace(/<[^>]*>/g, '')}
-                              placeholder="Enter your email content..."
-                              className="mt-1 w-full h-64 p-3 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-                              onChange={(e) => {
-                                const subject = customizedContent?.subject || selectedTemplate.subject;
-                                handleSaveCustomization(subject, e.target.value);
-                              }}
-                            />
-                          </div>
-                          {customizedContent && (
-                            <Badge variant="outline" className="border-warning text-warning">
-                              ✓ Your edits are saved automatically
-                            </Badge>
-                          )}
-                        </div>
-                        <AIEmailAssistant
-                          template={selectedTemplate}
-                          leads={leads}
-                          currentSubject={customizedContent?.subject || selectedTemplate.subject}
-                          currentBody={customizedContent?.body || selectedTemplate.body}
-                          onApplySubject={(subject) => {
-                            const body = customizedContent?.body || selectedTemplate.body || '';
-                            handleSaveCustomization(subject, body);
-                          }}
-                          onApplyBody={(newBody) => {
-                            const subject = customizedContent?.subject || selectedTemplate.subject;
-                            const currentBody = customizedContent?.body || selectedTemplate.body || '';
-                            const updatedBody = currentBody ? `${currentBody}\n\n${newBody}` : newBody;
-                            handleSaveCustomization(subject, updatedBody.replace(/<[^>]*>/g, ''));
-                          }}
-                        />
-                      </div>
-                    ) : (
-                      <div className="text-center py-8">
-                        <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
-                        <h3 className="font-semibold mb-2">No Template Selected</h3>
-                        <p className="text-muted-foreground text-sm mb-3">Select a template first to edit it</p>
-                        <Button size="sm" onClick={() => setCurrentPhase('template')}>Choose Template</Button>
-                      </div>
-                    )
-                  )}
-                </CardContent>
-              </Card>
-            )}
 
             {/* Quick Actions Footer */}
             <div className="flex items-center justify-between pt-4 border-t border-border">
@@ -715,118 +787,6 @@ export default function EmailSetupFlow({
         );
     }
   };
-
-  // Full Page View Renderer for CRM, A/B, and Settings pages
-  const renderFullPageView = () => {
-    const backButton = (
-      <Button 
-        variant="outline" 
-        onClick={() => setActivePageView(null)} 
-        className="gap-2 mb-6 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Back to Mailbox
-      </Button>
-    );
-
-    switch (activePageView) {
-      case 'crm':
-        return (
-          <div className="space-y-6">
-            {backButton}
-            <div className="text-center py-6 bg-gradient-card rounded-2xl border-2 border-violet-500/20 shadow-card">
-              <div className="text-5xl mb-4">📊</div>
-              <h1 className="text-2xl md:text-3xl font-bold mb-2">CRM Integration</h1>
-              <p className="text-muted-foreground">
-                Connect external CRMs or manage leads with BamLead CRM
-              </p>
-            </div>
-            <Card>
-              <CardContent className="p-6 space-y-8">
-                <div>
-                  <h3 className="font-bold mb-4 flex items-center gap-2 text-xl">
-                    <Database className="w-6 h-6 text-violet-500" />
-                    Connect Your CRM
-                  </h3>
-                  <CRMSelectionPanel leadCount={leads.length} />
-                </div>
-                <Separator className="my-6" />
-                <div>
-                  <h3 className="font-bold mb-4 flex items-center gap-2 text-xl">
-                    <Database className="w-6 h-6 text-emerald-500" />
-                    BamLead CRM
-                    <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/40">Built-in</Badge>
-                  </h3>
-                  <p className="text-muted-foreground mb-4">
-                    Manage your leads directly in BamLead without any external integrations.
-                  </p>
-                  <BamLeadCRMPanel 
-                    leads={leads.map(l => ({
-                      id: l.id,
-                      name: l.name,
-                      email: l.email,
-                      phone: l.phone,
-                      website: l.website,
-                      address: l.address,
-                    }))}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        );
-
-      case 'ab-testing':
-        return (
-          <div className="space-y-6">
-            {backButton}
-            <div className="text-center py-6 bg-gradient-card rounded-2xl border-2 border-pink-500/20 shadow-card">
-              <div className="text-5xl mb-4">🧪</div>
-              <h1 className="text-2xl md:text-3xl font-bold mb-2">A/B Testing</h1>
-              <p className="text-muted-foreground">
-                Create and manage email variants to optimize your campaigns
-              </p>
-            </div>
-            <Card>
-              <CardContent className="p-6">
-                <ABTestingPanel />
-              </CardContent>
-            </Card>
-          </div>
-        );
-
-      case 'settings':
-        return (
-          <div className="space-y-6">
-            {backButton}
-            <div className="text-center py-6 bg-gradient-card rounded-2xl border-2 border-slate-500/20 shadow-card">
-              <div className="text-5xl mb-4">⚙️</div>
-              <h1 className="text-2xl md:text-3xl font-bold mb-2">Email Settings</h1>
-              <p className="text-muted-foreground">
-                Configure your SMTP and email outreach settings
-              </p>
-            </div>
-            <Card>
-              <CardContent className="p-6">
-                <EmailConfigurationPanel />
-              </CardContent>
-            </Card>
-          </div>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  // If a full page view is active, render only that
-  if (activePageView) {
-    return (
-      <div className="space-y-6">
-        {renderFullPageView()}
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
