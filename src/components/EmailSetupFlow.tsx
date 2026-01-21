@@ -533,6 +533,7 @@ export default function EmailSetupFlow({
                       { tab: 'ab-testing', icon: FlaskConical, label: 'A/B', color: 'pink', tooltip: 'Create email variants & test which performs best' },
                       { tab: 'edit-template', icon: FileText, label: 'Edit', color: 'emerald', tooltip: 'Customize your email subject & body with AI assistance' },
                       { tab: 'settings', icon: Settings, label: 'SMTP', color: 'slate', tooltip: 'Configure your email server (Gmail, Outlook, custom SMTP)' },
+                      { tab: 'inbox', icon: Mail, label: 'Inbox', color: 'slate', tooltip: 'View inbox messages (coming soon)' },
                     ].map((item) => (
                       <Tooltip key={item.tab}>
                         <TooltipTrigger asChild>
@@ -540,12 +541,16 @@ export default function EmailSetupFlow({
                             onClick={() => handleTabChange(item.tab)}
                             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-all
                               ${activeTab === item.tab
-                                ? 'border-primary bg-primary/20 text-primary-foreground shadow-lg shadow-primary/20' 
-                                : 'border-transparent bg-muted/20 text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+                                ? (item.tab === 'mailbox'
+                                  ? 'border-primary bg-primary/20 text-white shadow-lg shadow-primary/20'
+                                  : 'border-primary bg-primary/20 text-primary-foreground shadow-lg shadow-primary/20')
+                                : (item.tab === 'mailbox'
+                                  ? 'border-transparent bg-muted/20 text-white/80 hover:bg-muted/40 hover:text-white'
+                                  : 'border-transparent bg-muted/20 text-muted-foreground hover:bg-muted/40 hover:text-foreground')
                               }`}
                           >
-                            <item.icon className="w-4 h-4" />
-                            <span>{item.label}</span>
+                            <item.icon className={`w-4 h-4 ${item.tab === 'mailbox' ? 'text-white' : ''}`} />
+                            <span className={item.tab === 'mailbox' ? 'text-white' : ''}>{item.label}</span>
                           </button>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" className="max-w-[200px] text-center">
@@ -717,6 +722,16 @@ export default function EmailSetupFlow({
                             <CampaignAnalyticsDashboard />
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {activeTab === 'inbox' && (
+                      <div className="p-6 rounded-lg bg-muted/20 border border-border">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Mail className="w-5 h-5 text-primary" />
+                          <h3 className="text-lg font-semibold">Inbox</h3>
+                        </div>
+                        <p className="text-sm text-muted-foreground">Inbox view is coming next — the tab is now in the correct spot (right after SMTP).</p>
                       </div>
                     )}
 
