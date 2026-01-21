@@ -5,8 +5,12 @@
 
 import { API_BASE_URL } from './config';
 
-// Set to true to use mock data for testing
-const USE_MOCK_DATA = !API_BASE_URL;
+// Set to true to force mock data for testing (normally false)
+// Only uses mock if explicitly enabled OR no API URL configured
+const FORCE_MOCK_DATA = false;
+const USE_MOCK_DATA = FORCE_MOCK_DATA || !API_BASE_URL;
+
+console.log('[GMB API] Config:', { API_BASE_URL, USE_MOCK_DATA, FORCE_MOCK_DATA });
 
 export interface WebsiteAnalysis {
   hasWebsite: boolean;
@@ -162,6 +166,9 @@ export async function searchGMB(
   }
 
   try {
+    console.log('[GMB API] Calling real API:', `${API_BASE_URL}/gmb-search.php`);
+    console.log('[GMB API] Request payload:', { service, location, limit });
+    
     const response = await fetch(`${API_BASE_URL}/gmb-search.php`, {
       method: 'POST',
       headers: {
@@ -170,41 +177,40 @@ export async function searchGMB(
       body: JSON.stringify({ service, location, limit }),
     });
 
+    console.log('[GMB API] Response status:', response.status, response.statusText);
+
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      // Fall back to mock data on API error
-      console.log('GMB API error, falling back to mock data');
-      const mockResults = generateMockResults(service, location, limit);
-      if (onProgress) {
-        onProgress(mockResults, 100);
+      const errorText = await response.text();
+      console.error('[GMB API] Error response:', errorText);
+      
+      // Try to parse as JSON for error message
+      let errorMessage = `API returned ${response.status}: ${response.statusText}`;
+      try {
+        const errorData = JSON.parse(errorText);
+        errorMessage = errorData.error || errorData.message || errorMessage;
+      } catch {
+        // If not JSON, use raw text (truncated)
+        if (errorText) {
+          errorMessage = errorText.slice(0, 200);
+        }
       }
-      return {
-        success: true,
-        data: mockResults,
-        query: { service, location },
-      };
+      
+      // DO NOT fall back to mock - throw the real error
+      throw new Error(errorMessage);
     }
 
     const data = await response.json();
+    console.log('[GMB API] Response data:', { 
+      success: data.success, 
+      resultCount: data.data?.length || 0,
+      error: data.error,
+      cached: data.cached
+    });
     
-    // If API returned 0 results, fall back to mock data for testing
+    // If API returned 0 results, this might be a SERPAPI issue
     if (data.success && (!data.data || data.data.length === 0)) {
-      console.log('GMB API returned 0 results, falling back to mock data');
-      const mockResults = generateMockResults(service, location, limit);
-      if (onProgress) {
-        const batchSize = Math.max(10, Math.floor(mockResults.length / 5));
-        let loaded = 0;
-        while (loaded < mockResults.length) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-          loaded = Math.min(loaded + batchSize, mockResults.length);
-          onProgress(mockResults.slice(0, loaded), (loaded / mockResults.length) * 100);
-        }
-      }
-      return {
-        success: true,
-        data: mockResults,
-        query: { service, location },
-      };
+      console.warn('[GMB API] API returned 0 results - SERPAPI may not be configured correctly');
+      throw new Error('Search returned 0 results. Please verify SERPAPI_KEY is correct in config.php and you have API credits.');
     }
     
     // If we have progress callback and data, simulate progressive reveal
@@ -224,17 +230,8 @@ export async function searchGMB(
     
     return data;
   } catch (error) {
-    console.error('GMB Search error:', error);
-    // Fall back to mock data on network error
-    console.log('Network error, falling back to mock data');
-    const mockResults = generateMockResults(service, location, limit);
-    if (onProgress) {
-      onProgress(mockResults, 100);
-    }
-    return {
-      success: true,
-      data: mockResults,
-      query: { service, location },
-    };
+    console.error('[GMB API] Search error:', error);
+    // DO NOT fall back to mock - propagate the real error
+    throw error;
   }
 }
