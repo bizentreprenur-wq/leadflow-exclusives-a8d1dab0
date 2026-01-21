@@ -13,8 +13,9 @@ import {
   Mail, Server, Shield, Send, Inbox, Settings, Eye, EyeOff,
   CheckCircle2, XCircle, Loader2, RefreshCw, Trash2, Archive,
   Star, AlertCircle, Clock, ExternalLink, Key, MailOpen, Copy, Webhook, Link2,
-  Users, FlaskConical, Pencil
+  Users, FlaskConical, Pencil, Reply, Forward, PenSquare, Download, ArrowLeft
 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import OutgoingMailbox from './OutgoingMailbox';
 import WebhookURLConfiguration from './WebhookURLConfiguration';
 
@@ -60,6 +61,10 @@ export default function EmailConfigurationPanel() {
   const [emails, setEmails] = useState<EmailMessage[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<EmailMessage | null>(null);
   const [isLoadingEmails, setIsLoadingEmails] = useState(false);
+  const [isComposing, setIsComposing] = useState(false);
+  const [isReplying, setIsReplying] = useState(false);
+  const [composeData, setComposeData] = useState({ to: '', subject: '', body: '' });
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   // Load saved config on mount
   useEffect(() => {
@@ -562,81 +567,429 @@ export default function EmailConfigurationPanel() {
           </Card>
         </TabsContent>
 
-        {/* Inbox Tab */}
+        {/* Inbox Tab - Full Email Client */}
         <TabsContent value="inbox" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Inbox className="w-5 h-5" />
-                    Email Inbox
+          {/* Compose/Reply Modal */}
+          {(isComposing || isReplying) && (
+            <Card className="border-primary/30 bg-card/95 backdrop-blur">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    {isReplying ? <Reply className="w-5 h-5" /> : <PenSquare className="w-5 h-5" />}
+                    {isReplying ? 'Reply to Email' : 'Compose New Email'}
                   </CardTitle>
-                  <CardDescription>View received emails and lead replies</CardDescription>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setIsComposing(false);
+                      setIsReplying(false);
+                      setComposeData({ to: '', subject: '', body: '' });
+                    }}
+                  >
+                    <XCircle className="w-4 h-4" />
+                  </Button>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleRefreshEmails}
-                  disabled={isLoadingEmails}
-                  className="gap-2"
-                >
-                  <RefreshCw className={`w-4 h-4 ${isLoadingEmails ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ScrollArea className="h-[400px]">
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  {emails.filter(e => e.type === 'received').length === 0 ? (
-                    <div className="text-center py-12 text-muted-foreground">
-                      <Inbox className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                      <p>No incoming emails yet</p>
-                      <p className="text-sm">Lead replies will appear here</p>
+                  <Label htmlFor="compose-to">To</Label>
+                  <Input
+                    id="compose-to"
+                    placeholder="recipient@example.com"
+                    value={composeData.to}
+                    onChange={(e) => setComposeData(prev => ({ ...prev, to: e.target.value }))}
+                    disabled={isReplying}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="compose-subject">Subject</Label>
+                  <Input
+                    id="compose-subject"
+                    placeholder="Email subject..."
+                    value={composeData.subject}
+                    onChange={(e) => setComposeData(prev => ({ ...prev, subject: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="compose-body">Message</Label>
+                  <Textarea
+                    id="compose-body"
+                    placeholder="Write your message here..."
+                    value={composeData.body}
+                    onChange={(e) => setComposeData(prev => ({ ...prev, body: e.target.value }))}
+                    className="min-h-[200px]"
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsComposing(false);
+                      setIsReplying(false);
+                      setComposeData({ to: '', subject: '', body: '' });
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      if (!composeData.to || !composeData.subject || !composeData.body) {
+                        toast.error('Please fill in all fields');
+                        return;
+                      }
+                      setIsSendingEmail(true);
+                      // Simulate sending
+                      await new Promise(resolve => setTimeout(resolve, 1500));
+                      const newEmail: EmailMessage = {
+                        id: Date.now().toString(),
+                        from: smtpConfig.fromEmail || 'noreply@bamlead.com',
+                        to: composeData.to,
+                        subject: composeData.subject,
+                        preview: composeData.body.substring(0, 100),
+                        date: new Date().toISOString(),
+                        read: true,
+                        starred: false,
+                        type: 'sent',
+                      };
+                      setEmails(prev => [newEmail, ...prev]);
+                      setIsSendingEmail(false);
+                      setIsComposing(false);
+                      setIsReplying(false);
+                      setComposeData({ to: '', subject: '', body: '' });
+                      toast.success('Email sent successfully!');
+                    }}
+                    disabled={isSendingEmail}
+                    className="gap-2"
+                  >
+                    {isSendingEmail ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
+                    Send Email
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Selected Email View */}
+          {selectedEmail && !isComposing && !isReplying && (
+            <Card className="border-primary/20">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedEmail(null)}
+                    className="gap-1"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Back
+                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setIsReplying(true);
+                        setComposeData({
+                          to: selectedEmail.type === 'received' ? selectedEmail.from : selectedEmail.to,
+                          subject: `Re: ${selectedEmail.subject}`,
+                          body: `\n\n---\nOn ${new Date(selectedEmail.date).toLocaleString()}, ${selectedEmail.from} wrote:\n${selectedEmail.preview}`,
+                        });
+                      }}
+                      className="gap-1"
+                    >
+                      <Reply className="w-4 h-4" />
+                      Reply
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setIsComposing(true);
+                        setComposeData({
+                          to: '',
+                          subject: `Fwd: ${selectedEmail.subject}`,
+                          body: `\n\n---\nForwarded message:\nFrom: ${selectedEmail.from}\nDate: ${new Date(selectedEmail.date).toLocaleString()}\nSubject: ${selectedEmail.subject}\n\n${selectedEmail.preview}`,
+                        });
+                      }}
+                      className="gap-1"
+                    >
+                      <Forward className="w-4 h-4" />
+                      Forward
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="border-b pb-4">
+                    <h3 className="text-lg font-semibold">{selectedEmail.subject}</h3>
+                    <div className="flex items-center justify-between mt-2 text-sm text-muted-foreground">
+                      <span>From: {selectedEmail.from}</span>
+                      <span>{new Date(selectedEmail.date).toLocaleString()}</span>
                     </div>
-                  ) : (
-                    emails.filter(e => e.type === 'received').map((email) => (
-                      <div
-                        key={email.id}
-                        className={`p-4 rounded-lg border cursor-pointer transition-colors ${
-                          !email.read ? 'bg-primary/5 border-primary/20' : 'hover:bg-muted/50'
-                        } ${selectedEmail?.id === email.id ? 'ring-2 ring-primary' : ''}`}
-                        onClick={() => setSelectedEmail(email)}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-start gap-3">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
+                    <div className="text-sm text-muted-foreground">
+                      To: {selectedEmail.to}
+                    </div>
+                  </div>
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <p className="whitespace-pre-wrap">{selectedEmail.preview}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Email List */}
+          {!selectedEmail && !isComposing && !isReplying && (
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Inbox className="w-5 h-5" />
+                      Email Inbox
+                    </CardTitle>
+                    <CardDescription>Manage your emails, reply to customers, and compose new messages</CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => setIsComposing(true)}
+                      size="sm"
+                      className="gap-2"
+                    >
+                      <PenSquare className="w-4 h-4" />
+                      Compose
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRefreshEmails}
+                      disabled={isLoadingEmails}
+                      className="gap-2"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${isLoadingEmails ? 'animate-spin' : ''}`} />
+                      Refresh
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const csvContent = emails.map(e => 
+                          `${e.type},${e.from},${e.to},${e.subject},${e.date}`
+                        ).join('\n');
+                        const blob = new Blob([`Type,From,To,Subject,Date\n${csvContent}`], { type: 'text/csv' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'emails-export.csv';
+                        a.click();
+                        toast.success('Emails exported to CSV!');
+                      }}
+                      className="gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      Export
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="all" className="w-full">
+                  <TabsList className="mb-4">
+                    <TabsTrigger value="all">All ({emails.length})</TabsTrigger>
+                    <TabsTrigger value="received">Received ({emails.filter(e => e.type === 'received').length})</TabsTrigger>
+                    <TabsTrigger value="sent">Sent ({emails.filter(e => e.type === 'sent').length})</TabsTrigger>
+                    <TabsTrigger value="starred">Starred ({emails.filter(e => e.starred).length})</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="all">
+                    <ScrollArea className="h-[400px]">
+                      <div className="space-y-2">
+                        {emails.length === 0 ? (
+                          <div className="text-center py-12 text-muted-foreground">
+                            <Inbox className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                            <p>No emails yet</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setIsComposing(true)}
+                              className="mt-4 gap-2"
+                            >
+                              <PenSquare className="w-4 h-4" />
+                              Compose your first email
+                            </Button>
+                          </div>
+                        ) : (
+                          emails.map((email) => (
+                            <div
+                              key={email.id}
+                              className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                                !email.read ? 'bg-primary/5 border-primary/20' : 'hover:bg-muted/50'
+                              }`}
+                              onClick={() => {
+                                setSelectedEmail(email);
                                 setEmails(prev => prev.map(em =>
-                                  em.id === email.id ? { ...em, starred: !em.starred } : em
+                                  em.id === email.id ? { ...em, read: true } : em
                                 ));
                               }}
                             >
-                              <Star
-                                className={`w-4 h-4 ${email.starred ? 'fill-yellow-500 text-yellow-500' : 'text-muted-foreground'}`}
-                              />
-                            </button>
-                            <div>
-                              <p className={`font-medium ${!email.read ? 'text-foreground' : 'text-muted-foreground'}`}>
-                                {email.from}
-                              </p>
-                              <p className={`text-sm ${!email.read ? 'font-medium' : ''}`}>{email.subject}</p>
-                              <p className="text-sm text-muted-foreground line-clamp-1">{email.preview}</p>
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-start gap-3">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setEmails(prev => prev.map(em =>
+                                        em.id === email.id ? { ...em, starred: !em.starred } : em
+                                      ));
+                                    }}
+                                  >
+                                    <Star
+                                      className={`w-4 h-4 ${email.starred ? 'fill-yellow-500 text-yellow-500' : 'text-muted-foreground'}`}
+                                    />
+                                  </button>
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <Badge variant={email.type === 'sent' ? 'secondary' : email.type === 'received' ? 'default' : 'destructive'} className="text-xs">
+                                        {email.type === 'sent' ? 'Sent' : email.type === 'received' ? 'Received' : 'Failed'}
+                                      </Badge>
+                                      <p className={`font-medium ${!email.read ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                        {email.type === 'sent' ? `To: ${email.to}` : `From: ${email.from}`}
+                                      </p>
+                                    </div>
+                                    <p className={`text-sm ${!email.read ? 'font-medium' : ''}`}>{email.subject}</p>
+                                    <p className="text-sm text-muted-foreground line-clamp-1">{email.preview}</p>
+                                  </div>
+                                </div>
+                                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                                  {formatDate(email.date)}
+                                </span>
+                              </div>
                             </div>
-                          </div>
-                          <span className="text-xs text-muted-foreground whitespace-nowrap">
-                            {formatDate(email.date)}
-                          </span>
-                        </div>
+                          ))
+                        )}
                       </div>
-                    ))
-                  )}
-                </div>
-              </ScrollArea>
-            </CardContent>
-          </Card>
+                    </ScrollArea>
+                  </TabsContent>
+                  
+                  <TabsContent value="received">
+                    <ScrollArea className="h-[400px]">
+                      <div className="space-y-2">
+                        {emails.filter(e => e.type === 'received').length === 0 ? (
+                          <div className="text-center py-12 text-muted-foreground">
+                            <Mail className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                            <p>No received emails yet</p>
+                            <p className="text-sm">Customer replies will appear here</p>
+                          </div>
+                        ) : (
+                          emails.filter(e => e.type === 'received').map((email) => (
+                            <div
+                              key={email.id}
+                              className={`p-4 rounded-lg border cursor-pointer transition-colors ${
+                                !email.read ? 'bg-primary/5 border-primary/20' : 'hover:bg-muted/50'
+                              }`}
+                              onClick={() => {
+                                setSelectedEmail(email);
+                                setEmails(prev => prev.map(em =>
+                                  em.id === email.id ? { ...em, read: true } : em
+                                ));
+                              }}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-start gap-3">
+                                  <Star className={`w-4 h-4 ${email.starred ? 'fill-yellow-500 text-yellow-500' : 'text-muted-foreground'}`} />
+                                  <div>
+                                    <p className={`font-medium ${!email.read ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                      From: {email.from}
+                                    </p>
+                                    <p className={`text-sm ${!email.read ? 'font-medium' : ''}`}>{email.subject}</p>
+                                    <p className="text-sm text-muted-foreground line-clamp-1">{email.preview}</p>
+                                  </div>
+                                </div>
+                                <span className="text-xs text-muted-foreground">{formatDate(email.date)}</span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </TabsContent>
+                  
+                  <TabsContent value="sent">
+                    <ScrollArea className="h-[400px]">
+                      <div className="space-y-2">
+                        {emails.filter(e => e.type === 'sent').length === 0 ? (
+                          <div className="text-center py-12 text-muted-foreground">
+                            <Send className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                            <p>No sent emails yet</p>
+                          </div>
+                        ) : (
+                          emails.filter(e => e.type === 'sent').map((email) => (
+                            <div
+                              key={email.id}
+                              className="p-4 rounded-lg border cursor-pointer transition-colors hover:bg-muted/50"
+                              onClick={() => setSelectedEmail(email)}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-start gap-3">
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5" />
+                                  <div>
+                                    <p className="font-medium text-muted-foreground">To: {email.to}</p>
+                                    <p className="text-sm">{email.subject}</p>
+                                    <p className="text-sm text-muted-foreground line-clamp-1">{email.preview}</p>
+                                  </div>
+                                </div>
+                                <span className="text-xs text-muted-foreground">{formatDate(email.date)}</span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </TabsContent>
+                  
+                  <TabsContent value="starred">
+                    <ScrollArea className="h-[400px]">
+                      <div className="space-y-2">
+                        {emails.filter(e => e.starred).length === 0 ? (
+                          <div className="text-center py-12 text-muted-foreground">
+                            <Star className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                            <p>No starred emails</p>
+                          </div>
+                        ) : (
+                          emails.filter(e => e.starred).map((email) => (
+                            <div
+                              key={email.id}
+                              className="p-4 rounded-lg border cursor-pointer transition-colors hover:bg-muted/50"
+                              onClick={() => setSelectedEmail(email)}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-start gap-3">
+                                  <Star className="w-4 h-4 fill-yellow-500 text-yellow-500" />
+                                  <div>
+                                    <Badge variant={email.type === 'sent' ? 'secondary' : 'default'} className="text-xs mb-1">
+                                      {email.type === 'sent' ? 'Sent' : 'Received'}
+                                    </Badge>
+                                    <p className="font-medium">{email.type === 'sent' ? `To: ${email.to}` : `From: ${email.from}`}</p>
+                                    <p className="text-sm">{email.subject}</p>
+                                  </div>
+                                </div>
+                                <span className="text-xs text-muted-foreground">{formatDate(email.date)}</span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Sent Emails Tab */}
