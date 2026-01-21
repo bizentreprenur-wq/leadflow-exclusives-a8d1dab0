@@ -103,14 +103,16 @@ function searchGMBListings($service, $location, $limit = 100) {
         throw new Exception('SERPAPI_KEY is not configured. Please add it to config.php for real search results.');
     }
     
+    // Increase PHP time limit for large searches
+    set_time_limit(300); // 5 minutes max
+    
     $query = "$service in $location";
     $allResults = [];
     $resultsPerPage = 20;
-    $maxPages = ceil($limit / $resultsPerPage); // Calculate pages needed for limit
+    $maxPages = ceil($limit / $resultsPerPage);
     $maxPages = min($maxPages, 100); // Cap at 100 pages (2000 results max)
     
     for ($page = 0; $page < $maxPages; $page++) {
-        // Stop if we have enough results
         if (count($allResults) >= $limit) {
             break;
         }
@@ -124,7 +126,6 @@ function searchGMBListings($service, $location, $limit = 100) {
             'num' => $resultsPerPage,
         ];
         
-        // Add pagination offset for subsequent pages
         if ($page > 0) {
             $params['start'] = $page * $resultsPerPage;
         }
@@ -134,7 +135,6 @@ function searchGMBListings($service, $location, $limit = 100) {
         $response = curlRequest($url);
         
         if ($response['httpCode'] !== 200) {
-            // If first page fails, throw error; otherwise just stop pagination
             if ($page === 0) {
                 throw new Exception('Failed to fetch search results from SerpAPI');
             }
@@ -144,11 +144,10 @@ function searchGMBListings($service, $location, $limit = 100) {
         $data = json_decode($response['response'], true);
         
         if (!isset($data['local_results']) || empty($data['local_results'])) {
-            break; // No more results
+            break;
         }
         
         foreach ($data['local_results'] as $item) {
-            // Stop if we've reached the limit
             if (count($allResults) >= $limit) {
                 break;
             }
@@ -168,31 +167,88 @@ function searchGMBListings($service, $location, $limit = 100) {
                 'placeId' => $item['place_id'] ?? '',
             ];
             
-            // Analyze website if exists
+            // SKIP deep website analysis to prevent timeout
+            // Use quick detection from URL only
             if (!empty($websiteUrl)) {
-                $business['websiteAnalysis'] = analyzeWebsite($websiteUrl);
+                $business['websiteAnalysis'] = quickWebsiteCheck($websiteUrl);
             } else {
                 $business['websiteAnalysis'] = [
                     'hasWebsite' => false,
                     'platform' => null,
                     'needsUpgrade' => true,
-                    'issues' => ['No website found']
+                    'issues' => ['No website found'],
+                    'mobileScore' => null,
+                    'loadTime' => null
                 ];
             }
             
             $allResults[] = $business;
         }
         
-        // Check if there are more pages
         if (!isset($data['serpapi_pagination']['next'])) {
             break;
         }
         
-        // Small delay to avoid rate limiting
-        usleep(200000); // 200ms delay between requests
+        // Minimal delay
+        usleep(100000); // 100ms delay
     }
     
     return $allResults;
+}
+
+/**
+ * Quick website check - fast detection without HTTP requests
+ * Only analyzes the URL structure to avoid timeouts
+ */
+function quickWebsiteCheck($url) {
+    $host = parse_url($url, PHP_URL_HOST) ?? '';
+    $hostLower = strtolower($host);
+    
+    // Detect platform from URL
+    $platform = null;
+    $needsUpgrade = false;
+    $issues = [];
+    
+    if (strpos($hostLower, 'wix') !== false || strpos($hostLower, 'wixsite') !== false) {
+        $platform = 'wix';
+        $needsUpgrade = true;
+        $issues[] = 'Using Wix template';
+    } elseif (strpos($hostLower, 'squarespace') !== false) {
+        $platform = 'squarespace';
+        $needsUpgrade = true;
+        $issues[] = 'Using Squarespace template';
+    } elseif (strpos($hostLower, 'weebly') !== false) {
+        $platform = 'weebly';
+        $needsUpgrade = true;
+        $issues[] = 'Using Weebly template';
+    } elseif (strpos($hostLower, 'godaddy') !== false) {
+        $platform = 'godaddy';
+        $needsUpgrade = true;
+        $issues[] = 'Using GoDaddy builder';
+    } elseif (strpos($hostLower, 'wordpress.com') !== false) {
+        $platform = 'wordpress.com';
+        $needsUpgrade = true;
+        $issues[] = 'Using free WordPress.com';
+    } elseif (strpos($hostLower, 'shopify') !== false) {
+        $platform = 'shopify';
+    } elseif (strpos($hostLower, 'blogger') !== false || strpos($hostLower, 'blogspot') !== false) {
+        $platform = 'blogger';
+        $needsUpgrade = true;
+        $issues[] = 'Using Blogger';
+    } elseif (strpos($hostLower, 'facebook.com') !== false) {
+        $platform = 'facebook';
+        $needsUpgrade = true;
+        $issues[] = 'Only Facebook presence';
+    }
+    
+    return [
+        'hasWebsite' => true,
+        'platform' => $platform,
+        'needsUpgrade' => $needsUpgrade,
+        'issues' => $issues,
+        'mobileScore' => null,
+        'loadTime' => null
+    ];
 }
 
 // Mock data functions removed - real API results only
