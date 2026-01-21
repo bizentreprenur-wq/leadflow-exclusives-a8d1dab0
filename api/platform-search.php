@@ -18,9 +18,15 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     sendError('Method not allowed', 405);
 }
 
-// Require authentication and enforce rate limit
-$user = requireAuth();
-enforceRateLimit($user, 'search');
+// Authentication is optional for search - allows demo/testing
+// Use getCurrentUser() which returns null instead of exiting with 401
+$user = getCurrentUser();
+
+// Apply rate limiting only for authenticated users
+if ($user) {
+    enforceRateLimit($user, 'search');
+}
+// Note: Anonymous users are allowed but could have stricter limits added here
 
 // Get and validate input
 $input = getJsonInput();

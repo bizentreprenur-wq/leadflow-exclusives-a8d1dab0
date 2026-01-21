@@ -20,18 +20,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 // Authentication is optional for search - allows demo/testing
 // If user is authenticated, we can track usage; otherwise anonymous
-$user = null;
-try {
-    $user = requireAuth();
-} catch (Exception $e) {
-    // Allow unauthenticated search for demo purposes
-    // Could add stricter rate limiting for anonymous users here
-}
+// Use getCurrentUser() which returns null instead of exiting with 401
+$user = getCurrentUser();
 
 // Apply rate limiting (stricter for anonymous users)
 if ($user) {
     enforceRateLimit($user, 'search');
 }
+// Note: Anonymous users are allowed but could have stricter limits added here
 
 // Get and validate input
 $input = getJsonInput();
