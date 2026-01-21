@@ -400,7 +400,18 @@ export default function Dashboard() {
       }
 
       // Start AI analysis in background (non-blocking)
-      if (finalResults.length > 0) {
+      // NOTE: analyze-leads.php is a protected endpoint (requires real JWT).
+      // In Demo Mode or when a mock token is present, skip calling it to avoid 401 spam.
+      const token = (() => {
+        try {
+          return localStorage.getItem('auth_token');
+        } catch {
+          return null;
+        }
+      })();
+      const hasRealToken = !!token && !token.startsWith('mock_token_');
+
+      if (finalResults.length > 0 && hasRealToken) {
         setIsAnalyzing(true);
         analyzeLeads(finalResults)
           .then((analysisResponse) => {

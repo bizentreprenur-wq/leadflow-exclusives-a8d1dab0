@@ -382,6 +382,18 @@ export default function Auth() {
                   <Switch
                     checked={USE_MOCK_AUTH}
                     onCheckedChange={(checked) => {
+                      // Switching modes must also clear any existing mock session/token.
+                      // Otherwise the UI can look "logged in" while backend requests still 401.
+                      try {
+                        // Persist selection across refreshes in Lovable preview
+                        localStorage.setItem('bamlead_mock_auth_override', checked ? 'true' : 'false');
+                        localStorage.removeItem('mock_user');
+                        localStorage.removeItem('auth_token');
+                        localStorage.removeItem('bamlead_user_cache');
+                      } catch {
+                        // ignore
+                      }
+
                       const url = new URL(window.location.href);
                       url.searchParams.set('mockAuth', checked ? 'true' : 'false');
                       window.location.assign(url.toString());
