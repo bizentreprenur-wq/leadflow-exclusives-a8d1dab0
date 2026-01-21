@@ -875,7 +875,7 @@ export default function EmailSetupFlow({
                           <Settings className="w-5 h-5 text-slate-400" />
                           <h3 className="font-bold text-lg">Email Settings (SMTP)</h3>
                         </div>
-                        <EmailConfigurationPanel />
+                        <EmailConfigurationPanel leads={leads} />
                       </div>
                     )}
                   </motion.div>

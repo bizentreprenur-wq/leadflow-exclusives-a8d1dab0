@@ -48,7 +48,22 @@ interface EmailMessage {
   type: 'sent' | 'received' | 'failed';
 }
 
-export default function EmailConfigurationPanel() {
+interface Lead {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+  address?: string;
+  aiClassification?: 'hot' | 'warm' | 'cold';
+  leadScore?: number;
+}
+
+interface EmailConfigurationPanelProps {
+  leads?: Lead[];
+}
+
+export default function EmailConfigurationPanel({ leads = [] }: EmailConfigurationPanelProps) {
   const [activeTab, setActiveTab] = useState('mailbox');
   const [showPassword, setShowPassword] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
@@ -518,25 +533,35 @@ export default function EmailConfigurationPanel() {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Quick Stats */}
-              <div className="grid grid-cols-4 gap-4">
-                <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20 text-center">
-                  <p className="text-2xl font-bold text-blue-600">0</p>
-                  <p className="text-xs text-blue-600/80">Total Leads</p>
-                </div>
-                <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-center">
-                  <p className="text-2xl font-bold text-emerald-600">0</p>
-                  <p className="text-xs text-emerald-600/80">Contacted</p>
-                </div>
-                <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
-                  <p className="text-2xl font-bold text-amber-600">0</p>
-                  <p className="text-xs text-amber-600/80">Responded</p>
-                </div>
-                <div className="p-4 rounded-lg bg-violet-500/10 border border-violet-500/20 text-center">
-                  <p className="text-2xl font-bold text-violet-600">0%</p>
-                  <p className="text-xs text-violet-600/80">Response Rate</p>
-                </div>
-              </div>
+              {/* Quick Stats - Real-time from leads prop */}
+              {(() => {
+                const totalLeads = leads.length;
+                const hotLeads = leads.filter(l => l.aiClassification === 'hot').length;
+                const warmLeads = leads.filter(l => l.aiClassification === 'warm').length;
+                const withEmail = leads.filter(l => l.email).length;
+                const emailRate = totalLeads > 0 ? Math.round((withEmail / totalLeads) * 100) : 0;
+                
+                return (
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20 text-center">
+                      <p className="text-2xl font-bold text-blue-600">{totalLeads}</p>
+                      <p className="text-xs text-blue-600/80">Total Leads</p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-center">
+                      <p className="text-2xl font-bold text-red-600">{hotLeads}</p>
+                      <p className="text-xs text-red-600/80">🔥 Hot Leads</p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
+                      <p className="text-2xl font-bold text-amber-600">{warmLeads}</p>
+                      <p className="text-xs text-amber-600/80">🌡️ Warm Leads</p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-center">
+                      <p className="text-2xl font-bold text-emerald-600">{withEmail}</p>
+                      <p className="text-xs text-emerald-600/80">📧 With Email</p>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* CRM Integrations */}
               <div className="space-y-3">
@@ -586,15 +611,30 @@ export default function EmailConfigurationPanel() {
                 </div>
               </div>
 
-              {/* Empty State */}
-              <div className="text-center py-8 border-2 border-dashed rounded-lg">
-                <Users className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
-                <p className="font-medium">No Leads in CRM Yet</p>
-                <p className="text-sm text-muted-foreground mb-4">Search for leads and add them to your CRM</p>
-                <Button variant="outline" size="sm">
-                  Start Searching
-                </Button>
-              </div>
+              {/* Empty State or Lead Summary */}
+              {leads.length === 0 ? (
+                <div className="text-center py-8 border-2 border-dashed rounded-lg">
+                  <Users className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
+                  <p className="font-medium">No Leads in CRM Yet</p>
+                  <p className="text-sm text-muted-foreground mb-4">Search for leads and add them to your CRM</p>
+                  <Button variant="outline" size="sm">
+                    Start Searching
+                  </Button>
+                </div>
+              ) : (
+                <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-primary">✅ {leads.length} leads loaded from search</p>
+                      <p className="text-sm text-muted-foreground">Ready for outreach and CRM sync</p>
+                    </div>
+                    <Badge variant="secondary" className="gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Live Data
+                    </Badge>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
