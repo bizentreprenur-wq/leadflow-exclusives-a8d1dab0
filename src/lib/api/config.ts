@@ -1,14 +1,23 @@
 // API configuration for backend
 // Set VITE_API_URL environment variable to connect to your backend
 
-// Mock auth is ONLY enabled in development.
-// NEVER enable in production - this bypasses all server-side authentication.
+// Mock auth should never be enabled for your real production site.
+// However, Lovable *preview* environments often run a production build where the
+// PHP backend isn't available; for that sandbox we allow mock auth.
 //
-// Note: Lovable preview environments cannot run the PHP backend locally, so we
-// default to mock auth when running on a Lovable preview host. You can force
-// real-backend behavior in dev by adding `?mockAuth=false` to the URL.
+// You can always override with:
+// - `?mockAuth=true`  (force mock)
+// - `?mockAuth=false` (force real backend)
 function isLovablePreviewHost(hostname: string): boolean {
-  return hostname.endsWith('.lovable.app') || hostname.endsWith('.lovableproject.com');
+  // Preview URLs look like: id-preview--<uuid>.lovable.app
+  // Published URLs look like: <project>.lovable.app
+  if (hostname.startsWith('id-preview--')) return true;
+
+  // Some environments use lovableproject.com for previews.
+  // Keep this conservative to avoid enabling mock auth on real deployments.
+  if (hostname.startsWith('id-preview--') && hostname.endsWith('.lovableproject.com')) return true;
+
+  return false;
 }
 
 function getMockAuthOverride(): 'true' | 'false' | null {
@@ -32,10 +41,9 @@ const isLovableHost = (() => {
 })();
 
 export const USE_MOCK_AUTH =
-  import.meta.env.DEV &&
-  (mockAuthOverride === 'true' ||
-    (mockAuthOverride !== 'false' &&
-      (import.meta.env.VITE_ENABLE_MOCK_AUTH === 'true' || isLovableHost)));
+  mockAuthOverride === 'true' ||
+  (mockAuthOverride !== 'false' &&
+    (isLovableHost || (import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOCK_AUTH === 'true')));
 
 // API Base URL
 // If you want to point dev/staging somewhere else, set VITE_API_URL.
