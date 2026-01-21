@@ -1,20 +1,14 @@
 /**
  * GMB Search API Client
- * Falls back to mock data when no backend configured
+ * IMPORTANT: Never fabricate results. If the backend isn't configured or returns mock/demo data,
+ * we throw so the UI can show a real failure.
  */
 
 import { API_BASE_URL, USE_MOCK_AUTH, getAuthHeaders } from './config';
 
-// Set to true to force mock data for testing (normally false)
-// Only uses mock if explicitly enabled OR no API URL configured
-const FORCE_MOCK_DATA = false;
-// IMPORTANT:
-// Demo/Mock Auth is used for logging into the UI in preview environments.
-// It should NOT force dummy lead results if the real backend is reachable.
-// Only use mock search data when explicitly forced or when no API base URL exists.
-const USE_MOCK_DATA = FORCE_MOCK_DATA || !API_BASE_URL;
+const USE_MOCK_DATA = !API_BASE_URL;
 
-console.log('[GMB API] Config:', { API_BASE_URL, USE_MOCK_AUTH, USE_MOCK_DATA, FORCE_MOCK_DATA });
+console.log('[GMB API] Config:', { API_BASE_URL, USE_MOCK_AUTH, USE_MOCK_DATA });
 
 export interface WebsiteAnalysis {
   hasWebsite: boolean;
@@ -56,7 +50,12 @@ export interface GMBSearchResponse {
   };
 }
 
-// Mock data generator for testing - supports up to 1000 leads
+function isMockLeadId(id: string | undefined): boolean {
+  return !!id && id.startsWith('mock_');
+}
+
+// (Legacy) mock generator kept intentionally unused; we never fabricate leads.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function generateMockResults(service: string, location: string, count: number = 25): GMBResult[] {
   const prefixes = ['Best', 'Elite', 'Premier', 'Top', 'Pro', 'Expert', 'Quality', 'Reliable', 'Trusted', 'Certified', 
     'Advanced', 'Supreme', 'Master', 'Prime', 'First', 'Royal', 'Grand', 'Ultra', 'Mega', 'Alpha'];
@@ -144,26 +143,9 @@ export async function searchGMB(
   limit: number = 100,
   onProgress?: ProgressCallback
 ): Promise<GMBSearchResponse> {
-  // Use mock data if no API URL is configured
+  // If there's no backend configured, do not fabricate dummy leads.
   if (USE_MOCK_DATA) {
-    const allResults = generateMockResults(service, location, limit);
-    
-    if (onProgress) {
-      const batchSize = Math.max(10, Math.floor(limit / 5));
-      let loaded = 0;
-      
-      while (loaded < allResults.length) {
-        await new Promise(resolve => setTimeout(resolve, 150 + Math.random() * 100));
-        loaded = Math.min(loaded + batchSize, allResults.length);
-        onProgress(allResults.slice(0, loaded), (loaded / allResults.length) * 100);
-      }
-    }
-    
-    return {
-      success: true,
-      data: allResults,
-      query: { service, location },
-    };
+    throw new Error('GMB search backend is not configured. Set VITE_API_URL or deploy /api.');
   }
 
   // Try streaming endpoint first, fall back to regular endpoint
@@ -237,6 +219,11 @@ async function searchGMBStreaming(
                 if (data.leads) {
                   // New batch of leads arrived
                   for (const lead of data.leads) {
+                    if (isMockLeadId(lead?.id)) {
+                      throw new Error(
+                        'Backend returned mock/demo GMB leads. This is disabled: deploy the updated /api endpoints and ensure SERPAPI_KEY is configured.'
+                      );
+                    }
                     allResults.push({
                       id: lead.id,
                       name: lead.name,
@@ -330,6 +317,12 @@ async function searchGMBRegular(
   }
 
   const data = await response.json();
+
+  if (data?.success && Array.isArray(data?.data) && data.data.some((r: GMBResult) => isMockLeadId(r?.id))) {
+    throw new Error(
+      'Backend returned mock/demo GMB leads. This is disabled: deploy the updated /api endpoints and ensure SERPAPI_KEY is configured.'
+    );
+  }
   
   if (data.success && (!data.data || data.data.length === 0)) {
     throw new Error('Search returned 0 results. Verify SERPAPI_KEY is correct.');
