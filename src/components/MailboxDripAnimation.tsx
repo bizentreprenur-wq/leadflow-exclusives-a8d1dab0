@@ -1,8 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, CheckCircle2, Clock, Zap, Info, ArrowRight, Shield, TrendingUp, Eye } from 'lucide-react';
+import { Mail, CheckCircle2, Clock, Zap, Info, ArrowRight, Shield, TrendingUp, Eye, AlertCircle, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Button } from '@/components/ui/button';
+import { getSends } from '@/lib/api/email';
+
+type EmailStatus = 'pending' | 'sending' | 'sent' | 'delivered' | 'failed' | 'bounced';
 
 interface MailboxDripAnimationProps {
   totalEmails: number;
@@ -10,7 +14,10 @@ interface MailboxDripAnimationProps {
   isActive: boolean;
   emailsPerHour?: number;
   leads?: Array<{ id: string; name: string; email?: string }>;
-  onEmailStatusUpdate?: (statuses: Record<string, 'pending' | 'sending' | 'sent' | 'failed'>) => void;
+  onEmailStatusUpdate?: (statuses: Record<string, EmailStatus>) => void;
+  // Real sending mode - when true, polls backend for actual delivery status
+  realSendingMode?: boolean;
+  campaignId?: string;
 }
 
 export default function MailboxDripAnimation({
@@ -20,17 +27,27 @@ export default function MailboxDripAnimation({
   emailsPerHour = 50,
   leads = [],
   onEmailStatusUpdate,
+  realSendingMode = false,
+  campaignId,
 }: MailboxDripAnimationProps) {
   const [flyingEmails, setFlyingEmails] = useState<number[]>([]);
   const [emailId, setEmailId] = useState(0);
   const [showExplanation, setShowExplanation] = useState(false);
   const [currentSendingIndex, setCurrentSendingIndex] = useState(0);
-  const [emailStatuses, setEmailStatuses] = useState<Record<string, 'pending' | 'sending' | 'sent' | 'failed'>>({});
+  const [emailStatuses, setEmailStatuses] = useState<Record<string, EmailStatus>>({});
+  const [isPolling, setIsPolling] = useState(false);
+  const [lastPollTime, setLastPollTime] = useState<Date | null>(null);
+  const [deliveryStats, setDeliveryStats] = useState({
+    sent: 0,
+    delivered: 0,
+    failed: 0,
+    bounced: 0,
+  });
 
   // Initialize email statuses from leads
   useEffect(() => {
     if (leads.length > 0) {
-      const initialStatuses: Record<string, 'pending' | 'sending' | 'sent' | 'failed'> = {};
+      const initialStatuses: Record<string, EmailStatus> = {};
       leads.forEach(lead => {
         if (lead.email) {
           initialStatuses[lead.id] = 'pending';
@@ -41,9 +58,60 @@ export default function MailboxDripAnimation({
     }
   }, [leads]);
 
-  // Simulate sending each lead's email
+  // Poll backend for real delivery status
+  const pollDeliveryStatus = useCallback(async () => {
+    if (!realSendingMode || !isActive) return;
+    
+    setIsPolling(true);
+    try {
+      const result = await getSends({ limit: 100, status: undefined });
+      
+      if (result.success && result.sends) {
+        const newStatuses: Record<string, EmailStatus> = { ...emailStatuses };
+        let sentCount = 0, deliveredCount = 0, failedCount = 0, bouncedCount = 0;
+        
+        result.sends.forEach(send => {
+          // Match by email address
+          const matchingLead = leads.find(l => l.email === send.recipient_email);
+          if (matchingLead) {
+            const status = send.status as EmailStatus;
+            newStatuses[matchingLead.id] = status;
+            
+            if (status === 'sent') sentCount++;
+            else if (status === 'delivered') deliveredCount++;
+            else if (status === 'failed') failedCount++;
+            else if (status === 'bounced') bouncedCount++;
+          }
+        });
+        
+        setEmailStatuses(newStatuses);
+        setDeliveryStats({ sent: sentCount, delivered: deliveredCount, failed: failedCount, bounced: bouncedCount });
+        onEmailStatusUpdate?.(newStatuses);
+        setLastPollTime(new Date());
+      }
+    } catch (error) {
+      console.error('Failed to poll delivery status:', error);
+    } finally {
+      setIsPolling(false);
+    }
+  }, [realSendingMode, isActive, leads, emailStatuses, onEmailStatusUpdate]);
+
+  // Auto-poll every 5 seconds in real sending mode
   useEffect(() => {
-    if (!isActive || leads.length === 0) return;
+    if (!realSendingMode || !isActive) return;
+    
+    // Initial poll
+    pollDeliveryStatus();
+    
+    // Poll every 5 seconds
+    const pollInterval = setInterval(pollDeliveryStatus, 5000);
+    
+    return () => clearInterval(pollInterval);
+  }, [realSendingMode, isActive, pollDeliveryStatus]);
+
+  // Simulate sending each lead's email (demo mode only)
+  useEffect(() => {
+    if (realSendingMode || !isActive || leads.length === 0) return;
 
     const leadsWithEmail = leads.filter(l => l.email);
     if (currentSendingIndex >= leadsWithEmail.length) return;
@@ -69,7 +137,7 @@ export default function MailboxDripAnimation({
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [isActive, currentSendingIndex, leads, onEmailStatusUpdate]);
+  }, [realSendingMode, isActive, currentSendingIndex, leads, onEmailStatusUpdate]);
 
   // Simulate email flying animation
   useEffect(() => {
@@ -97,42 +165,124 @@ export default function MailboxDripAnimation({
   // Get leads with email
   const leadsWithEmail = leads.filter(l => l.email);
 
+  // Helper to get status display info
+  const getStatusDisplay = (status: EmailStatus) => {
+    switch (status) {
+      case 'sending':
+        return { icon: '📤', label: realSendingMode ? 'Sending...' : 'Simulating...', className: 'bg-primary/30 text-primary border-primary/50 animate-pulse' };
+      case 'sent':
+        return { icon: '✅', label: realSendingMode ? 'Sent' : 'Preview Sent', className: 'bg-success/20 text-success border-success/30' };
+      case 'delivered':
+        return { icon: '📬', label: 'Delivered', className: 'bg-success/30 text-success border-success/50' };
+      case 'failed':
+        return { icon: '❌', label: 'Failed', className: 'bg-destructive/20 text-destructive border-destructive/30' };
+      case 'bounced':
+        return { icon: '↩️', label: 'Bounced', className: 'bg-warning/20 text-warning border-warning/30' };
+      default:
+        return { icon: '⏳', label: 'Queued', className: 'bg-muted/30 text-muted-foreground border-muted/30' };
+    }
+  };
+
   return (
     <div className="space-y-4">
-      {/* ⚠️ PREVIEW MODE BANNER */}
-      <div className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 border-2 border-amber-500/50">
-        <div className="w-12 h-12 rounded-full bg-amber-500/30 flex items-center justify-center">
-          <Eye className="w-6 h-6 text-amber-400" />
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="font-bold text-amber-400 text-lg">📧 PREVIEW MODE</h3>
-            <Badge className="bg-amber-500/30 text-amber-300 border-amber-500/50">
-              Demo Only
-            </Badge>
+      {/* MODE BANNER - Changes based on real vs demo mode */}
+      {realSendingMode ? (
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-success/20 to-emerald-500/20 border-2 border-success/50">
+          <div className="w-12 h-12 rounded-full bg-success/30 flex items-center justify-center">
+            <Mail className="w-6 h-6 text-success" />
           </div>
-          <p className="text-sm text-amber-200/80">
-            This is a <strong>simulation</strong> showing how your emails will be sent. 
-            <strong className="text-white"> No emails are being sent yet.</strong> Go to the "Send" tab to launch your campaign.
-          </p>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-success text-lg">📧 LIVE SENDING</h3>
+              <Badge className="bg-success/30 text-success border-success/50">
+                Real Emails
+              </Badge>
+              {isPolling && (
+                <RefreshCw className="w-4 h-4 text-success animate-spin" />
+              )}
+            </div>
+            <p className="text-sm text-success/80">
+              Emails are being sent to real recipients. Status updates every 5 seconds.
+              {lastPollTime && (
+                <span className="ml-2 text-muted-foreground">
+                  Last updated: {lastPollTime.toLocaleTimeString()}
+                </span>
+              )}
+            </p>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={pollDeliveryStatus}
+            disabled={isPolling}
+            className="gap-2 border-success/30 text-success hover:bg-success/10"
+          >
+            <RefreshCw className={`w-4 h-4 ${isPolling ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
-      </div>
+      ) : (
+        <div className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-warning/20 to-orange-500/20 border-2 border-warning/50">
+          <div className="w-12 h-12 rounded-full bg-warning/30 flex items-center justify-center">
+            <Eye className="w-6 h-6 text-warning" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-warning text-lg">📧 PREVIEW MODE</h3>
+              <Badge className="bg-warning/30 text-warning border-warning/50">
+                Demo Only
+              </Badge>
+            </div>
+            <p className="text-sm text-warning/80">
+              This is a <strong>simulation</strong> showing how your emails will be sent. 
+              <strong className="text-foreground"> No emails are being sent yet.</strong>
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Real-time Delivery Stats (only in real mode) */}
+      {realSendingMode && (deliveryStats.sent > 0 || deliveryStats.delivered > 0 || deliveryStats.failed > 0) && (
+        <div className="grid grid-cols-4 gap-2">
+          <div className="bg-muted/20 rounded-lg p-3 text-center border border-muted/30">
+            <p className="text-2xl font-bold text-success">{deliveryStats.sent}</p>
+            <p className="text-xs text-muted-foreground">Sent</p>
+          </div>
+          <div className="bg-muted/20 rounded-lg p-3 text-center border border-muted/30">
+            <p className="text-2xl font-bold text-success">{deliveryStats.delivered}</p>
+            <p className="text-xs text-muted-foreground">Delivered</p>
+          </div>
+          <div className="bg-muted/20 rounded-lg p-3 text-center border border-muted/30">
+            <p className="text-2xl font-bold text-destructive">{deliveryStats.failed}</p>
+            <p className="text-xs text-muted-foreground">Failed</p>
+          </div>
+          <div className="bg-muted/20 rounded-lg p-3 text-center border border-muted/30">
+            <p className="text-2xl font-bold text-warning">{deliveryStats.bounced}</p>
+            <p className="text-xs text-muted-foreground">Bounced</p>
+          </div>
+        </div>
+      )}
 
       {/* Live Email Queue - Shows each lead */}
       {leadsWithEmail.length > 0 && (
-        <div className="bg-gradient-to-br from-slate-900/50 to-slate-800/50 rounded-xl border border-white/10 overflow-hidden">
-          <div className="p-3 border-b border-white/10 flex items-center justify-between bg-white/5">
-            <h4 className="font-semibold text-white flex items-center gap-2">
+        <div className="bg-gradient-to-br from-muted/20 to-muted/10 rounded-xl border border-border overflow-hidden">
+          <div className="p-3 border-b border-border flex items-center justify-between bg-muted/10">
+            <h4 className="font-semibold text-foreground flex items-center gap-2">
               <Mail className="w-4 h-4 text-primary" />
-              Email Queue Preview
+              {realSendingMode ? 'Email Delivery Queue' : 'Email Queue Preview'}
             </h4>
             <div className="flex items-center gap-2 text-xs">
-              <Badge variant="outline" className="bg-green-500/20 text-green-400 border-green-500/30">
-                {Object.values(emailStatuses).filter(s => s === 'sent').length} Simulated
+              <Badge variant="outline" className="bg-success/20 text-success border-success/30">
+                {Object.values(emailStatuses).filter(s => s === 'sent' || s === 'delivered').length} {realSendingMode ? 'Delivered' : 'Simulated'}
               </Badge>
-              <Badge variant="outline" className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+              <Badge variant="outline" className="bg-warning/20 text-warning border-warning/30">
                 {Object.values(emailStatuses).filter(s => s === 'pending').length} Pending
               </Badge>
+              {realSendingMode && Object.values(emailStatuses).filter(s => s === 'failed').length > 0 && (
+                <Badge variant="outline" className="bg-destructive/20 text-destructive border-destructive/30">
+                  {Object.values(emailStatuses).filter(s => s === 'failed').length} Failed
+                </Badge>
+              )}
             </div>
           </div>
           
@@ -140,6 +290,7 @@ export default function MailboxDripAnimation({
             <div className="p-2 space-y-1">
               {leadsWithEmail.slice(0, 20).map((lead, idx) => {
                 const status = emailStatuses[lead.id] || 'pending';
+                const statusDisplay = getStatusDisplay(status);
                 return (
                   <motion.div
                     key={lead.id}
@@ -149,32 +300,36 @@ export default function MailboxDripAnimation({
                     className={`flex items-center gap-3 p-2 rounded-lg transition-all ${
                       status === 'sending' 
                         ? 'bg-primary/20 border border-primary/50 animate-pulse' 
-                        : status === 'sent'
-                          ? 'bg-green-500/10 border border-green-500/30'
-                          : 'bg-white/5 border border-transparent'
+                        : status === 'sent' || status === 'delivered'
+                          ? 'bg-success/10 border border-success/30'
+                          : status === 'failed' || status === 'bounced'
+                            ? 'bg-destructive/10 border border-destructive/30'
+                            : 'bg-muted/10 border border-transparent'
                     }`}
                   >
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
                       status === 'sending'
                         ? 'bg-primary/30 text-primary'
-                        : status === 'sent'
-                          ? 'bg-green-500/30 text-green-400'
-                          : 'bg-white/10 text-muted-foreground'
+                        : status === 'sent' || status === 'delivered'
+                          ? 'bg-success/30 text-success'
+                          : status === 'failed' || status === 'bounced'
+                            ? 'bg-destructive/30 text-destructive'
+                            : 'bg-muted/30 text-muted-foreground'
                     }`}>
-                      {status === 'sent' ? <CheckCircle2 className="w-4 h-4" /> : idx + 1}
+                      {status === 'sent' || status === 'delivered' ? (
+                        <CheckCircle2 className="w-4 h-4" />
+                      ) : status === 'failed' || status === 'bounced' ? (
+                        <AlertCircle className="w-4 h-4" />
+                      ) : (
+                        idx + 1
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm truncate">{lead.name}</p>
                       <p className="text-xs text-muted-foreground truncate">{lead.email}</p>
                     </div>
-                    <Badge className={`text-xs ${
-                      status === 'sending'
-                        ? 'bg-primary/30 text-primary border-primary/50 animate-pulse'
-                        : status === 'sent'
-                          ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                          : 'bg-white/10 text-muted-foreground border-white/20'
-                    }`}>
-                      {status === 'sending' ? '📤 Simulating...' : status === 'sent' ? '✅ Preview Sent' : '⏳ Queued'}
+                    <Badge className={`text-xs ${statusDisplay.className}`}>
+                      {statusDisplay.icon} {statusDisplay.label}
                     </Badge>
                   </motion.div>
                 );

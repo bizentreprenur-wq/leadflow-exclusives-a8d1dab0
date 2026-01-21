@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +12,7 @@ import {
   ArrowLeft, ArrowRight, Server, FileText, Send, 
   CheckCircle2, Mail, Users, Loader2, Link2, Database,
   Eye, Zap, Rocket, BarChart3, FlaskConical, Home,
-  Clock, TrendingUp, Info, Settings, Phone, X
+  Clock, TrendingUp, Info, Settings, Phone, X, AlertCircle
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -29,7 +29,8 @@ import CRMSelectionPanel from './CRMSelectionPanel';
 import AITemplateSuggestions from './AITemplateSuggestions';
 import AIEmailAssistant from './AIEmailAssistant';
 import EmailConfigurationPanel from './EmailConfigurationPanel';
-import { LeadForEmail } from '@/lib/api/email';
+import { LeadForEmail, sendBulkEmails } from '@/lib/api/email';
+import { isSMTPConfigured, personalizeContent } from '@/lib/emailService';
 
 interface SearchResult {
   id: string;
@@ -131,9 +132,12 @@ export default function EmailSetupFlow({
     }
   }, [emailLeads]);
 
-  // Demo sending simulation
+  // Sending state management
   const [demoSentCount, setDemoSentCount] = useState(0);
   const [demoIsActive, setDemoIsActive] = useState(false);
+  const [realSendingMode, setRealSendingMode] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [campaignId, setCampaignId] = useState<string | null>(null);
 
   useEffect(() => {
     if (currentPhase !== 'send') return;
@@ -143,13 +147,16 @@ export default function EmailSetupFlow({
       setDemoSentCount(0);
       return;
     }
-    setDemoIsActive(true);
-    setDemoSentCount(0);
-    const interval = window.setInterval(() => {
-      setDemoSentCount((c) => (c >= total ? 0 : c + 1));
-    }, 650);
-    return () => window.clearInterval(interval);
-  }, [currentPhase, emailLeads.length]);
+    // Only auto-activate demo mode if not in real sending mode
+    if (!realSendingMode) {
+      setDemoIsActive(true);
+      setDemoSentCount(0);
+      const interval = window.setInterval(() => {
+        setDemoSentCount((c) => (c >= total ? 0 : c + 1));
+      }, 650);
+      return () => window.clearInterval(interval);
+    }
+  }, [currentPhase, emailLeads.length, realSendingMode]);
 
   const phases = [
     { id: 'smtp', label: '1. SMTP Setup', icon: Server, description: 'Configure your email server' },
@@ -561,47 +568,145 @@ export default function EmailSetupFlow({
                         <MailboxDripAnimation
                           totalEmails={emailLeads.length}
                           sentCount={demoSentCount}
-                          isActive={demoIsActive}
+                          isActive={demoIsActive || realSendingMode}
                           emailsPerHour={50}
                           leads={leads.map(l => ({ id: l.id, name: l.name, email: l.email }))}
+                          realSendingMode={realSendingMode}
+                          campaignId={campaignId || undefined}
+                          onEmailStatusUpdate={(statuses) => {
+                            // Update sent count based on real status
+                            const sentCount = Object.values(statuses).filter(s => s === 'sent' || s === 'delivered').length;
+                            setDemoSentCount(sentCount);
+                          }}
                         />
                         
                         {/* Total Leads Count */}
-                        <div className="flex items-center justify-between p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-primary/10 border border-primary/20">
                           <span className="text-sm text-muted-foreground">Total Leads Ready</span>
-                          <span className="text-2xl font-bold text-blue-400">{leadsWithEmail.length}</span>
+                          <span className="text-2xl font-bold text-primary">{leadsWithEmail.length}</span>
                         </div>
                         
                         {/* SEND EMAILS BUTTON */}
-                        <div className="pt-4 border-t border-blue-500/30">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-semibold text-white">Ready to launch your campaign?</p>
-                              <p className="text-sm text-muted-foreground">
-                                {leadsWithEmail.length} businesses will receive your email via drip sending
-                              </p>
+                        <div className="pt-4 border-t border-primary/30">
+                          <div className="flex flex-col gap-4">
+                            {/* SMTP Check Warning */}
+                            {!smtpConfigured && (
+                              <div className="flex items-center gap-3 p-3 rounded-lg bg-warning/10 border border-warning/30">
+                                <AlertCircle className="w-5 h-5 text-warning flex-shrink-0" />
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium text-warning">SMTP not configured</p>
+                                  <p className="text-xs text-muted-foreground">Configure your email server in Settings to send real emails</p>
+                                </div>
+                                <Button variant="outline" size="sm" onClick={() => handleTabChange('settings')} className="text-warning border-warning/30">
+                                  Configure SMTP
+                                </Button>
+                              </div>
+                            )}
+
+                            {/* Template Check Warning */}
+                            {!selectedTemplate && (
+                              <div className="flex items-center gap-3 p-3 rounded-lg bg-warning/10 border border-warning/30">
+                                <FileText className="w-5 h-5 text-warning flex-shrink-0" />
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium text-warning">No template selected</p>
+                                  <p className="text-xs text-muted-foreground">Choose an email template before sending</p>
+                                </div>
+                                <Button variant="outline" size="sm" onClick={() => setCurrentPhase('template')} className="text-warning border-warning/30">
+                                  Choose Template
+                                </Button>
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-semibold text-foreground">Ready to launch your campaign?</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {leadsWithEmail.length} businesses will receive your email via drip sending
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {/* Demo Mode Button */}
+                                <Button 
+                                  variant="outline"
+                                  size="lg"
+                                  onClick={() => {
+                                    setRealSendingMode(false);
+                                    setDemoIsActive(true);
+                                    toast.info('👀 Preview mode activated - simulating email delivery');
+                                  }}
+                                  disabled={isSending}
+                                  className="gap-2"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                  Preview
+                                </Button>
+                                
+                                {/* Real Send Button */}
+                                <Button 
+                                  size="lg"
+                                  onClick={async () => {
+                                    if (!smtpConfigured) {
+                                      toast.error('Please configure SMTP settings first');
+                                      handleTabChange('settings');
+                                      return;
+                                    }
+                                    if (!selectedTemplate) {
+                                      toast.error('Please select an email template first');
+                                      setCurrentPhase('template');
+                                      return;
+                                    }
+                                    
+                                    setIsSending(true);
+                                    try {
+                                      const result = await sendBulkEmails({
+                                        leads: emailLeads,
+                                        custom_subject: customizedContent?.subject || selectedTemplate.subject,
+                                        custom_body: customizedContent?.body || selectedTemplate.body,
+                                        send_mode: 'drip',
+                                        drip_config: { emailsPerHour: 50, delayMinutes: 1 },
+                                      });
+                                      
+                                      if (result.success) {
+                                        sessionStorage.setItem('emails_sent', 'true');
+                                        setRealSendingMode(true);
+                                        setDemoIsActive(true);
+                                        toast.success(`🚀 Campaign launched! Sending ${result.results?.sent || 0} emails...`);
+                                      } else {
+                                        toast.error(result.error || 'Failed to send emails');
+                                      }
+                                    } catch (error) {
+                                      console.error('Send error:', error);
+                                      toast.error('Failed to send emails. Check your connection.');
+                                    } finally {
+                                      setIsSending(false);
+                                    }
+                                  }}
+                                  disabled={isSending || !smtpConfigured || !selectedTemplate}
+                                  className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground font-bold px-8 py-6 text-lg shadow-lg shadow-primary/30"
+                                >
+                                  {isSending ? (
+                                    <>
+                                      <Loader2 className="w-5 h-5 animate-spin" />
+                                      Sending...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Send className="w-5 h-5" />
+                                      Send Emails Now
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
                             </div>
-                            <Button 
-                              size="lg"
-                              onClick={() => {
-                                sessionStorage.setItem('emails_sent', 'true');
-                                setDemoIsActive(true);
-                                toast.success('🚀 Campaign launched! Emails are being sent...');
-                              }}
-                              className="gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold px-8 py-6 text-lg shadow-lg shadow-blue-500/30"
-                            >
-                              <Send className="w-5 h-5" />
-                              Send Emails Now
-                            </Button>
                           </div>
                         </div>
 
                         {/* Conditional Analytics */}
                         {hasEmailsSent && demoSentCount > 0 && (
-                          <div className="pt-4 border-t border-emerald-500/30">
+                          <div className="pt-4 border-t border-success/30">
                             <div className="flex items-center gap-2 mb-3">
-                              <BarChart3 className="w-5 h-5 text-emerald-400" />
-                              <h4 className="font-bold text-emerald-400">Campaign Analytics</h4>
+                              <BarChart3 className="w-5 h-5 text-success" />
+                              <h4 className="font-bold text-success">Campaign Analytics</h4>
                             </div>
                             <CampaignAnalyticsDashboard />
                           </div>
