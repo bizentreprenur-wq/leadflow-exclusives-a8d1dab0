@@ -8,8 +8,11 @@ import { API_BASE_URL, USE_MOCK_AUTH, getAuthHeaders } from './config';
 // Set to true to force mock data for testing (normally false)
 // Only uses mock if explicitly enabled OR no API URL configured
 const FORCE_MOCK_DATA = false;
-// In Demo/Mock Auth mode, always use mock search data so the dashboard works without the live backend.
-const USE_MOCK_DATA = FORCE_MOCK_DATA || USE_MOCK_AUTH || !API_BASE_URL;
+// IMPORTANT:
+// Demo/Mock Auth is used for logging into the UI in preview environments.
+// It should NOT force dummy lead results if the real backend is reachable.
+// Only use mock search data when explicitly forced or when no API base URL exists.
+const USE_MOCK_DATA = FORCE_MOCK_DATA || !API_BASE_URL;
 
 console.log('[GMB API] Config:', { API_BASE_URL, USE_MOCK_AUTH, USE_MOCK_DATA, FORCE_MOCK_DATA });
 

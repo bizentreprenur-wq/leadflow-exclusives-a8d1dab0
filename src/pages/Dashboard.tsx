@@ -1452,23 +1452,26 @@ export default function Dashboard() {
             
             {/* Live Data Mode Badge */}
             {searchResults.length > 0 && (
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
-                isLiveDataMode 
-                  ? 'bg-green-500/15 text-green-600 border border-green-500/30' 
-                  : 'bg-amber-500/15 text-amber-600 border border-amber-500/30'
-              }`}>
+              <div
+                className={
+                  `flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ` +
+                  (isLiveDataMode
+                    ? 'bg-primary/10 text-primary border-primary/30'
+                    : 'bg-muted/40 text-muted-foreground border-border')
+                }
+              >
                 {isLiveDataMode ? (
                   <>
                     <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-500 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-40"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
                     </span>
                     <span className="hidden sm:inline">LIVE DATA</span>
                     <span className="sm:hidden">LIVE</span>
                   </>
                 ) : (
                   <>
-                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                    <span className="w-2 h-2 rounded-full bg-muted-foreground"></span>
                     <span className="hidden sm:inline">DEMO MODE</span>
                     <span className="sm:hidden">DEMO</span>
                   </>
