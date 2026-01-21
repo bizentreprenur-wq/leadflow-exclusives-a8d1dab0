@@ -44,17 +44,26 @@ export const getTemplatePerformance = (templateId: string): { openRate: number; 
   };
 };
 
-// Industry-specific placeholder images
+// Industry-specific placeholder images - EACH IMAGE IS UNIQUE
 const IMAGES = {
   // Web design template-specific images (each unique)
   webDesign: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&h=300&fit=crop",
   webDesignStats: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600&h=300&fit=crop",
   webDesignPortfolio: "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=600&h=300&fit=crop",
   webDesignLocalSeo: "https://images.unsplash.com/photo-1432888498266-38ffec3eaf0a?w=600&h=300&fit=crop",
-  webDesignCompetitor: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600&h=300&fit=crop",
+  webDesignCompetitor: "https://images.unsplash.com/photo-1553484771-047a44eee27b?w=600&h=300&fit=crop",
   webDesignMobile: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=600&h=300&fit=crop",
   webDesignSeasonal: "https://images.unsplash.com/photo-1467232004584-a241de8bcf5d?w=600&h=300&fit=crop",
   webDesignTrust: "https://images.unsplash.com/photo-1553877522-43269d4ea984?w=600&h=300&fit=crop",
+  // Web design formula-specific images (unique for each approach)
+  painAgitate: "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&h=300&fit=crop",
+  socialProof: "https://images.unsplash.com/photo-1552581234-26160f608093?w=600&h=300&fit=crop",
+  curiosity: "https://images.unsplash.com/photo-1423666639041-f56000c27a9a?w=600&h=300&fit=crop",
+  transformation: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=600&h=300&fit=crop",
+  lossAversion: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=600&h=300&fit=crop",
+  freeAudit: "https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=600&h=300&fit=crop",
+  storyHook: "https://images.unsplash.com/photo-1531973576160-7125cd663d86?w=600&h=300&fit=crop",
+  urgency: "https://images.unsplash.com/photo-1504868584819-f8e8b4b6d7e3?w=600&h=300&fit=crop",
   // Industry images
   restaurant: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&h=300&fit=crop",
   plumber: "https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=600&h=300&fit=crop",
@@ -74,11 +83,11 @@ const IMAGES = {
   ecommerce: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&h=300&fit=crop",
   consulting: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=600&h=300&fit=crop",
   tech: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=600&h=300&fit=crop",
-  healthcare: "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=600&h=300&fit=crop",
+  healthcare: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?w=600&h=300&fit=crop",
   team: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=600&h=300&fit=crop",
   handshake: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=600&h=300&fit=crop",
   celebration: "https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=600&h=300&fit=crop",
-  growth: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&h=300&fit=crop",
+  growth: "https://images.unsplash.com/photo-1553729459-efe14ef6055d?w=600&h=300&fit=crop",
   // New industry images
   insurance: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=600&h=300&fit=crop",
   medical: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?w=600&h=300&fit=crop",
@@ -90,6 +99,16 @@ const IMAGES = {
   tutoring: "https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=600&h=300&fit=crop",
   daycare: "https://images.unsplash.com/photo-1587654780291-39c9404d746b?w=600&h=300&fit=crop",
   senior: "https://images.unsplash.com/photo-1576765608535-5f04d1e3f289?w=600&h=300&fit=crop",
+  // Follow-up and promotional images
+  followUp: "https://images.unsplash.com/photo-1596526131083-e8c633c948d2?w=600&h=300&fit=crop",
+  reminder: "https://images.unsplash.com/photo-1434626881859-194d67b2b86f?w=600&h=300&fit=crop",
+  promo: "https://images.unsplash.com/photo-1557804506-669a67965ba0?w=600&h=300&fit=crop",
+  discount: "https://images.unsplash.com/photo-1556742393-d75f468bfcb0?w=600&h=300&fit=crop",
+  seasonal: "https://images.unsplash.com/photo-1482517967863-00e15c9b44be?w=600&h=300&fit=crop",
+  // B2B specific images
+  b2bPartnership: "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=600&h=300&fit=crop",
+  b2bMeeting: "https://images.unsplash.com/photo-1542744094-3a31f272c490?w=600&h=300&fit=crop",
+  b2bPresentation: "https://images.unsplash.com/photo-1531973576160-7125cd663d86?w=600&h=300&fit=crop",
 };
 
 // Template Style Variants - Each creates a unique visual design
@@ -401,10 +420,10 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     industry: 'Web Design',
     subject: '{{business_name}}, I noticed something costing you customers',
     description: 'Classic PAS copywriting formula - proven 3x higher response rate',
-    previewImage: IMAGES.webDesignStats,
+    previewImage: IMAGES.painAgitate,
     conversionTip: 'PAS formula: Identify pain, agitate it, offer solution',
     body_html: createNeonTemplate({
-      heroImage: IMAGES.webDesignStats,
+      heroImage: IMAGES.painAgitate,
       accentColor: '#ef4444',
       headline: 'Hi {{first_name}}, This Is Quietly Hurting {{business_name}}',
       body: "I visited your website and noticed it takes 8+ seconds to load. Here's why that matters: 53% of visitors leave after just 3 seconds. That's potentially half your leads—gone before they even see what you offer. The worst part? Your competitors are getting faster, not slower. But the good news: this is fixable in under 2 weeks.",
@@ -419,10 +438,10 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     industry: 'Web Design',
     subject: 'How [Similar Business] got 47 new clients after their redesign',
     description: 'Lead with client results - 2.5x higher reply rate',
-    previewImage: IMAGES.growth,
+    previewImage: IMAGES.socialProof,
     conversionTip: 'Open with a specific, believable result from a similar business',
     body_html: createStatsTemplate({
-      heroImage: IMAGES.growth,
+      heroImage: IMAGES.socialProof,
       accentColor: '#22c55e',
       headline: '{{first_name}}, This Worked for Businesses Like Yours',
       body: "Last month, we helped a {{industry}} business similar to {{business_name}} generate 47 qualified leads. They were skeptical at first—just like you probably are. But the numbers don't lie: their website traffic tripled, and their phone started ringing. I'd love to show you exactly how we did it (no fluff, just the playbook).",
@@ -437,10 +456,10 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     industry: 'Web Design',
     subject: 'The #1 website issue hurting {{business_name}}\'s rankings',
     description: 'Creates irresistible curiosity - highest open rates',
-    previewImage: IMAGES.webDesignLocalSeo,
+    previewImage: IMAGES.curiosity,
     conversionTip: 'Tease valuable info they can only get by responding',
     body_html: createMinimalistTemplate({
-      heroImage: IMAGES.webDesignLocalSeo,
+      heroImage: IMAGES.curiosity,
       accentColor: '#8b5cf6',
       headline: '{{first_name}}, There\'s a Simple Fix You\'re Missing',
       body: "I analyzed {{business_name}}'s online presence and found one specific thing that's keeping you off page 1 of Google. It's not your reviews (those look great). It's not your location. It's something 90% of local businesses overlook—and it takes about 15 minutes to fix. Want me to show you what it is?",
@@ -455,10 +474,10 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     industry: 'Web Design',
     subject: 'What if {{business_name}} had 10x more website leads?',
     description: 'Paint the transformation picture - emotional trigger',
-    previewImage: IMAGES.webDesignPortfolio,
+    previewImage: IMAGES.transformation,
     conversionTip: 'Show them the "after" state before asking for anything',
     body_html: createGradientTemplate({
-      heroImage: IMAGES.webDesignPortfolio,
+      heroImage: IMAGES.transformation,
       accentColor: '#14b8a6',
       headline: 'Hi {{first_name}}, Imagine This...',
       body: "Picture {{business_name}}'s inbox full of qualified inquiries every Monday morning. Picture your phone ringing with customers who are ready to buy—not tire-kickers. Picture spending less on ads because your website does the selling for you. That's what happened for our last 12 clients. The bridge between where you are and where they are? It's shorter than you think.",
@@ -473,10 +492,10 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     industry: 'Web Design',
     subject: '{{business_name}} is losing customers to better websites',
     description: 'Loss aversion is 2x more powerful than gain - proven psychology',
-    previewImage: IMAGES.webDesignCompetitor,
+    previewImage: IMAGES.lossAversion,
     conversionTip: 'People hate losing more than they love winning',
     body_html: createSplitLayoutTemplate({
-      heroImage: IMAGES.webDesignCompetitor,
+      heroImage: IMAGES.lossAversion,
       accentColor: '#dc2626',
       headline: '{{first_name}}, Your Competitors Are Taking Your Customers',
       body: "I tracked 3 of {{business_name}}'s competitors this week. They're all running Google Ads targeting YOUR potential customers. They're showing up when people search for services you offer. Every day you wait, they're building relationships with people who should be calling you. Here's the math: if you're missing just 2 customers per week at $200 each, that's $4,200/month walking out the door.",
@@ -491,12 +510,12 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     industry: 'Web Design',
     subject: 'Free: Your {{business_name}} website audit (worth $500)',
     description: 'Lead with a genuine gift - builds reciprocity',
-    previewImage: IMAGES.webDesign,
+    previewImage: IMAGES.freeAudit,
     conversionTip: 'Give something valuable first, ask second',
     body_html: createFriendlyTemplate({
-      heroImage: IMAGES.webDesign,
+      heroImage: IMAGES.freeAudit,
       accentColor: '#f59e0b',
-      headline: 'Hi {{first_name}}, This Is Genuinely Free',
+      headline: 'Hi {{first_name}}, I Made Something for {{business_name}}',
       body: "No pitch, no catch—I created a detailed audit of {{business_name}}'s online presence and I'd like to send it to you. It shows exactly how customers find you (or don't), what they see when they land on your site, and 3 specific improvements that could increase your bookings by 40%. I made this because I think you'll find it valuable. If you want help implementing it after, great. If not, the audit is still yours to keep.",
       features: ['Full SEO breakdown', 'Competitor comparison', '3 priority fixes', 'Yours to keep forever'],
       cta: 'Send My Free Audit →'
@@ -509,10 +528,10 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     industry: 'Web Design',
     subject: 'A business in {{location}} made $80K from one website change',
     description: 'Stories are 22x more memorable than facts - narrative power',
-    previewImage: IMAGES.webDesignPortfolio,
+    previewImage: IMAGES.storyHook,
     conversionTip: 'Open with a mini-story, then pivot to them',
     body_html: createMagazineTemplate({
-      heroImage: IMAGES.webDesignPortfolio,
+      heroImage: IMAGES.storyHook,
       accentColor: '#3b82f6',
       headline: '{{first_name}}, Let Me Tell You About Mike',
       body: "Mike ran a plumbing business for 15 years. Good reviews, loyal customers, but growth had stalled. One day, he noticed his competitor (who did worse work) was getting all the Google calls. Turns out, that competitor had one thing Mike didn't: a mobile-friendly website with click-to-call. Mike fixed that in 2 weeks. That year, he added $80K in revenue. {{business_name}} reminds me of Mike's situation. Same opportunity.",
@@ -527,10 +546,10 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
     industry: 'Web Design',
     subject: 'Only taking 3 website projects this month (is {{business_name}} one?)',
     description: 'Scarcity creates action - use ethically',
-    previewImage: IMAGES.webDesignMobile,
+    previewImage: IMAGES.urgency,
     conversionTip: 'Real scarcity (capacity limits) drives response',
     body_html: createCardGridTemplate({
-      heroImage: IMAGES.webDesignMobile,
+      heroImage: IMAGES.urgency,
       accentColor: '#a855f7',
       headline: 'Hi {{first_name}}, Honest Question',
       body: "I'm reaching out to 5 businesses in your area this week. I can only take on 3 new projects this month (quality over quantity). {{business_name}} stood out because of your great reviews and clear growth potential. If you've been thinking about upgrading your online presence, now might be the right time to chat. No pressure—just wanted to give you first dibs before I fill up.",
