@@ -135,6 +135,9 @@ function generateMockResults(service: string, location: string, count: number = 
 // Callback for progressive loading
 export type ProgressCallback = (results: GMBResult[], progress: number) => void;
 
+/**
+ * Search GMB using Server-Sent Events for true streaming
+ */
 export async function searchGMB(
   service: string, 
   location: string, 
@@ -143,12 +146,10 @@ export async function searchGMB(
 ): Promise<GMBSearchResponse> {
   // Use mock data if no API URL is configured
   if (USE_MOCK_DATA) {
-    // Generate all results first
     const allResults = generateMockResults(service, location, limit);
     
-    // Simulate progressive loading in batches
     if (onProgress) {
-      const batchSize = Math.max(10, Math.floor(limit / 5)); // 5 batches
+      const batchSize = Math.max(10, Math.floor(limit / 5));
       let loaded = 0;
       
       while (loaded < allResults.length) {
@@ -156,10 +157,6 @@ export async function searchGMB(
         loaded = Math.min(loaded + batchSize, allResults.length);
         onProgress(allResults.slice(0, loaded), (loaded / allResults.length) * 100);
       }
-    } else {
-      // Legacy behavior - wait for all
-      const delay = Math.min(500 + (limit * 2), 3000);
-      await new Promise(resolve => setTimeout(resolve, delay));
     }
     
     return {
@@ -169,71 +166,189 @@ export async function searchGMB(
     };
   }
 
+  // Try streaming endpoint first, fall back to regular endpoint
   try {
-    console.log('[GMB API] Calling real API:', `${API_BASE_URL}/gmb-search.php`);
-    console.log('[GMB API] Request payload:', { service, location, limit });
+    return await searchGMBStreaming(service, location, limit, onProgress);
+  } catch (streamError) {
+    console.warn('[GMB API] Streaming failed, falling back to regular endpoint:', streamError);
+    return await searchGMBRegular(service, location, limit, onProgress);
+  }
+}
+
+/**
+ * Streaming search using Server-Sent Events
+ */
+async function searchGMBStreaming(
+  service: string,
+  location: string,
+  limit: number,
+  onProgress?: ProgressCallback
+): Promise<GMBSearchResponse> {
+  console.log('[GMB API] Starting SSE streaming search');
+  
+  const allResults: GMBResult[] = [];
+  
+  return new Promise((resolve, reject) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+      reject(new Error('Stream timeout after 120 seconds'));
+    }, 120000); // 2 minute total timeout
     
-    const response = await fetch(`${API_BASE_URL}/gmb-search.php`, {
+    fetch(`${API_BASE_URL}/gmb-search-stream.php`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({ service, location, limit }),
-    });
-
-    console.log('[GMB API] Response status:', response.status, response.statusText);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[GMB API] Error response:', errorText);
-      
-      // Try to parse as JSON for error message
-      let errorMessage = `API returned ${response.status}: ${response.statusText}`;
-      try {
-        const errorData = JSON.parse(errorText);
-        errorMessage = errorData.error || errorData.message || errorMessage;
-      } catch {
-        // If not JSON, use raw text (truncated)
-        if (errorText) {
-          errorMessage = errorText.slice(0, 200);
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || `HTTP ${response.status}`);
         }
-      }
-      
-      // DO NOT fall back to mock - throw the real error
-      throw new Error(errorMessage);
-    }
-
-    const data = await response.json();
-    console.log('[GMB API] Response data:', { 
-      success: data.success, 
-      resultCount: data.data?.length || 0,
-      error: data.error,
-      cached: data.cached
-    });
-    
-    // If API returned 0 results, this might be a SERPAPI issue
-    if (data.success && (!data.data || data.data.length === 0)) {
-      console.warn('[GMB API] API returned 0 results - SERPAPI may not be configured correctly');
-      throw new Error('Search returned 0 results. Please verify SERPAPI_KEY is correct in config.php and you have API credits.');
-    }
-    
-    // If we have progress callback and data, simulate progressive reveal
-    if (onProgress && data.success && data.data) {
-      const allResults = data.data;
-      const batchSize = Math.max(10, Math.floor(allResults.length / 5));
-      let loaded = 0;
-      
-      while (loaded < allResults.length) {
-        loaded = Math.min(loaded + batchSize, allResults.length);
-        onProgress(allResults.slice(0, loaded), (loaded / allResults.length) * 100);
-        if (loaded < allResults.length) {
-          await new Promise(resolve => setTimeout(resolve, 50));
+        
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error('No response body');
         }
+        
+        const decoder = new TextDecoder();
+        let buffer = '';
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            break;
+          }
+          
+          buffer += decoder.decode(value, { stream: true });
+          
+          // Process complete SSE messages
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || ''; // Keep incomplete line in buffer
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.slice(6));
+                
+                // Handle different event types
+                if (data.leads) {
+                  // New batch of leads arrived
+                  for (const lead of data.leads) {
+                    allResults.push({
+                      id: lead.id,
+                      name: lead.name,
+                      url: lead.url,
+                      snippet: lead.snippet,
+                      displayLink: lead.displayLink,
+                      phone: lead.phone,
+                      address: lead.address,
+                      rating: lead.rating,
+                      reviewCount: lead.reviews,
+                      websiteAnalysis: lead.websiteAnalysis || {
+                        hasWebsite: !!lead.url,
+                        platform: null,
+                        needsUpgrade: !lead.url,
+                        issues: lead.url ? [] : ['No website found'],
+                        mobileScore: null
+                      }
+                    });
+                  }
+                  
+                  // Call progress callback with accumulated results
+                  if (onProgress) {
+                    onProgress([...allResults], data.progress || 0);
+                  }
+                  
+                  console.log(`[GMB API] Stream: ${allResults.length} leads, ${data.progress}%`);
+                } else if (data.error) {
+                  throw new Error(data.error);
+                }
+              } catch (parseError) {
+                // Ignore JSON parse errors for partial data
+                if (line.includes('"error"')) {
+                  console.error('[GMB API] SSE parse error:', parseError);
+                }
+              }
+            }
+          }
+        }
+        
+        clearTimeout(timeoutId);
+        
+        if (allResults.length === 0) {
+          throw new Error('No results received from stream');
+        }
+        
+        resolve({
+          success: true,
+          data: allResults,
+          query: { service, location }
+        });
+      })
+      .catch((error) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
+}
+
+/**
+ * Regular non-streaming search (fallback)
+ */
+async function searchGMBRegular(
+  service: string,
+  location: string,
+  limit: number,
+  onProgress?: ProgressCallback
+): Promise<GMBSearchResponse> {
+  console.log('[GMB API] Using regular (non-streaming) search');
+  
+  const response = await fetch(`${API_BASE_URL}/gmb-search.php`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ service, location, limit }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('[GMB API] Error response:', errorText);
+    
+    let errorMessage = `API returned ${response.status}: ${response.statusText}`;
+    try {
+      const errorData = JSON.parse(errorText);
+      errorMessage = errorData.error || errorData.message || errorMessage;
+    } catch {
+      if (errorText) {
+        errorMessage = errorText.slice(0, 200);
       }
     }
     
-    return data;
-  } catch (error) {
-    console.error('[GMB API] Search error:', error);
-    // DO NOT fall back to mock - propagate the real error
-    throw error;
+    throw new Error(errorMessage);
   }
+
+  const data = await response.json();
+  
+  if (data.success && (!data.data || data.data.length === 0)) {
+    throw new Error('Search returned 0 results. Verify SERPAPI_KEY is correct.');
+  }
+  
+  // Simulate progressive reveal for non-streaming
+  if (onProgress && data.success && data.data) {
+    const allResults = data.data;
+    const batchSize = Math.max(10, Math.floor(allResults.length / 5));
+    let loaded = 0;
+    
+    while (loaded < allResults.length) {
+      loaded = Math.min(loaded + batchSize, allResults.length);
+      onProgress(allResults.slice(0, loaded), (loaded / allResults.length) * 100);
+      if (loaded < allResults.length) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+    }
+  }
+  
+  return data;
 }
