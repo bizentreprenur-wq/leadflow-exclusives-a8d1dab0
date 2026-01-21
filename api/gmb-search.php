@@ -99,8 +99,8 @@ function searchGMBListings($service, $location, $limit = 100) {
     $apiKey = defined('SERPAPI_KEY') ? SERPAPI_KEY : '';
     
     if (empty($apiKey)) {
-        // Return expanded mock data if API not configured - up to 500 for testing
-        return getMockResults($service, $location, min($limit, 500));
+        // NO MOCK DATA - require real API key
+        throw new Exception('SERPAPI_KEY is not configured. Please add it to config.php for real search results.');
     }
     
     $query = "$service in $location";
@@ -195,58 +195,4 @@ function searchGMBListings($service, $location, $limit = 100) {
     return $allResults;
 }
 
-/**
- * Return mock results when API is not configured
- * Expanded to support up to 500 for testing UI
- */
-function getMockResults($service, $location, $count = 100) {
-    $prefixes = ['Best', 'Elite', 'Premier', 'Top', 'Pro', 'Expert', 'Quality', 'Reliable', 'Trusted', 'Certified', 
-                 'Supreme', 'Master', 'Prime', 'First Class', 'Superior', 'Advanced', 'Professional', 'Ultimate', 
-                 'Royal', 'Precision', 'Dynamic', 'Swift', 'Legacy', 'Titan', 'Apex', 'Alpha', 'Omega', 'Delta',
-                 'Phoenix', 'Eagle', 'Summit', 'Pinnacle', 'Crown', 'Diamond', 'Platinum', 'Golden', 'Silver',
-                 'Metro', 'Urban', 'City', 'Local', 'Regional', 'National', 'Express', 'Rapid', 'Quick', 'Fast'];
-    $suffixes = ['Services', 'Solutions', 'Pros', 'Group', 'Co', 'Inc', 'LLC', 'Experts', 'Team', 'Masters'];
-    $platforms = ['WordPress', 'Wix', 'Squarespace', 'GoDaddy', 'Weebly', 'Custom/Unknown', null, 'Joomla', 'Shopify'];
-    $issues = [
-        'Not mobile responsive',
-        'Missing meta description', 
-        'Outdated jQuery version',
-        'Large page size (slow loading)',
-        'Missing alt tags on images',
-        'No SSL certificate',
-        'Slow server response',
-        'Tables used for layout'
-    ];
-    
-    $results = [];
-    
-    for ($i = 0; $i < $count; $i++) {
-        $prefix = $prefixes[$i % count($prefixes)];
-        $suffix = $suffixes[$i % count($suffixes)];
-        $platform = $platforms[array_rand($platforms)];
-        $hasWebsite = rand(0, 100) > 15; // 85% have websites
-        $issueCount = rand(0, 4);
-        $selectedIssues = $hasWebsite ? array_slice($issues, 0, $issueCount) : ['No website found'];
-        
-        $results[] = [
-            'id' => 'mock_' . ($i + 1) . '_' . time(),
-            'name' => "$prefix $service $suffix",
-            'url' => $hasWebsite ? 'https://example-' . strtolower($prefix) . '-' . ($i + 1) . '.com' : '',
-            'snippet' => "Professional $service services in $location. Quality work, competitive pricing.",
-            'displayLink' => $hasWebsite ? 'example-' . strtolower($prefix) . '-' . ($i + 1) . '.com' : '',
-            'address' => (1000 + $i * 10) . " Main St, $location",
-            'phone' => '(555) ' . rand(100, 999) . '-' . rand(1000, 9999),
-            'rating' => round(rand(30, 50) / 10, 1),
-            'reviews' => rand(5, 250),
-            'websiteAnalysis' => [
-                'hasWebsite' => $hasWebsite,
-                'platform' => $hasWebsite ? $platform : null,
-                'needsUpgrade' => !$hasWebsite || $issueCount >= 2,
-                'issues' => $selectedIssues,
-                'mobileScore' => $hasWebsite ? rand(35, 95) : null
-            ]
-        ];
-    }
-    
-    return $results;
-}
+// Mock data functions removed - real API results only

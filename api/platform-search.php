@@ -121,9 +121,9 @@ function searchPlatforms($service, $location, $platforms) {
         $allResults = array_merge($allResults, $bingResults);
     }
     
-    // If no APIs configured, return mock data
+    // If no APIs configured, throw error - NO MOCK DATA
     if (empty($allResults)) {
-        return getMockPlatformResults($service, $location, $platforms);
+        throw new Exception('No search API configured. Please set SERPAPI_KEY, GOOGLE_API_KEY, or BING_API_KEY in config.php');
     }
     
     // Deduplicate by URL
@@ -340,57 +340,4 @@ function searchBing($service, $location, $platformQueries) {
     return $results;
 }
 
-/**
- * Get mock results for testing
- */
-function getMockPlatformResults($service, $location, $platforms) {
-    $businesses = [
-        ['name' => "{$location} {$service} Experts", 'platform' => 'WordPress'],
-        ['name' => "Best {$service} Co", 'platform' => 'Wix'],
-        ['name' => "Pro {$service} Services", 'platform' => 'Weebly'],
-        ['name' => "{$service} Masters LLC", 'platform' => 'GoDaddy'],
-        ['name' => "Elite {$service} Group", 'platform' => 'Joomla'],
-        ['name' => "Quality {$service} Inc", 'platform' => 'Custom PHP'],
-        ['name' => "Premier {$service} Solutions", 'platform' => 'Squarespace'],
-        ['name' => "{$location} {$service} Pros", 'platform' => 'WordPress'],
-    ];
-    
-    $issues = [
-        'Not mobile responsive',
-        'Missing meta description',
-        'Outdated jQuery version',
-        'Large page size',
-        'Missing alt tags',
-        'Tables used for layout',
-        'Missing favicon',
-    ];
-    
-    $results = [];
-    
-    foreach ($businesses as $index => $biz) {
-        $domain = strtolower(str_replace(' ', '', $biz['name'])) . '.com';
-        $issueCount = rand(0, 4);
-        $selectedIssues = array_slice($issues, 0, $issueCount);
-        
-        $results[] = [
-            'id' => generateId('mock_'),
-            'name' => $biz['name'],
-            'url' => "https://{$domain}",
-            'snippet' => "Professional {$service} services in {$location}. Quality work, competitive prices.",
-            'displayLink' => $domain,
-            'source' => 'mock',
-            'phone' => sprintf('(%03d) %03d-%04d', rand(200, 999), rand(100, 999), rand(1000, 9999)),
-            'address' => sprintf('%d Main St, %s', rand(100, 9999), $location),
-            'websiteAnalysis' => [
-                'hasWebsite' => true,
-                'platform' => $biz['platform'],
-                'needsUpgrade' => $issueCount >= 2 || in_array($biz['platform'], ['WordPress', 'Wix', 'Weebly']),
-                'issues' => $selectedIssues,
-                'mobileScore' => rand(35, 95),
-                'loadTime' => rand(800, 4500)
-            ]
-        ];
-    }
-    
-    return $results;
-}
+// Mock data functions removed - real API results only
