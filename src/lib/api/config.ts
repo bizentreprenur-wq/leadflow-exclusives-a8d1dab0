@@ -1,12 +1,31 @@
 // API configuration for backend
 // Set VITE_API_URL environment variable to connect to your backend
 
-// Mock auth is ONLY enabled in development when explicitly set via env variable
-// NEVER enable in production - this bypasses all server-side authentication
-export const USE_MOCK_AUTH = import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOCK_AUTH === 'true';
+// Mock auth should never be enabled for your real production site.
+// However, Lovable *preview* environments often run a production build where the
+// PHP backend isn't available; for that sandbox we allow mock auth.
+//
+// You can always override with:
+// - `?mockAuth=true`  (force mock)
+// - `?mockAuth=false` (force real backend)
+function isLovablePreviewHost(hostname: string): boolean {
+  // Preview URLs look like: id-preview--<uuid>.lovable.app
+  // Published URLs look like: <project>.lovable.app
+  if (hostname.startsWith('id-preview--')) return true;
+
+  // Lovable sandbox preview environments use *.lovableproject.com
+  // These are always preview/sandbox environments, never production
+  if (hostname.endsWith('.lovableproject.com')) return true;
+
+  return false;
+}
+
+// Demo/Mock auth is permanently disabled - always use real backend
+export const USE_MOCK_AUTH = false;
 
 // API Base URL
-export const API_BASE_URL = 'https://bamlead.com/api';
+// If you want to point dev/staging somewhere else, set VITE_API_URL.
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://bamlead.com/api';
 
 // Auth endpoints
 export const AUTH_ENDPOINTS = {
@@ -36,9 +55,11 @@ export const SEARCH_ENDPOINTS = {
 // Helper to get auth headers
 export function getAuthHeaders(): HeadersInit {
   const token = localStorage.getItem('auth_token');
+  // In Demo Mode we may have a UI-only mock token. Never send it to the real backend.
+  const shouldSendAuth = !!token && !USE_MOCK_AUTH && !token.startsWith('mock_token_');
   return {
     'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...(shouldSendAuth ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
 

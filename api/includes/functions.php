@@ -93,14 +93,18 @@ function sanitizeInput($input, $maxLength = 100) {
 
 /**
  * Make a cURL request
+ * @param string $url The URL to request
+ * @param array $options Additional cURL options
+ * @param int $timeout Timeout in seconds (default 10)
  */
-function curlRequest($url, $options = []) {
+function curlRequest($url, $options = [], $timeout = 10) {
     $ch = curl_init();
     
     $defaultOptions = [
         CURLOPT_URL => $url,
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 30,
+        CURLOPT_TIMEOUT => $timeout,
+        CURLOPT_CONNECTTIMEOUT => 5,
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_USERAGENT => 'BamLead/1.0 (Website Analyzer)',

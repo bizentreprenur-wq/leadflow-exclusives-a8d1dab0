@@ -18,9 +18,15 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     sendError('Method not allowed', 405);
 }
 
-// Require authentication and enforce rate limit
-$user = requireAuth();
-enforceRateLimit($user, 'search');
+// Authentication is optional for search - allows demo/testing
+// Use getCurrentUser() which returns null instead of exiting with 401
+$user = getCurrentUser();
+
+// Apply rate limiting only for authenticated users
+if ($user) {
+    enforceRateLimit($user, 'search');
+}
+// Note: Anonymous users are allowed but could have stricter limits added here
 
 // Get and validate input
 $input = getJsonInput();
@@ -93,13 +99,21 @@ try {
  * Search for businesses using specific platforms
  */
 function searchPlatforms($service, $location, $platforms) {
+    // Increase PHP time limit for large searches
+    set_time_limit(300); // 5 minutes max
+    
     // Build platform query modifiers
     $platformQueries = buildPlatformQueries($platforms);
     
     $allResults = [];
     
-    // Search Google if API key is available
-    if (!empty(GOOGLE_API_KEY) && !empty(GOOGLE_SEARCH_ENGINE_ID)) {
+    // Search using SerpAPI if key is available (preferred)
+    if (defined('SERPAPI_KEY') && !empty(SERPAPI_KEY)) {
+        $serpResults = searchSerpApi($service, $location, $platformQueries);
+        $allResults = array_merge($allResults, $serpResults);
+    }
+    // Fallback: Search Google if API key is available
+    elseif (!empty(GOOGLE_API_KEY) && !empty(GOOGLE_SEARCH_ENGINE_ID)) {
         $googleResults = searchGoogle($service, $location, $platformQueries);
         $allResults = array_merge($allResults, $googleResults);
     }
@@ -110,9 +124,9 @@ function searchPlatforms($service, $location, $platforms) {
         $allResults = array_merge($allResults, $bingResults);
     }
     
-    // If no APIs configured, return mock data
+    // If no APIs configured, throw error - NO MOCK DATA
     if (empty($allResults)) {
-        return getMockPlatformResults($service, $location, $platforms);
+        throw new Exception('No search API configured. Please set SERPAPI_KEY, GOOGLE_API_KEY, or BING_API_KEY in config.php');
     }
     
     // Deduplicate by URL
@@ -126,11 +140,127 @@ function searchPlatforms($service, $location, $platforms) {
         }
     }
     
-    // Analyze websites
+    // Use QUICK website analysis (URL-based only) to avoid timeouts
     return array_map(function($result) {
-        $result['websiteAnalysis'] = analyzeWebsite($result['url']);
+        $result['websiteAnalysis'] = quickWebsiteCheck($result['url']);
         return $result;
     }, array_slice($unique, 0, RESULTS_PER_PAGE));
+}
+
+/**
+ * Quick website check - fast detection without HTTP requests
+ * Only analyzes the URL structure to avoid timeouts
+ */
+function quickWebsiteCheck($url) {
+    $host = parse_url($url, PHP_URL_HOST) ?? '';
+    $hostLower = strtolower($host);
+    
+    // Detect platform from URL
+    $platform = null;
+    $needsUpgrade = false;
+    $issues = [];
+    
+    if (strpos($hostLower, 'wix') !== false || strpos($hostLower, 'wixsite') !== false) {
+        $platform = 'wix';
+        $needsUpgrade = true;
+        $issues[] = 'Using Wix template';
+    } elseif (strpos($hostLower, 'squarespace') !== false) {
+        $platform = 'squarespace';
+        $needsUpgrade = true;
+        $issues[] = 'Using Squarespace template';
+    } elseif (strpos($hostLower, 'weebly') !== false) {
+        $platform = 'weebly';
+        $needsUpgrade = true;
+        $issues[] = 'Using Weebly template';
+    } elseif (strpos($hostLower, 'godaddy') !== false) {
+        $platform = 'godaddy';
+        $needsUpgrade = true;
+        $issues[] = 'Using GoDaddy builder';
+    } elseif (strpos($hostLower, 'wordpress.com') !== false) {
+        $platform = 'wordpress.com';
+        $needsUpgrade = true;
+        $issues[] = 'Using free WordPress.com';
+    } elseif (strpos($hostLower, 'shopify') !== false) {
+        $platform = 'shopify';
+    } elseif (strpos($hostLower, 'blogger') !== false || strpos($hostLower, 'blogspot') !== false) {
+        $platform = 'blogger';
+        $needsUpgrade = true;
+        $issues[] = 'Using Blogger';
+    } elseif (strpos($hostLower, 'facebook.com') !== false) {
+        $platform = 'facebook';
+        $needsUpgrade = true;
+        $issues[] = 'Only Facebook presence';
+    }
+    
+    return [
+        'hasWebsite' => true,
+        'platform' => $platform,
+        'needsUpgrade' => $needsUpgrade,
+        'issues' => $issues,
+        'mobileScore' => null,
+        'loadTime' => null
+    ];
+}
+
+/**
+ * Search using SerpAPI (Google Search)
+ */
+function searchSerpApi($service, $location, $platformQueries) {
+    $results = [];
+    
+    // Build query
+    $baseQuery = "$service $location";
+    if (!empty($platformQueries)) {
+        $baseQuery .= ' (' . implode(' OR ', array_slice($platformQueries, 0, 3)) . ')';
+    }
+    
+    $url = "https://serpapi.com/search.json?" . http_build_query([
+        'api_key' => SERPAPI_KEY,
+        'engine' => 'google',
+        'q' => $baseQuery,
+        'location' => $location,
+        'num' => RESULTS_PER_PAGE
+    ]);
+    
+    $response = curlRequest($url);
+    
+    if ($response['httpCode'] !== 200) {
+        if (DEBUG_MODE) {
+            error_log('SerpAPI error: ' . $response['httpCode'] . ' - ' . $response['response']);
+        }
+        return $results;
+    }
+    
+    $data = json_decode($response['response'], true);
+    
+    if (!isset($data['organic_results'])) {
+        return $results;
+    }
+    
+    foreach ($data['organic_results'] as $item) {
+        $results[] = [
+            'id' => generateId('serp_'),
+            'name' => $item['title'] ?? 'Unknown Business',
+            'url' => $item['link'] ?? '',
+            'snippet' => $item['snippet'] ?? '',
+            'displayLink' => $item['displayed_link'] ?? parse_url($item['link'] ?? '', PHP_URL_HOST) ?: '',
+            'source' => 'serpapi',
+            'phone' => extractPhoneFromSnippet($item['snippet'] ?? ''),
+            'address' => $item['address'] ?? ''
+        ];
+    }
+    
+    return $results;
+}
+
+/**
+ * Extract phone number from text if present
+ */
+function extractPhoneFromSnippet($text) {
+    if (preg_match('/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/', $text, $matches)) {
+        return $matches[0];
+    }
+    return null;
 }
 
 /**
@@ -268,57 +398,4 @@ function searchBing($service, $location, $platformQueries) {
     return $results;
 }
 
-/**
- * Get mock results for testing
- */
-function getMockPlatformResults($service, $location, $platforms) {
-    $businesses = [
-        ['name' => "{$location} {$service} Experts", 'platform' => 'WordPress'],
-        ['name' => "Best {$service} Co", 'platform' => 'Wix'],
-        ['name' => "Pro {$service} Services", 'platform' => 'Weebly'],
-        ['name' => "{$service} Masters LLC", 'platform' => 'GoDaddy'],
-        ['name' => "Elite {$service} Group", 'platform' => 'Joomla'],
-        ['name' => "Quality {$service} Inc", 'platform' => 'Custom PHP'],
-        ['name' => "Premier {$service} Solutions", 'platform' => 'Squarespace'],
-        ['name' => "{$location} {$service} Pros", 'platform' => 'WordPress'],
-    ];
-    
-    $issues = [
-        'Not mobile responsive',
-        'Missing meta description',
-        'Outdated jQuery version',
-        'Large page size',
-        'Missing alt tags',
-        'Tables used for layout',
-        'Missing favicon',
-    ];
-    
-    $results = [];
-    
-    foreach ($businesses as $index => $biz) {
-        $domain = strtolower(str_replace(' ', '', $biz['name'])) . '.com';
-        $issueCount = rand(0, 4);
-        $selectedIssues = array_slice($issues, 0, $issueCount);
-        
-        $results[] = [
-            'id' => generateId('mock_'),
-            'name' => $biz['name'],
-            'url' => "https://{$domain}",
-            'snippet' => "Professional {$service} services in {$location}. Quality work, competitive prices.",
-            'displayLink' => $domain,
-            'source' => 'mock',
-            'phone' => sprintf('(%03d) %03d-%04d', rand(200, 999), rand(100, 999), rand(1000, 9999)),
-            'address' => sprintf('%d Main St, %s', rand(100, 9999), $location),
-            'websiteAnalysis' => [
-                'hasWebsite' => true,
-                'platform' => $biz['platform'],
-                'needsUpgrade' => $issueCount >= 2 || in_array($biz['platform'], ['WordPress', 'Wix', 'Weebly']),
-                'issues' => $selectedIssues,
-                'mobileScore' => rand(35, 95),
-                'loadTime' => rand(800, 4500)
-            ]
-        ];
-    }
-    
-    return $results;
-}
+// Mock data functions removed - real API results only

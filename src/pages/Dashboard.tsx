@@ -46,6 +46,7 @@ import { LeadForEmail } from '@/lib/api/email';
 import { searchGMB, GMBResult } from '@/lib/api/gmb';
 import { searchPlatforms, PlatformResult } from '@/lib/api/platforms';
 import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } from '@/lib/api/leadAnalysis';
+import { quickScoreLeads } from '@/lib/api/aiLeadScoring';
 import { HIGH_CONVERTING_TEMPLATES } from '@/lib/highConvertingTemplates';
 import { generateMechanicLeads, injectTestLeads } from '@/lib/testMechanicLeads';
 import AutoFollowUpBuilder from '@/components/AutoFollowUpBuilder';
@@ -65,6 +66,8 @@ import Step4OutreachHub from '@/components/Step4OutreachHub';
 import AILeadScoringDashboard from '@/components/AILeadScoringDashboard';
 import UserManualDownload from '@/components/UserManualDownload';
 import { VideoTutorialSection } from '@/components/VideoTutorialSection';
+import AIProcessingPipeline from '@/components/AIProcessingPipeline';
+import StreamingLeadsIndicator from '@/components/StreamingLeadsIndicator';
 
 interface SearchResult {
   id: string;
@@ -76,6 +79,16 @@ interface SearchResult {
   rating?: number;
   source: 'gmb' | 'platform';
   platform?: string;
+  // AI Scoring fields
+  aiClassification?: 'hot' | 'warm' | 'cold';
+  leadScore?: number;
+  successProbability?: number;
+  recommendedAction?: 'call' | 'email' | 'both';
+  callScore?: number;
+  emailScore?: number;
+  urgency?: 'immediate' | 'this_week' | 'nurture';
+  painPoints?: string[];
+  readyToCall?: boolean;
   websiteAnalysis?: {
     hasWebsite: boolean;
     platform: string | null;
@@ -170,6 +183,14 @@ export default function Dashboard() {
   const [showCRMModal, setShowCRMModal] = useState(false);
   const [showAIScoringDashboard, setShowAIScoringDashboard] = useState(false);
 
+  // AI Processing Pipeline state
+  const [showAIPipeline, setShowAIPipeline] = useState(false);
+  const [aiPipelineProgress, setAIPipelineProgress] = useState(0);
+  const [currentAIAgent, setCurrentAIAgent] = useState<string>('');
+  
+  // Live data mode indicator (true when real SerpAPI data is being used)
+  const [isLiveDataMode, setIsLiveDataMode] = useState(false);
+
   // Form validation state
   const [validationErrors, setValidationErrors] = useState<{ query?: boolean; location?: boolean; platforms?: boolean }>({});
   
@@ -237,7 +258,12 @@ export default function Dashboard() {
     setCurrentStep(3);
   };
 
+  const [searchError, setSearchError] = useState<string | null>(null);
+
   const handleSearch = async () => {
+    // Clear previous error
+    setSearchError(null);
+    
     // Validate fields and set error states
     const errors: { query?: boolean; location?: boolean; platforms?: boolean } = {};
     
@@ -269,6 +295,9 @@ export default function Dashboard() {
     setAiSummary(null);
     setAiStrategies(null);
     setShowAiGrouping(false);
+    setShowAIPipeline(false); // Reset AI pipeline for new search
+    setAIPipelineProgress(0);
+    setCurrentAIAgent('');
 
     // Ensure the Intelligence Report is closed while running a new search
     setShowReportModal(false);
@@ -278,11 +307,14 @@ export default function Dashboard() {
     sessionStorage.removeItem('bamlead_email_leads');
     localStorage.removeItem('bamlead_selected_leads');
 
+    console.log('[BamLead] Starting search:', { searchType, query, location, searchLimit });
+
     try {
       let finalResults: SearchResult[] = [];
       
       // Progress callback for streaming results
       const handleProgress = (partialResults: any[], progress: number) => {
+        console.log('[BamLead] Search progress:', progress, 'results:', partialResults.length);
         setSearchProgress(progress);
         const mapped = partialResults.map((r: any, index: number) => ({
           id: r.id || `result-${index}`,
@@ -300,7 +332,9 @@ export default function Dashboard() {
       };
       
       if (searchType === 'gmb') {
+        console.log('[BamLead] Calling searchGMB API...');
         const response = await searchGMB(query, location, searchLimit, handleProgress);
+        console.log('[BamLead] GMB response:', response);
         if (response.success && response.data) {
           finalResults = response.data.map((r: GMBResult, index: number) => ({
             id: r.id || `gmb-${index}`,
@@ -313,9 +347,13 @@ export default function Dashboard() {
             source: 'gmb' as const,
             websiteAnalysis: r.websiteAnalysis,
           }));
+        } else if (response.error) {
+          throw new Error(response.error);
         }
       } else if (searchType === 'platform') {
+        console.log('[BamLead] Calling searchPlatforms API...');
         const response = await searchPlatforms(query, location, selectedPlatforms, handleProgress);
+        console.log('[BamLead] Platform response:', response);
         if (response.success && response.data) {
           finalResults = response.data.map((r: PlatformResult, index: number) => ({
             id: r.id || `platform-${index}`,
@@ -328,23 +366,53 @@ export default function Dashboard() {
             platform: r.websiteAnalysis?.platform || undefined,
             websiteAnalysis: r.websiteAnalysis,
           }));
+        } else if (response.error) {
+          throw new Error(response.error);
         }
       }
       
-      setSearchResults(finalResults);
+      console.log('[BamLead] Search complete, finalResults:', finalResults.length);
+      
+      // Apply AI scoring to all leads immediately (sorts by Hot/Warm/Cold)
+      const scoredResults = quickScoreLeads(finalResults) as SearchResult[];
+      console.log('[BamLead] AI scoring applied:', {
+        hot: scoredResults.filter(r => r.aiClassification === 'hot').length,
+        warm: scoredResults.filter(r => r.aiClassification === 'warm').length,
+        cold: scoredResults.filter(r => r.aiClassification === 'cold').length,
+      });
+      
+      setSearchResults(scoredResults);
       setSearchProgress(100);
+      
+      // Detect if we got real data (live SerpAPI) or mock data
+      // Mock results have IDs starting with "mock_"
+      const hasRealData = scoredResults.some(r => !r.id.startsWith('mock_'));
+      setIsLiveDataMode(hasRealData);
 
-      if (finalResults.length > 0) {
-        toast.success(`Found ${finalResults.length} businesses!`);
-        // Auto-open the Intelligence Report (PDF-style). The spreadsheet viewer is disabled.
-        setShowReportModal(true);
+      if (scoredResults.length > 0) {
+        // Show AI Pipeline processing the leads
+        setShowAIPipeline(true);
+        
+        const hotCount = scoredResults.filter(r => r.aiClassification === 'hot').length;
+        toast.success(`Found ${scoredResults.length} ${hasRealData ? 'LIVE' : 'demo'} businesses! Now running 8 AI agents...`);
       } else {
         toast.info('No businesses found. Try a different search.');
         setShowReportModal(false);
       }
 
       // Start AI analysis in background (non-blocking)
-      if (finalResults.length > 0) {
+      // NOTE: analyze-leads.php is a protected endpoint (requires real JWT).
+      // In Demo Mode or when a mock token is present, skip calling it to avoid 401 spam.
+      const token = (() => {
+        try {
+          return localStorage.getItem('auth_token');
+        } catch {
+          return null;
+        }
+      })();
+      const hasRealToken = !!token && !token.startsWith('mock_token_');
+
+      if (finalResults.length > 0 && hasRealToken) {
         setIsAnalyzing(true);
         analyzeLeads(finalResults)
           .then((analysisResponse) => {
@@ -353,20 +421,22 @@ export default function Dashboard() {
               setAiSummary(analysisResponse.summary);
               setAiStrategies(analysisResponse.emailStrategies);
               setShowAiGrouping(true);
-              toast.success('AI analysis complete! Leads grouped by opportunity.');
             }
           })
           .catch((analysisError) => {
-            console.error('AI analysis error:', analysisError);
+            console.error('[BamLead] AI analysis error:', analysisError);
           })
           .finally(() => {
             setIsAnalyzing(false);
           });
       }
     } catch (error) {
-      console.error('Search error:', error);
+      console.error('[BamLead] Search error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Search failed. Please try again.';
+      setSearchError(errorMessage);
       setShowReportModal(false);
-      toast.error('Search failed. Please try again.');
+      setShowAIPipeline(false);
+      toast.error(errorMessage);
     } finally {
       setIsSearching(false);
     }
@@ -504,50 +574,6 @@ export default function Dashboard() {
       case 1:
         return (
           <div className="space-y-8">
-            {/* DEV: Test Data Button - Load 200 mechanic leads */}
-            <div className="flex justify-center">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const testLeads = generateMechanicLeads(200);
-                  const searchResultsFormat = testLeads.map(l => ({
-                    id: l.id,
-                    name: l.name,
-                    address: l.address,
-                    phone: l.phone,
-                    website: l.website,
-                    email: l.email,
-                    rating: l.rating,
-                    source: l.source,
-                    platform: l.platform,
-                    websiteAnalysis: l.websiteAnalysis,
-                  }));
-                  setSearchResults(searchResultsFormat);
-                  setQuery('auto mechanic');
-                  setLocation('Los Angeles');
-                  setSearchType('gmb');
-                  // Also set email leads for Step 3/4
-                  const emailLeadsFormat = testLeads.map(l => ({
-                    email: l.email,
-                    business_name: l.name,
-                    contact_name: '',
-                    website: l.website,
-                    phone: l.phone,
-                  }));
-                  setEmailLeads(emailLeadsFormat);
-                  setCurrentStep(2);
-                  // Auto-open the Intelligence Report
-                  setShowReportModal(true);
-                  toast.success('✅ Loaded 200 test mechanic leads! Opening Intelligence Report...');
-                }}
-                className="gap-2 border-amber-500/50 text-amber-600 hover:bg-amber-500/10"
-              >
-                <Zap className="w-4 h-4" />
-                🧪 DEV: Load 200 Test Mechanic Leads
-              </Button>
-            </div>
-
             {/* Step 1: Choose Search Type */}
             {!searchType ? (
               <div className="space-y-8 max-w-5xl mx-auto">
@@ -979,7 +1005,7 @@ export default function Dashboard() {
                       {isSearching ? (
                         <>
                           <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                          Searching...
+                          Searching... {searchProgress > 0 && `(${Math.round(searchProgress)}%)`}
                         </>
                       ) : (
                         <>
@@ -988,6 +1014,81 @@ export default function Dashboard() {
                         </>
                       )}
                     </Button>
+
+                    {/* AI Processing Pipeline - Shows DURING search */}
+                    {isSearching && (
+                      <div className="mt-6">
+                        <AIProcessingPipeline
+                          isActive={true}
+                          leads={searchResults.length > 0 ? searchResults : [{ id: 'placeholder', name: 'Analyzing...', source: 'gmb' as const }]}
+                          onComplete={() => {
+                            // Don't auto-complete during search - we control this via search flow
+                          }}
+                          onProgressUpdate={(progress, agentName) => {
+                            setAIPipelineProgress(progress);
+                            setCurrentAIAgent(agentName);
+                          }}
+                        />
+                        
+                        {/* Streaming Leads Indicator - Shows count below AI Pipeline */}
+                        {searchResults.length > 0 && (
+                          <div className="mt-4">
+                            <StreamingLeadsIndicator
+                              currentCount={searchResults.length}
+                              isStreaming={isSearching}
+                              progress={searchProgress}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* AI Processing Pipeline - Shows after search completes for final processing */}
+                    {showAIPipeline && searchResults.length > 0 && !isSearching && (
+                      <div className="mt-6">
+                        <AIProcessingPipeline
+                          isActive={showAIPipeline}
+                          leads={searchResults}
+                          onComplete={(enhancedLeads) => {
+                            // Update leads with AI enhancements
+                            setSearchResults(enhancedLeads as SearchResult[]);
+                            setShowAIPipeline(false);
+                            // Now show the Intelligence Report
+                            setShowReportModal(true);
+                            toast.success('🎉 All 8 AI agents complete! Your leads are supercharged.');
+                          }}
+                          onProgressUpdate={(progress, agentName) => {
+                            setAIPipelineProgress(progress);
+                            setCurrentAIAgent(agentName);
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Error display with retry button */}
+                    {searchError && !isSearching && (
+                      <div className="mt-4 p-4 rounded-lg border border-destructive/50 bg-destructive/10">
+                        <div className="flex items-start gap-3">
+                          <div className="text-destructive text-lg">⚠️</div>
+                          <div className="flex-1">
+                            <p className="font-medium text-destructive">Search Failed</p>
+                            <p className="text-sm text-muted-foreground mt-1">{searchError}</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSearchError(null);
+                                handleSearch();
+                              }}
+                              className="mt-3"
+                            >
+                              <Loader2 className="w-4 h-4 mr-2" />
+                              Try Again
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1373,6 +1474,35 @@ export default function Dashboard() {
                 </button>
               );
             })()}
+            
+            {/* Live Data Mode Badge */}
+            {searchResults.length > 0 && (
+              <div
+                className={
+                  `flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ` +
+                  (isLiveDataMode
+                    ? 'bg-primary/10 text-primary border-primary/30'
+                    : 'bg-muted/40 text-muted-foreground border-border')
+                }
+              >
+                {isLiveDataMode ? (
+                  <>
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-40"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+                    </span>
+                    <span className="hidden sm:inline">LIVE DATA</span>
+                    <span className="sm:hidden">LIVE</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-muted-foreground"></span>
+                    <span className="hidden sm:inline">DEMO MODE</span>
+                    <span className="sm:hidden">DEMO</span>
+                  </>
+                )}
+              </div>
+            )}
 
             <div className="flex-1" />
 

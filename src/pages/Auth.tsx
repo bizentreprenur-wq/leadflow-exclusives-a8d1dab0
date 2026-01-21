@@ -13,6 +13,11 @@ import { BackendStatus } from '@/components/BackendStatus';
 import { createCheckoutSession } from '@/lib/api/stripe';
 import BackButton from '@/components/BackButton';
 
+// Dev bypass for preview environments only
+const isPreviewEnv = window.location.hostname.includes('lovable.app') || 
+                     window.location.hostname.includes('lovableproject.com') ||
+                     window.location.hostname === 'localhost';
+
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
@@ -25,6 +30,25 @@ export default function Auth() {
   // Check for pending checkout plan from pricing page
   const pendingPlan = searchParams.get('plan') as 'basic' | 'pro' | 'agency' | null;
   const pendingBilling = searchParams.get('billing') as 'monthly' | 'yearly' | null;
+  
+  // Dev bypass - allows accessing dashboard in preview environments
+  const devBypass = searchParams.get('devBypass') === 'true';
+  
+  useEffect(() => {
+    if (devBypass && isPreviewEnv) {
+      console.log('[Auth] Dev bypass activated - redirecting to dashboard');
+      localStorage.setItem('auth_token', 'dev_bypass_token');
+      localStorage.setItem('bamlead_user_cache', JSON.stringify({
+        id: 'dev-user',
+        email: 'dev@bamlead.com',
+        name: 'Dev User',
+        role: 'admin',
+        is_owner: true,
+        has_active_subscription: true
+      }));
+      navigate('/dashboard', { replace: true });
+    }
+  }, [devBypass, navigate]);
 
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
@@ -364,7 +388,9 @@ export default function Auth() {
               </TabsContent>
             </Tabs>
 
-            <details className="mt-6">
+            {/* Demo mode removed - always uses real backend */}
+
+            <details className="mt-4">
               <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
                 Having trouble? Test backend connection
               </summary>

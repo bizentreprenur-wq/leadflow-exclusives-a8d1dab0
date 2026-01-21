@@ -1,7 +1,8 @@
 <?php
 /**
- * GMB Search API Endpoint
- * Searches for businesses using SerpAPI Google Maps
+ * GMB Search API Endpoint - STREAMING VERSION
+ * Streams results progressively as they arrive from SerpAPI
+ * Uses Server-Sent Events (SSE) for real-time updates
  */
 
 require_once __DIR__ . '/config.php';
@@ -9,111 +10,108 @@ require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/ratelimit.php';
 
-header('Content-Type: application/json');
+// SSE headers
+header('Content-Type: text/event-stream');
+header('Cache-Control: no-cache');
+header('Connection: keep-alive');
+header('X-Accel-Buffering: no'); // Disable nginx buffering
 setCorsHeaders();
-handlePreflight();
+
+// Disable output buffering for streaming
+if (ob_get_level()) ob_end_clean();
+ini_set('output_buffering', 'off');
+ini_set('zlib.output_compression', false);
+
+// Increase time limit for large searches
+set_time_limit(300);
+
+// Handle preflight
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
 
 // Only allow POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    sendError('Method not allowed', 405);
+    sendSSEError('Method not allowed');
+    exit();
 }
 
-// Authentication is optional for search - allows demo/testing
-// If user is authenticated, we can track usage; otherwise anonymous
-// Use getCurrentUser() which returns null instead of exiting with 401
+// Authentication is optional
 $user = getCurrentUser();
-
-// Apply rate limiting (stricter for anonymous users)
 if ($user) {
     enforceRateLimit($user, 'search');
 }
-// Note: Anonymous users are allowed but could have stricter limits added here
 
 // Get and validate input
 $input = getJsonInput();
 if (!$input) {
-    sendError('Invalid JSON input');
+    sendSSEError('Invalid JSON input');
+    exit();
 }
 
 $service = sanitizeInput($input['service'] ?? '');
 $location = sanitizeInput($input['location'] ?? '');
-$limit = intval($input['limit'] ?? 100); // Default 100, max 2000
-
-// Validate limit (min 20, max 2000)
+$limit = intval($input['limit'] ?? 100);
 $limit = max(20, min(2000, $limit));
 
 if (empty($service)) {
-    sendError('Service type is required');
+    sendSSEError('Service type is required');
+    exit();
 }
 
 if (empty($location)) {
-    sendError('Location is required');
+    sendSSEError('Location is required');
+    exit();
 }
 
-try {
-    $cacheKey = "gmb_search_{$service}_{$location}_{$limit}";
-    
-    // Check cache
-    $cached = getCache($cacheKey);
-    if ($cached !== null) {
-        sendJson([
-            'success' => true,
-            'data' => $cached,
-            'query' => [
-                'service' => $service,
-                'location' => $location,
-                'limit' => $limit
-            ],
-            'cached' => true
-        ]);
-    }
-    
-    $results = searchGMBListings($service, $location, $limit);
-    
-    // Cache results
-    setCache($cacheKey, $results);
-    
-    sendJson([
-        'success' => true,
-        'data' => $results,
-        'query' => [
-            'service' => $service,
-            'location' => $location,
-            'limit' => $limit
-        ],
-        'totalResults' => count($results)
-    ]);
-} catch (Exception $e) {
-    if (defined('DEBUG_MODE') && DEBUG_MODE) {
-        sendError($e->getMessage(), 500);
-    } else {
-        sendError('An error occurred while searching', 500);
-    }
+// Start streaming search
+streamGMBSearch($service, $location, $limit);
+
+/**
+ * Send SSE message
+ */
+function sendSSE($event, $data) {
+    echo "event: {$event}\n";
+    echo "data: " . json_encode($data) . "\n\n";
+    flush();
 }
 
 /**
- * Search for GMB listings using SerpAPI Google Maps
- * Fetches multiple pages for comprehensive results up to the specified limit
+ * Send SSE error
  */
-function searchGMBListings($service, $location, $limit = 100) {
+function sendSSEError($message) {
+    sendSSE('error', ['error' => $message]);
+}
+
+/**
+ * Stream GMB search results progressively
+ */
+function streamGMBSearch($service, $location, $limit) {
     $apiKey = defined('SERPAPI_KEY') ? SERPAPI_KEY : '';
     
     if (empty($apiKey)) {
-        // NO MOCK DATA - require real API key
-        throw new Exception('SERPAPI_KEY is not configured. Please add it to config.php for real search results.');
+        sendSSEError('SERPAPI_KEY is not configured');
+        return;
     }
     
-    // Increase PHP time limit for large searches
-    set_time_limit(300); // 5 minutes max
-    
     $query = "$service in $location";
-    $allResults = [];
     $resultsPerPage = 20;
     $maxPages = ceil($limit / $resultsPerPage);
-    $maxPages = min($maxPages, 100); // Cap at 100 pages (2000 results max)
+    $maxPages = min($maxPages, 100);
+    
+    $totalResults = 0;
+    $allResults = [];
+    
+    // Send initial status
+    sendSSE('start', [
+        'query' => $query,
+        'limit' => $limit,
+        'estimatedPages' => $maxPages
+    ]);
     
     for ($page = 0; $page < $maxPages; $page++) {
-        if (count($allResults) >= $limit) {
+        if ($totalResults >= $limit) {
             break;
         }
         
@@ -132,12 +130,15 @@ function searchGMBListings($service, $location, $limit = 100) {
         
         $url = "https://serpapi.com/search.json?" . http_build_query($params);
         
-        $response = curlRequest($url);
+        // Use shorter timeout for individual requests
+        $response = curlRequest($url, [], 15);
         
         if ($response['httpCode'] !== 200) {
             if ($page === 0) {
-                throw new Exception('Failed to fetch search results from SerpAPI');
+                sendSSEError('Failed to fetch results from SerpAPI');
+                return;
             }
+            // Continue with what we have
             break;
         }
         
@@ -147,8 +148,9 @@ function searchGMBListings($service, $location, $limit = 100) {
             break;
         }
         
+        $pageResults = [];
         foreach ($data['local_results'] as $item) {
-            if (count($allResults) >= $limit) {
+            if ($totalResults >= $limit) {
                 break;
             }
             
@@ -165,46 +167,61 @@ function searchGMBListings($service, $location, $limit = 100) {
                 'rating' => $item['rating'] ?? null,
                 'reviews' => $item['reviews'] ?? null,
                 'placeId' => $item['place_id'] ?? '',
+                'websiteAnalysis' => quickWebsiteCheck($websiteUrl)
             ];
             
-            // SKIP deep website analysis to prevent timeout
-            // Use quick detection from URL only
-            if (!empty($websiteUrl)) {
-                $business['websiteAnalysis'] = quickWebsiteCheck($websiteUrl);
-            } else {
-                $business['websiteAnalysis'] = [
-                    'hasWebsite' => false,
-                    'platform' => null,
-                    'needsUpgrade' => true,
-                    'issues' => ['No website found'],
-                    'mobileScore' => null,
-                    'loadTime' => null
-                ];
-            }
-            
+            $pageResults[] = $business;
             $allResults[] = $business;
+            $totalResults++;
         }
         
+        // Send this batch of results
+        $progress = min(100, round(($totalResults / $limit) * 100));
+        sendSSE('results', [
+            'leads' => $pageResults,
+            'total' => $totalResults,
+            'progress' => $progress,
+            'page' => $page + 1
+        ]);
+        
+        // Check for more pages
         if (!isset($data['serpapi_pagination']['next'])) {
             break;
         }
         
-        // Minimal delay
-        usleep(100000); // 100ms delay
+        // Small delay between pages
+        usleep(100000); // 100ms
     }
     
-    return $allResults;
+    // Send completion
+    sendSSE('complete', [
+        'total' => $totalResults,
+        'query' => [
+            'service' => $service,
+            'location' => $location,
+            'limit' => $limit
+        ]
+    ]);
 }
 
 /**
- * Quick website check - fast detection without HTTP requests
- * Only analyzes the URL structure to avoid timeouts
+ * Quick website check - URL-based only
  */
 function quickWebsiteCheck($url) {
+    if (empty($url)) {
+        return [
+            'hasWebsite' => false,
+            'platform' => null,
+            'needsUpgrade' => true,
+            'issues' => ['No website found'],
+            'mobileScore' => null,
+            'loadTime' => null
+        ];
+    }
+    
     $host = parse_url($url, PHP_URL_HOST) ?? '';
     $hostLower = strtolower($host);
     
-    // Detect platform from URL
     $platform = null;
     $needsUpgrade = false;
     $issues = [];
@@ -250,5 +267,3 @@ function quickWebsiteCheck($url) {
         'loadTime' => null
     ];
 }
-
-// Mock data functions removed - real API results only
