@@ -40,7 +40,7 @@ interface EmailMessage {
 }
 
 export default function EmailConfigurationPanel() {
-  const [activeTab, setActiveTab] = useState('mailbox');
+  const [activeTab, setActiveTab] = useState('inbox');
   const [showPassword, setShowPassword] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
@@ -276,6 +276,10 @@ export default function EmailConfigurationPanel() {
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="inbox" className="gap-2">
+            <Inbox className="w-4 h-4" />
+            Inbox
+          </TabsTrigger>
           <TabsTrigger value="mailbox" className="gap-2">
             <MailOpen className="w-4 h-4" />
             Mailbox
@@ -283,10 +287,6 @@ export default function EmailConfigurationPanel() {
           <TabsTrigger value="smtp" className="gap-2">
             <Server className="w-4 h-4" />
             SMTP Setup
-          </TabsTrigger>
-          <TabsTrigger value="inbox" className="gap-2">
-            <Inbox className="w-4 h-4" />
-            Inbox
           </TabsTrigger>
           <TabsTrigger value="outbox" className="gap-2">
             <Send className="w-4 h-4" />
