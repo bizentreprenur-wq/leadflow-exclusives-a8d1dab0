@@ -27,6 +27,7 @@ import ABTestingPanel from './ABTestingPanel';
 import CRMSelectionPanel from './CRMSelectionPanel';
 import AITemplateSuggestions from './AITemplateSuggestions';
 import AIEmailAssistant from './AIEmailAssistant';
+import EmailConfigurationPanel from './EmailConfigurationPanel';
 import { LeadForEmail } from '@/lib/api/email';
 
 interface SearchResult {
@@ -512,17 +513,12 @@ export default function EmailSetupFlow({
                       { tab: 'preview', icon: Eye, label: 'Preview', color: 'blue' },
                       { tab: 'crm', icon: Database, label: 'CRM', color: 'violet' },
                       { tab: 'ab-testing', icon: FlaskConical, label: 'A/B', color: 'pink' },
-                      { tab: 'smtp', icon: Settings, label: 'SMTP', color: 'slate' },
+                      { tab: 'edit-template', icon: FileText, label: 'Edit', color: 'emerald' },
+                      { tab: 'settings', icon: Settings, label: 'SMTP', color: 'slate' },
                     ].map((item) => (
                       <button
                         key={item.tab}
-                        onClick={() => {
-                          if (item.tab === 'smtp') {
-                            setCurrentPhase('smtp');
-                          } else {
-                            handleTabChange(item.tab);
-                          }
-                        }}
+                        onClick={() => handleTabChange(item.tab)}
                         className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs font-medium transition-all hover:scale-105
                           ${activeTab === item.tab 
                             ? 'border-blue-500 bg-blue-500/20 text-blue-400' 
@@ -598,6 +594,8 @@ export default function EmailSetupFlow({
                       {activeTab === 'preview' && <><Eye className="w-5 h-5 text-blue-400" /> Email Preview</>}
                       {activeTab === 'crm' && <><Database className="w-5 h-5 text-violet-400" /> CRM Integration</>}
                       {activeTab === 'ab-testing' && <><FlaskConical className="w-5 h-5 text-pink-400" /> A/B Testing</>}
+                      {activeTab === 'edit-template' && <><FileText className="w-5 h-5 text-emerald-400" /> Edit Template</>}
+                      {activeTab === 'settings' && <><Settings className="w-5 h-5 text-slate-400" /> Email Settings</>}
                     </CardTitle>
                     <Button variant="ghost" size="sm" onClick={() => setActiveTab('')} className="text-muted-foreground">
                       ✕ Close
@@ -608,8 +606,8 @@ export default function EmailSetupFlow({
                   {activeTab === 'preview' && (
                     selectedTemplate ? (
                       <EmailClientPreviewPanel 
-                        subject={selectedTemplate.subject} 
-                        body={selectedTemplate.body_html}
+                        subject={customizedContent?.subject || selectedTemplate.subject} 
+                        body={customizedContent?.body || selectedTemplate.body_html || selectedTemplate.body}
                         templateName={selectedTemplate.name}
                       />
                     ) : (
@@ -622,13 +620,23 @@ export default function EmailSetupFlow({
                     )
                   )}
                   {activeTab === 'crm' && (
-                    <div className="space-y-4">
-                      <CRMSelectionPanel leadCount={leads.length} />
-                      <div className="border-t border-border pt-4">
-                        <h3 className="font-bold mb-3 flex items-center gap-2">
-                          <Database className="w-4 h-4 text-violet-500" />
-                          Lead Management
+                    <div className="space-y-6">
+                      <div>
+                        <h3 className="font-bold mb-3 flex items-center gap-2 text-lg">
+                          <Database className="w-5 h-5 text-violet-500" />
+                          Connect Your CRM
                         </h3>
+                        <CRMSelectionPanel leadCount={leads.length} />
+                      </div>
+                      <div className="border-t border-border pt-6">
+                        <h3 className="font-bold mb-3 flex items-center gap-2 text-lg">
+                          <Database className="w-5 h-5 text-emerald-500" />
+                          BamLead CRM
+                          <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/40 text-xs">Built-in</Badge>
+                        </h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          Manage your leads directly in BamLead without any external integrations.
+                        </p>
                         <BamLeadCRMPanel 
                           leads={leads.map(l => ({
                             id: l.id,
@@ -643,6 +651,73 @@ export default function EmailSetupFlow({
                     </div>
                   )}
                   {activeTab === 'ab-testing' && <ABTestingPanel />}
+                  {activeTab === 'edit-template' && (
+                    selectedTemplate ? (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="edit-subject">Subject Line</Label>
+                            <Input 
+                              id="edit-subject"
+                              value={customizedContent?.subject || selectedTemplate.subject}
+                              placeholder="Enter your subject line..."
+                              className="mt-1"
+                              onChange={(e) => {
+                                const body = customizedContent?.body || selectedTemplate.body || '';
+                                handleSaveCustomization(e.target.value, body);
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <Label htmlFor="edit-body">Email Body</Label>
+                            <textarea 
+                              id="edit-body"
+                              value={(customizedContent?.body || selectedTemplate.body || '').replace(/<[^>]*>/g, '')}
+                              placeholder="Enter your email content..."
+                              className="mt-1 w-full h-64 p-3 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                              onChange={(e) => {
+                                const subject = customizedContent?.subject || selectedTemplate.subject;
+                                handleSaveCustomization(subject, e.target.value);
+                              }}
+                            />
+                          </div>
+                          {customizedContent && (
+                            <Badge variant="outline" className="border-warning text-warning">
+                              ✓ Your edits are saved automatically
+                            </Badge>
+                          )}
+                        </div>
+                        <AIEmailAssistant
+                          template={selectedTemplate}
+                          leads={leads}
+                          currentSubject={customizedContent?.subject || selectedTemplate.subject}
+                          currentBody={customizedContent?.body || selectedTemplate.body}
+                          onApplySubject={(subject) => {
+                            const body = customizedContent?.body || selectedTemplate.body || '';
+                            handleSaveCustomization(subject, body);
+                          }}
+                          onApplyBody={(newBody) => {
+                            const subject = customizedContent?.subject || selectedTemplate.subject;
+                            const currentBody = customizedContent?.body || selectedTemplate.body || '';
+                            const updatedBody = currentBody ? `${currentBody}\n\n${newBody}` : newBody;
+                            handleSaveCustomization(subject, updatedBody.replace(/<[^>]*>/g, ''));
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
+                        <h3 className="font-semibold mb-2">No Template Selected</h3>
+                        <p className="text-muted-foreground text-sm mb-3">Select a template first to edit it</p>
+                        <Button size="sm" onClick={() => setCurrentPhase('template')}>Choose Template</Button>
+                      </div>
+                    )
+                  )}
+                  {activeTab === 'settings' && (
+                    <div className="space-y-6">
+                      <EmailConfigurationPanel />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
