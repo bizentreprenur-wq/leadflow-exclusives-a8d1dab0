@@ -66,6 +66,7 @@ import Step4OutreachHub from '@/components/Step4OutreachHub';
 import AILeadScoringDashboard from '@/components/AILeadScoringDashboard';
 import UserManualDownload from '@/components/UserManualDownload';
 import { VideoTutorialSection } from '@/components/VideoTutorialSection';
+import AIProcessingPipeline from '@/components/AIProcessingPipeline';
 
 interface SearchResult {
   id: string;
@@ -181,6 +182,11 @@ export default function Dashboard() {
   const [showCRMModal, setShowCRMModal] = useState(false);
   const [showAIScoringDashboard, setShowAIScoringDashboard] = useState(false);
 
+  // AI Processing Pipeline state
+  const [showAIPipeline, setShowAIPipeline] = useState(false);
+  const [aiPipelineProgress, setAIPipelineProgress] = useState(0);
+  const [currentAIAgent, setCurrentAIAgent] = useState<string>('');
+
   // Form validation state
   const [validationErrors, setValidationErrors] = useState<{ query?: boolean; location?: boolean; platforms?: boolean }>({});
   
@@ -285,6 +291,9 @@ export default function Dashboard() {
     setAiSummary(null);
     setAiStrategies(null);
     setShowAiGrouping(false);
+    setShowAIPipeline(false); // Reset AI pipeline for new search
+    setAIPipelineProgress(0);
+    setCurrentAIAgent('');
 
     // Ensure the Intelligence Report is closed while running a new search
     setShowReportModal(false);
@@ -372,10 +381,11 @@ export default function Dashboard() {
       setSearchProgress(100);
 
       if (scoredResults.length > 0) {
+        // Show AI Pipeline processing the leads
+        setShowAIPipeline(true);
+        
         const hotCount = scoredResults.filter(r => r.aiClassification === 'hot').length;
-        toast.success(`Found ${scoredResults.length} businesses! ${hotCount} hot leads ready for immediate outreach.`);
-        // Auto-open the Intelligence Report (PDF-style). The spreadsheet viewer is disabled.
-        setShowReportModal(true);
+        toast.success(`Found ${scoredResults.length} businesses! Now running 8 AI agents...`);
       } else {
         toast.info('No businesses found. Try a different search.');
         setShowReportModal(false);
@@ -391,7 +401,6 @@ export default function Dashboard() {
               setAiSummary(analysisResponse.summary);
               setAiStrategies(analysisResponse.emailStrategies);
               setShowAiGrouping(true);
-              toast.success('AI analysis complete! Leads grouped by opportunity.');
             }
           })
           .catch((analysisError) => {
@@ -406,6 +415,7 @@ export default function Dashboard() {
       const errorMessage = error instanceof Error ? error.message : 'Search failed. Please try again.';
       setSearchError(errorMessage);
       setShowReportModal(false);
+      setShowAIPipeline(false);
       toast.error(errorMessage);
     } finally {
       setIsSearching(false);
@@ -997,6 +1007,28 @@ export default function Dashboard() {
                         <p className="text-xs text-muted-foreground text-center mt-1">
                           Finding leads... {searchResults.length > 0 && `${searchResults.length} found so far`}
                         </p>
+                      </div>
+                    )}
+
+                    {/* AI Processing Pipeline - Shows after search completes */}
+                    {showAIPipeline && searchResults.length > 0 && !isSearching && (
+                      <div className="mt-6">
+                        <AIProcessingPipeline
+                          isActive={showAIPipeline}
+                          leads={searchResults}
+                          onComplete={(enhancedLeads) => {
+                            // Update leads with AI enhancements
+                            setSearchResults(enhancedLeads as SearchResult[]);
+                            setShowAIPipeline(false);
+                            // Now show the Intelligence Report
+                            setShowReportModal(true);
+                            toast.success('🎉 All 8 AI agents complete! Your leads are supercharged.');
+                          }}
+                          onProgressUpdate={(progress, agentName) => {
+                            setAIPipelineProgress(progress);
+                            setCurrentAIAgent(agentName);
+                          }}
+                        />
                       </div>
                     )}
 
