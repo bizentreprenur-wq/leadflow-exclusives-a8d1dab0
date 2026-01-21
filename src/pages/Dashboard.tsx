@@ -237,7 +237,12 @@ export default function Dashboard() {
     setCurrentStep(3);
   };
 
+  const [searchError, setSearchError] = useState<string | null>(null);
+
   const handleSearch = async () => {
+    // Clear previous error
+    setSearchError(null);
+    
     // Validate fields and set error states
     const errors: { query?: boolean; location?: boolean; platforms?: boolean } = {};
     
@@ -278,11 +283,14 @@ export default function Dashboard() {
     sessionStorage.removeItem('bamlead_email_leads');
     localStorage.removeItem('bamlead_selected_leads');
 
+    console.log('[BamLead] Starting search:', { searchType, query, location, searchLimit });
+
     try {
       let finalResults: SearchResult[] = [];
       
       // Progress callback for streaming results
       const handleProgress = (partialResults: any[], progress: number) => {
+        console.log('[BamLead] Search progress:', progress, 'results:', partialResults.length);
         setSearchProgress(progress);
         const mapped = partialResults.map((r: any, index: number) => ({
           id: r.id || `result-${index}`,
@@ -300,7 +308,9 @@ export default function Dashboard() {
       };
       
       if (searchType === 'gmb') {
+        console.log('[BamLead] Calling searchGMB API...');
         const response = await searchGMB(query, location, searchLimit, handleProgress);
+        console.log('[BamLead] GMB response:', response);
         if (response.success && response.data) {
           finalResults = response.data.map((r: GMBResult, index: number) => ({
             id: r.id || `gmb-${index}`,
@@ -313,9 +323,13 @@ export default function Dashboard() {
             source: 'gmb' as const,
             websiteAnalysis: r.websiteAnalysis,
           }));
+        } else if (response.error) {
+          throw new Error(response.error);
         }
       } else if (searchType === 'platform') {
+        console.log('[BamLead] Calling searchPlatforms API...');
         const response = await searchPlatforms(query, location, selectedPlatforms, handleProgress);
+        console.log('[BamLead] Platform response:', response);
         if (response.success && response.data) {
           finalResults = response.data.map((r: PlatformResult, index: number) => ({
             id: r.id || `platform-${index}`,
@@ -328,9 +342,12 @@ export default function Dashboard() {
             platform: r.websiteAnalysis?.platform || undefined,
             websiteAnalysis: r.websiteAnalysis,
           }));
+        } else if (response.error) {
+          throw new Error(response.error);
         }
       }
       
+      console.log('[BamLead] Search complete, finalResults:', finalResults.length);
       setSearchResults(finalResults);
       setSearchProgress(100);
 
@@ -357,16 +374,18 @@ export default function Dashboard() {
             }
           })
           .catch((analysisError) => {
-            console.error('AI analysis error:', analysisError);
+            console.error('[BamLead] AI analysis error:', analysisError);
           })
           .finally(() => {
             setIsAnalyzing(false);
           });
       }
     } catch (error) {
-      console.error('Search error:', error);
+      console.error('[BamLead] Search error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Search failed. Please try again.';
+      setSearchError(errorMessage);
       setShowReportModal(false);
-      toast.error('Search failed. Please try again.');
+      toast.error(errorMessage);
     } finally {
       setIsSearching(false);
     }
@@ -935,7 +954,7 @@ export default function Dashboard() {
                       {isSearching ? (
                         <>
                           <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                          Searching...
+                          Searching... {searchProgress > 0 && `(${Math.round(searchProgress)}%)`}
                         </>
                       ) : (
                         <>
@@ -944,6 +963,46 @@ export default function Dashboard() {
                         </>
                       )}
                     </Button>
+
+                    {/* Progress bar during search */}
+                    {isSearching && searchProgress > 0 && (
+                      <div className="mt-3">
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-primary transition-all duration-300 ease-out"
+                            style={{ width: `${searchProgress}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-muted-foreground text-center mt-1">
+                          Finding leads... {searchResults.length > 0 && `${searchResults.length} found so far`}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Error display with retry button */}
+                    {searchError && !isSearching && (
+                      <div className="mt-4 p-4 rounded-lg border border-destructive/50 bg-destructive/10">
+                        <div className="flex items-start gap-3">
+                          <div className="text-destructive text-lg">⚠️</div>
+                          <div className="flex-1">
+                            <p className="font-medium text-destructive">Search Failed</p>
+                            <p className="text-sm text-muted-foreground mt-1">{searchError}</p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSearchError(null);
+                                handleSearch();
+                              }}
+                              className="mt-3"
+                            >
+                              <Loader2 className="w-4 h-4 mr-2" />
+                              Try Again
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
