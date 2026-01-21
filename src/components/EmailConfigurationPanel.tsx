@@ -22,6 +22,7 @@ import OutgoingMailbox from './OutgoingMailbox';
 import WebhookURLConfiguration from './WebhookURLConfiguration';
 import EmailClientPreviewPanel from './EmailClientPreviewPanel';
 import HighConvertingTemplateGallery from './HighConvertingTemplateGallery';
+import ABTestingPanel from './ABTestingPanel';
 import { sendSingleEmail, getSentEmails } from '@/lib/emailService';
 import { EmailTemplate } from '@/lib/highConvertingTemplates';
 
@@ -496,6 +497,111 @@ export default function EmailConfigurationPanel() {
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* CRM Tab - Lead Management */}
+        <TabsContent value="crm" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="w-5 h-5" />
+                    CRM & Lead Management
+                  </CardTitle>
+                  <CardDescription>Manage your leads and track outreach status</CardDescription>
+                </div>
+                <Badge variant="outline" className="gap-1 text-amber-600 border-amber-500/30 bg-amber-500/10">
+                  <Clock className="w-3 h-3" />
+                  14-Day Free Trial
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Quick Stats */}
+              <div className="grid grid-cols-4 gap-4">
+                <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20 text-center">
+                  <p className="text-2xl font-bold text-blue-600">0</p>
+                  <p className="text-xs text-blue-600/80">Total Leads</p>
+                </div>
+                <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-center">
+                  <p className="text-2xl font-bold text-emerald-600">0</p>
+                  <p className="text-xs text-emerald-600/80">Contacted</p>
+                </div>
+                <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
+                  <p className="text-2xl font-bold text-amber-600">0</p>
+                  <p className="text-xs text-amber-600/80">Responded</p>
+                </div>
+                <div className="p-4 rounded-lg bg-violet-500/10 border border-violet-500/20 text-center">
+                  <p className="text-2xl font-bold text-violet-600">0%</p>
+                  <p className="text-xs text-violet-600/80">Response Rate</p>
+                </div>
+              </div>
+
+              {/* CRM Integrations */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Connect External CRM</Label>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { name: 'HubSpot', icon: '🟠', connected: false },
+                    { name: 'Salesforce', icon: '☁️', connected: false },
+                    { name: 'Pipedrive', icon: '🟢', connected: false },
+                    { name: 'Zoho CRM', icon: '🔴', connected: false },
+                    { name: 'Monday.com', icon: '🟣', connected: false },
+                    { name: 'Freshsales', icon: '🟡', connected: false },
+                  ].map((crm) => (
+                    <Button
+                      key={crm.name}
+                      variant="outline"
+                      className="h-auto py-3 flex-col gap-1"
+                      onClick={() => toast.info(`${crm.name} integration coming soon!`)}
+                    >
+                      <span className="text-xl">{crm.icon}</span>
+                      <span className="text-xs">{crm.name}</span>
+                      {crm.connected && (
+                        <Badge variant="secondary" className="text-[10px]">Connected</Badge>
+                      )}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Export Options */}
+              <Separator />
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Export Leads</Label>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="gap-2" onClick={() => toast.success('Exported to CSV!')}>
+                    <Download className="w-4 h-4" />
+                    Export CSV
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-2" onClick={() => toast.success('Exported to Excel!')}>
+                    <Download className="w-4 h-4" />
+                    Export Excel
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-2" onClick={() => toast.info('Google Sheets sync coming soon!')}>
+                    <ExternalLink className="w-4 h-4" />
+                    Google Sheets
+                  </Button>
+                </div>
+              </div>
+
+              {/* Empty State */}
+              <div className="text-center py-8 border-2 border-dashed rounded-lg">
+                <Users className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
+                <p className="font-medium">No Leads in CRM Yet</p>
+                <p className="text-sm text-muted-foreground mb-4">Search for leads and add them to your CRM</p>
+                <Button variant="outline" size="sm">
+                  Start Searching
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* A/B Testing Tab */}
+        <TabsContent value="ab" className="space-y-4">
+          <ABTestingPanel />
         </TabsContent>
 
         {/* Edit Tab - Template Editor */}
