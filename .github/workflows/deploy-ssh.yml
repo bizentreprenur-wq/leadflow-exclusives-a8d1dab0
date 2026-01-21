@@ -30,7 +30,7 @@ jobs:
         with:
           switches: -avzr --delete --exclude='api/' --exclude='api' --exclude='.htaccess'
           path: dist/
-          remote_path: /home/${{ secrets.SSH_USERNAME }}/public_html/
+          remote_path: /home/u497238762/domains/bamlead.com/public_html/
           remote_host: ${{ secrets.SSH_HOST }}
           remote_user: ${{ secrets.SSH_USERNAME }}
           remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
