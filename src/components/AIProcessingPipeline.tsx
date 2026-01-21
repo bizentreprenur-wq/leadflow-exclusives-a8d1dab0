@@ -185,7 +185,10 @@ export default function AIProcessingPipeline({
     return agentInsights[Math.floor(Math.random() * agentInsights.length)];
   }, []);
 
-  // Reset when isActive changes to false
+  // Generate a unique key for the current leads set
+  const leadsKey = leads.map(l => l.id).join(',');
+
+  // Reset when isActive changes to false OR when leads change (new search)
   useEffect(() => {
     if (!isActive) {
       setIsProcessing(false);
@@ -196,9 +199,20 @@ export default function AIProcessingPipeline({
     }
   }, [isActive]);
 
+  // Reset processing state when leads change (new search started)
+  useEffect(() => {
+    setIsProcessing(false);
+    setCurrentAgentIndex(-1);
+    setCompletedAgents([]);
+    setProgress(0);
+    setAgentInsights({});
+  }, [leadsKey]);
+
   // Run the processing pipeline
   useEffect(() => {
-    if (!isActive || leads.length === 0 || isProcessing) return;
+    if (!isActive || leads.length === 0) return;
+    // Allow a fresh run after leadsKey changes
+    if (isProcessing) return;
 
     setIsProcessing(true);
     setCurrentAgentIndex(0);
