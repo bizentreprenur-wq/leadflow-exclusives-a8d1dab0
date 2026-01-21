@@ -15,6 +15,7 @@ import {
   Clock, TrendingUp, Info, Settings, Phone, X
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import HighConvertingTemplateGallery from './HighConvertingTemplateGallery';
 import EmailOutreachModule from './EmailOutreachModule';
 import CRMIntegrationModal from './CRMIntegrationModal';
@@ -68,6 +69,8 @@ export default function EmailSetupFlow({
   // Guided tab tracking
   const [activeTab, setActiveTab] = useState('preview');
   const [visitedTabs, setVisitedTabs] = useState<string[]>(['preview']);
+  // Full page views for CRM, A/B, Settings
+  const [activePageView, setActivePageView] = useState<string | null>(null);
   
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
@@ -510,17 +513,24 @@ export default function EmailSetupFlow({
                   {/* TOOLS BAR - INSIDE MAILBOX HEADER ON RIGHT */}
                   <div className="flex items-center gap-1">
                     {[
-                      { tab: 'preview', icon: Eye, label: 'Preview', color: 'blue' },
-                      { tab: 'crm', icon: Database, label: 'CRM', color: 'violet' },
-                      { tab: 'ab-testing', icon: FlaskConical, label: 'A/B', color: 'pink' },
-                      { tab: 'edit-template', icon: FileText, label: 'Edit', color: 'emerald' },
-                      { tab: 'settings', icon: Settings, label: 'SMTP', color: 'slate' },
+                      { tab: 'preview', icon: Eye, label: 'Preview', color: 'blue', isPage: false },
+                      { tab: 'crm', icon: Database, label: 'CRM', color: 'violet', isPage: true },
+                      { tab: 'ab-testing', icon: FlaskConical, label: 'A/B', color: 'pink', isPage: true },
+                      { tab: 'edit-template', icon: FileText, label: 'Edit', color: 'emerald', isPage: false },
+                      { tab: 'settings', icon: Settings, label: 'SMTP', color: 'slate', isPage: true },
                     ].map((item) => (
                       <button
                         key={item.tab}
-                        onClick={() => handleTabChange(item.tab)}
+                        onClick={() => {
+                          if (item.isPage) {
+                            // Set the active page view
+                            setActivePageView(item.tab);
+                          } else {
+                            handleTabChange(item.tab);
+                          }
+                        }}
                         className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs font-medium transition-all hover:scale-105
-                          ${activeTab === item.tab 
+                          ${(item.isPage ? activePageView === item.tab : activeTab === item.tab)
                             ? 'border-blue-500 bg-blue-500/20 text-blue-400' 
                             : 'border-border/50 bg-muted/30 text-muted-foreground hover:border-primary/50 hover:text-foreground'
                           }`}
@@ -585,17 +595,14 @@ export default function EmailSetupFlow({
               </CardContent>
             </Card>
 
-            {/* TOOL CONTENT - Shows below when a tool is selected */}
-            {activeTab && activeTab !== 'analytics' && (
+            {/* TOOL CONTENT - Shows below when preview or edit is selected */}
+            {activeTab && (activeTab === 'preview' || activeTab === 'edit-template') && (
               <Card className="border-2 border-primary/20 bg-muted/10">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg flex items-center gap-2">
                       {activeTab === 'preview' && <><Eye className="w-5 h-5 text-blue-400" /> Email Preview</>}
-                      {activeTab === 'crm' && <><Database className="w-5 h-5 text-violet-400" /> CRM Integration</>}
-                      {activeTab === 'ab-testing' && <><FlaskConical className="w-5 h-5 text-pink-400" /> A/B Testing</>}
                       {activeTab === 'edit-template' && <><FileText className="w-5 h-5 text-emerald-400" /> Edit Template</>}
-                      {activeTab === 'settings' && <><Settings className="w-5 h-5 text-slate-400" /> Email Settings</>}
                     </CardTitle>
                     <Button variant="ghost" size="sm" onClick={() => setActiveTab('')} className="text-muted-foreground">
                       ✕ Close
@@ -619,38 +626,6 @@ export default function EmailSetupFlow({
                       </div>
                     )
                   )}
-                  {activeTab === 'crm' && (
-                    <div className="space-y-6">
-                      <div>
-                        <h3 className="font-bold mb-3 flex items-center gap-2 text-lg">
-                          <Database className="w-5 h-5 text-violet-500" />
-                          Connect Your CRM
-                        </h3>
-                        <CRMSelectionPanel leadCount={leads.length} />
-                      </div>
-                      <div className="border-t border-border pt-6">
-                        <h3 className="font-bold mb-3 flex items-center gap-2 text-lg">
-                          <Database className="w-5 h-5 text-emerald-500" />
-                          BamLead CRM
-                          <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/40 text-xs">Built-in</Badge>
-                        </h3>
-                        <p className="text-sm text-muted-foreground mb-4">
-                          Manage your leads directly in BamLead without any external integrations.
-                        </p>
-                        <BamLeadCRMPanel 
-                          leads={leads.map(l => ({
-                            id: l.id,
-                            name: l.name,
-                            email: l.email,
-                            phone: l.phone,
-                            website: l.website,
-                            address: l.address,
-                          }))}
-                        />
-                      </div>
-                    </div>
-                  )}
-                  {activeTab === 'ab-testing' && <ABTestingPanel />}
                   {activeTab === 'edit-template' && (
                     selectedTemplate ? (
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -713,11 +688,6 @@ export default function EmailSetupFlow({
                       </div>
                     )
                   )}
-                  {activeTab === 'settings' && (
-                    <div className="space-y-6">
-                      <EmailConfigurationPanel />
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             )}
@@ -745,6 +715,118 @@ export default function EmailSetupFlow({
         );
     }
   };
+
+  // Full Page View Renderer for CRM, A/B, and Settings pages
+  const renderFullPageView = () => {
+    const backButton = (
+      <Button 
+        variant="outline" 
+        onClick={() => setActivePageView(null)} 
+        className="gap-2 mb-6 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Back to Mailbox
+      </Button>
+    );
+
+    switch (activePageView) {
+      case 'crm':
+        return (
+          <div className="space-y-6">
+            {backButton}
+            <div className="text-center py-6 bg-gradient-card rounded-2xl border-2 border-violet-500/20 shadow-card">
+              <div className="text-5xl mb-4">📊</div>
+              <h1 className="text-2xl md:text-3xl font-bold mb-2">CRM Integration</h1>
+              <p className="text-muted-foreground">
+                Connect external CRMs or manage leads with BamLead CRM
+              </p>
+            </div>
+            <Card>
+              <CardContent className="p-6 space-y-8">
+                <div>
+                  <h3 className="font-bold mb-4 flex items-center gap-2 text-xl">
+                    <Database className="w-6 h-6 text-violet-500" />
+                    Connect Your CRM
+                  </h3>
+                  <CRMSelectionPanel leadCount={leads.length} />
+                </div>
+                <Separator className="my-6" />
+                <div>
+                  <h3 className="font-bold mb-4 flex items-center gap-2 text-xl">
+                    <Database className="w-6 h-6 text-emerald-500" />
+                    BamLead CRM
+                    <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/40">Built-in</Badge>
+                  </h3>
+                  <p className="text-muted-foreground mb-4">
+                    Manage your leads directly in BamLead without any external integrations.
+                  </p>
+                  <BamLeadCRMPanel 
+                    leads={leads.map(l => ({
+                      id: l.id,
+                      name: l.name,
+                      email: l.email,
+                      phone: l.phone,
+                      website: l.website,
+                      address: l.address,
+                    }))}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+
+      case 'ab-testing':
+        return (
+          <div className="space-y-6">
+            {backButton}
+            <div className="text-center py-6 bg-gradient-card rounded-2xl border-2 border-pink-500/20 shadow-card">
+              <div className="text-5xl mb-4">🧪</div>
+              <h1 className="text-2xl md:text-3xl font-bold mb-2">A/B Testing</h1>
+              <p className="text-muted-foreground">
+                Create and manage email variants to optimize your campaigns
+              </p>
+            </div>
+            <Card>
+              <CardContent className="p-6">
+                <ABTestingPanel />
+              </CardContent>
+            </Card>
+          </div>
+        );
+
+      case 'settings':
+        return (
+          <div className="space-y-6">
+            {backButton}
+            <div className="text-center py-6 bg-gradient-card rounded-2xl border-2 border-slate-500/20 shadow-card">
+              <div className="text-5xl mb-4">⚙️</div>
+              <h1 className="text-2xl md:text-3xl font-bold mb-2">Email Settings</h1>
+              <p className="text-muted-foreground">
+                Configure your SMTP and email outreach settings
+              </p>
+            </div>
+            <Card>
+              <CardContent className="p-6">
+                <EmailConfigurationPanel />
+              </CardContent>
+            </Card>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  // If a full page view is active, render only that
+  if (activePageView) {
+    return (
+      <div className="space-y-6">
+        {renderFullPageView()}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
