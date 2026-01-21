@@ -243,12 +243,15 @@ function SMTPTestSection() {
 
     setIsSending(true);
     try {
-      // Call backend to send test email
+      // Call backend to send test email with auth headers
+      const token = localStorage.getItem('auth_token');
       const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/email-outreach.php?action=send_test`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ test_email: testEmail }),
-        credentials: 'include',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ to_email: testEmail }),
       });
 
       const data = await response.json();
@@ -261,7 +264,7 @@ function SMTPTestSection() {
       }
     } catch (error) {
       setLastTest({ time: new Date(), success: false });
-      toast.error('Failed to send test email');
+      toast.error('Failed to send test email. Check your SMTP configuration.');
     }
     setIsSending(false);
   };
@@ -294,7 +297,7 @@ function SMTPTestSection() {
           placeholder="Enter your email to test..."
           className="flex-1"
         />
-        <Button onClick={handleSendTest} disabled={isSending} className="gap-2">
+        <Button onClick={handleSendTest} disabled={isSending} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
           {isSending ? (
             <>
               <Loader2 className="w-4 h-4 animate-spin" />
