@@ -53,23 +53,23 @@ const getCategoryIcon = (category: string) => {
 };
 
 const getCategoryColor = (category: string) => {
-  // All badges use white text with dark shadow for maximum visibility
-  const baseStyles = 'text-white font-semibold drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]';
+  // WHITE TEXT on BLACK BACKGROUND with heavy shadow for maximum visibility
+  const baseStyles = 'text-white font-bold bg-black/80 border-white/20 shadow-lg drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]';
   switch (category) {
     case 'web-design':
-      return `${baseStyles} bg-primary/90 border-primary/50`;
+      return `${baseStyles} ring-1 ring-primary/50`;
     case 'local-services':
-      return `${baseStyles} bg-accent/90 border-accent/50`;
+      return `${baseStyles} ring-1 ring-accent/50`;
     case 'b2b':
-      return `${baseStyles} bg-secondary/90 border-border`;
+      return `${baseStyles} ring-1 ring-blue-500/50`;
     case 'general':
-      return `${baseStyles} bg-muted/90 border-border`;
+      return `${baseStyles} ring-1 ring-slate-500/50`;
     case 'follow-up':
-      return `${baseStyles} bg-warning/90 border-warning/50`;
+      return `${baseStyles} ring-1 ring-warning/50`;
     case 'promotional':
-      return `${baseStyles} bg-success/90 border-success/50`;
+      return `${baseStyles} ring-1 ring-success/50`;
     default:
-      return `${baseStyles} bg-muted/90 border-border`;
+      return `${baseStyles}`;
   }
 };
 

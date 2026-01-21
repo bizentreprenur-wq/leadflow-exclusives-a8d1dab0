@@ -455,6 +455,9 @@ export default function EmailSetupFlow({
         );
 
       case 'send':
+        // Track if any emails have been sent (for showing analytics)
+        const hasEmailsSent = demoSentCount > 0 || sessionStorage.getItem('emails_sent') === 'true';
+        
         return (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -474,48 +477,129 @@ export default function EmailSetupFlow({
               <h2 className="text-2xl font-bold mb-2">Step 3: Review & Send</h2>
               <p className="text-muted-foreground">
                 {selectedTemplate 
-                  ? `Using template: "${selectedTemplate.name}". Preview, manage leads in CRM, and send.`
+                  ? `Using template: "${selectedTemplate.name}". Watch your emails being delivered in real-time.`
                   : 'Review your leads and send your email campaign.'
                 }
               </p>
             </div>
 
-            {/* SETUP CHECKLIST */}
-            <Card className="mb-6 border-2 border-primary/30 bg-gradient-to-r from-primary/5 to-blue-500/5">
+            {/* ============================================= */}
+            {/* 📬 THE MAILBOX - MAIN FEATURE - CENTRAL VIEW */}
+            {/* ============================================= */}
+            <Card className="border-2 border-blue-500/40 bg-gradient-to-br from-blue-900/20 to-indigo-900/20 overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                      <Mail className="w-6 h-6 text-blue-400" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl flex items-center gap-2">
+                        📬 Smart Drip Mailbox
+                        <Badge className="bg-blue-500/30 text-blue-300 border-blue-500/50">
+                          LIVE
+                        </Badge>
+                      </CardTitle>
+                      <CardDescription>
+                        Watch your emails being delivered to each business in real-time
+                      </CardDescription>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-blue-400">{leadsWithEmail.length}</p>
+                    <p className="text-xs text-muted-foreground">Total Leads</p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {/* The Mailbox Animation - THE STAR OF THE SHOW */}
+                <MailboxDripAnimation
+                  totalEmails={emailLeads.length}
+                  sentCount={demoSentCount}
+                  isActive={demoIsActive}
+                  emailsPerHour={50}
+                  leads={leads.map(l => ({ id: l.id, name: l.name, email: l.email }))}
+                />
+                
+                {/* SEND EMAILS BUTTON - INSIDE THE MAILBOX */}
+                <div className="mt-6 pt-4 border-t border-blue-500/30">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-white">Ready to launch your campaign?</p>
+                      <p className="text-sm text-muted-foreground">
+                        {leadsWithEmail.length} businesses will receive your email via drip sending
+                      </p>
+                    </div>
+                    <Button 
+                      size="lg"
+                      onClick={() => {
+                        sessionStorage.setItem('emails_sent', 'true');
+                        setDemoIsActive(true);
+                        toast.success('🚀 Campaign launched! Emails are being sent...');
+                      }}
+                      className="gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold px-8 py-6 text-lg shadow-lg shadow-blue-500/30"
+                    >
+                      <Send className="w-5 h-5" />
+                      Send Emails Now
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* SETUP CHECKLIST - Below the mailbox */}
+            <Card className="border-2 border-primary/30 bg-gradient-to-r from-primary/5 to-blue-500/5">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
                     <CheckCircle2 className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-lg">📋 Setup Checklist — Click Each Tab Below</h3>
-                    <p className="text-sm text-muted-foreground">Complete each section to launch your campaign</p>
+                    <h3 className="font-bold text-lg">📋 Additional Tools</h3>
+                    <p className="text-sm text-muted-foreground">Preview, CRM, A/B Testing, and more</p>
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
                   {[
                     { tab: 'preview', icon: Eye, label: 'Preview Email', color: 'blue', desc: 'See how it looks' },
                     { tab: 'crm', icon: Database, label: 'Setup CRM', color: 'violet', desc: 'Organize leads' },
                     { tab: 'ab-testing', icon: FlaskConical, label: 'A/B Testing', color: 'pink', desc: 'Test variations' },
-                    { tab: 'mailbox', icon: Mail, label: 'Mailbox', color: 'amber', desc: 'View drip queue' },
-                    { tab: 'analytics', icon: BarChart3, label: 'Analytics', color: 'emerald', desc: 'Track results' },
-                    { tab: 'send', icon: Send, label: 'Send Emails', color: 'red', desc: 'Launch campaign!' },
+                    { tab: 'analytics', icon: BarChart3, label: 'Analytics', color: 'emerald', desc: hasEmailsSent ? 'View results' : 'After sending', disabled: !hasEmailsSent },
+                    { tab: 'settings', icon: Settings, label: 'Settings', color: 'slate', desc: 'SMTP config' },
                   ].map((item, idx) => (
                     <button
                       key={item.tab}
-                      onClick={() => handleTabChange(item.tab)}
+                      onClick={() => {
+                        if (item.tab === 'settings') {
+                          onOpenSettings();
+                        } else if (item.tab === 'analytics' && !hasEmailsSent) {
+                          toast.info('Analytics will be available after you send emails');
+                        } else {
+                          handleTabChange(item.tab);
+                        }
+                      }}
+                      disabled={item.tab === 'analytics' && !hasEmailsSent}
                       className={`p-3 rounded-lg border-2 transition-all hover:scale-105 cursor-pointer text-left
-                        ${activeTab === item.tab 
-                          ? `border-${item.color}-500 bg-${item.color}-500/20 ring-2 ring-${item.color}-500/50` 
-                          : visitedTabs.includes(item.tab)
-                            ? 'border-success/50 bg-success/10'
-                            : 'border-border bg-muted/30 hover:border-primary/50'
+                        ${item.tab === 'analytics' && !hasEmailsSent 
+                          ? 'opacity-50 cursor-not-allowed border-border bg-muted/20' 
+                          : activeTab === item.tab 
+                            ? `border-${item.color}-500 bg-${item.color}-500/20 ring-2 ring-${item.color}-500/50` 
+                            : visitedTabs.includes(item.tab)
+                              ? 'border-success/50 bg-success/10'
+                              : 'border-border bg-muted/30 hover:border-primary/50'
                         }`}
                     >
                       <div className="flex items-center gap-2 mb-1">
-                        <item.icon className={`w-4 h-4 ${activeTab === item.tab ? `text-${item.color}-500` : visitedTabs.includes(item.tab) ? 'text-success' : 'text-muted-foreground'}`} />
-                        <span className="text-xs font-bold">{idx + 1}</span>
+                        <item.icon className={`w-4 h-4 ${
+                          item.tab === 'analytics' && !hasEmailsSent 
+                            ? 'text-muted-foreground' 
+                            : activeTab === item.tab 
+                              ? `text-${item.color}-500` 
+                              : visitedTabs.includes(item.tab) 
+                                ? 'text-success' 
+                                : 'text-muted-foreground'
+                        }`} />
                         {visitedTabs.includes(item.tab) && <CheckCircle2 className="w-3 h-3 text-success ml-auto" />}
                       </div>
                       <p className="font-semibold text-sm">{item.label}</p>
@@ -523,23 +607,12 @@ export default function EmailSetupFlow({
                     </button>
                   ))}
                 </div>
-
-                <div className="mt-4 flex items-center justify-between">
-                  <p className="text-sm text-muted-foreground">
-                    Progress: <span className="font-bold text-primary">{visitedTabs.length}/6</span> sections viewed
-                  </p>
-                  {visitedTabs.length >= 6 && (
-                    <Badge className="bg-success text-white animate-pulse gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> All Setup Complete!
-                    </Badge>
-                  )}
-                </div>
               </CardContent>
             </Card>
 
-            {/* TABBED INTERFACE */}
+            {/* TABBED INTERFACE - For additional tools */}
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-              <TabsList className="grid w-full grid-cols-6 h-12 bg-muted/50">
+              <TabsList className="grid w-full grid-cols-4 h-12 bg-muted/50">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -585,43 +658,21 @@ export default function EmailSetupFlow({
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <TabsTrigger value="mailbox" className="relative gap-2 text-xs sm:text-sm data-[state=active]:bg-amber-500 data-[state=active]:text-white">
-                        <Mail className="w-4 h-4" />
-                        <span className="hidden sm:inline">Mailbox</span>
-                        {!visitedTabs.includes('mailbox') && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full animate-ping" />}
-                      </TabsTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-xs p-3 text-center">
-                      <p className="font-semibold mb-1">📬 Drip Mailbox</p>
-                      <p className="text-xs text-muted-foreground">Watch your emails being sent in real-time.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <TabsTrigger value="analytics" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
+                      <TabsTrigger 
+                        value="analytics" 
+                        disabled={!hasEmailsSent}
+                        className={`gap-2 text-xs sm:text-sm data-[state=active]:bg-emerald-500 data-[state=active]:text-white ${!hasEmailsSent ? 'opacity-50' : ''}`}
+                      >
                         <BarChart3 className="w-4 h-4" />
                         <span className="hidden sm:inline">Analytics</span>
+                        {!hasEmailsSent && <span className="text-[10px]">(after send)</span>}
                       </TabsTrigger>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" className="max-w-xs p-3 text-center">
                       <p className="font-semibold mb-1">📈 Campaign Analytics</p>
-                      <p className="text-xs text-muted-foreground">Track opens, clicks, and engagement.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <TabsTrigger value="send" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-red-500 data-[state=active]:text-white">
-                        <Send className="w-4 h-4" />
-                        <span className="hidden sm:inline">Send</span>
-                      </TabsTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-xs p-3 text-center">
-                      <p className="font-semibold mb-1">🚀 Send Campaign</p>
-                      <p className="text-xs text-muted-foreground">Launch your email campaign!</p>
+                      <p className="text-xs text-muted-foreground">
+                        {hasEmailsSent ? 'Track opens, clicks, and engagement.' : 'Available after you send emails.'}
+                      </p>
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -670,30 +721,22 @@ export default function EmailSetupFlow({
                 <ABTestingPanel />
               </TabsContent>
 
-              <TabsContent value="mailbox" className="mt-4">
-                <div className="space-y-6">
-                  <MailboxDripAnimation
-                    totalEmails={emailLeads.length}
-                    sentCount={demoSentCount}
-                    isActive={demoIsActive}
-                    emailsPerHour={50}
-                    leads={leads.map(l => ({ id: l.id, name: l.name, email: l.email }))}
-                  />
-                </div>
-              </TabsContent>
-
               <TabsContent value="analytics" className="mt-4">
-                <CampaignAnalyticsDashboard />
-              </TabsContent>
-
-              <TabsContent value="send" className="mt-4">
-                <EmailOutreachModule 
-                  selectedLeads={emailLeads}
-                  onClearSelection={() => {
-                    toast.success('Campaign complete!');
-                    onComplete();
-                  }}
-                />
+                {hasEmailsSent ? (
+                  <CampaignAnalyticsDashboard />
+                ) : (
+                  <Card className="p-12 text-center border-2 border-dashed border-border">
+                    <BarChart3 className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
+                    <h3 className="text-lg font-semibold mb-2">Analytics Available After Sending</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Send your email campaign first to see open rates, click rates, and engagement metrics.
+                    </p>
+                    <Badge variant="outline" className="text-muted-foreground">
+                      <Clock className="w-3 h-3 mr-1" />
+                      Waiting for campaign...
+                    </Badge>
+                  </Card>
+                )}
               </TabsContent>
             </Tabs>
 
