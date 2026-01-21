@@ -20,37 +20,8 @@ function isLovablePreviewHost(hostname: string): boolean {
   return false;
 }
 
-const MOCK_AUTH_STORAGE_KEY = 'bamlead_mock_auth_override';
-
-function getMockAuthOverride(): 'true' | 'false' | null {
-  try {
-    if (typeof window === 'undefined') return null;
-    const v = new URLSearchParams(window.location.search).get('mockAuth');
-    if (v === 'true' || v === 'false') return v;
-
-    // Persist override across reloads in preview environments.
-    // This prevents falling back into Demo Mode when navigating/refreshing.
-    const stored = window.localStorage?.getItem(MOCK_AUTH_STORAGE_KEY);
-    return stored === 'true' || stored === 'false' ? stored : null;
-  } catch {
-    return null;
-  }
-}
-
-const mockAuthOverride = getMockAuthOverride();
-const isLovableHost = (() => {
-  try {
-    if (typeof window === 'undefined') return false;
-    return isLovablePreviewHost(window.location.hostname);
-  } catch {
-    return false;
-  }
-})();
-
-export const USE_MOCK_AUTH =
-  mockAuthOverride === 'true' ||
-  (mockAuthOverride !== 'false' &&
-    (isLovableHost || (import.meta.env.DEV && import.meta.env.VITE_ENABLE_MOCK_AUTH === 'true')));
+// Demo/Mock auth is permanently disabled - always use real backend
+export const USE_MOCK_AUTH = false;
 
 // API Base URL
 // If you want to point dev/staging somewhere else, set VITE_API_URL.
