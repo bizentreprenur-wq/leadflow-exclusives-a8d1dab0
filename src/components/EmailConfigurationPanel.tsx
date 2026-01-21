@@ -341,7 +341,7 @@ export default function EmailConfigurationPanel({ leads = [] }: EmailConfigurati
           <TabsList className="inline-flex w-max min-w-full gap-1 bg-transparent p-1">
             <TabsTrigger 
               value="mailbox" 
-              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-cyan-500/50 bg-black/60 whitespace-nowrap data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 text-white"
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-cyan-500/50 bg-cyan-500/20 whitespace-nowrap data-[state=active]:bg-cyan-500/30 data-[state=active]:border-cyan-400"
             >
               <MailOpen className="w-3.5 h-3.5 text-white" />
               <span className="text-white font-medium">Mailbox</span>
@@ -385,7 +385,7 @@ export default function EmailConfigurationPanel({ leads = [] }: EmailConfigurati
               value="inbox" 
               className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 whitespace-nowrap data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 text-white/70 data-[state=active]:text-white"
             >
-              <Inbox className="w-3.5 h-3.5" />
+              <Mail className="w-3.5 h-3.5" />
               Inbox
             </TabsTrigger>
           </TabsList>
