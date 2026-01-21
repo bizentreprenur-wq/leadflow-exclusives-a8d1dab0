@@ -53,22 +53,23 @@ const getCategoryIcon = (category: string) => {
 };
 
 const getCategoryColor = (category: string) => {
-  // Use semantic design tokens (no hard-coded palette colors)
+  // All badges use white text with dark shadow for maximum visibility
+  const baseStyles = 'text-white font-semibold drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]';
   switch (category) {
     case 'web-design':
-      return 'bg-primary/15 text-primary border-primary/30';
+      return `${baseStyles} bg-primary/90 border-primary/50`;
     case 'local-services':
-      return 'bg-accent/15 text-accent border-accent/30';
+      return `${baseStyles} bg-accent/90 border-accent/50`;
     case 'b2b':
-      return 'bg-secondary/60 text-secondary-foreground border-border';
+      return `${baseStyles} bg-secondary/90 border-border`;
     case 'general':
-      return 'bg-muted/60 text-muted-foreground border-border';
+      return `${baseStyles} bg-muted/90 border-border`;
     case 'follow-up':
-      return 'bg-warning/15 text-warning border-warning/30';
+      return `${baseStyles} bg-warning/90 border-warning/50`;
     case 'promotional':
-      return 'bg-success/15 text-success border-success/30';
+      return `${baseStyles} bg-success/90 border-success/50`;
     default:
-      return 'bg-muted/60 text-muted-foreground border-border';
+      return `${baseStyles} bg-muted/90 border-border`;
   }
 };
 
@@ -289,8 +290,18 @@ export default function HighConvertingTemplateGallery({
 
       {/* Preview/Edit Dialog */}
       <Dialog open={!!previewTemplate} onOpenChange={() => { setPreviewTemplate(null); setIsEditing(false); }}>
-        <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden">
-          <DialogHeader className="p-6 pb-0">
+        <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden relative">
+          {/* Prominent X Close Button */}
+          <Button 
+            variant="outline" 
+            size="icon"
+            onClick={() => { setPreviewTemplate(null); setIsEditing(false); }}
+            className="absolute top-4 right-4 z-50 bg-background/90 hover:bg-destructive hover:text-destructive-foreground border-2 shadow-lg"
+          >
+            <X className="w-5 h-5" />
+          </Button>
+          
+          <DialogHeader className="p-6 pb-0 pr-16">
             <div className="flex items-start justify-between">
               <div>
                 <DialogTitle className="text-xl flex items-center gap-2">
@@ -301,7 +312,7 @@ export default function HighConvertingTemplateGallery({
                   {isEditing ? 'Customize the subject and body to match your needs' : previewTemplate?.description}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 mr-8">
                 <Button 
                   variant={isEditing ? 'default' : 'outline'}
                   size="sm"
@@ -310,13 +321,6 @@ export default function HighConvertingTemplateGallery({
                 >
                   {isEditing ? <Eye className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
                   {isEditing ? 'Preview' : 'Edit & Customize'}
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
-                  onClick={() => { setPreviewTemplate(null); setIsEditing(false); }}
-                >
-                  <X className="w-4 h-4" />
                 </Button>
               </div>
             </div>
@@ -374,6 +378,15 @@ export default function HighConvertingTemplateGallery({
                 </>
               ) : (
                 <>
+                  {/* Hero Image Preview - Same as card thumbnail */}
+                  <div className="rounded-lg overflow-hidden border">
+                    <img 
+                      src={previewTemplate.previewImage} 
+                      alt={previewTemplate.name}
+                      className="w-full h-48 object-cover"
+                    />
+                  </div>
+
                   {/* Subject Line Preview */}
                   <div className="bg-muted/50 rounded-lg p-4">
                     <p className="text-xs text-muted-foreground mb-1">Subject Line</p>
@@ -381,7 +394,7 @@ export default function HighConvertingTemplateGallery({
                   </div>
 
                   {/* Email Preview */}
-                  <ScrollArea className="h-[400px] border rounded-lg">
+                  <ScrollArea className="h-[350px] border rounded-lg">
                     <div 
                       className="bg-background p-4"
                       dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(previewTemplate.body_html) }}
