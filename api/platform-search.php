@@ -104,8 +104,13 @@ function searchPlatforms($service, $location, $platforms) {
     
     $allResults = [];
     
-    // Search Google if API key is available
-    if (!empty(GOOGLE_API_KEY) && !empty(GOOGLE_SEARCH_ENGINE_ID)) {
+    // Search using SerpAPI if key is available (preferred)
+    if (defined('SERPAPI_KEY') && !empty(SERPAPI_KEY)) {
+        $serpResults = searchSerpApi($service, $location, $platformQueries);
+        $allResults = array_merge($allResults, $serpResults);
+    }
+    // Fallback: Search Google if API key is available
+    elseif (!empty(GOOGLE_API_KEY) && !empty(GOOGLE_SEARCH_ENGINE_ID)) {
         $googleResults = searchGoogle($service, $location, $platformQueries);
         $allResults = array_merge($allResults, $googleResults);
     }
@@ -137,6 +142,67 @@ function searchPlatforms($service, $location, $platforms) {
         $result['websiteAnalysis'] = analyzeWebsite($result['url']);
         return $result;
     }, array_slice($unique, 0, RESULTS_PER_PAGE));
+}
+
+/**
+ * Search using SerpAPI (Google Search)
+ */
+function searchSerpApi($service, $location, $platformQueries) {
+    $results = [];
+    
+    // Build query
+    $baseQuery = "$service $location";
+    if (!empty($platformQueries)) {
+        $baseQuery .= ' (' . implode(' OR ', array_slice($platformQueries, 0, 3)) . ')';
+    }
+    
+    $url = "https://serpapi.com/search.json?" . http_build_query([
+        'api_key' => SERPAPI_KEY,
+        'engine' => 'google',
+        'q' => $baseQuery,
+        'location' => $location,
+        'num' => RESULTS_PER_PAGE
+    ]);
+    
+    $response = curlRequest($url);
+    
+    if ($response['httpCode'] !== 200) {
+        if (DEBUG_MODE) {
+            error_log('SerpAPI error: ' . $response['httpCode'] . ' - ' . $response['response']);
+        }
+        return $results;
+    }
+    
+    $data = json_decode($response['response'], true);
+    
+    if (!isset($data['organic_results'])) {
+        return $results;
+    }
+    
+    foreach ($data['organic_results'] as $item) {
+        $results[] = [
+            'id' => generateId('serp_'),
+            'name' => $item['title'] ?? 'Unknown Business',
+            'url' => $item['link'] ?? '',
+            'snippet' => $item['snippet'] ?? '',
+            'displayLink' => $item['displayed_link'] ?? parse_url($item['link'] ?? '', PHP_URL_HOST) ?: '',
+            'source' => 'serpapi',
+            'phone' => extractPhoneFromSnippet($item['snippet'] ?? ''),
+            'address' => $item['address'] ?? ''
+        ];
+    }
+    
+    return $results;
+}
+
+/**
+ * Extract phone number from text if present
+ */
+function extractPhoneFromSnippet($text) {
+    if (preg_match('/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/', $text, $matches)) {
+        return $matches[0];
+    }
+    return null;
 }
 
 /**
