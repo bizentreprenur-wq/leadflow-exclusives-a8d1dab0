@@ -238,7 +238,7 @@ export default function HighConvertingTemplateGallery({
                   </div>
                 )}
 
-                {/* Preview Button on Hover */}
+                {/* Action Buttons on Hover */}
                 <div className="absolute bottom-2 left-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Button 
                     size="sm" 
@@ -252,6 +252,19 @@ export default function HighConvertingTemplateGallery({
                     <Eye className="w-3 h-3 mr-1" />
                     Preview
                   </Button>
+                  {onSelectTemplate && (
+                    <Button 
+                      size="sm" 
+                      className="flex-1 text-xs h-8 bg-primary hover:bg-primary/90"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSelect(template);
+                      }}
+                    >
+                      <Check className="w-3 h-3 mr-1" />
+                      Choose
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -319,7 +332,7 @@ export default function HighConvertingTemplateGallery({
                 </Badge>
                 <Badge variant="outline">{previewTemplate.industry}</Badge>
                 {!isEditing && (
-                  <div className="flex items-center gap-1 text-amber-500 text-sm">
+                  <div className="flex items-center gap-1 text-warning text-sm">
                     <Lightbulb className="w-4 h-4" />
                     <span className="text-muted-foreground">{previewTemplate.conversionTip}</span>
                   </div>
@@ -384,7 +397,7 @@ export default function HighConvertingTemplateGallery({
                     <Button variant="outline" onClick={() => setIsEditing(false)}>
                       Cancel
                     </Button>
-                    <Button onClick={handleSaveCustomTemplate} className="gap-2 bg-gradient-to-r from-primary to-purple-600">
+                    <Button onClick={handleSaveCustomTemplate} className="gap-2 bg-gradient-to-r from-primary to-primary/70">
                       <Save className="w-4 h-4" />
                       Save & Use Custom Template
                     </Button>
@@ -402,7 +415,7 @@ export default function HighConvertingTemplateGallery({
                     {onSelectTemplate && (
                       <Button 
                         size="lg"
-                        className="gap-2 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-semibold px-8"
+                        className="gap-2 bg-gradient-to-r from-success to-success/80 hover:from-success/90 hover:to-success/70 text-success-foreground font-semibold px-8"
                         onClick={() => {
                           handleSelect(previewTemplate);
                           setPreviewTemplate(null);
@@ -422,11 +435,11 @@ export default function HighConvertingTemplateGallery({
 
       {/* STICKY BOTTOM BAR - Clean "Ready to Send" */}
       {highlightedTemplate && onSelectTemplate && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-r from-emerald-600 to-green-600 border-t border-emerald-400/30 shadow-2xl shadow-emerald-900/50">
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-r from-success to-success/80 border-t border-success/30 shadow-2xl">
           <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
             {/* Template Info */}
             <div className="flex items-center gap-4 min-w-0">
-              <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 border-2 border-white/30">
+              <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 border-2 border-success-foreground/30">
                 <img 
                   src={highlightedTemplate.previewImage} 
                   alt={highlightedTemplate.name}
@@ -434,8 +447,8 @@ export default function HighConvertingTemplateGallery({
                 />
               </div>
               <div className="min-w-0">
-                <p className="text-white/70 text-xs uppercase tracking-wide">Selected Template</p>
-                <p className="text-white font-semibold truncate">{highlightedTemplate.name}</p>
+                <p className="text-success-foreground/70 text-xs uppercase tracking-wide">Selected Template</p>
+                <p className="text-success-foreground font-semibold truncate">{highlightedTemplate.name}</p>
               </div>
             </div>
 
@@ -445,7 +458,7 @@ export default function HighConvertingTemplateGallery({
                 variant="ghost"
                 size="sm"
                 onClick={() => setHighlightedTemplate(null)}
-                className="text-white/80 hover:text-white hover:bg-white/10"
+                className="text-success-foreground/80 hover:text-success-foreground hover:bg-success-foreground/10"
               >
                 <X className="w-4 h-4 mr-1" />
                 Cancel
@@ -454,7 +467,7 @@ export default function HighConvertingTemplateGallery({
                 variant="ghost"
                 size="sm"
                 onClick={() => openPreview(highlightedTemplate)}
-                className="text-white/80 hover:text-white hover:bg-white/10"
+                className="text-success-foreground/80 hover:text-success-foreground hover:bg-success-foreground/10"
               >
                 <Eye className="w-4 h-4 mr-1" />
                 Preview
@@ -465,7 +478,7 @@ export default function HighConvertingTemplateGallery({
                   handleSelect(highlightedTemplate);
                   setHighlightedTemplate(null);
                 }}
-                className="bg-white text-emerald-700 hover:bg-white/90 font-bold px-8 h-12 text-base shadow-lg"
+                className="bg-background text-success hover:bg-background/90 font-bold px-8 h-12 text-base shadow-lg"
               >
                 <Check className="w-5 h-5 mr-2" />
                 Ready to Send
