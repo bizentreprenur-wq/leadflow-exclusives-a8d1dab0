@@ -33,7 +33,7 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           port: 21
           local-dir: ./dist/
-          server-dir: public_html/
+          server-dir: /home/u497238762/domains/bamlead.com/public_html/
           dangerous-clean-slate: false
           exclude: |
             **/api/**
@@ -49,7 +49,7 @@ jobs:
           password: ${{ secrets.FTP_PASSWORD }}
           port: 21
           local-dir: ./api/
-          server-dir: public_html/api/
+          server-dir: /home/u497238762/domains/bamlead.com/public_html/api/
           dangerous-clean-slate: false
           exclude: |
             **/config.php
