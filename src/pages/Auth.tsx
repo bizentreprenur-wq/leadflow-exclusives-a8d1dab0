@@ -366,29 +366,35 @@ export default function Auth() {
               </TabsContent>
             </Tabs>
 
-            {/* Demo mode toggle */}
-            <div className="mt-6 flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border/50">
-              <div className="flex items-center gap-2">
-                <FlaskConical className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Demo Mode</span>
-                {USE_MOCK_AUTH && (
-                  <span className="text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded">Active</span>
-                )}
-              </div>
-              <Switch
-                checked={USE_MOCK_AUTH}
-                onCheckedChange={(checked) => {
-                  const url = new URL(window.location.href);
-                  url.searchParams.set('mockAuth', checked ? 'true' : 'false');
-                  window.location.assign(url.toString());
-                }}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground text-center mt-2">
-              {USE_MOCK_AUTH 
-                ? 'Demo mode: Use any email with 6+ char password'
-                : 'Live mode: Connects to production backend'}
-            </p>
+            {/* Demo mode toggle - only visible in Lovable preview or development */}
+            {(window.location.hostname.includes('lovable.app') || 
+              window.location.hostname.includes('lovableproject.com') || 
+              window.location.hostname === 'localhost') && (
+              <>
+                <div className="mt-6 flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border/50">
+                  <div className="flex items-center gap-2">
+                    <FlaskConical className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Demo Mode</span>
+                    {USE_MOCK_AUTH && (
+                      <span className="text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded">Active</span>
+                    )}
+                  </div>
+                  <Switch
+                    checked={USE_MOCK_AUTH}
+                    onCheckedChange={(checked) => {
+                      const url = new URL(window.location.href);
+                      url.searchParams.set('mockAuth', checked ? 'true' : 'false');
+                      window.location.assign(url.toString());
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  {USE_MOCK_AUTH 
+                    ? 'Demo mode: Use any email with 6+ char password'
+                    : 'Live mode: Connects to production backend'}
+                </p>
+              </>
+            )}
 
             <details className="mt-4">
               <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
