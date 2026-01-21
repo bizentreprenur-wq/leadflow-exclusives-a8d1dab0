@@ -12,7 +12,8 @@ import { toast } from 'sonner';
 import {
   Mail, Server, Shield, Send, Inbox, Settings, Eye, EyeOff,
   CheckCircle2, XCircle, Loader2, RefreshCw, Trash2, Archive,
-  Star, AlertCircle, Clock, ExternalLink, Key, MailOpen, Copy, Webhook, Link2
+  Star, AlertCircle, Clock, ExternalLink, Key, MailOpen, Copy, Webhook, Link2,
+  Users, FlaskConical, Pencil
 } from 'lucide-react';
 import OutgoingMailbox from './OutgoingMailbox';
 import WebhookURLConfiguration from './WebhookURLConfiguration';
@@ -275,22 +276,34 @@ export default function EmailConfigurationPanel() {
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="mailbox" className="gap-2">
-            <MailOpen className="w-4 h-4" />
+        <TabsList className="grid w-full grid-cols-7">
+          <TabsTrigger value="mailbox" className="gap-1 text-xs px-2">
+            <MailOpen className="w-3 h-3" />
             Mailbox
           </TabsTrigger>
-          <TabsTrigger value="smtp" className="gap-2">
-            <Server className="w-4 h-4" />
-            SMTP Setup
+          <TabsTrigger value="preview" className="gap-1 text-xs px-2">
+            <Eye className="w-3 h-3" />
+            Preview
           </TabsTrigger>
-          <TabsTrigger value="inbox" className="gap-2">
-            <Inbox className="w-4 h-4" />
+          <TabsTrigger value="crm" className="gap-1 text-xs px-2">
+            <Users className="w-3 h-3" />
+            CRM
+          </TabsTrigger>
+          <TabsTrigger value="ab" className="gap-1 text-xs px-2">
+            <FlaskConical className="w-3 h-3" />
+            A/B
+          </TabsTrigger>
+          <TabsTrigger value="edit" className="gap-1 text-xs px-2">
+            <Pencil className="w-3 h-3" />
+            Edit
+          </TabsTrigger>
+          <TabsTrigger value="smtp" className="gap-1 text-xs px-2">
+            <Server className="w-3 h-3" />
+            SMTP
+          </TabsTrigger>
+          <TabsTrigger value="inbox" className="gap-1 text-xs px-2">
+            <Inbox className="w-3 h-3" />
             Inbox
-          </TabsTrigger>
-          <TabsTrigger value="outbox" className="gap-2">
-            <Send className="w-4 h-4" />
-            Sent
           </TabsTrigger>
         </TabsList>
 
