@@ -484,115 +484,110 @@ export default function EmailSetupFlow({
             </div>
 
             {/* ============================================= */}
-            {/* 📬 TWO COLUMN LAYOUT - MAILBOX LEFT, TOOLS RIGHT */}
+            {/* 📬 THE MAILBOX - WITH TOOLS INSIDE ON LEFT */}
             {/* ============================================= */}
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr,200px] gap-4">
-              {/* LEFT COLUMN - THE MAILBOX */}
-              <Card className="border-2 border-blue-500/40 bg-gradient-to-br from-blue-900/20 to-indigo-900/20 overflow-hidden">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                        <Mail className="w-6 h-6 text-blue-400" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-xl flex items-center gap-2">
-                          📬 Smart Drip Mailbox
-                          <Badge className="bg-blue-500/30 text-blue-300 border-blue-500/50">
-                            LIVE
-                          </Badge>
-                        </CardTitle>
-                        <CardDescription>
-                          Watch your emails being delivered to each business in real-time
-                        </CardDescription>
-                      </div>
+            <Card className="border-2 border-blue-500/40 bg-gradient-to-br from-blue-900/20 to-indigo-900/20 overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                      <Mail className="w-6 h-6 text-blue-400" />
                     </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-blue-400">{leadsWithEmail.length}</p>
-                      <p className="text-xs text-muted-foreground">Total Leads</p>
+                    <div>
+                      <CardTitle className="text-xl flex items-center gap-2">
+                        📬 Smart Drip Mailbox
+                        <Badge className="bg-blue-500/30 text-blue-300 border-blue-500/50">
+                          LIVE
+                        </Badge>
+                      </CardTitle>
+                      <CardDescription>
+                        Watch your emails being delivered to each business in real-time
+                      </CardDescription>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  {/* The Mailbox Animation - THE STAR OF THE SHOW */}
-                  <MailboxDripAnimation
-                    totalEmails={emailLeads.length}
-                    sentCount={demoSentCount}
-                    isActive={demoIsActive}
-                    emailsPerHour={50}
-                    leads={leads.map(l => ({ id: l.id, name: l.name, email: l.email }))}
-                  />
                   
-                  {/* SEND EMAILS BUTTON - INSIDE THE MAILBOX */}
-                  <div className="mt-6 pt-4 border-t border-blue-500/30">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-white">Ready to launch your campaign?</p>
-                        <p className="text-sm text-muted-foreground">
-                          {leadsWithEmail.length} businesses will receive your email via drip sending
-                        </p>
-                      </div>
-                      <Button 
-                        size="lg"
+                  {/* TOOLS BAR - INSIDE MAILBOX HEADER ON RIGHT */}
+                  <div className="flex items-center gap-1">
+                    {[
+                      { tab: 'preview', icon: Eye, label: 'Preview', color: 'blue' },
+                      { tab: 'crm', icon: Database, label: 'CRM', color: 'violet' },
+                      { tab: 'ab-testing', icon: FlaskConical, label: 'A/B', color: 'pink' },
+                      { tab: 'smtp', icon: Settings, label: 'SMTP', color: 'slate' },
+                    ].map((item) => (
+                      <button
+                        key={item.tab}
                         onClick={() => {
-                          sessionStorage.setItem('emails_sent', 'true');
-                          setDemoIsActive(true);
-                          toast.success('🚀 Campaign launched! Emails are being sent...');
+                          if (item.tab === 'smtp') {
+                            setCurrentPhase('smtp');
+                          } else {
+                            handleTabChange(item.tab);
+                          }
                         }}
-                        className="gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold px-8 py-6 text-lg shadow-lg shadow-blue-500/30"
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs font-medium transition-all hover:scale-105
+                          ${activeTab === item.tab 
+                            ? 'border-blue-500 bg-blue-500/20 text-blue-400' 
+                            : 'border-border/50 bg-muted/30 text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                          }`}
                       >
-                        <Send className="w-5 h-5" />
-                        Send Emails Now
-                      </Button>
-                    </div>
+                        <item.icon className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">{item.label}</span>
+                      </button>
+                    ))}
                   </div>
-
-                  {/* Conditional Analytics - INSIDE MAILBOX after sending */}
-                  {hasEmailsSent && demoSentCount > 0 && (
-                    <div className="mt-6 pt-4 border-t border-emerald-500/30">
-                      <div className="flex items-center gap-2 mb-3">
-                        <BarChart3 className="w-5 h-5 text-emerald-400" />
-                        <h4 className="font-bold text-emerald-400">Campaign Analytics</h4>
-                      </div>
-                      <CampaignAnalyticsDashboard />
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {/* The Mailbox Animation - THE STAR OF THE SHOW */}
+                <MailboxDripAnimation
+                  totalEmails={emailLeads.length}
+                  sentCount={demoSentCount}
+                  isActive={demoIsActive}
+                  emailsPerHour={50}
+                  leads={leads.map(l => ({ id: l.id, name: l.name, email: l.email }))}
+                />
+                
+                {/* Total Leads Count */}
+                <div className="flex items-center justify-between mt-4 p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                  <span className="text-sm text-muted-foreground">Total Leads Ready</span>
+                  <span className="text-2xl font-bold text-blue-400">{leadsWithEmail.length}</span>
+                </div>
+                
+                {/* SEND EMAILS BUTTON - INSIDE THE MAILBOX */}
+                <div className="mt-6 pt-4 border-t border-blue-500/30">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-white">Ready to launch your campaign?</p>
+                      <p className="text-sm text-muted-foreground">
+                        {leadsWithEmail.length} businesses will receive your email via drip sending
+                      </p>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                    <Button 
+                      size="lg"
+                      onClick={() => {
+                        sessionStorage.setItem('emails_sent', 'true');
+                        setDemoIsActive(true);
+                        toast.success('🚀 Campaign launched! Emails are being sent...');
+                      }}
+                      className="gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold px-8 py-6 text-lg shadow-lg shadow-blue-500/30"
+                    >
+                      <Send className="w-5 h-5" />
+                      Send Emails Now
+                    </Button>
+                  </div>
+                </div>
 
-              {/* RIGHT COLUMN - SMALL BAR BUTTONS FOR TOOLS */}
-              <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Tools</p>
-                {[
-                  { tab: 'preview', icon: Eye, label: 'Preview', color: 'blue' },
-                  { tab: 'crm', icon: Database, label: 'CRM', color: 'violet' },
-                  { tab: 'ab-testing', icon: FlaskConical, label: 'A/B Test', color: 'pink' },
-                  { tab: 'settings', icon: Settings, label: 'Settings', color: 'slate' },
-                ].map((item) => (
-                  <button
-                    key={item.tab}
-                    onClick={() => {
-                      if (item.tab === 'settings') {
-                        onOpenSettings();
-                      } else {
-                        handleTabChange(item.tab);
-                      }
-                    }}
-                    className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border text-left text-sm font-medium transition-all hover:scale-[1.02]
-                      ${activeTab === item.tab 
-                        ? `border-${item.color}-500 bg-${item.color}-500/20 text-${item.color}-400` 
-                        : visitedTabs.includes(item.tab)
-                          ? 'border-success/50 bg-success/10 text-success'
-                          : 'border-border bg-muted/30 text-muted-foreground hover:border-primary/50 hover:text-foreground'
-                      }`}
-                  >
-                    <item.icon className="w-4 h-4 flex-shrink-0" />
-                    <span>{item.label}</span>
-                    {visitedTabs.includes(item.tab) && <CheckCircle2 className="w-3 h-3 ml-auto text-success" />}
-                  </button>
-                ))}
-              </div>
-            </div>
+                {/* Conditional Analytics - INSIDE MAILBOX after sending */}
+                {hasEmailsSent && demoSentCount > 0 && (
+                  <div className="mt-6 pt-4 border-t border-emerald-500/30">
+                    <div className="flex items-center gap-2 mb-3">
+                      <BarChart3 className="w-5 h-5 text-emerald-400" />
+                      <h4 className="font-bold text-emerald-400">Campaign Analytics</h4>
+                    </div>
+                    <CampaignAnalyticsDashboard />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
             {/* TOOL CONTENT - Shows below when a tool is selected */}
             {activeTab && activeTab !== 'analytics' && (
