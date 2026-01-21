@@ -42,8 +42,15 @@ interface SearchResult {
   rating?: number;
   source: 'gmb' | 'platform';
   platform?: string;
+  // AI Scoring fields
   aiClassification?: 'hot' | 'warm' | 'cold';
   leadScore?: number;
+  successProbability?: number;
+  recommendedAction?: 'call' | 'email' | 'both';
+  callScore?: number;
+  emailScore?: number;
+  urgency?: 'immediate' | 'this_week' | 'nurture';
+  painPoints?: string[];
   readyToCall?: boolean;
   websiteAnalysis?: {
     hasWebsite: boolean;
@@ -550,13 +557,13 @@ export default function SimpleLeadViewer({
                     />
                   </TableHead>
                   <TableHead className="w-12">#</TableHead>
-                  <TableHead className="w-20">Score</TableHead>
-                  <TableHead className="w-24">Status</TableHead>
+                  <TableHead className="w-20 text-center">Score</TableHead>
+                  <TableHead className="w-24">Priority</TableHead>
                   <TableHead>Business Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
-                  <TableHead className="w-24">Best Time</TableHead>
-                  <TableHead className="w-20">Ready?</TableHead>
+                  <TableHead className="w-24">Timing</TableHead>
+                  <TableHead className="w-24">Best Action</TableHead>
                   <TableHead>Pain Points</TableHead>
                   <TableHead>Recommended Approach</TableHead>
                 </TableRow>
@@ -587,11 +594,30 @@ export default function SimpleLeadViewer({
                   </TableRow>
                 ) : (
                   filteredLeads.map((lead, index) => {
-                    const score = lead.leadScore || Math.floor(Math.random() * 40 + 60);
-                    const bestTime = ['9-11 AM', '2-4 PM', '11-1 PM', '4-6 PM'][index % 4];
-                    const painPoints = lead.websiteAnalysis?.issues?.[0] || 
-                      ['No mobile optimization', 'Slow load times', 'Outdated design', 'No SSL'][index % 4];
-                    const approach = ['Direct pitch', 'Soft intro', 'Value offer', 'Problem-solution'][index % 4];
+                    // Use real AI-scored data
+                    const score = lead.leadScore || 50;
+                    const successProb = lead.successProbability || score;
+                    const painPointsDisplay = lead.painPoints?.length 
+                      ? lead.painPoints[0] 
+                      : (lead.websiteAnalysis?.issues?.[0] || 'Standard lead');
+                    
+                    // Recommended action with icons
+                    const getActionBadge = () => {
+                      const action = lead.recommendedAction || 'email';
+                      if (action === 'call') {
+                        return <Badge className="bg-green-500/20 text-green-500 border-green-500/30 text-xs gap-1"><Phone className="w-3 h-3" />Call</Badge>;
+                      } else if (action === 'both') {
+                        return <Badge className="bg-purple-500/20 text-purple-500 border-purple-500/30 text-xs gap-1"><Phone className="w-3 h-3" /><Mail className="w-3 h-3" /></Badge>;
+                      }
+                      return <Badge className="bg-blue-500/20 text-blue-500 border-blue-500/30 text-xs gap-1"><Mail className="w-3 h-3" />Email</Badge>;
+                    };
+                    
+                    // Best time based on urgency
+                    const getBestTime = () => {
+                      if (lead.urgency === 'immediate') return '🔥 Now!';
+                      if (lead.urgency === 'this_week') return '📅 This week';
+                      return '⏳ Nurture';
+                    };
                     
                     return (
                       <TableRow 
@@ -609,8 +635,13 @@ export default function SimpleLeadViewer({
                           {index + 1}
                         </TableCell>
                         <TableCell>
-                          <div className={`text-sm font-medium ${score >= 80 ? 'text-emerald-500' : score >= 60 ? 'text-amber-500' : 'text-red-500'}`}>
-                            {score}
+                          <div className="text-center">
+                            <div className={`text-sm font-bold ${score >= 70 ? 'text-emerald-500' : score >= 45 ? 'text-amber-500' : 'text-red-500'}`}>
+                              {score}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground">
+                              {successProb}% win
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -641,21 +672,23 @@ export default function SimpleLeadViewer({
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {bestTime}
+                        <TableCell className="text-xs">
+                          {getBestTime()}
                         </TableCell>
                         <TableCell>
-                          {lead.readyToCall || index % 3 === 0 ? (
-                            <Badge className="bg-emerald-500/20 text-emerald-500 border-emerald-500/30 text-xs">Yes</Badge>
+                          {getActionBadge()}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate" title={painPointsDisplay}>
+                          {painPointsDisplay}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {lead.recommendedAction === 'call' ? (
+                            <span className="text-green-500 font-medium">Direct call - explain value</span>
+                          ) : lead.recommendedAction === 'both' ? (
+                            <span className="text-purple-500 font-medium">Multi-channel approach</span>
                           ) : (
-                            <Badge variant="outline" className="text-xs">No</Badge>
+                            <span className="text-blue-500 font-medium">Send case study email</span>
                           )}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate">
-                          {painPoints}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {approach}
                         </TableCell>
                       </TableRow>
                     );

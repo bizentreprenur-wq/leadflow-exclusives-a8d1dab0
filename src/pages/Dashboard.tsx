@@ -46,6 +46,7 @@ import { LeadForEmail } from '@/lib/api/email';
 import { searchGMB, GMBResult } from '@/lib/api/gmb';
 import { searchPlatforms, PlatformResult } from '@/lib/api/platforms';
 import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } from '@/lib/api/leadAnalysis';
+import { quickScoreLeads } from '@/lib/api/aiLeadScoring';
 import { HIGH_CONVERTING_TEMPLATES } from '@/lib/highConvertingTemplates';
 import { generateMechanicLeads, injectTestLeads } from '@/lib/testMechanicLeads';
 import AutoFollowUpBuilder from '@/components/AutoFollowUpBuilder';
@@ -76,6 +77,16 @@ interface SearchResult {
   rating?: number;
   source: 'gmb' | 'platform';
   platform?: string;
+  // AI Scoring fields
+  aiClassification?: 'hot' | 'warm' | 'cold';
+  leadScore?: number;
+  successProbability?: number;
+  recommendedAction?: 'call' | 'email' | 'both';
+  callScore?: number;
+  emailScore?: number;
+  urgency?: 'immediate' | 'this_week' | 'nurture';
+  painPoints?: string[];
+  readyToCall?: boolean;
   websiteAnalysis?: {
     hasWebsite: boolean;
     platform: string | null;
@@ -348,11 +359,21 @@ export default function Dashboard() {
       }
       
       console.log('[BamLead] Search complete, finalResults:', finalResults.length);
-      setSearchResults(finalResults);
+      
+      // Apply AI scoring to all leads immediately (sorts by Hot/Warm/Cold)
+      const scoredResults = quickScoreLeads(finalResults) as SearchResult[];
+      console.log('[BamLead] AI scoring applied:', {
+        hot: scoredResults.filter(r => r.aiClassification === 'hot').length,
+        warm: scoredResults.filter(r => r.aiClassification === 'warm').length,
+        cold: scoredResults.filter(r => r.aiClassification === 'cold').length,
+      });
+      
+      setSearchResults(scoredResults);
       setSearchProgress(100);
 
-      if (finalResults.length > 0) {
-        toast.success(`Found ${finalResults.length} businesses!`);
+      if (scoredResults.length > 0) {
+        const hotCount = scoredResults.filter(r => r.aiClassification === 'hot').length;
+        toast.success(`Found ${scoredResults.length} businesses! ${hotCount} hot leads ready for immediate outreach.`);
         // Auto-open the Intelligence Report (PDF-style). The spreadsheet viewer is disabled.
         setShowReportModal(true);
       } else {
