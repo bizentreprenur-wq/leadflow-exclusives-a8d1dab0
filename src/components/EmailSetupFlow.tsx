@@ -484,261 +484,173 @@ export default function EmailSetupFlow({
             </div>
 
             {/* ============================================= */}
-            {/* 📬 THE MAILBOX - MAIN FEATURE - CENTRAL VIEW */}
+            {/* 📬 TWO COLUMN LAYOUT - MAILBOX LEFT, TOOLS RIGHT */}
             {/* ============================================= */}
-            <Card className="border-2 border-blue-500/40 bg-gradient-to-br from-blue-900/20 to-indigo-900/20 overflow-hidden">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                      <Mail className="w-6 h-6 text-blue-400" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-xl flex items-center gap-2">
-                        📬 Smart Drip Mailbox
-                        <Badge className="bg-blue-500/30 text-blue-300 border-blue-500/50">
-                          LIVE
-                        </Badge>
-                      </CardTitle>
-                      <CardDescription>
-                        Watch your emails being delivered to each business in real-time
-                      </CardDescription>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-blue-400">{leadsWithEmail.length}</p>
-                    <p className="text-xs text-muted-foreground">Total Leads</p>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                {/* The Mailbox Animation - THE STAR OF THE SHOW */}
-                <MailboxDripAnimation
-                  totalEmails={emailLeads.length}
-                  sentCount={demoSentCount}
-                  isActive={demoIsActive}
-                  emailsPerHour={50}
-                  leads={leads.map(l => ({ id: l.id, name: l.name, email: l.email }))}
-                />
-                
-                {/* SEND EMAILS BUTTON - INSIDE THE MAILBOX */}
-                <div className="mt-6 pt-4 border-t border-blue-500/30">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr,200px] gap-4">
+              {/* LEFT COLUMN - THE MAILBOX */}
+              <Card className="border-2 border-blue-500/40 bg-gradient-to-br from-blue-900/20 to-indigo-900/20 overflow-hidden">
+                <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-semibold text-white">Ready to launch your campaign?</p>
-                      <p className="text-sm text-muted-foreground">
-                        {leadsWithEmail.length} businesses will receive your email via drip sending
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                        <Mail className="w-6 h-6 text-blue-400" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-xl flex items-center gap-2">
+                          📬 Smart Drip Mailbox
+                          <Badge className="bg-blue-500/30 text-blue-300 border-blue-500/50">
+                            LIVE
+                          </Badge>
+                        </CardTitle>
+                        <CardDescription>
+                          Watch your emails being delivered to each business in real-time
+                        </CardDescription>
+                      </div>
                     </div>
-                    <Button 
-                      size="lg"
-                      onClick={() => {
-                        sessionStorage.setItem('emails_sent', 'true');
-                        setDemoIsActive(true);
-                        toast.success('🚀 Campaign launched! Emails are being sent...');
-                      }}
-                      className="gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold px-8 py-6 text-lg shadow-lg shadow-blue-500/30"
-                    >
-                      <Send className="w-5 h-5" />
-                      Send Emails Now
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-blue-400">{leadsWithEmail.length}</p>
+                      <p className="text-xs text-muted-foreground">Total Leads</p>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  {/* The Mailbox Animation - THE STAR OF THE SHOW */}
+                  <MailboxDripAnimation
+                    totalEmails={emailLeads.length}
+                    sentCount={demoSentCount}
+                    isActive={demoIsActive}
+                    emailsPerHour={50}
+                    leads={leads.map(l => ({ id: l.id, name: l.name, email: l.email }))}
+                  />
+                  
+                  {/* SEND EMAILS BUTTON - INSIDE THE MAILBOX */}
+                  <div className="mt-6 pt-4 border-t border-blue-500/30">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold text-white">Ready to launch your campaign?</p>
+                        <p className="text-sm text-muted-foreground">
+                          {leadsWithEmail.length} businesses will receive your email via drip sending
+                        </p>
+                      </div>
+                      <Button 
+                        size="lg"
+                        onClick={() => {
+                          sessionStorage.setItem('emails_sent', 'true');
+                          setDemoIsActive(true);
+                          toast.success('🚀 Campaign launched! Emails are being sent...');
+                        }}
+                        className="gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold px-8 py-6 text-lg shadow-lg shadow-blue-500/30"
+                      >
+                        <Send className="w-5 h-5" />
+                        Send Emails Now
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Conditional Analytics - INSIDE MAILBOX after sending */}
+                  {hasEmailsSent && demoSentCount > 0 && (
+                    <div className="mt-6 pt-4 border-t border-emerald-500/30">
+                      <div className="flex items-center gap-2 mb-3">
+                        <BarChart3 className="w-5 h-5 text-emerald-400" />
+                        <h4 className="font-bold text-emerald-400">Campaign Analytics</h4>
+                      </div>
+                      <CampaignAnalyticsDashboard />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* RIGHT COLUMN - SMALL BAR BUTTONS FOR TOOLS */}
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Tools</p>
+                {[
+                  { tab: 'preview', icon: Eye, label: 'Preview', color: 'blue' },
+                  { tab: 'crm', icon: Database, label: 'CRM', color: 'violet' },
+                  { tab: 'ab-testing', icon: FlaskConical, label: 'A/B Test', color: 'pink' },
+                  { tab: 'settings', icon: Settings, label: 'Settings', color: 'slate' },
+                ].map((item) => (
+                  <button
+                    key={item.tab}
+                    onClick={() => {
+                      if (item.tab === 'settings') {
+                        onOpenSettings();
+                      } else {
+                        handleTabChange(item.tab);
+                      }
+                    }}
+                    className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border text-left text-sm font-medium transition-all hover:scale-[1.02]
+                      ${activeTab === item.tab 
+                        ? `border-${item.color}-500 bg-${item.color}-500/20 text-${item.color}-400` 
+                        : visitedTabs.includes(item.tab)
+                          ? 'border-success/50 bg-success/10 text-success'
+                          : 'border-border bg-muted/30 text-muted-foreground hover:border-primary/50 hover:text-foreground'
+                      }`}
+                  >
+                    <item.icon className="w-4 h-4 flex-shrink-0" />
+                    <span>{item.label}</span>
+                    {visitedTabs.includes(item.tab) && <CheckCircle2 className="w-3 h-3 ml-auto text-success" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* TOOL CONTENT - Shows below when a tool is selected */}
+            {activeTab && activeTab !== 'analytics' && (
+              <Card className="border-2 border-primary/20 bg-muted/10">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      {activeTab === 'preview' && <><Eye className="w-5 h-5 text-blue-400" /> Email Preview</>}
+                      {activeTab === 'crm' && <><Database className="w-5 h-5 text-violet-400" /> CRM Integration</>}
+                      {activeTab === 'ab-testing' && <><FlaskConical className="w-5 h-5 text-pink-400" /> A/B Testing</>}
+                    </CardTitle>
+                    <Button variant="ghost" size="sm" onClick={() => setActiveTab('')} className="text-muted-foreground">
+                      ✕ Close
                     </Button>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* SETUP CHECKLIST - Below the mailbox */}
-            <Card className="border-2 border-primary/30 bg-gradient-to-r from-primary/5 to-blue-500/5">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                    <CheckCircle2 className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-lg">📋 Additional Tools</h3>
-                    <p className="text-sm text-muted-foreground">Preview, CRM, A/B Testing, and more</p>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-                  {[
-                    { tab: 'preview', icon: Eye, label: 'Preview Email', color: 'blue', desc: 'See how it looks' },
-                    { tab: 'crm', icon: Database, label: 'Setup CRM', color: 'violet', desc: 'Organize leads' },
-                    { tab: 'ab-testing', icon: FlaskConical, label: 'A/B Testing', color: 'pink', desc: 'Test variations' },
-                    { tab: 'analytics', icon: BarChart3, label: 'Analytics', color: 'emerald', desc: hasEmailsSent ? 'View results' : 'After sending', disabled: !hasEmailsSent },
-                    { tab: 'settings', icon: Settings, label: 'Settings', color: 'slate', desc: 'SMTP config' },
-                  ].map((item, idx) => (
-                    <button
-                      key={item.tab}
-                      onClick={() => {
-                        if (item.tab === 'settings') {
-                          onOpenSettings();
-                        } else if (item.tab === 'analytics' && !hasEmailsSent) {
-                          toast.info('Analytics will be available after you send emails');
-                        } else {
-                          handleTabChange(item.tab);
-                        }
-                      }}
-                      disabled={item.tab === 'analytics' && !hasEmailsSent}
-                      className={`p-3 rounded-lg border-2 transition-all hover:scale-105 cursor-pointer text-left
-                        ${item.tab === 'analytics' && !hasEmailsSent 
-                          ? 'opacity-50 cursor-not-allowed border-border bg-muted/20' 
-                          : activeTab === item.tab 
-                            ? `border-${item.color}-500 bg-${item.color}-500/20 ring-2 ring-${item.color}-500/50` 
-                            : visitedTabs.includes(item.tab)
-                              ? 'border-success/50 bg-success/10'
-                              : 'border-border bg-muted/30 hover:border-primary/50'
-                        }`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <item.icon className={`w-4 h-4 ${
-                          item.tab === 'analytics' && !hasEmailsSent 
-                            ? 'text-muted-foreground' 
-                            : activeTab === item.tab 
-                              ? `text-${item.color}-500` 
-                              : visitedTabs.includes(item.tab) 
-                                ? 'text-success' 
-                                : 'text-muted-foreground'
-                        }`} />
-                        {visitedTabs.includes(item.tab) && <CheckCircle2 className="w-3 h-3 text-success ml-auto" />}
+                </CardHeader>
+                <CardContent>
+                  {activeTab === 'preview' && (
+                    selectedTemplate ? (
+                      <EmailClientPreviewPanel 
+                        subject={selectedTemplate.subject} 
+                        body={selectedTemplate.body_html}
+                        templateName={selectedTemplate.name}
+                      />
+                    ) : (
+                      <div className="text-center py-8">
+                        <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
+                        <h3 className="font-semibold mb-2">No Template Selected</h3>
+                        <p className="text-muted-foreground text-sm mb-3">Go back and select a template</p>
+                        <Button size="sm" onClick={() => setCurrentPhase('template')}>Choose Template</Button>
                       </div>
-                      <p className="font-semibold text-sm">{item.label}</p>
-                      <p className="text-xs text-muted-foreground">{item.desc}</p>
-                    </button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* TABBED INTERFACE - For additional tools */}
-            <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-              <TabsList className="grid w-full grid-cols-4 h-12 bg-muted/50">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <TabsTrigger value="preview" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-blue-500 data-[state=active]:text-white">
-                        <Eye className="w-4 h-4" />
-                        <span className="hidden sm:inline">Preview</span>
-                      </TabsTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-xs p-3 text-center">
-                      <p className="font-semibold mb-1">👁️ Email Preview</p>
-                      <p className="text-xs text-muted-foreground">See exactly how your email will appear in Gmail, Outlook, and Apple Mail.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <TabsTrigger value="crm" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-violet-500 data-[state=active]:text-white">
-                        <Database className="w-4 h-4" />
-                        <span className="hidden sm:inline">CRM</span>
-                      </TabsTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-xs p-3 text-center">
-                      <p className="font-semibold mb-1">🗂️ Lead Management (CRM)</p>
-                      <p className="text-xs text-muted-foreground">Organize, filter, and track your leads.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <TabsTrigger value="ab-testing" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-pink-500 data-[state=active]:text-white">
-                        <FlaskConical className="w-4 h-4" />
-                        <span className="hidden sm:inline">A/B Test</span>
-                      </TabsTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-xs p-3 text-center">
-                      <p className="font-semibold mb-1">📊 A/B Testing</p>
-                      <p className="text-xs text-muted-foreground">Compare email versions to find the winner.</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <TabsTrigger 
-                        value="analytics" 
-                        disabled={!hasEmailsSent}
-                        className={`gap-2 text-xs sm:text-sm data-[state=active]:bg-emerald-500 data-[state=active]:text-white ${!hasEmailsSent ? 'opacity-50' : ''}`}
-                      >
-                        <BarChart3 className="w-4 h-4" />
-                        <span className="hidden sm:inline">Analytics</span>
-                        {!hasEmailsSent && <span className="text-[10px]">(after send)</span>}
-                      </TabsTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-xs p-3 text-center">
-                      <p className="font-semibold mb-1">📈 Campaign Analytics</p>
-                      <p className="text-xs text-muted-foreground">
-                        {hasEmailsSent ? 'Track opens, clicks, and engagement.' : 'Available after you send emails.'}
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </TabsList>
-
-              <TabsContent value="preview" className="mt-4">
-                {selectedTemplate ? (
-                  <EmailClientPreviewPanel 
-                    subject={selectedTemplate.subject} 
-                    body={selectedTemplate.body_html}
-                    templateName={selectedTemplate.name}
-                  />
-                ) : (
-                  <Card className="p-12 text-center">
-                    <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
-                    <h3 className="text-lg font-semibold mb-2">No Template Selected</h3>
-                    <p className="text-muted-foreground mb-4">Go back and select a template to preview it here</p>
-                    <Button onClick={() => setCurrentPhase('template')}>Choose Template</Button>
-                  </Card>
-                )}
-              </TabsContent>
-
-              <TabsContent value="crm" className="mt-4">
-                <div className="space-y-6">
-                  <CRMSelectionPanel leadCount={leads.length} />
-                  <div className="border-t border-border pt-6">
-                    <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                      <Database className="w-5 h-5 text-violet-500" />
-                      Lead Management
-                    </h3>
-                    <BamLeadCRMPanel 
-                      leads={leads.map(l => ({
-                        id: l.id,
-                        name: l.name,
-                        email: l.email,
-                        phone: l.phone,
-                        website: l.website,
-                        address: l.address,
-                      }))}
-                    />
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="ab-testing" className="mt-4">
-                <ABTestingPanel />
-              </TabsContent>
-
-              <TabsContent value="analytics" className="mt-4">
-                {hasEmailsSent ? (
-                  <CampaignAnalyticsDashboard />
-                ) : (
-                  <Card className="p-12 text-center border-2 border-dashed border-border">
-                    <BarChart3 className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
-                    <h3 className="text-lg font-semibold mb-2">Analytics Available After Sending</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Send your email campaign first to see open rates, click rates, and engagement metrics.
-                    </p>
-                    <Badge variant="outline" className="text-muted-foreground">
-                      <Clock className="w-3 h-3 mr-1" />
-                      Waiting for campaign...
-                    </Badge>
-                  </Card>
-                )}
-              </TabsContent>
-            </Tabs>
+                    )
+                  )}
+                  {activeTab === 'crm' && (
+                    <div className="space-y-4">
+                      <CRMSelectionPanel leadCount={leads.length} />
+                      <div className="border-t border-border pt-4">
+                        <h3 className="font-bold mb-3 flex items-center gap-2">
+                          <Database className="w-4 h-4 text-violet-500" />
+                          Lead Management
+                        </h3>
+                        <BamLeadCRMPanel 
+                          leads={leads.map(l => ({
+                            id: l.id,
+                            name: l.name,
+                            email: l.email,
+                            phone: l.phone,
+                            website: l.website,
+                            address: l.address,
+                          }))}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  {activeTab === 'ab-testing' && <ABTestingPanel />}
+                </CardContent>
+              </Card>
+            )}
 
             {/* Quick Actions Footer */}
             <div className="flex items-center justify-between pt-4 border-t border-border">
