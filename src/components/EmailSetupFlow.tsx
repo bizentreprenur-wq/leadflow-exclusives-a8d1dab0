@@ -31,6 +31,7 @@ import AIEmailAssistant from './AIEmailAssistant';
 import EmailConfigurationPanel from './EmailConfigurationPanel';
 import { LeadForEmail, sendBulkEmails } from '@/lib/api/email';
 import { isSMTPConfigured, personalizeContent } from '@/lib/emailService';
+import EmailDeliveryNotifications from './EmailDeliveryNotifications';
 
 interface SearchResult {
   id: string;
@@ -497,23 +498,28 @@ export default function EmailSetupFlow({
             {/* ============================================= */}
             <Card className="border-2 border-blue-500/40 bg-gradient-to-br from-blue-900/20 to-indigo-900/20 overflow-hidden">
               {/* PERSISTENT TOP NAVIGATION BAR - NEVER CHANGES */}
-              <CardHeader className="pb-0 border-b border-blue-500/20">
+              <CardHeader className="pb-0 border-b border-primary/20">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                      <Mail className="w-6 h-6 text-blue-400" />
+                    <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                      <Mail className="w-6 h-6 text-primary" />
                     </div>
                     <div>
                       <CardTitle className="text-xl flex items-center gap-2">
                         📬 Smart Drip Mailbox
-                        <Badge className="bg-blue-500/30 text-blue-300 border-blue-500/50">
-                          LIVE
+                        <Badge className="bg-primary/30 text-primary border-primary/50">
+                          {realSendingMode ? 'SENDING' : 'LIVE'}
                         </Badge>
                       </CardTitle>
                       <CardDescription>
                         Your unified outreach command center
                       </CardDescription>
                     </div>
+                  </div>
+                  
+                  {/* Real-time Delivery Notifications */}
+                  <div className="relative">
+                    <EmailDeliveryNotifications enabled={realSendingMode} />
                   </div>
                 </div>
                 
