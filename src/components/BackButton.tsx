@@ -26,7 +26,7 @@ const BackButton = ({ fallbackPath = "/", showHome = true, className = "" }: Bac
         variant="ghost"
         size="sm"
         onClick={handleBack}
-        className="gap-2 text-muted-foreground hover:text-foreground"
+        className="gap-2 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10"
       >
         <ArrowLeft className="w-4 h-4" />
         Back
@@ -36,7 +36,7 @@ const BackButton = ({ fallbackPath = "/", showHome = true, className = "" }: Bac
           variant="ghost"
           size="sm"
           onClick={() => navigate("/")}
-          className="gap-2 text-muted-foreground hover:text-foreground"
+          className="gap-2 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10"
         >
           <Home className="w-4 h-4" />
           Home
