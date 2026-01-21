@@ -25,6 +25,7 @@ import {
   Send, Calendar, ChevronRight
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import StreamingLeadsIndicator from '@/components/StreamingLeadsIndicator';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -454,18 +455,13 @@ export default function SimpleLeadViewer({
         </div>
       </div>
 
-      {/* Loading Bar */}
+      {/* Streaming Leads Indicator */}
       {isLoading && (
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
-          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-primary transition-all duration-300"
-              style={{ width: `${loadingProgress}%` }}
-            />
-          </div>
-          <span className="text-sm font-semibold text-primary">{Math.round(loadingProgress)}%</span>
-        </div>
+        <StreamingLeadsIndicator
+          currentCount={leads.length}
+          isStreaming={isLoading}
+          progress={loadingProgress}
+        />
       )}
 
       {/* Reminder Banner */}
