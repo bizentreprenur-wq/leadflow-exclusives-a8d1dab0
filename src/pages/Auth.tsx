@@ -7,7 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Mail, Lock, User, CreditCard } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, CreditCard, FlaskConical } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { USE_MOCK_AUTH } from '@/lib/api/config';
 import mascotLogo from '@/assets/bamlead-mascot.png';
 import { BackendStatus } from '@/components/BackendStatus';
 import { createCheckoutSession } from '@/lib/api/stripe';
@@ -364,7 +366,31 @@ export default function Auth() {
               </TabsContent>
             </Tabs>
 
-            <details className="mt-6">
+            {/* Demo mode toggle */}
+            <div className="mt-6 flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border/50">
+              <div className="flex items-center gap-2">
+                <FlaskConical className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">Demo Mode</span>
+                {USE_MOCK_AUTH && (
+                  <span className="text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded">Active</span>
+                )}
+              </div>
+              <Switch
+                checked={USE_MOCK_AUTH}
+                onCheckedChange={(checked) => {
+                  const url = new URL(window.location.href);
+                  url.searchParams.set('mockAuth', checked ? 'true' : 'false');
+                  window.location.assign(url.toString());
+                }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              {USE_MOCK_AUTH 
+                ? 'Demo mode: Use any email with 6+ char password'
+                : 'Live mode: Connects to production backend'}
+            </p>
+
+            <details className="mt-4">
               <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
                 Having trouble? Test backend connection
               </summary>
