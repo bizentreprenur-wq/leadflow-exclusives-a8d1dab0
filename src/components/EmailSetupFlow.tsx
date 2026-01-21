@@ -525,14 +525,12 @@ export default function EmailSetupFlow({
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
                     { tab: 'preview', icon: Eye, label: 'Preview Email', color: 'blue', desc: 'See how it looks' },
                     { tab: 'crm', icon: Database, label: 'Setup CRM', color: 'violet', desc: 'Organize leads' },
                     { tab: 'ab-testing', icon: FlaskConical, label: 'A/B Testing', color: 'pink', desc: 'Test variations' },
-                    { tab: 'mailbox', icon: Mail, label: 'Mailbox', color: 'amber', desc: 'View drip queue' },
-                    { tab: 'analytics', icon: BarChart3, label: 'Analytics', color: 'emerald', desc: 'Track results' },
-                    { tab: 'send', icon: Send, label: 'Send Emails', color: 'red', desc: 'Launch campaign!' },
+                    { tab: 'mailbox', icon: Send, label: 'Send Emails', color: 'amber', desc: 'Launch campaign!' },
                   ].map((item, idx) => (
                     <button
                       key={item.tab}
@@ -558,9 +556,9 @@ export default function EmailSetupFlow({
 
                 <div className="mt-4 flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">
-                    Progress: <span className="font-bold text-primary">{visitedTabs.length}/6</span> sections viewed
+                    Progress: <span className="font-bold text-primary">{visitedTabs.length}/4</span> sections viewed
                   </p>
-                  {visitedTabs.length >= 6 && (
+                  {visitedTabs.length >= 4 && (
                     <Badge className="bg-success text-white animate-pulse gap-1">
                       <CheckCircle2 className="w-3 h-3" /> All Setup Complete!
                     </Badge>
@@ -571,7 +569,7 @@ export default function EmailSetupFlow({
 
             {/* Tabbed Interface for all visual components */}
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-              <TabsList className="grid w-full grid-cols-6 h-12 bg-muted/50">
+              <TabsList className="grid w-full grid-cols-4 h-12 bg-muted/50">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -625,47 +623,15 @@ export default function EmailSetupFlow({
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <TabsTrigger value="mailbox" className="relative gap-2 text-xs sm:text-sm data-[state=active]:bg-amber-500 data-[state=active]:text-white">
-                        <Mail className="w-4 h-4" />
-                        <span className="hidden sm:inline">Mailbox</span>
-                        {!visitedTabs.includes('mailbox') && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full animate-ping" />}
-                      </TabsTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-xs p-3 text-center">
-                      <p className="font-semibold mb-1">📬 Drip Mailbox</p>
-                      <p className="text-xs text-muted-foreground">
-                        Watch your emails being sent in real-time. Drip sending spaces out emails to avoid spam filters and improve deliverability.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <TabsTrigger value="analytics" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-emerald-500 data-[state=active]:text-white">
-                        <BarChart3 className="w-4 h-4" />
-                        <span className="hidden sm:inline">Analytics</span>
-                      </TabsTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-xs p-3 text-center">
-                      <p className="font-semibold mb-1">📈 Campaign Analytics</p>
-                      <p className="text-xs text-muted-foreground">
-                        Track open rates, click rates, and engagement. See which emails perform best and optimize your outreach strategy.
-                      </p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <TabsTrigger value="send" className="gap-2 text-xs sm:text-sm data-[state=active]:bg-red-500 data-[state=active]:text-white">
                         <Send className="w-4 h-4" />
-                        <span className="hidden sm:inline">Send</span>
+                        <span className="hidden sm:inline">Send Emails</span>
+                        {!visitedTabs.includes('mailbox') && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full animate-ping" />}
                       </TabsTrigger>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" className="max-w-xs p-3 text-center">
                       <p className="font-semibold mb-1">🚀 Send Campaign</p>
                       <p className="text-xs text-muted-foreground">
-                        Launch your email campaign! Review final settings, select recipients, and hit send to start your outreach.
+                        Launch your email campaign and watch emails being sent in real-time through the mailbox animation.
                       </p>
                     </TooltipContent>
                   </Tooltip>
@@ -723,30 +689,42 @@ export default function EmailSetupFlow({
               </TabsContent>
 
               <TabsContent value="mailbox" className="mt-4">
-                <div className="space-y-4">
-                  {/* Mailbox Drip Animation - with lead details */}
-                  <MailboxDripAnimation
-                    totalEmails={emailLeads.length}
-                    sentCount={demoSentCount}
-                    isActive={demoIsActive}
-                    emailsPerHour={50}
-                    leads={leads.map(l => ({ id: l.id, name: l.name, email: l.email }))}
+                <div className="space-y-6">
+                  {/* Email Outreach Module - Send functionality */}
+                  <EmailOutreachModule 
+                    selectedLeads={emailLeads}
+                    onClearSelection={() => {
+                      toast.success('Campaign complete!');
+                      onComplete();
+                    }}
                   />
+                  
+                  {/* Mailbox Drip Animation - with lead details */}
+                  <div className="border-t border-border pt-6">
+                    <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                      <Mail className="w-5 h-5 text-amber-500" />
+                      📬 Live Mailbox — Watch Your Emails Send
+                    </h3>
+                    <MailboxDripAnimation
+                      totalEmails={emailLeads.length}
+                      sentCount={demoSentCount}
+                      isActive={demoIsActive}
+                      emailsPerHour={50}
+                      leads={leads.map(l => ({ id: l.id, name: l.name, email: l.email }))}
+                    />
+                  </div>
+                  
+                  {/* Analytics Section - Shows after emails are sent */}
+                  {demoSentCount > 0 && (
+                    <div className="border-t border-border pt-6">
+                      <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+                        <BarChart3 className="w-5 h-5 text-emerald-500" />
+                        📈 Campaign Analytics
+                      </h3>
+                      <CampaignAnalyticsDashboard />
+                    </div>
+                  )}
                 </div>
-              </TabsContent>
-
-              <TabsContent value="analytics" className="mt-4">
-                <CampaignAnalyticsDashboard />
-              </TabsContent>
-
-              <TabsContent value="send" className="mt-4">
-                <EmailOutreachModule 
-                  selectedLeads={emailLeads}
-                  onClearSelection={() => {
-                    toast.success('Campaign complete!');
-                    onComplete();
-                  }}
-                />
               </TabsContent>
             </Tabs>
 
