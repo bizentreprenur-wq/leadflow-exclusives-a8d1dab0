@@ -1190,20 +1190,6 @@ export default function Dashboard() {
               onOpenCRMModal={() => setShowCRMModal(true)}
             />
             
-            {/* CRM Integration Modal */}
-            <CRMIntegrationModal
-              open={showCRMModal}
-              onOpenChange={setShowCRMModal}
-              leads={searchResults.map(l => ({
-                id: l.id,
-                name: l.name,
-                address: l.address,
-                phone: l.phone,
-                website: l.website,
-                email: l.email,
-                source: l.source,
-              }))}
-            />
           </>
         );
       }
@@ -1770,6 +1756,21 @@ export default function Dashboard() {
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      {/* CRM Integration Modal */}
+      <CRMIntegrationModal
+        open={showCRMModal}
+        onOpenChange={setShowCRMModal}
+        leads={searchResults.map(l => ({
+          id: l.id,
+          name: l.name,
+          address: l.address,
+          phone: l.phone,
+          website: l.website,
+          email: l.email,
+          source: l.source,
+        }))}
+      />
 
     </SidebarProvider>
   );
