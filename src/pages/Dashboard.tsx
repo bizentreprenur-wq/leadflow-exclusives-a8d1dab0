@@ -1016,7 +1016,7 @@ export default function Dashboard() {
                     </Button>
 
                     {/* AI Processing Pipeline - Shows DURING search */}
-                    {isSearching && searchProgress > 0 && (
+                    {isSearching && (
                       <div className="mt-6">
                         <AIProcessingPipeline
                           isActive={true}
