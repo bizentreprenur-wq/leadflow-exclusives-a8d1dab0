@@ -77,9 +77,11 @@ export const SEARCH_ENDPOINTS = {
 // Helper to get auth headers
 export function getAuthHeaders(): HeadersInit {
   const token = localStorage.getItem('auth_token');
+  // In Demo Mode we may have a UI-only mock token. Never send it to the real backend.
+  const shouldSendAuth = !!token && !USE_MOCK_AUTH && !token.startsWith('mock_token_');
   return {
     'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...(shouldSendAuth ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
 
