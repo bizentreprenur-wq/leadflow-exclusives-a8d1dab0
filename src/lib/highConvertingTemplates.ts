@@ -51,7 +51,7 @@ const IMAGES = {
   webDesignStats: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600&h=300&fit=crop",
   webDesignPortfolio: "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=600&h=300&fit=crop",
   webDesignLocalSeo: "https://images.unsplash.com/photo-1432888498266-38ffec3eaf0a?w=600&h=300&fit=crop",
-  webDesignCompetitor: "https://images.unsplash.com/photo-1553484771-047a44eee27b?w=600&h=300&fit=crop",
+  webDesignCompetitor: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=600&h=300&fit=crop",
   webDesignMobile: "https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=600&h=300&fit=crop",
   webDesignSeasonal: "https://images.unsplash.com/photo-1467232004584-a241de8bcf5d?w=600&h=300&fit=crop",
   webDesignTrust: "https://images.unsplash.com/photo-1553877522-43269d4ea984?w=600&h=300&fit=crop",
@@ -74,7 +74,7 @@ const IMAGES = {
   ecommerce: "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=600&h=300&fit=crop",
   consulting: "https://images.unsplash.com/photo-1552664730-d307ca884978?w=600&h=300&fit=crop",
   tech: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=600&h=300&fit=crop",
-  healthcare: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1f?w=600&h=300&fit=crop",
+  healthcare: "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=600&h=300&fit=crop",
   team: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=600&h=300&fit=crop",
   handshake: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=600&h=300&fit=crop",
   celebration: "https://images.unsplash.com/photo-1529070538774-1843cb3265df?w=600&h=300&fit=crop",
@@ -2614,24 +2614,6 @@ export const HIGH_CONVERTING_TEMPLATES: EmailTemplate[] = [
       body: "{{first_name}}, engaged couples spend months researching wedding vendors. {{business_name}} needs a beautiful website that tells your story and showcases your best work.",
       features: ['Wedding portfolio', 'Testimonials', 'Package details', 'Contact form'],
       cta: 'Attract More Brides →'
-    }),
-  },
-  {
-    id: 'gen-pet-services-15',
-    name: 'Pet Services',
-    category: 'general',
-    industry: 'Pet Services',
-    subject: '🐕 {{business_name}} - Pet parents are protective',
-    description: 'For pet groomers, sitters, daycares',
-    previewImage: IMAGES.healthcare,
-    conversionTip: 'Trust and safety messaging',
-    body_html: createCardGridTemplate({
-      heroImage: IMAGES.healthcare,
-      accentColor: '#84cc16',
-      headline: 'Pet Parents Are Careful',
-      body: "{{first_name}}, pet owners research carefully before trusting anyone with their fur babies. {{business_name}} needs a website that shows your love for animals and attention to safety.",
-      features: ['Staff introductions', 'Facility photos', 'Safety protocols', 'Happy pet gallery'],
-      cta: 'Win Pet Parent Trust →'
     }),
   },
   {
