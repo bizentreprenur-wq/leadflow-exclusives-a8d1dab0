@@ -13,9 +13,9 @@ function isLovablePreviewHost(hostname: string): boolean {
   // Published URLs look like: <project>.lovable.app
   if (hostname.startsWith('id-preview--')) return true;
 
-  // Some environments use lovableproject.com for previews.
-  // Keep this conservative to avoid enabling mock auth on real deployments.
-  if (hostname.startsWith('id-preview--') && hostname.endsWith('.lovableproject.com')) return true;
+  // Lovable sandbox preview environments use *.lovableproject.com
+  // These are always preview/sandbox environments, never production
+  if (hostname.endsWith('.lovableproject.com')) return true;
 
   return false;
 }
