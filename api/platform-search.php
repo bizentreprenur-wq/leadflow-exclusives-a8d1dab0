@@ -99,6 +99,9 @@ try {
  * Search for businesses using specific platforms
  */
 function searchPlatforms($service, $location, $platforms) {
+    // Increase PHP time limit for large searches
+    set_time_limit(300); // 5 minutes max
+    
     // Build platform query modifiers
     $platformQueries = buildPlatformQueries($platforms);
     
@@ -137,11 +140,66 @@ function searchPlatforms($service, $location, $platforms) {
         }
     }
     
-    // Analyze websites
+    // Use QUICK website analysis (URL-based only) to avoid timeouts
     return array_map(function($result) {
-        $result['websiteAnalysis'] = analyzeWebsite($result['url']);
+        $result['websiteAnalysis'] = quickWebsiteCheck($result['url']);
         return $result;
     }, array_slice($unique, 0, RESULTS_PER_PAGE));
+}
+
+/**
+ * Quick website check - fast detection without HTTP requests
+ * Only analyzes the URL structure to avoid timeouts
+ */
+function quickWebsiteCheck($url) {
+    $host = parse_url($url, PHP_URL_HOST) ?? '';
+    $hostLower = strtolower($host);
+    
+    // Detect platform from URL
+    $platform = null;
+    $needsUpgrade = false;
+    $issues = [];
+    
+    if (strpos($hostLower, 'wix') !== false || strpos($hostLower, 'wixsite') !== false) {
+        $platform = 'wix';
+        $needsUpgrade = true;
+        $issues[] = 'Using Wix template';
+    } elseif (strpos($hostLower, 'squarespace') !== false) {
+        $platform = 'squarespace';
+        $needsUpgrade = true;
+        $issues[] = 'Using Squarespace template';
+    } elseif (strpos($hostLower, 'weebly') !== false) {
+        $platform = 'weebly';
+        $needsUpgrade = true;
+        $issues[] = 'Using Weebly template';
+    } elseif (strpos($hostLower, 'godaddy') !== false) {
+        $platform = 'godaddy';
+        $needsUpgrade = true;
+        $issues[] = 'Using GoDaddy builder';
+    } elseif (strpos($hostLower, 'wordpress.com') !== false) {
+        $platform = 'wordpress.com';
+        $needsUpgrade = true;
+        $issues[] = 'Using free WordPress.com';
+    } elseif (strpos($hostLower, 'shopify') !== false) {
+        $platform = 'shopify';
+    } elseif (strpos($hostLower, 'blogger') !== false || strpos($hostLower, 'blogspot') !== false) {
+        $platform = 'blogger';
+        $needsUpgrade = true;
+        $issues[] = 'Using Blogger';
+    } elseif (strpos($hostLower, 'facebook.com') !== false) {
+        $platform = 'facebook';
+        $needsUpgrade = true;
+        $issues[] = 'Only Facebook presence';
+    }
+    
+    return [
+        'hasWebsite' => true,
+        'platform' => $platform,
+        'needsUpgrade' => $needsUpgrade,
+        'issues' => $issues,
+        'mobileScore' => null,
+        'loadTime' => null
+    ];
 }
 
 /**
