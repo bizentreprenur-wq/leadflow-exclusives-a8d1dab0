@@ -115,23 +115,33 @@ switch ($action) {
             $db = getDB();
             $pdo = $db->getConnection();
             
-            $stmt = $pdo->prepare('
-                SELECT hubspot_token, salesforce_token, salesforce_instance_url, pipedrive_token, pipedrive_api_domain
-                FROM users WHERE id = ?
-            ');
-            $stmt->execute([$user['id']]);
-            $userData = $stmt->fetch(PDO::FETCH_ASSOC);
+            // First check if the CRM columns exist
+            $columnsExist = true;
+            try {
+                $stmt = $pdo->prepare('
+                    SELECT hubspot_token, salesforce_token, salesforce_instance_url, pipedrive_token, pipedrive_api_domain
+                    FROM users WHERE id = ? LIMIT 1
+                ');
+                $stmt->execute([$user['id']]);
+                $userData = $stmt->fetch(PDO::FETCH_ASSOC);
+            } catch (PDOException $e) {
+                // Columns don't exist yet - return unconfigured status
+                $columnsExist = false;
+                $userData = [];
+                error_log("CRM columns missing: " . $e->getMessage());
+            }
             
             $connections = [];
             foreach ($CRM_CONFIGS as $key => $config) {
                 $tokenField = "{$key}_token";
                 $isConfigured = !empty($config['client_id']) && !empty($config['client_secret']);
-                $isConnected = !empty($userData[$tokenField] ?? null);
+                $isConnected = $columnsExist && !empty($userData[$tokenField] ?? null);
                 
                 $connections[$key] = [
                     'configured' => $isConfigured,
                     'connected' => $isConnected,
                     'requires_api_key' => !$isConfigured,
+                    'migration_needed' => !$columnsExist,
                 ];
                 
                 // Add instance URL for Salesforce
@@ -145,11 +155,23 @@ switch ($action) {
             
             echo json_encode([
                 'success' => true,
-                'connections' => $connections
+                'connections' => $connections,
+                'migration_needed' => !$columnsExist,
+                'migration_sql' => !$columnsExist ? 'Run api/database/crm_tokens.sql to add CRM columns' : null
             ]);
         } catch (Exception $e) {
-            http_response_code(500);
-            echo json_encode(['error' => 'Database error']);
+            error_log("CRM status error: " . $e->getMessage());
+            // Return graceful response instead of error
+            echo json_encode([
+                'success' => true,
+                'connections' => [
+                    'hubspot' => ['configured' => false, 'connected' => false, 'requires_api_key' => true, 'migration_needed' => true],
+                    'salesforce' => ['configured' => false, 'connected' => false, 'requires_api_key' => true, 'migration_needed' => true],
+                    'pipedrive' => ['configured' => false, 'connected' => false, 'requires_api_key' => true, 'migration_needed' => true],
+                ],
+                'migration_needed' => true,
+                'migration_sql' => 'Run api/database/crm_tokens.sql to add CRM columns'
+            ]);
         }
         break;
         
