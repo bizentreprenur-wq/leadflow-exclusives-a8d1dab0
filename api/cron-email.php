@@ -7,8 +7,10 @@
  * Cron command (preferred - runs via CLI, no HTTP auth needed):
  * * * * * * /usr/bin/php /home/u497238762/public_html/api/cron-email.php >> /home/u497238762/logs/email-cron.log 2>&1
  * 
- * Or via curl with header authentication:
+ * Or via curl with header authentication ONLY:
  * * * * * * curl -s -H "X-Cron-Secret: YOUR_CRON_SECRET_KEY" "https://bamlead.com/api/cron-email.php"
+ * 
+ * NOTE: URL parameter authentication has been removed for security
  */
 
 require_once __DIR__ . '/config.php';
@@ -26,9 +28,9 @@ if (php_sapi_name() !== 'cli') {
         exit();
     }
     
-    // Then check cron secret key (header preferred, URL deprecated)
-    $cronKey = $_SERVER['HTTP_X_CRON_SECRET'] ?? $_GET['key'] ?? '';
-    if (!defined('CRON_SECRET_KEY') || !hash_equals(CRON_SECRET_KEY, $cronKey)) {
+    // Only accept header-based authentication (URL parameter removed for security)
+    $cronKey = $_SERVER['HTTP_X_CRON_SECRET'] ?? '';
+    if (!defined('CRON_SECRET_KEY') || empty($cronKey) || !hash_equals(CRON_SECRET_KEY, $cronKey)) {
         error_log("Cron email access denied - invalid key from IP: " . getClientIP());
         http_response_code(403);
         echo json_encode(['success' => false, 'error' => 'Forbidden']);

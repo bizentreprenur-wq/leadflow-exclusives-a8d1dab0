@@ -1,8 +1,11 @@
 # Enable CORS and routing for API
+# IMPORTANT: CORS is handled dynamically by PHP in includes/functions.php
+# using ALLOWED_ORIGINS configuration - do NOT set wildcard here
 <IfModule mod_headers.c>
-    Header always set Access-Control-Allow-Origin "*"
+    # Remove any existing CORS headers to let PHP handle them
+    Header unset Access-Control-Allow-Origin
     Header always set Access-Control-Allow-Methods "POST, GET, OPTIONS"
-    Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
+    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Cron-Secret"
 </IfModule>
 
 # Handle OPTIONS preflight requests

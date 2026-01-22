@@ -3,11 +3,10 @@
  * System Diagnostics Endpoint
  * Comprehensive check of all backend systems
  * 
- * Access via header authentication (preferred):
+ * Access via header authentication ONLY:
  * curl -H "X-Cron-Secret: YOUR_CRON_SECRET_KEY" https://bamlead.com/api/diagnostics.php
  * 
- * Legacy URL parameter still supported but deprecated:
- * https://bamlead.com/api/diagnostics.php?key=YOUR_CRON_SECRET_KEY
+ * NOTE: URL parameter authentication has been removed for security
  */
 
 require_once __DIR__ . '/includes/functions.php';
@@ -15,8 +14,8 @@ header('Content-Type: application/json');
 setCorsHeaders();
 handlePreflight();
 
-// Security check - IP whitelist + header-based auth
-$cronKey = $_SERVER['HTTP_X_CRON_SECRET'] ?? $_GET['key'] ?? '';
+// Security check - IP whitelist + header-based auth (URL parameter removed for security)
+$cronKey = $_SERVER['HTTP_X_CRON_SECRET'] ?? '';
 $configExists = file_exists(__DIR__ . '/config.php');
 
 if ($configExists) {

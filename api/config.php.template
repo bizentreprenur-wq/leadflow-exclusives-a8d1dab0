@@ -99,3 +99,12 @@ define('WEBSITE_TIMEOUT', 10);
 define('MAX_PAGE_SIZE', 2097152);
 define('RESULTS_PER_PAGE', 10);
 define('DEBUG_MODE', false);
+
+// =====================================
+// SECURITY VALIDATION (Do not remove)
+// =====================================
+// Validate critical secrets on load in production
+require_once __DIR__ . '/includes/security.php';
+if (!DEBUG_MODE) {
+    validateSecrets();
+}
