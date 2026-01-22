@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useUserBranding } from "@/hooks/useUserBranding";
 import { sanitizeEmailHTML } from "@/lib/sanitize";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -120,6 +121,9 @@ export default function HighConvertingTemplateGallery({
   const [activeCategory, setActiveCategory] = useState("all");
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<EmailTemplate | null>(null);
+  
+  // User branding for logo display
+  const { branding } = useUserBranding();
   
   // Custom templates and folders from localStorage
   const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>([]);
@@ -699,7 +703,18 @@ export default function HighConvertingTemplateGallery({
                     </div>
                   </>
                 ) : (
-                  <>
+                <>
+                    {/* User Logo - Display uploaded company logo */}
+                    {branding?.logo_url && (
+                      <div className="flex justify-center mb-4">
+                        <img
+                          src={branding.logo_url}
+                          alt={branding.company_name || "Company Logo"}
+                          className="max-h-16 max-w-[200px] object-contain"
+                        />
+                      </div>
+                    )}
+
                     {/* Hero Image Preview - Constrained size */}
                     <div className="rounded-lg overflow-hidden border max-w-md mx-auto">
                       <img

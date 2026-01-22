@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { sanitizeEmailHTML } from '@/lib/sanitize';
+import { getUserLogoFromStorage } from '@/hooks/useUserBranding';
 import {
   Dialog,
   DialogContent,
@@ -532,6 +533,19 @@ export default function EmailScheduleModal({
                     </Button>
                   </div>
                   <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                    {/* User Logo - Display uploaded company logo */}
+                    {(() => {
+                      const logoUrl = getUserLogoFromStorage();
+                      return logoUrl ? (
+                        <div className="flex justify-center py-2">
+                          <img
+                            src={logoUrl}
+                            alt="Company Logo"
+                            className="max-h-10 max-w-[150px] object-contain"
+                          />
+                        </div>
+                      ) : null;
+                    })()}
                     <div>
                       <Label className="text-xs text-muted-foreground">Subject:</Label>
                       <p className="text-sm font-medium">{previewTemplate.subject}</p>

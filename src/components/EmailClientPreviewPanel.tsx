@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { saveCustomTemplate } from '@/lib/customTemplates';
+import { getUserLogoFromStorage } from '@/hooks/useUserBranding';
 
 interface EmailClientPreviewPanelProps {
   subject: string;
@@ -141,6 +142,15 @@ export default function EmailClientPreviewPanel({
       {/* Email Body */}
       <ScrollArea className="flex-1">
         <div className={cn('p-4', colors.text)}>
+          {/* User Logo */}
+          {(() => {
+            const logoUrl = getUserLogoFromStorage();
+            return logoUrl ? (
+              <div className="flex justify-center mb-4">
+                <img src={logoUrl} alt="Company Logo" className="max-h-12 max-w-[180px] object-contain" />
+              </div>
+            ) : null;
+          })()}
           <iframe
             srcDoc={personalizeContent(displayBody)}
             className="w-full border-0"
@@ -205,6 +215,15 @@ export default function EmailClientPreviewPanel({
       {/* Email Body */}
       <ScrollArea className="flex-1">
         <div className={cn('p-4', colors.text)}>
+          {/* User Logo */}
+          {(() => {
+            const logoUrl = getUserLogoFromStorage();
+            return logoUrl ? (
+              <div className="flex justify-center mb-4">
+                <img src={logoUrl} alt="Company Logo" className="max-h-12 max-w-[180px] object-contain" />
+              </div>
+            ) : null;
+          })()}
           <iframe
             srcDoc={personalizeContent(displayBody)}
             className="w-full border-0"
@@ -263,6 +282,15 @@ export default function EmailClientPreviewPanel({
       {/* Email Body */}
       <ScrollArea className="flex-1">
         <div className={cn('p-4', colors.text)}>
+          {/* User Logo */}
+          {(() => {
+            const logoUrl = getUserLogoFromStorage();
+            return logoUrl ? (
+              <div className="flex justify-center mb-4">
+                <img src={logoUrl} alt="Company Logo" className="max-h-12 max-w-[180px] object-contain" />
+              </div>
+            ) : null;
+          })()}
           <iframe
             srcDoc={personalizeContent(displayBody)}
             className="w-full border-0"
