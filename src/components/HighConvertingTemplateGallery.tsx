@@ -598,10 +598,10 @@ export default function HighConvertingTemplateGallery({
                   </div>
                   <div className="flex items-center gap-2 mr-8">
                     <Button
-                      variant={isEditing ? "default" : "outline"}
                       size="sm"
                       onClick={() => setIsEditing(!isEditing)}
-                      className="gap-2"
+                      className={`gap-2 ${isEditing ? "" : "bg-emerald-600 hover:bg-emerald-700 text-white"}`}
+                      variant={isEditing ? "outline" : undefined}
                     >
                       {isEditing ? <Eye className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
                       {isEditing ? "Preview" : "Edit & Customize"}
