@@ -37,6 +37,7 @@ if (!$input) {
 $service = sanitizeInput($input['service'] ?? '');
 $location = sanitizeInput($input['location'] ?? '');
 $platforms = isset($input['platforms']) && is_array($input['platforms']) ? $input['platforms'] : [];
+$limit = isset($input['limit']) ? min(100, max(10, intval($input['limit']))) : 50; // Default 50, max 100
 
 if (empty($service)) {
     sendError('Service type is required');
@@ -73,7 +74,7 @@ try {
         ]);
     }
     
-    $results = searchPlatforms($service, $location, $platforms);
+    $results = searchPlatformsFunc($service, $location, $platforms, $limit);
     
     // Cache results
     setCache($cacheKey, $results);
@@ -98,7 +99,7 @@ try {
 /**
  * Search for businesses using specific platforms
  */
-function searchPlatforms($service, $location, $platforms) {
+function searchPlatformsFunc($service, $location, $platforms, $limit = 50) {
     // Increase PHP time limit for large searches
     set_time_limit(300); // 5 minutes max
     
@@ -109,18 +110,18 @@ function searchPlatforms($service, $location, $platforms) {
     
     // Search using SerpAPI if key is available (preferred)
     if (defined('SERPAPI_KEY') && !empty(SERPAPI_KEY)) {
-        $serpResults = searchSerpApi($service, $location, $platformQueries);
+        $serpResults = searchSerpApi($service, $location, $platformQueries, $limit);
         $allResults = array_merge($allResults, $serpResults);
     }
     // Fallback: Search Google if API key is available
     elseif (!empty(GOOGLE_API_KEY) && !empty(GOOGLE_SEARCH_ENGINE_ID)) {
-        $googleResults = searchGoogle($service, $location, $platformQueries);
+        $googleResults = searchGoogle($service, $location, $platformQueries, $limit);
         $allResults = array_merge($allResults, $googleResults);
     }
     
     // Search Bing if API key is available
     if (!empty(BING_API_KEY)) {
-        $bingResults = searchBing($service, $location, $platformQueries);
+        $bingResults = searchBing($service, $location, $platformQueries, $limit);
         $allResults = array_merge($allResults, $bingResults);
     }
     
@@ -144,7 +145,7 @@ function searchPlatforms($service, $location, $platforms) {
     return array_map(function($result) {
         $result['websiteAnalysis'] = quickWebsiteCheck($result['url']);
         return $result;
-    }, array_slice($unique, 0, RESULTS_PER_PAGE));
+    }, array_slice($unique, 0, $limit));
 }
 
 /**
@@ -205,7 +206,7 @@ function quickWebsiteCheck($url) {
 /**
  * Search using SerpAPI (Google Search)
  */
-function searchSerpApi($service, $location, $platformQueries) {
+function searchSerpApi($service, $location, $platformQueries, $limit = 50) {
     $results = [];
     
     // Build query
@@ -214,12 +215,15 @@ function searchSerpApi($service, $location, $platformQueries) {
         $baseQuery .= ' (' . implode(' OR ', array_slice($platformQueries, 0, 3)) . ')';
     }
     
+    // SerpAPI max is 100 per request
+    $numResults = min(100, $limit);
+    
     $url = "https://serpapi.com/search.json?" . http_build_query([
         'api_key' => SERPAPI_KEY,
         'engine' => 'google',
         'q' => $baseQuery,
         'location' => $location,
-        'num' => RESULTS_PER_PAGE
+        'num' => $numResults
     ]);
     
     $response = curlRequest($url);
@@ -301,7 +305,7 @@ function buildPlatformQueries($platforms) {
 /**
  * Search Google Custom Search API
  */
-function searchGoogle($service, $location, $platformQueries) {
+function searchGoogle($service, $location, $platformQueries, $limit = 50) {
     $results = [];
     
     // Build query
@@ -310,12 +314,15 @@ function searchGoogle($service, $location, $platformQueries) {
         $baseQuery .= ' (' . implode(' OR ', array_slice($platformQueries, 0, 3)) . ')';
     }
     
+    // Google CSE max is 10 per request, so we do multiple pages if needed
+    $numResults = min(10, $limit); // Google CSE limits to 10 per request
+    
     $query = urlencode($baseQuery);
     $url = "https://www.googleapis.com/customsearch/v1?" . http_build_query([
         'key' => GOOGLE_API_KEY,
         'cx' => GOOGLE_SEARCH_ENGINE_ID,
         'q' => $baseQuery,
-        'num' => RESULTS_PER_PAGE
+        'num' => $numResults
     ]);
     
     $response = curlRequest($url);
@@ -350,7 +357,7 @@ function searchGoogle($service, $location, $platformQueries) {
 /**
  * Search Bing Web Search API
  */
-function searchBing($service, $location, $platformQueries) {
+function searchBing($service, $location, $platformQueries, $limit = 50) {
     $results = [];
     
     // Build query
@@ -359,9 +366,12 @@ function searchBing($service, $location, $platformQueries) {
         $baseQuery .= ' (' . implode(' OR ', array_slice($platformQueries, 0, 3)) . ')';
     }
     
+    // Bing max is 50 per request
+    $numResults = min(50, $limit);
+    
     $url = "https://api.bing.microsoft.com/v7.0/search?" . http_build_query([
         'q' => $baseQuery,
-        'count' => RESULTS_PER_PAGE,
+        'count' => $numResults,
         'responseFilter' => 'Webpages'
     ]);
     
