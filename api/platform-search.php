@@ -37,7 +37,7 @@ if (!$input) {
 $service = sanitizeInput($input['service'] ?? '');
 $location = sanitizeInput($input['location'] ?? '');
 $platforms = isset($input['platforms']) && is_array($input['platforms']) ? $input['platforms'] : [];
-$limit = isset($input['limit']) ? min(500, max(10, intval($input['limit']))) : 100; // Default 100, max 500
+$limit = isset($input['limit']) ? min(2000, max(10, intval($input['limit']))) : 100; // Default 100, max 2000
 
 if (empty($service)) {
     sendError('Service type is required');
@@ -218,7 +218,7 @@ function searchSerpApi($service, $location, $platformQueries, $limit = 100) {
     // SerpAPI max is 100 per request, so paginate for larger limits
     $resultsPerPage = 100;
     $maxPages = ceil($limit / $resultsPerPage);
-    $maxPages = min($maxPages, 5); // Cap at 5 pages (500 results max)
+    $maxPages = min($maxPages, 20); // Cap at 20 pages (2000 results max)
     
     for ($page = 0; $page < $maxPages; $page++) {
         if (count($results) >= $limit) {
@@ -406,7 +406,7 @@ function searchBing($service, $location, $platformQueries, $limit = 100) {
     // Bing max is 50 per request, paginate for larger limits
     $resultsPerPage = 50;
     $maxPages = ceil($limit / $resultsPerPage);
-    $maxPages = min($maxPages, 10); // Cap at 500 results
+    $maxPages = min($maxPages, 40); // Cap at 2000 results
     
     for ($page = 0; $page < $maxPages; $page++) {
         if (count($results) >= $limit) {
