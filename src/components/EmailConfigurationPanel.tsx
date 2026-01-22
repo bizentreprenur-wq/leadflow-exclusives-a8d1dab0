@@ -15,7 +15,7 @@ import {
   CheckCircle2, XCircle, Loader2, RefreshCw, Trash2, Archive,
   Star, AlertCircle, Clock, ExternalLink, Key, MailOpen, Copy, Webhook, Link2,
   Users, FlaskConical, Pencil, Reply, Forward, PenSquare, Download, ArrowLeft,
-  LayoutGrid
+  LayoutGrid, FileText, FileSignature, Sparkles
 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import OutgoingMailbox from './OutgoingMailbox';
@@ -23,6 +23,7 @@ import WebhookURLConfiguration from './WebhookURLConfiguration';
 import EmailClientPreviewPanel from './EmailClientPreviewPanel';
 import HighConvertingTemplateGallery from './HighConvertingTemplateGallery';
 import ABTestingPanel from './ABTestingPanel';
+import ProposalsContractsPanel from './ProposalsContractsPanel';
 import { sendSingleEmail, getSentEmails } from '@/lib/emailService';
 import { EmailTemplate } from '@/lib/highConvertingTemplates';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
@@ -102,6 +103,7 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
   });
   const [isEditingTemplate, setIsEditingTemplate] = useState(false);
   const [showTemplateGallery, setShowTemplateGallery] = useState(false);
+  const [showProposalsPanel, setShowProposalsPanel] = useState<'proposals' | 'contracts' | null>(null);
   // Load saved config on mount
   useEffect(() => {
     const savedConfig = localStorage.getItem('smtp_config');
@@ -1093,134 +1095,222 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
 
         {/* Inbox Tab - Full Email Client */}
         <TabsContent value="inbox" className="space-y-4">
-          {/* Compose/Reply Modal */}
+          {/* Compose/Reply Modal with Proposals & Contracts */}
           {(isComposing || isReplying) && (
-            <Card className="border-primary/30 bg-card/95 backdrop-blur">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    {isReplying ? <Reply className="w-5 h-5" /> : <PenSquare className="w-5 h-5" />}
-                    {isReplying ? 'Reply to Email' : 'Compose New Email'}
-                  </CardTitle>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setIsComposing(false);
-                      setIsReplying(false);
-                      setComposeData({ to: '', subject: '', body: '' });
-                    }}
-                  >
-                    <XCircle className="w-4 h-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="compose-to">To</Label>
-                  <Input
-                    id="compose-to"
-                    placeholder="recipient@example.com"
-                    value={composeData.to}
-                    onChange={(e) => setComposeData(prev => ({ ...prev, to: e.target.value }))}
-                    disabled={isReplying}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="compose-subject">Subject</Label>
-                  <Input
-                    id="compose-subject"
-                    placeholder="Email subject..."
-                    value={composeData.subject}
-                    onChange={(e) => setComposeData(prev => ({ ...prev, subject: e.target.value }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="compose-body">Message</Label>
-                  <Textarea
-                    id="compose-body"
-                    placeholder="Write your message here..."
-                    value={composeData.body}
-                    onChange={(e) => setComposeData(prev => ({ ...prev, body: e.target.value }))}
-                    className="min-h-[200px]"
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setIsComposing(false);
-                      setIsReplying(false);
-                      setComposeData({ to: '', subject: '', body: '' });
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={async () => {
-                      if (!composeData.to || !composeData.subject || !composeData.body) {
-                        toast.error('Please fill in all fields');
-                        return;
-                      }
-                      
-                      // Validate email format
-                      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                      if (!emailRegex.test(composeData.to)) {
-                        toast.error('Please enter a valid email address');
-                        return;
-                      }
-                      
-                      setIsSendingEmail(true);
-                      
-                      try {
-                        // Send via real SMTP backend
-                        const result = await sendSingleEmail({
-                          to: composeData.to,
-                          subject: composeData.subject,
-                          bodyHtml: `<div style="font-family: Arial, sans-serif; line-height: 1.6;">${composeData.body.replace(/\n/g, '<br>')}</div>`,
-                          bodyText: composeData.body,
-                        });
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+              {/* Main Compose Form - Left Side */}
+              <Card className="border-primary/30 bg-card/95 backdrop-blur lg:col-span-3">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      {isReplying ? <Reply className="w-5 h-5" /> : <PenSquare className="w-5 h-5" />}
+                      {isReplying ? 'Reply to Email' : 'Compose New Email'}
+                    </CardTitle>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setIsComposing(false);
+                        setIsReplying(false);
+                        setComposeData({ to: '', subject: '', body: '' });
+                      }}
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="compose-to">To</Label>
+                    <Input
+                      id="compose-to"
+                      placeholder="recipient@example.com"
+                      value={composeData.to}
+                      onChange={(e) => setComposeData(prev => ({ ...prev, to: e.target.value }))}
+                      disabled={isReplying}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="compose-subject">Subject</Label>
+                    <Input
+                      id="compose-subject"
+                      placeholder="Email subject..."
+                      value={composeData.subject}
+                      onChange={(e) => setComposeData(prev => ({ ...prev, subject: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="compose-body">Message</Label>
+                    <Textarea
+                      id="compose-body"
+                      placeholder="Write your message here..."
+                      value={composeData.body}
+                      onChange={(e) => setComposeData(prev => ({ ...prev, body: e.target.value }))}
+                      className="min-h-[200px]"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setIsComposing(false);
+                        setIsReplying(false);
+                        setComposeData({ to: '', subject: '', body: '' });
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        if (!composeData.to || !composeData.subject || !composeData.body) {
+                          toast.error('Please fill in all fields');
+                          return;
+                        }
                         
-                        if (result.success) {
-                          const newEmail: EmailMessage = {
-                            id: Date.now().toString(),
-                            from: smtpConfig.fromEmail || 'noreply@bamlead.com',
+                        // Validate email format
+                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                        if (!emailRegex.test(composeData.to)) {
+                          toast.error('Please enter a valid email address');
+                          return;
+                        }
+                        
+                        setIsSendingEmail(true);
+                        
+                        try {
+                          // Send via real SMTP backend
+                          const result = await sendSingleEmail({
                             to: composeData.to,
                             subject: composeData.subject,
-                            preview: composeData.body.substring(0, 100),
-                            date: new Date().toISOString(),
-                            read: true,
-                            starred: false,
-                            type: 'sent',
-                          };
-                          setEmails(prev => [newEmail, ...prev]);
-                          setIsComposing(false);
-                          setIsReplying(false);
-                          setComposeData({ to: '', subject: '', body: '' });
-                          toast.success('Email sent successfully via SMTP!');
-                        } else {
-                          toast.error(result.error || 'Failed to send email');
+                            bodyHtml: `<div style="font-family: Arial, sans-serif; line-height: 1.6;">${composeData.body.replace(/\n/g, '<br>')}</div>`,
+                            bodyText: composeData.body,
+                          });
+                          
+                          if (result.success) {
+                            const newEmail: EmailMessage = {
+                              id: Date.now().toString(),
+                              from: smtpConfig.fromEmail || 'noreply@bamlead.com',
+                              to: composeData.to,
+                              subject: composeData.subject,
+                              preview: composeData.body.substring(0, 100),
+                              date: new Date().toISOString(),
+                              read: true,
+                              starred: false,
+                              type: 'sent',
+                            };
+                            setEmails(prev => [newEmail, ...prev]);
+                            setIsComposing(false);
+                            setIsReplying(false);
+                            setComposeData({ to: '', subject: '', body: '' });
+                            toast.success('Email sent successfully via SMTP!');
+                          } else {
+                            toast.error(result.error || 'Failed to send email');
+                          }
+                        } catch (error) {
+                          console.error('Send error:', error);
+                          toast.error('Failed to send email. Check SMTP settings.');
+                        } finally {
+                          setIsSendingEmail(false);
                         }
-                      } catch (error) {
-                        console.error('Send error:', error);
-                        toast.error('Failed to send email. Check SMTP settings.');
-                      } finally {
-                        setIsSendingEmail(false);
-                      }
-                    }}
-                    disabled={isSendingEmail || !isConnected}
-                    className="gap-2"
-                  >
-                    {isSendingEmail ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Send className="w-4 h-4" />
-                    )}
-                    {!isConnected ? 'Configure SMTP First' : 'Send Email'}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                      }}
+                      disabled={isSendingEmail || !isConnected}
+                      className="gap-2"
+                    >
+                      {isSendingEmail ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
+                      {!isConnected ? 'Configure SMTP First' : 'Send Email'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Proposals & Contracts Panel - Right Side */}
+              <Card className="border-accent/30 bg-gradient-to-br from-accent/5 to-transparent lg:col-span-2">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-accent" />
+                    Done For You Documents
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Send professional proposals & contracts
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {/* Quick Actions */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-auto py-3 flex-col gap-1 border-primary/30 hover:bg-primary/10"
+                      onClick={() => setShowProposalsPanel('proposals')}
+                    >
+                      <FileText className="w-5 h-5 text-primary" />
+                      <span className="text-xs font-medium">Proposals</span>
+                      <span className="text-[10px] text-muted-foreground">10 templates</span>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-auto py-3 flex-col gap-1 border-amber-500/30 hover:bg-amber-500/10"
+                      onClick={() => setShowProposalsPanel('contracts')}
+                    >
+                      <FileSignature className="w-5 h-5 text-amber-500" />
+                      <span className="text-xs font-medium">Contracts</span>
+                      <span className="text-[10px] text-muted-foreground">10 templates</span>
+                    </Button>
+                  </div>
+
+                  {/* Popular Templates Quick Pick */}
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Quick Pick:</Label>
+                    <ScrollArea className="h-[180px]">
+                      <div className="space-y-1.5">
+                        {[
+                          { icon: '🎨', name: 'Website Design Proposal', type: 'proposals' },
+                          { icon: '🎯', name: 'Lead Generation Proposal', type: 'proposals' },
+                          { icon: '📈', name: 'Marketing Services', type: 'contracts' },
+                          { icon: '🤝', name: 'Monthly Retainer', type: 'contracts' },
+                          { icon: '🔒', name: 'NDA / Confidentiality', type: 'contracts' },
+                          { icon: '⚡', name: 'Rush Job Agreement', type: 'contracts' },
+                        ].map((item, idx) => (
+                          <Button
+                            key={idx}
+                            variant="ghost"
+                            size="sm"
+                            className="w-full justify-start h-8 text-xs hover:bg-accent/10"
+                            onClick={() => setShowProposalsPanel(item.type as 'proposals' | 'contracts')}
+                          >
+                            <span className="mr-2">{item.icon}</span>
+                            {item.name}
+                            <Badge variant="outline" className="ml-auto text-[9px] px-1">
+                              {item.type === 'proposals' ? 'Proposal' : 'Contract'}
+                            </Badge>
+                          </Button>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+
+                  <Separator />
+
+                  <div className="text-center">
+                    <p className="text-[10px] text-muted-foreground mb-2">
+                      ✨ Branded with your logo & details
+                    </p>
+                    <Button
+                      size="sm"
+                      className="w-full gap-1"
+                      onClick={() => setShowProposalsPanel('proposals')}
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      Open Full Gallery
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {/* Selected Email View */}
@@ -1664,6 +1754,36 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
             <HighConvertingTemplateGallery 
               onSelectTemplate={handleTemplateSelect}
               selectedTemplateId={selectedTemplate?.id}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Proposals & Contracts Panel Modal */}
+      <Dialog open={!!showProposalsPanel} onOpenChange={(open) => !open && setShowProposalsPanel(null)}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden p-0">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b bg-gradient-to-r from-primary/10 to-accent/10">
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              {showProposalsPanel === 'proposals' ? (
+                <>
+                  <FileText className="w-5 h-5 text-primary" />
+                  Done For You Proposals
+                </>
+              ) : (
+                <>
+                  <FileSignature className="w-5 h-5 text-amber-500" />
+                  Done For You Contracts
+                </>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              Professional, branded documents ready to customize and send to your clients
+            </DialogDescription>
+          </DialogHeader>
+          <div className="overflow-y-auto max-h-[calc(90vh-120px)] px-6 pb-6 pt-4">
+            <ProposalsContractsPanel 
+              leads={leads}
+              initialView={showProposalsPanel || 'proposals'}
             />
           </div>
         </DialogContent>
