@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, CheckCircle2, Clock, Zap, Info, ArrowRight, Shield, TrendingUp, Eye, AlertCircle, RefreshCw } from 'lucide-react';
+import { Mail, CheckCircle2, Clock, Zap, Info, ArrowRight, Shield, TrendingUp, Eye, AlertCircle, RefreshCw, Pause, Play, Send } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
@@ -18,6 +18,12 @@ interface MailboxDripAnimationProps {
   // Real sending mode - when true, polls backend for actual delivery status
   realSendingMode?: boolean;
   campaignId?: string;
+  // Pause/Send controls
+  isPaused?: boolean;
+  onPause?: () => void;
+  onResume?: () => void;
+  onSend?: () => void;
+  showControls?: boolean;
 }
 
 export default function MailboxDripAnimation({
@@ -29,6 +35,11 @@ export default function MailboxDripAnimation({
   onEmailStatusUpdate,
   realSendingMode = false,
   campaignId,
+  isPaused = false,
+  onPause,
+  onResume,
+  onSend,
+  showControls = true,
 }: MailboxDripAnimationProps) {
   const [flyingEmails, setFlyingEmails] = useState<number[]>([]);
   const [emailId, setEmailId] = useState(0);
@@ -378,6 +389,40 @@ export default function MailboxDripAnimation({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Pause/Resume and Send Controls */}
+            {showControls && (
+              <div className="flex items-center gap-2 mr-2">
+                {isPaused ? (
+                  <Button
+                    onClick={onResume}
+                    size="sm"
+                    className="gap-2 bg-success hover:bg-success/90 text-white"
+                  >
+                    <Play className="w-4 h-4" />
+                    Resume
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={onPause}
+                    size="sm"
+                    variant="outline"
+                    className="gap-2 border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
+                  >
+                    <Pause className="w-4 h-4" />
+                    Pause
+                  </Button>
+                )}
+                <Button
+                  onClick={onSend}
+                  size="sm"
+                  className="gap-2 bg-primary hover:bg-primary/90"
+                  disabled={isActive && !isPaused}
+                >
+                  <Send className="w-4 h-4" />
+                  Send Now
+                </Button>
+              </div>
+            )}
             <button
               onClick={() => setShowExplanation(!showExplanation)}
               className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
@@ -385,10 +430,16 @@ export default function MailboxDripAnimation({
             >
               <Info className="w-4 h-4 text-blue-300" />
             </button>
-            {isActive && (
+            {isActive && !isPaused && (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/20 rounded-full border border-amber-500/30">
                 <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
                 <span className="text-xs font-medium text-amber-400">PREVIEW</span>
+              </div>
+            )}
+            {isPaused && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/30 rounded-full border border-amber-500/50">
+                <Pause className="w-3 h-3 text-amber-400" />
+                <span className="text-xs font-medium text-amber-400">PAUSED</span>
               </div>
             )}
           </div>
