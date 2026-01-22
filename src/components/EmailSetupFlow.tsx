@@ -1299,6 +1299,10 @@ export default function EmailSetupFlow({
                 Connect External CRM
               </Button>
               <div className="flex items-center gap-3">
+                <Button onClick={() => setShowAutoCampaign(true)} className="gap-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700">
+                  <Rocket className="w-4 h-4" />
+                  Auto Campaign Wizard
+                </Button>
                 <Button 
                   variant="outline" 
                   onClick={() => smartDripRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} 
@@ -1306,10 +1310,6 @@ export default function EmailSetupFlow({
                 >
                   <Mail className="w-4 h-4" />
                   Continue to Email
-                </Button>
-                <Button onClick={() => setShowAutoCampaign(true)} className="gap-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700">
-                  <Rocket className="w-4 h-4" />
-                  Auto Campaign Wizard
                 </Button>
               </div>
             </div>
