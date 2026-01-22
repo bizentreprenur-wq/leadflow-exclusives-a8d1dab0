@@ -25,6 +25,7 @@ import TemplateGallery from "./pages/TemplateGallery";
 import CloseLoop from "./pages/CloseLoop";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
+import SignContract from "./pages/SignContract";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -53,6 +54,7 @@ const App = () => (
               <Route path="/closeloop" element={<CloseLoop />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
+              <Route path="/sign-contract" element={<SignContract />} />
               <Route
                 path="/dashboard" 
                 element={
