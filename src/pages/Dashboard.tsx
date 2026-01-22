@@ -351,8 +351,8 @@ export default function Dashboard() {
           throw new Error(response.error);
         }
       } else if (searchType === 'platform') {
-        console.log('[BamLead] Calling searchPlatforms API...');
-        const response = await searchPlatforms(query, location, selectedPlatforms, handleProgress);
+        console.log('[BamLead] Calling searchPlatforms API with limit:', searchLimit);
+        const response = await searchPlatforms(query, location, selectedPlatforms, handleProgress, searchLimit);
         console.log('[BamLead] Platform response:', response);
         if (response.success && response.data) {
           finalResults = response.data.map((r: PlatformResult, index: number) => ({
