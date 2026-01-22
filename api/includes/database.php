@@ -26,9 +26,9 @@ class Database {
             
             $this->connection = new PDO($dsn, DB_USER, DB_PASS, $options);
         } catch (PDOException $e) {
-            if (DEBUG_MODE) {
-                throw new Exception("Database connection failed: " . $e->getMessage());
-            }
+            // Always log detailed error server-side
+            error_log("Database connection failed: " . $e->getMessage());
+            // Never expose connection details to clients
             throw new Exception("Database connection failed");
         }
     }

@@ -94,8 +94,9 @@ try {
                 exit();
             }
             
-            $cronKey = $_SERVER['HTTP_X_CRON_SECRET'] ?? $_GET['key'] ?? '';
-            if (!defined('CRON_SECRET_KEY') || !hash_equals(CRON_SECRET_KEY, $cronKey)) {
+            // Only accept header-based authentication (URL parameter removed for security)
+            $cronKey = $_SERVER['HTTP_X_CRON_SECRET'] ?? '';
+            if (!defined('CRON_SECRET_KEY') || empty($cronKey) || !hash_equals(CRON_SECRET_KEY, $cronKey)) {
                 error_log("Process-scheduled denied - invalid key from IP: " . getClientIP());
                 http_response_code(403);
                 echo json_encode(['success' => false, 'error' => 'Forbidden']);
@@ -586,20 +587,33 @@ function handleSends($db, $user) {
 // ===== TRACKING HANDLERS =====
 
 function handleTrackOpen($db) {
-    $trackingId = $_GET['tid'] ?? null;
+    $trackingId = $_GET['tid'] ?? '';
     
-    if ($trackingId) {
+    // Validate tracking ID format (must be 64-char hex string)
+    if (!preg_match('/^[a-f0-9]{64}$/i', $trackingId)) {
+        // Return transparent GIF anyway to not break email display
+        header('Content-Type: image/gif');
+        echo base64_decode('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7');
+        exit();
+    }
+    
+    // Verify tracking ID exists before updating
+    $exists = $db->fetchOne(
+        "SELECT id, campaign_id FROM email_sends WHERE tracking_id = ? AND status IN ('sent', 'delivered') LIMIT 1",
+        [$trackingId]
+    );
+    
+    if ($exists) {
         $db->update(
-            "UPDATE email_sends SET status = 'opened', opened_at = COALESCE(opened_at, NOW()) WHERE tracking_id = ? AND status IN ('sent', 'delivered')",
-            [$trackingId]
+            "UPDATE email_sends SET status = 'opened', opened_at = COALESCE(opened_at, NOW()) WHERE id = ?",
+            [$exists['id']]
         );
         
         // Update campaign stats
-        $send = $db->fetchOne("SELECT campaign_id FROM email_sends WHERE tracking_id = ?", [$trackingId]);
-        if ($send && $send['campaign_id']) {
+        if ($exists['campaign_id']) {
             $db->update(
                 "UPDATE email_campaigns SET opened_count = opened_count + 1 WHERE id = ?",
-                [$send['campaign_id']]
+                [$exists['campaign_id']]
             );
         }
     }
@@ -611,23 +625,38 @@ function handleTrackOpen($db) {
 }
 
 function handleTrackClick($db) {
-    $trackingId = $_GET['tid'] ?? null;
-    $url = $_GET['url'] ?? null;
+    $trackingId = $_GET['tid'] ?? '';
+    $url = $_GET['url'] ?? '';
     
-    if ($trackingId) {
+    // Validate tracking ID format
+    if (!preg_match('/^[a-f0-9]{64}$/i', $trackingId)) {
+        http_response_code(400);
+        exit('Invalid request');
+    }
+    
+    // Validate redirect URL to prevent open redirect vulnerability
+    if (!empty($url)) {
+        $parsed = parse_url($url);
+        if ($parsed === false || !isset($parsed['scheme']) || !in_array($parsed['scheme'], ['http', 'https'], true)) {
+            http_response_code(400);
+            exit('Invalid URL');
+        }
+    }
+    
+    // Verify tracking ID exists before updating
+    $exists = $db->fetchOne(
+        "SELECT id FROM email_sends WHERE tracking_id = ? AND status IN ('sent', 'delivered', 'opened') LIMIT 1",
+        [$trackingId]
+    );
+    
+    if ($exists) {
         $db->update(
-            "UPDATE email_sends SET clicked_at = COALESCE(clicked_at, NOW()) WHERE tracking_id = ? AND status IN ('sent', 'delivered', 'opened')",
-            [$trackingId]
-        );
-        
-        // Update status to clicked if not already
-        $db->update(
-            "UPDATE email_sends SET status = 'clicked' WHERE tracking_id = ? AND status NOT IN ('replied', 'bounced', 'failed')",
-            [$trackingId]
+            "UPDATE email_sends SET clicked_at = COALESCE(clicked_at, NOW()), status = 'clicked' WHERE id = ? AND status NOT IN ('replied', 'bounced', 'failed')",
+            [$exists['id']]
         );
     }
     
-    if ($url) {
+    if (!empty($url)) {
         header('Location: ' . $url);
     }
     exit();
