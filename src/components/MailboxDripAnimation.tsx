@@ -25,6 +25,8 @@ interface MailboxDripAnimationProps {
   onSend?: () => void;
   showControls?: boolean;
   showCampaignSpeed?: boolean;
+  // Content to render after the PREVIEW MODE banner
+  renderAfterBanner?: React.ReactNode;
 }
 
 export default function MailboxDripAnimation({
@@ -42,6 +44,7 @@ export default function MailboxDripAnimation({
   onSend,
   showControls = true,
   showCampaignSpeed = true,
+  renderAfterBanner,
 }: MailboxDripAnimationProps) {
   const [flyingEmails, setFlyingEmails] = useState<number[]>([]);
   const [emailId, setEmailId] = useState(0);
@@ -253,6 +256,9 @@ export default function MailboxDripAnimation({
           </div>
         </div>
       )}
+
+      {/* Content injected after the banner */}
+      {renderAfterBanner}
 
       {/* Real-time Delivery Stats (only in real mode) */}
       {realSendingMode && (deliveryStats.sent > 0 || deliveryStats.delivered > 0 || deliveryStats.failed > 0) && (
