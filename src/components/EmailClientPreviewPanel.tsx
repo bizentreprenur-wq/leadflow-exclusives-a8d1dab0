@@ -7,13 +7,15 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { 
   Monitor, Smartphone, Moon, Sun, Mail, Star, Archive, 
   Trash2, Reply, Forward, MoreHorizontal, Paperclip,
-  ChevronDown, Clock, CheckCircle2, Pencil, X, Save
+  ChevronDown, Clock, CheckCircle2, Pencil, X, Save, BookmarkPlus
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { saveCustomTemplate } from '@/lib/customTemplates';
 
 interface EmailClientPreviewPanelProps {
   subject: string;
@@ -43,6 +45,8 @@ export default function EmailClientPreviewPanel({
   const [isEditing, setIsEditing] = useState(false);
   const [editSubject, setEditSubject] = useState(subject);
   const [editBody, setEditBody] = useState(body.replace(/<[^>]*>/g, ''));
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [newTemplateName, setNewTemplateName] = useState('');
 
   // Personalize placeholders
   const personalizeContent = (html: string) => {
@@ -300,6 +304,36 @@ export default function EmailClientPreviewPanel({
     setIsEditing(false);
   };
 
+  const handleSaveToLibrary = () => {
+    if (!newTemplateName.trim()) {
+      toast.error('Please enter a template name');
+      return;
+    }
+    
+    saveCustomTemplate({
+      id: '',
+      name: newTemplateName.trim(),
+      category: 'general',
+      industry: 'Custom',
+      subject: editSubject,
+      body_html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        ${editBody.split('\n').map(p => `<p style="margin: 0 0 15px 0; line-height: 1.6;">${p}</p>`).join('')}
+      </div>`,
+      description: `Custom template: ${newTemplateName}`,
+      previewImage: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&h=300&fit=crop',
+      conversionTip: 'Personalized template for your specific needs',
+    });
+    
+    // Also save current edits
+    if (onSaveEdit) {
+      onSaveEdit(editSubject, editBody);
+    }
+    
+    setShowSaveDialog(false);
+    setNewTemplateName('');
+    toast.success('🎉 Template saved to your library!');
+  };
+
   return (
     <Card className="bg-gradient-card border-border shadow-card overflow-hidden">
       <CardHeader className="pb-3 border-b border-border">
@@ -335,6 +369,15 @@ export default function EmailClientPreviewPanel({
                 >
                   <X className="w-4 h-4" />
                   Cancel
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowSaveDialog(true)}
+                  className="gap-1 border-amber-500/50 text-amber-500 hover:bg-amber-500/10"
+                >
+                  <BookmarkPlus className="w-4 h-4" />
+                  Save to Library
                 </Button>
                 <Button
                   size="sm"
@@ -464,6 +507,50 @@ export default function EmailClientPreviewPanel({
           </div>
         </div>
       </CardContent>
+
+      {/* Save to Library Dialog */}
+      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Star className="w-5 h-5 text-amber-500" />
+              Save Template to Library
+            </DialogTitle>
+            <DialogDescription>
+              Save this customized template so you can reuse it in future campaigns.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="template-name">Template Name</Label>
+              <Input
+                id="template-name"
+                value={newTemplateName}
+                onChange={(e) => setNewTemplateName(e.target.value)}
+                placeholder="My Custom Outreach Template..."
+                autoFocus
+              />
+            </div>
+            <div className="p-3 rounded-lg bg-muted/50 border">
+              <p className="text-xs text-muted-foreground mb-1">Subject Preview:</p>
+              <p className="text-sm font-medium truncate">{editSubject}</p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveToLibrary}
+              disabled={!newTemplateName.trim()}
+              className="gap-2 bg-amber-500 hover:bg-amber-600 text-black"
+            >
+              <Star className="w-4 h-4" />
+              Save to Library
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

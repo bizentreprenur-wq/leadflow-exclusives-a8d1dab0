@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { sanitizeEmailHTML } from "@/lib/sanitize";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,9 +24,12 @@ import {
   X,
   Edit3,
   Save,
-  Wand2
+  Wand2,
+  Trash2,
+  Star
 } from "lucide-react";
 import { HIGH_CONVERTING_TEMPLATES, TEMPLATE_CATEGORIES, EmailTemplate } from "@/lib/highConvertingTemplates";
+import { getCustomTemplates, saveCustomTemplate, deleteCustomTemplate, CustomTemplate } from "@/lib/customTemplates";
 import { toast } from "sonner";
 
 interface HighConvertingTemplateGalleryProps {
@@ -81,6 +84,14 @@ export default function HighConvertingTemplateGallery({
   const [activeCategory, setActiveCategory] = useState("all");
   const [previewTemplate, setPreviewTemplate] = useState<EmailTemplate | null>(null);
   
+  // Custom templates from localStorage
+  const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>([]);
+  
+  // Load custom templates on mount
+  useEffect(() => {
+    setCustomTemplates(getCustomTemplates());
+  }, []);
+  
   // Track highlighted template for sticky bar (before final selection)
   const [highlightedTemplate, setHighlightedTemplate] = useState<EmailTemplate | null>(null);
   
@@ -88,13 +99,17 @@ export default function HighConvertingTemplateGallery({
   const [isEditing, setIsEditing] = useState(false);
   const [editedSubject, setEditedSubject] = useState("");
   const [editedBody, setEditedBody] = useState("");
+  const [newTemplateName, setNewTemplateName] = useState("");
 
-  const filteredTemplates = HIGH_CONVERTING_TEMPLATES.filter(template => {
+  // Combine custom templates with built-in templates (custom first)
+  const allTemplates = [...customTemplates, ...HIGH_CONVERTING_TEMPLATES];
+
+  const filteredTemplates = allTemplates.filter(template => {
     const matchesSearch = 
       template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       template.industry.toLowerCase().includes(searchQuery.toLowerCase()) ||
       template.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = activeCategory === 'all' || template.category === activeCategory;
+    const matchesCategory = activeCategory === 'all' || template.category === activeCategory || (activeCategory === 'custom' && 'isCustom' in template);
     return matchesSearch && matchesCategory;
   });
 
@@ -115,7 +130,44 @@ export default function HighConvertingTemplateGallery({
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = template.body_html;
     setEditedBody(tempDiv.textContent || tempDiv.innerText || '');
+    setNewTemplateName(`My ${template.name}`);
     setIsEditing(true);
+  };
+
+  const handleSaveAsNewTemplate = () => {
+    if (!previewTemplate || !newTemplateName.trim()) {
+      toast.error('Please enter a template name');
+      return;
+    }
+    
+    const newTemplate = saveCustomTemplate({
+      id: '', // Will be generated
+      name: newTemplateName.trim(),
+      category: previewTemplate.category,
+      industry: previewTemplate.industry,
+      subject: editedSubject,
+      body_html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        ${editedBody.split('\n').map(p => `<p style="margin: 0 0 15px 0; line-height: 1.6;">${p}</p>`).join('')}
+      </div>`,
+      description: `Custom template based on ${previewTemplate.name}`,
+      previewImage: previewTemplate.previewImage,
+      conversionTip: previewTemplate.conversionTip,
+      openRate: previewTemplate.openRate,
+      replyRate: previewTemplate.replyRate,
+    });
+    
+    setCustomTemplates(getCustomTemplates());
+    onSelectTemplate?.(newTemplate);
+    setPreviewTemplate(null);
+    setIsEditing(false);
+    toast.success('🎉 Template saved to your library!');
+  };
+
+  const handleDeleteCustomTemplate = (templateId: string) => {
+    if (deleteCustomTemplate(templateId)) {
+      setCustomTemplates(getCustomTemplates());
+      toast.success('Template deleted');
+    }
   };
 
   const handleSaveCustomTemplate = () => {
@@ -157,7 +209,7 @@ export default function HighConvertingTemplateGallery({
               Email Template Gallery
             </h2>
             <p className="text-muted-foreground">
-              {HIGH_CONVERTING_TEMPLATES.length} high-converting templates across {TEMPLATE_CATEGORIES.length - 1} categories
+              {allTemplates.length} templates ({customTemplates.length} custom, {HIGH_CONVERTING_TEMPLATES.length} built-in)
             </p>
           </div>
           <div className="relative w-72">
@@ -174,6 +226,21 @@ export default function HighConvertingTemplateGallery({
         {/* Category Tabs */}
         <Tabs value={activeCategory} onValueChange={setActiveCategory}>
           <TabsList className="h-auto flex-wrap gap-1 bg-transparent p-0">
+            {/* My Templates Tab - Show first if user has custom templates */}
+            {customTemplates.length > 0 && (
+              <TabsTrigger
+                value="custom"
+                className="data-[state=active]:bg-amber-500 data-[state=active]:text-black px-4 py-2 rounded-full border border-amber-500/50 bg-amber-500/10"
+              >
+                <span className="flex items-center gap-2">
+                  <Star className="w-4 h-4" />
+                  My Templates
+                  <Badge variant="secondary" className="ml-1 text-xs bg-amber-500/20">
+                    {customTemplates.length}
+                  </Badge>
+                </span>
+              </TabsTrigger>
+            )}
             {TEMPLATE_CATEGORIES.map((cat) => (
               <TabsTrigger
                 key={cat.id}
@@ -227,11 +294,26 @@ export default function HighConvertingTemplateGallery({
                 <Badge 
                   className={`absolute top-2 left-2 text-xs ${getCategoryColor(template.category)}`}
                 >
-                  {template.industry}
+                  {'isCustom' in template ? '⭐ My Template' : template.industry}
                 </Badge>
 
+                {/* Delete button for custom templates */}
+                {'isCustom' in template && (
+                  <Button
+                    size="icon"
+                    variant="destructive"
+                    className="absolute top-2 right-2 w-6 h-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteCustomTemplate(template.id);
+                    }}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </Button>
+                )}
+
                 {/* Selected/Highlighted Indicator */}
-                {(isSelected || isHighlighted) && (
+                {(isSelected || isHighlighted) && !('isCustom' in template) && (
                   <div className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center ${
                     isSelected ? 'bg-primary' : 'bg-emerald-500'
                   }`}>
@@ -372,8 +454,25 @@ export default function HighConvertingTemplateGallery({
                       value={editedBody}
                       onChange={(e) => setEditedBody(e.target.value)}
                       placeholder="Write your email content..."
-                      className="min-h-[350px] font-mono text-sm"
+                      className="min-h-[250px] font-mono text-sm"
                     />
+                  </div>
+                  
+                  {/* Save as New Template */}
+                  <div className="p-4 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Star className="w-4 h-4 text-primary" />
+                      <Label className="text-sm font-medium">Save as New Template</Label>
+                    </div>
+                    <Input
+                      value={newTemplateName}
+                      onChange={(e) => setNewTemplateName(e.target.value)}
+                      placeholder="Enter a name for your template..."
+                      className="bg-background"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Save this customized template to your library for future campaigns
+                    </p>
                   </div>
                 </>
               ) : (
@@ -410,9 +509,21 @@ export default function HighConvertingTemplateGallery({
                     <Button variant="outline" onClick={() => setIsEditing(false)}>
                       Cancel
                     </Button>
-                    <Button onClick={handleSaveCustomTemplate} className="gap-2 bg-gradient-to-r from-primary to-primary/70">
-                      <Save className="w-4 h-4" />
-                      Save & Use Custom Template
+                    <Button 
+                      variant="outline"
+                      onClick={handleSaveCustomTemplate} 
+                      className="gap-2"
+                    >
+                      <Check className="w-4 h-4" />
+                      Use Now (One-time)
+                    </Button>
+                    <Button 
+                      onClick={handleSaveAsNewTemplate} 
+                      className="gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                      disabled={!newTemplateName.trim()}
+                    >
+                      <Star className="w-4 h-4" />
+                      Save to Library
                     </Button>
                   </>
                 ) : (
