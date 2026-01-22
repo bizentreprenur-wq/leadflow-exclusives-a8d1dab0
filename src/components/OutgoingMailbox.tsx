@@ -9,9 +9,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mail, Send, Inbox, CheckCircle2, Clock, AlertCircle,
   Server, Loader2, RefreshCw, ArrowRight, Sparkles,
-  MailOpen, MailPlus, ExternalLink, Zap, TrendingUp
+  MailOpen, MailPlus, ExternalLink, Zap, TrendingUp,
+  Upload, Building2, Palette
 } from 'lucide-react';
 import { EmailSend, EmailStats, getSends, getEmailStats } from '@/lib/api/email';
+import { useEmailBranding, EmailBrandingConfig } from './EmailBrandingSettings';
+import { toast } from 'sonner';
 
 interface OutgoingEmail {
   id: string;
@@ -56,6 +59,49 @@ export default function OutgoingMailbox({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [sendProgress, setSendProgress] = useState(0);
+  
+  // Branding hook for logo and company info
+  const { branding, updateBranding } = useEmailBranding();
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith('image/')) {
+      toast.error("Please upload an image file");
+      return;
+    }
+    
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Logo must be under 2MB");
+      return;
+    }
+    
+    setIsUploadingLogo(true);
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      
+      updateBranding({ ...branding, logoUrl: dataUrl, enabled: true });
+      
+      // Also sync to bamlead_branding_info for proposals/contracts
+      const existingBranding = localStorage.getItem('bamlead_branding_info');
+      const parsed = existingBranding ? JSON.parse(existingBranding) : {};
+      localStorage.setItem('bamlead_branding_info', JSON.stringify({ ...parsed, logoUrl: dataUrl }));
+      
+      toast.success("Logo uploaded! It will appear in all your emails and documents.");
+    } catch (error) {
+      toast.error("Failed to upload logo");
+    } finally {
+      setIsUploadingLogo(false);
+      e.target.value = '';
+    }
+  };
   
   // Load real email data on mount
   useEffect(() => {
@@ -235,6 +281,93 @@ export default function OutgoingMailbox({
           </div>
         </CardHeader>
 
+        {/* Your Branding Section */}
+        <CardContent className="pt-0 pb-4">
+          <Card className="border-2 border-dashed border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-4">
+                {/* Logo Display Area */}
+                <div className="flex items-center gap-4">
+                  {branding.logoUrl ? (
+                    <div className="relative group">
+                      <div className="w-16 h-16 rounded-xl bg-white border-2 border-primary/20 flex items-center justify-center overflow-hidden shadow-sm">
+                        <img 
+                          src={branding.logoUrl} 
+                          alt="Your Logo" 
+                          className="max-w-full max-h-full object-contain p-1"
+                        />
+                      </div>
+                      <label className="absolute inset-0 bg-black/50 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex items-center justify-center">
+                        <Upload className="w-5 h-5 text-white" />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <label className="w-16 h-16 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 flex flex-col items-center justify-center cursor-pointer hover:bg-primary/10 transition-colors">
+                      {isUploadingLogo ? (
+                        <Loader2 className="w-5 h-5 text-primary animate-spin" />
+                      ) : (
+                        <>
+                          <Upload className="w-5 h-5 text-primary mb-1" />
+                          <span className="text-[9px] text-primary font-medium">Upload</span>
+                        </>
+                      )}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="hidden"
+                      />
+                    </label>
+                  )}
+                  
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Building2 className="w-4 h-4 text-primary" />
+                      <span className="font-semibold text-sm text-foreground">
+                        {branding.companyName || 'Your Company'}
+                      </span>
+                      {branding.enabled && branding.logoUrl && (
+                        <Badge className="bg-success/20 text-success border-success/40 text-[10px]">
+                          <CheckCircle2 className="w-3 h-3 mr-1" />
+                          Branded
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {branding.logoUrl 
+                        ? '✓ Your logo will appear in all outgoing emails & documents' 
+                        : 'Upload your logo to brand emails & proposals'}
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Quick Branding Toggle */}
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className="text-xs font-medium text-foreground">Auto-Brand Emails</p>
+                    <p className="text-[10px] text-muted-foreground">Apply to all outreach</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={branding.enabled}
+                      onChange={(e) => updateBranding({ ...branding, enabled: e.target.checked })}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-muted rounded-full peer peer-checked:bg-primary peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                  </label>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </CardContent>
+
         {/* Visual Email Flow */}
         <CardContent className="pt-0">
           <div className="flex items-center justify-center gap-2 py-4 px-2 bg-gradient-to-r from-muted/50 via-muted to-muted/50 rounded-lg mb-4">
@@ -248,8 +381,8 @@ export default function OutgoingMailbox({
             <ArrowRight className="w-5 h-5 text-muted-foreground" />
             
             <div className="flex flex-col items-center gap-1">
-              <div className="w-10 h-10 rounded-lg bg-background border-2 border-amber-500/30 flex items-center justify-center">
-                <Clock className="w-5 h-5 text-amber-500" />
+              <div className="w-10 h-10 rounded-lg bg-background border-2 border-warning/30 flex items-center justify-center">
+                <Clock className="w-5 h-5 text-warning" />
               </div>
               <span className="text-xs text-muted-foreground">Queue</span>
             </div>
@@ -257,13 +390,13 @@ export default function OutgoingMailbox({
             <ArrowRight className="w-5 h-5 text-muted-foreground" />
             
             <div className="flex flex-col items-center gap-1 relative">
-              <div className="w-10 h-10 rounded-lg bg-background border-2 border-blue-500/30 flex items-center justify-center">
-                <Server className="w-5 h-5 text-blue-500" />
+              <div className="w-10 h-10 rounded-lg bg-background border-2 border-accent/30 flex items-center justify-center">
+                <Server className="w-5 h-5 text-accent" />
               </div>
               <span className="text-xs text-muted-foreground font-medium">Your SMTP</span>
               {smtpConnected && (
                 <motion.div 
-                  className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full"
+                  className="absolute -top-1 -right-1 w-3 h-3 bg-success rounded-full"
                   animate={{ scale: [1, 1.3, 1] }}
                   transition={{ repeat: Infinity, duration: 2 }}
                 />
@@ -273,8 +406,8 @@ export default function OutgoingMailbox({
             <ArrowRight className="w-5 h-5 text-muted-foreground" />
             
             <div className="flex flex-col items-center gap-1">
-              <div className="w-10 h-10 rounded-lg bg-background border-2 border-emerald-500/30 flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+              <div className="w-10 h-10 rounded-lg bg-background border-2 border-success/30 flex items-center justify-center">
+                <CheckCircle2 className="w-5 h-5 text-success" />
               </div>
               <span className="text-xs text-muted-foreground">Delivered</span>
             </div>
