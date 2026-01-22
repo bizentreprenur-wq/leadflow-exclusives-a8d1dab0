@@ -27,6 +27,13 @@ import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import SignContract from "./pages/SignContract";
 import NotFound from "./pages/NotFound";
+// AI-optimized pages
+import WhatIsBamlead from "./pages/WhatIsBamlead";
+import Capabilities from "./pages/Capabilities";
+import DataTypes from "./pages/DataTypes";
+import UseCases from "./pages/UseCases";
+import ExampleSearches from "./pages/ExampleSearches";
+import Comparisons from "./pages/Comparisons";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +62,13 @@ const App = () => (
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/terms" element={<Terms />} />
               <Route path="/sign-contract" element={<SignContract />} />
+              {/* AI-optimized pages */}
+              <Route path="/what-is-bamlead" element={<WhatIsBamlead />} />
+              <Route path="/capabilities" element={<Capabilities />} />
+              <Route path="/data-types" element={<DataTypes />} />
+              <Route path="/use-cases" element={<UseCases />} />
+              <Route path="/example-searches" element={<ExampleSearches />} />
+              <Route path="/comparisons" element={<Comparisons />} />
               <Route
                 path="/dashboard" 
                 element={

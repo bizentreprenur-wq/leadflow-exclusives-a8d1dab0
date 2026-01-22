@@ -5,13 +5,21 @@ import { MapPin } from "lucide-react";
 const Footer = () => {
   const footerLinks = {
     product: [
+      { label: "What Is Bamlead", href: "/what-is-bamlead" },
       { label: "Features", href: "/features" },
+      { label: "Capabilities", href: "/capabilities" },
       { label: "Pricing", href: "/pricing" },
-      { label: "Reviews", href: "/reviews" },
+    ],
+    learn: [
+      { label: "Use Cases", href: "/use-cases" },
+      { label: "Example Searches", href: "/example-searches" },
+      { label: "Data Types", href: "/data-types" },
+      { label: "Comparisons", href: "/comparisons" },
     ],
     company: [
       { label: "About", href: "/about" },
       { label: "Contact", href: "/contact" },
+      { label: "Reviews", href: "/reviews" },
     ],
   };
 
@@ -24,7 +32,7 @@ const Footer = () => {
     <footer className="py-16 border-t border-border bg-secondary/20">
       <div className="container px-4">
         <div className="max-w-6xl mx-auto">
-          <div className="grid md:grid-cols-4 gap-12 mb-12">
+          <div className="grid md:grid-cols-5 gap-12 mb-12">
             {/* Brand */}
             <div className="md:col-span-2">
               <Link to="/" className="flex items-center gap-1 mb-4 group">
@@ -38,7 +46,7 @@ const Footer = () => {
                 </span>
               </Link>
               <p className="text-muted-foreground max-w-sm mb-4">
-                Find businesses that need your web design services. Stop guessing, start closing.
+                AI-powered B2B lead generation and sales intelligence platform. Find, verify, and engage prospects efficiently.
               </p>
               <div className="flex items-start gap-2 text-sm text-muted-foreground">
                 <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
@@ -57,7 +65,24 @@ const Footer = () => {
                   <li key={link.href}>
                     <Link
                       to={link.href}
-                      className="text-muted-foreground hover:text-primary transition-colors"
+                      className="text-muted-foreground hover:text-primary transition-colors text-sm"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Learn Links */}
+            <div>
+              <h4 className="font-display font-semibold text-foreground mb-4">Learn</h4>
+              <ul className="space-y-3">
+                {footerLinks.learn.map((link) => (
+                  <li key={link.href}>
+                    <Link
+                      to={link.href}
+                      className="text-muted-foreground hover:text-primary transition-colors text-sm"
                     >
                       {link.label}
                     </Link>
@@ -74,7 +99,7 @@ const Footer = () => {
                   <li key={link.href}>
                     <Link
                       to={link.href}
-                      className="text-muted-foreground hover:text-primary transition-colors"
+                      className="text-muted-foreground hover:text-primary transition-colors text-sm"
                     >
                       {link.label}
                     </Link>
