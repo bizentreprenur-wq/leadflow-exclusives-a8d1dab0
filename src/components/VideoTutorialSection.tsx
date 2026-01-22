@@ -16,7 +16,19 @@ import {
   ChevronRight,
   Star,
   Zap,
-  Target
+  Target,
+  Brain,
+  Heart,
+  Search,
+  LineChart,
+  UserCircle,
+  Handshake,
+  Wand2,
+  User,
+  Phone,
+  Database,
+  FileSpreadsheet,
+  Bot
 } from 'lucide-react';
 
 interface Tutorial {
@@ -26,11 +38,12 @@ interface Tutorial {
   duration: string;
   icon: React.ReactNode;
   steps: string[];
-  category: 'setup' | 'campaign' | 'advanced';
+  category: 'setup' | 'campaign' | 'advanced' | 'ai-agents';
   videoPlaceholder: string;
 }
 
 const tutorials: Tutorial[] = [
+  // Setup Tutorials
   {
     id: 'smtp-setup',
     title: 'Set Up Your SMTP Server',
@@ -46,24 +59,6 @@ const tutorials: Tutorial[] = [
       'Enter your email username and app password',
       'Click "Test Connection" to verify',
       'Save your settings and you\'re ready!'
-    ]
-  },
-  {
-    id: 'first-campaign',
-    title: 'Send Your First Campaign',
-    description: 'Learn how to create and send your first email outreach campaign',
-    duration: '5 min',
-    icon: <Send className="h-5 w-5" />,
-    category: 'campaign',
-    videoPlaceholder: 'First Campaign Tutorial',
-    steps: [
-      'Search for leads using the Lead Finder',
-      'Review and verify your leads with AI',
-      'Select leads and click "Send Email"',
-      'Choose a template or write custom email',
-      'Preview your email and personalize',
-      'Select delivery mode (Instant, Drip, or Scheduled)',
-      'Click Send and monitor your campaign!'
     ]
   },
   {
@@ -84,6 +79,79 @@ const tutorials: Tutorial[] = [
     ]
   },
   {
+    id: 'crm-integration',
+    title: 'Connect Your CRM',
+    description: 'Integrate with HubSpot, Salesforce, Pipedrive, or Google Sheets',
+    duration: '4 min',
+    icon: <Database className="h-5 w-5" />,
+    category: 'setup',
+    videoPlaceholder: 'CRM Integration Tutorial',
+    steps: [
+      'Go to Step 4: Outreach Hub → CRM Integration',
+      'Select your preferred CRM platform',
+      'Click "Connect" to start OAuth flow',
+      'Authorize BamLead access to your CRM',
+      'Map lead fields to your CRM properties',
+      'Export leads directly with one click'
+    ]
+  },
+  // Campaign Tutorials
+  {
+    id: 'first-campaign',
+    title: 'Send Your First Campaign',
+    description: 'Learn how to create and send your first email outreach campaign',
+    duration: '5 min',
+    icon: <Send className="h-5 w-5" />,
+    category: 'campaign',
+    videoPlaceholder: 'First Campaign Tutorial',
+    steps: [
+      'Search for leads using the Lead Finder',
+      'Review and verify your leads with AI',
+      'Select leads and click "Send Email"',
+      'Choose a template or write custom email',
+      'Preview your email and personalize',
+      'Select delivery mode (Instant, Drip, or Scheduled)',
+      'Click Send and monitor your campaign!'
+    ]
+  },
+  {
+    id: 'drip-campaigns',
+    title: 'Set Up Drip Campaigns',
+    description: 'Automate your outreach with staggered email delivery',
+    duration: '3 min',
+    icon: <Target className="h-5 w-5" />,
+    category: 'campaign',
+    videoPlaceholder: 'Drip Campaign Tutorial',
+    steps: [
+      'Select your verified leads',
+      'Click "Send Email" to open composer',
+      'Choose "Drip" delivery mode',
+      'Set emails per hour (recommended: 20-30)',
+      'Configure delay between emails',
+      'Start campaign and watch the mailbox animation',
+      'Monitor delivery progress and ETA'
+    ]
+  },
+  {
+    id: 'template-gallery',
+    title: 'Using Email Templates',
+    description: 'Access 80+ high-converting templates for any industry',
+    duration: '4 min',
+    icon: <FileSpreadsheet className="h-5 w-5" />,
+    category: 'campaign',
+    videoPlaceholder: 'Template Gallery Tutorial',
+    steps: [
+      'Open Email Composer from any lead selection',
+      'Click "Template Gallery" tab',
+      'Browse by category: Sales, Marketing, Recruiting, etc.',
+      'Preview template with sample data',
+      'Click "Use Template" to load into composer',
+      'Customize subject line and body as needed',
+      'Use {{placeholders}} for personalization'
+    ]
+  },
+  // Advanced Features
+  {
     id: 'ai-scoring',
     title: 'Using AI Lead Scoring',
     description: 'Understand how AI prioritizes your leads for maximum conversions',
@@ -101,27 +169,188 @@ const tutorials: Tutorial[] = [
     ]
   },
   {
-    id: 'drip-campaigns',
-    title: 'Set Up Drip Campaigns',
-    description: 'Automate your outreach with staggered email delivery',
+    id: 'voice-calling',
+    title: 'Voice Calling & Call Logging',
+    description: 'Make calls directly from the dashboard and log outcomes',
     duration: '3 min',
-    icon: <Target className="h-5 w-5" />,
+    icon: <Phone className="h-5 w-5" />,
     category: 'advanced',
-    videoPlaceholder: 'Drip Campaign Tutorial',
+    videoPlaceholder: 'Voice Calling Tutorial',
     steps: [
-      'Select your verified leads',
-      'Click "Send Email" to open composer',
-      'Choose "Drip" delivery mode',
-      'Set emails per hour (recommended: 20-30)',
-      'Configure delay between emails',
-      'Start campaign and watch the mailbox animation',
-      'Monitor delivery progress and ETA'
+      'Click the phone icon next to any lead',
+      'View AI-generated call script suggestions',
+      'Click to initiate call (uses your phone)',
+      'Log call outcome: Answered, Voicemail, No Answer',
+      'Add notes for follow-up actions',
+      'View call history in Call Log panel'
+    ]
+  },
+  {
+    id: 'auto-campaign-wizard',
+    title: 'Auto Campaign Wizard',
+    description: 'Let AI create and optimize your entire outreach campaign',
+    duration: '5 min',
+    icon: <Bot className="h-5 w-5" />,
+    category: 'advanced',
+    videoPlaceholder: 'Auto Campaign Wizard Tutorial',
+    steps: [
+      'Open the Auto Campaign Wizard from dashboard',
+      'Select your target industry and audience',
+      'Let AI analyze your lead data',
+      'Review AI-suggested email sequences',
+      'Customize timing and follow-up rules',
+      'Activate campaign with one click',
+      'Monitor AI-optimized delivery in real-time'
+    ]
+  },
+  // AI Agents Tutorials
+  {
+    id: 'pre-intent-detection',
+    title: 'Pre-Intent Detection Agent',
+    description: 'Detects buying signals before prospects even know they\'re ready',
+    duration: '4 min',
+    icon: <Brain className="h-5 w-5" />,
+    category: 'ai-agents',
+    videoPlaceholder: 'Pre-Intent Detection Tutorial',
+    steps: [
+      'Access AI Agents from the Secret AI section',
+      'Select "Pre-Intent Detection" agent',
+      'AI scans prospect digital footprints',
+      'Identifies behavioral micro-signals (job posts, tech changes)',
+      'View intent score and buying readiness level',
+      'Get optimal outreach timing recommendations',
+      'Launch campaigns when intent peaks'
+    ]
+  },
+  {
+    id: 'emotional-state-detection',
+    title: 'Emotional State Detection Agent',
+    description: 'Analyzes prospect emotional state for optimal outreach timing',
+    duration: '3 min',
+    icon: <Heart className="h-5 w-5" />,
+    category: 'ai-agents',
+    videoPlaceholder: 'Emotional State Detection Tutorial',
+    steps: [
+      'Open the Emotional State Detection agent',
+      'AI analyzes prospect\'s recent communications',
+      'Detects frustration, urgency, or satisfaction levels',
+      'View emotional timeline and patterns',
+      'Get "Best Time to Reach" recommendations',
+      'Adjust email tone based on emotional state',
+      'Increase response rates by 3x'
+    ]
+  },
+  {
+    id: 'reverse-lead-discovery',
+    title: 'Reverse Lead Discovery Agent',
+    description: 'Finds leads that are actively searching for your services',
+    duration: '4 min',
+    icon: <Search className="h-5 w-5" />,
+    category: 'ai-agents',
+    videoPlaceholder: 'Reverse Lead Discovery Tutorial',
+    steps: [
+      'Define your service offerings and keywords',
+      'AI monitors search intent signals',
+      'Identifies companies researching your solutions',
+      'View "Actively Searching" lead list',
+      'See what specific terms they\'re researching',
+      'Prioritize these high-intent leads',
+      'Craft messages addressing their exact needs'
+    ]
+  },
+  {
+    id: 'outcome-simulator',
+    title: 'Outcome Simulator Agent',
+    description: 'Predicts campaign outcomes before you send',
+    duration: '3 min',
+    icon: <LineChart className="h-5 w-5" />,
+    category: 'ai-agents',
+    videoPlaceholder: 'Outcome Simulator Tutorial',
+    steps: [
+      'Create your email campaign as usual',
+      'Click "Simulate Outcomes" before sending',
+      'AI predicts open rates, reply rates, conversions',
+      'View expected ROI and revenue projections',
+      'Get suggestions to improve predictions',
+      'Compare different subject lines and content',
+      'Send with confidence knowing expected results'
+    ]
+  },
+  {
+    id: 'psychological-profiler',
+    title: 'Psychological Profiler Agent',
+    description: 'Creates detailed buyer personas for personalized outreach',
+    duration: '4 min',
+    icon: <UserCircle className="h-5 w-5" />,
+    category: 'ai-agents',
+    videoPlaceholder: 'Psychological Profiler Tutorial',
+    steps: [
+      'Select a lead to analyze',
+      'AI builds psychological profile from public data',
+      'View communication style preferences',
+      'Understand decision-making patterns',
+      'See persuasion triggers and pain points',
+      'Get personalized email angle suggestions',
+      'Match your message to their psychology'
+    ]
+  },
+  {
+    id: 'invisible-negotiator',
+    title: 'Invisible Negotiator Agent',
+    description: 'AI-powered negotiation assistance for closing deals',
+    duration: '5 min',
+    icon: <Handshake className="h-5 w-5" />,
+    category: 'ai-agents',
+    videoPlaceholder: 'Invisible Negotiator Tutorial',
+    steps: [
+      'Activate when lead shows purchase interest',
+      'AI analyzes negotiation leverage points',
+      'Get real-time response suggestions',
+      'View optimal pricing strategies',
+      'Handle objections with AI-crafted responses',
+      'Track negotiation progress and sentiment',
+      'Close deals faster with AI guidance'
+    ]
+  },
+  {
+    id: 'live-page-mutation',
+    title: 'Live Page Mutation Agent',
+    description: 'Real-time content personalization for each prospect',
+    duration: '3 min',
+    icon: <Wand2 className="h-5 w-5" />,
+    category: 'ai-agents',
+    videoPlaceholder: 'Live Page Mutation Tutorial',
+    steps: [
+      'Share your landing page with prospects',
+      'AI detects visitor identity and company',
+      'Page content adapts in real-time',
+      'Headlines, images, and CTAs personalize',
+      'View engagement analytics per visitor',
+      'Track conversion improvements',
+      'No coding required for personalization'
+    ]
+  },
+  {
+    id: 'founder-mirror',
+    title: 'AI Founder Mirror Agent',
+    description: 'Learns your communication style for authentic AI responses',
+    duration: '4 min',
+    icon: <User className="h-5 w-5" />,
+    category: 'ai-agents',
+    videoPlaceholder: 'AI Founder Mirror Tutorial',
+    steps: [
+      'Connect your email and calendar',
+      'AI learns your writing patterns and style',
+      'Review your "communication DNA" profile',
+      'Enable AI to draft responses in your voice',
+      'Approve or edit AI-drafted emails',
+      'Train the model with feedback',
+      'Scale your personal touch to 1000s of leads'
     ]
   }
 ];
 
 export function VideoTutorialSection() {
-  const [selectedTutorial, setSelectedTutorial] = useState<Tutorial | null>(null);
   const [completedTutorials, setCompletedTutorials] = useState<string[]>(() => {
     const saved = localStorage.getItem('bamlead_completed_tutorials');
     return saved ? JSON.parse(saved) : [];
@@ -136,6 +365,7 @@ export function VideoTutorialSection() {
   const setupTutorials = tutorials.filter(t => t.category === 'setup');
   const campaignTutorials = tutorials.filter(t => t.category === 'campaign');
   const advancedTutorials = tutorials.filter(t => t.category === 'advanced');
+  const aiAgentsTutorials = tutorials.filter(t => t.category === 'ai-agents');
 
   const TutorialCard = ({ tutorial }: { tutorial: Tutorial }) => {
     const isCompleted = completedTutorials.includes(tutorial.id);
@@ -147,7 +377,6 @@ export function VideoTutorialSection() {
             className={`cursor-pointer hover:border-primary/50 transition-all hover:shadow-md ${
               isCompleted ? 'border-green-500/30 bg-green-500/5' : ''
             }`}
-            onClick={() => setSelectedTutorial(tutorial)}
           >
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
@@ -176,7 +405,7 @@ export function VideoTutorialSection() {
             </CardContent>
           </Card>
         </DialogTrigger>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {tutorial.icon}
@@ -249,7 +478,7 @@ export function VideoTutorialSection() {
             Quick Start Tutorials
           </h2>
           <p className="text-muted-foreground mt-1">
-            Learn how to set up SMTP and send your first campaign in minutes
+            Master BamLead's AI-powered features in minutes
           </p>
         </div>
         <div className="text-right">
@@ -276,7 +505,7 @@ export function VideoTutorialSection() {
           </CardTitle>
           <CardDescription>Complete these first to start sending campaigns</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3">
+        <CardContent className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {setupTutorials.map(tutorial => (
             <TutorialCard key={tutorial.id} tutorial={tutorial} />
           ))}
@@ -288,11 +517,11 @@ export function VideoTutorialSection() {
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <Send className="h-5 w-5 text-blue-500" />
-            Send Your First Campaign
+            Campaign Mastery
           </CardTitle>
           <CardDescription>Learn the complete outreach workflow</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3">
+        <CardContent className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {campaignTutorials.map(tutorial => (
             <TutorialCard key={tutorial.id} tutorial={tutorial} />
           ))}
@@ -309,8 +538,25 @@ export function VideoTutorialSection() {
           </CardTitle>
           <CardDescription>Master these to maximize your results</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3">
+        <CardContent className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {advancedTutorials.map(tutorial => (
+            <TutorialCard key={tutorial.id} tutorial={tutorial} />
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* Revolutionary AI Agents */}
+      <Card className="border-purple-500/30 bg-gradient-to-br from-purple-500/5 to-transparent">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Brain className="h-5 w-5 text-purple-500" />
+            Revolutionary AI Agents
+            <Badge className="bg-purple-500/20 text-purple-600 border-purple-500/30">8 AI Agents</Badge>
+          </CardTitle>
+          <CardDescription>Unlock the power of BamLead's exclusive AI capabilities</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+          {aiAgentsTutorials.map(tutorial => (
             <TutorialCard key={tutorial.id} tutorial={tutorial} />
           ))}
         </CardContent>
@@ -319,8 +565,7 @@ export function VideoTutorialSection() {
       {/* Help Text */}
       <div className="text-center text-sm text-muted-foreground bg-muted/50 rounded-lg p-4">
         <p>
-          💡 <strong>Pro Tip:</strong> Complete the "Essential Setup" tutorials first, 
-          then you'll be ready to send your first campaign!
+          💡 <strong>Pro Tip:</strong> Complete "Essential Setup" first, then explore AI Agents to 10x your outreach effectiveness!
         </p>
       </div>
     </div>
