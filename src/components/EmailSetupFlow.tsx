@@ -12,7 +12,7 @@ import {
   ArrowLeft, ArrowRight, Server, FileText, Send, 
   CheckCircle2, Mail, Users, Loader2, Link2, Database,
   Eye, Zap, Rocket, FlaskConical, Home,
-  Clock, TrendingUp, Info, Settings, Phone, X, AlertCircle
+  Clock, TrendingUp, Info, Settings, Phone, X, AlertCircle, Upload, Image, Trash2
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -69,6 +69,16 @@ export default function EmailSetupFlow({
   const [showAutoCampaign, setShowAutoCampaign] = useState(false);
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   
+  // Business logo for email branding
+  const [businessLogo, setBusinessLogo] = useState<string | null>(() => {
+    const branding = localStorage.getItem('email_branding');
+    if (branding) {
+      const parsed = JSON.parse(branding);
+      return parsed.logoUrl || null;
+    }
+    return null;
+  });
+  
   // Unified mailbox tab tracking - default to mailbox view
   const [activeTab, setActiveTab] = useState('mailbox');
   const [visitedTabs, setVisitedTabs] = useState<string[]>(['mailbox']);
@@ -78,6 +88,52 @@ export default function EmailSetupFlow({
     if (!visitedTabs.includes(tab)) {
       setVisitedTabs(prev => [...prev, tab]);
     }
+  };
+
+  // Logo upload handler
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Logo must be under 2MB');
+      return;
+    }
+    
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      setBusinessLogo(base64);
+      
+      // Sync with email_branding localStorage
+      const existing = JSON.parse(localStorage.getItem('email_branding') || '{}');
+      localStorage.setItem('email_branding', JSON.stringify({ ...existing, logoUrl: base64 }));
+      
+      // Also sync with bamlead_branding_info for proposals/contracts
+      const brandingInfo = JSON.parse(localStorage.getItem('bamlead_branding_info') || '{}');
+      localStorage.setItem('bamlead_branding_info', JSON.stringify({ ...brandingInfo, logo: base64 }));
+      
+      toast.success('Business logo uploaded!');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveLogo = () => {
+    setBusinessLogo(null);
+    const existing = JSON.parse(localStorage.getItem('email_branding') || '{}');
+    delete existing.logoUrl;
+    localStorage.setItem('email_branding', JSON.stringify(existing));
+    
+    const brandingInfo = JSON.parse(localStorage.getItem('bamlead_branding_info') || '{}');
+    delete brandingInfo.logo;
+    localStorage.setItem('bamlead_branding_info', JSON.stringify(brandingInfo));
+    
+    toast.success('Logo removed');
   };
   
   // SMTP configuration
@@ -552,6 +608,52 @@ export default function EmailSetupFlow({
                       <CardDescription>
                         Your unified outreach command center
                       </CardDescription>
+                    </div>
+                  </div>
+                  
+                  {/* Business Logo Upload */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-muted-foreground/30 bg-muted/10 hover:bg-muted/20 transition-colors">
+                      {businessLogo ? (
+                        <div className="flex items-center gap-3">
+                          <img 
+                            src={businessLogo} 
+                            alt="Business logo" 
+                            className="h-8 w-auto max-w-[100px] object-contain rounded"
+                          />
+                          <div className="flex items-center gap-1">
+                            <Badge variant="outline" className="text-xs bg-success/20 text-success border-success/30">
+                              <CheckCircle2 className="w-3 h-3 mr-1" />
+                              Branded
+                            </Badge>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                              onClick={handleRemoveLogo}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <label className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground transition-colors">
+                          <div className="w-8 h-8 rounded-md bg-muted/50 flex items-center justify-center">
+                            <Image className="w-4 h-4" />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="font-medium text-foreground">Upload Logo</span>
+                            <span className="text-xs">Brand your emails</span>
+                          </div>
+                          <Upload className="w-4 h-4 ml-1" />
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleLogoUpload}
+                            className="hidden"
+                          />
+                        </label>
+                      )}
                     </div>
                   </div>
                   
