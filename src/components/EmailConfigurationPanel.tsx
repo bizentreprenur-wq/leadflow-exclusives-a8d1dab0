@@ -62,10 +62,12 @@ interface Lead {
 
 interface EmailConfigurationPanelProps {
   leads?: Lead[];
+  hideTabBar?: boolean;
+  initialTab?: string;
 }
 
-export default function EmailConfigurationPanel({ leads = [] }: EmailConfigurationPanelProps) {
-  const [activeTab, setActiveTab] = useState('mailbox');
+export default function EmailConfigurationPanel({ leads = [], hideTabBar = false, initialTab }: EmailConfigurationPanelProps) {
+  const [activeTab, setActiveTab] = useState(initialTab || 'smtp');
   const [showPassword, setShowPassword] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
@@ -337,59 +339,61 @@ export default function EmailConfigurationPanel({ leads = [] }: EmailConfigurati
   return (
     <div className="space-y-6">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
+      {!hideTabBar && (
         <div className="overflow-x-auto scrollbar-hide -mx-2 px-2">
           <TabsList className="inline-flex w-max min-w-full gap-1 bg-transparent p-1">
             <TabsTrigger 
               value="mailbox" 
-              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-cyan-500/50 bg-cyan-500/20 whitespace-nowrap data-[state=active]:bg-cyan-500/30 data-[state=active]:border-cyan-400"
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-primary/50 bg-primary/20 whitespace-nowrap data-[state=active]:bg-primary/30 data-[state=active]:border-primary"
             >
-              <MailOpen className="w-3.5 h-3.5 text-white" />
-              <span className="text-white font-medium">Mailbox</span>
+              <MailOpen className="w-3.5 h-3.5 text-primary-foreground" />
+              <span className="text-primary-foreground font-medium">Mailbox</span>
             </TabsTrigger>
             <TabsTrigger 
               value="preview" 
-              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 whitespace-nowrap data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 text-white/70 data-[state=active]:text-white"
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-muted/20 whitespace-nowrap data-[state=active]:bg-primary/20 data-[state=active]:border-primary text-muted-foreground data-[state=active]:text-foreground"
             >
               <Eye className="w-3.5 h-3.5" />
               Preview
             </TabsTrigger>
             <TabsTrigger 
               value="crm" 
-              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 whitespace-nowrap data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 text-white/70 data-[state=active]:text-white"
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-muted/20 whitespace-nowrap data-[state=active]:bg-primary/20 data-[state=active]:border-primary text-muted-foreground data-[state=active]:text-foreground"
             >
               <Users className="w-3.5 h-3.5" />
               CRM
             </TabsTrigger>
             <TabsTrigger 
               value="ab" 
-              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 whitespace-nowrap data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 text-white/70 data-[state=active]:text-white"
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-muted/20 whitespace-nowrap data-[state=active]:bg-primary/20 data-[state=active]:border-primary text-muted-foreground data-[state=active]:text-foreground"
             >
               <FlaskConical className="w-3.5 h-3.5" />
               A/B
             </TabsTrigger>
             <TabsTrigger 
               value="edit" 
-              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 whitespace-nowrap data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 text-white/70 data-[state=active]:text-white"
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-muted/20 whitespace-nowrap data-[state=active]:bg-primary/20 data-[state=active]:border-primary text-muted-foreground data-[state=active]:text-foreground"
             >
               <Pencil className="w-3.5 h-3.5" />
               Edit
             </TabsTrigger>
             <TabsTrigger 
               value="smtp" 
-              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 whitespace-nowrap data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 text-white/70 data-[state=active]:text-white"
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-muted/20 whitespace-nowrap data-[state=active]:bg-primary/20 data-[state=active]:border-primary text-muted-foreground data-[state=active]:text-foreground"
             >
               <Server className="w-3.5 h-3.5" />
               SMTP
             </TabsTrigger>
             <TabsTrigger 
               value="inbox" 
-              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-black/40 whitespace-nowrap data-[state=active]:bg-cyan-500/20 data-[state=active]:border-cyan-400 text-white/70 data-[state=active]:text-white"
+              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-muted/20 whitespace-nowrap data-[state=active]:bg-primary/20 data-[state=active]:border-primary text-muted-foreground data-[state=active]:text-foreground"
             >
               <Mail className="w-3.5 h-3.5" />
               Inbox
             </TabsTrigger>
           </TabsList>
         </div>
+      )}
 
         {/* Visual Mailbox Tab with Template Preview */}
         <TabsContent value="mailbox" className="space-y-4">
