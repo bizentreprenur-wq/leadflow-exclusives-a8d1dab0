@@ -523,8 +523,8 @@ export default function EmailSetupFlow({
                   </div>
                 </div>
                 
-                {/* UNIFIED TAB BAR - ALWAYS VISIBLE, SAME POSITION */}
-                <div className="flex items-center gap-1 pb-4">
+                {/* UNIFIED TAB BAR - STICKY, ALWAYS VISIBLE */}
+                <div className="sticky top-0 z-10 flex items-center gap-1 pb-4 pt-2 -mt-2 bg-card/95 backdrop-blur-sm">
                   <TooltipProvider delayDuration={200}>
                     {[
                       { tab: 'mailbox', icon: Mail, label: 'Mailbox', color: 'blue', tooltip: 'View live email queue, sending progress & campaign stats' },
