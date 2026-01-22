@@ -256,7 +256,7 @@ export default function EmailTemplateLibrary({ onUseTemplate }: EmailTemplateLib
                   Email Body
                 </p>
                 <div
-                  className="bg-muted/50 p-4 rounded-md text-sm prose prose-sm max-w-none"
+                  className="bg-muted/50 p-4 rounded-md text-sm prose prose-sm max-w-none max-h-[300px] overflow-y-auto [&_img]:max-w-[200px] [&_img]:h-auto [&_img]:mx-auto [&_img]:block [&_img]:rounded"
                   dangerouslySetInnerHTML={{
                     __html: sanitizeEmailHTML(previewTemplate?.body_html || ''),
                   }}
