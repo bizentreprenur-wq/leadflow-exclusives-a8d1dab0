@@ -254,20 +254,30 @@ export default function HighConvertingTemplateGallery({
   const handleSaveCustomTemplate = () => {
     if (!previewTemplate) return;
     
-    const customTemplate: EmailTemplate = {
-      ...previewTemplate,
-      id: `custom-${Date.now()}`,
+    // Save to localStorage so customer can access it later
+    const newTemplate = saveCustomTemplate({
+      id: '', // Will be generated
       name: `Custom: ${previewTemplate.name}`,
+      category: previewTemplate.category,
+      industry: previewTemplate.industry,
       subject: editedSubject,
       body_html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         ${editedBody.split('\n').map(p => `<p style="margin: 0 0 15px 0; line-height: 1.6;">${p}</p>`).join('')}
       </div>`,
-    };
+      description: `Custom template based on ${previewTemplate.name}`,
+      previewImage: previewTemplate.previewImage,
+      conversionTip: previewTemplate.conversionTip,
+      openRate: previewTemplate.openRate,
+      replyRate: previewTemplate.replyRate,
+      folderId: selectedFolderId || undefined,
+    });
     
-    onSelectTemplate?.(customTemplate);
+    // Refresh the templates list so it shows immediately
+    setCustomTemplates(getCustomTemplates());
+    onSelectTemplate?.(newTemplate);
     setPreviewTemplate(null);
     setIsEditing(false);
-    toast.success('Custom template saved and selected!');
+    toast.success('✅ Template saved to your library!');
   };
 
   // FIX: Always open preview when clicking on template
@@ -571,7 +581,7 @@ export default function HighConvertingTemplateGallery({
             <div
               role="dialog"
               aria-modal="true"
-              className="relative z-[1001] w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-lg bg-background text-foreground border border-primary/40 shadow-elevated ring-1 ring-primary/20"
+              className="relative z-[1001] w-full max-w-3xl max-h-[85vh] overflow-y-auto rounded-lg bg-background text-foreground border border-primary/40 shadow-elevated ring-1 ring-primary/20"
             >
               {/* Prominent X Close Button */}
               <Button
@@ -655,7 +665,7 @@ export default function HighConvertingTemplateGallery({
                         value={editedBody}
                         onChange={(e) => setEditedBody(e.target.value)}
                         placeholder="Write your email content..."
-                        className="min-h-[250px] font-mono text-sm"
+                        className="min-h-[150px] max-h-[200px] font-mono text-sm"
                       />
                     </div>
 
