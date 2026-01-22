@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import {
   HardDrive, CheckCircle2, XCircle, Loader2, ExternalLink,
   RefreshCw, Unlink, Settings, Bell, Shield,
-  Download, Trash2, Mail, Database, Phone, MessageCircle, ArrowLeft, Home
+  Download, Trash2, Mail, Database, ArrowLeft, Home
 } from 'lucide-react';
 import {
   checkGoogleDriveStatus,
@@ -20,8 +20,6 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import EmailConfigurationPanel from './EmailConfigurationPanel';
 import CRMIntegrationModal from './CRMIntegrationModal';
-import VoiceAgentSettings from './VoiceAgentSettings';
-import ChatConfigurationPanel from './ChatConfigurationPanel';
 import BackendHealthDashboard from './BackendHealthDashboard';
 
 interface SettingsPanelProps {
@@ -106,7 +104,7 @@ export default function SettingsPanel({ initialTab = 'integrations', onBackToSte
           className="gap-2 text-emerald-400 border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-300 shadow-[0_0_10px_rgba(52,211,153,0.3)]"
         >
           <ArrowLeft className="w-4 h-4" />
-          {onBackToStep4 ? 'Back to Calls' : 'Back to Dashboard'}
+          {onBackToStep4 ? 'Back to Step 3' : 'Back to Dashboard'}
         </Button>
         <Button
           variant="ghost"
@@ -130,27 +128,13 @@ export default function SettingsPanel({ initialTab = 'integrations', onBackToSte
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-6 bg-muted/50 p-1">
+        <TabsList className="grid w-full grid-cols-4 bg-muted/50 p-1">
           <TabsTrigger 
             value="integrations" 
             className="gap-2 data-[state=active]:bg-blue-500 data-[state=active]:text-white transition-all"
           >
             <Database className="w-4 h-4" />
             <span className="hidden sm:inline">Integrations</span>
-          </TabsTrigger>
-          <TabsTrigger 
-            value="voice" 
-            className="gap-2 data-[state=active]:bg-green-500 data-[state=active]:text-white transition-all"
-          >
-            <Phone className="w-4 h-4" />
-            <span className="hidden sm:inline">Voice</span>
-          </TabsTrigger>
-          <TabsTrigger 
-            value="chat" 
-            className="gap-2 data-[state=active]:bg-violet-500 data-[state=active]:text-white transition-all"
-          >
-            <MessageCircle className="w-4 h-4" />
-            <span className="hidden sm:inline">Chat</span>
           </TabsTrigger>
           <TabsTrigger 
             value="email" 
@@ -321,18 +305,6 @@ export default function SettingsPanel({ initialTab = 'integrations', onBackToSte
           </Card>
         </TabsContent>
 
-        {/* Voice Agent Tab */}
-        <TabsContent value="voice" className="space-y-4">
-          <VoiceAgentSettings 
-            onShowGuide={() => setActiveTab('voice-guide')} 
-            onBackToStep4={onBackToStep4}
-          />
-        </TabsContent>
-
-        {/* Chat Configuration Tab */}
-        <TabsContent value="chat" className="space-y-4">
-          <ChatConfigurationPanel />
-        </TabsContent>
 
         {/* Email & SMTP Tab */}
         <TabsContent value="email">
