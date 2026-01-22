@@ -700,25 +700,25 @@ export default function HighConvertingTemplateGallery({
                   </>
                 ) : (
                   <>
-                    {/* Hero Image Preview - Same as card thumbnail */}
-                    <div className="rounded-lg overflow-hidden border">
+                    {/* Hero Image Preview - Constrained size */}
+                    <div className="rounded-lg overflow-hidden border max-w-md mx-auto">
                       <img
                         src={previewTemplate.previewImage}
                         alt={previewTemplate.name}
-                        className="w-full h-48 object-cover"
+                        className="w-full h-32 object-cover"
                       />
                     </div>
 
                     {/* Subject Line Preview */}
-                    <div className="bg-muted/50 rounded-lg p-4">
+                    <div className="bg-muted/50 rounded-lg p-3">
                       <p className="text-xs text-muted-foreground mb-1">Subject Line</p>
-                      <p className="font-medium">{editedSubject || previewTemplate.subject}</p>
+                      <p className="font-medium text-sm">{editedSubject || previewTemplate.subject}</p>
                     </div>
 
-                    {/* Email Preview */}
-                    <ScrollArea className="h-[350px] border rounded-lg">
+                    {/* Email Preview - Constrained images */}
+                    <ScrollArea className="h-[280px] border rounded-lg">
                       <div
-                        className="bg-background p-4"
+                        className="bg-background p-4 [&_img]:max-w-[200px] [&_img]:h-auto [&_img]:mx-auto [&_img]:block [&_img]:rounded"
                         dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(previewTemplate.body_html || "") }}
                       />
                     </ScrollArea>
