@@ -175,8 +175,7 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
       await sendSingleEmail({
         to: recipient.email,
         subject: `${documentName} from ${branding.companyName}`,
-        html: previewHTML,
-        smtpConfig
+        bodyHtml: previewHTML
       });
       
       toast.success(`${documentType} sent successfully!`);
