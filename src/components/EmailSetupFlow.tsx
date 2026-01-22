@@ -33,6 +33,8 @@ import { LeadForEmail, sendBulkEmails } from '@/lib/api/email';
 import { isSMTPConfigured, personalizeContent } from '@/lib/emailService';
 import { addLeadsToCRM, queueLeadsForEmail } from '@/lib/customTemplates';
 import EmailDeliveryNotifications from './EmailDeliveryNotifications';
+import { useAuth } from '@/contexts/AuthContext';
+import { loadBrandingFromBackend, saveUserBranding, deleteUserLogo } from '@/lib/api/branding';
 
 interface SearchResult {
   id: string;
@@ -69,6 +71,9 @@ export default function EmailSetupFlow({
   const [showAutoCampaign, setShowAutoCampaign] = useState(false);
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   
+  // Auth context for persistent branding
+  const { isAuthenticated } = useAuth();
+  
   // Business logo for email branding
   const [businessLogo, setBusinessLogo] = useState<string | null>(() => {
     const branding = localStorage.getItem('email_branding');
@@ -78,6 +83,17 @@ export default function EmailSetupFlow({
     }
     return null;
   });
+  
+  // Load branding from backend on mount (for logged-in users)
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadBrandingFromBackend().then((branding) => {
+        if (branding?.logo_url) {
+          setBusinessLogo(branding.logo_url);
+        }
+      });
+    }
+  }, [isAuthenticated]);
   
   // Unified mailbox tab tracking - default to mailbox view
   const [activeTab, setActiveTab] = useState('mailbox');
@@ -91,7 +107,7 @@ export default function EmailSetupFlow({
   };
 
   // Logo upload handler
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
@@ -106,7 +122,7 @@ export default function EmailSetupFlow({
     }
     
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       const base64 = reader.result as string;
       setBusinessLogo(base64);
       
@@ -118,12 +134,22 @@ export default function EmailSetupFlow({
       const brandingInfo = JSON.parse(localStorage.getItem('bamlead_branding_info') || '{}');
       localStorage.setItem('bamlead_branding_info', JSON.stringify({ ...brandingInfo, logo: base64 }));
       
-      toast.success('Business logo uploaded!');
+      // Persist to backend for logged-in users
+      if (isAuthenticated) {
+        const saved = await saveUserBranding({ logo_url: base64 });
+        if (saved) {
+          toast.success('Business logo saved to your account!');
+        } else {
+          toast.success('Business logo uploaded locally');
+        }
+      } else {
+        toast.success('Business logo uploaded! (Log in to save permanently)');
+      }
     };
     reader.readAsDataURL(file);
   };
 
-  const handleRemoveLogo = () => {
+  const handleRemoveLogo = async () => {
     setBusinessLogo(null);
     const existing = JSON.parse(localStorage.getItem('email_branding') || '{}');
     delete existing.logoUrl;
@@ -132,6 +158,11 @@ export default function EmailSetupFlow({
     const brandingInfo = JSON.parse(localStorage.getItem('bamlead_branding_info') || '{}');
     delete brandingInfo.logo;
     localStorage.setItem('bamlead_branding_info', JSON.stringify(brandingInfo));
+    
+    // Remove from backend for logged-in users
+    if (isAuthenticated) {
+      await deleteUserLogo();
+    }
     
     toast.success('Logo removed');
   };
