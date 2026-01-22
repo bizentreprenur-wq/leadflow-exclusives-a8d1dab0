@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { sanitizeEmailHTML } from "@/lib/sanitize";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,8 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -277,6 +276,22 @@ export default function HighConvertingTemplateGallery({
     setIsEditing(false);
   };
 
+  const closePreview = () => {
+    setPreviewTemplate(null);
+    setIsEditing(false);
+  };
+
+  useEffect(() => {
+    if (!previewTemplate) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closePreview();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [previewTemplate]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -540,232 +555,227 @@ export default function HighConvertingTemplateGallery({
         </div>
       )}
 
-      {/* Preview/Edit Dialog */}
-      <Dialog
-        open={!!previewTemplate}
-        onOpenChange={(open) => {
-          // Only clear state when the dialog is closing.
-          // Clearing on every openChange can immediately close the dialog in controlled mode.
-          if (!open) {
-            setPreviewTemplate(null);
-            setIsEditing(false);
-          }
-        }}
-      >
-        <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden relative">
-          {/* Prominent X Close Button */}
-          <Button 
-            variant="outline" 
-            size="icon"
-            onClick={() => { setPreviewTemplate(null); setIsEditing(false); }}
-            className="absolute top-4 right-4 z-50 bg-background/90 hover:bg-destructive hover:text-destructive-foreground border-2 shadow-lg"
-          >
-            <X className="w-5 h-5" />
-          </Button>
-          
-          <DialogHeader className="p-6 pb-0 pr-16">
-            <VisuallyHidden>
-              <DialogDescription>
-                Preview and edit the selected email template
-              </DialogDescription>
-            </VisuallyHidden>
-            <div className="flex items-start justify-between">
-              <div>
-                <DialogTitle className="text-xl flex items-center gap-2">
-                  {isEditing ? <Edit3 className="w-5 h-5 text-primary" /> : <Eye className="w-5 h-5" />}
-                  {isEditing ? 'Edit Template' : previewTemplate?.name}
-                </DialogTitle>
-                <p className="text-muted-foreground text-sm mt-1">
-                  {isEditing ? 'Customize the subject and body to match your needs' : previewTemplate?.description}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 mr-8">
-                <Button 
-                  variant={isEditing ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setIsEditing(!isEditing)}
-                  className="gap-2"
-                >
-                  {isEditing ? <Eye className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
-                  {isEditing ? 'Preview' : 'Edit & Customize'}
-                </Button>
-              </div>
-            </div>
-          </DialogHeader>
-          
-          {previewTemplate && (
-            <div className="p-6 pt-4 space-y-4">
-              {/* Template Info */}
-              <div className="flex items-center gap-4 flex-wrap">
-                <Badge className={getCategoryColor(previewTemplate.category)}>
-                  {getCategoryIcon(previewTemplate.category)}
-                  <span className="ml-1">{previewTemplate.category}</span>
-                </Badge>
-                <Badge variant="outline">{previewTemplate.industry}</Badge>
-                {!isEditing && (
-                  <div className="flex items-center gap-1 text-warning text-sm">
-                    <Lightbulb className="w-4 h-4" />
-                    <span className="text-muted-foreground">{previewTemplate.conversionTip}</span>
-                  </div>
-                )}
-                {isEditing && (
-                  <Badge variant="secondary" className="gap-1">
-                    <Wand2 className="w-3 h-3" />
-                    Editing Mode
-                  </Badge>
-                )}
-              </div>
+      {/* Preview/Edit Modal */}
+      {previewTemplate &&
+        createPortal(
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+            <div
+              className="absolute inset-0 z-[1000] bg-black/80 backdrop-blur-sm"
+              role="presentation"
+              aria-hidden="true"
+              onClick={closePreview}
+            />
+            <div
+              role="dialog"
+              aria-modal="true"
+              className="relative z-[1001] w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-lg bg-background text-foreground border border-primary/40 shadow-elevated ring-1 ring-primary/20"
+            >
+              {/* Prominent X Close Button */}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={closePreview}
+                className="absolute top-4 right-4 z-10 bg-background/90 hover:bg-destructive hover:text-destructive-foreground border-2 shadow-lg"
+              >
+                <X className="w-5 h-5" />
+              </Button>
 
-              {isEditing ? (
-                <>
-                  {/* Editable Subject Line */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Subject Line</Label>
-                    <Input
-                      value={editedSubject}
-                      onChange={(e) => setEditedSubject(e.target.value)}
-                      placeholder="Enter your email subject..."
-                      className="font-medium"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Use placeholders: {'{{first_name}}'}, {'{{business_name}}'}, {'{{website}}'}
+              <div className="p-6 pb-0 pr-16">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h2 className="text-xl flex items-center gap-2">
+                      {isEditing ? <Edit3 className="w-5 h-5 text-primary" /> : <Eye className="w-5 h-5" />}
+                      {isEditing ? "Edit Template" : previewTemplate.name}
+                    </h2>
+                    <p className="text-muted-foreground text-sm mt-1">
+                      {isEditing
+                        ? "Customize the subject and body to match your needs"
+                        : previewTemplate.description}
                     </p>
                   </div>
-
-                  {/* Editable Body */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Email Body</Label>
-                    <Textarea
-                      value={editedBody}
-                      onChange={(e) => setEditedBody(e.target.value)}
-                      placeholder="Write your email content..."
-                      className="min-h-[250px] font-mono text-sm"
-                    />
-                  </div>
-                  
-                  {/* Save as New Template */}
-                  <div className="p-4 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Star className="w-4 h-4 text-primary" />
-                      <Label className="text-sm font-medium">Save as New Template</Label>
-                    </div>
-                    <Input
-                      value={newTemplateName}
-                      onChange={(e) => setNewTemplateName(e.target.value)}
-                      placeholder="Enter a name for your template..."
-                      className="bg-background"
-                    />
-                    
-                    {/* Folder Selection */}
-                    <div className="flex items-center gap-2">
-                      <FolderOpen className="w-4 h-4 text-muted-foreground" />
-                      <Select value={selectedFolderId} onValueChange={setSelectedFolderId}>
-                        <SelectTrigger className="flex-1">
-                          <SelectValue placeholder="Choose a folder (optional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">
-                            <span className="flex items-center gap-1">
-                              <Folder className="w-3 h-3" /> No Folder
-                            </span>
-                          </SelectItem>
-                          {folders.map((folder) => (
-                            <SelectItem key={folder.id} value={folder.id}>
-                              <span className="flex items-center gap-1">
-                                {folder.icon} {folder.name}
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <p className="text-xs text-muted-foreground">
-                      Save this customized template to your library for future campaigns
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {/* Hero Image Preview - Same as card thumbnail */}
-                  <div className="rounded-lg overflow-hidden border">
-                    <img 
-                      src={previewTemplate.previewImage} 
-                      alt={previewTemplate.name}
-                      className="w-full h-48 object-cover"
-                    />
-                  </div>
-
-                  {/* Subject Line Preview */}
-                  <div className="bg-muted/50 rounded-lg p-4">
-                    <p className="text-xs text-muted-foreground mb-1">Subject Line</p>
-                    <p className="font-medium">{editedSubject || previewTemplate.subject}</p>
-                  </div>
-
-                  {/* Email Preview */}
-                  <ScrollArea className="h-[350px] border rounded-lg">
-                    <div 
-                      className="bg-background p-4"
-                      dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(previewTemplate.body_html) }}
-                    />
-                  </ScrollArea>
-                </>
-              )}
-
-              {/* Actions */}
-              <div className="flex gap-3 justify-end">
-                {isEditing ? (
-                  <>
-                    <Button variant="outline" onClick={() => setIsEditing(false)}>
-                      Cancel
-                    </Button>
-                    <Button 
-                      variant="outline"
-                      onClick={handleSaveCustomTemplate} 
+                  <div className="flex items-center gap-2 mr-8">
+                    <Button
+                      variant={isEditing ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setIsEditing(!isEditing)}
                       className="gap-2"
                     >
-                      <Check className="w-4 h-4" />
-                      Use Now (One-time)
+                      {isEditing ? <Eye className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
+                      {isEditing ? "Preview" : "Edit & Customize"}
                     </Button>
-                    <Button 
-                      onClick={handleSaveAsNewTemplate} 
-                      className="gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
-                      disabled={!newTemplateName.trim()}
-                    >
-                      <Star className="w-4 h-4" />
-                      Save to Library
-                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 pt-4 space-y-4">
+                {/* Template Info */}
+                <div className="flex items-center gap-4 flex-wrap">
+                  <Badge className={getCategoryColor(previewTemplate.category)}>
+                    {getCategoryIcon(previewTemplate.category)}
+                    <span className="ml-1">{previewTemplate.category}</span>
+                  </Badge>
+                  <Badge variant="outline">{previewTemplate.industry}</Badge>
+                  {!isEditing && (
+                    <div className="flex items-center gap-1 text-warning text-sm">
+                      <Lightbulb className="w-4 h-4" />
+                      <span className="text-muted-foreground">{previewTemplate.conversionTip}</span>
+                    </div>
+                  )}
+                  {isEditing && (
+                    <Badge variant="secondary" className="gap-1">
+                      <Wand2 className="w-3 h-3" />
+                      Editing Mode
+                    </Badge>
+                  )}
+                </div>
+
+                {isEditing ? (
+                  <>
+                    {/* Editable Subject Line */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Subject Line</Label>
+                      <Input
+                        value={editedSubject}
+                        onChange={(e) => setEditedSubject(e.target.value)}
+                        placeholder="Enter your email subject..."
+                        className="font-medium"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Use placeholders: {"{{first_name}}"}, {"{{business_name}}"}, {"{{website}}"}
+                      </p>
+                    </div>
+
+                    {/* Editable Body */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Email Body</Label>
+                      <Textarea
+                        value={editedBody}
+                        onChange={(e) => setEditedBody(e.target.value)}
+                        placeholder="Write your email content..."
+                        className="min-h-[250px] font-mono text-sm"
+                      />
+                    </div>
+
+                    {/* Save as New Template */}
+                    <div className="p-4 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Star className="w-4 h-4 text-primary" />
+                        <Label className="text-sm font-medium">Save as New Template</Label>
+                      </div>
+                      <Input
+                        value={newTemplateName}
+                        onChange={(e) => setNewTemplateName(e.target.value)}
+                        placeholder="Enter a name for your template..."
+                        className="bg-background"
+                      />
+
+                      {/* Folder Selection */}
+                      <div className="flex items-center gap-2">
+                        <FolderOpen className="w-4 h-4 text-muted-foreground" />
+                        <Select value={selectedFolderId} onValueChange={setSelectedFolderId}>
+                          <SelectTrigger className="flex-1">
+                            <SelectValue placeholder="Choose a folder (optional)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">
+                              <span className="flex items-center gap-1">
+                                <Folder className="w-3 h-3" /> No Folder
+                              </span>
+                            </SelectItem>
+                            {folders.map((folder) => (
+                              <SelectItem key={folder.id} value={folder.id}>
+                                <span className="flex items-center gap-1">
+                                  {folder.icon} {folder.name}
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <p className="text-xs text-muted-foreground">
+                        Save this customized template to your library for future campaigns
+                      </p>
+                    </div>
                   </>
                 ) : (
                   <>
-                    <Button variant="outline" onClick={() => handleCopy(previewTemplate)}>
-                      <Copy className="w-4 h-4 mr-2" />
-                      Copy HTML
-                    </Button>
-                    <Button variant="outline" onClick={() => setIsEditing(true)} className="gap-2">
-                      <Edit3 className="w-4 h-4" />
-                      Edit Template
-                    </Button>
-                    {onSelectTemplate && (
-                      <Button 
-                        size="lg"
-                        className="gap-2 bg-gradient-to-r from-success to-success/80 hover:from-success/90 hover:to-success/70 text-success-foreground font-semibold px-8"
-                        onClick={() => {
-                          handleSelect(previewTemplate);
-                          setPreviewTemplate(null);
-                        }}
-                      >
-                        <Check className="w-5 h-5" />
-                        Use This Template
-                      </Button>
-                    )}
+                    {/* Hero Image Preview - Same as card thumbnail */}
+                    <div className="rounded-lg overflow-hidden border">
+                      <img
+                        src={previewTemplate.previewImage}
+                        alt={previewTemplate.name}
+                        className="w-full h-48 object-cover"
+                      />
+                    </div>
+
+                    {/* Subject Line Preview */}
+                    <div className="bg-muted/50 rounded-lg p-4">
+                      <p className="text-xs text-muted-foreground mb-1">Subject Line</p>
+                      <p className="font-medium">{editedSubject || previewTemplate.subject}</p>
+                    </div>
+
+                    {/* Email Preview */}
+                    <ScrollArea className="h-[350px] border rounded-lg">
+                      <div
+                        className="bg-background p-4"
+                        dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(previewTemplate.body_html || "") }}
+                      />
+                    </ScrollArea>
                   </>
                 )}
+
+                {/* Actions */}
+                <div className="flex gap-3 justify-end">
+                  {isEditing ? (
+                    <>
+                      <Button variant="outline" onClick={() => setIsEditing(false)}>
+                        Cancel
+                      </Button>
+                      <Button variant="outline" onClick={handleSaveCustomTemplate} className="gap-2">
+                        <Check className="w-4 h-4" />
+                        Use Now (One-time)
+                      </Button>
+                      <Button
+                        onClick={handleSaveAsNewTemplate}
+                        className="gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                        disabled={!newTemplateName.trim()}
+                      >
+                        <Star className="w-4 h-4" />
+                        Save to Library
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button variant="outline" onClick={() => handleCopy(previewTemplate)}>
+                        <Copy className="w-4 h-4 mr-2" />
+                        Copy HTML
+                      </Button>
+                      <Button variant="outline" onClick={() => setIsEditing(true)} className="gap-2">
+                        <Edit3 className="w-4 h-4" />
+                        Edit Template
+                      </Button>
+                      {onSelectTemplate && (
+                        <Button
+                          size="lg"
+                          className="gap-2 bg-gradient-to-r from-success to-success/80 hover:from-success/90 hover:to-success/70 text-success-foreground font-semibold px-8"
+                          onClick={() => {
+                            handleSelect(previewTemplate);
+                            closePreview();
+                          }}
+                        >
+                          <Check className="w-5 h-5" />
+                          Use This Template
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
+          </div>,
+          document.body,
+        )}
 
       {/* STICKY BOTTOM BAR - Clean "Ready to Send" */}
       {highlightedTemplate && onSelectTemplate && (
