@@ -21,9 +21,9 @@ const AnnouncementBar = () => {
           {industries.map(({ icon: Icon, label }) => (
             <span 
               key={label}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/30 border border-primary/50 text-white text-xs font-semibold"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/60 border border-primary text-white text-xs font-semibold"
             >
-              <Icon className="w-3 h-3" />
+              <Icon className="w-3 h-3 text-white" />
               {label}
             </span>
           ))}
