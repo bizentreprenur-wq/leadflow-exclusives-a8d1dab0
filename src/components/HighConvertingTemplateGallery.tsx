@@ -541,7 +541,17 @@ export default function HighConvertingTemplateGallery({
       )}
 
       {/* Preview/Edit Dialog */}
-      <Dialog open={!!previewTemplate} onOpenChange={() => { setPreviewTemplate(null); setIsEditing(false); }}>
+      <Dialog
+        open={!!previewTemplate}
+        onOpenChange={(open) => {
+          // Only clear state when the dialog is closing.
+          // Clearing on every openChange can immediately close the dialog in controlled mode.
+          if (!open) {
+            setPreviewTemplate(null);
+            setIsEditing(false);
+          }
+        }}
+      >
         <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden relative">
           {/* Prominent X Close Button */}
           <Button 
