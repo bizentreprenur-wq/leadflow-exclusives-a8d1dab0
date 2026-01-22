@@ -15,12 +15,12 @@ const Navbar = () => {
   const { t } = useLanguage();
 
   const navLinks = [
+    { href: "/what-is-bamlead", labelKey: "nav.whatIs" },
     { href: "/features", labelKey: "nav.features" },
+    { href: "/use-cases", labelKey: "nav.useCases" },
     { href: "/closeloop", labelKey: "nav.closeloop", isSpecial: true },
     { href: "/pricing", labelKey: "nav.pricing" },
-    { href: "/reviews", labelKey: "nav.reviews" },
-    { href: "/about", labelKey: "nav.about" },
-    { href: "/contact", labelKey: "nav.contact" },
+    { href: "/comparisons", labelKey: "nav.comparisons" },
   ];
 
   const isActive = (path: string) => location.pathname === path;

@@ -50,6 +50,24 @@ export const translations: Translations = {
     pt: 'CloseLoop™',
     fr: 'CloseLoop™',
   },
+  'nav.whatIs': {
+    en: 'What Is Bamlead',
+    es: 'Qué es Bamlead',
+    pt: 'O que é Bamlead',
+    fr: 'Qu\'est-ce que Bamlead',
+  },
+  'nav.useCases': {
+    en: 'Use Cases',
+    es: 'Casos de Uso',
+    pt: 'Casos de Uso',
+    fr: 'Cas d\'Usage',
+  },
+  'nav.comparisons': {
+    en: 'Comparisons',
+    es: 'Comparaciones',
+    pt: 'Comparações',
+    fr: 'Comparaisons',
+  },
   'nav.dashboard': {
     en: 'Dashboard',
     es: 'Panel',
