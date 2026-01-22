@@ -9,11 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
+import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import {
   FileText, Send, Edit, Eye, Download, Upload, Building2, 
   User, Mail, Phone, MapPin, Sparkles, CheckCircle2, Copy,
-  FileSignature, Briefcase, ArrowRight, Save, X, Image
+  FileSignature, Briefcase, ArrowRight, Save, X, Image, Pen, Shield
 } from 'lucide-react';
 import { PROPOSAL_TEMPLATES, ProposalTemplate, generateProposalHTML } from '@/lib/proposalTemplates';
 import { CONTRACT_TEMPLATES, ContractTemplate, generateContractHTML } from '@/lib/contractTemplates';
@@ -48,6 +49,7 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
   const [isEditing, setIsEditing] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [enableESignature, setEnableESignature] = useState(true);
   
   // Branding info (saved to localStorage)
   const [branding, setBranding] = useState<BrandingInfo>(() => {
@@ -134,14 +136,43 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
   const generateContractPreview = () => {
     if (!selectedContract) return;
     
+    // Generate unique contract ID for e-signature tracking
+    const contractId = `contract_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Create signing URL (in production this would be a real hosted URL)
+    const signingUrl = `${window.location.origin}/sign-contract?id=${contractId}`;
+    
     const html = generateContractHTML(
       selectedContract,
       contractEdits,
       {
         companyName: branding.companyName || '[Your Company]',
         logoUrl: branding.logoUrl || undefined
-      }
+      },
+      enableESignature ? {
+        enabled: true,
+        signingUrl,
+        contractId,
+        recipientName: recipient.contactName || recipient.businessName || 'Client',
+        recipientEmail: recipient.email
+      } : undefined
     );
+    
+    // Store contract data for signing page
+    if (enableESignature) {
+      const pendingContracts = JSON.parse(localStorage.getItem('bamlead_pending_contracts') || '{}');
+      pendingContracts[contractId] = {
+        contractHTML: html,
+        contractName: selectedContract.name,
+        senderCompany: branding.companyName,
+        recipientName: recipient.contactName || recipient.businessName,
+        recipientEmail: recipient.email,
+        createdAt: new Date().toISOString(),
+        status: 'pending'
+      };
+      localStorage.setItem('bamlead_pending_contracts', JSON.stringify(pendingContracts));
+    }
+    
     setPreviewHTML(html);
     setIsPreviewing(true);
   };
@@ -597,6 +628,32 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
                             className="h-8 text-xs mt-1"
                           />
                         </div>
+                        
+                        <Separator />
+                        
+                        {/* E-Signature Toggle */}
+                        <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border border-primary/20">
+                          <div className="flex items-center gap-2">
+                            <Pen className="w-4 h-4 text-primary" />
+                            <div>
+                              <Label className="text-xs font-medium">E-Signature</Label>
+                              <p className="text-[10px] text-muted-foreground">
+                                Client can sign digitally
+                              </p>
+                            </div>
+                          </div>
+                          <Switch 
+                            checked={enableESignature}
+                            onCheckedChange={setEnableESignature}
+                          />
+                        </div>
+                        
+                        {enableESignature && (
+                          <div className="p-2 bg-muted/50 rounded text-[10px] text-muted-foreground flex items-start gap-2">
+                            <Shield className="w-3 h-3 mt-0.5 shrink-0" />
+                            <span>A secure signing link will be included. Client can draw or type their signature directly.</span>
+                          </div>
+                        )}
                         
                         <Separator />
                         

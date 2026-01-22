@@ -1198,13 +1198,22 @@ Date: _________________________`,
   }
 ];
 
+export interface ESignatureConfig {
+  enabled: boolean;
+  signingUrl?: string;
+  contractId?: string;
+  recipientName?: string;
+  recipientEmail?: string;
+}
+
 export function generateContractHTML(
   contract: ContractTemplate,
   editedSections: Record<string, string>,
   senderInfo: {
     companyName: string;
     logoUrl?: string;
-  }
+  },
+  eSignature?: ESignatureConfig
 ): string {
   const today = new Date().toLocaleDateString('en-US', { 
     year: 'numeric', 
@@ -1221,6 +1230,47 @@ export function generateContractHTML(
       </div>
     `;
   }).join('');
+
+  // E-signature section
+  const eSignatureSection = eSignature?.enabled ? `
+    <div class="esign-section" style="margin-top: 40px; padding: 25px; border: 2px solid #3b82f6; border-radius: 12px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <div style="font-size: 32px; margin-bottom: 10px;">✍️</div>
+        <h2 style="margin: 0; color: #1e40af; font-size: 20px;">Electronic Signature Required</h2>
+        <p style="margin: 10px 0 0; color: #3b82f6; font-size: 14px;">This contract requires your digital signature</p>
+      </div>
+      
+      <div style="background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px;">
+          <span style="color: #6b7280;">Contract ID:</span>
+          <code style="background: #f3f4f6; padding: 2px 8px; border-radius: 4px; font-size: 11px;">${eSignature.contractId || 'N/A'}</code>
+        </div>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 13px;">
+          <span style="color: #6b7280;">Signer:</span>
+          <strong>${eSignature.recipientName || 'Client'}</strong>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 13px;">
+          <span style="color: #6b7280;">Email:</span>
+          <span>${eSignature.recipientEmail || ''}</span>
+        </div>
+      </div>
+
+      <div style="text-align: center;">
+        <a href="${eSignature.signingUrl || '#'}" 
+           style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);">
+          ✏️ Click Here to Sign This Contract
+        </a>
+        <p style="margin-top: 15px; font-size: 11px; color: #6b7280;">
+          By signing, you agree to the terms above and confirm this is a legally binding agreement.
+        </p>
+      </div>
+      
+      <div style="margin-top: 20px; padding: 12px; background: #fef3c7; border-radius: 6px; font-size: 11px; color: #92400e; display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 16px;">🔒</span>
+        <span>Your signature is encrypted and protected. This e-signature is legally binding under the ESIGN Act and UETA.</span>
+      </div>
+    </div>
+  ` : '';
 
   return `
 <!DOCTYPE html>
@@ -1240,7 +1290,7 @@ export function generateContractHTML(
     .section-content { font-size: 12px; white-space: pre-line; }
     .footer { text-align: center; margin-top: 50px; padding-top: 20px; border-top: 1px solid #ccc; font-size: 10px; color: #666; }
     .disclaimer { background: #fff3cd; border: 1px solid #ffc107; padding: 15px; margin-top: 30px; font-size: 11px; }
-    @media print { body { padding: 20px; } }
+    @media print { body { padding: 20px; } .esign-section { display: none; } }
   </style>
 </head>
 <body>
@@ -1251,6 +1301,8 @@ export function generateContractHTML(
   </div>
 
   ${sections}
+
+  ${eSignatureSection}
 
   <div class="disclaimer">
     ⚠️ <strong>LEGAL DISCLAIMER:</strong> This document is provided as a template for informational purposes only and does not constitute legal advice. Every business situation is unique, and legal requirements vary by jurisdiction. We strongly recommend that you review this agreement with a qualified attorney before use. The provider of this template assumes no liability for its use or the outcomes resulting from its use.
