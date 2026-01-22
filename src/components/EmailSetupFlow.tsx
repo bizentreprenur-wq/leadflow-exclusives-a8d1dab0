@@ -543,7 +543,7 @@ export default function EmailSetupFlow({
                               ${activeTab === item.tab
                                 ? (item.tab === 'mailbox'
                                   ? 'border-primary bg-primary/20 text-white shadow-lg shadow-primary/20'
-                                  : 'border-primary bg-primary/20 text-primary-foreground shadow-lg shadow-primary/20')
+                                  : 'border-primary bg-primary/20 text-foreground shadow-lg shadow-primary/20')
                                 : (item.tab === 'mailbox'
                                   ? 'border-transparent bg-muted/20 text-white/80 hover:bg-muted/40 hover:text-white'
                                   : 'border-transparent bg-muted/20 text-muted-foreground hover:bg-muted/40 hover:text-foreground')
