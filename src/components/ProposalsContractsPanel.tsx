@@ -14,10 +14,11 @@ import { toast } from 'sonner';
 import {
   FileText, Send, Edit, Eye, Download, Upload, Building2, 
   User, Mail, Phone, MapPin, Sparkles, CheckCircle2, Copy,
-  FileSignature, Briefcase, ArrowRight, Save, X, Image, Pen, Shield
+  FileSignature, Briefcase, ArrowRight, Save, X, Image, Pen, Shield,
+  Plus, Trash2, GripVertical, DollarSign, Clock, ListChecks, Target
 } from 'lucide-react';
 import { PROPOSAL_TEMPLATES, ProposalTemplate, generateProposalHTML } from '@/lib/proposalTemplates';
-import { CONTRACT_TEMPLATES, ContractTemplate, generateContractHTML } from '@/lib/contractTemplates';
+import { CONTRACT_TEMPLATES, ContractTemplate, generateContractHTML, ContractSection } from '@/lib/contractTemplates';
 import { sendSingleEmail } from '@/lib/emailService';
 
 interface BrandingInfo {
@@ -37,6 +38,33 @@ interface Lead {
   address?: string;
 }
 
+// Editable proposal state
+interface EditableProposal {
+  id: string;
+  name: string;
+  category: string;
+  icon: string;
+  description: string;
+  scope: string[];
+  timeline: string;
+  deliverables: string[];
+  investmentRange: string;
+  defaultPrice: string;
+  callToAction: string;
+  colorAccent: string;
+}
+
+// Editable contract state
+interface EditableContract {
+  id: string;
+  name: string;
+  category: string;
+  icon: string;
+  description: string;
+  sections: ContractSection[];
+  colorAccent: string;
+}
+
 interface ProposalsContractsPanelProps {
   leads?: Lead[];
   initialView?: 'proposals' | 'contracts';
@@ -44,12 +72,16 @@ interface ProposalsContractsPanelProps {
 
 export default function ProposalsContractsPanel({ leads = [], initialView = 'proposals' }: ProposalsContractsPanelProps) {
   const [activeTab, setActiveTab] = useState<'proposals' | 'contracts'>(initialView);
-  const [selectedProposal, setSelectedProposal] = useState<ProposalTemplate | null>(null);
-  const [selectedContract, setSelectedContract] = useState<ContractTemplate | null>(null);
+  const [selectedProposalId, setSelectedProposalId] = useState<string | null>(null);
+  const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [enableESignature, setEnableESignature] = useState(true);
+  
+  // Editable proposal and contract states
+  const [editableProposal, setEditableProposal] = useState<EditableProposal | null>(null);
+  const [editableContract, setEditableContract] = useState<EditableContract | null>(null);
   
   // Branding info (saved to localStorage)
   const [branding, setBranding] = useState<BrandingInfo>(() => {
@@ -70,16 +102,6 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
     email: '',
     address: ''
   });
-  
-  // Proposal customization
-  const [proposalCustomization, setProposalCustomization] = useState({
-    customPrice: '',
-    customTimeline: '',
-    additionalNotes: ''
-  });
-  
-  // Contract section edits
-  const [contractEdits, setContractEdits] = useState<Record<string, string>>({});
   
   // Preview HTML
   const [previewHTML, setPreviewHTML] = useState('');
@@ -106,19 +128,127 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
     }
   };
   
+  // Select a proposal and make it editable
+  const handleSelectProposal = (proposal: ProposalTemplate) => {
+    setSelectedProposalId(proposal.id);
+    setEditableProposal({
+      ...proposal,
+      scope: [...proposal.scope],
+      deliverables: [...proposal.deliverables]
+    });
+    setIsEditing(true);
+  };
+  
+  // Select a contract and make it editable
+  const handleSelectContract = (contract: ContractTemplate) => {
+    setSelectedContractId(contract.id);
+    setEditableContract({
+      ...contract,
+      sections: contract.sections.map(s => ({ ...s }))
+    });
+    setIsEditing(true);
+  };
+  
+  // Update proposal field
+  const updateProposalField = (field: keyof EditableProposal, value: any) => {
+    if (editableProposal) {
+      setEditableProposal(prev => prev ? { ...prev, [field]: value } : null);
+    }
+  };
+  
+  // Update proposal scope item
+  const updateScopeItem = (index: number, value: string) => {
+    if (editableProposal) {
+      const newScope = [...editableProposal.scope];
+      newScope[index] = value;
+      setEditableProposal(prev => prev ? { ...prev, scope: newScope } : null);
+    }
+  };
+  
+  // Add scope item
+  const addScopeItem = () => {
+    if (editableProposal) {
+      setEditableProposal(prev => prev ? { 
+        ...prev, 
+        scope: [...prev.scope, 'New scope item'] 
+      } : null);
+    }
+  };
+  
+  // Remove scope item
+  const removeScopeItem = (index: number) => {
+    if (editableProposal && editableProposal.scope.length > 1) {
+      const newScope = editableProposal.scope.filter((_, i) => i !== index);
+      setEditableProposal(prev => prev ? { ...prev, scope: newScope } : null);
+    }
+  };
+  
+  // Update deliverable item
+  const updateDeliverableItem = (index: number, value: string) => {
+    if (editableProposal) {
+      const newDeliverables = [...editableProposal.deliverables];
+      newDeliverables[index] = value;
+      setEditableProposal(prev => prev ? { ...prev, deliverables: newDeliverables } : null);
+    }
+  };
+  
+  // Add deliverable item
+  const addDeliverableItem = () => {
+    if (editableProposal) {
+      setEditableProposal(prev => prev ? { 
+        ...prev, 
+        deliverables: [...prev.deliverables, 'New deliverable'] 
+      } : null);
+    }
+  };
+  
+  // Remove deliverable item
+  const removeDeliverableItem = (index: number) => {
+    if (editableProposal && editableProposal.deliverables.length > 1) {
+      const newDeliverables = editableProposal.deliverables.filter((_, i) => i !== index);
+      setEditableProposal(prev => prev ? { ...prev, deliverables: newDeliverables } : null);
+    }
+  };
+  
+  // Update contract section
+  const updateContractSection = (index: number, field: 'title' | 'content', value: string) => {
+    if (editableContract) {
+      const newSections = [...editableContract.sections];
+      newSections[index] = { ...newSections[index], [field]: value };
+      setEditableContract(prev => prev ? { ...prev, sections: newSections } : null);
+    }
+  };
+  
+  // Add contract section
+  const addContractSection = () => {
+    if (editableContract) {
+      setEditableContract(prev => prev ? {
+        ...prev,
+        sections: [...prev.sections, { title: 'NEW SECTION', content: 'Section content here...', isEditable: true }]
+      } : null);
+    }
+  };
+  
+  // Remove contract section
+  const removeContractSection = (index: number) => {
+    if (editableContract && editableContract.sections.length > 1) {
+      const newSections = editableContract.sections.filter((_, i) => i !== index);
+      setEditableContract(prev => prev ? { ...prev, sections: newSections } : null);
+    }
+  };
+  
   // Generate proposal preview
   const generateProposalPreview = () => {
-    if (!selectedProposal) return;
+    if (!editableProposal) return;
     
     const html = generateProposalHTML(
-      selectedProposal,
+      editableProposal as ProposalTemplate,
       {
         businessName: recipient.businessName || '[Client Business]',
         contactName: recipient.contactName || '[Client Name]',
         email: recipient.email || '[Client Email]',
-        customPrice: proposalCustomization.customPrice || undefined,
-        customTimeline: proposalCustomization.customTimeline || undefined,
-        additionalNotes: proposalCustomization.additionalNotes || undefined
+        customPrice: editableProposal.defaultPrice,
+        customTimeline: editableProposal.timeline
       },
       {
         companyName: branding.companyName || '[Your Company]',
@@ -134,16 +264,19 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
   
   // Generate contract preview
   const generateContractPreview = () => {
-    if (!selectedContract) return;
+    if (!editableContract) return;
     
-    // Generate unique contract ID for e-signature tracking
     const contractId = `contract_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    // Create signing URL (in production this would be a real hosted URL)
     const signingUrl = `${window.location.origin}/sign-contract?id=${contractId}`;
     
+    // Build edits object from current sections
+    const contractEdits: Record<string, string> = {};
+    editableContract.sections.forEach(section => {
+      contractEdits[section.title] = section.content;
+    });
+    
     const html = generateContractHTML(
-      selectedContract,
+      editableContract as ContractTemplate,
       contractEdits,
       {
         companyName: branding.companyName || '[Your Company]',
@@ -163,7 +296,7 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
       const pendingContracts = JSON.parse(localStorage.getItem('bamlead_pending_contracts') || '{}');
       pendingContracts[contractId] = {
         contractHTML: html,
-        contractName: selectedContract.name,
+        contractName: editableContract.name,
         senderCompany: branding.companyName,
         recipientName: recipient.contactName || recipient.businessName,
         recipientEmail: recipient.email,
@@ -201,7 +334,7 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
       }
       
       const documentType = activeTab === 'proposals' ? 'Proposal' : 'Contract';
-      const documentName = activeTab === 'proposals' ? selectedProposal?.name : selectedContract?.name;
+      const documentName = activeTab === 'proposals' ? editableProposal?.name : editableContract?.name;
       
       await sendSingleEmail({
         to: recipient.email,
@@ -211,13 +344,6 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
       
       toast.success(`${documentType} sent successfully!`);
       setIsPreviewing(false);
-      
-      // Reset form
-      setRecipient({ businessName: '', contactName: '', email: '', address: '' });
-      setProposalCustomization({ customPrice: '', customTimeline: '', additionalNotes: '' });
-      setContractEdits({});
-      setSelectedProposal(null);
-      setSelectedContract(null);
       
     } catch (error) {
       toast.error('Failed to send document');
@@ -239,7 +365,7 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${activeTab === 'proposals' ? selectedProposal?.name : selectedContract?.name}.html`;
+    a.download = `${activeTab === 'proposals' ? editableProposal?.name : editableContract?.name}.html`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success('Document downloaded!');
@@ -273,7 +399,7 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
               <img 
                 src={branding.logoUrl} 
                 alt="Your logo" 
-                className="h-10 max-w-[120px] object-contain"
+                className="h-12 max-w-[140px] object-contain rounded border bg-white p-1"
               />
             )}
           </div>
@@ -318,7 +444,10 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
               />
             </div>
             <div className="col-span-2">
-              <Label className="text-xs">Logo (max 500KB)</Label>
+              <Label className="text-xs flex items-center gap-1">
+                <Image className="w-3 h-3" />
+                Company Logo
+              </Label>
               <div className="flex gap-2">
                 <Input 
                   type="file"
@@ -342,353 +471,494 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
         </CardContent>
       </Card>
       
+      {/* Recipient Selection */}
+      {leads.length > 0 && (
+        <Card className="border-accent/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <User className="w-4 h-4" />
+              Select Recipient
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pb-3">
+            <ScrollArea className="h-16">
+              <div className="flex flex-wrap gap-1">
+                {leads.filter(l => l.email).slice(0, 20).map(lead => (
+                  <Badge 
+                    key={lead.id}
+                    variant={recipient.email === lead.email ? "default" : "outline"}
+                    className="cursor-pointer hover:bg-primary/20 text-[10px]"
+                    onClick={() => handleSelectLead(lead)}
+                  >
+                    {lead.name.substring(0, 20)}
+                  </Badge>
+                ))}
+              </div>
+            </ScrollArea>
+            <div className="grid grid-cols-3 gap-2 mt-2">
+              <Input 
+                value={recipient.businessName}
+                onChange={(e) => setRecipient(prev => ({ ...prev, businessName: e.target.value }))}
+                placeholder="Client Business"
+                className="h-7 text-xs"
+              />
+              <Input 
+                value={recipient.contactName}
+                onChange={(e) => setRecipient(prev => ({ ...prev, contactName: e.target.value }))}
+                placeholder="Contact Name"
+                className="h-7 text-xs"
+              />
+              <Input 
+                type="email"
+                value={recipient.email}
+                onChange={(e) => setRecipient(prev => ({ ...prev, email: e.target.value }))}
+                placeholder="client@email.com"
+                className="h-7 text-xs"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'proposals' | 'contracts')}>
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="proposals" className="gap-2">
             <FileText className="w-4 h-4" />
-            Done For You Proposals
+            Proposals ({PROPOSAL_TEMPLATES.length})
           </TabsTrigger>
           <TabsTrigger value="contracts" className="gap-2">
             <FileSignature className="w-4 h-4" />
-            Done For You Contracts
+            Contracts ({CONTRACT_TEMPLATES.length})
           </TabsTrigger>
         </TabsList>
         
         {/* Proposals Tab */}
         <TabsContent value="proposals" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Proposal Templates */}
-            <div className="lg:col-span-2">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-yellow-500" />
-                    Select a Proposal Template
-                  </CardTitle>
-                  <CardDescription>Outcome-based proposals ready to customize and send</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-[400px] pr-4">
-                    <div className="grid gap-3">
-                      {PROPOSAL_TEMPLATES.map((proposal) => (
-                        <Card 
-                          key={proposal.id}
-                          className={`cursor-pointer transition-all hover:border-primary/50 ${
-                            selectedProposal?.id === proposal.id ? 'border-primary bg-primary/5' : ''
-                          }`}
-                          onClick={() => {
-                            setSelectedProposal(proposal);
-                            setProposalCustomization({
-                              customPrice: proposal.defaultPrice,
-                              customTimeline: proposal.timeline,
-                              additionalNotes: ''
-                            });
-                          }}
-                        >
-                          <CardContent className="p-3">
-                            <div className="flex items-start gap-3">
-                              <div className="text-2xl">{proposal.icon}</div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between">
-                                  <h4 className="font-medium text-sm truncate">{proposal.name}</h4>
-                                  <Badge variant="outline" className="text-[10px] shrink-0">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Proposal Templates List */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-yellow-500" />
+                  Select a Proposal (Click to Edit)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[450px] pr-4">
+                  <div className="grid gap-2">
+                    {PROPOSAL_TEMPLATES.map((proposal) => (
+                      <Card 
+                        key={proposal.id}
+                        className={`cursor-pointer transition-all hover:border-primary/50 hover:shadow-md ${
+                          selectedProposalId === proposal.id ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : ''
+                        }`}
+                        onClick={() => handleSelectProposal(proposal)}
+                      >
+                        <CardContent className="p-3">
+                          <div className="flex items-start gap-3">
+                            <div className="text-2xl">{proposal.icon}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <h4 className="font-medium text-sm truncate">{proposal.name}</h4>
+                                <div className="flex items-center gap-1">
+                                  <Badge variant="outline" className="text-[10px]">
                                     {proposal.category}
                                   </Badge>
-                                </div>
-                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                  {proposal.description}
-                                </p>
-                                <div className="flex items-center gap-2 mt-2">
-                                  <Badge className="text-[10px] bg-green-500/20 text-green-700">
-                                    {proposal.investmentRange}
-                                  </Badge>
-                                  <span className="text-[10px] text-muted-foreground">
-                                    {proposal.timeline}
-                                  </span>
+                                  {selectedProposalId === proposal.id && (
+                                    <Edit className="w-3 h-3 text-primary" />
+                                  )}
                                 </div>
                               </div>
-                              {selectedProposal?.id === proposal.id && (
-                                <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
-                              )}
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                                {proposal.description}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge className="text-[10px] bg-green-500/20 text-green-700 border-0">
+                                  {proposal.investmentRange}
+                                </Badge>
+                              </div>
                             </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-            </div>
-            
-            {/* Customization Panel */}
-            <div>
-              <Card className="h-full">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">
-                    {selectedProposal ? `Customize: ${selectedProposal.name}` : 'Select a Proposal'}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {selectedProposal ? (
-                    <>
-                      {/* Recipient Info */}
-                      <div className="space-y-3">
-                        <Label className="text-xs font-semibold">Recipient</Label>
-                        
-                        {leads.length > 0 && (
-                          <div className="mb-2">
-                            <Label className="text-xs text-muted-foreground">Quick Select Lead:</Label>
-                            <ScrollArea className="h-20 mt-1">
-                              <div className="flex flex-wrap gap-1">
-                                {leads.filter(l => l.email).slice(0, 10).map(lead => (
-                                  <Badge 
-                                    key={lead.id}
-                                    variant="outline"
-                                    className="cursor-pointer hover:bg-primary/20 text-[10px]"
-                                    onClick={() => handleSelectLead(lead)}
-                                  >
-                                    {lead.name.substring(0, 15)}
-                                  </Badge>
-                                ))}
-                              </div>
-                            </ScrollArea>
                           </div>
-                        )}
-                        
-                        <Input 
-                          value={recipient.businessName}
-                          onChange={(e) => setRecipient(prev => ({ ...prev, businessName: e.target.value }))}
-                          placeholder="Client Business Name"
-                          className="h-8 text-xs"
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+            
+            {/* Proposal Editor */}
+            <Card className="border-primary/20">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Edit className="w-4 h-4 text-primary" />
+                    {editableProposal ? `Edit: ${editableProposal.name}` : 'Select a Proposal to Edit'}
+                  </CardTitle>
+                  {editableProposal && (
+                    <Button onClick={generateProposalPreview} size="sm" className="h-7 gap-1">
+                      <Eye className="w-3 h-3" />
+                      Preview & Send
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {editableProposal ? (
+                  <ScrollArea className="h-[450px] pr-2">
+                    <div className="space-y-4">
+                      {/* Basic Info */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs flex items-center gap-1">
+                            <Target className="w-3 h-3" />
+                            Proposal Name
+                          </Label>
+                          <Input 
+                            value={editableProposal.name}
+                            onChange={(e) => updateProposalField('name', e.target.value)}
+                            className="h-8 text-xs mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Category</Label>
+                          <Input 
+                            value={editableProposal.category}
+                            onChange={(e) => updateProposalField('category', e.target.value)}
+                            className="h-8 text-xs mt-1"
+                          />
+                        </div>
+                      </div>
+                      
+                      {/* Description */}
+                      <div>
+                        <Label className="text-xs">Description</Label>
+                        <Textarea 
+                          value={editableProposal.description}
+                          onChange={(e) => updateProposalField('description', e.target.value)}
+                          className="text-xs mt-1 min-h-[60px]"
                         />
+                      </div>
+                      
+                      {/* Price & Timeline */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs flex items-center gap-1">
+                            <DollarSign className="w-3 h-3" />
+                            Price
+                          </Label>
+                          <Input 
+                            value={editableProposal.defaultPrice}
+                            onChange={(e) => updateProposalField('defaultPrice', e.target.value)}
+                            placeholder="$2,500"
+                            className="h-8 text-xs mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            Timeline
+                          </Label>
+                          <Input 
+                            value={editableProposal.timeline}
+                            onChange={(e) => updateProposalField('timeline', e.target.value)}
+                            placeholder="2-4 weeks"
+                            className="h-8 text-xs mt-1"
+                          />
+                        </div>
+                      </div>
+                      
+                      {/* Investment Range */}
+                      <div>
+                        <Label className="text-xs">Investment Range (for display)</Label>
                         <Input 
-                          value={recipient.contactName}
-                          onChange={(e) => setRecipient(prev => ({ ...prev, contactName: e.target.value }))}
-                          placeholder="Contact Person Name"
-                          className="h-8 text-xs"
-                        />
-                        <Input 
-                          type="email"
-                          value={recipient.email}
-                          onChange={(e) => setRecipient(prev => ({ ...prev, email: e.target.value }))}
-                          placeholder="client@email.com"
-                          className="h-8 text-xs"
+                          value={editableProposal.investmentRange}
+                          onChange={(e) => updateProposalField('investmentRange', e.target.value)}
+                          placeholder="$1,500 - $5,000"
+                          className="h-8 text-xs mt-1"
                         />
                       </div>
                       
                       <Separator />
                       
-                      {/* Proposal Customization */}
-                      <div className="space-y-3">
-                        <Label className="text-xs font-semibold">Customize Proposal</Label>
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Price</Label>
-                          <Input 
-                            value={proposalCustomization.customPrice}
-                            onChange={(e) => setProposalCustomization(prev => ({ ...prev, customPrice: e.target.value }))}
-                            placeholder="$2,500"
-                            className="h-8 text-xs"
-                          />
+                      {/* Scope Items */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <Label className="text-xs flex items-center gap-1">
+                            <ListChecks className="w-3 h-3" />
+                            Scope Items ({editableProposal.scope.length})
+                          </Label>
+                          <Button variant="outline" size="sm" onClick={addScopeItem} className="h-6 text-xs gap-1">
+                            <Plus className="w-3 h-3" />
+                            Add
+                          </Button>
                         </div>
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Timeline</Label>
-                          <Input 
-                            value={proposalCustomization.customTimeline}
-                            onChange={(e) => setProposalCustomization(prev => ({ ...prev, customTimeline: e.target.value }))}
-                            placeholder="2-4 weeks"
-                            className="h-8 text-xs"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs text-muted-foreground">Additional Notes</Label>
-                          <Textarea 
-                            value={proposalCustomization.additionalNotes}
-                            onChange={(e) => setProposalCustomization(prev => ({ ...prev, additionalNotes: e.target.value }))}
-                            placeholder="Any custom notes for this client..."
-                            className="text-xs min-h-[60px]"
-                          />
+                        <div className="space-y-2">
+                          {editableProposal.scope.map((item, index) => (
+                            <div key={index} className="flex gap-1">
+                              <Input 
+                                value={item}
+                                onChange={(e) => updateScopeItem(index, e.target.value)}
+                                className="h-7 text-xs flex-1"
+                              />
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => removeScopeItem(index)}
+                                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                disabled={editableProposal.scope.length <= 1}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ))}
                         </div>
                       </div>
                       
-                      <div className="flex gap-2 pt-2">
-                        <Button 
-                          onClick={generateProposalPreview}
-                          className="flex-1 gap-1"
-                          size="sm"
-                        >
-                          <Eye className="w-3 h-3" />
-                          Preview
-                        </Button>
+                      <Separator />
+                      
+                      {/* Deliverables */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <Label className="text-xs flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Deliverables ({editableProposal.deliverables.length})
+                          </Label>
+                          <Button variant="outline" size="sm" onClick={addDeliverableItem} className="h-6 text-xs gap-1">
+                            <Plus className="w-3 h-3" />
+                            Add
+                          </Button>
+                        </div>
+                        <div className="space-y-2">
+                          {editableProposal.deliverables.map((item, index) => (
+                            <div key={index} className="flex gap-1">
+                              <Input 
+                                value={item}
+                                onChange={(e) => updateDeliverableItem(index, e.target.value)}
+                                className="h-7 text-xs flex-1"
+                              />
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => removeDeliverableItem(index)}
+                                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                disabled={editableProposal.deliverables.length <= 1}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </>
-                  ) : (
-                    <div className="text-center text-muted-foreground text-sm py-8">
-                      <FileText className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      Select a proposal template to customize
+                      
+                      <Separator />
+                      
+                      {/* Call to Action */}
+                      <div>
+                        <Label className="text-xs">Call to Action</Label>
+                        <Textarea 
+                          value={editableProposal.callToAction}
+                          onChange={(e) => updateProposalField('callToAction', e.target.value)}
+                          className="text-xs mt-1 min-h-[40px]"
+                        />
+                      </div>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                  </ScrollArea>
+                ) : (
+                  <div className="text-center text-muted-foreground py-20">
+                    <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                    <p className="text-sm">Click any proposal template to edit it</p>
+                    <p className="text-xs mt-1">All fields are fully customizable</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
         
         {/* Contracts Tab */}
         <TabsContent value="contracts" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Contract Templates */}
-            <div className="lg:col-span-2">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Briefcase className="w-4 h-4 text-blue-500" />
-                    Select a Contract Template
-                  </CardTitle>
-                  <CardDescription>Business-protecting agreements ready to customize</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-[400px] pr-4">
-                    <div className="grid gap-3">
-                      {CONTRACT_TEMPLATES.map((contract) => (
-                        <Card 
-                          key={contract.id}
-                          className={`cursor-pointer transition-all hover:border-primary/50 ${
-                            selectedContract?.id === contract.id ? 'border-primary bg-primary/5' : ''
-                          }`}
-                          onClick={() => {
-                            setSelectedContract(contract);
-                            // Initialize editable sections
-                            const edits: Record<string, string> = {};
-                            contract.sections.forEach(section => {
-                              edits[section.title] = section.content;
-                            });
-                            setContractEdits(edits);
-                          }}
-                        >
-                          <CardContent className="p-3">
-                            <div className="flex items-start gap-3">
-                              <div className="text-2xl">{contract.icon}</div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between">
-                                  <h4 className="font-medium text-sm truncate">{contract.name}</h4>
-                                  <Badge variant="outline" className="text-[10px] shrink-0">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Contract Templates List */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Briefcase className="w-4 h-4 text-blue-500" />
+                  Select a Contract (Click to Edit)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[450px] pr-4">
+                  <div className="grid gap-2">
+                    {CONTRACT_TEMPLATES.map((contract) => (
+                      <Card 
+                        key={contract.id}
+                        className={`cursor-pointer transition-all hover:border-primary/50 hover:shadow-md ${
+                          selectedContractId === contract.id ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : ''
+                        }`}
+                        onClick={() => handleSelectContract(contract)}
+                      >
+                        <CardContent className="p-3">
+                          <div className="flex items-start gap-3">
+                            <div className="text-2xl">{contract.icon}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <h4 className="font-medium text-sm truncate">{contract.name}</h4>
+                                <div className="flex items-center gap-1">
+                                  <Badge variant="outline" className="text-[10px]">
                                     {contract.category}
                                   </Badge>
-                                </div>
-                                <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                  {contract.description}
-                                </p>
-                                <div className="flex items-center gap-1 mt-2 text-[10px] text-muted-foreground">
-                                  <FileText className="w-3 h-3" />
-                                  {contract.sections.length} sections
+                                  {selectedContractId === contract.id && (
+                                    <Edit className="w-3 h-3 text-primary" />
+                                  )}
                                 </div>
                               </div>
-                              {selectedContract?.id === contract.id && (
-                                <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
-                              )}
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                                {contract.description}
+                              </p>
+                              <Badge variant="secondary" className="text-[10px] mt-1">
+                                {contract.sections.length} sections
+                              </Badge>
                             </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
             
             {/* Contract Editor */}
-            <div>
-              <Card className="h-full">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm">
-                      {selectedContract ? `Edit: ${selectedContract.name}` : 'Select a Contract'}
-                    </CardTitle>
-                    {selectedContract && (
-                      <Button variant="outline" size="sm" onClick={generateContractPreview} className="h-7 text-xs gap-1">
-                        <Eye className="w-3 h-3" />
-                        Preview
-                      </Button>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  {selectedContract ? (
-                    <ScrollArea className="h-[380px] pr-2">
-                      <div className="space-y-4">
-                        {/* Recipient email for sending */}
+            <Card className="border-primary/20">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Edit className="w-4 h-4 text-primary" />
+                    {editableContract ? `Edit: ${editableContract.name}` : 'Select a Contract to Edit'}
+                  </CardTitle>
+                  {editableContract && (
+                    <Button onClick={generateContractPreview} size="sm" className="h-7 gap-1">
+                      <Eye className="w-3 h-3" />
+                      Preview & Send
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                {editableContract ? (
+                  <ScrollArea className="h-[450px] pr-2">
+                    <div className="space-y-4">
+                      {/* Basic Info */}
+                      <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <Label className="text-xs font-semibold">Recipient Email</Label>
+                          <Label className="text-xs">Contract Name</Label>
                           <Input 
-                            type="email"
-                            value={recipient.email}
-                            onChange={(e) => setRecipient(prev => ({ ...prev, email: e.target.value }))}
-                            placeholder="client@email.com"
+                            value={editableContract.name}
+                            onChange={(e) => setEditableContract(prev => prev ? { ...prev, name: e.target.value } : null)}
                             className="h-8 text-xs mt-1"
                           />
                         </div>
-                        
-                        <Separator />
-                        
-                        {/* E-Signature Toggle */}
-                        <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border border-primary/20">
-                          <div className="flex items-center gap-2">
-                            <Pen className="w-4 h-4 text-primary" />
-                            <div>
-                              <Label className="text-xs font-medium">E-Signature</Label>
-                              <p className="text-[10px] text-muted-foreground">
-                                Client can sign digitally
-                              </p>
-                            </div>
-                          </div>
-                          <Switch 
-                            checked={enableESignature}
-                            onCheckedChange={setEnableESignature}
+                        <div>
+                          <Label className="text-xs">Category</Label>
+                          <Input 
+                            value={editableContract.category}
+                            onChange={(e) => setEditableContract(prev => prev ? { ...prev, category: e.target.value } : null)}
+                            className="h-8 text-xs mt-1"
                           />
                         </div>
-                        
-                        {enableESignature && (
-                          <div className="p-2 bg-muted/50 rounded text-[10px] text-muted-foreground flex items-start gap-2">
-                            <Shield className="w-3 h-3 mt-0.5 shrink-0" />
-                            <span>A secure signing link will be included. Client can draw or type their signature directly.</span>
+                      </div>
+                      
+                      {/* Description */}
+                      <div>
+                        <Label className="text-xs">Description</Label>
+                        <Textarea 
+                          value={editableContract.description}
+                          onChange={(e) => setEditableContract(prev => prev ? { ...prev, description: e.target.value } : null)}
+                          className="text-xs mt-1 min-h-[40px]"
+                        />
+                      </div>
+                      
+                      {/* E-Signature Toggle */}
+                      <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border border-primary/20">
+                        <div className="flex items-center gap-2">
+                          <Pen className="w-4 h-4 text-primary" />
+                          <div>
+                            <Label className="text-xs font-medium">E-Signature</Label>
+                            <p className="text-[10px] text-muted-foreground">Client signs digitally</p>
                           </div>
-                        )}
+                        </div>
+                        <Switch 
+                          checked={enableESignature}
+                          onCheckedChange={setEnableESignature}
+                        />
+                      </div>
+                      
+                      <Separator />
+                      
+                      {/* Contract Sections */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <Label className="text-xs font-semibold">
+                            Contract Sections ({editableContract.sections.length})
+                          </Label>
+                          <Button variant="outline" size="sm" onClick={addContractSection} className="h-6 text-xs gap-1">
+                            <Plus className="w-3 h-3" />
+                            Add Section
+                          </Button>
+                        </div>
                         
-                        <Separator />
-                        
-                        {/* Editable sections */}
-                        {selectedContract.sections.filter(s => s.isEditable).map((section) => (
-                          <div key={section.title}>
-                            <Label className="text-xs font-medium flex items-center gap-1">
-                              <Edit className="w-3 h-3" />
-                              {section.title}
-                            </Label>
-                            <Textarea 
-                              value={contractEdits[section.title] || section.content}
-                              onChange={(e) => setContractEdits(prev => ({
-                                ...prev,
-                                [section.title]: e.target.value
-                              }))}
-                              className="text-xs mt-1 min-h-[80px] font-mono"
-                            />
-                          </div>
-                        ))}
-                        
-                        <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-                          <strong>Tip:</strong> Replace placeholders like [YOUR_NAME], [AMOUNT], [DATE] with actual values.
+                        <div className="space-y-3">
+                          {editableContract.sections.map((section, index) => (
+                            <Card key={index} className="p-3 bg-muted/30">
+                              <div className="flex items-start gap-2 mb-2">
+                                <Input 
+                                  value={section.title}
+                                  onChange={(e) => updateContractSection(index, 'title', e.target.value)}
+                                  className="h-7 text-xs font-semibold flex-1"
+                                  placeholder="Section Title"
+                                />
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => removeContractSection(index)}
+                                  className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                  disabled={editableContract.sections.length <= 1}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                              <Textarea 
+                                value={section.content}
+                                onChange={(e) => updateContractSection(index, 'content', e.target.value)}
+                                className="text-xs min-h-[80px] font-mono"
+                                placeholder="Section content..."
+                              />
+                              {!section.isEditable && (
+                                <Badge variant="secondary" className="text-[9px] mt-1">
+                                  Standard clause
+                                </Badge>
+                              )}
+                            </Card>
+                          ))}
                         </div>
                       </div>
-                    </ScrollArea>
-                  ) : (
-                    <div className="text-center text-muted-foreground text-sm py-8">
-                      <FileSignature className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      Select a contract template to edit
+                      
+                      <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+                        <strong>Tip:</strong> Replace placeholders like [YOUR_NAME], [AMOUNT], [DATE] with actual values.
+                      </div>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+                  </ScrollArea>
+                ) : (
+                  <div className="text-center text-muted-foreground py-20">
+                    <FileSignature className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                    <p className="text-sm">Click any contract template to edit it</p>
+                    <p className="text-xs mt-1">All sections are fully customizable</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
       </Tabs>
@@ -702,9 +972,37 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
               Document Preview
             </DialogTitle>
             <DialogDescription>
-              Review your document before sending
+              Review your customized document before sending
             </DialogDescription>
           </DialogHeader>
+          
+          {/* Recipient (if not already set) */}
+          {!recipient.email && (
+            <div className="p-3 bg-muted rounded-lg mb-3">
+              <Label className="text-xs font-semibold">Enter recipient email to send:</Label>
+              <div className="grid grid-cols-3 gap-2 mt-2">
+                <Input 
+                  value={recipient.businessName}
+                  onChange={(e) => setRecipient(prev => ({ ...prev, businessName: e.target.value }))}
+                  placeholder="Client Business"
+                  className="h-8 text-xs"
+                />
+                <Input 
+                  value={recipient.contactName}
+                  onChange={(e) => setRecipient(prev => ({ ...prev, contactName: e.target.value }))}
+                  placeholder="Contact Name"
+                  className="h-8 text-xs"
+                />
+                <Input 
+                  type="email"
+                  value={recipient.email}
+                  onChange={(e) => setRecipient(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="client@email.com"
+                  className="h-8 text-xs"
+                />
+              </div>
+            </div>
+          )}
           
           <div className="flex gap-2 mb-4">
             <Button variant="outline" size="sm" onClick={handleCopyHTML} className="gap-1">
@@ -732,7 +1030,7 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
             </Button>
           </div>
           
-          <ScrollArea className="h-[60vh] border rounded-lg">
+          <ScrollArea className="h-[55vh] border rounded-lg">
             <iframe 
               srcDoc={previewHTML}
               className="w-full h-[800px] bg-white"
