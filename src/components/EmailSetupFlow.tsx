@@ -920,16 +920,6 @@ export default function EmailSetupFlow({
                       </div>
                     )}
 
-                    {activeTab === 'inbox' && (
-                      <div className="p-6 rounded-lg bg-muted/20 border border-border">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Mail className="w-5 h-5 text-primary" />
-                          <h3 className="text-lg font-semibold">Inbox</h3>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Inbox view is coming next — the tab is now in the correct spot (right after SMTP).</p>
-                      </div>
-                    )}
-
                     {/* PREVIEW VIEW */}
                     {activeTab === 'preview' && (
                       <div className="space-y-4">
