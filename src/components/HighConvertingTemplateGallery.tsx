@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { useUserBranding } from "@/hooks/useUserBranding";
 import { sanitizeEmailHTML } from "@/lib/sanitize";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -120,6 +121,9 @@ export default function HighConvertingTemplateGallery({
   const [activeCategory, setActiveCategory] = useState("all");
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<EmailTemplate | null>(null);
+  
+  // User branding for logo display
+  const { branding } = useUserBranding();
   
   // Custom templates and folders from localStorage
   const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>([]);
@@ -480,31 +484,31 @@ export default function HighConvertingTemplateGallery({
                   </div>
                 )}
 
-                {/* Action Buttons on Hover */}
-                <div className="absolute bottom-2 left-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* Action Buttons on Hover - Compact side-by-side */}
+                <div className="absolute bottom-2 left-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Button 
                     size="sm" 
                     variant="secondary" 
-                    className="flex-1 text-xs h-8"
+                    className="flex-1 text-[10px] h-7 px-2"
                     onClick={(e) => {
                       e.stopPropagation();
                       openPreview(template);
                     }}
                   >
-                    <Eye className="w-3 h-3 mr-1" />
-                    Preview & Edit
+                    <Eye className="w-3 h-3 mr-0.5" />
+                    Edit
                   </Button>
                   {onSelectTemplate && (
                     <Button 
                       size="sm" 
-                      className="flex-1 text-xs h-8 bg-primary hover:bg-primary/90"
+                      className="flex-1 text-[10px] h-7 px-2 bg-primary hover:bg-primary/90"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleSelect(template);
                         setHighlightedTemplate(template);
                       }}
                     >
-                      <Check className="w-3 h-3 mr-1" />
+                      <Check className="w-3 h-3 mr-0.5" />
                       Use
                     </Button>
                   )}
@@ -699,7 +703,18 @@ export default function HighConvertingTemplateGallery({
                     </div>
                   </>
                 ) : (
-                  <>
+                <>
+                    {/* User Logo - Display uploaded company logo */}
+                    {branding?.logo_url && (
+                      <div className="flex justify-center mb-4">
+                        <img
+                          src={branding.logo_url}
+                          alt={branding.company_name || "Company Logo"}
+                          className="max-h-16 max-w-[200px] object-contain"
+                        />
+                      </div>
+                    )}
+
                     {/* Hero Image Preview - Constrained size */}
                     <div className="rounded-lg overflow-hidden border max-w-md mx-auto">
                       <img

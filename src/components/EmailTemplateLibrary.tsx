@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { sanitizeEmailHTML } from '@/lib/sanitize';
+import { getUserLogoFromStorage } from '@/hooks/useUserBranding';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -242,6 +243,20 @@ export default function EmailTemplateLibrary({ onUseTemplate }: EmailTemplateLib
 
           <ScrollArea className="flex-1 max-h-[50vh]">
             <div className="space-y-4 p-1">
+              {/* User Logo - Display uploaded company logo */}
+              {(() => {
+                const logoUrl = getUserLogoFromStorage();
+                return logoUrl ? (
+                  <div className="flex justify-center py-2">
+                    <img
+                      src={logoUrl}
+                      alt="Company Logo"
+                      className="max-h-12 max-w-[180px] object-contain"
+                    />
+                  </div>
+                ) : null;
+              })()}
+
               <div>
                 <p className="text-sm font-medium text-muted-foreground mb-1">
                   Subject Line
