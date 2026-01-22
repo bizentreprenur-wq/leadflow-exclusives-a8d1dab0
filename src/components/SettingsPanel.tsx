@@ -22,6 +22,7 @@ import EmailConfigurationPanel from './EmailConfigurationPanel';
 import CRMIntegrationModal from './CRMIntegrationModal';
 import VoiceAgentSettings from './VoiceAgentSettings';
 import ChatConfigurationPanel from './ChatConfigurationPanel';
+import BackendHealthDashboard from './BackendHealthDashboard';
 
 interface SettingsPanelProps {
   initialTab?: string;
@@ -301,18 +302,21 @@ export default function SettingsPanel({ initialTab = 'integrations', onBackToSte
               </div>
 
               {/* Info about integrations */}
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                <h4 className="font-medium text-blue-700 dark:text-blue-300 flex items-center gap-2">
+              <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
+                <h4 className="font-medium text-primary flex items-center gap-2">
                   <ExternalLink className="w-4 h-4" />
                   Why connect integrations?
                 </h4>
-                <ul className="mt-2 space-y-1 text-sm text-blue-600 dark:text-blue-400">
+                <ul className="mt-2 space-y-1 text-sm text-primary/80">
                   <li>• Export verified leads with one click to your CRM</li>
                   <li>• Automatic data sync keeps everything up to date</li>
                   <li>• Share leads with your sales team instantly</li>
                   <li>• Track lead status across platforms</li>
                 </ul>
               </div>
+
+              {/* Backend Health Dashboard */}
+              <BackendHealthDashboard />
             </CardContent>
           </Card>
         </TabsContent>

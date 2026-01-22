@@ -15,6 +15,20 @@ interface SMTPConfig {
   secure?: boolean;
 }
 
+interface EmailBranding {
+  enabled: boolean;
+  companyName: string;
+  logoUrl: string;
+  primaryColor: string;
+  accentColor: string;
+  signature: string;
+  footerText: string;
+  socialLinks?: {
+    website?: string;
+    linkedin?: string;
+  };
+}
+
 interface SendEmailParams {
   to: string;
   subject: string;
@@ -24,6 +38,7 @@ interface SendEmailParams {
   templateId?: string;
   campaignId?: string;
   personalization?: Record<string, string>;
+  applyBranding?: boolean;
 }
 
 interface BulkSendParams {
@@ -46,6 +61,7 @@ interface BulkSendParams {
     delayMinutes?: number;
   };
   scheduledFor?: string;
+  applyBranding?: boolean;
 }
 
 interface SendResult {
@@ -69,6 +85,58 @@ interface TestResult {
   to?: string;
   sentAt?: string;
 }
+
+/**
+ * Get email branding from localStorage
+ */
+export const getEmailBranding = (): EmailBranding | null => {
+  try {
+    const saved = localStorage.getItem('email_branding');
+    if (!saved) return null;
+    return JSON.parse(saved);
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Apply branding to HTML email content
+ */
+export const applyBrandingToHtml = (html: string, branding?: EmailBranding | null): string => {
+  const brandingConfig = branding || getEmailBranding();
+  if (!brandingConfig?.enabled) return html;
+
+  // Create header with logo or company name
+  const headerHtml = brandingConfig.logoUrl 
+    ? `<div style="text-align: center; padding: 20px; background-color: ${brandingConfig.primaryColor}10;">
+         <img src="${brandingConfig.logoUrl}" alt="${brandingConfig.companyName}" style="height: 48px; max-width: 200px; object-fit: contain;" />
+       </div>`
+    : brandingConfig.companyName 
+    ? `<div style="text-align: center; padding: 20px; background-color: ${brandingConfig.primaryColor}10;">
+         <div style="font-size: 24px; font-weight: bold; color: ${brandingConfig.primaryColor};">${brandingConfig.companyName}</div>
+       </div>`
+    : '';
+
+  // Create signature
+  const signatureHtml = brandingConfig.signature 
+    ? `<div style="padding: 16px 24px; border-top: 1px solid #e5e7eb; white-space: pre-line; color: #4b5563; font-size: 14px;">${brandingConfig.signature}</div>`
+    : '';
+
+  // Create footer
+  const footerHtml = `
+    <div style="text-align: center; padding: 16px; background-color: ${brandingConfig.accentColor}10; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280;">
+      ${brandingConfig.footerText || `© ${new Date().getFullYear()} ${brandingConfig.companyName || ""}. All rights reserved.`}
+      ${brandingConfig.socialLinks?.website ? `<div style="margin-top: 8px;"><a href="${brandingConfig.socialLinks.website}" style="color: #3b82f6;">${brandingConfig.socialLinks.website}</a></div>` : ''}
+    </div>`;
+
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+      ${headerHtml}
+      <div style="padding: 24px;">${html}</div>
+      ${signatureHtml}
+      ${footerHtml}
+    </div>`;
+};
 
 /**
  * Get saved SMTP configuration from localStorage
@@ -180,13 +248,22 @@ export const sendTestEmail = async (toEmail: string): Promise<TestResult> => {
  */
 export const sendSingleEmail = async (params: SendEmailParams): Promise<SendResult> => {
   try {
+    // Apply branding if enabled
+    let finalHtml = params.bodyHtml;
+    if (params.applyBranding !== false) {
+      const branding = getEmailBranding();
+      if (branding?.enabled) {
+        finalHtml = applyBrandingToHtml(params.bodyHtml, branding);
+      }
+    }
+    
     const response = await fetch(`${API_BASE}/email-outreach.php?action=send`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
         to: params.to,
         subject: params.subject,
-        body_html: params.bodyHtml,
+        body_html: finalHtml,
         body_text: params.bodyText,
         lead_id: params.leadId,
         template_id: params.templateId,
@@ -226,6 +303,15 @@ export const sendBulkEmails = async (params: BulkSendParams): Promise<SendResult
   }
   
   try {
+    // Apply branding to custom body if enabled
+    let finalBody = params.customBody;
+    if (params.applyBranding !== false && finalBody) {
+      const branding = getEmailBranding();
+      if (branding?.enabled) {
+        finalBody = applyBrandingToHtml(finalBody, branding);
+      }
+    }
+    
     const response = await fetch(`${API_BASE}/email-outreach.php?action=send-bulk`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -233,7 +319,7 @@ export const sendBulkEmails = async (params: BulkSendParams): Promise<SendResult
         leads: params.leads,
         template_id: params.templateId,
         custom_subject: params.customSubject,
-        custom_body: params.customBody,
+        custom_body: finalBody,
         send_mode: params.sendMode || 'instant',
         drip_config: params.dripConfig,
         scheduled_for: params.scheduledFor,
@@ -388,6 +474,8 @@ export default {
   getSMTPConfig,
   saveSMTPConfig,
   isSMTPConfigured,
+  getEmailBranding,
+  applyBrandingToHtml,
   testSMTPConnection,
   sendTestEmail,
   sendSingleEmail,
