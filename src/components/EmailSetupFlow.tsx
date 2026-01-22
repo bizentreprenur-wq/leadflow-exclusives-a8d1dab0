@@ -625,6 +625,14 @@ export default function EmailSetupFlow({
               </p>
             </div>
 
+            {/* Auto Campaign Wizard Button - Above Mailbox */}
+            <div className="flex justify-end">
+              <Button onClick={() => setShowAutoCampaign(true)} className="gap-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700">
+                <Rocket className="w-4 h-4" />
+                Auto Campaign Wizard
+              </Button>
+            </div>
+
             {/* ============================================= */}
             {/* 📬 UNIFIED MAILBOX - PERSISTENT SHELL */}
             {/* ============================================= */}
@@ -1298,20 +1306,14 @@ export default function EmailSetupFlow({
                 <Link2 className="w-4 h-4" />
                 Connect External CRM
               </Button>
-              <div className="flex items-center gap-3">
-                <Button onClick={() => setShowAutoCampaign(true)} className="gap-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700">
-                  <Rocket className="w-4 h-4" />
-                  Auto Campaign Wizard
-                </Button>
-                <Button 
-                  variant="outline" 
-                  onClick={() => smartDripRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} 
-                  className="gap-2"
-                >
-                  <Mail className="w-4 h-4" />
-                  Continue to Email
-                </Button>
-              </div>
+              <Button 
+                variant="outline" 
+                onClick={() => smartDripRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} 
+                className="gap-2"
+              >
+                <Mail className="w-4 h-4" />
+                Continue to Email
+              </Button>
             </div>
           </div>
         );
