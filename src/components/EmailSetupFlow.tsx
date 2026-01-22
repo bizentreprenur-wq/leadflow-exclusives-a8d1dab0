@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, ArrowRight, Server, FileText, Send, 
   CheckCircle2, Mail, Users, Loader2, Link2, Database,
-  Eye, Zap, Rocket, BarChart3, FlaskConical, Home,
+  Eye, Zap, Rocket, FlaskConical, Home,
   Clock, TrendingUp, Info, Settings, Phone, X, AlertCircle
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -506,9 +506,6 @@ export default function EmailSetupFlow({
         );
 
       case 'send':
-        // Track if any emails have been sent (for showing analytics)
-        const hasEmailsSent = demoSentCount > 0 || sessionStorage.getItem('emails_sent') === 'true';
-        
         return (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -820,6 +817,7 @@ export default function EmailSetupFlow({
                           leads={leads.map(l => ({ id: l.id, name: l.name, email: l.email }))}
                           realSendingMode={realSendingMode}
                           campaignId={campaignId || undefined}
+                          showCampaignSpeed={realSendingMode}
                           onEmailStatusUpdate={(statuses) => {
                             // Update sent count based on real status
                             const sentCount = Object.values(statuses).filter(s => s === 'sent' || s === 'delivered').length;
@@ -970,16 +968,8 @@ export default function EmailSetupFlow({
                           </div>
                         </div>
 
-                        {/* Conditional Analytics */}
-                        {hasEmailsSent && demoSentCount > 0 && (
-                          <div className="pt-4 border-t border-success/30">
-                            <div className="flex items-center gap-2 mb-3">
-                              <BarChart3 className="w-5 h-5 text-success" />
-                              <h4 className="font-bold text-success">Campaign Analytics</h4>
-                            </div>
-                            <CampaignAnalyticsDashboard />
-                          </div>
-                        )}
+                        {/* Campaign Analytics (only appears when real campaign data exists) */}
+                        <CampaignAnalyticsDashboard />
                       </div>
                     )}
 

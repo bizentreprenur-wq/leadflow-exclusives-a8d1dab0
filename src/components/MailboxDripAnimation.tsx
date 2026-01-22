@@ -24,6 +24,7 @@ interface MailboxDripAnimationProps {
   onResume?: () => void;
   onSend?: () => void;
   showControls?: boolean;
+  showCampaignSpeed?: boolean;
 }
 
 export default function MailboxDripAnimation({
@@ -40,6 +41,7 @@ export default function MailboxDripAnimation({
   onResume,
   onSend,
   showControls = true,
+  showCampaignSpeed = true,
 }: MailboxDripAnimationProps) {
   const [flyingEmails, setFlyingEmails] = useState<number[]>([]);
   const [emailId, setEmailId] = useState(0);
@@ -683,39 +685,41 @@ export default function MailboxDripAnimation({
         )}
       </AnimatePresence>
 
-      {/* Always-visible speed summary */}
-      <div className="bg-gradient-to-r from-blue-900/20 to-green-900/20 rounded-xl p-4 border border-white/10">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-              <Zap className="w-5 h-5 text-primary" />
+      {/* Campaign speed summary (only when real campaign activity exists) */}
+      {showCampaignSpeed && (
+        <div className="bg-gradient-to-r from-blue-900/20 to-green-900/20 rounded-xl p-4 border border-white/10">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                <Zap className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium text-white">Campaign Speed</p>
+                <p className="text-sm text-muted-foreground">Optimized for maximum deliverability</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-primary">{emailsPerHour}</p>
+              <p className="text-xs text-muted-foreground">emails/hour</p>
+            </div>
+          </div>
+          
+          <div className="mt-3 pt-3 border-t border-white/10 grid grid-cols-3 gap-4 text-center">
+            <div>
+              <p className="text-lg font-semibold text-white">{Math.round(60 / emailsPerHour * 10) / 10}</p>
+              <p className="text-xs text-muted-foreground">min between emails</p>
             </div>
             <div>
-              <p className="font-medium text-white">Campaign Speed</p>
-              <p className="text-sm text-muted-foreground">Optimized for maximum deliverability</p>
+              <p className="text-lg font-semibold text-white">{emailsPerHour * 24}</p>
+              <p className="text-xs text-muted-foreground">emails/day max</p>
+            </div>
+            <div>
+              <p className="text-lg font-semibold text-green-400">99%</p>
+              <p className="text-xs text-muted-foreground">inbox rate</p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-2xl font-bold text-primary">{emailsPerHour}</p>
-            <p className="text-xs text-muted-foreground">emails/hour</p>
-          </div>
         </div>
-        
-        <div className="mt-3 pt-3 border-t border-white/10 grid grid-cols-3 gap-4 text-center">
-          <div>
-            <p className="text-lg font-semibold text-white">{Math.round(60 / emailsPerHour * 10) / 10}</p>
-            <p className="text-xs text-muted-foreground">min between emails</p>
-          </div>
-          <div>
-            <p className="text-lg font-semibold text-white">{emailsPerHour * 24}</p>
-            <p className="text-xs text-muted-foreground">emails/day max</p>
-          </div>
-          <div>
-            <p className="text-lg font-semibold text-green-400">99%</p>
-            <p className="text-xs text-muted-foreground">inbox rate</p>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

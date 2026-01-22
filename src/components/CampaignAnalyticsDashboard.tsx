@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import {
   CheckCircle2, AlertCircle, Calendar, Target, Zap,
   ArrowUp, ArrowDown, Minus
 } from 'lucide-react';
+import { getCampaigns, EmailCampaign } from '@/lib/api/email';
 
 interface CampaignStats {
   id: string;
@@ -28,22 +29,74 @@ interface CampaignStats {
 }
 
 interface CampaignAnalyticsDashboardProps {
-  campaigns?: CampaignStats[];
+  campaigns?: EmailCampaign[];
 }
 
-// Mock campaign data for demo
-const MOCK_CAMPAIGNS: CampaignStats[] = [
-  { id: '1', name: 'Q1 Web Design Outreach', sentDate: '2025-01-15', totalSent: 250, delivered: 242, opened: 98, clicked: 34, replied: 12, bounced: 8 },
-  { id: '2', name: 'Local Business Follow-up', sentDate: '2025-01-10', totalSent: 180, delivered: 175, opened: 72, clicked: 28, replied: 8, bounced: 5 },
-  { id: '3', name: 'Restaurant Redesign Promo', sentDate: '2025-01-05', totalSent: 120, delivered: 118, opened: 54, clicked: 18, replied: 6, bounced: 2 },
-];
+const mapCampaignToStats = (campaign: EmailCampaign): CampaignStats => {
+  const sent = Number(campaign.sent_count || 0);
+  const bounced = Number(campaign.bounced_count || 0);
+  const delivered = Math.max(0, sent - bounced);
+  return {
+    id: String(campaign.id),
+    name: campaign.name,
+    sentDate: campaign.started_at || campaign.created_at,
+    totalSent: Number(campaign.total_recipients || sent),
+    delivered,
+    opened: Number(campaign.opened_count || 0),
+    clicked: Number(campaign.clicked_count || 0),
+    replied: Number(campaign.replied_count || 0),
+    bounced,
+  };
+};
 
-export default function CampaignAnalyticsDashboard({ campaigns = MOCK_CAMPAIGNS }: CampaignAnalyticsDashboardProps) {
-  const [selectedCampaign, setSelectedCampaign] = useState<CampaignStats | null>(campaigns[0] || null);
+export default function CampaignAnalyticsDashboard({ campaigns }: CampaignAnalyticsDashboardProps) {
+  const [campaignData, setCampaignData] = useState<EmailCampaign[]>(campaigns || []);
+  const [isLoading, setIsLoading] = useState(!campaigns);
+  const [selectedCampaign, setSelectedCampaign] = useState<CampaignStats | null>(null);
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
 
+  useEffect(() => {
+    if (campaigns) {
+      setCampaignData(campaigns);
+      setIsLoading(false);
+      return;
+    }
+    let isMounted = true;
+    setIsLoading(true);
+    getCampaigns()
+      .then((result) => {
+        if (!isMounted) return;
+        setCampaignData(result.success ? result.campaigns : []);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setCampaignData([]);
+      })
+      .finally(() => {
+        if (!isMounted) return;
+        setIsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [campaigns]);
+
+  const campaignStats = useMemo(() => {
+    return campaignData
+      .map(mapCampaignToStats)
+      .filter((c) => c.totalSent > 0);
+  }, [campaignData]);
+
+  useEffect(() => {
+    setSelectedCampaign(campaignStats[0] || null);
+  }, [campaignStats]);
+
+  if (isLoading || campaignStats.length === 0) {
+    return null;
+  }
+
   // Calculate totals
-  const totals = campaigns.reduce((acc, c) => ({
+  const totals = campaignStats.reduce((acc, c) => ({
     sent: acc.sent + c.totalSent,
     delivered: acc.delivered + c.delivered,
     opened: acc.opened + c.opened,
@@ -60,11 +113,11 @@ export default function CampaignAnalyticsDashboard({ campaigns = MOCK_CAMPAIGNS 
   };
 
   // Chart data
-  const overviewData = campaigns.map(c => ({
+  const overviewData = campaignStats.map(c => ({
     name: c.name.slice(0, 15) + '...',
-    opened: ((c.opened / c.delivered) * 100).toFixed(1),
-    clicked: ((c.clicked / c.opened) * 100).toFixed(1),
-    replied: ((c.replied / c.totalSent) * 100).toFixed(1),
+    opened: c.delivered > 0 ? ((c.opened / c.delivered) * 100).toFixed(1) : '0.0',
+    clicked: c.opened > 0 ? ((c.clicked / c.opened) * 100).toFixed(1) : '0.0',
+    replied: c.totalSent > 0 ? ((c.replied / c.totalSent) * 100).toFixed(1) : '0.0',
   }));
 
   const pieData = [
@@ -278,7 +331,7 @@ export default function CampaignAnalyticsDashboard({ campaigns = MOCK_CAMPAIGNS 
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {campaigns.map((campaign) => (
+            {campaignStats.map((campaign) => (
               <motion.button
                 key={campaign.id}
                 onClick={() => setSelectedCampaign(campaign)}
@@ -305,11 +358,15 @@ export default function CampaignAnalyticsDashboard({ campaigns = MOCK_CAMPAIGNS 
                 </div>
                 <div className="flex items-center gap-6 text-sm">
                   <div className="text-center">
-                    <p className="font-bold text-emerald-500">{((campaign.opened / campaign.delivered) * 100).toFixed(0)}%</p>
+                    <p className="font-bold text-emerald-500">
+                      {campaign.delivered > 0 ? ((campaign.opened / campaign.delivered) * 100).toFixed(0) : '0'}%
+                    </p>
                     <p className="text-xs text-muted-foreground">Opens</p>
                   </div>
                   <div className="text-center">
-                    <p className="font-bold text-blue-500">{((campaign.clicked / campaign.opened) * 100).toFixed(0)}%</p>
+                    <p className="font-bold text-blue-500">
+                      {campaign.opened > 0 ? ((campaign.clicked / campaign.opened) * 100).toFixed(0) : '0'}%
+                    </p>
                     <p className="text-xs text-muted-foreground">Clicks</p>
                   </div>
                   <div className="text-center">
