@@ -15,11 +15,12 @@ import {
   FileText, Send, Edit, Eye, Download, Upload, Building2, 
   User, Mail, Phone, MapPin, Sparkles, CheckCircle2, Copy,
   FileSignature, Briefcase, ArrowRight, Save, X, Image, Pen, Shield,
-  Plus, Trash2, GripVertical, DollarSign, Clock, ListChecks, Target
+  Plus, Trash2, GripVertical, DollarSign, Clock, ListChecks, Target, Star
 } from 'lucide-react';
 import { PROPOSAL_TEMPLATES, ProposalTemplate, generateProposalHTML } from '@/lib/proposalTemplates';
 import { CONTRACT_TEMPLATES, ContractTemplate, generateContractHTML, ContractSection } from '@/lib/contractTemplates';
 import { sendSingleEmail } from '@/lib/emailService';
+import { useUserBranding } from '@/hooks/useUserBranding';
 
 interface BrandingInfo {
   companyName: string;
@@ -70,6 +71,50 @@ interface ProposalsContractsPanelProps {
   initialView?: 'proposals' | 'contracts';
 }
 
+// Custom proposals/contracts storage keys
+const CUSTOM_PROPOSALS_KEY = 'bamlead_custom_proposals';
+const CUSTOM_CONTRACTS_KEY = 'bamlead_custom_contracts';
+
+// Get custom proposals from localStorage
+const getCustomProposals = (): EditableProposal[] => {
+  try {
+    const saved = localStorage.getItem(CUSTOM_PROPOSALS_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch (e) {
+    console.error('Failed to load custom proposals:', e);
+    return [];
+  }
+};
+
+// Save custom proposal
+const saveCustomProposal = (proposal: EditableProposal): EditableProposal => {
+  const proposals = getCustomProposals();
+  const newProposal = { ...proposal, id: `custom-proposal-${Date.now()}` };
+  proposals.unshift(newProposal);
+  localStorage.setItem(CUSTOM_PROPOSALS_KEY, JSON.stringify(proposals));
+  return newProposal;
+};
+
+// Get custom contracts from localStorage
+const getCustomContracts = (): EditableContract[] => {
+  try {
+    const saved = localStorage.getItem(CUSTOM_CONTRACTS_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch (e) {
+    console.error('Failed to load custom contracts:', e);
+    return [];
+  }
+};
+
+// Save custom contract
+const saveCustomContract = (contract: EditableContract): EditableContract => {
+  const contracts = getCustomContracts();
+  const newContract = { ...contract, id: `custom-contract-${Date.now()}` };
+  contracts.unshift(newContract);
+  localStorage.setItem(CUSTOM_CONTRACTS_KEY, JSON.stringify(contracts));
+  return newContract;
+};
+
 export default function ProposalsContractsPanel({ leads = [], initialView = 'proposals' }: ProposalsContractsPanelProps) {
   const [activeTab, setActiveTab] = useState<'proposals' | 'contracts'>(initialView);
   const [selectedProposalId, setSelectedProposalId] = useState<string | null>(null);
@@ -79,9 +124,23 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
   const [isSending, setIsSending] = useState(false);
   const [enableESignature, setEnableESignature] = useState(true);
   
+  // Custom saved templates
+  const [customProposals, setCustomProposals] = useState<EditableProposal[]>([]);
+  const [customContracts, setCustomContracts] = useState<EditableContract[]>([]);
+  const [newTemplateName, setNewTemplateName] = useState('');
+  
+  // Load custom templates on mount
+  useEffect(() => {
+    setCustomProposals(getCustomProposals());
+    setCustomContracts(getCustomContracts());
+  }, []);
+  
   // Editable proposal and contract states
   const [editableProposal, setEditableProposal] = useState<EditableProposal | null>(null);
   const [editableContract, setEditableContract] = useState<EditableContract | null>(null);
+  
+  // Use centralized branding hook for logo
+  const { branding: userBranding } = useUserBranding();
   
   // Branding info (saved to localStorage)
   const [branding, setBranding] = useState<BrandingInfo>(() => {
@@ -94,6 +153,13 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
       logoUrl: ''
     };
   });
+  
+  // Sync logo from centralized branding hook
+  useEffect(() => {
+    if (userBranding?.logo_url && !branding.logoUrl) {
+      setBranding(prev => ({ ...prev, logoUrl: userBranding.logo_url }));
+    }
+  }, [userBranding?.logo_url]);
   
   // Recipient info
   const [recipient, setRecipient] = useState({
@@ -110,6 +176,26 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
   useEffect(() => {
     localStorage.setItem('bamlead_branding_info', JSON.stringify(branding));
   }, [branding]);
+  
+  // Save proposal as custom template
+  const handleSaveProposalAsTemplate = () => {
+    if (!editableProposal) return;
+    const name = newTemplateName.trim() || `My ${editableProposal.name}`;
+    const saved = saveCustomProposal({ ...editableProposal, name });
+    setCustomProposals(getCustomProposals());
+    setNewTemplateName('');
+    toast.success(`✅ Proposal "${name}" saved to your library!`);
+  };
+  
+  // Save contract as custom template
+  const handleSaveContractAsTemplate = () => {
+    if (!editableContract) return;
+    const name = newTemplateName.trim() || `My ${editableContract.name}`;
+    const saved = saveCustomContract({ ...editableContract, name });
+    setCustomContracts(getCustomContracts());
+    setNewTemplateName('');
+    toast.success(`✅ Contract "${name}" saved to your library!`);
+  };
   
   // Handle logo upload
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -545,8 +631,38 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-[450px] pr-4">
+                <ScrollArea className="h-[350px] pr-4">
                   <div className="grid gap-2">
+                    {/* Custom Proposals First */}
+                    {customProposals.length > 0 && (
+                      <>
+                        <p className="text-xs font-medium text-primary flex items-center gap-1 mb-1">
+                          <Star className="w-3 h-3" /> My Saved Proposals
+                        </p>
+                        {customProposals.map((proposal) => (
+                          <Card 
+                            key={proposal.id}
+                            className={`cursor-pointer transition-all hover:border-primary/50 hover:shadow-md border-primary/30 ${
+                              selectedProposalId === proposal.id ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : ''
+                            }`}
+                            onClick={() => handleSelectProposal(proposal as ProposalTemplate)}
+                          >
+                            <CardContent className="p-2">
+                              <div className="flex items-center gap-2">
+                                <div className="text-lg">{proposal.icon}</div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-medium text-xs truncate">{proposal.name}</h4>
+                                  <Badge variant="secondary" className="text-[9px] mt-0.5">Custom</Badge>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                        <Separator className="my-2" />
+                      </>
+                    )}
+                    
+                    {/* Built-in Proposals */}
                     {PROPOSAL_TEMPLATES.map((proposal) => (
                       <Card 
                         key={proposal.id}
@@ -555,29 +671,19 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
                         }`}
                         onClick={() => handleSelectProposal(proposal)}
                       >
-                        <CardContent className="p-3">
-                          <div className="flex items-start gap-3">
-                            <div className="text-2xl">{proposal.icon}</div>
+                        <CardContent className="p-2">
+                          <div className="flex items-start gap-2">
+                            <div className="text-lg">{proposal.icon}</div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between">
-                                <h4 className="font-medium text-sm truncate">{proposal.name}</h4>
-                                <div className="flex items-center gap-1">
-                                  <Badge variant="outline" className="text-[10px]">
-                                    {proposal.category}
-                                  </Badge>
-                                  {selectedProposalId === proposal.id && (
-                                    <Edit className="w-3 h-3 text-primary" />
-                                  )}
-                                </div>
-                              </div>
-                              <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
-                                {proposal.description}
-                              </p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Badge className="text-[10px] bg-green-500/20 text-green-700 border-0">
-                                  {proposal.investmentRange}
+                                <h4 className="font-medium text-xs truncate">{proposal.name}</h4>
+                                <Badge variant="outline" className="text-[9px]">
+                                  {proposal.category}
                                 </Badge>
                               </div>
+                              <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">
+                                {proposal.description}
+                              </p>
                             </div>
                           </div>
                         </CardContent>
@@ -606,7 +712,7 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
               </CardHeader>
               <CardContent>
                 {editableProposal ? (
-                  <ScrollArea className="h-[450px] pr-2">
+                  <ScrollArea className="h-[350px] pr-2">
                     <div className="space-y-4">
                       {/* Basic Info */}
                       <div className="grid grid-cols-2 gap-2">
@@ -760,8 +866,32 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
                         <Textarea 
                           value={editableProposal.callToAction}
                           onChange={(e) => updateProposalField('callToAction', e.target.value)}
-                          className="text-xs mt-1 min-h-[40px]"
+                          className="text-xs mt-1 min-h-[30px]"
                         />
+                      </div>
+                      
+                      <Separator />
+                      
+                      {/* Save as New Template */}
+                      <div className="p-3 rounded-lg border-2 border-dashed border-emerald-500/40 bg-emerald-500/5 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Star className="w-4 h-4 text-emerald-500" />
+                          <Label className="text-xs font-medium">Save as My Template</Label>
+                        </div>
+                        <Input
+                          value={newTemplateName}
+                          onChange={(e) => setNewTemplateName(e.target.value)}
+                          placeholder={`My ${editableProposal.name}`}
+                          className="h-7 text-xs bg-background"
+                        />
+                        <Button 
+                          onClick={handleSaveProposalAsTemplate} 
+                          size="sm" 
+                          className="w-full h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          <Save className="w-3 h-3" />
+                          Save to My Library
+                        </Button>
                       </div>
                     </div>
                   </ScrollArea>
@@ -789,8 +919,38 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-[450px] pr-4">
+                <ScrollArea className="h-[350px] pr-4">
                   <div className="grid gap-2">
+                    {/* Custom Contracts First */}
+                    {customContracts.length > 0 && (
+                      <>
+                        <p className="text-xs font-medium text-primary flex items-center gap-1 mb-1">
+                          <Star className="w-3 h-3" /> My Saved Contracts
+                        </p>
+                        {customContracts.map((contract) => (
+                          <Card 
+                            key={contract.id}
+                            className={`cursor-pointer transition-all hover:border-primary/50 hover:shadow-md border-primary/30 ${
+                              selectedContractId === contract.id ? 'border-primary bg-primary/5 ring-2 ring-primary/20' : ''
+                            }`}
+                            onClick={() => handleSelectContract(contract as ContractTemplate)}
+                          >
+                            <CardContent className="p-2">
+                              <div className="flex items-center gap-2">
+                                <div className="text-lg">{contract.icon}</div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-medium text-xs truncate">{contract.name}</h4>
+                                  <Badge variant="secondary" className="text-[9px] mt-0.5">Custom</Badge>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                        <Separator className="my-2" />
+                      </>
+                    )}
+                    
+                    {/* Built-in Contracts */}
                     {CONTRACT_TEMPLATES.map((contract) => (
                       <Card 
                         key={contract.id}
@@ -799,27 +959,19 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
                         }`}
                         onClick={() => handleSelectContract(contract)}
                       >
-                        <CardContent className="p-3">
-                          <div className="flex items-start gap-3">
-                            <div className="text-2xl">{contract.icon}</div>
+                        <CardContent className="p-2">
+                          <div className="flex items-start gap-2">
+                            <div className="text-lg">{contract.icon}</div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between">
-                                <h4 className="font-medium text-sm truncate">{contract.name}</h4>
-                                <div className="flex items-center gap-1">
-                                  <Badge variant="outline" className="text-[10px]">
-                                    {contract.category}
-                                  </Badge>
-                                  {selectedContractId === contract.id && (
-                                    <Edit className="w-3 h-3 text-primary" />
-                                  )}
-                                </div>
+                                <h4 className="font-medium text-xs truncate">{contract.name}</h4>
+                                <Badge variant="outline" className="text-[9px]">
+                                  {contract.category}
+                                </Badge>
                               </div>
-                              <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                              <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">
                                 {contract.description}
                               </p>
-                              <Badge variant="secondary" className="text-[10px] mt-1">
-                                {contract.sections.length} sections
-                              </Badge>
                             </div>
                           </div>
                         </CardContent>
@@ -848,7 +1000,7 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
               </CardHeader>
               <CardContent>
                 {editableContract ? (
-                  <ScrollArea className="h-[450px] pr-2">
+                  <ScrollArea className="h-[350px] pr-2">
                     <div className="space-y-4">
                       {/* Basic Info */}
                       <div className="grid grid-cols-2 gap-2">
@@ -947,6 +1099,30 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
                       
                       <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
                         <strong>Tip:</strong> Replace placeholders like [YOUR_NAME], [AMOUNT], [DATE] with actual values.
+                      </div>
+                      
+                      <Separator />
+                      
+                      {/* Save as New Template */}
+                      <div className="p-3 rounded-lg border-2 border-dashed border-emerald-500/40 bg-emerald-500/5 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Star className="w-4 h-4 text-emerald-500" />
+                          <Label className="text-xs font-medium">Save as My Template</Label>
+                        </div>
+                        <Input
+                          value={newTemplateName}
+                          onChange={(e) => setNewTemplateName(e.target.value)}
+                          placeholder={`My ${editableContract.name}`}
+                          className="h-7 text-xs bg-background"
+                        />
+                        <Button 
+                          onClick={handleSaveContractAsTemplate} 
+                          size="sm" 
+                          className="w-full h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          <Save className="w-3 h-3" />
+                          Save to My Library
+                        </Button>
                       </div>
                     </div>
                   </ScrollArea>
