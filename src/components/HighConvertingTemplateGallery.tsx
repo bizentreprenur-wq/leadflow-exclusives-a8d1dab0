@@ -488,8 +488,7 @@ export default function HighConvertingTemplateGallery({
                 <div className="absolute bottom-2 left-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Button 
                     size="sm" 
-                    variant="secondary" 
-                    className="flex-1 text-[10px] h-7 px-2"
+                    className="flex-1 text-[10px] h-7 px-2 bg-emerald-600 hover:bg-emerald-700 text-white"
                     onClick={(e) => {
                       e.stopPropagation();
                       openPreview(template);
