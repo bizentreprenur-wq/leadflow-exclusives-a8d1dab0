@@ -25,7 +25,23 @@ export const USE_MOCK_AUTH = false;
 
 // API Base URL
 // If you want to point dev/staging somewhere else, set VITE_API_URL.
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://bamlead.com/api';
+const rawApiBaseUrl = import.meta.env.VITE_API_URL || 'https://bamlead.com/api';
+const normalizeApiBaseUrl = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return 'https://bamlead.com/api';
+  }
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed.replace(/\/$/, '');
+  }
+  if (trimmed.startsWith('/')) {
+    return trimmed.replace(/\/$/, '');
+  }
+  const protocol = typeof window !== 'undefined' ? window.location.protocol : 'https:';
+  return `${protocol}//${trimmed}`.replace(/\/$/, '');
+};
+
+export const API_BASE_URL = normalizeApiBaseUrl(rawApiBaseUrl);
 
 // Auth endpoints
 export const AUTH_ENDPOINTS = {

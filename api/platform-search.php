@@ -57,7 +57,7 @@ $platforms = array_map(function($p) {
 }, array_slice($platforms, 0, 20));
 
 try {
-    $cacheKey = "platform_search_{$service}_{$location}_" . implode(',', $platforms);
+    $cacheKey = "platform_search_{$service}_{$location}_" . implode(',', $platforms) . "_{$limit}";
     
     // Check cache
     $cached = getCache($cacheKey);
@@ -103,42 +103,48 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50) {
     // Increase PHP time limit for large searches
     set_time_limit(300); // 5 minutes max
     
-    // Build platform query modifiers
+    // Build platform query modifiers and search in chunks so every platform is represented.
     $platformQueries = buildPlatformQueries($platforms);
-    
-    $allResults = [];
-    
-    // Search using SerpAPI if key is available (preferred)
-    if (defined('SERPAPI_KEY') && !empty(SERPAPI_KEY)) {
-        $serpResults = searchSerpApi($service, $location, $platformQueries, $limit);
-        $allResults = array_merge($allResults, $serpResults);
-    }
-    // Fallback: Search Google if API key is available
-    elseif (!empty(GOOGLE_API_KEY) && !empty(GOOGLE_SEARCH_ENGINE_ID)) {
-        $googleResults = searchGoogle($service, $location, $platformQueries, $limit);
-        $allResults = array_merge($allResults, $googleResults);
-    }
-    
-    // Search Bing if API key is available
-    if (!empty(BING_API_KEY)) {
-        $bingResults = searchBing($service, $location, $platformQueries, $limit);
-        $allResults = array_merge($allResults, $bingResults);
-    }
-    
-    // If no APIs configured, throw error - NO MOCK DATA
-    if (empty($allResults)) {
-        throw new Exception('No search API configured. Please set SERPAPI_KEY, GOOGLE_API_KEY, or BING_API_KEY in config.php');
-    }
-    
-    // Deduplicate by URL
+    $queryGroups = array_chunk($platformQueries, 3);
+
     $unique = [];
     $seen = [];
-    foreach ($allResults as $result) {
-        $domain = parse_url($result['url'], PHP_URL_HOST);
-        if ($domain && !isset($seen[$domain])) {
+
+    $addResults = function($results) use (&$unique, &$seen) {
+        foreach ($results as $result) {
+            $domain = parse_url($result['url'], PHP_URL_HOST);
+            if (!$domain || isset($seen[$domain])) {
+                continue;
+            }
             $seen[$domain] = true;
             $unique[] = $result;
         }
+    };
+
+    foreach ($queryGroups as $group) {
+        if (count($unique) >= $limit) {
+            break;
+        }
+        $remaining = $limit - count($unique);
+
+        // Search using SerpAPI if key is available (preferred)
+        if (defined('SERPAPI_KEY') && !empty(SERPAPI_KEY)) {
+            $addResults(searchSerpApi($service, $location, $group, $remaining));
+        }
+        // Fallback: Search Google if API key is available
+        elseif (!empty(GOOGLE_API_KEY) && !empty(GOOGLE_SEARCH_ENGINE_ID)) {
+            $addResults(searchGoogle($service, $location, $group, $remaining));
+        }
+
+        // Search Bing if API key is available
+        if (!empty(BING_API_KEY)) {
+            $addResults(searchBing($service, $location, $group, $remaining));
+        }
+    }
+
+    // If no APIs configured or no results, throw error - NO MOCK DATA
+    if (empty($unique)) {
+        throw new Exception('No search API configured. Please set SERPAPI_KEY, GOOGLE_API_KEY, or BING_API_KEY in config.php');
     }
     
     // Use QUICK website analysis (URL-based only) to avoid timeouts
@@ -215,8 +221,8 @@ function searchSerpApi($service, $location, $platformQueries, $limit = 100) {
         $baseQuery .= ' (' . implode(' OR ', array_slice($platformQueries, 0, 3)) . ')';
     }
     
-    // SerpAPI max is 100 per request, so paginate for larger limits
-    $resultsPerPage = 100;
+    // SerpAPI often caps results at 10 per page on lower plans, so paginate in 10s.
+    $resultsPerPage = 10;
     $maxPages = ceil($limit / $resultsPerPage);
     $maxPages = min($maxPages, 20); // Cap at 20 pages (2000 results max)
     
@@ -225,12 +231,12 @@ function searchSerpApi($service, $location, $platformQueries, $limit = 100) {
             break;
         }
         
+        // SerpAPI location expects a strict canonical string; rely on query text to avoid hard errors.
         $params = [
             'api_key' => SERPAPI_KEY,
             'engine' => 'google',
             'q' => $baseQuery,
-            'location' => $location,
-            'num' => min(100, $limit - count($results))
+            'num' => min($resultsPerPage, $limit - count($results))
         ];
         
         if ($page > 0) {

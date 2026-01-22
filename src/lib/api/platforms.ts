@@ -64,25 +64,48 @@ export async function searchPlatforms(
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/platform-search.php`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ service, location, platforms, limit }),
-    });
+    const endpoint = `${API_BASE_URL}/platform-search.php`;
+    let response: Response;
+
+    try {
+      response = await fetch(endpoint, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ service, location, platforms, limit }),
+      });
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : 'Failed to reach the platform search API.';
+      throw new Error(
+        `Platform search API is unreachable at "${endpoint}". ${message} ` +
+          'Start the API server or update VITE_API_URL.',
+      );
+    }
+
+    const rawBody = await response.text();
+    let data: PlatformSearchResponse | null = null;
+    try {
+      data = rawBody ? (JSON.parse(rawBody) as PlatformSearchResponse) : null;
+    } catch {
+      const looksLikeHtml = /<\s*html|<!doctype html/i.test(rawBody);
+      throw new Error(
+        looksLikeHtml
+          ? `Platform search returned HTML instead of JSON. ` +
+              `Check that VITE_API_URL points to your PHP API (e.g., http://localhost:8000/api) and the server is running.`
+          : `Platform search returned invalid JSON (${response.status}). Check server logs for PHP warnings.`,
+      );
+    }
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => '');
-      let msg = `Platform search failed (${response.status})`;
-      try {
-        const parsed = errorText ? JSON.parse(errorText) : null;
-        msg = parsed?.error || parsed?.message || msg;
-      } catch {
-        // ignore
-      }
+      const msg = data?.error || data?.message || `Platform search failed (${response.status})`;
       throw new Error(msg);
     }
 
-    const data = await response.json();
+    if (!data) {
+      throw new Error('Platform search returned an empty response.');
+    }
 
     // If backend returns mock/demo results, treat it as a hard failure.
     if (data?.success && Array.isArray(data?.data) && data.data.some(isMockPlatformResult)) {
