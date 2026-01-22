@@ -55,7 +55,8 @@ export async function searchPlatforms(
   service: string,
   location: string,
   platforms: string[],
-  onProgress?: PlatformProgressCallback
+  onProgress?: PlatformProgressCallback,
+  limit: number = 50
 ): Promise<PlatformSearchResponse> {
   // If there's no backend configured, do not fabricate dummy leads.
   if (USE_MOCK_DATA) {
@@ -66,7 +67,7 @@ export async function searchPlatforms(
     const response = await fetch(`${API_BASE_URL}/platform-search.php`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ service, location, platforms }),
+      body: JSON.stringify({ service, location, platforms, limit }),
     });
 
     if (!response.ok) {
