@@ -631,7 +631,7 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-[350px] pr-4">
+                <ScrollArea className="h-[450px] pr-4">
                   <div className="grid gap-2">
                     {/* Custom Proposals First */}
                     {customProposals.length > 0 && (
@@ -712,7 +712,7 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
               </CardHeader>
               <CardContent>
                 {editableProposal ? (
-                  <ScrollArea className="h-[350px] pr-2">
+                  <ScrollArea className="h-[500px] pr-2">
                     <div className="space-y-4">
                       {/* Basic Info */}
                       <div className="grid grid-cols-2 gap-2">
@@ -743,7 +743,7 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
                         <Textarea 
                           value={editableProposal.description}
                           onChange={(e) => updateProposalField('description', e.target.value)}
-                          className="text-xs mt-1 min-h-[60px]"
+                          className="text-xs mt-1 min-h-[120px]"
                         />
                       </div>
                       
@@ -919,7 +919,7 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-[350px] pr-4">
+                <ScrollArea className="h-[450px] pr-4">
                   <div className="grid gap-2">
                     {/* Custom Contracts First */}
                     {customContracts.length > 0 && (
@@ -1000,7 +1000,7 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
               </CardHeader>
               <CardContent>
                 {editableContract ? (
-                  <ScrollArea className="h-[350px] pr-2">
+                  <ScrollArea className="h-[500px] pr-2">
                     <div className="space-y-4">
                       {/* Basic Info */}
                       <div className="grid grid-cols-2 gap-2">
@@ -1028,7 +1028,7 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
                         <Textarea 
                           value={editableContract.description}
                           onChange={(e) => setEditableContract(prev => prev ? { ...prev, description: e.target.value } : null)}
-                          className="text-xs mt-1 min-h-[40px]"
+                          className="text-xs mt-1 min-h-[120px]"
                         />
                       </div>
                       
