@@ -4,12 +4,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { 
   Monitor, Smartphone, Moon, Sun, Mail, Star, Archive, 
   Trash2, Reply, Forward, MoreHorizontal, Paperclip,
-  ChevronDown, Clock, CheckCircle2
+  ChevronDown, Clock, CheckCircle2, Pencil, X, Save
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface EmailClientPreviewPanelProps {
   subject: string;
@@ -17,6 +21,8 @@ interface EmailClientPreviewPanelProps {
   senderName?: string;
   senderEmail?: string;
   templateName?: string;
+  editable?: boolean;
+  onSaveEdit?: (subject: string, body: string) => void;
 }
 
 type EmailClient = 'gmail' | 'outlook' | 'apple';
@@ -28,10 +34,15 @@ export default function EmailClientPreviewPanel({
   senderName = 'Your Business',
   senderEmail = 'you@company.com',
   templateName = 'Selected Template',
+  editable = false,
+  onSaveEdit,
 }: EmailClientPreviewPanelProps) {
   const [client, setClient] = useState<EmailClient>('gmail');
   const [device, setDevice] = useState<DeviceType>('desktop');
   const [isDark, setIsDark] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editSubject, setEditSubject] = useState(subject);
+  const [editBody, setEditBody] = useState(body.replace(/<[^>]*>/g, ''));
 
   // Personalize placeholders
   const personalizeContent = (html: string) => {
@@ -98,7 +109,7 @@ export default function EmailClientPreviewPanel({
       {/* Email Header */}
       <div className={cn('p-4 border-b', colors.border)}>
         <h2 className={cn('text-xl font-normal mb-3', colors.text)}>
-          {personalizeContent(subject) || 'No Subject'}
+          {personalizeContent(displaySubject) || 'No Subject'}
         </h2>
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center text-white font-medium">
@@ -127,7 +138,7 @@ export default function EmailClientPreviewPanel({
       <ScrollArea className="flex-1">
         <div className={cn('p-4', colors.text)}>
           <iframe
-            srcDoc={personalizeContent(body)}
+            srcDoc={personalizeContent(displayBody)}
             className="w-full border-0"
             style={{ height: '400px', minHeight: '300px' }}
             title="Gmail Preview"
@@ -162,7 +173,7 @@ export default function EmailClientPreviewPanel({
       {/* Email Header */}
       <div className={cn('p-4 border-b', colors.border)}>
         <h2 className={cn('text-lg font-semibold mb-2', colors.text)}>
-          {personalizeContent(subject) || 'No Subject'}
+          {personalizeContent(displaySubject) || 'No Subject'}
         </h2>
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold text-lg">
@@ -191,7 +202,7 @@ export default function EmailClientPreviewPanel({
       <ScrollArea className="flex-1">
         <div className={cn('p-4', colors.text)}>
           <iframe
-            srcDoc={personalizeContent(body)}
+            srcDoc={personalizeContent(displayBody)}
             className="w-full border-0"
             style={{ height: '400px', minHeight: '300px' }}
             title="Outlook Preview"
@@ -213,7 +224,7 @@ export default function EmailClientPreviewPanel({
         </div>
         <div className="flex-1 text-center">
           <span className={cn('text-sm font-medium', colors.text)}>
-            {personalizeContent(subject) || 'No Subject'}
+            {personalizeContent(displaySubject) || 'No Subject'}
           </span>
         </div>
         <div className="flex items-center gap-1">
@@ -239,7 +250,7 @@ export default function EmailClientPreviewPanel({
             </div>
             <div className="text-sm text-blue-500">To: me</div>
             <h3 className={cn('font-medium mt-2', colors.text)}>
-              {personalizeContent(subject) || 'No Subject'}
+              {personalizeContent(displaySubject) || 'No Subject'}
             </h3>
           </div>
         </div>
@@ -249,7 +260,7 @@ export default function EmailClientPreviewPanel({
       <ScrollArea className="flex-1">
         <div className={cn('p-4', colors.text)}>
           <iframe
-            srcDoc={personalizeContent(body)}
+            srcDoc={personalizeContent(displayBody)}
             className="w-full border-0"
             style={{ height: '400px', minHeight: '300px' }}
             title="Apple Mail Preview"
@@ -271,6 +282,24 @@ export default function EmailClientPreviewPanel({
     }
   };
 
+  // Get the content to display (edited or original)
+  const displaySubject = isEditing ? editSubject : subject;
+  const displayBody = isEditing ? editBody : body;
+
+  const handleSave = () => {
+    if (onSaveEdit) {
+      onSaveEdit(editSubject, editBody);
+      toast.success('Template changes saved!');
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancelEdit = () => {
+    setEditSubject(subject);
+    setEditBody(body.replace(/<[^>]*>/g, ''));
+    setIsEditing(false);
+  };
+
   return (
     <Card className="bg-gradient-card border-border shadow-card overflow-hidden">
       <CardHeader className="pb-3 border-b border-border">
@@ -284,11 +313,83 @@ export default function EmailClientPreviewPanel({
               <p className="text-sm text-muted-foreground">{templateName}</p>
             </div>
           </div>
-          <Badge variant="outline" className="gap-1">
-            <CheckCircle2 className="w-3 h-3 text-success" />
-            Personalized
-          </Badge>
+          <div className="flex items-center gap-2">
+            {editable && !isEditing && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditing(true)}
+                className="gap-1.5"
+              >
+                <Pencil className="w-4 h-4" />
+                Edit Template
+              </Button>
+            )}
+            {isEditing && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCancelEdit}
+                  className="gap-1"
+                >
+                  <X className="w-4 h-4" />
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSave}
+                  className="gap-1"
+                >
+                  <Save className="w-4 h-4" />
+                  Save Changes
+                </Button>
+              </>
+            )}
+            <Badge variant="outline" className="gap-1">
+              <CheckCircle2 className="w-3 h-3 text-success" />
+              Personalized
+            </Badge>
+          </div>
         </div>
+
+        {/* Inline Editor - Shown when editing */}
+        {isEditing && (
+          <div className="mt-4 pt-4 border-t border-border space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="preview-edit-subject" className="text-sm font-medium">Subject Line</Label>
+              <Input
+                id="preview-edit-subject"
+                value={editSubject}
+                onChange={(e) => setEditSubject(e.target.value)}
+                placeholder="Enter subject line..."
+                className="bg-background"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="preview-edit-body" className="text-sm font-medium">Email Body</Label>
+              <textarea
+                id="preview-edit-body"
+                value={editBody}
+                onChange={(e) => setEditBody(e.target.value)}
+                placeholder="Enter email content..."
+                className="w-full h-40 p-3 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <span className="text-xs text-muted-foreground">Add tokens:</span>
+              {['{{business_name}}', '{{first_name}}', '{{website}}', '{{phone}}'].map(token => (
+                <button
+                  key={token}
+                  onClick={() => setEditBody(editBody + ' ' + token)}
+                  className="px-2 py-0.5 text-xs rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                >
+                  {token}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Client & Device Toggles */}
         <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">

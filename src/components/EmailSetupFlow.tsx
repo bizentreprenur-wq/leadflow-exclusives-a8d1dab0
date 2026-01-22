@@ -920,18 +920,23 @@ export default function EmailSetupFlow({
                       </div>
                     )}
 
-                    {/* PREVIEW VIEW */}
+                    {/* PREVIEW VIEW - WITH EDITABLE TEMPLATE */}
                     {activeTab === 'preview' && (
                       <div className="space-y-4">
                         <div className="flex items-center gap-2 mb-4">
                           <Eye className="w-5 h-5 text-cyan-400" />
                           <h3 className="font-bold text-lg">Email Preview</h3>
+                          <Badge variant="outline" className="ml-2 text-xs">Click "Edit Template" to customize</Badge>
                         </div>
                         {selectedTemplate ? (
                           <EmailClientPreviewPanel 
                             subject={customizedContent?.subject || selectedTemplate.subject} 
                             body={customizedContent?.body || selectedTemplate.body_html || selectedTemplate.body}
                             templateName={selectedTemplate.name}
+                            editable={true}
+                            onSaveEdit={(subject, body) => {
+                              handleSaveCustomization(subject, body);
+                            }}
                           />
                         ) : (
                           <div className="text-center py-12 bg-muted/20 rounded-xl border border-dashed border-border">
