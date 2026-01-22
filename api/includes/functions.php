@@ -6,21 +6,42 @@
 require_once __DIR__ . '/../config.php';
 
 /**
+ * Check if origin is a Lovable preview/project domain
+ */
+function isLovableOrigin($origin) {
+    // Match Lovable preview and project domains
+    // Patterns: *.lovableproject.com, *.lovable.app, *-preview--*.lovable.app
+    return preg_match('/^https:\/\/[a-z0-9-]+\.lovableproject\.com$/', $origin) ||
+           preg_match('/^https:\/\/[a-z0-9-]+-preview--[a-z0-9-]+\.lovable\.app$/', $origin) ||
+           preg_match('/^https:\/\/[a-z0-9-]+\.lovable\.app$/', $origin);
+}
+
+/**
  * Set CORS headers for API responses
  */
 function setCorsHeaders() {
     $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
     
-    // Only allow whitelisted origins - never use wildcard in production
+    $isAllowed = false;
+    
+    // Check explicit whitelist first
     if (defined('ALLOWED_ORIGINS') && in_array($origin, ALLOWED_ORIGINS)) {
+        $isAllowed = true;
+    }
+    // Allow all Lovable preview/project domains dynamically
+    elseif (isLovableOrigin($origin)) {
+        $isAllowed = true;
+    }
+    // In dev mode, allow localhost origins
+    elseif (defined('DEBUG_MODE') && DEBUG_MODE) {
+        if (preg_match('/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/', $origin)) {
+            $isAllowed = true;
+        }
+    }
+    
+    if ($isAllowed) {
         header("Access-Control-Allow-Origin: $origin");
         header('Access-Control-Allow-Credentials: true');
-    } elseif (defined('DEBUG_MODE') && DEBUG_MODE) {
-        // In dev mode, allow localhost origins
-        if (preg_match('/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/', $origin)) {
-            header("Access-Control-Allow-Origin: $origin");
-            header('Access-Control-Allow-Credentials: true');
-        }
     }
     // If origin not allowed, don't set CORS header - browser will block
     
