@@ -740,7 +740,7 @@ export default function HighConvertingTemplateGallery({
                     </div>
 
                     {/* Email Preview - Constrained images */}
-                    <ScrollArea className="h-[280px] border rounded-lg">
+                    <ScrollArea className="h-[180px] border rounded-lg">
                       <div
                         className="bg-background p-4 [&_img]:max-w-[200px] [&_img]:h-auto [&_img]:mx-auto [&_img]:block [&_img]:rounded"
                         dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(previewTemplate.body_html || "") }}
