@@ -31,6 +31,7 @@ export interface PlatformSearchResponse {
   success: boolean;
   data?: PlatformResult[];
   error?: string;
+  message?: string;
   query?: {
     service: string;
     location: string;
