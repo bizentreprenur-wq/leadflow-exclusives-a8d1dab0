@@ -4,6 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Monitor, Smartphone, Moon, Sun, Mail, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getUserLogoFromStorage } from "@/hooks/useUserBranding";
 
 interface LiveEmailPreviewProps {
   subject: string;
@@ -130,6 +131,19 @@ export default function LiveEmailPreview({
 
             <ScrollArea className="h-[450px]">
               <div className={cn("p-5", isDark ? "text-zinc-100" : "text-zinc-900")}>
+                {/* User Logo - Display uploaded company logo */}
+                {(() => {
+                  const logoUrl = getUserLogoFromStorage();
+                  return logoUrl ? (
+                    <div className="flex justify-center mb-4">
+                      <img
+                        src={logoUrl}
+                        alt="Company Logo"
+                        className="max-h-12 max-w-[180px] object-contain"
+                      />
+                    </div>
+                  ) : null;
+                })()}
                 {/* Subject Line */}
                 <h2 className={cn(
                   "font-bold mb-4 leading-tight",
