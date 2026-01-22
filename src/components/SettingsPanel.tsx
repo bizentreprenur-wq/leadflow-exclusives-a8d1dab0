@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import {
   HardDrive, CheckCircle2, XCircle, Loader2, ExternalLink,
   RefreshCw, Unlink, Settings, Bell, Shield,
-  Download, Trash2, Mail, Database, ArrowLeft, Home
+  Download, Trash2, Mail, Database, ArrowLeft, Home, Palette
 } from 'lucide-react';
 import {
   checkGoogleDriveStatus,
@@ -21,6 +21,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import EmailConfigurationPanel from './EmailConfigurationPanel';
 import CRMIntegrationModal from './CRMIntegrationModal';
 import BackendHealthDashboard from './BackendHealthDashboard';
+import BrandingSettingsPanel from './BrandingSettingsPanel';
 
 interface SettingsPanelProps {
   initialTab?: string;
@@ -128,13 +129,20 @@ export default function SettingsPanel({ initialTab = 'integrations', onBackToSte
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4 bg-muted/50 p-1">
+        <TabsList className="grid w-full grid-cols-5 bg-muted/50 p-1">
           <TabsTrigger 
             value="integrations" 
             className="gap-2 data-[state=active]:bg-blue-500 data-[state=active]:text-white transition-all"
           >
             <Database className="w-4 h-4" />
             <span className="hidden sm:inline">Integrations</span>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="branding" 
+            className="gap-2 data-[state=active]:bg-purple-500 data-[state=active]:text-white transition-all"
+          >
+            <Palette className="w-4 h-4" />
+            <span className="hidden sm:inline">Branding</span>
           </TabsTrigger>
           <TabsTrigger 
             value="email" 
@@ -305,6 +313,10 @@ export default function SettingsPanel({ initialTab = 'integrations', onBackToSte
           </Card>
         </TabsContent>
 
+        {/* Branding Tab */}
+        <TabsContent value="branding">
+          <BrandingSettingsPanel />
+        </TabsContent>
 
         {/* Email & SMTP Tab */}
         <TabsContent value="email">
