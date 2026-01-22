@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -553,6 +554,11 @@ export default function HighConvertingTemplateGallery({
           </Button>
           
           <DialogHeader className="p-6 pb-0 pr-16">
+            <VisuallyHidden>
+              <DialogDescription>
+                Preview and edit the selected email template
+              </DialogDescription>
+            </VisuallyHidden>
             <div className="flex items-start justify-between">
               <div>
                 <DialogTitle className="text-xl flex items-center gap-2">
