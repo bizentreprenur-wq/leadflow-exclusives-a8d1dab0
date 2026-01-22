@@ -37,7 +37,7 @@ if (!$input) {
 $service = sanitizeInput($input['service'] ?? '');
 $location = sanitizeInput($input['location'] ?? '');
 $platforms = isset($input['platforms']) && is_array($input['platforms']) ? $input['platforms'] : [];
-$limit = isset($input['limit']) ? min(100, max(10, intval($input['limit']))) : 50; // Default 50, max 100
+$limit = isset($input['limit']) ? min(500, max(10, intval($input['limit']))) : 100; // Default 100, max 500
 
 if (empty($service)) {
     sendError('Service type is required');
@@ -206,7 +206,7 @@ function quickWebsiteCheck($url) {
 /**
  * Search using SerpAPI (Google Search)
  */
-function searchSerpApi($service, $location, $platformQueries, $limit = 50) {
+function searchSerpApi($service, $location, $platformQueries, $limit = 100) {
     $results = [];
     
     // Build query
@@ -215,43 +215,64 @@ function searchSerpApi($service, $location, $platformQueries, $limit = 50) {
         $baseQuery .= ' (' . implode(' OR ', array_slice($platformQueries, 0, 3)) . ')';
     }
     
-    // SerpAPI max is 100 per request
-    $numResults = min(100, $limit);
+    // SerpAPI max is 100 per request, so paginate for larger limits
+    $resultsPerPage = 100;
+    $maxPages = ceil($limit / $resultsPerPage);
+    $maxPages = min($maxPages, 5); // Cap at 5 pages (500 results max)
     
-    $url = "https://serpapi.com/search.json?" . http_build_query([
-        'api_key' => SERPAPI_KEY,
-        'engine' => 'google',
-        'q' => $baseQuery,
-        'location' => $location,
-        'num' => $numResults
-    ]);
-    
-    $response = curlRequest($url);
-    
-    if ($response['httpCode'] !== 200) {
-        if (DEBUG_MODE) {
-            error_log('SerpAPI error: ' . $response['httpCode'] . ' - ' . $response['response']);
+    for ($page = 0; $page < $maxPages; $page++) {
+        if (count($results) >= $limit) {
+            break;
         }
-        return $results;
-    }
-    
-    $data = json_decode($response['response'], true);
-    
-    if (!isset($data['organic_results'])) {
-        return $results;
-    }
-    
-    foreach ($data['organic_results'] as $item) {
-        $results[] = [
-            'id' => generateId('serp_'),
-            'name' => $item['title'] ?? 'Unknown Business',
-            'url' => $item['link'] ?? '',
-            'snippet' => $item['snippet'] ?? '',
-            'displayLink' => $item['displayed_link'] ?? parse_url($item['link'] ?? '', PHP_URL_HOST) ?: '',
-            'source' => 'serpapi',
-            'phone' => extractPhoneFromSnippet($item['snippet'] ?? ''),
-            'address' => $item['address'] ?? ''
+        
+        $params = [
+            'api_key' => SERPAPI_KEY,
+            'engine' => 'google',
+            'q' => $baseQuery,
+            'location' => $location,
+            'num' => min(100, $limit - count($results))
         ];
+        
+        if ($page > 0) {
+            $params['start'] = $page * $resultsPerPage;
+        }
+        
+        $url = "https://serpapi.com/search.json?" . http_build_query($params);
+        
+        $response = curlRequest($url);
+        
+        if ($response['httpCode'] !== 200) {
+            if (DEBUG_MODE) {
+                error_log('SerpAPI error: ' . $response['httpCode'] . ' - ' . $response['response']);
+            }
+            // If first page fails, return empty; otherwise return what we have
+            if ($page === 0) {
+                return $results;
+            }
+            break;
+        }
+        
+        $data = json_decode($response['response'], true);
+        
+        if (!isset($data['organic_results']) || empty($data['organic_results'])) {
+            break; // No more results
+        }
+        
+        foreach ($data['organic_results'] as $item) {
+            if (count($results) >= $limit) {
+                break 2; // Exit both loops
+            }
+            $results[] = [
+                'id' => generateId('serp_'),
+                'name' => $item['title'] ?? 'Unknown Business',
+                'url' => $item['link'] ?? '',
+                'snippet' => $item['snippet'] ?? '',
+                'displayLink' => $item['displayed_link'] ?? parse_url($item['link'] ?? '', PHP_URL_HOST) ?: '',
+                'source' => 'serpapi',
+                'phone' => extractPhoneFromSnippet($item['snippet'] ?? ''),
+                'address' => $item['address'] ?? ''
+            ];
+        }
     }
     
     return $results;
@@ -303,9 +324,9 @@ function buildPlatformQueries($platforms) {
 }
 
 /**
- * Search Google Custom Search API
+ * Search Google Custom Search API with pagination
  */
-function searchGoogle($service, $location, $platformQueries, $limit = 50) {
+function searchGoogle($service, $location, $platformQueries, $limit = 100) {
     $results = [];
     
     // Build query
@@ -314,50 +335,66 @@ function searchGoogle($service, $location, $platformQueries, $limit = 50) {
         $baseQuery .= ' (' . implode(' OR ', array_slice($platformQueries, 0, 3)) . ')';
     }
     
-    // Google CSE max is 10 per request, so we do multiple pages if needed
-    $numResults = min(10, $limit); // Google CSE limits to 10 per request
+    // Google CSE max is 10 per request, paginate for larger limits
+    $resultsPerPage = 10;
+    $maxPages = ceil($limit / $resultsPerPage);
+    $maxPages = min($maxPages, 10); // Google CSE limits to 100 results total
     
-    $query = urlencode($baseQuery);
-    $url = "https://www.googleapis.com/customsearch/v1?" . http_build_query([
-        'key' => GOOGLE_API_KEY,
-        'cx' => GOOGLE_SEARCH_ENGINE_ID,
-        'q' => $baseQuery,
-        'num' => $numResults
-    ]);
-    
-    $response = curlRequest($url);
-    
-    if ($response['httpCode'] !== 200) {
-        if (DEBUG_MODE) {
-            throw new Exception('Google API error: ' . $response['httpCode']);
+    for ($page = 0; $page < $maxPages; $page++) {
+        if (count($results) >= $limit) {
+            break;
         }
-        return $results;
-    }
-    
-    $data = json_decode($response['response'], true);
-    
-    if (!isset($data['items'])) {
-        return $results;
-    }
-    
-    foreach ($data['items'] as $item) {
-        $results[] = [
-            'id' => generateId('goog_'),
-            'name' => $item['title'] ?? 'Unknown Business',
-            'url' => $item['link'] ?? '',
-            'snippet' => $item['snippet'] ?? '',
-            'displayLink' => $item['displayLink'] ?? '',
-            'source' => 'google'
+        
+        $params = [
+            'key' => GOOGLE_API_KEY,
+            'cx' => GOOGLE_SEARCH_ENGINE_ID,
+            'q' => $baseQuery,
+            'num' => $resultsPerPage
         ];
+        
+        if ($page > 0) {
+            $params['start'] = ($page * $resultsPerPage) + 1;
+        }
+        
+        $url = "https://www.googleapis.com/customsearch/v1?" . http_build_query($params);
+        
+        $response = curlRequest($url);
+        
+        if ($response['httpCode'] !== 200) {
+            if (DEBUG_MODE && $page === 0) {
+                throw new Exception('Google API error: ' . $response['httpCode']);
+            }
+            break;
+        }
+        
+        $data = json_decode($response['response'], true);
+        
+        if (!isset($data['items']) || empty($data['items'])) {
+            break;
+        }
+        
+        foreach ($data['items'] as $item) {
+            if (count($results) >= $limit) {
+                break 2;
+            }
+            $results[] = [
+                'id' => generateId('goog_'),
+                'name' => $item['title'] ?? 'Unknown Business',
+                'url' => $item['link'] ?? '',
+                'snippet' => $item['snippet'] ?? '',
+                'displayLink' => $item['displayLink'] ?? '',
+                'source' => 'google'
+            ];
+        }
     }
     
     return $results;
 }
 
 /**
- * Search Bing Web Search API
+ * Search Bing Web Search API with pagination
  */
-function searchBing($service, $location, $platformQueries, $limit = 50) {
+function searchBing($service, $location, $platformQueries, $limit = 100) {
     $results = [];
     
     // Build query
@@ -366,43 +403,60 @@ function searchBing($service, $location, $platformQueries, $limit = 50) {
         $baseQuery .= ' (' . implode(' OR ', array_slice($platformQueries, 0, 3)) . ')';
     }
     
-    // Bing max is 50 per request
-    $numResults = min(50, $limit);
+    // Bing max is 50 per request, paginate for larger limits
+    $resultsPerPage = 50;
+    $maxPages = ceil($limit / $resultsPerPage);
+    $maxPages = min($maxPages, 10); // Cap at 500 results
     
-    $url = "https://api.bing.microsoft.com/v7.0/search?" . http_build_query([
-        'q' => $baseQuery,
-        'count' => $numResults,
-        'responseFilter' => 'Webpages'
-    ]);
-    
-    $response = curlRequest($url, [
-        CURLOPT_HTTPHEADER => [
-            'Ocp-Apim-Subscription-Key: ' . BING_API_KEY
-        ]
-    ]);
-    
-    if ($response['httpCode'] !== 200) {
-        if (DEBUG_MODE) {
-            throw new Exception('Bing API error: ' . $response['httpCode']);
+    for ($page = 0; $page < $maxPages; $page++) {
+        if (count($results) >= $limit) {
+            break;
         }
-        return $results;
-    }
-    
-    $data = json_decode($response['response'], true);
-    
-    if (!isset($data['webPages']['value'])) {
-        return $results;
-    }
-    
-    foreach ($data['webPages']['value'] as $item) {
-        $results[] = [
-            'id' => generateId('bing_'),
-            'name' => $item['name'] ?? 'Unknown Business',
-            'url' => $item['url'] ?? '',
-            'snippet' => $item['snippet'] ?? '',
-            'displayLink' => parse_url($item['url'] ?? '', PHP_URL_HOST) ?: '',
-            'source' => 'bing'
+        
+        $params = [
+            'q' => $baseQuery,
+            'count' => min($resultsPerPage, $limit - count($results)),
+            'responseFilter' => 'Webpages'
         ];
+        
+        if ($page > 0) {
+            $params['offset'] = $page * $resultsPerPage;
+        }
+        
+        $url = "https://api.bing.microsoft.com/v7.0/search?" . http_build_query($params);
+        
+        $response = curlRequest($url, [
+            CURLOPT_HTTPHEADER => [
+                'Ocp-Apim-Subscription-Key: ' . BING_API_KEY
+            ]
+        ]);
+        
+        if ($response['httpCode'] !== 200) {
+            if (DEBUG_MODE && $page === 0) {
+                throw new Exception('Bing API error: ' . $response['httpCode']);
+            }
+            break;
+        }
+        
+        $data = json_decode($response['response'], true);
+        
+        if (!isset($data['webPages']['value']) || empty($data['webPages']['value'])) {
+            break;
+        }
+        
+        foreach ($data['webPages']['value'] as $item) {
+            if (count($results) >= $limit) {
+                break 2;
+            }
+            $results[] = [
+                'id' => generateId('bing_'),
+                'name' => $item['name'] ?? 'Unknown Business',
+                'url' => $item['url'] ?? '',
+                'snippet' => $item['snippet'] ?? '',
+                'displayLink' => parse_url($item['url'] ?? '', PHP_URL_HOST) ?: '',
+                'source' => 'bing'
+            ];
+        }
     }
     
     return $results;

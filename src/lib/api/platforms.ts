@@ -56,7 +56,7 @@ export async function searchPlatforms(
   location: string,
   platforms: string[],
   onProgress?: PlatformProgressCallback,
-  limit: number = 50
+  limit: number = 100
 ): Promise<PlatformSearchResponse> {
   // If there's no backend configured, do not fabricate dummy leads.
   if (USE_MOCK_DATA) {
