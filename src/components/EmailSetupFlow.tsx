@@ -115,25 +115,61 @@ export default function EmailSetupFlow({
     }
   }, [smtpConfigured, selectedTemplate]);
 
-  // Convert leads to email format
-  const emailLeads: LeadForEmail[] = leads.map(l => ({
-    email: l.email || '',
-    business_name: l.name,
-    contact_name: '',
-    website: l.website || '',
-    phone: l.phone || '',
-  }));
+  // Load leads from props, or fallback to stored leads if props are empty
+  const [emailLeads, setEmailLeads] = useState<LeadForEmail[]>(() => {
+    // First try props
+    if (leads.length > 0) {
+      return leads.map(l => ({
+        email: l.email || '',
+        business_name: l.name,
+        contact_name: '',
+        website: l.website || '',
+        phone: l.phone || '',
+      }));
+    }
+    // Fallback to sessionStorage
+    const storedLeads = sessionStorage.getItem('bamlead_email_leads');
+    if (storedLeads) {
+      try {
+        return JSON.parse(storedLeads);
+      } catch (e) {
+        console.error('Failed to parse stored leads:', e);
+      }
+    }
+    // Fallback to CRM localStorage
+    const crmLeads = localStorage.getItem('bamlead_crm_leads');
+    if (crmLeads) {
+      try {
+        const parsed = JSON.parse(crmLeads);
+        return parsed.map((l: any) => ({
+          email: l.email || '',
+          business_name: l.name || l.business_name || '',
+          contact_name: l.contact_name || '',
+          website: l.website || '',
+          phone: l.phone || '',
+        }));
+      } catch (e) {
+        console.error('Failed to parse CRM leads:', e);
+      }
+    }
+    return [];
+  });
 
   const leadsWithEmail = emailLeads.filter(l => l.email);
   const leadsWithPhone = leads.filter(l => l.phone);
 
-  // Persist email leads to both sessionStorage and CRM
+  // Persist email leads to both sessionStorage and CRM when leads prop changes
   useEffect(() => {
-    if (emailLeads.length > 0) {
-      sessionStorage.setItem('bamlead_email_leads', JSON.stringify(emailLeads));
-    }
-    // Also persist leads to CRM for tracking
     if (leads.length > 0) {
+      const converted = leads.map(l => ({
+        email: l.email || '',
+        business_name: l.name,
+        contact_name: '',
+        website: l.website || '',
+        phone: l.phone || '',
+      }));
+      setEmailLeads(converted);
+      sessionStorage.setItem('bamlead_email_leads', JSON.stringify(converted));
       addLeadsToCRM(leads);
     }
   }, [leads]);
@@ -856,23 +892,44 @@ export default function EmailSetupFlow({
                                 <Button 
                                   size="lg"
                                   onClick={async () => {
+                                    // Validate SMTP
                                     if (!smtpConfigured) {
                                       toast.error('Please configure SMTP settings first');
                                       handleTabChange('settings');
                                       return;
                                     }
+                                    // Validate template
                                     if (!selectedTemplate) {
                                       toast.error('Please select an email template first');
                                       setCurrentPhase('template');
                                       return;
                                     }
+                                    // Validate leads with valid emails
+                                    const validLeads = leadsWithEmail.filter(l => l.email && l.email.includes('@'));
+                                    if (validLeads.length === 0) {
+                                      toast.error('No leads with valid email addresses. Please go back and add leads first.');
+                                      return;
+                                    }
+                                    
+                                    // Ensure we have body content
+                                    const emailBody = customizedContent?.body || selectedTemplate.body || selectedTemplate.preview || '';
+                                    const emailSubject = customizedContent?.subject || selectedTemplate.subject || '';
+                                    
+                                    if (!emailSubject || !emailBody) {
+                                      toast.error('Email subject and body are required');
+                                      return;
+                                    }
                                     
                                     setIsSending(true);
                                     try {
+                                      console.log('Sending emails to:', validLeads.length, 'leads');
+                                      console.log('Subject:', emailSubject);
+                                      console.log('Body length:', emailBody.length);
+                                      
                                       const result = await sendBulkEmails({
-                                        leads: emailLeads,
-                                        custom_subject: customizedContent?.subject || selectedTemplate.subject,
-                                        custom_body: customizedContent?.body || selectedTemplate.body,
+                                        leads: validLeads,
+                                        custom_subject: emailSubject,
+                                        custom_body: emailBody,
                                         send_mode: 'drip',
                                         drip_config: { emailsPerHour: 50, delayMinutes: 1 },
                                       });
@@ -881,8 +938,9 @@ export default function EmailSetupFlow({
                                         sessionStorage.setItem('emails_sent', 'true');
                                         setRealSendingMode(true);
                                         setDemoIsActive(true);
-                                        toast.success(`🚀 Campaign launched! Sending ${result.results?.sent || 0} emails...`);
+                                        toast.success(`🚀 Campaign launched! Sending ${result.results?.sent || validLeads.length} emails...`);
                                       } else {
+                                        console.error('Send failed:', result.error);
                                         toast.error(result.error || 'Failed to send emails');
                                       }
                                     } catch (error) {
