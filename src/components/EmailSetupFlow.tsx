@@ -965,7 +965,7 @@ export default function EmailSetupFlow({
                             setDemoSentCount(sentCount);
                           }}
                           renderAfterBanner={
-                            <div className="flex justify-end">
+                            <div className="flex justify-center">
                               <Button onClick={() => setShowAutoCampaign(true)} className="gap-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700">
                                 <Rocket className="w-4 h-4" />
                                 Auto Campaign Wizard
