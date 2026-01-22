@@ -10,6 +10,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { 
   Search, 
   Eye, 
   Check, 
@@ -26,15 +33,31 @@ import {
   Save,
   Wand2,
   Trash2,
-  Star
+  Star,
+  FolderOpen,
+  Folder,
+  Plus,
+  MoveRight
 } from "lucide-react";
 import { HIGH_CONVERTING_TEMPLATES, TEMPLATE_CATEGORIES, EmailTemplate } from "@/lib/highConvertingTemplates";
-import { getCustomTemplates, saveCustomTemplate, deleteCustomTemplate, CustomTemplate } from "@/lib/customTemplates";
+import { 
+  getCustomTemplates, 
+  saveCustomTemplate, 
+  deleteCustomTemplate, 
+  CustomTemplate,
+  getTemplateFolders,
+  createTemplateFolder,
+  moveTemplateToFolder,
+  TemplateFolder,
+  DEFAULT_FOLDERS,
+  addLeadsToCRM,
+} from "@/lib/customTemplates";
 import { toast } from "sonner";
 
 interface HighConvertingTemplateGalleryProps {
   onSelectTemplate?: (template: EmailTemplate) => void;
   selectedTemplateId?: string;
+  leads?: Array<{ id: string; name: string; email?: string; phone?: string; website?: string; address?: string }>;
 }
 
 // Track the currently highlighted template for the sticky bar
@@ -76,21 +99,46 @@ const getCategoryColor = (category: string) => {
   }
 };
 
+const getFolderColor = (color: string) => {
+  const colors: Record<string, string> = {
+    blue: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    amber: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+    green: 'bg-green-500/20 text-green-400 border-green-500/30',
+    red: 'bg-red-500/20 text-red-400 border-red-500/30',
+    pink: 'bg-pink-500/20 text-pink-400 border-pink-500/30',
+    slate: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
+  };
+  return colors[color] || colors.slate;
+};
+
 export default function HighConvertingTemplateGallery({ 
   onSelectTemplate, 
-  selectedTemplateId 
+  selectedTemplateId,
+  leads = [],
 }: HighConvertingTemplateGalleryProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
+  const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<EmailTemplate | null>(null);
   
-  // Custom templates from localStorage
+  // Custom templates and folders from localStorage
   const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>([]);
+  const [folders, setFolders] = useState<TemplateFolder[]>([]);
+  const [showNewFolderInput, setShowNewFolderInput] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
   
-  // Load custom templates on mount
+  // Load custom templates and folders on mount
   useEffect(() => {
     setCustomTemplates(getCustomTemplates());
+    setFolders(getTemplateFolders());
   }, []);
+  
+  // Add leads to CRM when they arrive
+  useEffect(() => {
+    if (leads.length > 0) {
+      addLeadsToCRM(leads);
+    }
+  }, [leads]);
   
   // Track highlighted template for sticky bar (before final selection)
   const [highlightedTemplate, setHighlightedTemplate] = useState<EmailTemplate | null>(null);
@@ -100,6 +148,7 @@ export default function HighConvertingTemplateGallery({
   const [editedSubject, setEditedSubject] = useState("");
   const [editedBody, setEditedBody] = useState("");
   const [newTemplateName, setNewTemplateName] = useState("");
+  const [selectedFolderId, setSelectedFolderId] = useState<string>("");
 
   // Combine custom templates with built-in templates (custom first)
   const allTemplates = [...customTemplates, ...HIGH_CONVERTING_TEMPLATES];
@@ -109,6 +158,15 @@ export default function HighConvertingTemplateGallery({
       template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       template.industry.toLowerCase().includes(searchQuery.toLowerCase()) ||
       template.description.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Check folder filter for custom templates
+    if (activeFolder) {
+      if ('isCustom' in template) {
+        return matchesSearch && (template as CustomTemplate).folderId === activeFolder;
+      }
+      return false; // Built-in templates don't have folders
+    }
+    
     const matchesCategory = activeCategory === 'all' || template.category === activeCategory || (activeCategory === 'custom' && 'isCustom' in template);
     return matchesSearch && matchesCategory;
   });
@@ -134,6 +192,24 @@ export default function HighConvertingTemplateGallery({
     setIsEditing(true);
   };
 
+  const handleCreateFolder = () => {
+    if (!newFolderName.trim()) {
+      toast.error('Please enter a folder name');
+      return;
+    }
+    const folder = createTemplateFolder(newFolderName.trim());
+    setFolders(getTemplateFolders());
+    setNewFolderName('');
+    setShowNewFolderInput(false);
+    toast.success(`Folder "${folder.name}" created!`);
+  };
+
+  const handleMoveToFolder = (templateId: string, folderId: string | null) => {
+    moveTemplateToFolder(templateId, folderId);
+    setCustomTemplates(getCustomTemplates());
+    toast.success(folderId ? 'Template moved to folder' : 'Template removed from folder');
+  };
+
   const handleSaveAsNewTemplate = () => {
     if (!previewTemplate || !newTemplateName.trim()) {
       toast.error('Please enter a template name');
@@ -154,6 +230,7 @@ export default function HighConvertingTemplateGallery({
       conversionTip: previewTemplate.conversionTip,
       openRate: previewTemplate.openRate,
       replyRate: previewTemplate.replyRate,
+      folderId: selectedFolderId || undefined,
     });
     
     setCustomTemplates(getCustomTemplates());
@@ -189,6 +266,7 @@ export default function HighConvertingTemplateGallery({
     toast.success('Custom template saved and selected!');
   };
 
+  // FIX: Always open preview when clicking on template
   const openPreview = (template: EmailTemplate) => {
     setPreviewTemplate(template);
     setEditedSubject(template.subject);
@@ -223,19 +301,82 @@ export default function HighConvertingTemplateGallery({
           </div>
         </div>
 
+        {/* Folder Navigation (for custom templates) */}
+        {customTemplates.length > 0 && activeCategory === 'custom' && (
+          <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg bg-muted/30 border border-border">
+            <span className="text-sm font-medium text-muted-foreground mr-2">📁 Folders:</span>
+            
+            <Button
+              variant={activeFolder === null ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setActiveFolder(null)}
+              className="h-8"
+            >
+              <FolderOpen className="w-4 h-4 mr-1" />
+              All
+            </Button>
+            
+            {folders.map((folder) => (
+              <Button
+                key={folder.id}
+                variant={activeFolder === folder.id ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveFolder(folder.id)}
+                className={`h-8 ${activeFolder !== folder.id ? getFolderColor(folder.color) : ''}`}
+              >
+                <span className="mr-1">{folder.icon}</span>
+                {folder.name}
+                <Badge variant="secondary" className="ml-1 text-xs">
+                  {customTemplates.filter(t => t.folderId === folder.id).length}
+                </Badge>
+              </Button>
+            ))}
+            
+            {/* Add New Folder */}
+            {showNewFolderInput ? (
+              <div className="flex items-center gap-2">
+                <Input
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  placeholder="Folder name..."
+                  className="h-8 w-32"
+                  autoFocus
+                  onKeyDown={(e) => e.key === 'Enter' && handleCreateFolder()}
+                />
+                <Button size="sm" className="h-8" onClick={handleCreateFolder}>
+                  <Check className="w-4 h-4" />
+                </Button>
+                <Button size="sm" variant="ghost" className="h-8" onClick={() => setShowNewFolderInput(false)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowNewFolderInput(true)}
+                className="h-8 border-dashed border"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                New Folder
+              </Button>
+            )}
+          </div>
+        )}
+
         {/* Category Tabs */}
-        <Tabs value={activeCategory} onValueChange={setActiveCategory}>
+        <Tabs value={activeCategory} onValueChange={(val) => { setActiveCategory(val); setActiveFolder(null); }}>
           <TabsList className="h-auto flex-wrap gap-1 bg-transparent p-0">
             {/* My Templates Tab - Show first if user has custom templates */}
             {customTemplates.length > 0 && (
               <TabsTrigger
                 value="custom"
-                className="data-[state=active]:bg-amber-500 data-[state=active]:text-black px-4 py-2 rounded-full border border-amber-500/50 bg-amber-500/10"
+                className="data-[state=active]:bg-warning data-[state=active]:text-warning-foreground px-4 py-2 rounded-full border border-warning/50 bg-warning/10"
               >
                 <span className="flex items-center gap-2">
                   <Star className="w-4 h-4" />
                   My Templates
-                  <Badge variant="secondary" className="ml-1 text-xs bg-amber-500/20">
+                  <Badge variant="secondary" className="ml-1 text-xs">
                     {customTemplates.length}
                   </Badge>
                 </span>
@@ -260,28 +401,23 @@ export default function HighConvertingTemplateGallery({
         </Tabs>
       </div>
 
-      {/* Template Grid */}
+      {/* Template Grid - CLICK OPENS PREVIEW */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-24">
         {filteredTemplates.map((template) => {
           const isHighlighted = highlightedTemplate?.id === template.id;
           const isSelected = selectedTemplateId === template.id;
+          const isCustom = 'isCustom' in template;
           
           return (
             <Card 
               key={template.id}
               className={`group cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-lg overflow-hidden ${
                 isSelected ? 'ring-2 ring-primary' : ''
-              } ${isHighlighted ? 'ring-2 ring-emerald-500' : ''}`}
-              onClick={() => setHighlightedTemplate(template)}
+              } ${isHighlighted ? 'ring-2 ring-success' : ''}`}
+              onClick={() => openPreview(template)}
             >
               {/* Preview Image */}
-              <div 
-                className="relative aspect-[4/3] overflow-hidden"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openPreview(template);
-                }}
-              >
+              <div className="relative aspect-[4/3] overflow-hidden">
                 <img 
                   src={template.previewImage} 
                   alt={template.name}
@@ -294,11 +430,18 @@ export default function HighConvertingTemplateGallery({
                 <Badge 
                   className={`absolute top-2 left-2 text-xs ${getCategoryColor(template.category)}`}
                 >
-                  {'isCustom' in template ? '⭐ My Template' : template.industry}
+                  {isCustom ? '⭐ My Template' : template.industry}
                 </Badge>
 
+                {/* Folder indicator for custom templates */}
+                {isCustom && (template as CustomTemplate).folderId && (
+                  <Badge className="absolute top-2 right-10 text-xs bg-muted/80">
+                    {folders.find(f => f.id === (template as CustomTemplate).folderId)?.icon}
+                  </Badge>
+                )}
+
                 {/* Delete button for custom templates */}
-                {'isCustom' in template && (
+                {isCustom && (
                   <Button
                     size="icon"
                     variant="destructive"
@@ -313,11 +456,11 @@ export default function HighConvertingTemplateGallery({
                 )}
 
                 {/* Selected/Highlighted Indicator */}
-                {(isSelected || isHighlighted) && !('isCustom' in template) && (
+                {(isSelected || isHighlighted) && !isCustom && (
                   <div className={`absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center ${
-                    isSelected ? 'bg-primary' : 'bg-emerald-500'
+                    isSelected ? 'bg-primary' : 'bg-success'
                   }`}>
-                    <Check className="w-4 h-4 text-white" />
+                    <Check className="w-4 h-4 text-primary-foreground" />
                   </div>
                 )}
 
@@ -333,7 +476,7 @@ export default function HighConvertingTemplateGallery({
                     }}
                   >
                     <Eye className="w-3 h-3 mr-1" />
-                    Preview
+                    Preview & Edit
                   </Button>
                   {onSelectTemplate && (
                     <Button 
@@ -342,10 +485,11 @@ export default function HighConvertingTemplateGallery({
                       onClick={(e) => {
                         e.stopPropagation();
                         handleSelect(template);
+                        setHighlightedTemplate(template);
                       }}
                     >
                       <Check className="w-3 h-3 mr-1" />
-                      Choose
+                      Use
                     </Button>
                   )}
                 </div>
@@ -356,6 +500,31 @@ export default function HighConvertingTemplateGallery({
                 <p className="text-xs text-muted-foreground truncate">
                   {template.description}
                 </p>
+                {/* Move to Folder option for custom templates */}
+                {'isCustom' in template && (
+                  <Select
+                    value={(template as CustomTemplate).folderId || 'none'}
+                    onValueChange={(value) => handleMoveToFolder(template.id, value === 'none' ? null : value)}
+                  >
+                    <SelectTrigger className="h-7 text-xs mt-2">
+                      <SelectValue placeholder="Move to folder..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">
+                        <span className="flex items-center gap-1">
+                          <Folder className="w-3 h-3" /> No Folder
+                        </span>
+                      </SelectItem>
+                      {folders.map((folder) => (
+                        <SelectItem key={folder.id} value={folder.id}>
+                          <span className="flex items-center gap-1">
+                            {folder.icon} {folder.name}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </CardContent>
             </Card>
           );
@@ -470,6 +639,31 @@ export default function HighConvertingTemplateGallery({
                       placeholder="Enter a name for your template..."
                       className="bg-background"
                     />
+                    
+                    {/* Folder Selection */}
+                    <div className="flex items-center gap-2">
+                      <FolderOpen className="w-4 h-4 text-muted-foreground" />
+                      <Select value={selectedFolderId} onValueChange={setSelectedFolderId}>
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Choose a folder (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">
+                            <span className="flex items-center gap-1">
+                              <Folder className="w-3 h-3" /> No Folder
+                            </span>
+                          </SelectItem>
+                          {folders.map((folder) => (
+                            <SelectItem key={folder.id} value={folder.id}>
+                              <span className="flex items-center gap-1">
+                                {folder.icon} {folder.name}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
                     <p className="text-xs text-muted-foreground">
                       Save this customized template to your library for future campaigns
                     </p>

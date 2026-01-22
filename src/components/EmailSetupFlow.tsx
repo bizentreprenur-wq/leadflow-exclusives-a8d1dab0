@@ -31,6 +31,7 @@ import AIEmailAssistant from './AIEmailAssistant';
 import EmailConfigurationPanel from './EmailConfigurationPanel';
 import { LeadForEmail, sendBulkEmails } from '@/lib/api/email';
 import { isSMTPConfigured, personalizeContent } from '@/lib/emailService';
+import { addLeadsToCRM, queueLeadsForEmail } from '@/lib/customTemplates';
 import EmailDeliveryNotifications from './EmailDeliveryNotifications';
 
 interface SearchResult {
@@ -126,12 +127,16 @@ export default function EmailSetupFlow({
   const leadsWithEmail = emailLeads.filter(l => l.email);
   const leadsWithPhone = leads.filter(l => l.phone);
 
-  // Persist email leads
+  // Persist email leads to both sessionStorage and CRM
   useEffect(() => {
     if (emailLeads.length > 0) {
       sessionStorage.setItem('bamlead_email_leads', JSON.stringify(emailLeads));
     }
-  }, [emailLeads]);
+    // Also persist leads to CRM for tracking
+    if (leads.length > 0) {
+      addLeadsToCRM(leads);
+    }
+  }, [leads]);
 
   // Sending state management
   const [demoSentCount, setDemoSentCount] = useState(0);
