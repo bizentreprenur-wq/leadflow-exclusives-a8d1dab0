@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -94,6 +94,9 @@ export default function EmailSetupFlow({
       });
     }
   }, [isAuthenticated]);
+  
+  // Ref for Smart Drip Mailbox section
+  const smartDripRef = useRef<HTMLDivElement>(null);
   
   // Unified mailbox tab tracking - default to mailbox view
   const [activeTab, setActiveTab] = useState('mailbox');
@@ -625,7 +628,7 @@ export default function EmailSetupFlow({
             {/* ============================================= */}
             {/* 📬 UNIFIED MAILBOX - PERSISTENT SHELL */}
             {/* ============================================= */}
-            <Card className="border-2 border-blue-500/40 bg-gradient-to-br from-blue-900/20 to-indigo-900/20 overflow-hidden">
+            <Card ref={smartDripRef} className="border-2 border-blue-500/40 bg-gradient-to-br from-blue-900/20 to-indigo-900/20 overflow-hidden">
               {/* PERSISTENT TOP NAVIGATION BAR - NEVER CHANGES */}
               <CardHeader className="pb-0 border-b border-primary/20">
                 <div className="flex items-center justify-between mb-4">
@@ -1296,12 +1299,14 @@ export default function EmailSetupFlow({
                 Connect External CRM
               </Button>
               <div className="flex items-center gap-3">
-                {leadsWithPhone.length > 0 && (
-                  <Button variant="outline" onClick={onComplete} className="gap-2">
-                    <Phone className="w-4 h-4" />
-                    Continue to Calls ({leadsWithPhone.length})
-                  </Button>
-                )}
+                <Button 
+                  variant="outline" 
+                  onClick={() => smartDripRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} 
+                  className="gap-2"
+                >
+                  <Mail className="w-4 h-4" />
+                  Continue to Email
+                </Button>
                 <Button onClick={() => setShowAutoCampaign(true)} className="gap-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700">
                   <Rocket className="w-4 h-4" />
                   Auto Campaign Wizard
