@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import { EmailSend, EmailStats, getSends, getEmailStats } from '@/lib/api/email';
 import { useEmailBranding, EmailBrandingConfig } from './EmailBrandingSettings';
+import { saveUserBranding } from '@/lib/api/branding';
+import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 interface OutgoingEmail {
@@ -63,6 +65,7 @@ export default function OutgoingMailbox({
   // Branding hook for logo and company info
   const { branding, updateBranding } = useEmailBranding();
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const { isAuthenticated } = useAuth();
   
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -94,7 +97,16 @@ export default function OutgoingMailbox({
       const parsed = existingBranding ? JSON.parse(existingBranding) : {};
       localStorage.setItem('bamlead_branding_info', JSON.stringify({ ...parsed, logoUrl: dataUrl }));
       
-      toast.success("Logo uploaded! It will appear in all your emails and documents.");
+      if (isAuthenticated) {
+        const saved = await saveUserBranding({ logo_url: dataUrl });
+        if (saved) {
+          toast.success("Logo saved to your account!");
+        } else {
+          toast.warning("Logo saved locally, but backend save failed. Check your API and the user_branding table.");
+        }
+      } else {
+        toast.success("Logo uploaded! It will appear in all your emails and documents.");
+      }
     } catch (error) {
       toast.error("Failed to upload logo");
     } finally {

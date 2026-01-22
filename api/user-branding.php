@@ -29,7 +29,7 @@ $userId = $user['id'];
 $action = $_GET['action'] ?? $_POST['action'] ?? 'get';
 
 try {
-    $db = getDatabase();
+    $db = getDB();
     
     // Check if table exists, provide migration hint if not
     try {
@@ -48,7 +48,7 @@ try {
     switch ($action) {
         case 'get':
             // Fetch user branding
-            $branding = $db->fetch(
+            $branding = $db->fetchOne(
                 "SELECT logo_url, company_name, primary_color, email_signature, footer_text 
                  FROM user_branding WHERE user_id = ?",
                 [$userId]
@@ -84,7 +84,7 @@ try {
             }
             
             // Upsert branding
-            $existing = $db->fetch("SELECT id FROM user_branding WHERE user_id = ?", [$userId]);
+            $existing = $db->fetchOne("SELECT id FROM user_branding WHERE user_id = ?", [$userId]);
             
             if ($existing) {
                 $db->query(

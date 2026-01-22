@@ -140,7 +140,7 @@ export default function EmailSetupFlow({
         if (saved) {
           toast.success('Business logo saved to your account!');
         } else {
-          toast.success('Business logo uploaded locally');
+          toast.warning('Logo saved locally, but backend save failed. Check your API and the user_branding table.');
         }
       } else {
         toast.success('Business logo uploaded! (Log in to save permanently)');
@@ -161,7 +161,11 @@ export default function EmailSetupFlow({
     
     // Remove from backend for logged-in users
     if (isAuthenticated) {
-      await deleteUserLogo();
+      const deleted = await deleteUserLogo();
+      if (!deleted) {
+        toast.warning('Logo removed locally, but backend delete failed. Check your API and the user_branding table.');
+        return;
+      }
     }
     
     toast.success('Logo removed');
