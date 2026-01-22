@@ -117,6 +117,25 @@ export default function Auth() {
     }
 
     setIsLoading(true);
+    
+    // Preview environment test login - admin@test.com / admin123
+    if (isPreviewEnv && trimmedEmail === 'admin@test.com' && loginPassword === 'admin123') {
+      console.log('[Auth] Preview test login activated');
+      localStorage.setItem('auth_token', 'preview_test_token');
+      localStorage.setItem('bamlead_user_cache', JSON.stringify({
+        id: 'test-admin',
+        email: 'admin@test.com',
+        name: 'Test Admin',
+        role: 'admin',
+        is_owner: true,
+        has_active_subscription: true
+      }));
+      toast.success('Welcome back! (Preview Mode)');
+      setIsLoading(false);
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+    
     try {
       await login(trimmedEmail, loginPassword);
       toast.success('Welcome back!');
