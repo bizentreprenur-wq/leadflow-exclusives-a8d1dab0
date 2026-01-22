@@ -890,9 +890,9 @@ export default function EmailComposerFlow({
                   {/* Email Preview */}
                   <div className="p-4 rounded-xl bg-card border border-border">
                     <p className="text-xs font-medium text-muted-foreground mb-3">EMAIL PREVIEW</p>
-                    <div className="p-3 rounded-lg bg-secondary/50 text-sm">
+                    <div className="p-3 rounded-lg bg-secondary/50 text-sm max-h-[200px] overflow-y-auto">
                       <div
-                        className="prose prose-sm dark:prose-invert max-w-none line-clamp-4"
+                        className="prose prose-sm dark:prose-invert max-w-none [&_img]:max-w-[150px] [&_img]:h-auto [&_img]:mx-auto [&_img]:block [&_img]:rounded"
                         dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(customBody) }}
                       />
                     </div>

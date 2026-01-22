@@ -826,12 +826,12 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
                   {/* Live Preview Side */}
                   <div className="space-y-2">
                     <Label>Live Preview</Label>
-                    <div className="border rounded-lg p-4 bg-background min-h-[350px]">
+                    <div className="border rounded-lg p-4 bg-background min-h-[300px] max-h-[400px] overflow-y-auto">
                       <div className="mb-3 pb-3 border-b">
-                        <p className="font-medium">{getCurrentSubject() || 'Subject line...'}</p>
+                        <p className="font-medium text-sm">{getCurrentSubject() || 'Subject line...'}</p>
                       </div>
                       <div 
-                        className="prose prose-sm dark:prose-invert max-w-none"
+                        className="prose prose-sm dark:prose-invert max-w-none [&_img]:max-w-[200px] [&_img]:h-auto [&_img]:mx-auto [&_img]:block [&_img]:rounded"
                         dangerouslySetInnerHTML={{ __html: getCurrentBody() || '<p>Email content...</p>' }}
                       />
                     </div>

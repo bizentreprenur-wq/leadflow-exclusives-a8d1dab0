@@ -39,12 +39,16 @@ function wrapEmailContent(html: string): string {
           width: 100% !important;
         }
         img { 
-          max-width: 100% !important; 
-          height: auto !important; 
+          max-width: 250px !important; 
+          height: auto !important;
+          display: block !important;
+          margin: 0 auto !important;
+          border-radius: 6px !important;
         }
         td[width="35%"] img {
           width: 100% !important;
-          height: 200px !important;
+          max-width: 200px !important;
+          height: 150px !important;
           object-fit: cover !important;
           min-height: unset !important;
         }
