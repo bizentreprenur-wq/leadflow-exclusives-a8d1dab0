@@ -35,6 +35,7 @@ interface AIProcessingPipelineProps {
   leads: any[];
   onComplete: (enhancedLeads: any[]) => void;
   onProgressUpdate?: (progress: number, currentAgent: string) => void;
+  forceProcessing?: boolean;
 }
 
 const AI_AGENTS: AIAgent[] = [
@@ -117,6 +118,7 @@ export default function AIProcessingPipeline({
   leads,
   onComplete,
   onProgressUpdate,
+  forceProcessing = false,
 }: AIProcessingPipelineProps) {
   const [currentAgentIndex, setCurrentAgentIndex] = useState(-1);
   const [completedAgents, setCompletedAgents] = useState<string[]>([]);
@@ -318,6 +320,9 @@ export default function AIProcessingPipeline({
   if (!isActive && completedAgents.length === 0) return null;
 
   const currentAgent = currentAgentIndex >= 0 ? AI_AGENTS[currentAgentIndex] : null;
+  const showProcessing = forceProcessing || isProcessing;
+  const showComplete = !forceProcessing && completedAgents.length === AI_AGENTS.length;
+  const displayProgress = forceProcessing ? Math.min(progress, 95) : progress;
 
   return (
     <Card className="border-primary/30 bg-gradient-to-br from-background via-primary/5 to-background overflow-hidden">
@@ -338,19 +343,19 @@ export default function AIProcessingPipeline({
                 variant="outline"
                 className={cn(
                   "text-xs",
-                  isProcessing
+                  showProcessing
                     ? "bg-green-500/10 text-green-500 border-green-500/30 animate-pulse"
-                    : completedAgents.length === AI_AGENTS.length
+                    : showComplete
                     ? "bg-primary/10 text-primary border-primary/30"
                     : "bg-muted text-muted-foreground"
                 )}
               >
-                {isProcessing ? (
+                {showProcessing ? (
                   <>
                     <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                     PROCESSING
                   </>
-                ) : completedAgents.length === AI_AGENTS.length ? (
+                ) : showComplete ? (
                   <>
                     <CheckCircle2 className="h-3 w-3 mr-1" />
                     COMPLETE
@@ -361,9 +366,9 @@ export default function AIProcessingPipeline({
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground">
-              {isProcessing
+              {showProcessing
                 ? `Analyzing ${leads.length} leads with advanced AI...`
-                : completedAgents.length === AI_AGENTS.length
+                : showComplete
                 ? `Enhanced ${leads.length} leads with 8 AI agents`
                 : "Ready to process leads"}
             </p>
@@ -376,9 +381,9 @@ export default function AIProcessingPipeline({
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Pipeline Progress</span>
-            <span className="font-mono font-bold text-primary">{progress}%</span>
+            <span className="font-mono font-bold text-primary">{displayProgress}%</span>
           </div>
-          <Progress value={progress} className="h-2" />
+          <Progress value={displayProgress} className="h-2" />
         </div>
 
         {/* Current Agent Highlight */}

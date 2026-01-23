@@ -208,15 +208,26 @@ async function searchGMBStreaming(
   const allResults: GMBResult[] = [];
   
   return new Promise((resolve, reject) => {
+    let settled = false;
     const controller = new AbortController();
+    const finish = (response: GMBSearchResponse) => {
+      if (settled) return;
+      settled = true;
+      resolve(response);
+    };
+    const fail = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      reject(error);
+    };
     const initialTimeoutId = setTimeout(() => {
       controller.abort();
-      reject(new Error('Search timed out before streaming started.'));
+      fail(new Error('Search timed out before streaming started.'));
     }, 25000); // 25s to receive headers / first bytes
 
     const timeoutId = setTimeout(() => {
       controller.abort();
-      reject(new Error('Stream timeout after 120 seconds'));
+      fail(new Error('Stream timeout after 120 seconds'));
     }, 120000); // 2 minute total timeout
     
     fetch(`${API_BASE_URL}/gmb-search-stream.php`, {
@@ -240,6 +251,7 @@ async function searchGMBStreaming(
         
         const decoder = new TextDecoder();
         let buffer = '';
+        let currentEvent: string | null = null;
         
         while (true) {
           const { done, value } = await reader.read();
@@ -254,13 +266,28 @@ async function searchGMBStreaming(
           const lines = buffer.split('\n');
           buffer = lines.pop() || ''; // Keep incomplete line in buffer
           
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
+          for (const rawLine of lines) {
+            const line = rawLine.trimEnd();
+            if (!line) {
+              currentEvent = null;
+              continue;
+            }
+            if (line.startsWith('event:')) {
+              currentEvent = line.slice(6).trim();
+              continue;
+            }
+            if (line.startsWith('data:')) {
               try {
-                const data = JSON.parse(line.slice(6));
+                const payload = line.slice(5).trim();
+                if (!payload) {
+                  currentEvent = null;
+                  continue;
+                }
+                const data = JSON.parse(payload);
+                const eventType = currentEvent || (data.leads ? 'results' : data.error ? 'error' : '');
                 
                 // Handle different event types
-                if (data.leads) {
+                if (eventType === 'results' || data.leads) {
                   // New batch of leads arrived
                   for (const lead of data.leads) {
                     if (isMockLeadId(lead?.id)) {
@@ -294,9 +321,30 @@ async function searchGMBStreaming(
                   }
                   
                   console.log(`[GMB API] Stream: ${allResults.length} leads, ${data.progress}%`);
-                } else if (data.error) {
+                } else if (eventType === 'complete') {
+                  if (onProgress) {
+                    onProgress([...allResults], 100);
+                  }
+                  if (allResults.length === 0) {
+                    throw new Error('No results received from stream');
+                  }
+                  try {
+                    await reader.cancel();
+                  } catch {
+                    // Ignore cancel errors; stream is already done.
+                  }
+                  clearTimeout(timeoutId);
+                  clearTimeout(initialTimeoutId);
+                  finish({
+                    success: true,
+                    data: allResults,
+                    query: { service, location }
+                  });
+                  return;
+                } else if (eventType === 'error' || data.error) {
                   throw new Error(data.error);
                 }
+                currentEvent = null;
               } catch (parseError) {
                 // Ignore JSON parse errors for partial data
                 if (line.includes('"error"')) {
@@ -314,7 +362,7 @@ async function searchGMBStreaming(
           throw new Error('No results received from stream');
         }
         
-        resolve({
+        finish({
           success: true,
           data: allResults,
           query: { service, location }
@@ -325,11 +373,11 @@ async function searchGMBStreaming(
         clearTimeout(initialTimeoutId);
 
         if (error?.name === 'AbortError') {
-          reject(new Error('Search timed out — server did not start streaming.'));
+          fail(new Error('Search timed out — server did not start streaming.'));
           return;
         }
 
-        reject(error);
+        fail(error);
       });
   });
 }

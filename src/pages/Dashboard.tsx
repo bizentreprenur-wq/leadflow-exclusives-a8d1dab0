@@ -308,7 +308,17 @@ export default function Dashboard() {
     sessionStorage.removeItem('bamlead_email_leads');
     localStorage.removeItem('bamlead_selected_leads');
 
-    console.log('[BamLead] Starting search:', { searchType, query, location, searchLimit });
+    const requestedLimit = searchLimit;
+    const needsFilteredLeads = phoneLeadsOnly || filterNoWebsite;
+    const effectiveLimit = Math.min(2000, needsFilteredLeads ? requestedLimit * 3 : requestedLimit);
+
+    console.log('[BamLead] Starting search:', {
+      searchType,
+      query,
+      location,
+      requestedLimit,
+      effectiveLimit
+    });
 
     try {
       let finalResults: SearchResult[] = [];
@@ -334,7 +344,7 @@ export default function Dashboard() {
       
       if (searchType === 'gmb') {
         console.log('[BamLead] Calling searchGMB API...');
-        const response = await searchGMB(query, location, searchLimit, handleProgress);
+        const response = await searchGMB(query, location, effectiveLimit, handleProgress);
         console.log('[BamLead] GMB response:', response);
         if (response.success && response.data) {
           finalResults = response.data.map((r: GMBResult, index: number) => ({
@@ -352,8 +362,8 @@ export default function Dashboard() {
           throw new Error(response.error);
         }
       } else if (searchType === 'platform') {
-        console.log('[BamLead] Calling searchPlatforms API with limit:', searchLimit);
-        const response = await searchPlatforms(query, location, selectedPlatforms, handleProgress, searchLimit);
+        console.log('[BamLead] Calling searchPlatforms API with limit:', effectiveLimit);
+        const response = await searchPlatforms(query, location, selectedPlatforms, handleProgress, effectiveLimit);
         console.log('[BamLead] Platform response:', response);
         if (response.success && response.data) {
           finalResults = response.data.map((r: PlatformResult, index: number) => ({
@@ -384,6 +394,33 @@ export default function Dashboard() {
         } else {
           toast.info(`Filtered to ${finalResults.length} leads with phone numbers for AI calling`);
         }
+      }
+
+      // Apply "No Website" filter if enabled (GMB only)
+      if (filterNoWebsite) {
+        const beforeCount = finalResults.length;
+        finalResults = finalResults.filter(r => {
+          const website = r.website?.trim();
+          return !website || r.websiteAnalysis?.hasWebsite === false;
+        });
+        console.log(`[BamLead] No-website filter applied: ${beforeCount} → ${finalResults.length}`);
+        if (finalResults.length === 0) {
+          toast.warning('No businesses without websites found. Try a broader search.');
+        } else {
+          toast.info(`Filtered to ${finalResults.length} businesses without websites`);
+        }
+      }
+
+      // If we over-fetched to satisfy filters, cap to the user-requested limit.
+      if (finalResults.length > requestedLimit) {
+        finalResults = finalResults.slice(0, requestedLimit);
+      }
+
+      if (needsFilteredLeads && finalResults.length < requestedLimit) {
+        toast.warning(
+          `Only ${finalResults.length} of ${requestedLimit} matched your filters. ` +
+          'Try a broader query or disable filters for more results.'
+        );
       }
       
       // Apply AI scoring to all leads immediately (sorts by Hot/Warm/Cold)
@@ -1057,6 +1094,7 @@ export default function Dashboard() {
                         <AIProcessingPipeline
                           isActive={true}
                           leads={searchResults.length > 0 ? searchResults : [{ id: 'placeholder', name: 'Analyzing...', source: 'gmb' as const }]}
+                          forceProcessing={isSearching}
                           onComplete={() => {
                             // Don't auto-complete during search - we control this via search flow
                           }}
