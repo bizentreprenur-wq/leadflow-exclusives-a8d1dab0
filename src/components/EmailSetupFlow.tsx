@@ -739,6 +739,12 @@ export default function EmailSetupFlow({
                     ))}
                   </TooltipProvider>
                 </div>
+                
+                {/* Guidance message */}
+                <div className="flex items-center gap-2 px-1 pb-2 text-xs text-muted-foreground">
+                  <span className="text-primary">↑</span>
+                  <span>Click <strong className="text-foreground">Preview</strong>, <strong className="text-foreground">CRM</strong>, <strong className="text-foreground">A/B</strong>, <strong className="text-foreground">Edit</strong>, or <strong className="text-foreground">SMTP</strong> above to configure and start sending emails</span>
+                </div>
               </CardHeader>
 
               {/* CONTENT AREA - ONLY THIS CHANGES */}
@@ -775,15 +781,13 @@ export default function EmailSetupFlow({
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
+                                <button 
                                   onClick={() => setShowTemplateEditor(!showTemplateEditor)}
-                                  className="gap-2 text-primary hover:text-primary"
+                                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-all border-primary bg-primary/20 text-foreground shadow-lg shadow-primary/20"
                                 >
                                   <FileText className="w-4 h-4" />
                                   {showTemplateEditor ? 'Hide Editor' : 'Edit Template'}
-                                </Button>
+                                </button>
                                 <Button 
                                   variant="ghost" 
                                   size="sm" 
