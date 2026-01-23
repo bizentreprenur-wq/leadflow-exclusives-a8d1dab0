@@ -19,8 +19,22 @@ const WebsitePreviewIcon = ({
   size = 'sm',
   showInline = true
 }: WebsitePreviewIconProps) => {
-  // Normalize URL
-  const normalizedUrl = website ? (website.startsWith('http') ? website : `https://${website}`) : '';
+  // Extract homepage URL only (strip paths like /about, /contact, etc.)
+  const getHomepageUrl = (url: string): string => {
+    try {
+      // Add protocol if missing
+      const withProtocol = url.startsWith('http') ? url : `https://${url}`;
+      const urlObj = new URL(withProtocol);
+      // Return only origin (protocol + domain) = homepage
+      return urlObj.origin;
+    } catch {
+      // Fallback: try to extract domain manually
+      const cleaned = url.replace(/^https?:\/\//, '').split('/')[0];
+      return `https://${cleaned}`;
+    }
+  };
+
+  const normalizedUrl = website ? getHomepageUrl(website) : '';
   const displayUrl = website ? website.replace(/^https?:\/\//, '').split('/')[0] : '';
 
   const sizeClasses = {
