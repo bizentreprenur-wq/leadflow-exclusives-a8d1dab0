@@ -55,13 +55,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Keep token state in sync across tabs/windows.
   // Note: `storage` does not fire in the same tab, so we also update `token` in login/register/logout.
   useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === 'auth_token') {
-        setToken(e.newValue);
+    const syncTokenFromStorage = () => {
+      try {
+        setToken(localStorage.getItem('auth_token'));
+      } catch {
+        setToken(null);
       }
     };
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'auth_token') {
+        syncTokenFromStorage();
+      }
+    };
+
+    // Custom event used by preview-only bypass flows (same-tab updates).
+    const onAuthChanged = () => syncTokenFromStorage();
+
     window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
+    window.addEventListener('bamlead-auth-changed', onAuthChanged);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('bamlead-auth-changed', onAuthChanged);
+    };
   }, []);
 
   // If a token appears (e.g. devBypass sets localStorage), hydrate user from cache immediately.

@@ -1,4 +1,4 @@
-import { AUTH_ENDPOINTS, apiRequest, USE_MOCK_AUTH } from './config';
+import { AUTH_ENDPOINTS, apiRequest, USE_MOCK_AUTH, isLovablePreviewHost } from './config';
 
 export interface User {
   id: number;
@@ -165,7 +165,45 @@ export async function getCurrentUser(): Promise<User | null> {
   try {
     const response = await apiRequest<{ success: boolean; user: User }>(AUTH_ENDPOINTS.me);
     return response.user;
-  } catch {
+  } catch (error) {
+    const isPreviewEnv =
+      typeof window !== 'undefined' && isLovablePreviewHost(window.location.hostname);
+
+    const tokenNow = localStorage.getItem('auth_token');
+    const isPreviewBypassToken =
+      tokenNow === 'dev_bypass_token' || tokenNow === 'preview_test_token';
+
+    // Preview-only escape hatch:
+    // If the production backend is unreachable from the preview origin (CORS/network),
+    // keep the preview bypass session so the dashboard remains usable.
+    if (isPreviewEnv && isPreviewBypassToken) {
+      try {
+        const cached = localStorage.getItem('bamlead_user_cache');
+        if (cached) {
+          return { ...JSON.parse(cached), _fromCache: true } as any;
+        }
+      } catch {
+        // ignore
+      }
+
+      return {
+        id: 999001,
+        email: 'dev@bamlead.com',
+        name: 'Dev User',
+        role: 'admin',
+        subscription_status: 'active',
+        subscription_plan: 'preview_bypass',
+        trial_ends_at: null,
+        subscription_ends_at: null,
+        is_owner: true,
+        has_active_subscription: true,
+        created_at: new Date().toISOString(),
+      } as any;
+    }
+
+    // Default behavior: clear broken/expired sessions.
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    void error;
     localStorage.removeItem('auth_token');
     return null;
   }
