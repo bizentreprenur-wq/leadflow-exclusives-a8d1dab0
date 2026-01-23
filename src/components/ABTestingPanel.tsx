@@ -20,9 +20,11 @@ import {
   BarChart3,
   Sparkles,
   Copy,
-  CheckCircle2
+  CheckCircle2,
+  Pencil
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 interface ABVariant {
   id: string;
@@ -77,6 +79,7 @@ const sampleTests: ABTest[] = [
 export default function ABTestingPanel() {
   const [tests, setTests] = useState<ABTest[]>(sampleTests);
   const [showCreate, setShowCreate] = useState(false);
+  const [editingTest, setEditingTest] = useState<ABTest | null>(null);
   const [newTest, setNewTest] = useState({
     name: '',
     variantASubject: '',
@@ -148,6 +151,17 @@ export default function ABTestingPanel() {
   const handleDeleteTest = (testId: string) => {
     setTests(tests.filter(t => t.id !== testId));
     toast.success('Test deleted');
+  };
+
+  const handleEditTest = (test: ABTest) => {
+    setEditingTest(test);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingTest) return;
+    setTests(tests.map(t => t.id === editingTest.id ? editingTest : t));
+    setEditingTest(null);
+    toast.success('Test updated successfully!');
   };
 
   const handleCopyWinner = (test: ABTest) => {
@@ -267,6 +281,7 @@ export default function ABTestingPanel() {
                 onStart={handleStartTest}
                 onStop={handleStopTest}
                 onDelete={handleDeleteTest}
+                onEdit={handleEditTest}
                 onCopyWinner={handleCopyWinner}
                 calculateRate={calculateRate}
                 getWinningVariant={getWinningVariant}
@@ -283,6 +298,7 @@ export default function ABTestingPanel() {
               onStart={handleStartTest}
               onStop={handleStopTest}
               onDelete={handleDeleteTest}
+              onEdit={handleEditTest}
               onCopyWinner={handleCopyWinner}
               calculateRate={calculateRate}
               getWinningVariant={getWinningVariant}
@@ -298,6 +314,7 @@ export default function ABTestingPanel() {
               onStart={handleStartTest}
               onStop={handleStopTest}
               onDelete={handleDeleteTest}
+              onEdit={handleEditTest}
               onCopyWinner={handleCopyWinner}
               calculateRate={calculateRate}
               getWinningVariant={getWinningVariant}
@@ -305,6 +322,73 @@ export default function ABTestingPanel() {
           ))}
         </TabsContent>
       </Tabs>
+
+      {/* Edit Test Dialog */}
+      <Dialog open={!!editingTest} onOpenChange={(open) => !open && setEditingTest(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="w-5 h-5 text-purple-400" />
+              Edit A/B Test
+            </DialogTitle>
+            <DialogDescription>
+              Update your test name and subject lines
+            </DialogDescription>
+          </DialogHeader>
+          {editingTest && (
+            <div className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <Label>Test Name</Label>
+                <Input 
+                  value={editingTest.name}
+                  onChange={(e) => setEditingTest({ ...editingTest, name: e.target.value })}
+                />
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/30">A</Badge>
+                    Variant A Subject
+                  </Label>
+                  <Input 
+                    value={editingTest.variants[0]?.subject || ''}
+                    onChange={(e) => setEditingTest({
+                      ...editingTest,
+                      variants: editingTest.variants.map((v, i) => 
+                        i === 0 ? { ...v, subject: e.target.value } : v
+                      )
+                    })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Badge variant="outline" className="bg-orange-500/10 text-orange-400 border-orange-500/30">B</Badge>
+                    Variant B Subject
+                  </Label>
+                  <Input 
+                    value={editingTest.variants[1]?.subject || ''}
+                    onChange={(e) => setEditingTest({
+                      ...editingTest,
+                      variants: editingTest.variants.map((v, i) => 
+                        i === 1 ? { ...v, subject: e.target.value } : v
+                      )
+                    })}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 justify-end pt-2">
+                <Button variant="outline" onClick={() => setEditingTest(null)}>Cancel</Button>
+                <Button onClick={handleSaveEdit} className="gap-2">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Save Changes
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -314,12 +398,13 @@ interface TestCardProps {
   onStart: (id: string) => void;
   onStop: (id: string) => void;
   onDelete: (id: string) => void;
+  onEdit: (test: ABTest) => void;
   onCopyWinner: (test: ABTest) => void;
   calculateRate: (num: number, denom: number) => number;
   getWinningVariant: (test: ABTest) => string | null;
 }
 
-function TestCard({ test, onStart, onStop, onDelete, onCopyWinner, calculateRate, getWinningVariant }: TestCardProps) {
+function TestCard({ test, onStart, onStop, onDelete, onEdit, onCopyWinner, calculateRate, getWinningVariant }: TestCardProps) {
   const currentWinner = getWinningVariant(test);
 
   return (
@@ -361,7 +446,10 @@ function TestCard({ test, onStart, onStop, onDelete, onCopyWinner, calculateRate
                 Copy Winner
               </Button>
             )}
-            <Button size="sm" variant="ghost" onClick={() => onDelete(test.id)}>
+            <Button size="sm" variant="ghost" onClick={() => onEdit(test)} title="Edit Test">
+              <Pencil className="w-4 h-4 text-muted-foreground" />
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => onDelete(test.id)} title="Delete Test">
               <Trash2 className="w-4 h-4 text-muted-foreground" />
             </Button>
           </div>
