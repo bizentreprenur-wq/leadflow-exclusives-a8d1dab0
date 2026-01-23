@@ -40,18 +40,29 @@ export const DATA_FIELD_OPTIONS: DataFieldOption[] = [
   { id: 'website_issues', label: 'Website Issues', description: 'Speed, mobile, security issues', icon: <Settings2 className="w-4 h-4" />, category: 'analysis', default: true },
 ];
 
+// Campaign presets
+export const CAMPAIGN_PRESETS = {
+  email: ['business_name', 'owner_name', 'email', 'website', 'website_platform', 'website_issues'],
+  phone: ['business_name', 'owner_name', 'phone', 'address', 'category', 'rating'],
+  all: DATA_FIELD_OPTIONS.map(f => f.id),
+};
+
 interface DataFieldSelectorProps {
   selectedFields: string[];
   onFieldsChange: (fields: string[]) => void;
   searchQuery?: string;
   searchLocation?: string;
+  campaignMode?: 'email' | 'phone' | null;
+  onCampaignModeChange?: (mode: 'email' | 'phone' | null) => void;
 }
 
 export default function DataFieldSelector({ 
   selectedFields, 
   onFieldsChange,
   searchQuery = '',
-  searchLocation = ''
+  searchLocation = '',
+  campaignMode,
+  onCampaignModeChange
 }: DataFieldSelectorProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -69,6 +80,16 @@ export default function DataFieldSelector({
 
   const selectDefaults = () => {
     onFieldsChange(DATA_FIELD_OPTIONS.filter(f => f.default).map(f => f.id));
+  };
+
+  const selectEmailPreset = () => {
+    onFieldsChange(CAMPAIGN_PRESETS.email);
+    onCampaignModeChange?.('email');
+  };
+
+  const selectPhonePreset = () => {
+    onFieldsChange(CAMPAIGN_PRESETS.phone);
+    onCampaignModeChange?.('phone');
   };
 
   const categories = [
@@ -129,26 +150,58 @@ export default function DataFieldSelector({
               </div>
             </div>
           )}
+          {/* Campaign Presets */}
+          <div className="p-3 rounded-lg bg-muted/30 border border-border space-y-3">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Quick Campaign Presets</p>
+            <div className="flex flex-wrap gap-2">
+              <Button 
+                type="button" 
+                variant={campaignMode === 'email' ? 'default' : 'outline'}
+                size="sm" 
+                onClick={selectEmailPreset}
+                className={`gap-2 ${campaignMode === 'email' ? 'bg-blue-600 hover:bg-blue-700' : 'border-blue-500/50 text-blue-500 hover:bg-blue-500/10'}`}
+              >
+                📧 Email Campaign
+              </Button>
+              <Button 
+                type="button" 
+                variant={campaignMode === 'phone' ? 'default' : 'outline'}
+                size="sm" 
+                onClick={selectPhonePreset}
+                className={`gap-2 ${campaignMode === 'phone' ? 'bg-green-600 hover:bg-green-700' : 'border-green-500/50 text-green-500 hover:bg-green-500/10'}`}
+              >
+                📞 Phone Campaign
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                onClick={selectAll}
+              >
+                ✅ All Fields
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                onClick={selectDefaults}
+              >
+                🎯 Defaults
+              </Button>
+            </div>
+            {campaignMode && (
+              <div className={`text-xs p-2 rounded ${campaignMode === 'email' ? 'bg-blue-500/10 text-blue-500' : 'bg-green-500/10 text-green-500'}`}>
+                {campaignMode === 'email' 
+                  ? '✓ Optimized for email outreach: emails, websites, and analysis fields'
+                  : '✓ Optimized for AI calling: phone numbers, addresses, and business info'}
+              </div>
+            )}
+          </div>
+
           {/* Quick Actions */}
           <div className="flex items-center gap-2 pb-3 border-b border-border">
-            <Button 
-              type="button" 
-              variant="outline" 
-              size="sm" 
-              onClick={selectAll}
-            >
-              ✅ Select All
-            </Button>
-            <Button 
-              type="button" 
-              variant="outline" 
-              size="sm" 
-              onClick={selectDefaults}
-            >
-              🎯 Defaults Only
-            </Button>
-            <span className="text-xs text-muted-foreground ml-auto">
-              Click to customize what data you want for each lead
+            <span className="text-xs text-muted-foreground">
+              {selectedFields.length} of {DATA_FIELD_OPTIONS.length} fields selected — customize below
             </span>
           </div>
 
