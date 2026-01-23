@@ -17,6 +17,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const AUTH_TIMEOUT_MS = 3000;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const [token, setToken] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('auth_token');
+    } catch {
+      return null;
+    }
+  });
+
   const [user, setUser] = useState<User | null>(() => {
     // Use cached user ONLY if we also have a token.
     // This prevents redirect loops where cache exists but the session/token is gone.
@@ -33,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const parsed = JSON.parse(cached);
         // Only use cached display info, not authorization data
         // Role/subscription status MUST be verified server-side
-        return { ...parsed, _fromCache: true };
+        return { ...parsed, _fromCache: true } as any;
       }
 
       return null;
@@ -44,13 +52,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const hasInitialized = useRef(false);
 
-  const hasToken = (() => {
-    try {
-      return !!localStorage.getItem('auth_token');
-    } catch {
-      return false;
+  // Keep token state in sync across tabs/windows.
+  // Note: `storage` does not fire in the same tab, so we also update `token` in login/register/logout.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'auth_token') {
+        setToken(e.newValue);
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  // If a token appears (e.g. devBypass sets localStorage), hydrate user from cache immediately.
+  // If token is removed, clear user+cache.
+  useEffect(() => {
+    if (!token) {
+      setUser(null);
+      try {
+        localStorage.removeItem('bamlead_user_cache');
+      } catch {
+        // ignore
+      }
+      return;
     }
-  })();
+
+    if (!user) {
+      try {
+        const cached = localStorage.getItem('bamlead_user_cache');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          setUser({ ...parsed, _fromCache: true } as any);
+        }
+      } catch {
+        // ignore
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   const refreshUser = useCallback(async () => {
     try {
@@ -59,6 +98,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       const currentUser = await getCurrentUser();
       clearTimeout(timeoutId);
+
+       // getCurrentUser may remove auth_token in some auth-failure cases; keep token state synced.
+       try {
+         setToken(localStorage.getItem('auth_token'));
+       } catch {
+         setToken(null);
+       }
       
       setUser(currentUser);
       // Cache non-sensitive display data only
@@ -104,6 +150,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const response = await apiLogin({ email, password });
+    setToken(response.token);
     setUser(response.user);
     // Cache only non-sensitive display fields - role/subscription MUST be verified server-side
     const safeCache = {
@@ -116,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const register = async (email: string, password: string, name?: string) => {
     const response = await apiRegister({ email, password, name });
+    setToken(response.token);
     setUser(response.user);
     // Cache only non-sensitive display fields - role/subscription MUST be verified server-side
     const safeCache = {
@@ -128,6 +176,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     await apiLogout();
+    setToken(null);
     setUser(null);
     localStorage.removeItem('bamlead_user_cache');
   };
@@ -137,7 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isLoading,
-        isAuthenticated: hasToken && !!user,
+        isAuthenticated: !!token && !!user,
         login,
         register,
         logout,
