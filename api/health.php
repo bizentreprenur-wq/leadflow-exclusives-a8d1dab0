@@ -47,7 +47,8 @@ $allGood = $checks['includes_exists'] && $checks['auth_exists'] && $checks['data
 
 echo json_encode([
     'status' => $allGood ? 'ok' : 'degraded',
-    'version' => '1.0.3',
-    'deployed' => '2026-01-18T00:00:00Z',
+    'version' => '1.0.4',
+    'deployed' => '2026-01-24T00:00:00Z',
     'checks' => $checks,
+    'cors_fix' => 'permissive-lovable-origins'
 ], JSON_PRETTY_PRINT);
