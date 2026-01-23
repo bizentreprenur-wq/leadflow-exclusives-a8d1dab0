@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Eye, EyeOff, Mail, Lock, User, CreditCard } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, CreditCard, Monitor } from 'lucide-react';
 import mascotLogo from '@/assets/bamlead-mascot.png';
 import { BackendStatus } from '@/components/BackendStatus';
 import { createCheckoutSession } from '@/lib/api/stripe';
@@ -425,6 +425,46 @@ export default function Auth() {
                 </form>
               </TabsContent>
             </Tabs>
+
+            {/* Preview-only: Enter Dashboard button */}
+            {isPreviewEnv && (
+              <div className="mt-6 p-4 rounded-lg border border-amber-500/30 bg-amber-500/10">
+                <p className="text-xs text-amber-600 dark:text-amber-400 mb-3 flex items-center gap-2">
+                  <Monitor className="w-3.5 h-3.5" />
+                  <span>Preview Environment Detected</span>
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full border-amber-500/50 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300"
+                  onClick={() => {
+                    localStorage.setItem('auth_token', 'dev_bypass_token');
+                    const now = new Date().toISOString();
+                    localStorage.setItem('bamlead_user_cache', JSON.stringify({
+                      id: 999001,
+                      email: 'dev@bamlead.com',
+                      name: 'Dev User',
+                      role: 'admin',
+                      subscription_status: 'active',
+                      subscription_plan: 'preview_bypass',
+                      trial_ends_at: null,
+                      subscription_ends_at: null,
+                      is_owner: true,
+                      has_active_subscription: true,
+                      created_at: now,
+                    }));
+                    window.dispatchEvent(new Event('bamlead-auth-changed'));
+                    navigate('/dashboard', { replace: true });
+                  }}
+                >
+                  <Monitor className="w-4 h-4 mr-2" />
+                  Enter Dashboard (Preview Mode)
+                </Button>
+                <p className="text-[10px] text-muted-foreground mt-2 text-center">
+                  Production login may fail in preview due to CORS restrictions
+                </p>
+              </div>
+            )}
 
             {/* Demo mode removed - always uses real backend */}
 
