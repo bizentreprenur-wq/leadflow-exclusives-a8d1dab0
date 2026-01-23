@@ -746,10 +746,19 @@ export default function EmailSetupFlow({
                   </TooltipProvider>
                 </div>
                 
-                {/* Guidance message */}
-                <div className="flex items-center gap-2 px-1 pb-2 text-xs text-muted-foreground">
-                  <span className="text-primary">↑</span>
-                  <span>Click <strong className="text-foreground">Preview</strong>, <strong className="text-foreground">CRM</strong>, <strong className="text-foreground">A/B</strong>, <strong className="text-foreground">Edit</strong>, or <strong className="text-foreground">SMTP</strong> above to configure and start sending emails</span>
+                {/* Guidance message - prominent call to action */}
+                <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-primary/10 to-amber-500/10 border border-primary/20 rounded-lg mb-2">
+                  <div className="flex items-center justify-center w-8 h-8 bg-primary/20 rounded-full animate-pulse">
+                    <span className="text-primary text-lg">👆</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-semibold text-foreground">
+                      Get Started: Click the tabs above!
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      Select <strong className="text-primary">Preview</strong>, <strong className="text-primary">CRM</strong>, <strong className="text-primary">A/B</strong>, <strong className="text-primary">Edit</strong>, or <strong className="text-primary">SMTP</strong> to configure your email campaign
+                    </span>
+                  </div>
                 </div>
               </CardHeader>
 
