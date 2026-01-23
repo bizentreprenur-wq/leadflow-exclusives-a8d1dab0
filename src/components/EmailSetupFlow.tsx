@@ -419,68 +419,6 @@ export default function EmailSetupFlow({
               </Badge>
             </div>
 
-            {selectedTemplate && (
-              <Card className="border-2 border-success/50 bg-gradient-to-r from-success/10 to-green-500/5">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl bg-success/20 flex items-center justify-center">
-                        <CheckCircle2 className="w-6 h-6 text-success" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-lg">Your Selected Template</h3>
-                          <Badge className="bg-success text-white text-xs">Active</Badge>
-                          {customizedContent && (
-                            <Badge variant="outline" className="border-warning text-warning text-xs">Customized</Badge>
-                          )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          {selectedTemplate.name} • {selectedTemplate.category || 'General'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setShowTemplateEditor(true)} className="gap-2">
-                        <FileText className="w-4 h-4" />
-                        Edit Template
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={handleClearTemplate} className="text-muted-foreground hover:text-destructive">
-                        Choose Different
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="bg-background/80 rounded-lg p-4 border border-border">
-                    <div className="mb-3">
-                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Subject Line</p>
-                      <p className="font-semibold text-foreground">
-                        {customizedContent?.subject || selectedTemplate.subject}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Preview</p>
-                      <p className="text-sm text-muted-foreground line-clamp-3">
-                        {(customizedContent?.body || selectedTemplate.body || '').replace(/<[^>]*>/g, '').slice(0, 200)}...
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-                    <p className="text-sm text-muted-foreground">
-                      Ready to send to <span className="font-bold text-success">{leadsWithEmail.length}</span> leads
-                    </p>
-                    <Button 
-                      onClick={() => setCurrentPhase('send')}
-                      className="gap-2 bg-gradient-to-r from-success to-green-600 hover:from-success/90 hover:to-green-700"
-                    >
-                      <Send className="w-4 h-4" />
-                      Use This Template & Continue
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
 
             {showTemplateEditor && selectedTemplate && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -595,6 +533,70 @@ export default function EmailSetupFlow({
                 onSelectTemplate={handleTemplateSelect}
                 selectedTemplateId={selectedTemplate?.id}
               />
+
+              {/* Your Selected Template - appears below the gallery */}
+              {selectedTemplate && (
+                <Card className="border-2 border-success/50 bg-gradient-to-r from-success/10 to-green-500/5 mt-6">
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-success/20 flex items-center justify-center">
+                          <CheckCircle2 className="w-6 h-6 text-success" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-bold text-lg">Your Selected Template</h3>
+                            <Badge className="bg-success text-white text-xs">Active</Badge>
+                            {customizedContent && (
+                              <Badge variant="outline" className="border-warning text-warning text-xs">Customized</Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {selectedTemplate.name} • {selectedTemplate.category || 'General'}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setShowTemplateEditor(true)} className="gap-2">
+                          <FileText className="w-4 h-4" />
+                          Edit Template
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={handleClearTemplate} className="text-muted-foreground hover:text-destructive">
+                          Choose Different
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="bg-background/80 rounded-lg p-4 border border-border">
+                      <div className="mb-3">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Subject Line</p>
+                        <p className="font-semibold text-foreground">
+                          {customizedContent?.subject || selectedTemplate.subject}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Preview</p>
+                        <p className="text-sm text-muted-foreground line-clamp-3">
+                          {(customizedContent?.body || selectedTemplate.body || '').replace(/<[^>]*>/g, '').slice(0, 200)}...
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+                      <p className="text-sm text-muted-foreground">
+                        Ready to send to <span className="font-bold text-success">{leadsWithEmail.length}</span> leads
+                      </p>
+                      <Button 
+                        onClick={() => setCurrentPhase('send')}
+                        className="gap-2 bg-gradient-to-r from-success to-green-600 hover:from-success/90 hover:to-green-700"
+                      >
+                        <Send className="w-4 h-4" />
+                        Use This Template & Continue
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           </div>
         );
@@ -681,7 +683,7 @@ export default function EmailSetupFlow({
                             <Image className="w-4 h-4" />
                           </div>
                           <div className="flex flex-col">
-                            <span className="font-medium text-foreground">Your Business Logo</span>
+                            <span className="font-medium text-foreground">Upload Business Logo</span>
                             <span className="text-xs">Brand your emails</span>
                           </div>
                           <Upload className="w-4 h-4 ml-1" />
