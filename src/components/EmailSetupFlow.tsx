@@ -557,7 +557,11 @@ export default function EmailSetupFlow({
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => setShowTemplateEditor(true)} className="gap-2">
+                        <Button 
+                          size="sm" 
+                          onClick={() => setShowTemplateEditor(true)} 
+                          className="gap-2 bg-muted hover:bg-muted/80 text-foreground border border-border rounded-full px-4"
+                        >
                           <FileText className="w-4 h-4" />
                           Edit Template
                         </Button>
