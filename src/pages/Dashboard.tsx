@@ -243,6 +243,18 @@ export default function Dashboard() {
   }, [searchParams, refreshUser, celebrate]);
 
   const handleLogout = async () => {
+    // Clear all session/localStorage state so user sees default view on next login
+    sessionStorage.removeItem('bamlead_current_step');
+    sessionStorage.removeItem('bamlead_search_type');
+    sessionStorage.removeItem('bamlead_query');
+    sessionStorage.removeItem('bamlead_location');
+    sessionStorage.removeItem('bamlead_search_results');
+    sessionStorage.removeItem('bamlead_email_leads');
+    sessionStorage.removeItem('leadsToVerify');
+    sessionStorage.removeItem('savedLeads');
+    localStorage.removeItem('bamlead_selected_leads');
+    localStorage.removeItem('bamlead_step2_visited');
+    
     await logout();
     navigate('/');
   };
