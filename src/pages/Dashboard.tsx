@@ -175,6 +175,7 @@ export default function Dashboard() {
   
   // Search filter options
   const [filterNoWebsite, setFilterNoWebsite] = useState(false);
+  const [phoneLeadsOnly, setPhoneLeadsOnly] = useState(false);
   
   // Settings tab to open (for deep-linking)
   const [settingsInitialTab, setSettingsInitialTab] = useState<string>('integrations');
@@ -372,6 +373,18 @@ export default function Dashboard() {
       }
       
       console.log('[BamLead] Search complete, finalResults:', finalResults.length);
+      
+      // Apply Phone Leads Only filter if enabled
+      if (phoneLeadsOnly) {
+        const beforeCount = finalResults.length;
+        finalResults = finalResults.filter(r => r.phone && r.phone.trim() !== '');
+        console.log(`[BamLead] Phone filter applied: ${beforeCount} → ${finalResults.length} leads with phone numbers`);
+        if (finalResults.length === 0) {
+          toast.warning('No leads with phone numbers found. Try a broader search.');
+        } else {
+          toast.info(`Filtered to ${finalResults.length} leads with phone numbers for AI calling`);
+        }
+      }
       
       // Apply AI scoring to all leads immediately (sorts by Hot/Warm/Cold)
       const scoredResults = quickScoreLeads(finalResults) as SearchResult[];
@@ -991,6 +1004,29 @@ export default function Dashboard() {
                         </label>
                       </div>
                     )}
+
+                    {/* Phone Leads Only Filter - Available for both search types */}
+                    <div className="p-4 rounded-lg border-2 border-green-500/30 bg-green-500/5">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <Checkbox
+                          checked={phoneLeadsOnly}
+                          onCheckedChange={(checked) => setPhoneLeadsOnly(checked === true)}
+                        />
+                        <div>
+                          <span className="font-medium text-green-600">📞 Phone Leads Only (for AI Calling)</span>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Prioritize leads with phone numbers for Step 4 AI voice outreach — perfect for cold calling campaigns!
+                          </p>
+                        </div>
+                      </label>
+                      {phoneLeadsOnly && (
+                        <div className="mt-3 p-2 rounded-lg bg-green-500/10 border border-green-500/20">
+                          <p className="text-xs text-green-600 font-medium">
+                            ✓ Results will be filtered to only show businesses with phone numbers
+                          </p>
+                        </div>
+                      )}
+                    </div>
 
                     <Button
                       onClick={handleSearch}
