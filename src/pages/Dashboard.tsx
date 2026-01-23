@@ -1065,6 +1065,21 @@ export default function Dashboard() {
                       )}
                     </div>
 
+                    {/* Expectation-setting message */}
+                    <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-start gap-3">
+                      <div className="shrink-0 mt-0.5">
+                        <span className="text-amber-500 text-lg">💡</span>
+                      </div>
+                      <div>
+                        <p className="text-sm text-amber-200/90 font-medium">
+                          Results may vary slightly from your selection
+                        </p>
+                        <p className="text-xs text-amber-200/70 mt-0.5">
+                          We scan multiple sources to bring you the best leads — sometimes fewer, sometimes more. Quality over quantity, always!
+                        </p>
+                      </div>
+                    </div>
+
                     <Button
                       onClick={handleSearch}
                       disabled={isSearching || (searchType === 'platform' && selectedPlatforms.length === 0)}
