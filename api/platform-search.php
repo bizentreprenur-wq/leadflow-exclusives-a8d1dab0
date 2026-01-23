@@ -109,6 +109,9 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50) {
 
     $unique = [];
     $seen = [];
+    $hasSerpApi = defined('SERPAPI_KEY') && !empty(SERPAPI_KEY);
+    $hasGoogleApi = !empty(GOOGLE_API_KEY) && !empty(GOOGLE_SEARCH_ENGINE_ID);
+    $hasBingApi = !empty(BING_API_KEY);
 
     $addResults = function($results) use (&$unique, &$seen) {
         foreach ($results as $result) {
@@ -128,23 +131,25 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50) {
         $remaining = $limit - count($unique);
 
         // Search using SerpAPI if key is available (preferred)
-        if (defined('SERPAPI_KEY') && !empty(SERPAPI_KEY)) {
+        if ($hasSerpApi) {
             $addResults(searchSerpApi($service, $location, $group, $remaining));
         }
         // Fallback: Search Google if API key is available
-        elseif (!empty(GOOGLE_API_KEY) && !empty(GOOGLE_SEARCH_ENGINE_ID)) {
+        elseif ($hasGoogleApi) {
             $addResults(searchGoogle($service, $location, $group, $remaining));
         }
 
         // Search Bing if API key is available
-        if (!empty(BING_API_KEY)) {
+        if ($hasBingApi) {
             $addResults(searchBing($service, $location, $group, $remaining));
         }
     }
 
-    // If no APIs configured or no results, throw error - NO MOCK DATA
     if (empty($unique)) {
-        throw new Exception('No search API configured. Please set SERPAPI_KEY, GOOGLE_API_KEY, or BING_API_KEY in config.php');
+        if (!$hasSerpApi && !$hasGoogleApi && !$hasBingApi) {
+            throw new Exception('No search API configured. Please set SERPAPI_KEY, GOOGLE_API_KEY, or BING_API_KEY in config.php');
+        }
+        throw new Exception('Search API returned 0 results. Verify your API keys or try a different query.');
     }
     
     // Use QUICK website analysis (URL-based only) to avoid timeouts
@@ -248,12 +253,17 @@ function searchSerpApi($service, $location, $platformQueries, $limit = 100) {
         $response = curlRequest($url);
         
         if ($response['httpCode'] !== 200) {
-            if (DEBUG_MODE) {
-                error_log('SerpAPI error: ' . $response['httpCode'] . ' - ' . $response['response']);
+            $message = 'SerpAPI error: HTTP ' . $response['httpCode'];
+            $decoded = json_decode($response['response'], true);
+            if (is_array($decoded)) {
+                $message = $decoded['error'] ?? $decoded['error_message'] ?? $message;
             }
-            // If first page fails, return empty; otherwise return what we have
+            if (DEBUG_MODE) {
+                error_log($message . ' - ' . $response['response']);
+            }
+            // If first page fails, throw a clear error; otherwise return what we have.
             if ($page === 0) {
-                return $results;
+                throw new Exception($message);
             }
             break;
         }
