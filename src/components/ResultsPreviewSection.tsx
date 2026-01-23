@@ -1,5 +1,6 @@
-import { Star, Globe, Gauge, Phone, Mail, ExternalLink, AlertCircle, TrendingUp, Zap } from "lucide-react";
+import { Star, Globe, Gauge, Phone, Mail, AlertCircle, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import WebsitePreviewIcon from "./WebsitePreviewIcon";
 
 const mockResults = [
   {
@@ -73,7 +74,14 @@ const ResultsPreviewSection = () => {
                         <span className="text-xl font-bold text-primary">{result.name.charAt(0)}</span>
                       </div>
                       <div>
-                        <h3 className="text-lg font-bold text-foreground mb-1">{result.name}</h3>
+                        <h3 className="text-lg font-bold text-foreground mb-1 flex items-center gap-2">
+                          {result.name}
+                          <WebsitePreviewIcon 
+                            website={result.website} 
+                            businessName={result.name}
+                            size="md"
+                          />
+                        </h3>
                         <div className="flex items-center gap-3 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <Star className="w-4 h-4 text-primary fill-primary" />

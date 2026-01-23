@@ -24,6 +24,7 @@ import {
   Sparkles, Database, Clock, FileText,
   Send, Calendar, ChevronRight
 } from 'lucide-react';
+import WebsitePreviewIcon from './WebsitePreviewIcon';
 import { Skeleton } from '@/components/ui/skeleton';
 import StreamingLeadsIndicator from '@/components/StreamingLeadsIndicator';
 import {
@@ -676,14 +677,22 @@ export default function SimpleLeadViewer({
                           {getClassBadge(lead.aiClassification)}
                         </TableCell>
                         <TableCell>
-                          <div>
-                            <p className="font-medium">{lead.name}</p>
-                            {lead.website && (
-                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                <Globe className="w-3 h-3" />
-                                {lead.website.replace(/^https?:\/\//, '').split('/')[0]}
-                              </p>
-                            )}
+                          <div className="flex items-center gap-1">
+                            <div>
+                              <p className="font-medium">{lead.name}</p>
+                              {lead.website && (
+                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                  <Globe className="w-3 h-3" />
+                                  {lead.website.replace(/^https?:\/\//, '').split('/')[0]}
+                                </p>
+                              )}
+                            </div>
+                            {/* Website Preview Icon */}
+                            <WebsitePreviewIcon 
+                              website={lead.website} 
+                              businessName={lead.name}
+                              size="sm"
+                            />
                           </div>
                         </TableCell>
                         <TableCell>
