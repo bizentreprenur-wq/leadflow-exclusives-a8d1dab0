@@ -560,7 +560,7 @@ export default function EmailSetupFlow({
                         <Button 
                           size="sm" 
                           onClick={() => setShowTemplateEditor(true)} 
-                          className="gap-2 bg-muted hover:bg-muted/80 text-foreground border border-border rounded-full px-4"
+                          className="gap-2 bg-black hover:bg-black/80 text-white rounded-full px-4"
                         >
                           <FileText className="w-4 h-4" />
                           Edit Template
