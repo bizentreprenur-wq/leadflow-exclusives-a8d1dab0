@@ -681,7 +681,7 @@ export default function EmailSetupFlow({
                             <Image className="w-4 h-4" />
                           </div>
                           <div className="flex flex-col">
-                            <span className="font-medium text-foreground">Upload Logo</span>
+                            <span className="font-medium text-foreground">Your Business Logo</span>
                             <span className="text-xs">Brand your emails</span>
                           </div>
                           <Upload className="w-4 h-4 ml-1" />
