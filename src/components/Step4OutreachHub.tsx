@@ -10,8 +10,11 @@ import { toast } from 'sonner';
 import {
   Phone, Calendar as CalendarIcon, Database, ArrowLeft, Home,
   CheckCircle2, ExternalLink, Clock, Users, Video, Link2,
-  Sparkles, Info, AlertTriangle, Plus, Settings2, Send, Loader2, RefreshCw
+  Sparkles, Info, AlertTriangle, Plus, Settings2, Send, Loader2, RefreshCw,
+  PlayCircle, ListOrdered
 } from 'lucide-react';
+import CallQueueModal from './CallQueueModal';
+import type { CallOutcome } from '@/lib/api/callLogs';
 import { 
   connectGoogleCalendar, 
   checkGoogleCalendarStatus, 
@@ -103,8 +106,22 @@ export default function Step4OutreachHub({
   const [isConnecting, setIsConnecting] = useState<string | null>(null);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [isScheduling, setIsScheduling] = useState<string | null>(null);
+  
+  // Bulk Call Queue Modal state
+  const [showCallQueue, setShowCallQueue] = useState(false);
+  const [callQueueLeads, setCallQueueLeads] = useState<any[]>([]);
+  const [completedCalls, setCompletedCalls] = useState<string[]>([]);
 
-  const callableLeads = leads.filter(l => l.phone);
+  // Get callable leads and also check for imported leads
+  const importedLeads = (() => {
+    try {
+      const saved = sessionStorage.getItem('imported_phone_leads');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  })();
+  
+  const allCallableLeads = [...leads.filter(l => l.phone), ...importedLeads];
+  const callableLeads = allCallableLeads.filter(l => !completedCalls.includes(l.id || l.business_name));
   const emailableLeads = leads.filter(l => l.email);
 
   // Check Google Calendar connection on mount and URL params
@@ -261,6 +278,38 @@ export default function Step4OutreachHub({
     setShowWizard(false);
   };
 
+  // Handle starting bulk call queue
+  const handleStartBulkCalls = () => {
+    if (!agentId) {
+      setShowWizard(true);
+      return;
+    }
+    if (callableLeads.length === 0) {
+      toast.error('No leads with phone numbers to call');
+      return;
+    }
+    // Convert leads to CallQueueModal format
+    const queueLeads = callableLeads.map((lead, index) => ({
+      id: lead.id || `lead-${index}`,
+      name: lead.business_name || lead.name || 'Unknown Business',
+      phone: lead.phone,
+      email: lead.email,
+      website: lead.website,
+    }));
+    setCallQueueLeads(queueLeads);
+    setShowCallQueue(true);
+  };
+
+  const handleCallComplete = (leadId: string, outcome: CallOutcome, duration: number) => {
+    setCompletedCalls(prev => [...prev, leadId]);
+    toast.success(`Call completed: ${outcome} (${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, '0')})`);
+  };
+
+  const handleQueueComplete = () => {
+    setShowCallQueue(false);
+    toast.success('🎉 All calls completed! Check your call analytics for results.');
+  };
+
   return (
     <>
       {/* Voice Agent Setup Wizard */}
@@ -272,6 +321,16 @@ export default function Step4OutreachHub({
           />
         )}
       </AnimatePresence>
+
+      {/* Bulk Call Queue Modal */}
+      <CallQueueModal
+        open={showCallQueue}
+        onOpenChange={setShowCallQueue}
+        leads={callQueueLeads}
+        onCallComplete={handleCallComplete}
+        onOpenSettings={onOpenSettings}
+        onQueueComplete={handleQueueComplete}
+      />
 
       <div className="space-y-6 max-w-6xl mx-auto">
         {/* Back Buttons - Home and Previous */}
@@ -645,18 +704,53 @@ export default function Step4OutreachHub({
 
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
                   <CardTitle className="flex items-center gap-2"><Phone className="w-5 h-5 text-green-500" />Phone Leads Queue ({callableLeads.length} leads)</CardTitle>
                   <CardDescription>All leads with phone numbers ready for AI calling</CardDescription>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
                     {callableLeads.filter(l => !l.email).length} phone-only
                   </Badge>
                   <Button onClick={onOpenSettings} variant="outline" size="sm" className="gap-2"><Settings2 className="w-4 h-4" />Voice Settings</Button>
                 </div>
               </div>
+              
+              {/* Bulk Call Queue Button */}
+              {callableLeads.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-4 p-4 rounded-xl bg-gradient-to-r from-green-500/10 via-emerald-500/5 to-green-500/10 border-2 border-green-500/30"
+                >
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+                        <ListOrdered className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-green-600 dark:text-green-400">🚀 Start Bulk Call Queue</h3>
+                        <p className="text-sm text-muted-foreground">Auto-dial through all {callableLeads.length} leads with your AI voice agent</p>
+                      </div>
+                    </div>
+                    <Button 
+                      onClick={handleStartBulkCalls}
+                      size="lg"
+                      className="gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg"
+                    >
+                      <PlayCircle className="w-5 h-5" />
+                      Start Bulk Calls
+                    </Button>
+                  </div>
+                  {completedCalls.length > 0 && (
+                    <div className="mt-3 flex items-center gap-2 text-sm text-green-600">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>{completedCalls.length} calls completed this session</span>
+                    </div>
+                  )}
+                </motion.div>
+              )}
             </CardHeader>
             <CardContent>
               {callableLeads.length === 0 ? (
