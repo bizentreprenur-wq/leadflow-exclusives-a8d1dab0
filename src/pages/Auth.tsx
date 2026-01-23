@@ -14,9 +14,12 @@ import { createCheckoutSession } from '@/lib/api/stripe';
 import BackButton from '@/components/BackButton';
 
 // Dev bypass for preview environments only
-const isPreviewEnv = window.location.hostname.includes('lovable.app') || 
-                     window.location.hostname.includes('lovableproject.com') ||
-                     window.location.hostname === 'localhost';
+// NOTE: published apps can also be on *.lovable.app, so we only treat the preview subdomain as "preview".
+const hostname = window.location.hostname;
+const isPreviewEnv =
+  hostname === 'localhost' ||
+  hostname.includes('lovableproject.com') ||
+  hostname.startsWith('id-preview--');
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
@@ -119,7 +122,8 @@ export default function Auth() {
     setIsLoading(true);
     
     // Preview environment test login - admin@test.com / admin123
-    if (isPreviewEnv && trimmedEmail === 'admin@test.com' && loginPassword === 'admin123') {
+    // Trim password to avoid confusion with copy/paste whitespace.
+    if (isPreviewEnv && trimmedEmail === 'admin@test.com' && loginPassword.trim() === 'admin123') {
       console.log('[Auth] Preview test login activated');
       localStorage.setItem('auth_token', 'preview_test_token');
       localStorage.setItem('bamlead_user_cache', JSON.stringify({
