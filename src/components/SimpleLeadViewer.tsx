@@ -88,7 +88,7 @@ export default function SimpleLeadViewer({
   loadingProgress = 0,
 }: SimpleLeadViewerProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [activeFilter, setActiveFilter] = useState<'all' | 'hot' | 'warm' | 'cold' | 'ready' | 'nosite'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'hot' | 'warm' | 'cold' | 'ready' | 'nosite' | 'phoneOnly' | 'withEmail'>('all');
   const [showSaved, setShowSaved] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -119,6 +119,8 @@ export default function SimpleLeadViewer({
     cold: leads.filter(l => l.aiClassification === 'cold').length,
     ready: leads.filter(l => l.readyToCall || l.phone).length,
     nosite: leads.filter(l => !l.website || l.websiteAnalysis?.hasWebsite === false).length,
+    phoneOnly: leads.filter(l => l.phone && !l.email).length,
+    withEmail: leads.filter(l => l.email).length,
   }), [leads]);
 
   const filteredLeads = useMemo(() => {
@@ -130,6 +132,10 @@ export default function SimpleLeadViewer({
       result = result.filter(l => l.readyToCall || l.phone);
     } else if (activeFilter === 'nosite') {
       result = result.filter(l => !l.website || l.websiteAnalysis?.hasWebsite === false);
+    } else if (activeFilter === 'phoneOnly') {
+      result = result.filter(l => l.phone && !l.email);
+    } else if (activeFilter === 'withEmail') {
+      result = result.filter(l => l.email);
     }
     
     if (searchQuery.trim()) {
@@ -471,6 +477,30 @@ export default function SimpleLeadViewer({
         <Sparkles className="w-4 h-4 text-amber-500" />
       </div>
 
+      {/* Phone Only Stats Banner - only show when phone-only leads exist */}
+      {groupedCounts.phoneOnly > 0 && (
+        <div className="flex items-center justify-between py-3 px-4 rounded-lg bg-green-500/10 border border-green-500/30">
+          <div className="flex items-center gap-3">
+            <Phone className="w-5 h-5 text-green-500" />
+            <div>
+              <span className="text-green-400 font-semibold">{groupedCounts.phoneOnly} leads</span>
+              <span className="text-green-300/80 ml-2">have phone numbers but no email — perfect for direct calling!</span>
+            </div>
+          </div>
+          <Button 
+            size="sm" 
+            className="gap-2 bg-green-600 hover:bg-green-700"
+            onClick={() => {
+              setActiveFilter('phoneOnly');
+              toast.success(`Showing ${groupedCounts.phoneOnly} phone-only leads`);
+            }}
+          >
+            <Phone className="w-4 h-4" />
+            View Phone-Only Leads
+          </Button>
+        </div>
+      )}
+
       {/* Filters & Search Row */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
@@ -479,6 +509,8 @@ export default function SimpleLeadViewer({
             { key: 'hot', label: 'Hot', icon: Flame, count: groupedCounts.hot, color: 'text-red-500', activeColor: 'bg-red-500 hover:bg-red-600' },
             { key: 'warm', label: 'Warm', icon: Thermometer, count: groupedCounts.warm, color: 'text-orange-500', activeColor: 'bg-orange-500 hover:bg-orange-600' },
             { key: 'cold', label: 'Cold', icon: Snowflake, count: groupedCounts.cold, color: 'text-blue-500', activeColor: 'bg-blue-500 hover:bg-blue-600' },
+            { key: 'withEmail', label: 'Has Email', icon: Mail, count: groupedCounts.withEmail, color: 'text-cyan-500', activeColor: 'bg-cyan-500 hover:bg-cyan-600' },
+            { key: 'phoneOnly', label: 'Phone Only', icon: Phone, count: groupedCounts.phoneOnly, color: 'text-green-500', activeColor: 'bg-green-500 hover:bg-green-600' },
             { key: 'ready', label: 'Ready', icon: Phone, count: groupedCounts.ready, color: 'text-emerald-500', activeColor: 'bg-emerald-500 hover:bg-emerald-600' },
             { key: 'nosite', label: 'No Site', icon: Globe, count: groupedCounts.nosite, color: 'text-purple-500', activeColor: 'bg-purple-500 hover:bg-purple-600' },
           ].map((filter) => (
@@ -661,9 +693,19 @@ export default function SimpleLeadViewer({
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
                           {lead.phone ? (
-                            <span className="text-sm">{lead.phone}</span>
+                            <a 
+                              href={`tel:${lead.phone.replace(/[^+\d]/g, '')}`}
+                              className="text-sm text-green-500 hover:text-green-400 hover:underline flex items-center gap-1 transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toast.success(`Calling ${lead.name}...`, { description: lead.phone });
+                              }}
+                            >
+                              <Phone className="w-3 h-3" />
+                              {lead.phone}
+                            </a>
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
