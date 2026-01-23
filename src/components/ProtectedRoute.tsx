@@ -29,7 +29,15 @@ export function ProtectedRoute({
 
   // SECURITY: Always verify auth server-side, never trust client cache alone
   if (!isAuthenticated) {
-    return <Navigate to="/auth" state={{ from: location }} replace />;
+    const params = new URLSearchParams(location.search);
+    const devBypass = params.get('devBypass') === 'true';
+    return (
+      <Navigate
+        to={devBypass ? '/auth?devBypass=true' : '/auth'}
+        state={{ from: location }}
+        replace
+      />
+    );
   }
 
   // SECURITY: Role checks MUST be enforced server-side
