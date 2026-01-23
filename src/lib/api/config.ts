@@ -8,7 +8,7 @@
 // You can always override with:
 // - `?mockAuth=true`  (force mock)
 // - `?mockAuth=false` (force real backend)
-function isLovablePreviewHost(hostname: string): boolean {
+export function isLovablePreviewHost(hostname: string): boolean {
   // Preview URLs look like: id-preview--<uuid>.lovable.app
   // Published URLs look like: <project>.lovable.app
   if (hostname.startsWith('id-preview--')) return true;
