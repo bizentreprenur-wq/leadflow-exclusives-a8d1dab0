@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -109,6 +110,7 @@ export default function Step4OutreachHub({
   
   // Bulk Call Queue Modal state
   const [showCallQueue, setShowCallQueue] = useState(false);
+  const [showCRMInfoModal, setShowCRMInfoModal] = useState(false);
   const [callQueueLeads, setCallQueueLeads] = useState<any[]>([]);
   const [completedCalls, setCompletedCalls] = useState<string[]>([]);
 
@@ -1008,7 +1010,12 @@ export default function Step4OutreachHub({
                   You're currently using BAMLEAD CRM. After 14 days, a subscription is required to continue using premium CRM features.
                 </p>
               </div>
-              <Button variant="outline" size="sm" className="shrink-0 gap-1 border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/10">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowCRMInfoModal(true)}
+                className="shrink-0 gap-1 border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/10"
+              >
                 <Info className="w-3 h-3" />Learn More
               </Button>
             </div>
@@ -1077,6 +1084,62 @@ export default function Step4OutreachHub({
         </TabsContent>
       </Tabs>
       </div>
+      {/* CRM Learn More Dialog */}
+      <Dialog open={showCRMInfoModal} onOpenChange={setShowCRMInfoModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="text-2xl">🎯</span> BAMLEAD CRM – 14-Day Free Trial
+            </DialogTitle>
+            <DialogDescription>
+              Everything you need to manage your leads in one place
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-3">
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">Unlimited Lead Storage</p>
+                  <p className="text-sm text-muted-foreground">Store and organize all your leads with smart tagging and filtering.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">AI-Powered Insights</p>
+                  <p className="text-sm text-muted-foreground">Get intelligent recommendations and lead scoring to prioritize outreach.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">Integrated Email & Calling</p>
+                  <p className="text-sm text-muted-foreground">Send emails and make calls directly from the CRM dashboard.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">Analytics & Reports</p>
+                  <p className="text-sm text-muted-foreground">Track conversion rates, engagement metrics, and ROI in real-time.</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
+              <p className="text-sm text-amber-600 dark:text-amber-400">
+                <strong>After your 14-day trial:</strong> Continue with a subscription to keep using all premium CRM features. Your data remains safe and accessible.
+              </p>
+            </div>
+            <Button 
+              onClick={() => setShowCRMInfoModal(false)} 
+              className="w-full bg-emerald-600 hover:bg-emerald-700"
+            >
+              Got it, thanks!
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
