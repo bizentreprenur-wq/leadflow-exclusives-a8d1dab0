@@ -9,11 +9,12 @@ require_once __DIR__ . '/../config.php';
  * Check if origin is a Lovable preview/project domain
  */
 function isLovableOrigin($origin) {
-    // Match Lovable preview and project domains
-    // Patterns: *.lovableproject.com, *.lovable.app, *-preview--*.lovable.app
-    return preg_match('/^https:\/\/[a-z0-9-]+\.lovableproject\.com$/', $origin) ||
-           preg_match('/^https:\/\/[a-z0-9-]+-preview--[a-z0-9-]+\.lovable\.app$/', $origin) ||
-           preg_match('/^https:\/\/[a-z0-9-]+\.lovable\.app$/', $origin);
+    // Match all Lovable domains more permissively
+    // Patterns: *.lovableproject.com, *.lovable.app, any subdomain combination
+    return preg_match('/^https:\/\/[a-z0-9\-\.]+\.lovableproject\.com$/i', $origin) ||
+           preg_match('/^https:\/\/[a-z0-9\-\.]+\.lovable\.app$/i', $origin) ||
+           strpos($origin, 'lovableproject.com') !== false ||
+           strpos($origin, 'lovable.app') !== false;
 }
 
 /**
