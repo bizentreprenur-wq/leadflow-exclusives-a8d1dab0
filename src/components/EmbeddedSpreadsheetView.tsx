@@ -372,8 +372,10 @@ export default function EmbeddedSpreadsheetView({
       toast.error('Please select at least one lead to email');
       return;
     }
-    // Show transition modal instead of directly proceeding
-    setShowEmailTransition(true);
+    // Go directly to Step 3 without the transition modal
+    if (onSendToEmail) {
+      onSendToEmail(selectedLeads);
+    }
   };
 
   const handleConfirmEmailTransition = () => {
