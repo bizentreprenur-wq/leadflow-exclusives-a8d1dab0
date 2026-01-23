@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import CRMIntegrationModal from './CRMIntegrationModal';
+import WebsitePreviewIcon from './WebsitePreviewIcon';
 import EmailScheduleModal from './EmailScheduleModal';
 import LeadCallModal from './LeadCallModal';
 import CallQueueModal from './CallQueueModal';
@@ -1388,16 +1389,16 @@ export default function EmbeddedSpreadsheetView({
                 </TableCell>
                 <TableCell>
                   {lead.website ? (
-                    <a
-                      href={`https://${lead.website}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex items-center gap-1 text-xs text-primary hover:underline"
-                    >
-                      <ExternalLink className="w-3 h-3" />
-                      <span className="truncate max-w-[100px]">{lead.website}</span>
-                    </a>
+                    <div className="flex items-center gap-1">
+                      <WebsitePreviewIcon 
+                        website={lead.website} 
+                        businessName={lead.name}
+                        size="sm"
+                      />
+                      <span className="truncate max-w-[80px] text-xs text-muted-foreground">
+                        {lead.website.replace(/^https?:\/\//, '').split('/')[0]}
+                      </span>
+                    </div>
                   ) : (
                     <span className="text-xs text-muted-foreground">No website</span>
                   )}

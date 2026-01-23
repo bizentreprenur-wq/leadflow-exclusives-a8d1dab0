@@ -26,6 +26,7 @@ import {
 import { LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } from '@/lib/api/leadAnalysis';
 import LeadClassificationPanel from '@/components/LeadClassificationPanel';
 import { LeadResultsPanelSkeleton, LeadRowSkeleton } from '@/components/ui/loading-skeletons';
+import WebsitePreviewIcon from './WebsitePreviewIcon';
 
 interface SearchResult {
   id: string;
@@ -642,6 +643,12 @@ function LeadCard({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <h4 className="font-medium truncate">{lead.name}</h4>
+          {/* Website Preview Icon */}
+          <WebsitePreviewIcon 
+            website={lead.website} 
+            businessName={lead.name}
+            size="sm"
+          />
           {lead.rating && (
             <Badge variant="secondary" className="gap-1 shrink-0">
               <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
