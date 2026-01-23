@@ -41,14 +41,22 @@ export default function Auth() {
     if (devBypass && isPreviewEnv) {
       console.log('[Auth] Dev bypass activated - redirecting to dashboard');
       localStorage.setItem('auth_token', 'dev_bypass_token');
+      const now = new Date().toISOString();
       localStorage.setItem('bamlead_user_cache', JSON.stringify({
-        id: 'dev-user',
+        id: 999001,
         email: 'dev@bamlead.com',
         name: 'Dev User',
         role: 'admin',
+        subscription_status: 'active',
+        subscription_plan: 'preview_bypass',
+        trial_ends_at: null,
+        subscription_ends_at: null,
         is_owner: true,
-        has_active_subscription: true
+        has_active_subscription: true,
+        created_at: now,
       }));
+      // Notify AuthContext in the same tab (storage events don't fire in the same document)
+      window.dispatchEvent(new Event('bamlead-auth-changed'));
       navigate('/dashboard', { replace: true });
     }
   }, [devBypass, navigate]);
@@ -126,14 +134,21 @@ export default function Auth() {
     if (isPreviewEnv && trimmedEmail === 'admin@test.com' && loginPassword.trim() === 'admin123') {
       console.log('[Auth] Preview test login activated');
       localStorage.setItem('auth_token', 'preview_test_token');
+      const now = new Date().toISOString();
       localStorage.setItem('bamlead_user_cache', JSON.stringify({
-        id: 'test-admin',
+        id: 999002,
         email: 'admin@test.com',
         name: 'Test Admin',
         role: 'admin',
+        subscription_status: 'active',
+        subscription_plan: 'preview_test',
+        trial_ends_at: null,
+        subscription_ends_at: null,
         is_owner: true,
-        has_active_subscription: true
+        has_active_subscription: true,
+        created_at: now,
       }));
+      window.dispatchEvent(new Event('bamlead-auth-changed'));
       toast.success('Welcome back! (Preview Mode)');
       setIsLoading(false);
       navigate('/dashboard', { replace: true });
