@@ -706,178 +706,23 @@ export default function EmailSetupFlow({
                     {/* MAILBOX VIEW - Default home */}
                     {activeTab === 'mailbox' && (
                       <div className="space-y-6">
-                        {/* SELECTED TEMPLATE WITH INLINE EDITING */}
+                        {/* SELECTED TEMPLATE - Read Only Display */}
                         {selectedTemplate ? (
-                          <div className="rounded-xl border-2 border-success/40 bg-gradient-to-r from-success/10 to-emerald-500/5 overflow-hidden">
-                            {/* Template Header */}
-                            <div className="flex items-center justify-between p-4 border-b border-success/20">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-lg bg-success/20 flex items-center justify-center">
-                                  <CheckCircle2 className="w-5 h-5 text-success" />
-                                </div>
-                                <div>
-                                  <h3 className="font-bold text-foreground flex items-center gap-2">
-                                    {selectedTemplate.name}
-                                    <Badge className="bg-success/20 text-success border-success/40 text-xs">Active</Badge>
-                                    {customizedContent && (
-                                      <Badge variant="outline" className="border-warning/50 text-warning text-xs">Edited</Badge>
-                                    )}
-                                  </h3>
-                                  <p className="text-xs text-muted-foreground">{selectedTemplate.category || 'General'}</p>
-                                </div>
+                          <div className="rounded-xl border-2 border-success/40 bg-gradient-to-r from-success/10 to-emerald-500/5 p-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-success/20 flex items-center justify-center">
+                                <CheckCircle2 className="w-5 h-5 text-success" />
                               </div>
-                              <div className="flex items-center gap-2">
-                                <button 
-                                  onClick={() => setShowTemplateEditor(!showTemplateEditor)}
-                                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-all border-primary bg-primary/20 text-foreground shadow-lg shadow-primary/20"
-                                >
-                                  <FileText className="w-4 h-4" />
-                                  {showTemplateEditor ? 'Hide Editor' : 'Edit Template'}
-                                </button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  onClick={() => setCurrentPhase('template')}
-                                  className="text-muted-foreground hover:text-foreground"
-                                >
-                                  Change Template
-                                </Button>
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-bold text-foreground flex items-center gap-2">
+                                  {selectedTemplate.name}
+                                  <Badge className="bg-success/20 text-success border-success/40 text-xs">Active</Badge>
+                                </h3>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {customizedContent?.subject || selectedTemplate.subject}
+                                </p>
                               </div>
                             </div>
-                            
-                            {/* Inline Template Editor - Expandable */}
-                            <AnimatePresence>
-                              {showTemplateEditor && (
-                                <motion.div
-                                  initial={{ height: 0, opacity: 0 }}
-                                  animate={{ height: 'auto', opacity: 1 }}
-                                  exit={{ height: 0, opacity: 0 }}
-                                  transition={{ duration: 0.2 }}
-                                  className="overflow-hidden"
-                                >
-                                  <div className="p-4 bg-background/50 border-b border-success/20">
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                      {/* Editor Fields */}
-                                      <div className="space-y-4">
-                                        <div>
-                                          <Label htmlFor="mailbox-subject" className="text-sm font-medium flex items-center gap-2">
-                                            Subject Line
-                                            <Badge variant="outline" className="text-xs">Required</Badge>
-                                          </Label>
-                                          <Input 
-                                            id="mailbox-subject"
-                                            value={customizedContent?.subject || selectedTemplate.subject}
-                                            placeholder="Enter your subject line..."
-                                            className="mt-1.5"
-                                            onChange={(e) => {
-                                              const body = customizedContent?.body || selectedTemplate.body || '';
-                                              handleSaveCustomization(e.target.value, body);
-                                            }}
-                                          />
-                                        </div>
-                                        <div>
-                                          <Label htmlFor="mailbox-body" className="text-sm font-medium">Email Body</Label>
-                                          <textarea 
-                                            id="mailbox-body"
-                                            value={(customizedContent?.body || selectedTemplate.body || '').replace(/<[^>]*>/g, '')}
-                                            placeholder="Enter your email content..."
-                                            className="mt-1.5 w-full h-40 p-3 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-                                            onChange={(e) => {
-                                              const subject = customizedContent?.subject || selectedTemplate.subject;
-                                              handleSaveCustomization(subject, e.target.value);
-                                            }}
-                                          />
-                                        </div>
-                                        
-                                        {/* Personalization Tokens */}
-                                        <div className="flex flex-wrap gap-2">
-                                          <span className="text-xs text-muted-foreground">Quick tokens:</span>
-                                          {['{{business_name}}', '{{first_name}}', '{{website}}'].map(token => (
-                                            <button
-                                              key={token}
-                                              onClick={() => {
-                                                const currentBody = customizedContent?.body || selectedTemplate.body || '';
-                                                const subject = customizedContent?.subject || selectedTemplate.subject;
-                                                handleSaveCustomization(subject, currentBody + ' ' + token);
-                                              }}
-                                              className="px-2 py-0.5 text-xs rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                                            >
-                                              {token}
-                                            </button>
-                                          ))}
-                                        </div>
-                                        
-                                        {customizedContent && (
-                                          <div className="flex items-center gap-2">
-                                            <Badge className="bg-success/20 text-success border-success/40 text-xs">
-                                              ✓ Changes saved automatically
-                                            </Badge>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() => {
-                                                setCustomizedContent(null);
-                                                localStorage.removeItem('bamlead_template_customizations');
-                                                toast.info('Reverted to original template');
-                                              }}
-                                              className="text-xs text-muted-foreground hover:text-destructive"
-                                            >
-                                              Reset to Original
-                                            </Button>
-                                          </div>
-                                        )}
-                                      </div>
-                                      
-                                      {/* Live Preview */}
-                                      <div className="bg-background rounded-lg border border-border p-4">
-                                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-2">
-                                          <Eye className="w-3 h-3" />
-                                          Live Preview
-                                        </p>
-                                        <div className="space-y-3">
-                                          <div>
-                                            <p className="text-xs text-muted-foreground">Subject:</p>
-                                            <p className="font-medium text-sm">
-                                              {personalizeContent(
-                                                customizedContent?.subject || selectedTemplate.subject,
-                                                { business_name: 'Acme Corp', first_name: 'John' }
-                                              )}
-                                            </p>
-                                          </div>
-                                          <Separator />
-                                          <div>
-                                            <p className="text-xs text-muted-foreground">Body:</p>
-                                            <p className="text-sm text-foreground/80 whitespace-pre-wrap line-clamp-6">
-                                              {personalizeContent(
-                                                (customizedContent?.body || selectedTemplate.body || '').replace(/<[^>]*>/g, ''),
-                                                { business_name: 'Acme Corp', first_name: 'John', website: 'acme.com' }
-                                              ).slice(0, 300)}...
-                                            </p>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                            
-                            {/* Collapsed Preview */}
-                            {!showTemplateEditor && (
-                              <div className="p-4">
-                                <div className="flex items-start gap-4">
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs text-muted-foreground mb-1">Subject:</p>
-                                    <p className="font-medium text-foreground truncate">
-                                      {customizedContent?.subject || selectedTemplate.subject}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
-                                      {(customizedContent?.body || selectedTemplate.body || '').replace(/<[^>]*>/g, '').slice(0, 150)}...
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
                           </div>
                         ) : (
                           <div className="rounded-xl border-2 border-warning/40 bg-warning/10 p-4">
@@ -888,13 +733,9 @@ export default function EmailSetupFlow({
                                 </div>
                                 <div>
                                   <h3 className="font-bold text-warning">No Template Selected</h3>
-                                  <p className="text-xs text-muted-foreground">Choose a template to start your campaign</p>
+                                  <p className="text-xs text-muted-foreground">Go back to Step 2 to choose a template</p>
                                 </div>
                               </div>
-                              <Button onClick={() => setCurrentPhase('template')} className="gap-2">
-                                <FileText className="w-4 h-4" />
-                                Choose Template
-                              </Button>
                             </div>
                           </div>
                         )}
