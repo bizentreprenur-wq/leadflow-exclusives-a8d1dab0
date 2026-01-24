@@ -10,10 +10,10 @@ const HeroSection = () => {
   const { t } = useLanguage();
 
   const secretFeatures = [
-    { icon: Brain, label: "Pre-Intent Detection", color: "text-primary" },
-    { icon: Heart, label: "Emotional AI", color: "text-accent" },
-    { icon: Eye, label: "Outcome Simulator", color: "text-blue-400" },
-    { icon: Target, label: "Psychological Profiler", color: "text-purple-400" },
+    { icon: Brain, label: "AI Business Intelligence", color: "text-primary" },
+    { icon: Heart, label: "Sales Intelligence", color: "text-accent" },
+    { icon: Eye, label: "Growth Signals", color: "text-blue-400" },
+    { icon: Target, label: "Lead Scoring", color: "text-purple-400" },
   ];
 
   const containerVariants = {
@@ -51,7 +51,7 @@ const HeroSection = () => {
             <motion.div variants={itemVariants}>
               <Badge className="bg-gradient-to-r from-primary/20 to-accent/20 text-primary border border-primary/30 px-4 py-2 backdrop-blur-sm">
                 <Sparkles className="h-3.5 w-3.5 mr-2 animate-pulse" />
-                <span className="font-semibold tracking-wide">AI FEATURES NO ONE ELSE HAS</span>
+                <span className="font-semibold tracking-wide">🤖 SUPER AI BUSINESS INTELLIGENCE</span>
               </Badge>
             </motion.div>
 
@@ -61,15 +61,15 @@ const HeroSection = () => {
               className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-display font-bold leading-[1.05] tracking-tight"
             >
               <span className="bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
-                Predicts intent
+                Find any business.
               </span>
               <br />
               <span className="text-foreground">
-                before they're ready
+                Know everything.
               </span>
               <br />
               <span className="bg-gradient-to-r from-accent via-primary to-accent bg-clip-text text-transparent">
-                to convert
+                Close the deal.
               </span>
             </motion.h1>
 
@@ -78,7 +78,7 @@ const HeroSection = () => {
               variants={itemVariants}
               className="text-lg md:text-xl text-muted-foreground max-w-xl leading-relaxed"
             >
-              Built for <span className="text-primary font-medium">website designers</span>, <span className="text-accent font-medium">social media marketers</span>, and <span className="text-violet-400 font-medium">digital agencies</span>. Find businesses that need your expertise — before your competitors do.
+              The most advanced AI-powered business search. Get <span className="text-primary font-medium">complete intelligence</span> on any business — website health, reviews, social presence, growth signals & more. Built for <span className="text-accent font-medium">sales teams</span>, <span className="text-violet-400 font-medium">agencies</span>, and <span className="text-emerald-400 font-medium">digital professionals</span>.
             </motion.p>
 
             {/* Secret Features Pills */}
@@ -104,7 +104,7 @@ const HeroSection = () => {
                   className="rounded-full px-8 py-6 text-base font-semibold gap-2 group"
                 >
                   <Zap className="w-5 h-5 group-hover:animate-pulse" />
-                  Try Secret AI Features Free
+                  🚀 Try Super AI Search Free
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
@@ -129,7 +129,7 @@ const HeroSection = () => {
                 ))}
               </div>
               <p className="text-sm text-muted-foreground">
-                <span className="text-primary font-semibold">2,847+</span> teams using AI features no competitor has
+                <span className="text-primary font-semibold">2,847+</span> sales teams & agencies using Super AI Business Search
               </p>
             </motion.div>
           </div>
@@ -155,10 +155,10 @@ const HeroSection = () => {
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                   </span>
-                  AI ANALYZING
+                  🤖 SUPER AI ACTIVE
                 </Badge>
-                <p className="text-sm text-foreground font-semibold">Pre-Intent Detection Active</p>
-                <p className="text-xs text-muted-foreground mt-1">Predicting visitor behavior in real-time</p>
+                <p className="text-sm text-foreground font-semibold">Business Intelligence Engine</p>
+                <p className="text-xs text-muted-foreground mt-1">Analyzing 100+ data points per business</p>
               </div>
 
               {/* Mascot Ring with Enhanced Animation */}
@@ -193,15 +193,15 @@ const HeroSection = () => {
                   className="p-3 rounded-xl bg-primary/10 border border-primary/20 text-center"
                   whileHover={{ scale: 1.05 }}
                 >
-                  <p className="text-2xl font-bold text-primary">72%</p>
-                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Intent Score</p>
+                  <p className="text-2xl font-bold text-primary">95</p>
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Health Score</p>
                 </motion.div>
                 <motion.div 
                   className="p-3 rounded-xl bg-accent/10 border border-accent/20 text-center"
                   whileHover={{ scale: 1.05 }}
                 >
-                  <p className="text-lg font-bold text-accent">Curious</p>
-                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Emotional State</p>
+                  <p className="text-lg font-bold text-accent">4.8★</p>
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Avg Rating</p>
                 </motion.div>
                 <motion.div 
                   className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center"
@@ -209,9 +209,9 @@ const HeroSection = () => {
                 >
                   <div className="flex items-center justify-center gap-1">
                     <Timer className="w-4 h-4 text-emerald-400" />
-                    <p className="text-lg font-bold text-emerald-400">Now</p>
+                    <p className="text-lg font-bold text-emerald-400">Hot</p>
                   </div>
-                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Best Contact</p>
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Lead Priority</p>
                 </motion.div>
               </div>
             </motion.div>

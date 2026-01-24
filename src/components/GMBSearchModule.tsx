@@ -475,12 +475,12 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
     <div className="w-full" ref={ref}>
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
-        <div className="p-2.5 rounded-xl bg-primary/10 border border-primary/20">
+        <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary/20 to-emerald-500/20 border border-primary/20">
           <Building2 className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h3 className="font-display font-semibold text-foreground">Google My Business Search</h3>
-          <p className="text-sm text-muted-foreground">Find businesses with GMB listings that need website upgrades</p>
+          <h3 className="font-display font-semibold text-foreground">🤖 Super AI Business Intelligence Search</h3>
+          <p className="text-sm text-muted-foreground">Find businesses to contact — get comprehensive AI-powered insights on every lead</p>
         </div>
       </div>
 

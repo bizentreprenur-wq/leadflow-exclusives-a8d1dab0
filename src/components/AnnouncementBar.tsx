@@ -1,11 +1,11 @@
 import { Link } from "react-router-dom";
-import { Sparkles, Palette, Share2, Megaphone, Globe } from "lucide-react";
+import { Sparkles, Briefcase, Users, DollarSign, Building2, Brain } from "lucide-react";
 
 const audiences = [
-  { icon: Palette, label: "Designers" },
-  { icon: Share2, label: "Social Media" },
-  { icon: Megaphone, label: "Marketers" },
-  { icon: Globe, label: "Agencies" },
+  { icon: Briefcase, label: "Agencies" },
+  { icon: Users, label: "Sales Teams" },
+  { icon: DollarSign, label: "Investors" },
+  { icon: Building2, label: "SaaS" },
 ];
 
 const AnnouncementBar = () => {
@@ -13,8 +13,8 @@ const AnnouncementBar = () => {
     <div className="bg-black py-2.5 px-4 border-b border-white/10">
       <div className="container flex items-center justify-center gap-3 text-sm flex-wrap">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-primary drop-shadow-[0_0_8px_rgba(45,212,191,0.6)]" />
-          <span className="font-semibold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">Find Clients Who Need Your Digital Expertise</span>
+          <Brain className="w-4 h-4 text-primary drop-shadow-[0_0_8px_rgba(45,212,191,0.6)]" />
+          <span className="font-semibold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">🤖 Super AI Business Intelligence — 100+ Data Points</span>
         </div>
         
         <div className="hidden sm:flex items-center gap-1.5">
@@ -33,7 +33,7 @@ const AnnouncementBar = () => {
           to="/pricing" 
           className="px-3 py-1.5 rounded-full bg-primary text-black text-xs font-bold hover:bg-primary/90 transition-colors shadow-lg"
         >
-          Start Free
+          Try Free
         </Link>
       </div>
     </div>
