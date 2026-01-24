@@ -372,13 +372,7 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
               <FlaskConical className="w-3.5 h-3.5" />
               A/B
             </TabsTrigger>
-            <TabsTrigger 
-              value="edit" 
-              className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-muted/20 whitespace-nowrap data-[state=active]:bg-primary/20 data-[state=active]:border-primary text-muted-foreground data-[state=active]:text-foreground"
-            >
-              <Pencil className="w-3.5 h-3.5" />
-              Edit
-            </TabsTrigger>
+            {/* Edit tab removed - template editing now happens in Step 2 with AI assistance */}
             <TabsTrigger 
               value="smtp" 
               className="gap-1.5 text-xs px-3 py-2 rounded-lg border border-muted/30 bg-muted/20 whitespace-nowrap data-[state=active]:bg-primary/20 data-[state=active]:border-primary text-muted-foreground data-[state=active]:text-foreground"
@@ -427,15 +421,7 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
                       <Eye className="w-4 h-4" />
                       Preview
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setActiveTab('edit')}
-                      className="gap-1"
-                    >
-                      <Pencil className="w-4 h-4" />
-                      Edit
-                    </Button>
+                    {/* Edit button removed - template editing now happens in Step 2 */}
                     <Button
                       variant="outline"
                       size="sm"
@@ -761,114 +747,7 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
           <ABTestingPanel />
         </TabsContent>
 
-        {/* Edit Tab - Template Editor */}
-        <TabsContent value="edit" className="space-y-4">
-          {selectedTemplate ? (
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Pencil className="w-5 h-5" />
-                      Edit Template
-                    </CardTitle>
-                    <CardDescription>Customize "{selectedTemplate.name}" for your outreach</CardDescription>
-                  </div>
-                  <Badge variant="outline">{selectedTemplate.category || 'Custom'}</Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Editor Side */}
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="template-subject">Subject Line</Label>
-                      <Input
-                        id="template-subject"
-                        value={getCurrentSubject()}
-                        onChange={(e) => handleSaveCustomization(e.target.value, getCurrentBody())}
-                        placeholder="Enter subject line..."
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="template-body">Email Body</Label>
-                      <Textarea
-                        id="template-body"
-                        value={getCurrentBody().replace(/<[^>]*>/g, '')}
-                        onChange={(e) => handleSaveCustomization(getCurrentSubject(), e.target.value)}
-                        placeholder="Enter email content..."
-                        className="min-h-[300px] font-mono text-sm"
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          setCustomizedContent(null);
-                          localStorage.removeItem('bamlead_template_customizations');
-                          toast.success('Template reset to original');
-                        }}
-                      >
-                        Reset to Original
-                      </Button>
-                      <Button 
-                        size="sm"
-                        onClick={() => setActiveTab('preview')}
-                        className="gap-1"
-                      >
-                        <Eye className="w-4 h-4" />
-                        Preview Changes
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  {/* Live Preview Side */}
-                  <div className="space-y-2">
-                    <Label>Live Preview</Label>
-                    <div className="border rounded-lg p-4 bg-background min-h-[300px] max-h-[400px] overflow-y-auto">
-                      <div className="mb-3 pb-3 border-b">
-                        <p className="font-medium text-sm">{getCurrentSubject() || 'Subject line...'}</p>
-                      </div>
-                      <div 
-                        className="prose prose-sm dark:prose-invert max-w-none [&_img]:max-w-[200px] [&_img]:h-auto [&_img]:mx-auto [&_img]:block [&_img]:rounded"
-                        dangerouslySetInnerHTML={{ __html: getCurrentBody() || '<p>Email content...</p>' }}
-                      />
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Personalization Tokens */}
-                <div className="mt-4 p-3 rounded-lg bg-muted/50 border">
-                  <p className="text-sm font-medium mb-2">Available Tokens (click to copy):</p>
-                  <div className="flex flex-wrap gap-2">
-                    {['{{first_name}}', '{{business_name}}', '{{website}}', '{{phone}}', '{{email}}'].map((token) => (
-                      <Badge
-                        key={token}
-                        variant="secondary"
-                        className="cursor-pointer hover:bg-secondary/80"
-                        onClick={() => {
-                          navigator.clipboard.writeText(token);
-                          toast.success(`Copied ${token}`);
-                        }}
-                      >
-                        {token}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="border-dashed border-2">
-              <CardContent className="py-12 text-center">
-                <Pencil className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
-                <p className="font-medium">No Template to Edit</p>
-                <p className="text-sm text-muted-foreground">Select a template first to customize it</p>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
+        {/* Edit Tab removed - template editing with AI now happens in Step 2 (Template Gallery) */}
 
         {/* SMTP Configuration Tab */}
         <TabsContent value="smtp" className="space-y-4">
