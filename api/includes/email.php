@@ -2,16 +2,42 @@
 /**
  * Email Helper Functions for BamLead
  * Uses PHPMailer or native mail() function
+ * Includes detailed logging for debugging
  */
 
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/database.php';
 
+// Email log file path
+define('EMAIL_LOG_FILE', __DIR__ . '/../logs/email.log');
+
+/**
+ * Log email events for debugging
+ */
+function logEmail($level, $message, $context = []) {
+    $logDir = dirname(EMAIL_LOG_FILE);
+    if (!is_dir($logDir)) {
+        mkdir($logDir, 0755, true);
+    }
+    
+    $timestamp = date('Y-m-d H:i:s');
+    $contextStr = !empty($context) ? ' | ' . json_encode($context) : '';
+    $logLine = "[{$timestamp}] [{$level}] {$message}{$contextStr}\n";
+    
+    file_put_contents(EMAIL_LOG_FILE, $logLine, FILE_APPEND | LOCK_EX);
+}
+
 /**
  * Send an email using PHP's mail function or SMTP
- * For production, consider using PHPMailer with SMTP
  */
 function sendEmail($to, $subject, $htmlBody, $textBody = '') {
+    logEmail('INFO', 'Attempting to send email', [
+        'to' => $to,
+        'subject' => $subject,
+        'smtp_configured' => defined('SMTP_HOST') && SMTP_HOST ? 'yes' : 'no',
+        'phpmailer_available' => class_exists('PHPMailer\PHPMailer\PHPMailer') ? 'yes' : 'no'
+    ]);
+    
     // Check if we should use SMTP (PHPMailer)
     if (defined('SMTP_HOST') && SMTP_HOST) {
         return sendEmailSMTP($to, $subject, $htmlBody, $textBody);
@@ -22,10 +48,10 @@ function sendEmail($to, $subject, $htmlBody, $textBody = '') {
 
 /**
  * Send HTML email using PHP's native mail() with the correct headers.
- * IMPORTANT: This must always include the Content-Type header; otherwise
- * recipients may see raw HTML markup instead of a rendered email.
  */
 function sendEmailNative($to, $subject, $htmlBody) {
+    logEmail('INFO', 'Using native mail() function', ['to' => $to]);
+    
     $headers = [
         'MIME-Version: 1.0',
         'Content-type: text/html; charset=UTF-8',
@@ -35,18 +61,43 @@ function sendEmailNative($to, $subject, $htmlBody) {
     ];
 
     $headerString = implode("\r\n", $headers);
-    return mail($to, $subject, $htmlBody, $headerString);
+    
+    $result = @mail($to, $subject, $htmlBody, $headerString);
+    
+    if ($result) {
+        logEmail('SUCCESS', 'Native mail() sent successfully', ['to' => $to]);
+    } else {
+        $lastError = error_get_last();
+        logEmail('ERROR', 'Native mail() failed', [
+            'to' => $to,
+            'error' => $lastError['message'] ?? 'Unknown error',
+            'from' => MAIL_FROM_ADDRESS
+        ]);
+    }
+    
+    return $result;
 }
 
 /**
  * Send email via SMTP (requires PHPMailer)
- * Install: composer require phpmailer/phpmailer
  */
 function sendEmailSMTP($to, $subject, $htmlBody, $textBody = '') {
     // If PHPMailer is not installed, fall back to native mail
     if (!class_exists('PHPMailer\PHPMailer\PHPMailer')) {
+        logEmail('WARN', 'PHPMailer not installed, falling back to native mail()', [
+            'to' => $to,
+            'hint' => 'Run: composer require phpmailer/phpmailer'
+        ]);
         return sendEmailNative($to, $subject, $htmlBody);
     }
+    
+    logEmail('INFO', 'Using PHPMailer SMTP', [
+        'to' => $to,
+        'host' => SMTP_HOST,
+        'port' => SMTP_PORT,
+        'user' => SMTP_USER,
+        'secure' => SMTP_SECURE
+    ]);
     
     $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
     
@@ -59,6 +110,9 @@ function sendEmailSMTP($to, $subject, $htmlBody, $textBody = '') {
         $mail->SMTPSecure = SMTP_SECURE;
         $mail->Port = SMTP_PORT;
         
+        // Enable debug output for logging
+        $mail->SMTPDebug = 0; // Set to 2 for verbose debug
+        
         $mail->setFrom(MAIL_FROM_ADDRESS, MAIL_FROM_NAME);
         $mail->addAddress($to);
         
@@ -68,8 +122,17 @@ function sendEmailSMTP($to, $subject, $htmlBody, $textBody = '') {
         $mail->AltBody = $textBody ?: strip_tags($htmlBody);
         
         $mail->send();
+        
+        logEmail('SUCCESS', 'SMTP email sent successfully', ['to' => $to, 'subject' => $subject]);
         return true;
     } catch (Exception $e) {
+        logEmail('ERROR', 'SMTP email failed', [
+            'to' => $to,
+            'error' => $mail->ErrorInfo,
+            'exception' => $e->getMessage(),
+            'host' => SMTP_HOST,
+            'port' => SMTP_PORT
+        ]);
         error_log("Email error: " . $mail->ErrorInfo);
         return false;
     }
