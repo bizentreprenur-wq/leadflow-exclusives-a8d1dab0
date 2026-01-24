@@ -963,9 +963,13 @@ export default function Dashboard() {
                         <h3 className="text-2xl font-bold text-foreground mb-2">
                           🤖 Super AI Business Search
                         </h3>
-                        <p className="text-muted-foreground">
-                          Google Maps + AI Intelligence
-                        </p>
+                        <div className="flex flex-wrap justify-center gap-2 text-xs">
+                          <span className="px-2 py-1 rounded-full bg-primary/20 text-primary font-medium">Google Maps</span>
+                          <span className="px-2 py-1 rounded-full bg-primary/20 text-primary font-medium">Google Business Profiles</span>
+                          <span className="px-2 py-1 rounded-full bg-primary/20 text-primary font-medium">Website Crawling</span>
+                          <span className="px-2 py-1 rounded-full bg-primary/20 text-primary font-medium">Social Media</span>
+                          <span className="px-2 py-1 rounded-full bg-primary/20 text-primary font-medium">AI Analysis</span>
+                        </div>
                       </div>
 
                       {/* What You Get - 6 Points */}
