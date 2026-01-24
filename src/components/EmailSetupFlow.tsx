@@ -29,7 +29,6 @@ import CRMSelectionPanel from './CRMSelectionPanel';
 import AITemplateSuggestions from './AITemplateSuggestions';
 import AIEmailAssistant from './AIEmailAssistant';
 import EmailConfigurationPanel from './EmailConfigurationPanel';
-import AIEmailTemplateBuilder from './AIEmailTemplateBuilder';
 import { LeadForEmail, sendBulkEmails } from '@/lib/api/email';
 import { isSMTPConfigured, personalizeContent } from '@/lib/emailService';
 import { addLeadsToCRM, queueLeadsForEmail } from '@/lib/customTemplates';
@@ -649,7 +648,6 @@ export default function EmailSetupFlow({
                       { tab: 'preview', icon: Eye, label: 'Preview', color: 'cyan', tooltip: 'Preview how your email looks in Gmail, Outlook & Apple Mail' },
                       { tab: 'crm', icon: Database, label: 'CRM', color: 'violet', tooltip: 'Connect HubSpot, Salesforce, or use BamLead CRM to manage leads' },
                       { tab: 'ab-testing', icon: FlaskConical, label: 'A/B', color: 'pink', tooltip: 'Create email variants & test which performs best' },
-                      { tab: 'ai-builder', icon: Sparkles, label: 'AI Builder', color: 'violet', tooltip: 'Build your own email template with AI-powered content and images' },
                       { tab: 'settings', icon: Settings, label: 'SMTP', color: 'slate', tooltip: 'Configure your email server (Gmail, Outlook, custom SMTP)' },
                       { tab: 'inbox', icon: Mail, label: 'Inbox', color: 'slate', tooltip: 'View inbox messages (coming soon)' },
                     ].map((item) => (
@@ -689,7 +687,7 @@ export default function EmailSetupFlow({
                       Get Started: Click the tabs above!
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      Select <strong className="text-primary">Preview</strong>, <strong className="text-primary">CRM</strong>, <strong className="text-primary">A/B</strong>, <strong className="text-primary">AI Builder</strong>, or <strong className="text-primary">SMTP</strong> to configure your email campaign
+                      Select <strong className="text-primary">Preview</strong>, <strong className="text-primary">CRM</strong>, <strong className="text-primary">A/B</strong>, or <strong className="text-primary">SMTP</strong> to configure your email campaign
                     </span>
                   </div>
                 </div>
@@ -1155,33 +1153,6 @@ export default function EmailSetupFlow({
                         </div>
                         <ABTestingPanel />
                       </div>
-                    )}
-
-                    {/* AI TEMPLATE BUILDER VIEW */}
-                    {activeTab === 'ai-builder' && (
-                      <AIEmailTemplateBuilder
-                        currentSubject={customizedContent?.subject || selectedTemplate?.subject || ''}
-                        currentBody={customizedContent?.body || selectedTemplate?.body || ''}
-                        onSaveTemplate={(template) => {
-                          // Create a new template from AI builder
-                          const newTemplate = {
-                            id: 'ai-built-' + Date.now(),
-                            name: 'AI-Built Custom Template',
-                            subject: template.subject,
-                            body: template.body,
-                            body_html: template.heroImage 
-                              ? `<img src="${template.heroImage}" alt="Hero" style="width:100%;max-width:600px;height:auto;margin-bottom:20px;" />\n${template.body}`
-                              : template.body,
-                            category: 'ai-generated',
-                            conversionRate: '0%',
-                            useCase: 'Custom AI-generated email template',
-                          };
-                          setSelectedTemplate(newTemplate);
-                          handleSaveCustomization(template.subject, template.body);
-                          localStorage.setItem('bamlead_selected_template', JSON.stringify(newTemplate));
-                          toast.success('Your AI template has been created and selected!');
-                        }}
-                      />
                     )}
 
                     {/* SMTP SETTINGS VIEW */}
