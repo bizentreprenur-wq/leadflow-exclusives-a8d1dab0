@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/audit.php';
 
 // Handle CORS
 setCorsHeaders();
@@ -19,25 +20,26 @@ $action = $_GET['action'] ?? '';
 
 switch ($action) {
     case 'users':
-        handleGetUsers();
+        handleGetUsers($currentUser);
         break;
     case 'user':
-        handleUserAction();
+        handleUserAction($currentUser);
         break;
     case 'grant-free':
-        handleGrantFreeAccount();
+        handleGrantFreeAccount($currentUser);
         break;
     case 'stats':
-        handleGetStats();
+        handleGetStats($currentUser);
         break;
     default:
+        auditFailure('invalid_action', 'admin', $currentUser['id'], 'Invalid admin action: ' . $action);
         sendError('Invalid action', 400);
 }
 
 /**
  * Get all users (paginated)
  */
-function handleGetUsers() {
+function handleGetUsers($currentUser) {
     $db = getDB();
     
     $page = max(1, intval($_GET['page'] ?? 1));
@@ -86,6 +88,10 @@ function handleGetUsers() {
         $params
     );
     
+    auditSuccess('user_list', 'admin', $currentUser['id'], [
+        'metadata' => ['search' => $search, 'role' => $role, 'status' => $status, 'page' => $page]
+    ]);
+    
     sendJson([
         'success' => true,
         'users' => $users,
@@ -101,7 +107,7 @@ function handleGetUsers() {
 /**
  * Handle single user actions (update, delete)
  */
-function handleUserAction() {
+function handleUserAction($currentUser) {
     $db = getDB();
     $userId = intval($_GET['id'] ?? 0);
     
@@ -112,12 +118,20 @@ function handleUserAction() {
     $user = $db->fetchOne("SELECT * FROM users WHERE id = ?", [$userId]);
     
     if (!$user) {
+        auditFailure('user_action', 'admin', $currentUser['id'], 'User not found', [
+            'entity_type' => 'user',
+            'entity_id' => $userId
+        ]);
         sendError('User not found', 404);
     }
     
     switch ($_SERVER['REQUEST_METHOD']) {
         case 'GET':
             unset($user['password_hash']);
+            auditSuccess('user_view', 'admin', $currentUser['id'], [
+                'entity_type' => 'user',
+                'entity_id' => $userId
+            ]);
             sendJson(['success' => true, 'user' => $user]);
             break;
             
@@ -146,16 +160,34 @@ function handleUserAction() {
                 $params
             );
             
+            auditSuccess('user_update', 'admin', $currentUser['id'], [
+                'entity_type' => 'user',
+                'entity_id' => $userId,
+                'request_data' => $input,
+                'metadata' => ['target_email' => $user['email']]
+            ]);
+            
             sendJson(['success' => true, 'message' => 'User updated']);
             break;
             
         case 'DELETE':
             // Cannot delete owner
             if ($user['is_owner']) {
+                auditFailure('user_delete', 'admin', $currentUser['id'], 'Cannot delete owner account', [
+                    'entity_type' => 'user',
+                    'entity_id' => $userId
+                ]);
                 sendError('Cannot delete owner account', 403);
             }
             
             $db->delete("DELETE FROM users WHERE id = ?", [$userId]);
+            
+            auditSuccess('user_delete', 'admin', $currentUser['id'], [
+                'entity_type' => 'user',
+                'entity_id' => $userId,
+                'metadata' => ['deleted_email' => $user['email']]
+            ]);
+            
             sendJson(['success' => true, 'message' => 'User deleted']);
             break;
             
@@ -167,7 +199,7 @@ function handleUserAction() {
 /**
  * Grant free account to a user by email
  */
-function handleGrantFreeAccount() {
+function handleGrantFreeAccount($currentUser) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         sendError('Method not allowed', 405);
     }
@@ -176,6 +208,9 @@ function handleGrantFreeAccount() {
     $email = sanitizeInput($input['email'] ?? '', 255);
     
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        auditFailure('grant_free_account', 'admin', $currentUser['id'], 'Invalid email format', [
+            'request_data' => ['email' => $email]
+        ]);
         sendError('Invalid email address');
     }
     
@@ -185,6 +220,9 @@ function handleGrantFreeAccount() {
     $user = $db->fetchOne("SELECT id FROM users WHERE email = ?", [strtolower($email)]);
     
     if (!$user) {
+        auditFailure('grant_free_account', 'admin', $currentUser['id'], 'User not found', [
+            'request_data' => ['email' => $email]
+        ]);
         sendError('User not found', 404);
     }
     
@@ -192,11 +230,20 @@ function handleGrantFreeAccount() {
     $success = grantFreeAccount($email);
     
     if ($success) {
+        auditSuccess('grant_free_account', 'admin', $currentUser['id'], [
+            'entity_type' => 'user',
+            'entity_id' => $user['id'],
+            'metadata' => ['target_email' => $email]
+        ]);
+        
         sendJson([
             'success' => true,
             'message' => "Free account granted to $email"
         ]);
     } else {
+        auditFailure('grant_free_account', 'admin', $currentUser['id'], 'Failed to grant free account', [
+            'request_data' => ['email' => $email]
+        ]);
         sendError('Failed to grant free account');
     }
 }
@@ -204,7 +251,7 @@ function handleGrantFreeAccount() {
 /**
  * Get dashboard stats
  */
-function handleGetStats() {
+function handleGetStats($currentUser) {
     $db = getDB();
     
     $stats = [
@@ -224,6 +271,8 @@ function handleGetStats() {
             "SELECT COUNT(*) as count FROM search_history WHERE DATE(created_at) = CURDATE()"
         )['count'],
     ];
+    
+    auditSuccess('stats_view', 'admin', $currentUser['id']);
     
     sendJson([
         'success' => true,

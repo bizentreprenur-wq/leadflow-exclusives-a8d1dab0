@@ -1,7 +1,7 @@
 <?php
 /**
- * Cron Job: Cleanup Expired Search Leads
- * Deletes search leads older than 30 days
+ * Cron Job: Cleanup Expired Data
+ * Deletes search leads (30 days), verified leads (90 days), usage tracking (90 days), audit logs (365 days)
  * 
  * Set up in Hostinger cPanel → Cron Jobs:
  * Run daily: 0 2 * * * php /path/to/api/cron-cleanup-leads.php
@@ -10,6 +10,7 @@
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/database.php';
+require_once __DIR__ . '/includes/audit.php';
 
 // Only allow CLI execution or with secret key
 $isCliExecution = php_sapi_name() === 'cli';
@@ -43,6 +44,19 @@ try {
         "DELETE FROM usage_tracking WHERE created_at < DATE_SUB(NOW(), INTERVAL 90 DAY)"
     );
     
+    // Clean up old audit logs (keep 365 days)
+    $deletedAuditLogs = cleanupAuditLogs(365);
+    
+    // Clean up old login attempts (keep 30 days)
+    $deletedLoginAttempts = $db->delete(
+        "DELETE FROM login_attempts WHERE attempted_at < DATE_SUB(NOW(), INTERVAL 30 DAY)"
+    );
+    
+    // Clean up old rate limits (keep 7 days)
+    $deletedRateLimits = $db->delete(
+        "DELETE FROM rate_limits WHERE created_at < DATE_SUB(NOW(), INTERVAL 7 DAY)"
+    );
+    
     $duration = round(microtime(true) - $startTime, 3);
     
     $result = [
@@ -51,10 +65,19 @@ try {
         'deleted' => [
             'search_leads' => $deletedSearchLeads,
             'verified_leads' => $deletedVerifiedLeads,
-            'usage_tracking' => $deletedUsageRecords
+            'usage_tracking' => $deletedUsageRecords,
+            'audit_logs' => $deletedAuditLogs,
+            'login_attempts' => $deletedLoginAttempts,
+            'rate_limits' => $deletedRateLimits
         ],
         'duration_seconds' => $duration
     ];
+    
+    // Log cleanup as audit event
+    auditSuccess('cron_cleanup', 'system', null, [
+        'metadata' => $result['deleted'],
+        'duration_ms' => (int)($duration * 1000)
+    ]);
     
     // Log cleanup results
     error_log("[BamLead Cleanup] " . json_encode($result));
@@ -65,6 +88,9 @@ try {
         echo "- Search leads deleted: $deletedSearchLeads\n";
         echo "- Verified leads deleted: $deletedVerifiedLeads\n";
         echo "- Usage records deleted: $deletedUsageRecords\n";
+        echo "- Audit logs deleted: $deletedAuditLogs\n";
+        echo "- Login attempts deleted: $deletedLoginAttempts\n";
+        echo "- Rate limits deleted: $deletedRateLimits\n";
         echo "- Duration: {$duration}s\n";
     } else {
         header('Content-Type: application/json');
@@ -73,6 +99,7 @@ try {
     
 } catch (Exception $e) {
     error_log("[BamLead Cleanup Error] " . $e->getMessage());
+    auditFailure('cron_cleanup', 'system', null, $e->getMessage());
     
     if ($isCliExecution) {
         echo "Error: " . $e->getMessage() . "\n";
