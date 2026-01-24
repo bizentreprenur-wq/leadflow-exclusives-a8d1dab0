@@ -907,24 +907,36 @@ export default function Dashboard() {
                         </p>
                       </div>
 
-                      {/* What You Get */}
-                      <div className="space-y-3 mb-6">
+                      {/* What You Get - 7 Points */}
+                      <div className="space-y-2 mb-6">
                         <p className="text-sm font-semibold text-primary mb-2">✨ What you'll get:</p>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
                           <span className="text-foreground text-sm">100+ data points per business</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
                           <span className="text-foreground text-sm">AI-powered outreach scripts</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
-                          <span className="text-foreground text-sm">Website, reviews & social analysis</span>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+                          <span className="text-foreground text-sm">Website & SEO health analysis</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
-                          <span className="text-foreground text-sm">Personalized talking points</span>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+                          <span className="text-foreground text-sm">Google reviews & rating insights</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+                          <span className="text-foreground text-sm">Social media presence check</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+                          <span className="text-foreground text-sm">Contact info & business hours</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+                          <span className="text-foreground text-sm">Lead scoring & priority ranking</span>
                         </div>
                       </div>
 
@@ -984,24 +996,36 @@ export default function Dashboard() {
                         </p>
                       </div>
 
-                      {/* What You Get */}
-                      <div className="space-y-3 mb-6">
+                      {/* What You Get - 7 Points */}
+                      <div className="space-y-2 mb-6">
                         <p className="text-sm font-semibold text-violet-500 mb-2">✨ Find clients who need:</p>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-violet-500 shrink-0" />
                           <span className="text-foreground text-sm">Website redesigns & rebuilds</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-violet-500 shrink-0" />
                           <span className="text-foreground text-sm">Social media management</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-violet-500 shrink-0" />
                           <span className="text-foreground text-sm">Digital marketing & ads setup</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
-                          <span className="text-foreground text-sm">GMB, reviews & reputation fixes</span>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-violet-500 shrink-0" />
+                          <span className="text-foreground text-sm">GMB & reputation management</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-violet-500 shrink-0" />
+                          <span className="text-foreground text-sm">SEO & local search optimization</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-violet-500 shrink-0" />
+                          <span className="text-foreground text-sm">Tracking pixels & analytics setup</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-violet-500 shrink-0" />
+                          <span className="text-foreground text-sm">Mobile responsiveness fixes</span>
                         </div>
                       </div>
 
