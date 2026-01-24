@@ -19,11 +19,21 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      - name: Setup PHP for Composer
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+
       - name: Install dependencies
         run: npm ci
 
       - name: Build project
         run: npm run build
+
+      - name: Install API dependencies
+        run: composer install --no-dev --prefer-dist --no-interaction --optimize-autoloader
+        working-directory: ./api
 
       - name: Deploy via rsync (excludes /api/)
         uses: burnett01/rsync-deployments@6.0.0
