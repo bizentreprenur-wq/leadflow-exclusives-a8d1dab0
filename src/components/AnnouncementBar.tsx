@@ -1,11 +1,11 @@
 import { Link } from "react-router-dom";
-import { Sparkles, TrendingUp, Users, Megaphone, Briefcase } from "lucide-react";
+import { Sparkles, Palette, Share2, Megaphone, Globe } from "lucide-react";
 
-const industries = [
-  { icon: TrendingUp, label: "Sales" },
-  { icon: Users, label: "Recruiting" },
-  { icon: Megaphone, label: "Marketing" },
-  { icon: Briefcase, label: "Consulting" },
+const audiences = [
+  { icon: Palette, label: "Designers" },
+  { icon: Share2, label: "Social Media" },
+  { icon: Megaphone, label: "Marketers" },
+  { icon: Globe, label: "Agencies" },
 ];
 
 const AnnouncementBar = () => {
@@ -14,11 +14,11 @@ const AnnouncementBar = () => {
       <div className="container flex items-center justify-center gap-3 text-sm flex-wrap">
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-primary drop-shadow-[0_0_8px_rgba(45,212,191,0.6)]" />
-          <span className="font-semibold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">AI-Powered B2B Lead Generation</span>
+          <span className="font-semibold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">Find Clients Who Need Your Digital Expertise</span>
         </div>
         
         <div className="hidden sm:flex items-center gap-1.5">
-          {industries.map(({ icon: Icon, label }) => (
+          {audiences.map(({ icon: Icon, label }) => (
             <span 
               key={label}
               className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/90 border border-primary text-black text-xs font-bold shadow-md"
@@ -33,7 +33,7 @@ const AnnouncementBar = () => {
           to="/pricing" 
           className="px-3 py-1.5 rounded-full bg-primary text-black text-xs font-bold hover:bg-primary/90 transition-colors shadow-lg"
         >
-          Try it now
+          Start Free
         </Link>
       </div>
     </div>
