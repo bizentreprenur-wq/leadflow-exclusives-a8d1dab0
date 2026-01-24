@@ -820,7 +820,6 @@ export default function Dashboard() {
     
     toast.success('🎉 Loaded 200 demo leads! Explore the full workflow.');
     celebrate('subscription-activated');
-    toast.success('CSV downloaded!');
   };
 
   const resetWorkflow = () => {
@@ -1506,12 +1505,18 @@ export default function Dashboard() {
               <div className="text-6xl">🔍</div>
               <h2 className="text-2xl font-bold">No Leads Found Yet</h2>
               <p className="text-muted-foreground text-center max-w-md">
-                Run a search in Step 1 to find leads, then come back here to review them.
+                Run a search in Step 1 to find leads, or try the demo below.
               </p>
-              <Button onClick={() => setCurrentStep(1)} className="gap-2">
-                <ArrowLeft className="w-4 h-4" />
-                Back to Search
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button onClick={() => setCurrentStep(1)} variant="outline" className="gap-2">
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to Search
+                </Button>
+                <Button onClick={handleLoadDemoLeads} className="gap-2">
+                  <Zap className="w-4 h-4" />
+                  Load 200 Demo Leads
+                </Button>
+              </div>
             </div>
           );
         }
