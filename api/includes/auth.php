@@ -66,9 +66,13 @@ function createUser($email, $password, $name = null) {
     
     try {
         $userId = $db->insert(
-            "INSERT INTO users (email, password_hash, name, trial_ends_at) VALUES (?, ?, ?, ?)",
+            "INSERT INTO users (email, password_hash, name, trial_ends_at, email_verified) VALUES (?, ?, ?, ?, 0)",
             [strtolower($email), hashPassword($password), $name, $trialEndsAt]
         );
+        
+        // Send verification email after successful registration
+        require_once __DIR__ . '/email.php';
+        sendVerificationEmail($userId, strtolower($email), $name);
         
         return ['success' => true, 'user_id' => $userId];
     } catch (Exception $e) {
