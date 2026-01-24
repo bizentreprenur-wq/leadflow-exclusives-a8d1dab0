@@ -340,6 +340,125 @@ function detectIssues($html) {
         $issues[] = 'Missing favicon';
     }
     
+    // ========== NEW DETECTIONS ==========
+    
+    // No Facebook Pixel
+    $hasFacebookPixel = strpos($htmlLower, 'facebook.com/tr') !== false ||
+                        strpos($htmlLower, 'fbq(') !== false ||
+                        strpos($htmlLower, 'facebook-jssdk') !== false ||
+                        strpos($htmlLower, 'connect.facebook.net') !== false;
+    if (!$hasFacebookPixel) {
+        $issues[] = 'No Facebook Pixel installed';
+    }
+    
+    // No Google Tag / Analytics
+    $hasGoogleTag = strpos($htmlLower, 'googletagmanager.com') !== false ||
+                    strpos($htmlLower, 'gtag(') !== false ||
+                    strpos($htmlLower, 'google-analytics.com') !== false ||
+                    strpos($htmlLower, 'analytics.js') !== false ||
+                    strpos($htmlLower, 'gtm.js') !== false ||
+                    strpos($htmlLower, 'ga(') !== false;
+    if (!$hasGoogleTag) {
+        $issues[] = 'No Google Analytics or Tag Manager';
+    }
+    
+    // No booking system or contact funnel
+    $hasBookingSystem = strpos($htmlLower, 'calendly') !== false ||
+                        strpos($htmlLower, 'acuityscheduling') !== false ||
+                        strpos($htmlLower, 'booksy') !== false ||
+                        strpos($htmlLower, 'simplybook') !== false ||
+                        strpos($htmlLower, 'schedulicity') !== false ||
+                        strpos($htmlLower, 'square.com/appointments') !== false ||
+                        strpos($htmlLower, 'setmore') !== false ||
+                        strpos($htmlLower, 'appointy') !== false ||
+                        strpos($htmlLower, 'booking.com') !== false ||
+                        strpos($htmlLower, 'book-now') !== false ||
+                        strpos($htmlLower, 'book now') !== false ||
+                        strpos($htmlLower, 'schedule-appointment') !== false ||
+                        strpos($htmlLower, 'schedule appointment') !== false ||
+                        strpos($htmlLower, 'book-online') !== false ||
+                        strpos($htmlLower, 'book online') !== false;
+    
+    $hasContactFunnel = strpos($htmlLower, 'contact-form') !== false ||
+                        strpos($htmlLower, 'contact form') !== false ||
+                        strpos($htmlLower, 'wpcf7') !== false ||
+                        strpos($htmlLower, 'wpforms') !== false ||
+                        strpos($htmlLower, 'gravity-forms') !== false ||
+                        strpos($htmlLower, 'typeform') !== false ||
+                        strpos($htmlLower, 'jotform') !== false ||
+                        strpos($htmlLower, 'formspree') !== false ||
+                        strpos($htmlLower, 'hubspot-form') !== false ||
+                        strpos($htmlLower, 'input type="email"') !== false ||
+                        (strpos($htmlLower, '<form') !== false && strpos($htmlLower, 'submit') !== false);
+    
+    if (!$hasBookingSystem && !$hasContactFunnel) {
+        $issues[] = 'No booking system or contact funnel';
+    } else if (!$hasBookingSystem) {
+        $issues[] = 'No online booking system';
+    }
+    
+    // Inactive/weak social profiles (check for social links)
+    $hasFacebookLink = strpos($htmlLower, 'facebook.com/') !== false;
+    $hasInstagramLink = strpos($htmlLower, 'instagram.com/') !== false;
+    $hasTwitterLink = strpos($htmlLower, 'twitter.com/') !== false || strpos($htmlLower, 'x.com/') !== false;
+    $hasLinkedInLink = strpos($htmlLower, 'linkedin.com/') !== false;
+    $hasYouTubeLink = strpos($htmlLower, 'youtube.com/') !== false;
+    
+    $socialCount = ($hasFacebookLink ? 1 : 0) + ($hasInstagramLink ? 1 : 0) + 
+                   ($hasTwitterLink ? 1 : 0) + ($hasLinkedInLink ? 1 : 0) + ($hasYouTubeLink ? 1 : 0);
+    
+    if ($socialCount === 0) {
+        $issues[] = 'No social media presence linked';
+    } else if ($socialCount === 1) {
+        $issues[] = 'Weak social media presence (only 1 platform)';
+    }
+    
+    // Severely outdated website indicators
+    $severelyOutdated = false;
+    $outdatedIndicators = 0;
+    
+    if (strpos($htmlLower, '<!doctype html>') === false) $outdatedIndicators++;
+    if (preg_match('/jquery[.-]?1\.[0-5]/', $htmlLower)) $outdatedIndicators++;
+    if (strpos($htmlLower, 'swfobject') !== false || strpos($htmlLower, '.swf') !== false) $outdatedIndicators++;
+    if ($tableCount > 5 && strpos($htmlLower, 'width=') !== false) $outdatedIndicators++;
+    if (strpos($htmlLower, 'viewport') === false) $outdatedIndicators++;
+    if (preg_match('/copyright\s*(©|&copy;)?\s*(19[89]\d|200[0-9]|201[0-5])/i', $htmlLower)) $outdatedIndicators++;
+    if (strpos($htmlLower, 'font face=') !== false) $outdatedIndicators++;
+    if (strpos($htmlLower, 'marquee') !== false) $outdatedIndicators++;
+    if (strpos($htmlLower, 'bgsound') !== false) $outdatedIndicators++;
+    if (strpos($htmlLower, 'frameset') !== false || strpos($htmlLower, 'iframe') === false && strpos($htmlLower, '<frame') !== false) $outdatedIndicators++;
+    
+    if ($outdatedIndicators >= 4) {
+        $issues[] = 'Severely outdated website (needs complete rebuild)';
+    }
+    
+    // Check for no SSL/HTTPS indicators
+    if (preg_match_all('/href=["\']http:\/\/(?!localhost)/i', $html, $httpMatches) && count($httpMatches[0]) > 3) {
+        $issues[] = 'Multiple non-secure HTTP links';
+    }
+    
+    // Check for spending money but leaking leads (has ads but no conversion tracking)
+    $hasAds = strpos($htmlLower, 'googlesyndication') !== false ||
+              strpos($htmlLower, 'doubleclick') !== false ||
+              strpos($htmlLower, 'adsense') !== false ||
+              strpos($htmlLower, 'adsbygoogle') !== false;
+    
+    $hasConversionTracking = $hasFacebookPixel || $hasGoogleTag ||
+                             strpos($htmlLower, 'hotjar') !== false ||
+                             strpos($htmlLower, 'clarity.ms') !== false ||
+                             strpos($htmlLower, 'mixpanel') !== false ||
+                             strpos($htmlLower, 'segment.com') !== false;
+    
+    if ($hasAds && !$hasConversionTracking) {
+        $issues[] = 'Spending on ads but no conversion tracking (leaking leads)';
+    }
+    
+    // No call-to-action buttons detected
+    $hasCTA = preg_match('/(get\s*(started|quote|estimate)|call\s*now|contact\s*us|request\s*(quote|appointment)|free\s*(consultation|estimate)|schedule|book\s*(now|today))/i', $htmlLower);
+    if (!$hasCTA) {
+        $issues[] = 'No clear call-to-action buttons';
+    }
+    
     return $issues;
 }
 
