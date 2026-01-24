@@ -1497,6 +1497,89 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
             </CardContent>
           </Card>
 
+          {/* 🤖 AI AUTO-RESPONSE FEATURE - Prominent Banner */}
+          <Card className="border-2 border-pink-500/50 bg-gradient-to-r from-pink-500/10 via-rose-500/5 to-amber-500/10 overflow-hidden relative">
+            {/* Animated glow effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-pink-500/20 via-transparent to-amber-500/20 animate-pulse" />
+            
+            <CardContent className="relative pt-6 pb-6">
+              <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+                {/* Icon with pulse effect */}
+                <div className="relative">
+                  <div className="absolute inset-0 bg-pink-500/30 rounded-full blur-xl animate-pulse" />
+                  <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shadow-lg shadow-pink-500/30">
+                    <Sparkles className="w-8 h-8 text-white" />
+                  </div>
+                </div>
+                
+                {/* Content */}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-xl font-bold bg-gradient-to-r from-pink-500 to-amber-500 bg-clip-text text-transparent">
+                      🤖 AI Auto-Response Available!
+                    </h3>
+                    <Badge className="bg-pink-500 text-white border-0 animate-pulse">NEW</Badge>
+                  </div>
+                  <p className="text-muted-foreground mb-3">
+                    When leads reply to your emails, <strong className="text-foreground">AI can automatically draft responses</strong> for you! 
+                    Choose between fully automatic AI responses or "AI suggests, you approve" mode.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    <Badge variant="outline" className="text-pink-600 border-pink-500/50 bg-pink-500/10">
+                      <Sparkles className="w-3 h-3 mr-1" />
+                      AI drafts replies
+                    </Badge>
+                    <Badge variant="outline" className="text-amber-600 border-amber-500/50 bg-amber-500/10">
+                      <RefreshCw className="w-3 h-3 mr-1" />
+                      Auto follow-ups
+                    </Badge>
+                    <Badge variant="outline" className="text-emerald-600 border-emerald-500/50 bg-emerald-500/10">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Smart prioritization
+                    </Badge>
+                  </div>
+                </div>
+                
+                {/* CTA */}
+                <div className="flex flex-col gap-2">
+                  <Badge variant="secondary" className="text-xs px-3 py-1.5 bg-muted/80">
+                    Available after sending
+                  </Badge>
+                  <p className="text-xs text-muted-foreground text-center">
+                    Access in Step 4 → Inbox tab
+                  </p>
+                </div>
+              </div>
+              
+              {/* How it works mini-section */}
+              <div className="mt-6 pt-4 border-t border-pink-500/20">
+                <p className="text-sm font-semibold mb-3 text-pink-600 dark:text-pink-400">
+                  📋 How AI Auto-Response Works:
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-card/50 border border-pink-500/20">
+                    <div className="w-8 h-8 rounded-full bg-pink-500/20 flex items-center justify-center text-lg">1</div>
+                    <div className="text-sm">
+                      <strong>Send emails</strong> to leads
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-card/50 border border-pink-500/20">
+                    <div className="w-8 h-8 rounded-full bg-pink-500/20 flex items-center justify-center text-lg">2</div>
+                    <div className="text-sm">
+                      <strong>Leads reply</strong> → AI analyzes
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-card/50 border border-pink-500/20">
+                    <div className="w-8 h-8 rounded-full bg-pink-500/20 flex items-center justify-center text-lg">3</div>
+                    <div className="text-sm">
+                      <strong>AI drafts response</strong> → You approve
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* SMTP Configuration Section - Always visible */}
           <Card className={`border-2 ${smtpConfigured ? 'border-emerald-500/50 bg-gradient-to-br from-emerald-500/5 to-transparent' : 'border-amber-500/50 bg-gradient-to-br from-amber-500/10 to-amber-500/5'}`}>
             <CardHeader className="pb-3">
