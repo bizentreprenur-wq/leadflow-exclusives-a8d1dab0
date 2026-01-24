@@ -40,7 +40,8 @@ import {
   Plus,
   MoveRight,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Bot
 } from "lucide-react";
 import { HIGH_CONVERTING_TEMPLATES, TEMPLATE_CATEGORIES, EmailTemplate } from "@/lib/highConvertingTemplates";
 import { 
@@ -58,6 +59,7 @@ import {
 import { toast } from "sonner";
 import { saveUserBranding } from "@/lib/api/branding";
 import { useAuth } from "@/contexts/AuthContext";
+import TemplateAIAssistant from "./TemplateAIAssistant";
 
 interface HighConvertingTemplateGalleryProps {
   onSelectTemplate?: (template: EmailTemplate) => void;
@@ -835,37 +837,39 @@ export default function HighConvertingTemplateGallery({
 
                 {/* Text Mode - Write with inline images */}
                 {contentMode === 'text' && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs text-muted-foreground">
-                        Write your email and insert images anywhere
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <input
-                          ref={inlineImageRef}
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleInlineImageUpload}
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => inlineImageRef.current?.click()}
-                          className="gap-1.5 text-xs"
-                        >
-                          <ImageIcon className="w-3.5 h-3.5" />
-                          Insert Image
-                        </Button>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {/* Left Column - Text Editor */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-muted-foreground">
+                          Write your email and insert images anywhere
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <input
+                            ref={inlineImageRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleInlineImageUpload}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => inlineImageRef.current?.click()}
+                            className="gap-1.5 text-xs"
+                          >
+                            <ImageIcon className="w-3.5 h-3.5" />
+                            Insert Image
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                    <Textarea
-                      ref={uploadBodyRef}
-                      id="upload-body"
-                      value={uploadBody}
-                      onChange={(e) => setUploadBody(e.target.value)}
-                      placeholder={`Hi {{first_name}},
+                      <Textarea
+                        ref={uploadBodyRef}
+                        id="upload-body"
+                        value={uploadBody}
+                        onChange={(e) => setUploadBody(e.target.value)}
+                        placeholder={`Hi {{first_name}},
 
 I noticed your business {{business_name}} and wanted to reach out...
 
@@ -875,42 +879,53 @@ Looking forward to connecting!
 
 Best regards,
 [Your Name]`}
-                      className="min-h-[250px] font-mono text-sm"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Use placeholders: {"{{first_name}}"}, {"{{business_name}}"}, {"{{website}}"}
-                    </p>
-                    
-                    {/* Inline Images Preview */}
-                    {Object.keys(inlineImages).length > 0 && (
-                      <div className="space-y-2">
-                        <Label>Inserted Images</Label>
-                        <div className="flex flex-wrap gap-3 p-3 rounded-lg bg-muted/30 border">
-                          {Object.entries(inlineImages).map(([placeholder, src]) => (
-                            <div key={placeholder} className="relative group">
-                              <img 
-                                src={src} 
-                                alt={placeholder} 
-                                className="h-16 w-24 object-cover rounded-lg border shadow-sm"
-                              />
-                              <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                                <Button
-                                  size="icon"
-                                  variant="destructive"
-                                  className="w-6 h-6"
-                                  onClick={() => handleRemoveInlineImage(placeholder)}
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
+                        className="min-h-[280px] font-mono text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Use placeholders: {"{{first_name}}"}, {"{{business_name}}"}, {"{{website}}"}
+                      </p>
+                      
+                      {/* Inline Images Preview */}
+                      {Object.keys(inlineImages).length > 0 && (
+                        <div className="space-y-2">
+                          <Label>Inserted Images</Label>
+                          <div className="flex flex-wrap gap-3 p-3 rounded-lg bg-muted/30 border">
+                            {Object.entries(inlineImages).map(([placeholder, src]) => (
+                              <div key={placeholder} className="relative group">
+                                <img 
+                                  src={src} 
+                                  alt={placeholder} 
+                                  className="h-16 w-24 object-cover rounded-lg border shadow-sm"
+                                />
+                                <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                                  <Button
+                                    size="icon"
+                                    variant="destructive"
+                                    className="w-6 h-6"
+                                    onClick={() => handleRemoveInlineImage(placeholder)}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                                <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-background/70 text-foreground py-0.5 rounded-b-lg">
+                                  {placeholder}
+                                </span>
                               </div>
-                              <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-background/70 text-foreground py-0.5 rounded-b-lg">
-                                {placeholder}
-                              </span>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
+                    
+                    {/* Right Column - AI Assistant */}
+                    <div>
+                      <TemplateAIAssistant
+                        industry={uploadIndustry || 'local business'}
+                        onApplySubject={(subject) => setUploadSubject(subject)}
+                        onApplyBody={(body) => setUploadBody(body)}
+                        currentSubject={uploadSubject}
+                      />
+                    </div>
                   </div>
                 )}
 
