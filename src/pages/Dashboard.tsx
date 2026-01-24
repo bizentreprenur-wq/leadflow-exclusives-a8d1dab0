@@ -977,39 +977,39 @@ export default function Dashboard() {
                       
                       <div className="text-center mb-6">
                         <h3 className="text-2xl font-bold text-foreground mb-2">
-                          🔍 Agency Lead Finder
+                          🎯 Agency Lead Finder
                         </h3>
                         <p className="text-muted-foreground">
-                          Built for digital professionals
+                          For Web Dev Pros & SMMA Agencies
                         </p>
                       </div>
 
                       {/* What You Get */}
                       <div className="space-y-3 mb-6">
-                        <p className="text-sm font-semibold text-violet-500 mb-2">✨ What you'll find:</p>
+                        <p className="text-sm font-semibold text-violet-500 mb-2">✨ Find clients who need:</p>
                         <div className="flex items-center gap-3">
                           <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
-                          <span className="text-foreground text-sm">Outdated or broken websites</span>
+                          <span className="text-foreground text-sm">Website redesigns & rebuilds</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
-                          <span className="text-foreground text-sm">Weak or inactive social profiles</span>
+                          <span className="text-foreground text-sm">Social media management</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
-                          <span className="text-foreground text-sm">Missing reviews & tracking pixels</span>
+                          <span className="text-foreground text-sm">Digital marketing & ads setup</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
-                          <span className="text-foreground text-sm">Businesses leaking leads online</span>
+                          <span className="text-foreground text-sm">GMB, reviews & reputation fixes</span>
                         </div>
                       </div>
 
                       {/* Perfect For */}
                       <div className="bg-violet-500/10 rounded-xl p-4 text-center">
-                        <p className="text-violet-500 font-bold text-sm mb-1">👍 Best for:</p>
+                        <p className="text-violet-500 font-bold text-sm mb-1">🔥 Built for:</p>
                         <p className="text-muted-foreground text-sm">
-                          Website designers, social media marketers & agencies
+                          Web developers, freelance designers & SMMA agencies
                         </p>
                       </div>
                       
