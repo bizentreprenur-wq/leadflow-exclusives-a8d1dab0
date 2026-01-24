@@ -21,8 +21,9 @@ import {
   FileText, FileSignature, Rocket, Star, Gift, Target, Briefcase,
   ArrowUpRight, Copy, Download, ExternalLink, Inbox, Workflow,
   Linkedin, Plus, Pause, Play, Users, ChevronRight, MoreHorizontal,
-  MousePointer
+  MousePointer, Sun, Moon
 } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { PROPOSAL_TEMPLATES, ProposalTemplate, generateProposalHTML } from '@/lib/proposalTemplates';
 import { CONTRACT_TEMPLATES, ContractTemplate, generateContractHTML } from '@/lib/contractTemplates';
 
@@ -506,6 +507,9 @@ const DEMO_SEQUENCES: Sequence[] = [
 ];
 
 export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps) {
+  // Theme
+  const { theme, setTheme } = useTheme();
+  
   // Tab state
   const [activeTab, setActiveTab] = useState<MailboxTab>('inbox');
   const [sequences, setSequences] = useState<Sequence[]>(DEMO_SEQUENCES);
@@ -1143,8 +1147,19 @@ Best regards`;
             ))}
           </div>
 
-          {/* Right: Settings */}
+          {/* Right: Theme Toggle & Settings */}
           <div className="flex items-center gap-2">
+            {/* Theme Toggle */}
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="relative"
+            >
+              <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+              <span className="sr-only">Toggle theme</span>
+            </Button>
             <Button 
               variant="ghost" 
               size="icon"
