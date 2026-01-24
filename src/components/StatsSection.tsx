@@ -1,10 +1,10 @@
 import { forwardRef } from 'react';
 
 const stats = [
-  { value: "10K+", label: "Leads Found" },
-  { value: "500+", label: "Active Users" },
-  { value: "16+", label: "Platforms Detected" },
-  { value: "95%", label: "Accuracy Rate" },
+  { value: "50K+", label: "Leads Found" },
+  { value: "2K+", label: "Digital Professionals" },
+  { value: "6", label: "Issue Types Detected" },
+  { value: "95%", label: "AI Accuracy" },
 ];
 
 const StatsSection = forwardRef<HTMLElement>((props, ref) => {

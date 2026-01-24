@@ -8,15 +8,19 @@ import {
 const faqs = [
   {
     question: "What is BamLead?",
-    answer: "BamLead is a lead generation platform designed for web designers and SEO professionals. It scans Google My Business listings and search results to find businesses with outdated, poorly performing, or WordPress-based websites that need an upgrade.",
+    answer: "BamLead is a lead generation platform built for website designers, social media marketers, and digital agencies. Our AI-powered scanners find businesses with broken websites, weak social presence, missing reviews, and other digital gaps — helping you discover clients who need exactly what you offer.",
   },
   {
-    question: "How does the search work?",
-    answer: "Simply enter a business niche (like 'plumbers' or 'dentists') and a location. Our platform searches Google My Business and live search results, analyzes each website for quality, mobile performance, and technology stack, then presents you with a curated list of leads.",
+    question: "How does the Agency Lead Finder work?",
+    answer: "Enter a business type (like 'plumbers' or 'dentists') and a location. Our AI scans the web to find businesses with outdated websites, inactive social profiles, missing tracking pixels, low reviews, and other issues. You get a prioritized list of leads ready for outreach.",
   },
   {
-    question: "What platforms can BamLead detect?",
-    answer: "BamLead can detect 16+ platforms including WordPress, Wix, Squarespace, Joomla, Magento, Shopify, Drupal, custom PHP sites, and more. We identify businesses using legacy or outdated platforms that would benefit from a modern website.",
+    question: "What types of issues can BamLead detect?",
+    answer: "BamLead detects broken or outdated websites, missing Google Analytics & Facebook Pixels, no booking systems, weak or inactive social media profiles, low or no reviews, missing retargeting, and businesses leaking leads online. Perfect for finding clients who need your digital services.",
+  },
+  {
+    question: "Who is BamLead built for?",
+    answer: "BamLead is designed specifically for website designers, social media marketers, digital marketing agencies, SEO professionals, and freelance consultants looking for clients who need help with their online presence.",
   },
   {
     question: "Is there a free trial?",
@@ -24,19 +28,15 @@ const faqs = [
   },
   {
     question: "What information do I get for each lead?",
-    answer: "Each lead includes business name, address, phone number, website URL, Google rating, platform/CMS detected, mobile performance score, and website quality assessment. Verified leads also include email addresses when available.",
+    answer: "Each lead includes business name, address, phone number, website URL, Google rating, detected issues (broken website, no social, missing reviews, etc.), mobile score, and AI-powered recommendations for how to approach them.",
   },
   {
     question: "Can I export my leads?",
-    answer: "Absolutely! You can export leads as CSV files, copy them to clipboard for Google Docs, or generate comprehensive PDF reports with summary statistics and detailed lead breakdowns.",
+    answer: "Absolutely! Export leads as CSV files, copy to Google Docs, or generate comprehensive PDF Intelligence Reports with AI insights and prioritized action plans.",
   },
   {
-    question: "How accurate is the website analysis?",
-    answer: "Our analysis has a 95% accuracy rate for platform detection. We use multiple signals including meta tags, HTML structure, JavaScript libraries, and server headers to determine the technology stack.",
-  },
-  {
-    question: "What payment methods do you accept?",
-    answer: "We accept all major credit cards (Visa, Mastercard, American Express) through our secure Stripe payment processing. All plans are billed monthly with no long-term contracts.",
+    question: "How accurate is the analysis?",
+    answer: "Our AI analysis has a 95%+ accuracy rate for detecting website issues, social media gaps, and tracking problems. We use multiple signals to ensure you're targeting genuinely qualified prospects.",
   },
 ];
 

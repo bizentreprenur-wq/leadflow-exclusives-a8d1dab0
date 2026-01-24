@@ -78,7 +78,7 @@ const HeroSection = () => {
               variants={itemVariants}
               className="text-lg md:text-xl text-muted-foreground max-w-xl leading-relaxed"
             >
-              The only B2B lead platform with <span className="text-primary font-medium">Pre-Intent Detection</span>, <span className="text-accent font-medium">Emotional State AI</span>, and <span className="text-blue-400 font-medium">Outcome Simulation</span>. Find leads across any industry.
+              Built for <span className="text-primary font-medium">website designers</span>, <span className="text-accent font-medium">social media marketers</span>, and <span className="text-violet-400 font-medium">digital agencies</span>. Find businesses that need your expertise — before your competitors do.
             </motion.p>
 
             {/* Secret Features Pills */}

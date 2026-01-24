@@ -108,7 +108,7 @@ export default function FreeTrialBanner({ variant = "full", onDismiss }: FreeTri
             </h2>
             
             <p className="text-lg opacity-90 mb-6 max-w-lg">
-              Experience all premium features with no commitment. Cancel anytime, no credit card required.
+              Find businesses that need website design, social media marketing & digital services. Cancel anytime, no credit card required.
             </p>
 
             {/* Features */}

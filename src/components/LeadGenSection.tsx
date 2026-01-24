@@ -1,40 +1,40 @@
-import { Search, Filter, MapPin, Globe, Code, Zap, CheckCircle2 } from "lucide-react";
+import { Search, Filter, MapPin, Globe, Code, Zap, CheckCircle2, AlertTriangle, Share2, Star } from "lucide-react";
 
 const LeadGenSection = () => {
   const features = [
     {
       icon: MapPin,
       title: "GMB Scanner",
-      description: "Scan Google My Business listings to find local businesses with outdated websites",
+      description: "Find local businesses with outdated websites and weak online presence",
       color: "primary"
     },
     {
       icon: Globe,
-      title: "Google & Bing Search",
-      description: "Search across multiple engines to find businesses needing website upgrades",
+      title: "Agency Lead Finder",
+      description: "Discover clients who need website design, social media & marketing help",
       color: "accent"
     },
     {
-      icon: Code,
-      title: "Platform Detection",
-      description: "Identify 16+ legacy platforms like Wix, Joomla, Magento, and custom PHP sites",
-      color: "success"
+      icon: AlertTriangle,
+      title: "Issue Detection",
+      description: "Detect broken websites, missing reviews, inactive social profiles & more",
+      color: "warning"
     },
     {
       icon: Filter,
-      title: "Advanced Filters",
-      description: "Filter by industry, company size, role, and location for precision targeting",
-      color: "warning"
+      title: "Smart Filters",
+      description: "Filter by industry, location, and specific issues to find your ideal clients",
+      color: "success"
     }
   ];
 
   const capabilities = [
-    "Find businesses with outdated websites",
-    "Detect WordPress and legacy CMS platforms",
-    "Analyze mobile performance scores",
-    "Extract contact information automatically",
-    "Filter by industry and location",
-    "Score leads by conversion potential"
+    "Find businesses with broken or outdated websites",
+    "Detect missing tracking pixels & retargeting",
+    "Identify weak or inactive social media profiles",
+    "Find businesses with low or no reviews",
+    "Discover clients leaking leads online",
+    "AI-powered lead scoring & prioritization"
   ];
 
   return (
@@ -50,12 +50,12 @@ const LeadGenSection = () => {
             <span className="text-sm font-semibold text-primary">Lead Generation</span>
           </div>
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold text-foreground mb-4">
-            Find high-intent leads
+            Find clients who need
             <br />
-            <span className="text-primary">automatically</span>
+            <span className="text-primary">your expertise</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Our AI-powered scanners search the web 24/7 to find businesses that need your services
+            Built for website designers, social media marketers & digital agencies. Our AI finds businesses with gaps you can fill.
           </p>
         </div>
 

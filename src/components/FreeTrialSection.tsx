@@ -15,10 +15,10 @@ const FreeTrialSection = () => {
             
             <div className="relative z-10">
               <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">
-                Try a Free Search
+                Find Your Next Client Today
               </h2>
               <p className="text-lg text-muted-foreground mb-8">
-                No credit card required
+                Start discovering businesses that need your digital expertise — no credit card required
               </p>
 
               <Button variant="hero" size="xl" className="group">
