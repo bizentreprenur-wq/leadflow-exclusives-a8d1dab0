@@ -270,8 +270,8 @@ export default function Dashboard() {
         }
       }
       
-      // Skip for non-authenticated users
-      const token = localStorage.getItem('bamlead_auth');
+      // Skip for non-authenticated users (use canonical 'auth_token' key)
+      const token = localStorage.getItem('auth_token');
       if (!token) return;
       
       try {

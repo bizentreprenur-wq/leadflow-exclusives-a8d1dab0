@@ -153,7 +153,11 @@ function handleResendVerification() {
         sendError('Email is already verified');
     }
     
-    sendVerificationEmail($user['id'], $user['email'], $user['name']);
+    $sent = sendVerificationEmail($user['id'], $user['email'], $user['name']);
+    
+    if (!$sent) {
+        sendError('Failed to send verification email. Please try again or contact support.', 500);
+    }
     
     sendJson([
         'success' => true,
