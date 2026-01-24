@@ -677,85 +677,6 @@ export default function HighConvertingTemplateGallery({
         </Tabs>
       </div>
 
-      {/* AI Template Builder Section - NEW */}
-      <Card className="border-2 border-dashed border-violet-500/40 bg-gradient-to-r from-violet-500/5 to-purple-500/5">
-        <CardContent className="p-4">
-          {!showAIBuilder ? (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center">
-                  <Sparkles className="w-6 h-6 text-violet-400" />
-                </div>
-                <div>
-                  <h3 className="font-semibold flex items-center gap-2">
-                    Build your own Email Template with AI
-                    <Badge className="bg-violet-500/20 text-violet-400 border-violet-500/40 text-xs">AI Powered</Badge>
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Create stunning email templates with AI-generated content and hero images
-                  </p>
-                </div>
-              </div>
-              <Button 
-                onClick={() => setShowAIBuilder(true)}
-                className="gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
-              >
-                <Wand2 className="w-4 h-4" />
-                Start Building
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-violet-400" />
-                  Build your own Email Template with AI
-                </h3>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => setShowAIBuilder(false)}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-              <AIEmailTemplateBuilder
-                onSaveTemplate={(template) => {
-                  // Create and save the new AI-built template
-                  const newTemplate = saveCustomTemplate({
-                    id: '',
-                    name: 'AI-Built Template',
-                    category: 'general',
-                    industry: 'AI Generated',
-                    subject: template.subject,
-                    body_html: template.heroImage 
-                      ? `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                          <img src="${template.heroImage}" alt="Hero" style="width:100%;max-width:600px;height:auto;margin-bottom:20px;border-radius:8px;" />
-                          ${template.body.split('\n').map(p => `<p style="margin: 0 0 15px 0; line-height: 1.6;">${p}</p>`).join('')}
-                        </div>`
-                      : `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                          ${template.body.split('\n').map(p => `<p style="margin: 0 0 15px 0; line-height: 1.6;">${p}</p>`).join('')}
-                        </div>`,
-                    description: 'AI-generated custom template',
-                    previewImage: template.heroImage || 'https://images.unsplash.com/photo-1557200134-90327ee9fafa?w=400&h=300&fit=crop',
-                    conversionTip: 'Personalize with recipient details for better engagement',
-                    openRate: 0,
-                    replyRate: 0,
-                    folderId: undefined,
-                  });
-                  
-                  setCustomTemplates(getCustomTemplates());
-                  onSelectTemplate?.(newTemplate);
-                  setHighlightedTemplate(newTemplate);
-                  setShowAIBuilder(false);
-                  toast.success('🎉 AI Template created and selected!');
-                }}
-              />
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Upload Your Own Template Section */}
       <Card className="border-2 border-dashed border-primary/40 bg-primary/5">
         <CardContent className="p-4">
@@ -1245,6 +1166,78 @@ Best regards,
           <p className="text-muted-foreground">No templates found matching your search.</p>
         </div>
       )}
+
+      {/* AI Template Builder Section - UNDER the Email Template Gallery */}
+      <Card className="border-2 border-dashed border-violet-500/40 bg-gradient-to-r from-violet-500/5 to-purple-500/5">
+        <CardContent className="p-4">
+          {!showAIBuilder ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center">
+                  <Sparkles className="w-6 h-6 text-violet-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold flex items-center gap-2">
+                    Build your own Email Template with AI
+                    <Badge className="bg-violet-500/20 text-violet-400 border-violet-500/40 text-xs">AI Powered</Badge>
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Create stunning email templates with AI-generated content and hero images
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={() => setShowAIBuilder(true)}
+                className="gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+              >
+                <Wand2 className="w-4 h-4" />
+                Start Building
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-violet-400" />
+                  Build your own Email Template with AI
+                </h3>
+                <Button variant="ghost" size="sm" onClick={() => setShowAIBuilder(false)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <AIEmailTemplateBuilder
+                onSaveTemplate={(template) => {
+                  const newTemplate = saveCustomTemplate({
+                    id: '',
+                    name: 'AI-Built Template',
+                    category: 'general',
+                    industry: 'AI Generated',
+                    subject: template.subject,
+                    body_html: template.heroImage
+                      ? `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">\n                          <img src="${template.heroImage}" alt="Hero" style="width:100%;max-width:600px;height:auto;margin-bottom:20px;border-radius:8px;" />\n                          ${template.body.split('\\n').map(p => `<p style=\"margin: 0 0 15px 0; line-height: 1.6;\">${p}</p>`).join('')}\n                        </div>`
+                      : `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">\n                          ${template.body.split('\\n').map(p => `<p style=\"margin: 0 0 15px 0; line-height: 1.6;\">${p}</p>`).join('')}\n                        </div>`,
+                    description: 'AI-generated custom template',
+                    previewImage:
+                      template.heroImage ||
+                      'https://images.unsplash.com/photo-1557200134-90327ee9fafa?w=400&h=300&fit=crop',
+                    conversionTip: 'Personalize with recipient details for better engagement',
+                    openRate: 0,
+                    replyRate: 0,
+                    folderId: undefined,
+                  });
+
+                  setCustomTemplates(getCustomTemplates());
+                  onSelectTemplate?.(newTemplate);
+                  setHighlightedTemplate(newTemplate);
+                  setShowAIBuilder(false);
+                  toast.success('🎉 AI Template created and selected!');
+                }}
+              />
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Preview/Edit Modal */}
       {previewTemplate &&
