@@ -41,6 +41,7 @@ import { AILeadGrouping } from '@/components/AILeadGrouping';
 import SubscriptionManagement from '@/components/SubscriptionManagement';
 import EmailWidget from '@/components/EmailWidget';
 import AIVerifierWidget from '@/components/AIVerifierWidget';
+import PaymentMethodModal from '@/components/PaymentMethodModal';
 import bamMascot from '@/assets/bamlead-mascot.png';
 import { LeadForEmail } from '@/lib/api/email';
 import { searchGMB, GMBResult } from '@/lib/api/gmb';
@@ -49,6 +50,7 @@ import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } fro
 import { quickScoreLeads } from '@/lib/api/aiLeadScoring';
 import { HIGH_CONVERTING_TEMPLATES } from '@/lib/highConvertingTemplates';
 import { generateMechanicLeads, injectTestLeads } from '@/lib/testMechanicLeads';
+import { checkPaymentMethod } from '@/lib/api/stripeSetup';
 import AutoFollowUpBuilder from '@/components/AutoFollowUpBuilder';
 import LeadResultsPanel from '@/components/LeadResultsPanel';
 import LeadDocumentViewer from '@/components/LeadDocumentViewer';
@@ -200,6 +202,11 @@ export default function Dashboard() {
     DATA_FIELD_OPTIONS.filter(f => f.default).map(f => f.id)
   );
 
+  // Payment method modal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [pendingSearchType, setPendingSearchType] = useState<'gmb' | 'platform' | null>(null);
+  const [isCheckingPayment, setIsCheckingPayment] = useState(false);
+
   // Persist workflow state to sessionStorage for seamless step transitions
   useEffect(() => {
     sessionStorage.setItem('bamlead_current_step', currentStep.toString());
@@ -257,6 +264,49 @@ export default function Dashboard() {
     
     await logout();
     navigate('/');
+  };
+
+  // Check payment method and handle search type selection
+  const handleSearchTypeClick = async (type: 'gmb' | 'platform') => {
+    // If user already has active subscription, proceed directly
+    if (user?.has_active_subscription || user?.is_owner || user?.subscription_plan === 'free_granted') {
+      setSearchType(type);
+      return;
+    }
+
+    // Check payment method status from backend
+    setIsCheckingPayment(true);
+    try {
+      const status = await checkPaymentMethod();
+      
+      if (status.has_active_subscription || status.has_payment_method || !status.requires_payment_setup) {
+        // User has valid subscription or payment method, proceed
+        setSearchType(type);
+      } else {
+        // User needs to add payment method for trial
+        setPendingSearchType(type);
+        setShowPaymentModal(true);
+      }
+    } catch (err) {
+      console.error('Payment check failed:', err);
+      // On error, still allow proceeding (backend will handle auth)
+      setSearchType(type);
+    } finally {
+      setIsCheckingPayment(false);
+    }
+  };
+
+  // Handle successful payment method setup
+  const handlePaymentMethodSuccess = () => {
+    toast.success('🎉 Your 7-day free trial has started! Enjoy all Pro features.');
+    celebrate('subscription-activated');
+    refreshUser();
+    
+    // Proceed with the pending search type selection
+    if (pendingSearchType) {
+      setSearchType(pendingSearchType);
+      setPendingSearchType(null);
+    }
   };
 
   const handleSendToEmail = (leads: VerifiedLead[]) => {
@@ -706,8 +756,9 @@ export default function Dashboard() {
                     )}
                     
                     <button
-                      onClick={() => setSearchType('gmb')}
-                      className="group text-left p-6 pt-8 rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-primary/5 to-transparent hover:border-primary hover:shadow-2xl hover:shadow-primary/20 transition-all duration-300 w-full h-full"
+                      onClick={() => handleSearchTypeClick('gmb')}
+                      disabled={isCheckingPayment}
+                      className="group text-left p-6 pt-8 rounded-2xl border-2 border-primary/40 bg-gradient-to-br from-primary/5 to-transparent hover:border-primary hover:shadow-2xl hover:shadow-primary/20 transition-all duration-300 w-full h-full disabled:opacity-50 disabled:cursor-wait"
                     >
                       {/* Header */}
                       <div className="flex items-center justify-center gap-4 mb-6">
@@ -782,8 +833,9 @@ export default function Dashboard() {
                     )}
                     
                     <button
-                      onClick={() => setSearchType('platform')}
-                      className="group text-left p-6 pt-8 rounded-2xl border-2 border-violet-500/40 bg-gradient-to-br from-violet-500/5 to-transparent hover:border-violet-500 hover:shadow-2xl hover:shadow-violet-500/20 transition-all duration-300 w-full h-full"
+                      onClick={() => handleSearchTypeClick('platform')}
+                      disabled={isCheckingPayment}
+                      className="group text-left p-6 pt-8 rounded-2xl border-2 border-violet-500/40 bg-gradient-to-br from-violet-500/5 to-transparent hover:border-violet-500 hover:shadow-2xl hover:shadow-violet-500/20 transition-all duration-300 w-full h-full disabled:opacity-50 disabled:cursor-wait"
                     >
                       {/* Header */}
                       <div className="flex items-center justify-center gap-4 mb-6">
@@ -1871,6 +1923,14 @@ export default function Dashboard() {
           email: l.email,
           source: l.source,
         }))}
+      />
+
+      {/* Payment Method Modal for Trial Setup */}
+      <PaymentMethodModal
+        open={showPaymentModal}
+        onOpenChange={setShowPaymentModal}
+        onSuccess={handlePaymentMethodSuccess}
+        plan="pro"
       />
 
     </SidebarProvider>
