@@ -491,47 +491,47 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <div>
-              <Label className="text-xs">Company Name</Label>
+              <Label className="text-sm">Company Name</Label>
               <Input 
                 value={branding.companyName}
                 onChange={(e) => setBranding(prev => ({ ...prev, companyName: e.target.value }))}
                 placeholder="Your Company"
-                className="h-8 text-xs"
+                className="h-10 text-sm"
               />
             </div>
             <div>
-              <Label className="text-xs">Your Name</Label>
+              <Label className="text-sm">Your Name</Label>
               <Input 
                 value={branding.contactName}
                 onChange={(e) => setBranding(prev => ({ ...prev, contactName: e.target.value }))}
                 placeholder="Your Name"
-                className="h-8 text-xs"
+                className="h-10 text-sm"
               />
             </div>
             <div>
-              <Label className="text-xs">Email</Label>
+              <Label className="text-sm">Email</Label>
               <Input 
                 type="email"
                 value={branding.email}
                 onChange={(e) => setBranding(prev => ({ ...prev, email: e.target.value }))}
                 placeholder="you@company.com"
-                className="h-8 text-xs"
+                className="h-10 text-sm"
               />
             </div>
             <div>
-              <Label className="text-xs">Phone</Label>
+              <Label className="text-sm">Phone</Label>
               <Input 
                 value={branding.phone}
                 onChange={(e) => setBranding(prev => ({ ...prev, phone: e.target.value }))}
                 placeholder="(555) 123-4567"
-                className="h-8 text-xs"
+                className="h-10 text-sm"
               />
             </div>
             <div className="col-span-2">
-              <Label className="text-xs flex items-center gap-1">
-                <Image className="w-3 h-3" />
+              <Label className="text-sm flex items-center gap-2">
+                <Image className="w-4 h-4" />
                 Company Logo
               </Label>
               <div className="flex gap-2">
@@ -539,16 +539,16 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
                   type="file"
                   accept="image/*"
                   onChange={handleLogoUpload}
-                  className="h-8 text-xs"
+                  className="h-10 text-sm"
                 />
                 {branding.logoUrl && (
                   <Button 
                     variant="outline" 
                     size="sm"
                     onClick={() => setBranding(prev => ({ ...prev, logoUrl: '' }))}
-                    className="h-8 px-2"
+                    className="h-10 px-3"
                   >
-                    <X className="w-3 h-3" />
+                    <X className="w-4 h-4" />
                   </Button>
                 )}
               </div>
@@ -561,8 +561,8 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
       {leads.length > 0 && (
         <Card className="border-accent/20">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <User className="w-4 h-4" />
+            <CardTitle className="text-base flex items-center gap-2">
+              <User className="w-5 h-5" />
               Select Recipient
             </CardTitle>
           </CardHeader>
@@ -573,7 +573,7 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
                   <Badge 
                     key={lead.id}
                     variant={recipient.email === lead.email ? "default" : "outline"}
-                    className="cursor-pointer hover:bg-primary/20 text-[10px]"
+                    className="cursor-pointer hover:bg-primary/20 text-xs"
                     onClick={() => handleSelectLead(lead)}
                   >
                     {lead.name.substring(0, 20)}
@@ -586,20 +586,20 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
                 value={recipient.businessName}
                 onChange={(e) => setRecipient(prev => ({ ...prev, businessName: e.target.value }))}
                 placeholder="Client Business"
-                className="h-7 text-xs"
+                className="h-10 text-sm"
               />
               <Input 
                 value={recipient.contactName}
                 onChange={(e) => setRecipient(prev => ({ ...prev, contactName: e.target.value }))}
                 placeholder="Contact Name"
-                className="h-7 text-xs"
+                className="h-10 text-sm"
               />
               <Input 
                 type="email"
                 value={recipient.email}
                 onChange={(e) => setRecipient(prev => ({ ...prev, email: e.target.value }))}
                 placeholder="client@email.com"
-                className="h-7 text-xs"
+                className="h-10 text-sm"
               />
             </div>
           </CardContent>
@@ -609,12 +609,12 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
       {/* Main Tabs */}
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'proposals' | 'contracts')}>
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="proposals" className="gap-2">
-            <FileText className="w-4 h-4" />
+          <TabsTrigger value="proposals" className="gap-2 text-sm md:text-base py-3">
+            <FileText className="w-5 h-5" />
             Proposals ({PROPOSAL_TEMPLATES.length})
           </TabsTrigger>
-          <TabsTrigger value="contracts" className="gap-2">
-            <FileSignature className="w-4 h-4" />
+          <TabsTrigger value="contracts" className="gap-2 text-sm md:text-base py-3">
+            <FileSignature className="w-5 h-5" />
             Contracts ({CONTRACT_TEMPLATES.length})
           </TabsTrigger>
         </TabsList>
@@ -625,8 +625,8 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
             {/* Proposal Templates List */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-yellow-500" />
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-yellow-500" />
                   Select a Proposal (Click to Edit)
                 </CardTitle>
               </CardHeader>
@@ -636,8 +636,8 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
                     {/* Custom Proposals First */}
                     {customProposals.length > 0 && (
                       <>
-                        <p className="text-xs font-medium text-primary flex items-center gap-1 mb-1">
-                          <Star className="w-3 h-3" /> My Saved Proposals
+                        <p className="text-sm font-medium text-primary flex items-center gap-2 mb-1">
+                          <Star className="w-4 h-4" /> My Saved Proposals
                         </p>
                         {customProposals.map((proposal) => (
                           <Card 
@@ -647,12 +647,12 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
                             }`}
                             onClick={() => handleSelectProposal(proposal as ProposalTemplate)}
                           >
-                            <CardContent className="p-2">
-                              <div className="flex items-center gap-2">
-                                <div className="text-lg">{proposal.icon}</div>
+                            <CardContent className="p-3">
+                              <div className="flex items-center gap-3">
+                                <div className="text-2xl leading-none">{proposal.icon}</div>
                                 <div className="flex-1 min-w-0">
-                                  <h4 className="font-medium text-xs truncate">{proposal.name}</h4>
-                                  <Badge variant="secondary" className="text-[9px] mt-0.5">Custom</Badge>
+                                  <h4 className="font-medium text-sm truncate">{proposal.name}</h4>
+                                  <Badge variant="secondary" className="text-xs mt-1">Custom</Badge>
                                 </div>
                               </div>
                             </CardContent>
@@ -671,17 +671,17 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
                         }`}
                         onClick={() => handleSelectProposal(proposal)}
                       >
-                        <CardContent className="p-2">
-                          <div className="flex items-start gap-2">
-                            <div className="text-lg">{proposal.icon}</div>
+                        <CardContent className="p-3">
+                          <div className="flex items-start gap-3">
+                            <div className="text-2xl leading-none">{proposal.icon}</div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between">
-                                <h4 className="font-medium text-xs truncate">{proposal.name}</h4>
-                                <Badge variant="outline" className="text-[9px]">
+                                <h4 className="font-medium text-sm truncate">{proposal.name}</h4>
+                                <Badge variant="outline" className="text-xs">
                                   {proposal.category}
                                 </Badge>
                               </div>
-                              <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">
+                              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                                 {proposal.description}
                               </p>
                             </div>
@@ -913,8 +913,8 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
             {/* Contract Templates List */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 text-blue-500" />
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Briefcase className="w-5 h-5 text-blue-500" />
                   Select a Contract (Click to Edit)
                 </CardTitle>
               </CardHeader>
@@ -924,8 +924,8 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
                     {/* Custom Contracts First */}
                     {customContracts.length > 0 && (
                       <>
-                        <p className="text-xs font-medium text-primary flex items-center gap-1 mb-1">
-                          <Star className="w-3 h-3" /> My Saved Contracts
+                        <p className="text-sm font-medium text-primary flex items-center gap-2 mb-1">
+                          <Star className="w-4 h-4" /> My Saved Contracts
                         </p>
                         {customContracts.map((contract) => (
                           <Card 
@@ -935,12 +935,12 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
                             }`}
                             onClick={() => handleSelectContract(contract as ContractTemplate)}
                           >
-                            <CardContent className="p-2">
-                              <div className="flex items-center gap-2">
-                                <div className="text-lg">{contract.icon}</div>
+                            <CardContent className="p-3">
+                              <div className="flex items-center gap-3">
+                                <div className="text-2xl leading-none">{contract.icon}</div>
                                 <div className="flex-1 min-w-0">
-                                  <h4 className="font-medium text-xs truncate">{contract.name}</h4>
-                                  <Badge variant="secondary" className="text-[9px] mt-0.5">Custom</Badge>
+                                  <h4 className="font-medium text-sm truncate">{contract.name}</h4>
+                                  <Badge variant="secondary" className="text-xs mt-1">Custom</Badge>
                                 </div>
                               </div>
                             </CardContent>
@@ -959,17 +959,17 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
                         }`}
                         onClick={() => handleSelectContract(contract)}
                       >
-                        <CardContent className="p-2">
-                          <div className="flex items-start gap-2">
-                            <div className="text-lg">{contract.icon}</div>
+                        <CardContent className="p-3">
+                          <div className="flex items-start gap-3">
+                            <div className="text-2xl leading-none">{contract.icon}</div>
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between">
-                                <h4 className="font-medium text-xs truncate">{contract.name}</h4>
-                                <Badge variant="outline" className="text-[9px]">
+                                <h4 className="font-medium text-sm truncate">{contract.name}</h4>
+                                <Badge variant="outline" className="text-xs">
                                   {contract.category}
                                 </Badge>
                               </div>
-                              <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1">
+                              <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                                 {contract.description}
                               </p>
                             </div>
