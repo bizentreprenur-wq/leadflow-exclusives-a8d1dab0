@@ -12,8 +12,9 @@ import {
   Phone, Calendar as CalendarIcon, Database, ArrowLeft, Home,
   CheckCircle2, ExternalLink, Clock, Users, Video, Link2,
   Sparkles, Info, AlertTriangle, Plus, Settings2, Send, Loader2, RefreshCw,
-  PlayCircle, ListOrdered
+  PlayCircle, ListOrdered, Mail, Inbox
 } from 'lucide-react';
+import AIResponseInbox from './AIResponseInbox';
 import CallQueueModal from './CallQueueModal';
 import type { CallOutcome } from '@/lib/api/callLogs';
 import { 
@@ -501,12 +502,18 @@ export default function Step4OutreachHub({
 
       {/* Tabs Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-4 w-full max-w-2xl mx-auto bg-muted/50 p-1">
+        <TabsList className="grid grid-cols-5 w-full max-w-3xl mx-auto bg-muted/50 p-1">
           <TabsTrigger 
             value="overview" 
             className="gap-2 data-[state=active]:bg-violet-500 data-[state=active]:text-white transition-all"
           >
             <Sparkles className="w-4 h-4" />Overview
+          </TabsTrigger>
+          <TabsTrigger 
+            value="inbox" 
+            className="gap-2 data-[state=active]:bg-amber-500 data-[state=active]:text-white transition-all"
+          >
+            <Inbox className="w-4 h-4" />Inbox
           </TabsTrigger>
           <TabsTrigger 
             value="calls" 
@@ -622,6 +629,11 @@ export default function Step4OutreachHub({
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* Inbox - AI Response Assistant */}
+        <TabsContent value="inbox" className="space-y-6">
+          <AIResponseInbox />
         </TabsContent>
 
         {/* Calls */}
