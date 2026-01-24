@@ -10,6 +10,11 @@ require_once __DIR__ . '/database.php';
 // Check if Stripe SDK is available
 // Install via Composer: composer require stripe/stripe-php
 function initStripe() {
+    $autoload = __DIR__ . '/../vendor/autoload.php';
+    if (file_exists($autoload)) {
+        require_once $autoload;
+    }
+
     if (!class_exists('\Stripe\Stripe')) {
         // If Stripe SDK not installed, provide instructions
         throw new Exception('Stripe SDK not installed. Run: composer require stripe/stripe-php');
