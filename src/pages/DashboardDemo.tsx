@@ -28,8 +28,10 @@ import { SocialFinderButton } from "@/components/SocialProfileFinder";
 import EmailHelpOverlay from "@/components/EmailHelpOverlay";
 import HighConvertingTemplateGallery from "@/components/HighConvertingTemplateGallery";
 import LeadSpreadsheetViewer from "@/components/LeadSpreadsheetViewer";
+import AIResponseInbox from "@/components/AIResponseInbox";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
+import { Inbox } from "lucide-react";
 
 // Generate 100 sample leads
 const businessTypes = ["Auto Repair", "Dental Clinic", "Law Firm", "Restaurant", "Plumber", "Electrician", "Real Estate", "Accounting", "Marketing Agency", "Fitness Studio"];
@@ -71,6 +73,7 @@ const WORKFLOW_STEPS = [
   { id: 2, label: "Leads", icon: Building2 },
   { id: 3, label: "Email", icon: Mail },
   { id: 4, label: "Call", icon: Phone },
+  { id: 5, label: "Mailbox", icon: Inbox },
 ];
 
 export default function DashboardDemo() {
@@ -928,6 +931,30 @@ Best regards,
                 </div>
               </CardContent>
             </Card>
+          </div>
+        )}
+
+        {/* Step 5: AI Mailbox - Full Experience */}
+        {currentStep === 5 && (
+          <div className="space-y-6">
+            {/* Big Header */}
+            <div className="text-center py-6 bg-gradient-to-r from-primary/10 to-emerald-500/10 rounded-2xl border-2 border-primary/30">
+              <div className="text-5xl mb-3">📬</div>
+              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
+                STEP 5: AI Mailbox
+              </h2>
+              <p className="text-lg text-muted-foreground max-w-xl mx-auto">
+                Manage replies, sequences, and follow-ups with AI automation
+              </p>
+            </div>
+
+            {/* Back Button */}
+            <Button variant="outline" onClick={() => setCurrentStep(4)} className="gap-2">
+              ← Back to Voice Calls
+            </Button>
+
+            {/* AI Response Inbox */}
+            <AIResponseInbox />
           </div>
         )}
       </div>
