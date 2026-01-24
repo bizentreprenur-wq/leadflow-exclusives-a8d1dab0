@@ -146,6 +146,11 @@ export default function HighConvertingTemplateGallery({
   const uploadLogoRef = useRef<HTMLInputElement>(null);
   const inlineImageRef = useRef<HTMLInputElement>(null);
   const uploadBodyRef = useRef<HTMLTextAreaElement>(null);
+  const htmlFileRef = useRef<HTMLInputElement>(null);
+  
+  // Content mode: 'text' (plain text), 'html' (full HTML upload), 'visual' (rich editor)
+  const [contentMode, setContentMode] = useState<'text' | 'html'>('text');
+  const [uploadedHtml, setUploadedHtml] = useState('');
   
   // Inline images storage - maps placeholder to base64
   const [inlineImages, setInlineImages] = useState<Record<string, string>>({});
@@ -280,7 +285,34 @@ export default function HighConvertingTemplateGallery({
     reader.readAsDataURL(file);
   };
 
-  // Handle saving uploaded template - now with inline images
+  // Handle HTML file upload
+  const handleHtmlFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    // Accept .html, .htm, or text files
+    if (!file.name.match(/\.(html?|txt)$/i) && !file.type.match(/^text\//)) {
+      toast.error('Please upload an HTML or text file');
+      return;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File must be under 5MB');
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = () => {
+      const content = reader.result as string;
+      setUploadedHtml(content);
+      setContentMode('html');
+      toast.success(`📄 HTML template loaded: ${file.name}`);
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  // Handle saving uploaded template - now with inline images AND full HTML support
   const handleSaveUploadedTemplate = () => {
     if (!uploadTemplateName.trim()) {
       toast.error('Please enter a template name');
@@ -290,32 +322,38 @@ export default function HighConvertingTemplateGallery({
       toast.error('Please enter a subject line');
       return;
     }
-    if (!uploadBody.trim()) {
-      toast.error('Please enter email body content');
+    
+    let htmlBody = '';
+    
+    if (contentMode === 'html' && uploadedHtml.trim()) {
+      // Use the uploaded HTML directly
+      htmlBody = uploadedHtml.trim();
+    } else if (uploadBody.trim()) {
+      // Build HTML body from text with inline images
+      htmlBody = `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">`;
+      
+      // Process body text and replace image placeholders with actual images
+      const bodyParts = uploadBody.split('\n');
+      for (const part of bodyParts) {
+        const trimmed = part.trim();
+        if (trimmed.match(/^\[IMAGE_\d+\]$/)) {
+          // This is an image placeholder
+          const imgSrc = inlineImages[trimmed];
+          if (imgSrc) {
+            htmlBody += `<div style="text-align: center; margin: 15px 0;">
+              <img src="${imgSrc}" alt="Email image" style="max-width: 100%; height: auto; border-radius: 8px;" />
+            </div>`;
+          }
+        } else if (trimmed) {
+          htmlBody += `<p style="margin: 0 0 15px 0; line-height: 1.6;">${trimmed}</p>`;
+        }
+      }
+      
+      htmlBody += `</div>`;
+    } else {
+      toast.error('Please enter email body content or upload an HTML template');
       return;
     }
-    
-    // Build HTML body with inline images
-    let htmlBody = `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">`;
-    
-    // Process body text and replace image placeholders with actual images
-    const bodyParts = uploadBody.split('\n');
-    for (const part of bodyParts) {
-      const trimmed = part.trim();
-      if (trimmed.match(/^\[IMAGE_\d+\]$/)) {
-        // This is an image placeholder
-        const imgSrc = inlineImages[trimmed];
-        if (imgSrc) {
-          htmlBody += `<div style="text-align: center; margin: 15px 0;">
-            <img src="${imgSrc}" alt="Email image" style="max-width: 100%; height: auto; border-radius: 8px;" />
-          </div>`;
-        }
-      } else if (trimmed) {
-        htmlBody += `<p style="margin: 0 0 15px 0; line-height: 1.6;">${trimmed}</p>`;
-      }
-    }
-    
-    htmlBody += `</div>`;
     
     // Get first image for preview, or use default
     const firstImageKey = Object.keys(inlineImages)[0];
@@ -328,7 +366,7 @@ export default function HighConvertingTemplateGallery({
       industry: uploadIndustry.trim() || 'General',
       subject: uploadSubject.trim(),
       body_html: htmlBody,
-      description: `Custom uploaded template`,
+      description: contentMode === 'html' ? 'Uploaded HTML template' : 'Custom template',
       previewImage: previewImage,
       conversionTip: 'Personalize this template for better engagement',
       openRate: 0,
@@ -343,6 +381,8 @@ export default function HighConvertingTemplateGallery({
     setUploadSubject('');
     setUploadBody('');
     setUploadIndustry('');
+    setUploadedHtml('');
+    setContentMode('text');
     setInlineImages({});
     setInlineImageCounter(1);
     setShowUploadSection(false);
@@ -760,36 +800,72 @@ export default function HighConvertingTemplateGallery({
                 </p>
               </div>
 
-              {/* Email Body with Inline Image Support */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="upload-body">Email Body *</Label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      ref={inlineImageRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleInlineImageUpload}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => inlineImageRef.current?.click()}
-                      className="gap-1.5 text-xs"
-                    >
-                      <ImageIcon className="w-3.5 h-3.5" />
-                      Insert Image
-                    </Button>
-                  </div>
+              {/* Content Mode Tabs */}
+              <div className="space-y-3">
+                <Label>Email Content *</Label>
+                <div className="flex gap-2 mb-3">
+                  <Button
+                    type="button"
+                    variant={contentMode === 'text' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setContentMode('text')}
+                    className="gap-2"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                    Write Text
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={contentMode === 'html' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => htmlFileRef.current?.click()}
+                    className="gap-2"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Upload HTML File
+                  </Button>
+                  <input
+                    ref={htmlFileRef}
+                    type="file"
+                    accept=".html,.htm,.txt,text/html,text/plain"
+                    className="hidden"
+                    onChange={handleHtmlFileUpload}
+                  />
                 </div>
-                <Textarea
-                  ref={uploadBodyRef}
-                  id="upload-body"
-                  value={uploadBody}
-                  onChange={(e) => setUploadBody(e.target.value)}
-                  placeholder={`Hi {{first_name}},
+
+                {/* Text Mode - Write with inline images */}
+                {contentMode === 'text' && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">
+                        Write your email and insert images anywhere
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          ref={inlineImageRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleInlineImageUpload}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => inlineImageRef.current?.click()}
+                          className="gap-1.5 text-xs"
+                        >
+                          <ImageIcon className="w-3.5 h-3.5" />
+                          Insert Image
+                        </Button>
+                      </div>
+                    </div>
+                    <Textarea
+                      ref={uploadBodyRef}
+                      id="upload-body"
+                      value={uploadBody}
+                      onChange={(e) => setUploadBody(e.target.value)}
+                      placeholder={`Hi {{first_name}},
 
 I noticed your business {{business_name}} and wanted to reach out...
 
@@ -799,43 +875,111 @@ Looking forward to connecting!
 
 Best regards,
 [Your Name]`}
-                  className="min-h-[250px] font-mono text-sm"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Click "Insert Image" to add images at your cursor position. Images appear as [IMAGE_X] placeholders.
-                </p>
-              </div>
+                      className="min-h-[250px] font-mono text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Use placeholders: {"{{first_name}}"}, {"{{business_name}}"}, {"{{website}}"}
+                    </p>
+                    
+                    {/* Inline Images Preview */}
+                    {Object.keys(inlineImages).length > 0 && (
+                      <div className="space-y-2">
+                        <Label>Inserted Images</Label>
+                        <div className="flex flex-wrap gap-3 p-3 rounded-lg bg-muted/30 border">
+                          {Object.entries(inlineImages).map(([placeholder, src]) => (
+                            <div key={placeholder} className="relative group">
+                              <img 
+                                src={src} 
+                                alt={placeholder} 
+                                className="h-16 w-24 object-cover rounded-lg border shadow-sm"
+                              />
+                              <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                                <Button
+                                  size="icon"
+                                  variant="destructive"
+                                  className="w-6 h-6"
+                                  onClick={() => handleRemoveInlineImage(placeholder)}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </Button>
+                              </div>
+                              <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-background/70 text-foreground py-0.5 rounded-b-lg">
+                                {placeholder}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
-              {/* Inline Images Preview */}
-              {Object.keys(inlineImages).length > 0 && (
-                <div className="space-y-2">
-                  <Label>Inserted Images</Label>
-                  <div className="flex flex-wrap gap-3 p-3 rounded-lg bg-muted/30 border">
-                    {Object.entries(inlineImages).map(([placeholder, src]) => (
-                      <div key={placeholder} className="relative group">
-                        <img 
-                          src={src} 
-                          alt={placeholder} 
-                          className="h-16 w-24 object-cover rounded-lg border shadow-sm"
-                        />
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                {/* HTML Mode - Show uploaded HTML preview */}
+                {contentMode === 'html' && (
+                  <div className="space-y-3">
+                    {uploadedHtml ? (
+                      <>
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-success/10 border border-success/30">
+                          <div className="flex items-center gap-3">
+                            <Check className="w-5 h-5 text-success" />
+                            <div>
+                              <p className="text-sm font-medium text-success">✓ HTML Template Loaded</p>
+                              <p className="text-xs text-muted-foreground">
+                                {uploadedHtml.length.toLocaleString()} characters
+                              </p>
+                            </div>
+                          </div>
                           <Button
-                            size="icon"
-                            variant="destructive"
-                            className="w-6 h-6"
-                            onClick={() => handleRemoveInlineImage(placeholder)}
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setUploadedHtml('');
+                              setContentMode('text');
+                            }}
+                            className="gap-1.5"
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <X className="w-3.5 h-3.5" />
+                            Remove
                           </Button>
                         </div>
-                        <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-black/70 text-white py-0.5 rounded-b-lg">
-                          {placeholder}
-                        </span>
+                        
+                        {/* HTML Preview */}
+                        <div className="space-y-2">
+                          <Label>Preview</Label>
+                          <div className="max-h-[300px] overflow-auto rounded-lg border bg-background p-4">
+                            <div 
+                              dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(uploadedHtml) }} 
+                              className="prose prose-sm max-w-none"
+                            />
+                          </div>
+                        </div>
+                        
+                        {/* Raw HTML Editor */}
+                        <div className="space-y-2">
+                          <Label>Edit HTML (optional)</Label>
+                          <Textarea
+                            value={uploadedHtml}
+                            onChange={(e) => setUploadedHtml(e.target.value)}
+                            className="min-h-[150px] font-mono text-xs"
+                            placeholder="Your HTML content..."
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <div 
+                        className="border-2 border-dashed border-primary/30 rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
+                        onClick={() => htmlFileRef.current?.click()}
+                      >
+                        <Upload className="w-12 h-12 mx-auto text-primary/60 mb-3" />
+                        <p className="font-medium">Click to upload an HTML template</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Supports .html, .htm, or .txt files up to 5MB
+                        </p>
                       </div>
-                    ))}
+                    )}
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
               {/* Action Buttons */}
               <div className="flex items-center justify-end gap-3 pt-2">
@@ -847,6 +991,8 @@ Best regards,
                     setUploadSubject('');
                     setUploadBody('');
                     setUploadIndustry('');
+                    setUploadedHtml('');
+                    setContentMode('text');
                     setInlineImages({});
                     setInlineImageCounter(1);
                   }}
@@ -856,7 +1002,7 @@ Best regards,
                 <Button
                   onClick={handleSaveUploadedTemplate}
                   className="gap-2"
-                  disabled={!uploadTemplateName.trim() || !uploadSubject.trim() || !uploadBody.trim()}
+                  disabled={!uploadTemplateName.trim() || !uploadSubject.trim() || (contentMode === 'text' && !uploadBody.trim()) || (contentMode === 'html' && !uploadedHtml.trim())}
                 >
                   <Save className="w-4 h-4" />
                   Save Template
