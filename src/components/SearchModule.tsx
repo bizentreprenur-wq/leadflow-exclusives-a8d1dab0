@@ -191,7 +191,7 @@ const SearchModule = () => {
             <span className="font-semibold text-primary">Find businesses to call or email.</span> Get comprehensive AI-powered insights on every lead — perfect for sales teams, agencies & digital professionals.
           </p>
 
-          <ul className="text-sm text-muted-foreground space-y-2 mb-6">
+          <ul className="text-sm text-muted-foreground space-y-1.5 mb-4">
             <li className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-primary" />
               Complete business profile & validation
@@ -209,6 +209,25 @@ const SearchModule = () => {
               AI scoring & sales intelligence
             </li>
           </ul>
+
+          {/* What You Get Section */}
+          <div className="p-3 rounded-lg bg-gradient-to-r from-primary/5 to-emerald-500/5 border border-primary/10 mb-4">
+            <p className="text-xs font-semibold text-primary mb-2">✨ What You Get:</p>
+            <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
+              <span>📍 Business Address</span>
+              <span>📞 Phone Numbers</span>
+              <span>🌐 Website URL</span>
+              <span>📧 Email Address</span>
+              <span>⭐ Google Reviews</span>
+              <span>📊 AI Lead Score</span>
+              <span>📱 Mobile Readiness</span>
+              <span>🎯 Tracking Pixels</span>
+              <span>💬 Social Profiles</span>
+              <span>🔧 Tech Stack</span>
+              <span>💰 Revenue Signals</span>
+              <span>🗣️ What to Say Scripts</span>
+            </div>
+          </div>
 
           <Button
             onClick={() => handleSearch("gmb")}
@@ -246,9 +265,24 @@ const SearchModule = () => {
             </div>
           </div>
 
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className="text-sm text-muted-foreground mb-3">
             Find clients who need <span className="font-semibold text-violet-400">website redesigns</span>, <span className="font-semibold text-violet-400">social media management</span>, and <span className="font-semibold text-violet-400">digital marketing help</span>.
           </p>
+
+          {/* What You Get Section */}
+          <div className="p-3 rounded-lg bg-violet-500/5 border border-violet-500/10 mb-3">
+            <p className="text-xs font-semibold text-violet-400 mb-2">🎯 Perfect For Finding:</p>
+            <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
+              <span>🔧 Outdated Websites</span>
+              <span>📵 Non-Mobile Sites</span>
+              <span>🎨 Old CMS Platforms</span>
+              <span>📉 Missing Analytics</span>
+              <span>💳 No Online Booking</span>
+              <span>📱 No Social Presence</span>
+              <span>⚡ Slow Page Speed</span>
+              <span>🔐 No SSL Security</span>
+            </div>
+          </div>
 
           {/* Platform Selection */}
           <div className="mb-4">
