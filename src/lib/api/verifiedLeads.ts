@@ -40,18 +40,13 @@ export interface SaveLeadsResponse {
   error?: string;
 }
 
-// Get auth token from localStorage
+// Get auth token from localStorage (use canonical 'auth_token' key)
 function getAuthToken(): string | null {
   try {
-    const authData = localStorage.getItem('bamlead_auth');
-    if (authData) {
-      const parsed = JSON.parse(authData);
-      return parsed.token || null;
-    }
+    return localStorage.getItem('auth_token') || null;
   } catch {
     return null;
   }
-  return null;
 }
 
 /**
