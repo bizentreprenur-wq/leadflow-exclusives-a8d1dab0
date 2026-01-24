@@ -68,8 +68,45 @@ function handleCreateSetupIntent() {
 }
 
 /**
+ * Check if user is eligible for a trial (first-time subscriber only)
+ */
+function isTrialEligible($userId) {
+    $db = getDB();
+    
+    // Check if user has ever had a subscription or used a trial
+    $userRecord = $db->fetchOne(
+        "SELECT had_trial, first_subscription_at, subscription_status, subscription_plan 
+         FROM users WHERE id = ?",
+        [$userId]
+    );
+    
+    // Not eligible if they've already used a trial
+    if ($userRecord && $userRecord['had_trial']) {
+        return false;
+    }
+    
+    // Not eligible if they've ever had a subscription
+    if ($userRecord && !empty($userRecord['first_subscription_at'])) {
+        return false;
+    }
+    
+    // Check subscriptions table for any past subscriptions
+    $pastSubscription = $db->fetchOne(
+        "SELECT id FROM subscriptions WHERE user_id = ? LIMIT 1",
+        [$userId]
+    );
+    
+    if ($pastSubscription) {
+        return false;
+    }
+    
+    return true;
+}
+
+/**
  * Save payment method after successful SetupIntent confirmation
- * Also starts the trial subscription
+ * Starts trial subscription ONLY for first-time subscribers
+ * Returning customers go straight to paid billing
  */
 function handleSavePaymentMethod() {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -110,16 +147,18 @@ function handleSavePaymentMethod() {
             ],
         ]);
         
-        // Get price ID for the plan with trial
+        // Get price ID for the plan
         $prices = STRIPE_PRICES[$plan] ?? STRIPE_PRICES['pro'];
         $priceId = $prices['monthly'];
         
-        // Create subscription with 7-day trial
-        $subscription = \Stripe\Subscription::create([
+        // Check if user is eligible for a trial (first-time subscriber only)
+        $eligibleForTrial = isTrialEligible($user['id']);
+        
+        // Build subscription parameters
+        $subscriptionParams = [
             'customer' => $user['stripe_customer_id'],
             'items' => [['price' => $priceId]],
             'default_payment_method' => $paymentMethodId,
-            'trial_period_days' => 7,
             'payment_settings' => [
                 'payment_method_types' => ['card'],
                 'save_default_payment_method' => 'on_subscription',
@@ -128,28 +167,53 @@ function handleSavePaymentMethod() {
                 'user_id' => $user['id'],
                 'plan' => $plan,
             ],
-        ]);
+        ];
+        
+        // Only add trial for first-time subscribers
+        if ($eligibleForTrial) {
+            $subscriptionParams['trial_period_days'] = 7;
+        }
+        
+        // Create subscription (with or without trial)
+        $subscription = \Stripe\Subscription::create($subscriptionParams);
         
         // Sync subscription to database
         syncSubscriptionFromStripe($subscription, $user['id']);
         
-        // Update user record to indicate trial active
+        // Update user record
+        $trialEndsAt = $eligibleForTrial 
+            ? "DATE_ADD(NOW(), INTERVAL 7 DAY)" 
+            : "NULL";
+        
         $db->update(
             "UPDATE users SET 
                 subscription_status = 'active',
                 subscription_plan = ?,
                 has_payment_method = 1,
-                trial_ends_at = DATE_ADD(NOW(), INTERVAL 7 DAY)
+                had_trial = 1,
+                first_subscription_at = COALESCE(first_subscription_at, NOW()),
+                trial_ends_at = " . $trialEndsAt . "
              WHERE id = ?",
             [$plan, $user['id']]
         );
         
-        sendJson([
-            'success' => true,
-            'message' => 'Trial started! You won\'t be charged until your 7-day trial ends.',
-            'trial_ends_at' => date('Y-m-d H:i:s', strtotime('+7 days')),
-            'plan' => $plan,
-        ]);
+        // Different response based on trial eligibility
+        if ($eligibleForTrial) {
+            sendJson([
+                'success' => true,
+                'message' => 'Trial started! You won\'t be charged until your 7-day trial ends.',
+                'trial_ends_at' => date('Y-m-d H:i:s', strtotime('+7 days')),
+                'plan' => $plan,
+                'is_trial' => true,
+            ]);
+        } else {
+            sendJson([
+                'success' => true,
+                'message' => 'Subscription activated! Your billing starts immediately.',
+                'plan' => $plan,
+                'is_trial' => false,
+            ]);
+        }
     } catch (Exception $e) {
         error_log("Save payment method failed: " . $e->getMessage());
         sendError($e->getMessage(), 500);

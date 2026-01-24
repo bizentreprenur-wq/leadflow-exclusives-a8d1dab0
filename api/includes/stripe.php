@@ -57,7 +57,39 @@ function getOrCreateStripeCustomer($user) {
 }
 
 /**
+ * Check if user is eligible for a trial (first-time subscriber only)
+ */
+function isUserTrialEligible($userId) {
+    $db = getDB();
+    
+    // Check if user has ever had a subscription or used a trial
+    $userRecord = $db->fetchOne(
+        "SELECT had_trial, first_subscription_at FROM users WHERE id = ?",
+        [$userId]
+    );
+    
+    // Not eligible if they've already used a trial
+    if ($userRecord && $userRecord['had_trial']) {
+        return false;
+    }
+    
+    // Not eligible if they've ever had a subscription
+    if ($userRecord && !empty($userRecord['first_subscription_at'])) {
+        return false;
+    }
+    
+    // Check subscriptions table for any past subscriptions
+    $pastSubscription = $db->fetchOne(
+        "SELECT id FROM subscriptions WHERE user_id = ? LIMIT 1",
+        [$userId]
+    );
+    
+    return !$pastSubscription;
+}
+
+/**
  * Create a checkout session for subscription
+ * Only offers trial to first-time subscribers
  */
 function createCheckoutSession($user, $planName, $billingPeriod = 'monthly') {
     initStripe();
@@ -74,6 +106,22 @@ function createCheckoutSession($user, $planName, $billingPeriod = 'monthly') {
     
     $customer = getOrCreateStripeCustomer($user);
     
+    // Check trial eligibility for this user
+    $eligibleForTrial = isUserTrialEligible($user['id']);
+    
+    // Build subscription data
+    $subscriptionData = [
+        'metadata' => [
+            'user_id' => $user['id'],
+            'plan' => $planName,
+        ],
+    ];
+    
+    // Only add trial for first-time subscribers
+    if ($eligibleForTrial) {
+        $subscriptionData['trial_period_days'] = 7;
+    }
+    
     $session = \Stripe\Checkout\Session::create([
         'customer' => $customer->id,
         'payment_method_types' => ['card'],
@@ -89,12 +137,7 @@ function createCheckoutSession($user, $planName, $billingPeriod = 'monthly') {
             'plan' => $planName,
             'billing_period' => $billingPeriod,
         ],
-        'subscription_data' => [
-            'metadata' => [
-                'user_id' => $user['id'],
-                'plan' => $planName,
-            ],
-        ],
+        'subscription_data' => $subscriptionData,
         'allow_promotion_codes' => true,
     ]);
     
