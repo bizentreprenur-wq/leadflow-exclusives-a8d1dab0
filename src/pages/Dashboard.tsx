@@ -900,10 +900,10 @@ export default function Dashboard() {
                       
                       <div className="text-center mb-6">
                         <h3 className="text-2xl font-bold text-foreground mb-2">
-                          🏢 Local Business Search
+                          🤖 Super AI Business Search
                         </h3>
                         <p className="text-muted-foreground">
-                          Find businesses on Google Maps
+                          Google Maps + AI Intelligence
                         </p>
                       </div>
 
@@ -912,19 +912,19 @@ export default function Dashboard() {
                         <p className="text-sm font-semibold text-primary mb-2">✨ What you'll get:</p>
                         <div className="flex items-center gap-3">
                           <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
-                          <span className="text-foreground text-sm">Business names & contact info</span>
+                          <span className="text-foreground text-sm">100+ data points per business</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
-                          <span className="text-foreground text-sm">Phone numbers & addresses</span>
+                          <span className="text-foreground text-sm">AI-powered outreach scripts</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
-                          <span className="text-foreground text-sm">Star ratings & reviews</span>
+                          <span className="text-foreground text-sm">Website, reviews & social analysis</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
-                          <span className="text-foreground text-sm">Website quality scores</span>
+                          <span className="text-foreground text-sm">Personalized talking points</span>
                         </div>
                       </div>
 
@@ -932,7 +932,7 @@ export default function Dashboard() {
                       <div className="bg-primary/10 rounded-xl p-4 text-center">
                         <p className="text-primary font-bold text-sm mb-1">👍 Best for:</p>
                         <p className="text-muted-foreground text-sm">
-                          Finding plumbers, dentists, restaurants, lawyers, etc.
+                          Sales teams, agencies, SaaS companies & investors
                         </p>
                       </div>
                       
@@ -1026,8 +1026,8 @@ export default function Dashboard() {
                 {/* Help Text */}
                 <div className="text-center py-4 px-6 bg-muted/30 rounded-xl border border-border/50">
                   <p className="text-sm text-muted-foreground">
-                    💡 <strong>Not sure which to pick?</strong> Start with <span className="text-primary font-medium">Option A</span> if you want local businesses, 
-                    or <span className="text-violet-500 font-medium">Option B</span> if you're a web designer looking for redesign clients.
+                    💡 <strong>Not sure which to pick?</strong> Start with <span className="text-primary font-medium">Super AI Search</span> for comprehensive business intelligence, 
+                    or <span className="text-violet-500 font-medium">Agency Lead Finder</span> if you're looking for clients with digital gaps.
                   </p>
                 </div>
               </div>
@@ -1059,10 +1059,10 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <h3 className="font-bold text-foreground">
-                        {searchType === 'gmb' ? '🏢 Local Business Search' : '🔍 Agency Lead Finder'}
+                        {searchType === 'gmb' ? '🤖 Super AI Business Search' : '🔍 Agency Lead Finder'}
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        {searchType === 'gmb' ? 'Google Maps listings' : 'For website designers, marketers & agencies'}
+                        {searchType === 'gmb' ? 'Google Maps + AI Intelligence • 100+ data points' : 'For website designers, marketers & agencies'}
                       </p>
                     </div>
                   </div>
