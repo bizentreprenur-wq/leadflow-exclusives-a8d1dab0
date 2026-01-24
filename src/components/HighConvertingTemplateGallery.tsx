@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useUserBranding } from "@/hooks/useUserBranding";
 import { sanitizeEmailHTML } from "@/lib/sanitize";
@@ -38,7 +38,9 @@ import {
   FolderOpen,
   Folder,
   Plus,
-  MoveRight
+  MoveRight,
+  Upload,
+  Image as ImageIcon
 } from "lucide-react";
 import { HIGH_CONVERTING_TEMPLATES, TEMPLATE_CATEGORIES, EmailTemplate } from "@/lib/highConvertingTemplates";
 import { 
@@ -54,6 +56,8 @@ import {
   addLeadsToCRM,
 } from "@/lib/customTemplates";
 import { toast } from "sonner";
+import { saveUserBranding } from "@/lib/api/branding";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface HighConvertingTemplateGalleryProps {
   onSelectTemplate?: (template: EmailTemplate) => void;
@@ -123,13 +127,25 @@ export default function HighConvertingTemplateGallery({
   const [previewTemplate, setPreviewTemplate] = useState<EmailTemplate | null>(null);
   
   // User branding for logo display
-  const { branding } = useUserBranding();
+  const { branding, refetch: refetchBranding } = useUserBranding();
+  const { isAuthenticated } = useAuth();
   
   // Custom templates and folders from localStorage
   const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>([]);
   const [folders, setFolders] = useState<TemplateFolder[]>([]);
   const [showNewFolderInput, setShowNewFolderInput] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  
+  // Upload your own template state
+  const [showUploadSection, setShowUploadSection] = useState(false);
+  const [uploadTemplateName, setUploadTemplateName] = useState('');
+  const [uploadSubject, setUploadSubject] = useState('');
+  const [uploadBody, setUploadBody] = useState('');
+  const [uploadIndustry, setUploadIndustry] = useState('');
+  const [uploadImage, setUploadImage] = useState<string | null>(null);
+  const [uploadLogoLocal, setUploadLogoLocal] = useState<string | null>(null);
+  const uploadImageRef = useRef<HTMLInputElement>(null);
+  const uploadLogoRef = useRef<HTMLInputElement>(null);
   
   // Load custom templates and folders on mount
   useEffect(() => {
@@ -153,6 +169,134 @@ export default function HighConvertingTemplateGallery({
   const [editedBody, setEditedBody] = useState("");
   const [newTemplateName, setNewTemplateName] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<string>("");
+
+  // Handle image upload for custom template
+  const handleTemplateImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Image must be under 2MB');
+      return;
+    }
+    
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = () => {
+      setUploadImage(reader.result as string);
+      toast.success('Template image uploaded!');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Handle logo upload if user doesn't have one
+  const handleLogoUploadLocal = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Logo must be under 2MB');
+      return;
+    }
+    
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      setUploadLogoLocal(base64);
+      
+      // Sync with email_branding localStorage
+      const existing = JSON.parse(localStorage.getItem('email_branding') || '{}');
+      localStorage.setItem('email_branding', JSON.stringify({ ...existing, logoUrl: base64 }));
+      
+      // Also sync with bamlead_branding_info for proposals/contracts
+      const brandingInfo = JSON.parse(localStorage.getItem('bamlead_branding_info') || '{}');
+      localStorage.setItem('bamlead_branding_info', JSON.stringify({ ...brandingInfo, logo: base64 }));
+      
+      // Persist to backend for logged-in users
+      if (isAuthenticated) {
+        const saved = await saveUserBranding({ logo_url: base64 });
+        if (saved) {
+          toast.success('Business logo saved to your account!');
+          refetchBranding();
+        } else {
+          toast.warning('Logo saved locally, but backend save failed.');
+        }
+      } else {
+        toast.success('Business logo uploaded! (Log in to save permanently)');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Handle saving uploaded template
+  const handleSaveUploadedTemplate = () => {
+    if (!uploadTemplateName.trim()) {
+      toast.error('Please enter a template name');
+      return;
+    }
+    if (!uploadSubject.trim()) {
+      toast.error('Please enter a subject line');
+      return;
+    }
+    if (!uploadBody.trim()) {
+      toast.error('Please enter email body content');
+      return;
+    }
+    
+    // Build HTML body with optional image
+    let htmlBody = `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">`;
+    
+    if (uploadImage) {
+      htmlBody += `<div style="text-align: center; margin-bottom: 20px;">
+        <img src="${uploadImage}" alt="Template image" style="max-width: 100%; height: auto; border-radius: 8px;" />
+      </div>`;
+    }
+    
+    htmlBody += uploadBody.split('\n').map(p => `<p style="margin: 0 0 15px 0; line-height: 1.6;">${p}</p>`).join('');
+    htmlBody += `</div>`;
+    
+    const newTemplate = saveCustomTemplate({
+      id: '',
+      name: uploadTemplateName.trim(),
+      category: 'general',
+      industry: uploadIndustry.trim() || 'General',
+      subject: uploadSubject.trim(),
+      body_html: htmlBody,
+      description: `Custom uploaded template`,
+      previewImage: uploadImage || 'https://images.unsplash.com/photo-1557200134-90327ee9fafa?w=400&h=300&fit=crop',
+      conversionTip: 'Personalize this template for better engagement',
+      openRate: 0,
+      replyRate: 0,
+      folderId: undefined,
+    });
+    
+    setCustomTemplates(getCustomTemplates());
+    
+    // Reset form
+    setUploadTemplateName('');
+    setUploadSubject('');
+    setUploadBody('');
+    setUploadIndustry('');
+    setUploadImage(null);
+    setShowUploadSection(false);
+    
+    toast.success(`🎉 Template "${newTemplate.name}" saved to your library!`);
+    
+    // Auto-select the new template if callback exists
+    if (onSelectTemplate) {
+      onSelectTemplate(newTemplate);
+      setHighlightedTemplate(newTemplate);
+    }
+  };
 
   // Combine custom templates with built-in templates (custom first)
   const allTemplates = [...customTemplates, ...HIGH_CONVERTING_TEMPLATES];
@@ -430,6 +574,224 @@ export default function HighConvertingTemplateGallery({
           </TabsList>
         </Tabs>
       </div>
+
+      {/* Upload Your Own Template Section */}
+      <Card className="border-2 border-dashed border-primary/40 bg-primary/5">
+        <CardContent className="p-4">
+          {!showUploadSection ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
+                  <Upload className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Upload Your Own Template</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Create a custom email template with your own content and images
+                  </p>
+                </div>
+              </div>
+              <Button 
+                onClick={() => setShowUploadSection(true)}
+                className="gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Create Template
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Upload className="w-5 h-5 text-primary" />
+                  Create Your Custom Template
+                </h3>
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => setShowUploadSection(false)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+
+              {/* Logo Upload Section - Show if user doesn't have a logo */}
+              {!branding?.logo_url && !uploadLogoLocal && (
+                <div className="p-4 rounded-lg bg-warning/10 border border-warning/30">
+                  <div className="flex items-center gap-3 mb-3">
+                    <ImageIcon className="w-5 h-5 text-warning" />
+                    <div>
+                      <p className="font-medium text-sm">No Business Logo Found</p>
+                      <p className="text-xs text-muted-foreground">
+                        Upload your logo to include in all email templates
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      ref={uploadLogoRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleLogoUploadLocal}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => uploadLogoRef.current?.click()}
+                      className="gap-2"
+                    >
+                      <Upload className="w-4 h-4" />
+                      Upload Business Logo
+                    </Button>
+                    <span className="text-xs text-muted-foreground">Max 2MB • PNG, JPG</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Show uploaded logo preview */}
+              {(branding?.logo_url || uploadLogoLocal) && (
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-success/10 border border-success/30">
+                  <img 
+                    src={branding?.logo_url || uploadLogoLocal || ''} 
+                    alt="Business Logo" 
+                    className="h-10 max-w-[120px] object-contain"
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-success">✓ Business Logo Ready</p>
+                    <p className="text-xs text-muted-foreground">Will be included in your emails</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Template Name */}
+                <div className="space-y-2">
+                  <Label htmlFor="upload-name">Template Name *</Label>
+                  <Input
+                    id="upload-name"
+                    value={uploadTemplateName}
+                    onChange={(e) => setUploadTemplateName(e.target.value)}
+                    placeholder="e.g., My Follow-up Template"
+                  />
+                </div>
+
+                {/* Industry/Category */}
+                <div className="space-y-2">
+                  <Label htmlFor="upload-industry">Industry/Category</Label>
+                  <Input
+                    id="upload-industry"
+                    value={uploadIndustry}
+                    onChange={(e) => setUploadIndustry(e.target.value)}
+                    placeholder="e.g., Real Estate, HVAC, etc."
+                  />
+                </div>
+              </div>
+
+              {/* Subject Line */}
+              <div className="space-y-2">
+                <Label htmlFor="upload-subject">Subject Line *</Label>
+                <Input
+                  id="upload-subject"
+                  value={uploadSubject}
+                  onChange={(e) => setUploadSubject(e.target.value)}
+                  placeholder="e.g., Quick question about {{business_name}}"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Use placeholders: {"{{first_name}}"}, {"{{business_name}}"}, {"{{website}}"}
+                </p>
+              </div>
+
+              {/* Template Image Upload */}
+              <div className="space-y-2">
+                <Label>Template Image (Optional)</Label>
+                <div className="flex items-center gap-4">
+                  <input
+                    ref={uploadImageRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleTemplateImageUpload}
+                  />
+                  {uploadImage ? (
+                    <div className="relative">
+                      <img 
+                        src={uploadImage} 
+                        alt="Template preview" 
+                        className="h-20 w-32 object-cover rounded-lg border"
+                      />
+                      <Button
+                        size="icon"
+                        variant="destructive"
+                        className="absolute -top-2 -right-2 w-6 h-6"
+                        onClick={() => setUploadImage(null)}
+                      >
+                        <X className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      onClick={() => uploadImageRef.current?.click()}
+                      className="gap-2 h-20 w-32 flex-col"
+                    >
+                      <ImageIcon className="w-6 h-6" />
+                      <span className="text-xs">Add Image</span>
+                    </Button>
+                  )}
+                  <p className="text-xs text-muted-foreground flex-1">
+                    Add a header image to your template. This will appear at the top of your email.
+                  </p>
+                </div>
+              </div>
+
+              {/* Email Body */}
+              <div className="space-y-2">
+                <Label htmlFor="upload-body">Email Body *</Label>
+                <Textarea
+                  id="upload-body"
+                  value={uploadBody}
+                  onChange={(e) => setUploadBody(e.target.value)}
+                  placeholder={`Hi {{first_name}},
+
+I noticed your business {{business_name}} and wanted to reach out...
+
+Looking forward to connecting!
+
+Best regards,
+[Your Name]`}
+                  className="min-h-[200px]"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowUploadSection(false);
+                    setUploadTemplateName('');
+                    setUploadSubject('');
+                    setUploadBody('');
+                    setUploadIndustry('');
+                    setUploadImage(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveUploadedTemplate}
+                  className="gap-2"
+                  disabled={!uploadTemplateName.trim() || !uploadSubject.trim() || !uploadBody.trim()}
+                >
+                  <Save className="w-4 h-4" />
+                  Save Template
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Template Grid - CLICK OPENS PREVIEW */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-24">
