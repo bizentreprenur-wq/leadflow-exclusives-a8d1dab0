@@ -65,6 +65,12 @@ interface LeadInsight {
   optimalCallWindow: string;
   optimalEmailWindow: string;
   conversionProbability: number;
+  // New fields for intelligent outreach
+  openingScript: string;
+  emailSubjectLine: string;
+  valueProposition: string;
+  objectionHandlers: string[];
+  closingStatement: string;
 }
 
 // Export field options
@@ -276,20 +282,84 @@ function generateLeadInsight(lead: SearchResult): LeadInsight {
 
   // Generate AI recommendation based on top issues
   let aiRecommendation: string;
-  if (!lead.website) {
-    aiRecommendation = `High-value prospect without online presence. Lead with: "I noticed ${lead.name} doesn't have a website yet. Many of your competitors in ${lead.address?.split(',')[1]?.trim() || 'your area'} are getting customers online..."`;
+  let openingScript: string;
+  let emailSubjectLine: string;
+  let valueProposition: string;
+  let objectionHandlers: string[] = [];
+  let closingStatement: string;
+  
+  const businessLocation = lead.address?.split(',')[1]?.trim() || 'your area';
+  
+  if (!lead.website || lead.websiteAnalysis?.hasWebsite === false) {
+    aiRecommendation = `High-value prospect without online presence. Lead with: "I noticed ${lead.name} doesn't have a website yet. Many of your competitors in ${businessLocation} are getting customers online..."`;
+    openingScript = `Hi, I'm calling about ${lead.name}. I noticed you don't have a website yet and wanted to share how businesses like yours in ${businessLocation} are getting 30-50% more customers online...`;
+    emailSubjectLine = `Quick question about ${lead.name}'s online presence`;
+    valueProposition = "A professional website could bring you 30-50% more customers by being found on Google when locals search for your services.";
+    objectionHandlers = [
+      "\"I don't need a website\" → \"I understand! But 87% of customers now search online first. Are your competitors getting those calls instead?\"",
+      "\"It's too expensive\" → \"Actually, a site pays for itself with just 1-2 new customers per month. What's a new customer worth to you?\""
+    ];
+    closingStatement = "Can I send you a quick example of what your site could look like? No obligation, just 3 minutes of your time.";
   } else if (issues.includes('Spending on ads but no conversion tracking (leaking leads)')) {
     aiRecommendation = `They're spending money but can't track ROI. Open with: "I noticed you might be running ads without proper conversion tracking. You could be losing valuable data on what's working..."`;
+    openingScript = `Hi, I was looking at ${lead.name}'s online presence and noticed something concerning — it looks like you may be running ads without proper tracking. This means you're essentially flying blind on what's working...`;
+    emailSubjectLine = `${lead.name}: Are your ads actually working?`;
+    valueProposition = "With proper tracking, you'll know exactly which ads bring customers and stop wasting money on what doesn't work.";
+    objectionHandlers = [
+      "\"We're doing fine\" → \"That's great! But do you know which specific ads brought your last 10 customers? Without tracking, you might be paying for ads that don't convert.\"",
+      "\"Our ad person handles that\" → \"Perfect! A quick audit takes 10 minutes and could save you thousands. Would they be open to a free review?\""
+    ];
+    closingStatement = "I can do a free 10-minute audit to show you exactly where your ad dollars are going. Interested?";
   } else if (issues.includes('No booking system or contact funnel')) {
     aiRecommendation = `No way to capture leads. Say: "I visited your website and couldn't find an easy way to book an appointment. How are potential customers reaching you?"`;
+    openingScript = `Hi, I was just on ${lead.name}'s website and tried to book an appointment but couldn't find an easy way to do it. I'm curious — how are most of your customers reaching you right now?`;
+    emailSubjectLine = `Making it easier for customers to book with ${lead.name}`;
+    valueProposition = "An online booking system can increase appointments by 40% by letting customers book 24/7 without phone calls.";
+    objectionHandlers = [
+      "\"People just call us\" → \"That's great for business hours! But studies show 60% of bookings happen after 6 PM. Are you missing those?\"",
+      "\"We're too busy already\" → \"That's actually perfect! Online booking lets customers self-serve so you can focus on the work, not the phone.\""
+    ];
+    closingStatement = "Would you be open to seeing how a simple booking button could save you hours of phone time?";
   } else if (notMobileResponsive || (mobileScore !== null && mobileScore < 50)) {
     aiRecommendation = `Mobile experience is broken. Approach: "I checked your site on my phone and noticed some issues. With 60% of searches on mobile, this might be costing you customers..."`;
+    openingScript = `Hi, I was researching ${lead.name} on my phone and noticed your site has some display issues on mobile. With 60%+ of people searching from their phones now, I wanted to give you a heads up...`;
+    emailSubjectLine = `${lead.name}'s website on mobile — quick heads up`;
+    valueProposition = "Fixing mobile issues typically increases website leads by 25-40% since most customers browse on their phones.";
+    objectionHandlers = [
+      "\"It looks fine to me\" → \"It might look fine on your computer, but on phones it's a different story. Can I send you a screenshot?\"",
+      "\"Our web person said it's fine\" → \"I'd love to show you what I'm seeing. Sometimes it depends on the phone model. Can I send a quick video?\""
+    ];
+    closingStatement = "Can I email you a quick before/after mockup showing how it would look fixed? Takes 2 seconds to review.";
   } else if (lead.websiteAnalysis?.needsUpgrade) {
     aiRecommendation = `Website needs modernization. Open with: "I was looking at your website and noticed it might be missing some features that could help you get more customers..."`;
+    openingScript = `Hi, I was checking out ${lead.name}'s website and noticed a few things that could be improved to bring in more customers. Your site has potential but might be missing some modern features...`;
+    emailSubjectLine = `Ideas to upgrade ${lead.name}'s website`;
+    valueProposition = "A modern website refresh can increase conversions by 2-3x without changing your business model.";
+    objectionHandlers = [
+      "\"We just got this site\" → \"When was it built? Web standards change fast. Even a 2-year-old site might be missing current best practices.\"",
+      "\"It works for us\" → \"I'm glad to hear that! But are you tracking how many visitors leave without contacting you? There might be easy wins.\""
+    ];
+    closingStatement = "I'd love to share 3 quick improvements that could make a big difference. Can I send them over?";
   } else if (issueCount > 0) {
     aiRecommendation = `Technical issues detected. Approach: "I ran a quick audit on your site and found ${issueCount} things that might be hurting your Google ranking..."`;
+    openingScript = `Hi, I ran a quick technical audit on ${lead.name}'s website and found ${issueCount} issues that could be hurting your search rankings. The good news is they're all fixable...`;
+    emailSubjectLine = `Found ${issueCount} issues on ${lead.name}'s website`;
+    valueProposition = "Fixing these technical issues could improve your Google ranking and bring more organic traffic.";
+    objectionHandlers = [
+      "\"We rank fine\" → \"That's great! But Google's algorithm changes constantly. These issues might be preventing you from ranking even higher.\"",
+      "\"Our site is new\" → \"Even new sites can have technical issues. I found ${issueCount} that are quick fixes. Want to see them?\""
+    ];
+    closingStatement = "Can I send you a free report showing exactly what I found and how to fix it?";
   } else {
     aiRecommendation = `Nurture lead with value-first content. Send helpful tips before pitching services.`;
+    openingScript = `Hi, I came across ${lead.name} and was impressed by your online presence. I help businesses like yours grow even further and wanted to introduce myself...`;
+    emailSubjectLine = `Partnership idea for ${lead.name}`;
+    valueProposition = "Even well-run businesses can benefit from optimization and new growth strategies.";
+    objectionHandlers = [
+      "\"We're all set\" → \"I understand! I'm just curious — if there was one area of your online presence you'd improve, what would it be?\"",
+      "\"Not interested\" → \"No problem at all! If anything changes, I'd love to help. Mind if I send occasional tips that might be useful?\""
+    ];
+    closingStatement = "I'd love to stay in touch. Can I add you to my newsletter with industry tips?";
   }
 
   // Estimate value
@@ -316,6 +386,11 @@ function generateLeadInsight(lead: SearchResult): LeadInsight {
     optimalCallWindow,
     optimalEmailWindow,
     conversionProbability,
+    openingScript,
+    emailSubjectLine,
+    valueProposition,
+    objectionHandlers,
+    closingStatement,
   };
 }
 
@@ -807,12 +882,81 @@ export default function LeadDocumentViewer({
           </div>
 
           {/* AI Recommendation */}
-          <div className="bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-100 rounded-lg p-3">
+          <div className="bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-100 rounded-lg p-3 mb-3">
             <div className="flex items-center gap-2 mb-1">
               <Brain className="w-4 h-4 text-violet-600" />
-              <span className="font-medium text-sm text-violet-700">AI Script Recommendation</span>
+              <span className="font-medium text-sm text-violet-700">🤖 AI Script Recommendation</span>
             </div>
             <p className="text-sm text-gray-700 italic">"{lead.insight.aiRecommendation}"</p>
+          </div>
+
+          {/* What to Say - Detailed Scripts */}
+          <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <MessageSquare className="w-5 h-5 text-emerald-600" />
+              <span className="font-semibold text-emerald-800">📞 What to Say (AI-Generated Scripts)</span>
+            </div>
+            
+            {/* Opening Script */}
+            <div className="mb-3">
+              <div className="flex items-center gap-1 mb-1">
+                <PhoneCall className="w-3 h-3 text-emerald-600" />
+                <span className="text-xs font-semibold text-emerald-700 uppercase">Opening Script (Call)</span>
+              </div>
+              <p className="text-sm text-gray-700 bg-white/60 rounded-lg p-2 border border-emerald-100">
+                "{lead.insight.openingScript}"
+              </p>
+            </div>
+
+            {/* Email Subject */}
+            <div className="mb-3">
+              <div className="flex items-center gap-1 mb-1">
+                <MailOpen className="w-3 h-3 text-emerald-600" />
+                <span className="text-xs font-semibold text-emerald-700 uppercase">Email Subject Line</span>
+              </div>
+              <p className="text-sm text-gray-700 bg-white/60 rounded-lg p-2 border border-emerald-100 font-medium">
+                📧 {lead.insight.emailSubjectLine}
+              </p>
+            </div>
+
+            {/* Value Proposition */}
+            <div className="mb-3">
+              <div className="flex items-center gap-1 mb-1">
+                <TrendingUp className="w-3 h-3 text-emerald-600" />
+                <span className="text-xs font-semibold text-emerald-700 uppercase">Value Proposition</span>
+              </div>
+              <p className="text-sm text-gray-700 bg-white/60 rounded-lg p-2 border border-emerald-100">
+                💡 {lead.insight.valueProposition}
+              </p>
+            </div>
+
+            {/* Objection Handlers */}
+            {lead.insight.objectionHandlers.length > 0 && (
+              <div className="mb-3">
+                <div className="flex items-center gap-1 mb-1">
+                  <Shield className="w-3 h-3 text-emerald-600" />
+                  <span className="text-xs font-semibold text-emerald-700 uppercase">Handle Objections</span>
+                </div>
+                <ul className="space-y-1">
+                  {lead.insight.objectionHandlers.map((handler, i) => (
+                    <li key={i} className="text-xs text-gray-700 bg-white/60 rounded-lg p-2 border border-emerald-100">
+                      {handler}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Closing Statement */}
+            <div>
+              <div className="flex items-center gap-1 mb-1">
+                <Target className="w-3 h-3 text-emerald-600" />
+                <span className="text-xs font-semibold text-emerald-700 uppercase">Close the Deal</span>
+              </div>
+              <p className="text-sm text-gray-700 bg-emerald-100/50 rounded-lg p-2 border border-emerald-200 font-medium">
+                🎯 "{lead.insight.closingStatement}"
+              </p>
+            </div>
           </div>
         </div>
       </div>
