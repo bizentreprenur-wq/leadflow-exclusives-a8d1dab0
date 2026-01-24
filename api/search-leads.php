@@ -9,6 +9,7 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/database.php';
 require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/audit.php';
 
 header('Content-Type: application/json');
 setCorsHeaders();
@@ -36,10 +37,12 @@ try {
             handleDelete($db, $user);
             break;
         default:
+            auditFailure('invalid_method', 'leads', $user['id'], 'Method not allowed: ' . $method);
             sendError('Method not allowed', 405);
     }
 } catch (Exception $e) {
     error_log("Search Leads Error: " . $e->getMessage());
+    auditFailure('search_leads_error', 'leads', $user['id'], $e->getMessage());
     if (DEBUG_MODE) {
         sendError($e->getMessage(), 500);
     } else {

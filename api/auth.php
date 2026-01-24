@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/audit.php';
 
 // Handle CORS
 setCorsHeaders();
@@ -31,6 +32,7 @@ switch ($action) {
         handleRefreshSession();
         break;
     default:
+        auditFailure('invalid_action', 'auth', null, 'Invalid action requested: ' . $action);
         sendError('Invalid action', 400);
 }
 
@@ -50,11 +52,17 @@ function handleRegister() {
     
     // Validate email
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        auditFailure('register', 'auth', null, 'Invalid email format', [
+            'request_data' => ['email' => $email]
+        ]);
         sendError('Invalid email address');
     }
     
     // Validate password
     if (strlen($password) < 8) {
+        auditFailure('register', 'auth', null, 'Password too short', [
+            'request_data' => ['email' => $email]
+        ]);
         sendError('Password must be at least 8 characters');
     }
     
@@ -62,11 +70,21 @@ function handleRegister() {
     $result = createUser($email, $password, $name);
     
     if (!$result['success']) {
+        auditFailure('register', 'auth', null, $result['error'], [
+            'request_data' => ['email' => $email, 'name' => $name]
+        ]);
         sendError($result['error']);
     }
     
     // Auto login after registration
     $loginResult = authenticateUser($email, $password);
+    
+    // Log successful registration
+    auditSuccess('register', 'auth', $loginResult['user']['id'] ?? null, [
+        'entity_type' => 'user',
+        'entity_id' => $loginResult['user']['id'] ?? null,
+        'metadata' => ['email' => $email, 'name' => $name]
+    ]);
     
     sendJson([
         'success' => true,
@@ -91,14 +109,26 @@ function handleLogin() {
     $password = $input['password'] ?? '';
     
     if (!$email || !$password) {
+        auditFailure('login', 'auth', null, 'Missing credentials');
         sendError('Email and password are required');
     }
     
     $result = authenticateUser($email, $password);
     
     if (!$result['success']) {
+        auditFailure('login_failed', 'auth', null, $result['error'], [
+            'request_data' => ['email' => $email],
+            'metadata' => ['reason' => $result['error']]
+        ]);
         sendError($result['error'], 401);
     }
+    
+    // Log successful login
+    auditSuccess('login', 'auth', $result['user']['id'], [
+        'entity_type' => 'user',
+        'entity_id' => $result['user']['id'],
+        'metadata' => ['email' => $email]
+    ]);
     
     sendJson([
         'success' => true,
@@ -116,7 +146,12 @@ function handleLogout() {
         sendError('Method not allowed', 405);
     }
     
+    $user = getCurrentUser();
+    $userId = $user ? $user['id'] : null;
+    
     $result = logoutUser();
+    
+    auditSuccess('logout', 'auth', $userId);
     
     sendJson([
         'success' => true,
@@ -162,6 +197,7 @@ function handleRefreshSession() {
     $user = getCurrentUser();
     
     if (!$user) {
+        auditFailure('session_refresh', 'auth', null, 'Not authenticated');
         sendError('Not authenticated', 401);
     }
     
@@ -189,6 +225,8 @@ function handleRefreshSession() {
     );
     
     $_SESSION['session_token'] = $newToken;
+    
+    auditSuccess('session_refresh', 'auth', $user['id']);
     
     sendJson([
         'success' => true,
