@@ -155,7 +155,7 @@ export default function UserManualDownload({ isPaidUser, planName, onUpgrade }: 
       addText('Search Google Maps for businesses by location and industry. Perfect for local service providers, agencies, and B2B sales.');
       addText('');
       addText('Option B: Agency Lead Finder', 12, true);
-      addText('For web designers, agencies & SMMA. Find businesses needing website fixes, GMB optimization, Yelp profiles, reviews & social media management.');
+      addText('Built for website designers, social media marketers & agencies. Find businesses that need professional help with their online presence.');
       addText('');
       addText('Search Best Practices:', 12, true);
       addText('• Use specific industry keywords (e.g., "dental clinic" not just "dentist")');

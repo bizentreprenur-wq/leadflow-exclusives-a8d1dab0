@@ -81,12 +81,12 @@ const AgentCardsSection = () => {
             </h3>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-semibold uppercase tracking-wide mb-4">
               <Code className="w-3 h-3" />
-              For Agencies & SMMA
+              Built for Digital Pros
             </div>
 
             {/* Description */}
             <p className="text-muted-foreground mb-6">
-              Finds businesses needing website fixes, GMB help, reviews, Yelp profiles & social media fixes
+              Find high-value clients who need website design, social media management, or digital marketing services
             </p>
 
             {/* Features */}
@@ -95,15 +95,15 @@ const AgentCardsSection = () => {
               <ul className="space-y-1.5 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-                  Fix websites, GMB & Yelp profiles
+                  Broken or outdated websites ready for redesign
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-                  Find missing reviews & social profiles
+                  Missing or inactive social media profiles
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-                  Detect no retargeting or inactive socials
+                  No reviews, weak GMB & missing tracking pixels
                 </li>
               </ul>
             </div>

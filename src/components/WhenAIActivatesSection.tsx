@@ -13,7 +13,7 @@ const WhenAIActivatesSection = () => {
       when: "When you search for leads",
       aiFeatures: [
         { name: "GMB Scanner", desc: "Scans Google My Business for local leads", icon: Search },
-        { name: "Agency Lead Finder", desc: "Finds businesses needing website, GMB, reviews & social fixes", icon: Globe },
+        { name: "Agency Lead Finder", desc: "Finds clients for website designers, marketers & agencies", icon: Globe },
         { name: "Reverse Lead Discovery", desc: "Finds who's searching for YOUR services", icon: TrendingUp },
       ],
       color: "primary"

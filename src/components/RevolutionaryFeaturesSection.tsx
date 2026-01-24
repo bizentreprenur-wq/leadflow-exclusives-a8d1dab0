@@ -137,7 +137,7 @@ const RevolutionaryFeaturesSection = () => {
     {
       icon: <Search className="h-5 w-5" />,
       name: "GMB & Agency Lead Finder",
-      description: "Find local businesses via GMB, plus clients needing website fixes, GMB optimization, reviews & social media help"
+      description: "Find local businesses via GMB, plus discover clients who need website design, social media marketing & digital services"
     },
     {
       icon: <Sparkles className="h-5 w-5" />,

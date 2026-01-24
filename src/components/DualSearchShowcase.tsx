@@ -20,10 +20,10 @@ const DualSearchShowcase = () => {
   ];
 
   const platformFeatures = [
-    { icon: Code, text: "Find broken websites, missing GMB & Yelp profiles" },
-    { icon: Globe, text: "Detect businesses with no/low reviews & inactive socials" },
-    { icon: TrendingUp, text: "Identify missing retargeting & conversion tracking" },
-    { icon: Users, text: "Perfect for agencies, web designers & SMMA companies" },
+    { icon: Code, text: "Find businesses with broken or outdated websites" },
+    { icon: Globe, text: "Detect weak social media presence & missing reviews" },
+    { icon: TrendingUp, text: "Identify missing tracking pixels & retargeting" },
+    { icon: Users, text: "Perfect for web designers, social media marketers & agencies" },
   ];
 
   const platforms = [
@@ -51,7 +51,7 @@ const DualSearchShowcase = () => {
           </h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
             Whether you want to find local businesses through Google My Business or use our Agency Lead Finder 
-            to find clients needing website fixes, GMB optimization, reviews & social media help - BamLead has you covered.
+            to discover clients who need your digital expertise — BamLead helps you find your next project.
           </p>
         </div>
 
@@ -129,7 +129,7 @@ const DualSearchShowcase = () => {
               </div>
               <div>
                 <h3 className="text-2xl font-display font-bold text-foreground">Agency Lead Finder</h3>
-                <p className="text-sm text-muted-foreground">For web designers, agencies & SMMA</p>
+                <p className="text-sm text-muted-foreground">Built for digital professionals</p>
               </div>
             </div>
 
@@ -147,8 +147,8 @@ const DualSearchShowcase = () => {
             <div className="p-4 rounded-xl bg-accent/5 border border-accent/20">
               <p className="text-sm font-semibold text-accent mb-2">Perfect For:</p>
               <p className="text-sm text-muted-foreground">
-                Web designers, agencies & SMMA companies finding clients who need website fixes, 
-                GMB optimization, Yelp profiles, reviews & social media management
+                Website designers, social media marketers & digital agencies looking for 
+                clients who need professional help with their online presence
               </p>
             </div>
           </div>

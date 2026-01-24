@@ -43,7 +43,7 @@ const AIJourneyExplainer = () => {
     {
       id: "discovery",
       stage: "1. Lead Discovery",
-      description: "When a user searches for leads using GMB Scanner or Agency Lead Finder",
+      description: "When a user searches for leads using GMB Scanner or Agency Lead Finder for digital professionals",
       aiFeatures: [
         {
           name: "Reverse Lead Discovery",
