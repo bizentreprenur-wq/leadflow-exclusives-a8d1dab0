@@ -768,6 +768,58 @@ export default function Dashboard() {
     a.download = `bamlead-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  // Load demo leads for demonstration purposes
+  const handleLoadDemoLeads = () => {
+    const demoLeads = generateMechanicLeads(200);
+    
+    // Map test leads to SearchResult format
+    const mappedLeads: SearchResult[] = demoLeads.map(lead => ({
+      id: lead.id,
+      name: lead.name,
+      address: lead.address,
+      phone: lead.phone,
+      website: lead.website,
+      email: lead.email,
+      rating: lead.rating,
+      source: lead.source,
+      platform: lead.platform,
+      websiteAnalysis: lead.websiteAnalysis,
+    }));
+    
+    // Apply AI scoring
+    const scoredLeads = quickScoreLeads(mappedLeads) as SearchResult[];
+    
+    // Update state
+    setSearchResults(scoredLeads);
+    setSearchType('gmb');
+    setQuery('Auto Mechanics');
+    setLocation('Los Angeles, CA');
+    setIsLiveDataMode(false);
+    
+    // Cache in sessionStorage
+    sessionStorage.setItem('bamlead_search_results', JSON.stringify(scoredLeads));
+    sessionStorage.setItem('bamlead_query', 'Auto Mechanics');
+    sessionStorage.setItem('bamlead_location', 'Los Angeles, CA');
+    sessionStorage.setItem('bamlead_search_type', 'gmb');
+    
+    // Also populate email leads for Step 3
+    const emailLeadsForDemo = scoredLeads.map(lead => ({
+      email: lead.email || '',
+      business_name: lead.name,
+      contact_name: '',
+      website: lead.website,
+      phone: lead.phone,
+    })).filter(l => l.email);
+    sessionStorage.setItem('bamlead_email_leads', JSON.stringify(emailLeadsForDemo));
+    
+    // Move to Step 2
+    setCurrentStep(2);
+    sessionStorage.setItem('bamlead_current_step', '2');
+    
+    toast.success('🎉 Loaded 200 demo leads! Explore the full workflow.');
+    celebrate('subscription-activated');
     toast.success('CSV downloaded!');
   };
 
@@ -1080,6 +1132,23 @@ export default function Dashboard() {
                   <p className="text-sm text-muted-foreground">
                     💡 <strong>Not sure which to pick?</strong> Start with <span className="text-primary font-medium">Super AI Search</span> for comprehensive business intelligence, 
                     or <span className="text-violet-500 font-medium">Agency Lead Finder</span> if you're looking for clients with digital gaps.
+                  </p>
+                </div>
+                
+                {/* Demo Mode Button */}
+                <div className="text-center pt-4">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    onClick={handleLoadDemoLeads}
+                    className="gap-2 text-muted-foreground hover:text-foreground border-dashed"
+                  >
+                    <Zap className="w-4 h-4" />
+                    Try Demo with Sample Leads
+                    <Badge variant="secondary" className="ml-2 text-xs">200 leads</Badge>
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    See how the full workflow works with realistic demo data
                   </p>
                 </div>
               </div>
