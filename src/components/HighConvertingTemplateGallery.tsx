@@ -142,10 +142,14 @@ export default function HighConvertingTemplateGallery({
   const [uploadSubject, setUploadSubject] = useState('');
   const [uploadBody, setUploadBody] = useState('');
   const [uploadIndustry, setUploadIndustry] = useState('');
-  const [uploadImage, setUploadImage] = useState<string | null>(null);
   const [uploadLogoLocal, setUploadLogoLocal] = useState<string | null>(null);
-  const uploadImageRef = useRef<HTMLInputElement>(null);
   const uploadLogoRef = useRef<HTMLInputElement>(null);
+  const inlineImageRef = useRef<HTMLInputElement>(null);
+  const uploadBodyRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Inline images storage - maps placeholder to base64
+  const [inlineImages, setInlineImages] = useState<Record<string, string>>({});
+  const [inlineImageCounter, setInlineImageCounter] = useState(1);
   
   // Load custom templates and folders on mount
   useEffect(() => {
@@ -170,8 +174,8 @@ export default function HighConvertingTemplateGallery({
   const [newTemplateName, setNewTemplateName] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<string>("");
 
-  // Handle image upload for custom template
-  const handleTemplateImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle inline image upload - inserts at cursor position
+  const handleInlineImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     
@@ -187,10 +191,49 @@ export default function HighConvertingTemplateGallery({
     
     const reader = new FileReader();
     reader.onload = () => {
-      setUploadImage(reader.result as string);
-      toast.success('Template image uploaded!');
+      const base64 = reader.result as string;
+      const placeholder = `[IMAGE_${inlineImageCounter}]`;
+      
+      // Store the image
+      setInlineImages(prev => ({ ...prev, [placeholder]: base64 }));
+      setInlineImageCounter(prev => prev + 1);
+      
+      // Insert placeholder at cursor position
+      const textarea = uploadBodyRef.current;
+      if (textarea) {
+        const start = textarea.selectionStart || 0;
+        const end = textarea.selectionEnd || 0;
+        const newBody = uploadBody.slice(0, start) + `\n${placeholder}\n` + uploadBody.slice(end);
+        setUploadBody(newBody);
+        
+        // Set cursor after placeholder
+        setTimeout(() => {
+          textarea.focus();
+          const newPos = start + placeholder.length + 2;
+          textarea.setSelectionRange(newPos, newPos);
+        }, 0);
+      } else {
+        // Append to end if no cursor position
+        setUploadBody(prev => prev + `\n${placeholder}\n`);
+      }
+      
+      toast.success(`Image added! Placeholder: ${placeholder}`);
     };
     reader.readAsDataURL(file);
+    
+    // Reset input so same file can be selected again
+    e.target.value = '';
+  };
+
+  // Remove an inline image
+  const handleRemoveInlineImage = (placeholder: string) => {
+    setInlineImages(prev => {
+      const updated = { ...prev };
+      delete updated[placeholder];
+      return updated;
+    });
+    setUploadBody(prev => prev.replace(placeholder, '').replace(/\n\n+/g, '\n\n').trim());
+    toast.success('Image removed');
   };
 
   // Handle logo upload if user doesn't have one
@@ -237,7 +280,7 @@ export default function HighConvertingTemplateGallery({
     reader.readAsDataURL(file);
   };
 
-  // Handle saving uploaded template
+  // Handle saving uploaded template - now with inline images
   const handleSaveUploadedTemplate = () => {
     if (!uploadTemplateName.trim()) {
       toast.error('Please enter a template name');
@@ -252,17 +295,31 @@ export default function HighConvertingTemplateGallery({
       return;
     }
     
-    // Build HTML body with optional image
+    // Build HTML body with inline images
     let htmlBody = `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">`;
     
-    if (uploadImage) {
-      htmlBody += `<div style="text-align: center; margin-bottom: 20px;">
-        <img src="${uploadImage}" alt="Template image" style="max-width: 100%; height: auto; border-radius: 8px;" />
-      </div>`;
+    // Process body text and replace image placeholders with actual images
+    const bodyParts = uploadBody.split('\n');
+    for (const part of bodyParts) {
+      const trimmed = part.trim();
+      if (trimmed.match(/^\[IMAGE_\d+\]$/)) {
+        // This is an image placeholder
+        const imgSrc = inlineImages[trimmed];
+        if (imgSrc) {
+          htmlBody += `<div style="text-align: center; margin: 15px 0;">
+            <img src="${imgSrc}" alt="Email image" style="max-width: 100%; height: auto; border-radius: 8px;" />
+          </div>`;
+        }
+      } else if (trimmed) {
+        htmlBody += `<p style="margin: 0 0 15px 0; line-height: 1.6;">${trimmed}</p>`;
+      }
     }
     
-    htmlBody += uploadBody.split('\n').map(p => `<p style="margin: 0 0 15px 0; line-height: 1.6;">${p}</p>`).join('');
     htmlBody += `</div>`;
+    
+    // Get first image for preview, or use default
+    const firstImageKey = Object.keys(inlineImages)[0];
+    const previewImage = firstImageKey ? inlineImages[firstImageKey] : 'https://images.unsplash.com/photo-1557200134-90327ee9fafa?w=400&h=300&fit=crop';
     
     const newTemplate = saveCustomTemplate({
       id: '',
@@ -272,7 +329,7 @@ export default function HighConvertingTemplateGallery({
       subject: uploadSubject.trim(),
       body_html: htmlBody,
       description: `Custom uploaded template`,
-      previewImage: uploadImage || 'https://images.unsplash.com/photo-1557200134-90327ee9fafa?w=400&h=300&fit=crop',
+      previewImage: previewImage,
       conversionTip: 'Personalize this template for better engagement',
       openRate: 0,
       replyRate: 0,
@@ -286,7 +343,8 @@ export default function HighConvertingTemplateGallery({
     setUploadSubject('');
     setUploadBody('');
     setUploadIndustry('');
-    setUploadImage(null);
+    setInlineImages({});
+    setInlineImageCounter(1);
     setShowUploadSection(false);
     
     toast.success(`🎉 Template "${newTemplate.name}" saved to your library!`);
@@ -702,53 +760,32 @@ export default function HighConvertingTemplateGallery({
                 </p>
               </div>
 
-              {/* Template Image Upload */}
+              {/* Email Body with Inline Image Support */}
               <div className="space-y-2">
-                <Label>Template Image (Optional)</Label>
-                <div className="flex items-center gap-4">
-                  <input
-                    ref={uploadImageRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleTemplateImageUpload}
-                  />
-                  {uploadImage ? (
-                    <div className="relative">
-                      <img 
-                        src={uploadImage} 
-                        alt="Template preview" 
-                        className="h-20 w-32 object-cover rounded-lg border"
-                      />
-                      <Button
-                        size="icon"
-                        variant="destructive"
-                        className="absolute -top-2 -right-2 w-6 h-6"
-                        onClick={() => setUploadImage(null)}
-                      >
-                        <X className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  ) : (
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="upload-body">Email Body *</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={inlineImageRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleInlineImageUpload}
+                    />
                     <Button
+                      type="button"
                       variant="outline"
-                      onClick={() => uploadImageRef.current?.click()}
-                      className="gap-2 h-20 w-32 flex-col"
+                      size="sm"
+                      onClick={() => inlineImageRef.current?.click()}
+                      className="gap-1.5 text-xs"
                     >
-                      <ImageIcon className="w-6 h-6" />
-                      <span className="text-xs">Add Image</span>
+                      <ImageIcon className="w-3.5 h-3.5" />
+                      Insert Image
                     </Button>
-                  )}
-                  <p className="text-xs text-muted-foreground flex-1">
-                    Add a header image to your template. This will appear at the top of your email.
-                  </p>
+                  </div>
                 </div>
-              </div>
-
-              {/* Email Body */}
-              <div className="space-y-2">
-                <Label htmlFor="upload-body">Email Body *</Label>
                 <Textarea
+                  ref={uploadBodyRef}
                   id="upload-body"
                   value={uploadBody}
                   onChange={(e) => setUploadBody(e.target.value)}
@@ -756,13 +793,49 @@ export default function HighConvertingTemplateGallery({
 
 I noticed your business {{business_name}} and wanted to reach out...
 
+[Click "Insert Image" to add images anywhere in your email]
+
 Looking forward to connecting!
 
 Best regards,
 [Your Name]`}
-                  className="min-h-[200px]"
+                  className="min-h-[250px] font-mono text-sm"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Click "Insert Image" to add images at your cursor position. Images appear as [IMAGE_X] placeholders.
+                </p>
               </div>
+
+              {/* Inline Images Preview */}
+              {Object.keys(inlineImages).length > 0 && (
+                <div className="space-y-2">
+                  <Label>Inserted Images</Label>
+                  <div className="flex flex-wrap gap-3 p-3 rounded-lg bg-muted/30 border">
+                    {Object.entries(inlineImages).map(([placeholder, src]) => (
+                      <div key={placeholder} className="relative group">
+                        <img 
+                          src={src} 
+                          alt={placeholder} 
+                          className="h-16 w-24 object-cover rounded-lg border shadow-sm"
+                        />
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                          <Button
+                            size="icon"
+                            variant="destructive"
+                            className="w-6 h-6"
+                            onClick={() => handleRemoveInlineImage(placeholder)}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                        <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-black/70 text-white py-0.5 rounded-b-lg">
+                          {placeholder}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="flex items-center justify-end gap-3 pt-2">
@@ -774,7 +847,8 @@ Best regards,
                     setUploadSubject('');
                     setUploadBody('');
                     setUploadIndustry('');
-                    setUploadImage(null);
+                    setInlineImages({});
+                    setInlineImageCounter(1);
                   }}
                 >
                   Cancel
