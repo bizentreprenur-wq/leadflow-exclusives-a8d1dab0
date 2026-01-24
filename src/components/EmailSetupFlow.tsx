@@ -709,17 +709,37 @@ export default function EmailSetupFlow({
                         {/* SELECTED TEMPLATE - Read Only Display */}
                         {selectedTemplate ? (
                           <div className="rounded-xl border-2 border-success/40 bg-gradient-to-r from-success/10 to-emerald-500/5 p-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-lg bg-success/20 flex items-center justify-center">
-                                <CheckCircle2 className="w-5 h-5 text-success" />
+                            <div className="flex gap-4">
+                              {/* Template Preview Thumbnail */}
+                              <div className="w-24 h-20 rounded-lg overflow-hidden border border-success/30 bg-white flex-shrink-0 shadow-sm">
+                                {selectedTemplate.previewImage ? (
+                                  <img 
+                                    src={selectedTemplate.previewImage} 
+                                    alt={selectedTemplate.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-primary/10 to-primary/5 p-2">
+                                    <Mail className="w-5 h-5 text-primary/60 mb-1" />
+                                    <span className="text-[8px] text-primary/60 text-center leading-tight">Email Template</span>
+                                  </div>
+                                )}
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-bold text-foreground flex items-center gap-2">
-                                  {selectedTemplate.name}
-                                  <Badge className="bg-success/20 text-success border-success/40 text-xs">Active</Badge>
-                                </h3>
+                              
+                              {/* Template Info */}
+                              <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
+                                  <h3 className="font-bold text-foreground truncate">
+                                    {selectedTemplate.name}
+                                  </h3>
+                                  <Badge className="bg-success/20 text-success border-success/40 text-xs flex-shrink-0">Active</Badge>
+                                </div>
                                 <p className="text-xs text-muted-foreground truncate">
-                                  {customizedContent?.subject || selectedTemplate.subject}
+                                  <span className="font-medium">Subject:</span> {customizedContent?.subject || selectedTemplate.subject}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground/70 mt-1">
+                                  Ready to send • {selectedTemplate.category || 'General'} template
                                 </p>
                               </div>
                             </div>
