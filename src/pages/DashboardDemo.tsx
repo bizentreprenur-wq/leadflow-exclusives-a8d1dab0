@@ -337,7 +337,7 @@ Best regards,
                     <Globe className="w-8 h-8 text-violet-500" />
                   </div>
                   <CardTitle className="text-violet-400">🔍 Agency Lead Finder</CardTitle>
-                  <p className="text-sm text-muted-foreground">For agencies, web designers & SMMA</p>
+                  <p className="text-sm text-muted-foreground">Built for digital professionals</p>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Input 
@@ -353,7 +353,7 @@ Best regards,
                     className="w-full bg-violet-500 hover:bg-violet-600 text-white"
                   >
                     <Globe className="w-4 h-4 mr-2" />
-                    Find Agency Leads
+                    Find Clients
                   </Button>
                 </CardContent>
               </Card>

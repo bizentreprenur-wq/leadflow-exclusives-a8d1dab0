@@ -980,28 +980,28 @@ export default function Dashboard() {
                           🔍 Agency Lead Finder
                         </h3>
                         <p className="text-muted-foreground">
-                          For web designers, agencies & SMMA
+                          Built for digital professionals
                         </p>
                       </div>
 
                       {/* What You Get */}
                       <div className="space-y-3 mb-6">
-                        <p className="text-sm font-semibold text-violet-500 mb-2">✨ What you'll get:</p>
+                        <p className="text-sm font-semibold text-violet-500 mb-2">✨ What you'll find:</p>
                         <div className="flex items-center gap-3">
                           <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
-                          <span className="text-foreground text-sm">Broken websites & missing GMB/Yelp</span>
+                          <span className="text-foreground text-sm">Outdated or broken websites</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
-                          <span className="text-foreground text-sm">No/low reviews & inactive social profiles</span>
+                          <span className="text-foreground text-sm">Weak or inactive social profiles</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
-                          <span className="text-foreground text-sm">Missing retargeting & tracking pixels</span>
+                          <span className="text-foreground text-sm">Missing reviews & tracking pixels</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
-                          <span className="text-foreground text-sm">Businesses leaking leads & ad spend</span>
+                          <span className="text-foreground text-sm">Businesses leaking leads online</span>
                         </div>
                       </div>
 
@@ -1009,7 +1009,7 @@ export default function Dashboard() {
                       <div className="bg-violet-500/10 rounded-xl p-4 text-center">
                         <p className="text-violet-500 font-bold text-sm mb-1">👍 Best for:</p>
                         <p className="text-muted-foreground text-sm">
-                          Agencies, web designers & SMMA companies
+                          Website designers, social media marketers & agencies
                         </p>
                       </div>
                       
@@ -1062,7 +1062,7 @@ export default function Dashboard() {
                         {searchType === 'gmb' ? '🏢 Local Business Search' : '🔍 Agency Lead Finder'}
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        {searchType === 'gmb' ? 'Google Maps listings' : 'Websites, GMB, reviews, social & more'}
+                        {searchType === 'gmb' ? 'Google Maps listings' : 'For website designers, marketers & agencies'}
                       </p>
                     </div>
                   </div>

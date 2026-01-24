@@ -230,13 +230,13 @@ const SearchModule = () => {
                 Agency Lead Finder
               </h3>
               <p className="text-sm text-muted-foreground">
-                For web designers, agencies & SMMA
+                Built for digital professionals
               </p>
             </div>
           </div>
 
           <p className="text-sm text-muted-foreground mb-4">
-            Find businesses needing website fixes, GMB optimization, reviews, social profiles & retargeting.
+            Find businesses that need your expertise — broken websites, weak online presence, missing reviews & more.
           </p>
 
           {/* Platform Selection */}
