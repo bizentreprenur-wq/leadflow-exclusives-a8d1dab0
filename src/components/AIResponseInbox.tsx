@@ -23,7 +23,6 @@ import {
   Linkedin, Plus, Pause, Play, Users, ChevronRight, MoreHorizontal,
   MousePointer, Sun, Moon
 } from 'lucide-react';
-import { useTheme } from 'next-themes';
 import { PROPOSAL_TEMPLATES, ProposalTemplate, generateProposalHTML } from '@/lib/proposalTemplates';
 import { CONTRACT_TEMPLATES, ContractTemplate, generateContractHTML } from '@/lib/contractTemplates';
 
@@ -507,8 +506,11 @@ const DEMO_SEQUENCES: Sequence[] = [
 ];
 
 export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps) {
-  // Theme
-  const { theme, setTheme } = useTheme();
+  // Local mailbox theme (doesn't affect the rest of the site)
+  const [mailboxTheme, setMailboxTheme] = useState<'dark' | 'light'>(() => {
+    const saved = localStorage.getItem('bamlead_mailbox_theme');
+    return (saved as 'dark' | 'light') || 'dark';
+  });
   
   // Tab state
   const [activeTab, setActiveTab] = useState<MailboxTab>('inbox');
@@ -1105,11 +1107,54 @@ Best regards`;
     </div>
   );
 
+  // Toggle mailbox theme
+  const toggleMailboxTheme = () => {
+    const newTheme = mailboxTheme === 'dark' ? 'light' : 'dark';
+    setMailboxTheme(newTheme);
+    localStorage.setItem('bamlead_mailbox_theme', newTheme);
+  };
+
+  // Mailbox theme styles
+  const mailboxStyles = mailboxTheme === 'light' 
+    ? {
+        background: 'hsl(0 0% 99%)',
+        color: 'hsl(222 47% 11%)',
+        '--mailbox-bg': '0 0% 99%',
+        '--mailbox-fg': '222 47% 11%',
+        '--mailbox-card': '0 0% 100%',
+        '--mailbox-card-fg': '222 47% 11%',
+        '--mailbox-muted': '220 14% 96%',
+        '--mailbox-muted-fg': '220 9% 46%',
+        '--mailbox-border': '220 13% 91%',
+      } as React.CSSProperties
+    : {
+        background: 'hsl(222 47% 6%)',
+        color: 'hsl(210 40% 98%)',
+        '--mailbox-bg': '222 47% 6%',
+        '--mailbox-fg': '210 40% 98%',
+        '--mailbox-card': '222 47% 9%',
+        '--mailbox-card-fg': '210 40% 98%',
+        '--mailbox-muted': '217 33% 12%',
+        '--mailbox-muted-fg': '215 20% 60%',
+        '--mailbox-border': '217 33% 18%',
+      } as React.CSSProperties;
+
   // Main render
   return (
-    <div className="w-full">
+    <div 
+      className={`w-full rounded-xl transition-colors duration-300 ${
+        mailboxTheme === 'light' 
+          ? 'bg-white text-slate-900' 
+          : 'bg-[hsl(222,47%,6%)] text-slate-50'
+      }`}
+      style={mailboxStyles}
+    >
       {/* Top Navigation Bar */}
-      <div className="bg-background border-b sticky top-0 z-40 mb-6">
+      <div className={`border-b sticky top-0 z-40 mb-6 rounded-t-xl ${
+        mailboxTheme === 'light' 
+          ? 'bg-white border-slate-200' 
+          : 'bg-[hsl(222,47%,6%)] border-slate-700'
+      }`}>
         <div className="flex items-center justify-between px-4 py-3">
           {/* Left: Icon */}
           <div className="flex items-center gap-2">
@@ -1120,7 +1165,11 @@ Best regards`;
           </div>
 
           {/* Center: Navigation Tabs */}
-          <div className="flex items-center bg-muted/50 rounded-lg p-1 border">
+          <div className={`flex items-center rounded-lg p-1 border ${
+            mailboxTheme === 'light' 
+              ? 'bg-slate-100/50 border-slate-200' 
+              : 'bg-slate-800/50 border-slate-700'
+          }`}>
             {[
               { id: 'inbox' as MailboxTab, label: 'Inbox', icon: Inbox, count: hotCount },
               { id: 'sent' as MailboxTab, label: 'Sent', icon: Send },
@@ -1132,8 +1181,12 @@ Best regards`;
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all relative ${
                   activeTab === tab.id
-                    ? 'bg-background text-foreground shadow-sm border'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                    ? mailboxTheme === 'light'
+                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                      : 'bg-slate-900 text-slate-50 shadow-sm border border-slate-700'
+                    : mailboxTheme === 'light'
+                      ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                      : 'text-slate-400 hover:text-slate-50 hover:bg-slate-800'
                 }`}
               >
                 <tab.icon className="w-4 h-4" />
@@ -1153,12 +1206,15 @@ Best regards`;
             <Button 
               variant="ghost" 
               size="icon"
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="relative"
+              onClick={toggleMailboxTheme}
+              className={`relative ${mailboxTheme === 'light' ? 'hover:bg-slate-100' : 'hover:bg-slate-800'}`}
             >
-              <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-              <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-              <span className="sr-only">Toggle theme</span>
+              {mailboxTheme === 'dark' ? (
+                <Sun className="h-5 w-5 text-amber-400" />
+              ) : (
+                <Moon className="h-5 w-5 text-slate-600" />
+              )}
+              <span className="sr-only">Toggle mailbox theme</span>
             </Button>
             <Button 
               variant="ghost" 
