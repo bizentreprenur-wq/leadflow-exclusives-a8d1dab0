@@ -191,10 +191,10 @@ const SearchModule = () => {
             <span className="font-semibold text-primary">Find businesses to call or email.</span> Get comprehensive AI-powered insights on every lead — perfect for sales teams, agencies & digital professionals.
           </p>
 
-          <ul className="text-sm text-muted-foreground space-y-1.5 mb-4">
+          <ul className="text-sm text-muted-foreground space-y-1 mb-4">
             <li className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-              Complete business profile & validation
+              100+ verified data points per business
             </li>
             <li className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
@@ -202,11 +202,23 @@ const SearchModule = () => {
             </li>
             <li className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-              Reviews, social presence & reputation
+              Google reviews, ratings & reputation
             </li>
             <li className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-violet-500" />
-              AI scoring & sales intelligence
+              AI scoring & lead prioritization
+            </li>
+            <li className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              Social media presence analysis
+            </li>
+            <li className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+              Contact info, phone & email
+            </li>
+            <li className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
+              AI-powered outreach scripts
             </li>
           </ul>
 
@@ -273,14 +285,13 @@ const SearchModule = () => {
           <div className="p-3 rounded-lg bg-violet-500/5 border border-violet-500/10 mb-3">
             <p className="text-xs font-semibold text-violet-400 mb-2">🎯 Perfect For Finding:</p>
             <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
-              <span>🔧 Outdated Websites</span>
-              <span>📵 Non-Mobile Sites</span>
-              <span>🎨 Old CMS Platforms</span>
-              <span>📉 Missing Analytics</span>
-              <span>💳 No Online Booking</span>
-              <span>📱 No Social Presence</span>
-              <span>⚡ Slow Page Speed</span>
-              <span>🔐 No SSL Security</span>
+              <span>🔧 Outdated websites</span>
+              <span>📵 Non-mobile sites</span>
+              <span>🎨 Old CMS platforms</span>
+              <span>📉 Missing analytics</span>
+              <span>📱 Weak social presence</span>
+              <span>⚡ Slow page speed</span>
+              <span>🔐 No SSL security</span>
             </div>
           </div>
 
