@@ -1132,12 +1132,15 @@ export default function EmailSetupFlow({
             Back to Step 2
           </Button>
           <Button 
-            onClick={onComplete} 
+            onClick={() => {
+              setCurrentPhase('send');
+              smartDripRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }} 
             className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground px-8 py-3 text-lg font-bold shadow-elevated"
             size="lg"
           >
-            Next: Step 4 - Calls & CRM
-            <ArrowRight className="w-5 h-5" />
+            Next: Send Emails
+            <Send className="w-5 h-5" />
           </Button>
         </div>
       </div>
