@@ -84,13 +84,24 @@ export async function apiRequest<T>(
   url: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      ...getAuthHeaders(),
-      ...options.headers,
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers: {
+        ...getAuthHeaders(),
+        ...options.headers,
+      },
+    });
+  } catch (err) {
+    // Common in Lovable preview when the production backend blocks CORS preflight.
+    const isNetworkError = err instanceof TypeError;
+    const hint =
+      'Cannot reach the backend API. This is usually caused by CORS/OPTIONS preflight being blocked or the /api server being down. ' +
+      'If you are testing from a Lovable preview URL, make sure the API responds to OPTIONS with Access-Control-Allow-Origin for that origin.';
+
+    throw new Error(isNetworkError ? `${hint} (URL: ${url})` : `Request failed (URL: ${url})`);
+  }
 
   const contentType = response.headers.get('content-type') || '';
   const rawBody = await response.text();
