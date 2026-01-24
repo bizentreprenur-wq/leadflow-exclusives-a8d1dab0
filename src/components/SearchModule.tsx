@@ -219,7 +219,7 @@ const SearchModule = () => {
           </Button>
         </div>
 
-        {/* Platform Scanner Card */}
+        {/* Agency Lead Finder Card */}
         <div className="rounded-2xl border-2 border-violet-500/20 bg-gradient-to-br from-violet-500/5 to-transparent p-6 hover:border-violet-500/40 transition-all">
           <div className="flex items-center gap-3 mb-4">
             <div className="p-3 rounded-xl bg-violet-500/10 border border-violet-500/20">
@@ -227,16 +227,16 @@ const SearchModule = () => {
             </div>
             <div>
               <h3 className="font-display font-bold text-lg text-foreground">
-                Outdated Website Scanner
+                Agency Lead Finder
               </h3>
               <p className="text-sm text-muted-foreground">
-                Detect legacy platforms
+                For web designers, agencies & SMMA
               </p>
             </div>
           </div>
 
           <p className="text-sm text-muted-foreground mb-4">
-            Find businesses using outdated website platforms that need modern upgrades.
+            Find businesses needing website fixes, GMB optimization, reviews, social profiles & retargeting.
           </p>
 
           {/* Platform Selection */}

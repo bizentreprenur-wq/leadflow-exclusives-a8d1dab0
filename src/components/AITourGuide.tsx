@@ -46,14 +46,14 @@ const TOUR_STEPS: TourStep[] = [
     page: "/",
     element: "[data-tour='dual-search']",
     title: "Two Powerful Search Methods",
-    description: "Now, right over here, we have two excellent ways to find leads. First, our Google My Business scanner locates local businesses. Second, our Platform Scanner searches Google and Bing to find businesses running outdated websites. Quite impressive, wouldn't you say?"
+    description: "Now, right over here, we have two excellent ways to find leads. First, our Google My Business scanner locates local businesses. Second, our Agency Lead Finder helps web designers, agencies & SMMA companies find businesses needing website fixes, GMB optimization, reviews & social media help."
   },
   {
     id: "agent-cards",
     page: "/",
     element: "[data-tour='agent-cards']",
     title: "Ready-to-Use Scanners",
-    description: "Walk with me over here to meet your scanning agents. The GMB Scanner tracks down local businesses with Google My Business listings. And the Platform Scanner, well, it detects over 16 legacy platforms and analyzes website quality in an instant."
+    description: "Walk with me over here to meet your scanning agents. The GMB Scanner tracks down local businesses with Google My Business listings. And the Agency Lead Finder is perfect for agencies looking for clients who need website fixes, GMB help, reviews, and social media management."
   },
   {
     id: "ai-features",

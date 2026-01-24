@@ -567,6 +567,79 @@ export default function LeadDocumentViewer({
     return hotValue + warmValue + coldValue;
   }, [hotLeads, warmLeads, coldLeads]);
 
+  // Issue summary dashboard data
+  const issueSummary = useMemo(() => {
+    const allIssues = analyzedLeads.flatMap(l => l.websiteAnalysis?.issues || []);
+    
+    const categories = {
+      mobile: {
+        label: 'Mobile Issues',
+        emoji: '📱',
+        color: 'bg-red-500',
+        lightBg: 'bg-red-50',
+        textColor: 'text-red-700',
+        borderColor: 'border-red-200',
+        count: allIssues.filter(i => i.toLowerCase().includes('mobile') || i.toLowerCase().includes('responsive')).length,
+        keywords: ['mobile', 'responsive']
+      },
+      tracking: {
+        label: 'Missing Tracking',
+        emoji: '📊',
+        color: 'bg-purple-500',
+        lightBg: 'bg-purple-50',
+        textColor: 'text-purple-700',
+        borderColor: 'border-purple-200',
+        count: allIssues.filter(i => i.toLowerCase().includes('pixel') || i.toLowerCase().includes('analytics') || i.toLowerCase().includes('tag manager') || i.toLowerCase().includes('tracking')).length,
+        keywords: ['pixel', 'analytics', 'tag manager', 'tracking']
+      },
+      booking: {
+        label: 'No Booking/Contact',
+        emoji: '📅',
+        color: 'bg-amber-500',
+        lightBg: 'bg-amber-50',
+        textColor: 'text-amber-700',
+        borderColor: 'border-amber-200',
+        count: allIssues.filter(i => i.toLowerCase().includes('booking') || i.toLowerCase().includes('contact') || i.toLowerCase().includes('funnel')).length,
+        keywords: ['booking', 'contact', 'funnel']
+      },
+      social: {
+        label: 'Social/Reviews',
+        emoji: '🔗',
+        color: 'bg-blue-500',
+        lightBg: 'bg-blue-50',
+        textColor: 'text-blue-700',
+        borderColor: 'border-blue-200',
+        count: allIssues.filter(i => i.toLowerCase().includes('social') || i.toLowerCase().includes('review') || i.toLowerCase().includes('rating')).length,
+        keywords: ['social', 'review', 'rating']
+      },
+      outdated: {
+        label: 'Outdated Tech',
+        emoji: '⚠️',
+        color: 'bg-orange-500',
+        lightBg: 'bg-orange-50',
+        textColor: 'text-orange-700',
+        borderColor: 'border-orange-200',
+        count: allIssues.filter(i => i.toLowerCase().includes('outdated') || i.toLowerCase().includes('rebuild') || i.toLowerCase().includes('legacy')).length,
+        keywords: ['outdated', 'rebuild', 'legacy']
+      },
+      adSpend: {
+        label: 'Leaking Ad Spend',
+        emoji: '💸',
+        color: 'bg-rose-500',
+        lightBg: 'bg-rose-50',
+        textColor: 'text-rose-700',
+        borderColor: 'border-rose-200',
+        count: allIssues.filter(i => i.toLowerCase().includes('ads') || i.toLowerCase().includes('leaking') || i.toLowerCase().includes('conversion tracking')).length,
+        keywords: ['ads', 'leaking', 'conversion tracking']
+      },
+    };
+
+    const totalIssueCount = Object.values(categories).reduce((sum, cat) => sum + cat.count, 0);
+    const maxCount = Math.max(...Object.values(categories).map(c => c.count), 1);
+
+    return { categories, totalIssueCount, maxCount };
+  }, [analyzedLeads]);
+
   // Lead Card Component
   const LeadCard = ({ lead, index }: { lead: typeof analyzedLeads[0]; index: number }) => {
     const classColors = {
@@ -941,6 +1014,52 @@ export default function LeadDocumentViewer({
                     </div>
                   </div>
                 </div>
+
+                {/* Issue Summary Dashboard */}
+                {issueSummary.totalIssueCount > 0 && (
+                  <div className="border-b pb-6 mb-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <AlertTriangle className="w-5 h-5 text-amber-600" />
+                      <h2 className="text-lg font-bold text-gray-900">AI-Detected Issues Dashboard</h2>
+                      <Badge className="bg-amber-100 text-amber-800 border-amber-300 ml-2">
+                        {issueSummary.totalIssueCount} total issues
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Our AI scanned all leads and found these opportunities for your outreach. Target businesses with these pain points for higher conversion rates.
+                    </p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {Object.entries(issueSummary.categories).map(([key, cat]) => (
+                        <div key={key} className={`${cat.lightBg} border ${cat.borderColor} rounded-lg p-3`}>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">{cat.emoji}</span>
+                              <span className={`text-sm font-medium ${cat.textColor}`}>{cat.label}</span>
+                            </div>
+                            <span className={`text-lg font-bold ${cat.textColor}`}>{cat.count}</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className={`${cat.color} h-2 rounded-full transition-all duration-500`}
+                              style={{ width: `${(cat.count / issueSummary.maxCount) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="mt-4 p-3 bg-violet-50 border border-violet-200 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <Sparkles className="w-4 h-4 text-violet-600 mt-0.5" />
+                        <div className="text-sm">
+                          <span className="font-medium text-violet-700">Pro Tip: </span>
+                          <span className="text-gray-700">
+                            Leads with tracking issues ({issueSummary.categories.tracking.count}) and missing booking systems ({issueSummary.categories.booking.count}) are often unaware of lost revenue — these make excellent conversation starters!
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Hot Leads Section */}
                 {hotLeads.length > 0 && (

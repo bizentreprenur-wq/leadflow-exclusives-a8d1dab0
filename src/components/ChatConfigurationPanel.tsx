@@ -44,7 +44,7 @@ const ChatConfigurationPanel = () => {
     {
       id: "1",
       question: "How do I search for leads?",
-      answer: "Use our two search methods: 1) Google My Business Scanner finds local businesses, 2) Platform Scanner detects outdated websites via Google & Bing. Just enter a service type and location to get started!",
+      answer: "Use our two search methods: 1) Google My Business Scanner finds local businesses, 2) Agency Lead Finder helps web designers, agencies & SMMA find clients needing website fixes, GMB optimization, reviews & social media help. Just enter a service type and location to get started!",
       enabled: true
     },
     {

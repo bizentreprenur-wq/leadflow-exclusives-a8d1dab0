@@ -20,10 +20,10 @@ const DualSearchShowcase = () => {
   ];
 
   const platformFeatures = [
-    { icon: Code, text: "Detect 16+ legacy platforms (WordPress, Wix, Joomla, etc.)" },
-    { icon: Globe, text: "Search across Google AND Bing simultaneously" },
-    { icon: TrendingUp, text: "Find businesses with outdated, slow websites" },
-    { icon: Users, text: "Target businesses ready for modernization" },
+    { icon: Code, text: "Find broken websites, missing GMB & Yelp profiles" },
+    { icon: Globe, text: "Detect businesses with no/low reviews & inactive socials" },
+    { icon: TrendingUp, text: "Identify missing retargeting & conversion tracking" },
+    { icon: Users, text: "Perfect for agencies, web designers & SMMA companies" },
   ];
 
   const platforms = [
@@ -50,8 +50,8 @@ const DualSearchShowcase = () => {
             Find Leads <span className="text-primary">Two Ways</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-            Whether you want to find local businesses through Google My Business or hunt for outdated websites 
-            using our Platform Scanner - BamLead has you covered with <strong>real-time Google & Bing search</strong>.
+            Whether you want to find local businesses through Google My Business or use our Agency Lead Finder 
+            to find clients needing website fixes, GMB optimization, reviews & social media help - BamLead has you covered.
           </p>
         </div>
 
@@ -105,7 +105,7 @@ const DualSearchShowcase = () => {
             </div>
           </div>
 
-          {/* Platform Scanner Card */}
+          {/* Agency Lead Finder Card */}
           <div 
             className={`relative bg-card rounded-3xl border-2 p-8 transition-all duration-300 cursor-pointer ${
               activeDemo === "platform" 
@@ -128,8 +128,8 @@ const DualSearchShowcase = () => {
                 <Globe className="w-8 h-8 text-accent" />
               </div>
               <div>
-                <h3 className="text-2xl font-display font-bold text-foreground">Platform Scanner</h3>
-                <p className="text-sm text-muted-foreground">Find outdated websites via Google & Bing</p>
+                <h3 className="text-2xl font-display font-bold text-foreground">Agency Lead Finder</h3>
+                <p className="text-sm text-muted-foreground">For web designers, agencies & SMMA</p>
               </div>
             </div>
 
@@ -147,8 +147,8 @@ const DualSearchShowcase = () => {
             <div className="p-4 rounded-xl bg-accent/5 border border-accent/20">
               <p className="text-sm font-semibold text-accent mb-2">Perfect For:</p>
               <p className="text-sm text-muted-foreground">
-                Developers looking for website redesign projects, finding businesses 
-                stuck on legacy platforms that need modern solutions
+                Web designers, agencies & SMMA companies finding clients who need website fixes, 
+                GMB optimization, Yelp profiles, reviews & social media management
               </p>
             </div>
           </div>
