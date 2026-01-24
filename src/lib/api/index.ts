@@ -103,6 +103,14 @@ export {
 } from './aiLeadScoring';
 export type { ScoredLead, LeadPrioritization, LeadInsights, EmailAngle } from './aiLeadScoring';
 
+// Search Leads (Persisted per customer)
+export {
+  fetchSearchLeads,
+  saveSearchLeads,
+  deleteSearchLeads,
+} from './searchLeads';
+export type { SearchLead, SearchLeadsResponse, SaveSearchLeadsResponse } from './searchLeads';
+
 // API Configuration
 export const API_CONFIG = {
   baseUrl: import.meta.env.VITE_API_URL || '',
