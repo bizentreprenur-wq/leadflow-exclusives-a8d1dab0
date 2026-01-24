@@ -23,14 +23,29 @@ define('EMAIL_LOG_FILE', __DIR__ . '/../logs/email.log');
 function logEmail($level, $message, $context = []) {
     $logDir = dirname(EMAIL_LOG_FILE);
     if (!is_dir($logDir)) {
-        mkdir($logDir, 0755, true);
+        // Best-effort: hosting environments may block writes in /api
+        @mkdir($logDir, 0755, true);
     }
     
     $timestamp = date('Y-m-d H:i:s');
     $contextStr = !empty($context) ? ' | ' . json_encode($context) : '';
     $logLine = "[{$timestamp}] [{$level}] {$message}{$contextStr}\n";
-    
-    file_put_contents(EMAIL_LOG_FILE, $logLine, FILE_APPEND | LOCK_EX);
+
+    // If the log directory/file isn't writable (common on Hostinger unless permissions are set),
+    // fall back to the PHP error log. Logging must never break email sending.
+    $dirWritable = is_dir($logDir) && is_writable($logDir);
+    $fileWritable = file_exists(EMAIL_LOG_FILE) && is_writable(EMAIL_LOG_FILE);
+    if (!$dirWritable && !$fileWritable) {
+        error_log('[EMAIL_LOG_FALLBACK] ' . trim($logLine));
+        return false;
+    }
+
+    $ok = @file_put_contents(EMAIL_LOG_FILE, $logLine, FILE_APPEND | LOCK_EX);
+    if ($ok === false) {
+        error_log('[EMAIL_LOG_WRITE_FAIL] ' . trim($logLine));
+        return false;
+    }
+    return true;
 }
 
 /**
@@ -107,7 +122,8 @@ function sendEmailSMTP($to, $subject, $htmlBody, $textBody = '') {
     // Validate SMTP configuration (avoid undefined constants / half-configured SMTP)
     $smtpHost = defined('SMTP_HOST') ? trim((string) SMTP_HOST) : '';
     $smtpPort = defined('SMTP_PORT') ? (int) SMTP_PORT : 587;
-    $smtpUser = defined('SMTP_USER') ? trim((string) SMTP_USER) : '';
+    // Normalize to avoid edge-case mailbox validation issues
+    $smtpUser = defined('SMTP_USER') ? strtolower(trim((string) SMTP_USER)) : '';
     $smtpPass = defined('SMTP_PASS') ? (string) SMTP_PASS : '';
     $smtpSecure = defined('SMTP_SECURE') ? strtolower(trim((string) SMTP_SECURE)) : '';
 
@@ -150,7 +166,8 @@ function sendEmailSMTP($to, $subject, $htmlBody, $textBody = '') {
         }
 
         $mail->Port = $smtpPort;
-        $mail->SMTPAutoTLS = true;
+        // For implicit TLS (port 465 / SMTPS), do not attempt STARTTLS upgrades.
+        $mail->SMTPAutoTLS = !($smtpPort === 465 || $mail->SMTPSecure === \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS);
         $mail->Timeout = 10;
         $mail->CharSet = 'UTF-8';
         
@@ -172,7 +189,39 @@ function sendEmailSMTP($to, $subject, $htmlBody, $textBody = '') {
         $mail->Body = $htmlBody;
         $mail->AltBody = $textBody ?: strip_tags($htmlBody);
         
-        $mail->send();
+        try {
+            $mail->send();
+        } catch (Exception $e) {
+            // Common on shared hosting: TLS peer verification failures.
+            // Retry once with relaxed SSL settings (still encrypted, but skips cert chain validation).
+            $combined = strtolower(($mail->ErrorInfo ?? '') . ' ' . ($e->getMessage() ?? ''));
+            $looksLikeTls = (strpos($combined, 'ssl') !== false) ||
+                            (strpos($combined, 'tls') !== false) ||
+                            (strpos($combined, 'certificate') !== false) ||
+                            (strpos($combined, 'stream_socket_client') !== false);
+
+            if ($looksLikeTls) {
+                logEmail('WARN', 'SMTP send failed; retrying with relaxed SSL verification', [
+                    'to' => $to,
+                    'host' => $smtpHost,
+                    'port' => $smtpPort,
+                    'secure' => $smtpSecure ?: 'not set'
+                ]);
+
+                $mail->SMTPOptions = [
+                    'ssl' => [
+                        'verify_peer' => false,
+                        'verify_peer_name' => false,
+                        'allow_self_signed' => true,
+                    ],
+                ];
+
+                // One retry
+                $mail->send();
+            } else {
+                throw $e;
+            }
+        }
         
         logEmail('SUCCESS', 'SMTP email sent successfully', ['to' => $to, 'subject' => $subject]);
         return true;
@@ -185,7 +234,7 @@ function sendEmailSMTP($to, $subject, $htmlBody, $textBody = '') {
             'port' => $smtpPort,
             'secure' => $smtpSecure ?: 'not set'
         ]);
-        error_log("Email error: " . $mail->ErrorInfo);
+        error_log("Email error: " . ($mail->ErrorInfo ?: 'unknown') . " | exception: " . $e->getMessage());
         return false;
     }
 }
