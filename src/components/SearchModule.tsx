@@ -238,16 +238,16 @@ const SearchModule = () => {
             </div>
             <div>
               <h3 className="font-display font-bold text-lg text-foreground">
-                Agency Lead Finder
+                🎯 Agency Lead Finder
               </h3>
               <p className="text-sm text-muted-foreground">
-                Built for digital professionals
+                For Web Dev Pros & SMMA Agencies
               </p>
             </div>
           </div>
 
           <p className="text-sm text-muted-foreground mb-4">
-            Find businesses that need your expertise — broken websites, weak online presence, missing reviews & more.
+            Find clients who need <span className="font-semibold text-violet-400">website redesigns</span>, <span className="font-semibold text-violet-400">social media management</span>, and <span className="font-semibold text-violet-400">digital marketing help</span>.
           </p>
 
           {/* Platform Selection */}

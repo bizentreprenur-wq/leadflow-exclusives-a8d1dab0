@@ -17,7 +17,8 @@ import {
   Star, AlertTriangle, CheckCircle2, Flame, Snowflake, Brain, Target,
   Zap, Building2, Mail, Clock, ChevronRight, FileSpreadsheet,
   TrendingUp, ThermometerSun, Calendar, MessageSquare, DollarSign,
-  Eye, PhoneCall, MailOpen, Sparkles, BarChart3, Timer, Lightbulb, Shield
+  Eye, PhoneCall, MailOpen, Sparkles, BarChart3, Timer, Lightbulb, Shield,
+  Copy, Check
 } from 'lucide-react';
 
 interface SearchResult {
@@ -715,6 +716,76 @@ export default function LeadDocumentViewer({
     return { categories, totalIssueCount, maxCount };
   }, [analyzedLeads]);
 
+  // Copy Button Component
+  const CopyButton = ({ text, size = 'sm' }: { text: string; size?: 'xs' | 'sm' }) => {
+    const [copied, setCopied] = useState(false);
+    
+    const handleCopy = async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      try {
+        await navigator.clipboard.writeText(text);
+        setCopied(true);
+        toast.success('Copied to clipboard!');
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        toast.error('Failed to copy');
+      }
+    };
+    
+    return (
+      <button
+        onClick={handleCopy}
+        className={`flex-shrink-0 p-1 rounded hover:bg-emerald-200/50 transition-colors ${
+          size === 'xs' ? 'opacity-0 group-hover:opacity-100' : ''
+        }`}
+        title="Copy to clipboard"
+      >
+        {copied ? (
+          <Check className={`${size === 'xs' ? 'w-3 h-3' : 'w-4 h-4'} text-emerald-600`} />
+        ) : (
+          <Copy className={`${size === 'xs' ? 'w-3 h-3' : 'w-4 h-4'} text-emerald-600`} />
+        )}
+      </button>
+    );
+  };
+
+  // Script Block Component with Copy Button
+  const ScriptBlock = ({ 
+    icon: Icon, 
+    label, 
+    content, 
+    prefix = '', 
+    isQuote = false,
+    highlight = false,
+    accent = false
+  }: { 
+    icon: any; 
+    label: string; 
+    content: string; 
+    prefix?: string;
+    isQuote?: boolean;
+    highlight?: boolean;
+    accent?: boolean;
+  }) => (
+    <div className="mb-3">
+      <div className="flex items-center gap-1 mb-1">
+        <Icon className="w-3 h-3 text-emerald-600" />
+        <span className="text-xs font-semibold text-emerald-700 uppercase">{label}</span>
+      </div>
+      <div className={`group flex items-start gap-2 text-sm text-gray-700 rounded-lg p-2 border ${
+        accent 
+          ? 'bg-emerald-100/50 border-emerald-200 font-medium' 
+          : 'bg-white/60 border-emerald-100'
+      } ${highlight ? 'font-medium' : ''}`}>
+        <span className="flex-1">
+          {prefix && `${prefix} `}
+          {isQuote ? `"${content}"` : content}
+        </span>
+        <CopyButton text={content} />
+      </div>
+    </div>
+  );
+
   // Lead Card Component
   const LeadCard = ({ lead, index }: { lead: typeof analyzedLeads[0]; index: number }) => {
     const classColors = {
@@ -898,37 +969,29 @@ export default function LeadDocumentViewer({
             </div>
             
             {/* Opening Script */}
-            <div className="mb-3">
-              <div className="flex items-center gap-1 mb-1">
-                <PhoneCall className="w-3 h-3 text-emerald-600" />
-                <span className="text-xs font-semibold text-emerald-700 uppercase">Opening Script (Call)</span>
-              </div>
-              <p className="text-sm text-gray-700 bg-white/60 rounded-lg p-2 border border-emerald-100">
-                "{lead.insight.openingScript}"
-              </p>
-            </div>
+            <ScriptBlock
+              icon={PhoneCall}
+              label="Opening Script (Call)"
+              content={lead.insight.openingScript}
+              isQuote
+            />
 
             {/* Email Subject */}
-            <div className="mb-3">
-              <div className="flex items-center gap-1 mb-1">
-                <MailOpen className="w-3 h-3 text-emerald-600" />
-                <span className="text-xs font-semibold text-emerald-700 uppercase">Email Subject Line</span>
-              </div>
-              <p className="text-sm text-gray-700 bg-white/60 rounded-lg p-2 border border-emerald-100 font-medium">
-                📧 {lead.insight.emailSubjectLine}
-              </p>
-            </div>
+            <ScriptBlock
+              icon={MailOpen}
+              label="Email Subject Line"
+              content={lead.insight.emailSubjectLine}
+              prefix="📧"
+              highlight
+            />
 
             {/* Value Proposition */}
-            <div className="mb-3">
-              <div className="flex items-center gap-1 mb-1">
-                <TrendingUp className="w-3 h-3 text-emerald-600" />
-                <span className="text-xs font-semibold text-emerald-700 uppercase">Value Proposition</span>
-              </div>
-              <p className="text-sm text-gray-700 bg-white/60 rounded-lg p-2 border border-emerald-100">
-                💡 {lead.insight.valueProposition}
-              </p>
-            </div>
+            <ScriptBlock
+              icon={TrendingUp}
+              label="Value Proposition"
+              content={lead.insight.valueProposition}
+              prefix="💡"
+            />
 
             {/* Objection Handlers */}
             {lead.insight.objectionHandlers.length > 0 && (
@@ -939,8 +1002,9 @@ export default function LeadDocumentViewer({
                 </div>
                 <ul className="space-y-1">
                   {lead.insight.objectionHandlers.map((handler, i) => (
-                    <li key={i} className="text-xs text-gray-700 bg-white/60 rounded-lg p-2 border border-emerald-100">
-                      {handler}
+                    <li key={i} className="group flex items-start gap-2 text-xs text-gray-700 bg-white/60 rounded-lg p-2 border border-emerald-100">
+                      <span className="flex-1">{handler}</span>
+                      <CopyButton text={handler} size="xs" />
                     </li>
                   ))}
                 </ul>
@@ -948,15 +1012,14 @@ export default function LeadDocumentViewer({
             )}
 
             {/* Closing Statement */}
-            <div>
-              <div className="flex items-center gap-1 mb-1">
-                <Target className="w-3 h-3 text-emerald-600" />
-                <span className="text-xs font-semibold text-emerald-700 uppercase">Close the Deal</span>
-              </div>
-              <p className="text-sm text-gray-700 bg-emerald-100/50 rounded-lg p-2 border border-emerald-200 font-medium">
-                🎯 "{lead.insight.closingStatement}"
-              </p>
-            </div>
+            <ScriptBlock
+              icon={Target}
+              label="Close the Deal"
+              content={lead.insight.closingStatement}
+              prefix="🎯"
+              isQuote
+              accent
+            />
           </div>
         </div>
       </div>
