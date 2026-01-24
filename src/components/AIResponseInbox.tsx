@@ -848,15 +848,15 @@ Best regards`;
     }
   };
 
-  // Render Sequences & Follow-Up Tab
+  // Render Sequences & Follow-Up Tab - Clean design matching reference
   const renderSequencesTab = () => (
-    <div className="space-y-6">
-      {/* Hero Header */}
-      <div className="text-center space-y-3">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-foreground via-foreground to-muted-foreground bg-clip-text">
+    <div className="bg-white rounded-xl p-6 space-y-6">
+      {/* Header */}
+      <div className="text-center space-y-2">
+        <h1 className="text-2xl font-bold text-slate-900">
           Sequences & Follow-Up
         </h1>
-        <p className="text-muted-foreground max-w-2xl mx-auto">
+        <p className="text-slate-500 text-sm max-w-xl mx-auto">
           Automate your outreach with multi-channel sequences and intelligent follow-ups powered by AI
         </p>
       </div>
@@ -864,246 +864,126 @@ Best regards`;
       {/* Create + Automation Toggle Row */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <Button 
-          className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium gap-2 shadow-lg shadow-emerald-500/20"
+          className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium gap-2 rounded-lg px-5"
         >
           <Plus className="w-4 h-4" />
           Create Sequence
         </Button>
 
-        <div className="flex items-center gap-3 bg-muted/50 rounded-full px-4 py-2 border">
-          <span className="text-sm text-muted-foreground">Automation:</span>
-          <div className={`relative transition-all duration-300 ${automationEnabled ? 'text-emerald-500' : 'text-muted-foreground'}`}>
-            {automationEnabled ? (
-              <Badge className="bg-emerald-600 text-white font-semibold gap-1.5 px-3 py-1 text-sm">
-                <Zap className="w-3.5 h-3.5" />
-                ON
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="text-muted-foreground font-medium gap-1.5 px-3 py-1 text-sm">
-                OFF
-              </Badge>
-            )}
-          </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-slate-500">Automation:</span>
+          <Badge className={`font-semibold px-3 py-1 text-xs rounded-full ${
+            automationEnabled 
+              ? 'bg-emerald-600 text-white' 
+              : 'bg-slate-200 text-slate-600'
+          }`}>
+            {automationEnabled ? 'ON' : 'OFF'}
+          </Badge>
           <Switch 
             checked={automationEnabled}
             onCheckedChange={(v) => {
               setAutomationEnabled(v);
               toast.success(v ? '🤖 AI automation enabled' : 'Automation paused');
             }}
+            className="data-[state=checked]:bg-emerald-600"
           />
         </div>
       </div>
 
       {/* Sequences List */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {sequences.map((sequence, index) => (
           <motion.div
             key={sequence.id}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
+            transition={{ delay: index * 0.05 }}
           >
-            <Card className={`border-2 transition-all hover:shadow-lg ${
-              sequence.status === 'active' 
-                ? 'border-border hover:border-primary/30' 
-                : 'border-border/50 bg-muted/30'
-            }`}>
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between gap-4 flex-wrap">
-                  {/* Left: Sequence Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-3 flex-wrap">
-                      <h3 className="font-bold text-lg">{sequence.name}</h3>
-                      <Badge variant="outline" className="text-xs font-normal">
-                        {sequence.steps.length} Steps
-                      </Badge>
-                      <Badge className={`text-xs ${
-                        sequence.status === 'active' 
-                          ? 'bg-emerald-500/20 text-emerald-600 border-emerald-500/30'
-                          : 'bg-slate-500/20 text-slate-500 border-slate-500/30'
-                      }`}>
-                        {sequence.status === 'active' ? 'Active' : 'Paused'}
-                      </Badge>
-                    </div>
-
-                    {/* Steps Flow */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {sequence.steps.map((step, stepIndex) => (
-                        <div key={step.id} className="flex items-center">
-                          <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium ${getStepColor(step.type)}`}>
-                            {getStepIcon(step.type)}
-                            <span>
-                              {step.type === 'wait' && step.waitDays 
-                                ? `Wait ${step.waitDays} Day${step.waitDays > 1 ? 's' : ''}`
-                                : step.type === 'email' && step.subject
-                                ? step.subject
-                                : step.type === 'linkedin'
-                                ? 'LinkedIn Message'
-                                : step.type === 'sms'
-                                ? 'Send SMS'
-                                : step.type === 'call'
-                                ? 'Final Message'
-                                : step.content || step.type
-                              }
-                            </span>
-                          </div>
-                          {stepIndex < sequence.steps.length - 1 && (
-                            <ChevronRight className="w-4 h-4 text-muted-foreground mx-1 flex-shrink-0" />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Right: Actions */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Button variant="outline" size="sm" className="h-8 text-xs">
-                      Edit
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-8 text-xs"
-                      onClick={() => toggleSequence(sequence.id)}
-                    >
-                      {sequence.status === 'active' ? 'Pause' : 'Resume'}
-                    </Button>
-                    <Button variant="outline" size="sm" className="h-8 text-xs">
-                      Stats
-                    </Button>
-                    <Switch 
-                      checked={sequence.status === 'active'}
-                      onCheckedChange={() => toggleSequence(sequence.id)}
-                      className="ml-2"
-                    />
-                  </div>
+            <div className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow">
+              {/* Top Row: Title + Steps + Status + Menu */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <h3 className="font-semibold text-slate-900">{sequence.name}</h3>
+                  <span className="text-xs text-slate-400">
+                    {sequence.steps.length} Steps
+                  </span>
+                  <span className="text-xs text-slate-400">|</span>
+                  <span className={`text-xs font-medium ${
+                    sequence.status === 'active' ? 'text-emerald-600' : 'text-slate-400'
+                  }`}>
+                    {sequence.status === 'active' ? 'Active' : 'Paused'}
+                  </span>
                 </div>
+                <button className="p-1 hover:bg-slate-100 rounded-md transition-colors">
+                  <MoreHorizontal className="w-5 h-5 text-slate-400" />
+                </button>
+              </div>
 
-                {/* Stats Row */}
-                <div className="flex items-center gap-4 mt-4 pt-4 border-t flex-wrap">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Users className="w-3.5 h-3.5" />
-                    <span className="font-medium">{sequence.leadsEnrolled}</span> leads enrolled
+              {/* Steps Flow */}
+              <div className="flex items-center gap-1 flex-wrap mb-3">
+                {sequence.steps.map((step, stepIndex) => (
+                  <div key={step.id} className="flex items-center">
+                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border text-xs font-medium ${
+                      step.type === 'linkedin' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                      step.type === 'email' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                      step.type === 'sms' ? 'bg-violet-50 text-violet-700 border-violet-200' :
+                      step.type === 'wait' ? 'bg-slate-50 text-slate-600 border-slate-200' :
+                      step.type === 'call' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                      'bg-slate-50 text-slate-600 border-slate-200'
+                    }`}>
+                      {step.type === 'linkedin' && <Linkedin className="w-3 h-3" />}
+                      {step.type === 'email' && <Mail className="w-3 h-3" />}
+                      {step.type === 'sms' && <MessageSquare className="w-3 h-3" />}
+                      {step.type === 'wait' && <Clock className="w-3 h-3" />}
+                      {step.type === 'call' && <Phone className="w-3 h-3" />}
+                      <span>
+                        {step.type === 'wait' && step.waitDays 
+                          ? `Wait ${step.waitDays} Day${step.waitDays > 1 ? 's' : ''}`
+                          : step.type === 'email' && step.subject
+                          ? step.subject
+                          : step.type === 'linkedin'
+                          ? 'LinkedIn Message'
+                          : step.type === 'sms'
+                          ? 'Send SMS'
+                          : step.type === 'call'
+                          ? 'Final Message'
+                          : step.content || step.type
+                        }
+                      </span>
+                    </div>
+                    {stepIndex < sequence.steps.length - 1 && (
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-300 mx-0.5 flex-shrink-0" />
+                    )}
                   </div>
-                  <Separator orientation="vertical" className="h-4 hidden sm:block" />
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Send className="w-3.5 h-3.5" />
-                    <span className="font-medium">{sequence.stats.sent}</span> sent
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Eye className="w-3.5 h-3.5" />
-                    <span className="font-medium">{sequence.stats.opened}</span> opened
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-emerald-600">
-                    <MessageSquare className="w-3.5 h-3.5" />
-                    <span className="font-medium">{sequence.stats.replied}</span> replied
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                ))}
+              </div>
+
+              {/* Bottom Row: Actions */}
+              <div className="flex items-center justify-end gap-1">
+                <button className="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors">
+                  Edit
+                </button>
+                <span className="text-slate-300">|</span>
+                <button 
+                  className="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
+                  onClick={() => toggleSequence(sequence.id)}
+                >
+                  {sequence.status === 'active' ? 'Pause' : 'Resume'}
+                </button>
+                <span className="text-slate-300">|</span>
+                <button className="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors">
+                  Stats
+                </button>
+                <Switch 
+                  checked={sequence.status === 'active'}
+                  onCheckedChange={() => toggleSequence(sequence.id)}
+                  className="ml-2 data-[state=checked]:bg-emerald-600"
+                />
+              </div>
+            </div>
           </motion.div>
         ))}
       </div>
-
-      {/* AI Automation Info Card */}
-      <Card className="bg-gradient-to-r from-primary/5 via-violet-500/5 to-amber-500/5 border-primary/20">
-        <CardContent className="p-6">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center flex-shrink-0">
-              <Brain className="w-6 h-6 text-white" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-bold text-lg flex items-center gap-2 mb-2">
-                AI-Powered Automation
-                <Badge className="bg-primary/20 text-primary text-[10px]">SMART</Badge>
-              </h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                When automation is ON, AI intelligently manages your sequences:
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="flex items-start gap-2">
-                  <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                  </div>
-                  <div className="text-xs">
-                    <p className="font-medium">Smart Timing</p>
-                    <p className="text-muted-foreground">Sends at optimal engagement times</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <div className="w-6 h-6 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                    <Zap className="w-3.5 h-3.5 text-amber-500" />
-                  </div>
-                  <div className="text-xs">
-                    <p className="font-medium">Auto-Responses</p>
-                    <p className="text-muted-foreground">Instantly reply to hot leads</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <div className="w-6 h-6 rounded-full bg-violet-500/20 flex items-center justify-center flex-shrink-0">
-                    <Target className="w-3.5 h-3.5 text-violet-500" />
-                  </div>
-                  <div className="text-xs">
-                    <p className="font-medium">Sentiment Analysis</p>
-                    <p className="text-muted-foreground">Pauses for negative signals</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Automation Mode Toggle Card */}
-      <Card className="border-2 border-dashed border-border">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-4">
-              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${
-                automationEnabled 
-                  ? 'bg-gradient-to-br from-primary to-violet-600 shadow-lg shadow-primary/20'
-                  : 'bg-muted'
-              }`}>
-                {automationEnabled ? (
-                  <Zap className="w-7 h-7 text-white" />
-                ) : (
-                  <Shield className="w-7 h-7 text-muted-foreground" />
-                )}
-              </div>
-              <div>
-                <h3 className="font-bold text-lg">
-                  {automationEnabled ? 'Fully Automatic' : 'Manual Control'}
-                </h3>
-                <p className="text-sm text-muted-foreground">
-                  {automationEnabled 
-                    ? 'AI sends follow-ups and responses on schedule without intervention'
-                    : 'You review and approve all messages before sending'
-                  }
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button
-                variant={!automationEnabled ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setAutomationEnabled(false)}
-                className={!automationEnabled ? 'bg-emerald-600 hover:bg-emerald-700' : ''}
-              >
-                <Shield className="w-4 h-4 mr-1.5" />
-                Manual
-              </Button>
-              <Button
-                variant={automationEnabled ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setAutomationEnabled(true)}
-              >
-                <Zap className="w-4 h-4 mr-1.5" />
-                Automatic
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 
