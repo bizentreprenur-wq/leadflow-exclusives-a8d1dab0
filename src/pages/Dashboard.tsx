@@ -250,18 +250,33 @@ export default function Dashboard() {
     }
   }, [searchParams, refreshUser, celebrate]);
 
-  // Load persisted leads from database on dashboard init
+  // Load persisted leads from database on dashboard init (runs once on mount)
+  // This ensures leads are restored after re-login since DB is the source of truth
   useEffect(() => {
     const loadPersistedLeads = async () => {
-      // Skip if we already have results in session (user is navigating between steps)
-      if (searchResults.length > 0) return;
+      // Check sessionStorage for existing results first
+      // This handles in-session navigation between steps
+      const sessionResults = sessionStorage.getItem('bamlead_search_results');
+      if (sessionResults) {
+        try {
+          const parsed = JSON.parse(sessionResults);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            console.log('[BamLead] Using session-cached leads:', parsed.length);
+            return; // Already have results in session, skip DB fetch
+          }
+        } catch {
+          // Invalid session data, will fetch from DB
+        }
+      }
       
       // Skip for non-authenticated users
       const token = localStorage.getItem('bamlead_auth');
       if (!token) return;
       
       try {
+        console.log('[BamLead] Fetching persisted leads from database...');
         const response = await fetchSearchLeads({ limit: 500 });
+        
         if (response.success && response.data?.leads && response.data.leads.length > 0) {
           console.log('[BamLead] Loaded persisted leads from DB:', response.data.leads.length);
           
@@ -290,18 +305,32 @@ export default function Dashboard() {
           
           setSearchResults(mappedLeads);
           
+          // Cache in sessionStorage for step navigation
+          sessionStorage.setItem('bamlead_search_results', JSON.stringify(mappedLeads));
+          
           // Restore search context if available
           if (response.data.latestSearch) {
-            setQuery(response.data.latestSearch.query || '');
-            setLocation(response.data.latestSearch.location || '');
-            setSearchType(response.data.latestSearch.sourceType || null);
-            // Move to step 2 if user has existing leads
-            if (currentStep === 1) {
-              setCurrentStep(2);
+            const { query: savedQuery, location: savedLocation, sourceType } = response.data.latestSearch;
+            if (savedQuery) {
+              setQuery(savedQuery);
+              sessionStorage.setItem('bamlead_query', savedQuery);
             }
+            if (savedLocation) {
+              setLocation(savedLocation);
+              sessionStorage.setItem('bamlead_location', savedLocation);
+            }
+            if (sourceType) {
+              setSearchType(sourceType);
+              sessionStorage.setItem('bamlead_search_type', sourceType);
+            }
+            // Move to step 2 if user has existing leads (returning user)
+            setCurrentStep(2);
+            sessionStorage.setItem('bamlead_current_step', '2');
           }
           
           toast.info(`Loaded ${mappedLeads.length} leads from your last search`);
+        } else {
+          console.log('[BamLead] No persisted leads found in database');
         }
       } catch (error) {
         console.error('[BamLead] Failed to load persisted leads:', error);
