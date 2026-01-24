@@ -156,7 +156,23 @@ function handleResendVerification() {
     $sent = sendVerificationEmail($user['id'], $user['email'], $user['name']);
     
     if (!$sent) {
-        sendError('Failed to send verification email. Please try again or contact support.', 500);
+        // Provide a safe, actionable hint (no secrets) to speed up debugging
+        $smtpConfigured = (defined('SMTP_HOST') && SMTP_HOST) && (defined('SMTP_USER') && SMTP_USER);
+        $smtpPassSet = defined('SMTP_PASS') && SMTP_PASS;
+        $phpmailerAvailable = class_exists('PHPMailer\\PHPMailer\\PHPMailer');
+
+        $hint = '';
+        if (!$smtpConfigured) {
+            $hint = ' SMTP is not configured on the server (SMTP_HOST/SMTP_USER missing).';
+        } elseif (!$smtpPassSet) {
+            $hint = ' SMTP_PASS is missing on the server.';
+        } elseif (!$phpmailerAvailable) {
+            $hint = ' PHPMailer is not available on the server (run composer install in /api).';
+        } else {
+            $hint = ' SMTP rejected the send; check credentials, port (465 SSL or 587 TLS), and that the From address is allowed by the mailbox.';
+        }
+
+        sendError('Failed to send verification email.' . $hint . ' You can run /api/email-diagnostic.php?key=CRON_SECRET_KEY to see detailed status.', 500);
     }
     
     sendJson([

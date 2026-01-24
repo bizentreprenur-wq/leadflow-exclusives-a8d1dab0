@@ -103,28 +103,66 @@ function sendEmailSMTP($to, $subject, $htmlBody, $textBody = '') {
         ]);
         return sendEmailNative($to, $subject, $htmlBody);
     }
+
+    // Validate SMTP configuration (avoid undefined constants / half-configured SMTP)
+    $smtpHost = defined('SMTP_HOST') ? trim((string) SMTP_HOST) : '';
+    $smtpPort = defined('SMTP_PORT') ? (int) SMTP_PORT : 587;
+    $smtpUser = defined('SMTP_USER') ? trim((string) SMTP_USER) : '';
+    $smtpPass = defined('SMTP_PASS') ? (string) SMTP_PASS : '';
+    $smtpSecure = defined('SMTP_SECURE') ? strtolower(trim((string) SMTP_SECURE)) : '';
+
+    if (!$smtpHost || !$smtpUser || !$smtpPass) {
+        logEmail('ERROR', 'SMTP configuration incomplete', [
+            'to' => $to,
+            'host_set' => $smtpHost ? 'yes' : 'no',
+            'user_set' => $smtpUser ? 'yes' : 'no',
+            'pass_set' => $smtpPass ? 'yes' : 'no',
+            'port' => $smtpPort,
+            'secure' => $smtpSecure ?: 'not set',
+        ]);
+        return false;
+    }
     
     logEmail('INFO', 'Using PHPMailer SMTP', [
         'to' => $to,
-        'host' => SMTP_HOST,
-        'port' => SMTP_PORT,
-        'user' => SMTP_USER,
-        'secure' => SMTP_SECURE
+        'host' => $smtpHost,
+        'port' => $smtpPort,
+        'user' => $smtpUser,
+        'secure' => $smtpSecure ?: 'not set'
     ]);
     
     $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
     
     try {
         $mail->isSMTP();
-        $mail->Host = SMTP_HOST;
+        $mail->Host = $smtpHost;
         $mail->SMTPAuth = true;
-        $mail->Username = SMTP_USER;
-        $mail->Password = SMTP_PASS;
-        $mail->SMTPSecure = SMTP_SECURE;
-        $mail->Port = SMTP_PORT;
+        $mail->Username = $smtpUser;
+        $mail->Password = $smtpPass;
+
+        // Map common values to PHPMailer encryption constants (more robust than raw strings)
+        if ($smtpSecure === 'ssl' || $smtpSecure === 'smtps') {
+            $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+        } elseif ($smtpSecure === 'tls' || $smtpSecure === 'starttls') {
+            $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        } else {
+            $mail->SMTPSecure = '';
+        }
+
+        $mail->Port = $smtpPort;
+        $mail->SMTPAutoTLS = true;
+        $mail->Timeout = 10;
+        $mail->CharSet = 'UTF-8';
         
-        // Enable debug output for logging
-        $mail->SMTPDebug = 0; // Set to 2 for verbose debug
+        // Enable debug output for logging in DEBUG_MODE
+        if (defined('DEBUG_MODE') && DEBUG_MODE) {
+            $mail->SMTPDebug = 2;
+            $mail->Debugoutput = function ($str, $level) {
+                logEmail('DEBUG', 'SMTP: ' . trim($str), ['level' => $level]);
+            };
+        } else {
+            $mail->SMTPDebug = 0;
+        }
         
         $mail->setFrom(MAIL_FROM_ADDRESS, MAIL_FROM_NAME);
         $mail->addAddress($to);
@@ -143,8 +181,9 @@ function sendEmailSMTP($to, $subject, $htmlBody, $textBody = '') {
             'to' => $to,
             'error' => $mail->ErrorInfo,
             'exception' => $e->getMessage(),
-            'host' => SMTP_HOST,
-            'port' => SMTP_PORT
+            'host' => $smtpHost,
+            'port' => $smtpPort,
+            'secure' => $smtpSecure ?: 'not set'
         ]);
         error_log("Email error: " . $mail->ErrorInfo);
         return false;
