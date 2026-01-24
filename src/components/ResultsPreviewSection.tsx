@@ -2,6 +2,40 @@ import { Star, Globe, Gauge, Phone, Mail, AlertCircle, Zap } from "lucide-react"
 import { Badge } from "@/components/ui/badge";
 import WebsitePreviewIcon from "./WebsitePreviewIcon";
 
+// Source badge helper - shows which platforms found each lead
+const getSourceBadges = (sources?: string[]) => {
+  if (!sources || sources.length === 0) return null;
+  
+  const sourceConfig: Record<string, { color: string; short: string }> = {
+    'Google Maps': { color: 'bg-blue-500/20 text-blue-400', short: 'G' },
+    'Yelp': { color: 'bg-red-500/20 text-red-400', short: 'Y' },
+    'Bing Places': { color: 'bg-cyan-500/20 text-cyan-400', short: 'B' },
+  };
+  
+  return (
+    <div className="flex items-center gap-0.5 ml-2">
+      {sources.map((source) => {
+        const config = sourceConfig[source];
+        if (!config) return null;
+        return (
+          <span
+            key={source}
+            className={`inline-flex items-center justify-center w-5 h-5 rounded text-[10px] font-bold ${config.color}`}
+            title={`Found on ${source}`}
+          >
+            {config.short}
+          </span>
+        );
+      })}
+      {sources.length > 1 && (
+        <span className="text-[10px] text-emerald-500 font-medium ml-0.5" title={`Verified on ${sources.length} platforms`}>
+          ✓{sources.length}
+        </span>
+      )}
+    </div>
+  );
+};
+
 const mockResults = [
   {
     name: "Johnson's Plumbing & Heating",
@@ -15,6 +49,7 @@ const mockResults = [
     statusColor: "destructive" as const,
     email: "info@johnsonsplumbing.com",
     phone: "(555) 123-4567",
+    sources: ["Google Maps", "Yelp", "Bing Places"],
   },
   {
     name: "Elite Roofing Solutions",
@@ -28,6 +63,7 @@ const mockResults = [
     statusColor: "default" as const,
     email: "contact@eliteroofing.net",
     phone: "(555) 987-6543",
+    sources: ["Google Maps", "Yelp"],
   },
   {
     name: "Sparkle Clean Services",
@@ -41,6 +77,7 @@ const mockResults = [
     statusColor: "secondary" as const,
     email: "hello@sparkleclean.com",
     phone: "(555) 456-7890",
+    sources: ["Google Maps"],
   },
 ];
 
@@ -76,6 +113,7 @@ const ResultsPreviewSection = () => {
                       <div>
                         <h3 className="text-lg font-bold text-foreground mb-1 flex items-center gap-2">
                           {result.name}
+                          {getSourceBadges(result.sources)}
                           <WebsitePreviewIcon 
                             website={result.website} 
                             businessName={result.name}
