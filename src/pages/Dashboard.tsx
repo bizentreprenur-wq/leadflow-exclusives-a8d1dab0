@@ -50,6 +50,7 @@ import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } fro
 import { quickScoreLeads } from '@/lib/api/aiLeadScoring';
 import { HIGH_CONVERTING_TEMPLATES } from '@/lib/highConvertingTemplates';
 import { generateMechanicLeads, injectTestLeads } from '@/lib/testMechanicLeads';
+import { fetchSearchLeads, saveSearchLeads, SearchLead } from '@/lib/api/searchLeads';
 import { checkPaymentMethod } from '@/lib/api/stripeSetup';
 import AutoFollowUpBuilder from '@/components/AutoFollowUpBuilder';
 import LeadResultsPanel from '@/components/LeadResultsPanel';
@@ -248,6 +249,67 @@ export default function Dashboard() {
       window.history.replaceState({}, '', '/dashboard');
     }
   }, [searchParams, refreshUser, celebrate]);
+
+  // Load persisted leads from database on dashboard init
+  useEffect(() => {
+    const loadPersistedLeads = async () => {
+      // Skip if we already have results in session (user is navigating between steps)
+      if (searchResults.length > 0) return;
+      
+      // Skip for non-authenticated users
+      const token = localStorage.getItem('bamlead_auth');
+      if (!token) return;
+      
+      try {
+        const response = await fetchSearchLeads({ limit: 500 });
+        if (response.success && response.data?.leads && response.data.leads.length > 0) {
+          console.log('[BamLead] Loaded persisted leads from DB:', response.data.leads.length);
+          
+          // Map DB leads to SearchResult format
+          const mappedLeads: SearchResult[] = response.data.leads.map(lead => ({
+            id: lead.id,
+            name: lead.name,
+            address: lead.address,
+            phone: lead.phone,
+            website: lead.website,
+            email: lead.email,
+            rating: lead.rating,
+            source: lead.source,
+            platform: lead.platform,
+            aiClassification: lead.aiClassification,
+            leadScore: lead.leadScore,
+            successProbability: lead.successProbability,
+            recommendedAction: lead.recommendedAction,
+            callScore: lead.callScore,
+            emailScore: lead.emailScore,
+            urgency: lead.urgency,
+            painPoints: lead.painPoints,
+            readyToCall: lead.readyToCall,
+            websiteAnalysis: lead.websiteAnalysis,
+          }));
+          
+          setSearchResults(mappedLeads);
+          
+          // Restore search context if available
+          if (response.data.latestSearch) {
+            setQuery(response.data.latestSearch.query || '');
+            setLocation(response.data.latestSearch.location || '');
+            setSearchType(response.data.latestSearch.sourceType || null);
+            // Move to step 2 if user has existing leads
+            if (currentStep === 1) {
+              setCurrentStep(2);
+            }
+          }
+          
+          toast.info(`Loaded ${mappedLeads.length} leads from your last search`);
+        }
+      } catch (error) {
+        console.error('[BamLead] Failed to load persisted leads:', error);
+      }
+    };
+    
+    loadPersistedLeads();
+  }, []);
 
   const handleLogout = async () => {
     // Clear all session/localStorage state so user sees default view on next login
@@ -505,6 +567,48 @@ export default function Dashboard() {
         
         const hotCount = scoredResults.filter(r => r.aiClassification === 'hot').length;
         toast.success(`Found ${scoredResults.length} ${hasRealData ? 'LIVE' : 'demo'} businesses! Now running 8 AI agents...`);
+        
+        // Save leads to database for persistence (non-blocking)
+        // This ensures leads are available across all areas of the system
+        if (hasRealData && searchType) {
+          saveSearchLeads(
+            scoredResults.map(r => ({
+              id: r.id,
+              name: r.name,
+              address: r.address,
+              phone: r.phone,
+              website: r.website,
+              email: r.email,
+              rating: r.rating,
+              source: r.source,
+              platform: r.platform,
+              aiClassification: r.aiClassification,
+              leadScore: r.leadScore,
+              successProbability: r.successProbability,
+              recommendedAction: r.recommendedAction,
+              callScore: r.callScore,
+              emailScore: r.emailScore,
+              urgency: r.urgency,
+              painPoints: r.painPoints,
+              readyToCall: r.readyToCall,
+              websiteAnalysis: r.websiteAnalysis,
+            })),
+            {
+              searchQuery: query,
+              searchLocation: location,
+              sourceType: searchType,
+              clearPrevious: true // Replace previous search results
+            }
+          ).then(saveResponse => {
+            if (saveResponse.success) {
+              console.log('[BamLead] Leads saved to database:', saveResponse.data?.saved);
+            } else {
+              console.warn('[BamLead] Failed to save leads:', saveResponse.error);
+            }
+          }).catch(err => {
+            console.error('[BamLead] Error saving leads to database:', err);
+          });
+        }
       } else {
         toast.info('No businesses found. Try a different search.');
         setShowReportModal(false);
