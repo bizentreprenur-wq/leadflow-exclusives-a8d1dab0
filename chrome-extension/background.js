@@ -1,7 +1,7 @@
 // BamLead Chrome Extension - Background Service Worker
-// Version 1.0.1 - Fixed installation and context menu issues
+// Version 1.0.2 - Simplified for better installation compatibility
 
-// Create context menu on install
+// Initialize on install
 chrome.runtime.onInstalled.addListener(async () => {
   console.log('BamLead extension installing...');
   
@@ -19,133 +19,8 @@ chrome.runtime.onInstalled.addListener(async () => {
     console.error('Storage init error:', e);
   }
 
-  // Remove existing context menus first to avoid duplicates
-  try {
-    await chrome.contextMenus.removeAll();
-  } catch (e) {
-    console.log('No existing menus to remove');
-  }
-
-  // Create context menu items
-  try {
-    chrome.contextMenus.create({
-      id: 'bamlead-extract',
-      title: '🔍 Extract contact info (BamLead)',
-      contexts: ['page']
-    });
-
-    chrome.contextMenus.create({
-      id: 'bamlead-save',
-      title: '💾 Save as lead to BamLead',
-      contexts: ['page']
-    });
-
-    chrome.contextMenus.create({
-      id: 'bamlead-email',
-      title: '📧 Add email to BamLead',
-      contexts: ['selection']
-    });
-
-    console.log('Context menus created');
-  } catch (e) {
-    console.error('Context menu error:', e);
-  }
-
   console.log('BamLead extension installed successfully!');
 });
-
-// Handle context menu clicks
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  switch (info.menuItemId) {
-    case 'bamlead-extract':
-      await extractFromPage(tab);
-      break;
-    case 'bamlead-save':
-      await savePageAsLead(tab);
-      break;
-    case 'bamlead-email':
-      await addSelectedEmail(info.selectionText, tab);
-      break;
-  }
-});
-
-async function extractFromPage(tab) {
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: () => {
-        // Highlight emails on the page
-        const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-        const walker = document.createTreeWalker(
-          document.body,
-          NodeFilter.SHOW_TEXT,
-          null,
-          false
-        );
-
-        let node;
-        while (node = walker.nextNode()) {
-          const matches = node.textContent.match(emailRegex);
-          if (matches) {
-            console.log('BamLead found emails:', matches);
-          }
-        }
-
-        alert('BamLead: Check console for extracted contacts');
-      }
-    });
-  } catch (error) {
-    console.error('Extract error:', error);
-  }
-}
-
-async function savePageAsLead(tab) {
-  const lead = {
-    url: tab.url,
-    title: tab.title,
-    savedAt: new Date().toISOString()
-  };
-
-  const storage = await chrome.storage.local.get(['savedLeads', 'leadsCount', 'todayCount']);
-  const savedLeads = storage.savedLeads || [];
-  savedLeads.push(lead);
-
-  await chrome.storage.local.set({
-    savedLeads,
-    leadsCount: (storage.leadsCount || 0) + 1,
-    todayCount: (storage.todayCount || 0) + 1
-  });
-
-  // Show notification
-  chrome.action.setBadgeText({ text: '✓' });
-  chrome.action.setBadgeBackgroundColor({ color: '#22c55e' });
-  
-  setTimeout(() => {
-    chrome.action.setBadgeText({ text: '' });
-  }, 2000);
-}
-
-async function addSelectedEmail(email, tab) {
-  if (!email || !email.includes('@')) {
-    console.log('Invalid email selection');
-    return;
-  }
-
-  const storage = await chrome.storage.local.get(['savedEmails']);
-  const savedEmails = storage.savedEmails || [];
-  
-  if (!savedEmails.includes(email.trim())) {
-    savedEmails.push(email.trim());
-    await chrome.storage.local.set({ savedEmails });
-    
-    chrome.action.setBadgeText({ text: '+1' });
-    chrome.action.setBadgeBackgroundColor({ color: '#14b8a6' });
-    
-    setTimeout(() => {
-      chrome.action.setBadgeText({ text: '' });
-    }, 2000);
-  }
-}
 
 // Listen for messages from content script or popup
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -159,6 +34,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'SAVE_LEAD') {
     saveLeadToStorage(message.lead).then(() => {
       sendResponse({ success: true });
+    });
+    return true;
+  }
+
+  if (message.type === 'ADD_EMAIL') {
+    addEmailToStorage(message.email).then((result) => {
+      sendResponse(result);
     });
     return true;
   }
@@ -177,4 +59,39 @@ async function saveLeadToStorage(lead) {
     leadsCount: (storage.leadsCount || 0) + 1,
     todayCount: (storage.todayCount || 0) + 1
   });
+
+  // Update badge
+  await chrome.action.setBadgeText({ text: '✓' });
+  await chrome.action.setBadgeBackgroundColor({ color: '#22c55e' });
+  
+  setTimeout(async () => {
+    await chrome.action.setBadgeText({ text: '' });
+  }, 2000);
+
+  return { success: true };
+}
+
+async function addEmailToStorage(email) {
+  if (!email || !email.includes('@')) {
+    return { success: false, error: 'Invalid email' };
+  }
+
+  const storage = await chrome.storage.local.get(['savedEmails']);
+  const savedEmails = storage.savedEmails || [];
+  
+  if (!savedEmails.includes(email.trim())) {
+    savedEmails.push(email.trim());
+    await chrome.storage.local.set({ savedEmails });
+    
+    await chrome.action.setBadgeText({ text: '+1' });
+    await chrome.action.setBadgeBackgroundColor({ color: '#14b8a6' });
+    
+    setTimeout(async () => {
+      await chrome.action.setBadgeText({ text: '' });
+    }, 2000);
+
+    return { success: true, email: email.trim() };
+  }
+
+  return { success: false, error: 'Email already saved' };
 }
