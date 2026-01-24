@@ -12,7 +12,7 @@ import {
   ArrowLeft, ArrowRight, Server, FileText, Send, 
   CheckCircle2, Mail, Users, Loader2, Link2, Database,
   Eye, Zap, Rocket, FlaskConical, Home,
-  Clock, TrendingUp, Info, Settings, Phone, X, AlertCircle, Upload, Image, Trash2
+  Clock, TrendingUp, Info, Settings, Phone, X, AlertCircle, Upload, Image, Trash2, Sparkles
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -29,6 +29,7 @@ import CRMSelectionPanel from './CRMSelectionPanel';
 import AITemplateSuggestions from './AITemplateSuggestions';
 import AIEmailAssistant from './AIEmailAssistant';
 import EmailConfigurationPanel from './EmailConfigurationPanel';
+import AIEmailTemplateBuilder from './AIEmailTemplateBuilder';
 import { LeadForEmail, sendBulkEmails } from '@/lib/api/email';
 import { isSMTPConfigured, personalizeContent } from '@/lib/emailService';
 import { addLeadsToCRM, queueLeadsForEmail } from '@/lib/customTemplates';
@@ -648,7 +649,7 @@ export default function EmailSetupFlow({
                       { tab: 'preview', icon: Eye, label: 'Preview', color: 'cyan', tooltip: 'Preview how your email looks in Gmail, Outlook & Apple Mail' },
                       { tab: 'crm', icon: Database, label: 'CRM', color: 'violet', tooltip: 'Connect HubSpot, Salesforce, or use BamLead CRM to manage leads' },
                       { tab: 'ab-testing', icon: FlaskConical, label: 'A/B', color: 'pink', tooltip: 'Create email variants & test which performs best' },
-                      { tab: 'edit-template', icon: FileText, label: 'Edit', color: 'emerald', tooltip: 'Customize your email subject & body with AI assistance' },
+                      { tab: 'ai-builder', icon: Sparkles, label: 'AI Builder', color: 'violet', tooltip: 'Build your own email template with AI-powered content and images' },
                       { tab: 'settings', icon: Settings, label: 'SMTP', color: 'slate', tooltip: 'Configure your email server (Gmail, Outlook, custom SMTP)' },
                       { tab: 'inbox', icon: Mail, label: 'Inbox', color: 'slate', tooltip: 'View inbox messages (coming soon)' },
                     ].map((item) => (
@@ -688,7 +689,7 @@ export default function EmailSetupFlow({
                       Get Started: Click the tabs above!
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      Select <strong className="text-primary">Preview</strong>, <strong className="text-primary">CRM</strong>, <strong className="text-primary">A/B</strong>, <strong className="text-primary">Edit</strong>, or <strong className="text-primary">SMTP</strong> to configure your email campaign
+                      Select <strong className="text-primary">Preview</strong>, <strong className="text-primary">CRM</strong>, <strong className="text-primary">A/B</strong>, <strong className="text-primary">AI Builder</strong>, or <strong className="text-primary">SMTP</strong> to configure your email campaign
                     </span>
                   </div>
                 </div>
@@ -1156,74 +1157,31 @@ export default function EmailSetupFlow({
                       </div>
                     )}
 
-                    {/* EDIT TEMPLATE VIEW */}
-                    {activeTab === 'edit-template' && (
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 mb-4">
-                          <FileText className="w-5 h-5 text-emerald-400" />
-                          <h3 className="font-bold text-lg">Edit Template</h3>
-                        </div>
-                        {selectedTemplate ? (
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div className="space-y-4">
-                              <div>
-                                <Label htmlFor="edit-subject">Subject Line</Label>
-                                <Input 
-                                  id="edit-subject"
-                                  value={customizedContent?.subject || selectedTemplate.subject}
-                                  placeholder="Enter your subject line..."
-                                  className="mt-1"
-                                  onChange={(e) => {
-                                    const body = customizedContent?.body || selectedTemplate.body || '';
-                                    handleSaveCustomization(e.target.value, body);
-                                  }}
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="edit-body">Email Body</Label>
-                                <textarea 
-                                  id="edit-body"
-                                  value={(customizedContent?.body || selectedTemplate.body || '').replace(/<[^>]*>/g, '')}
-                                  placeholder="Enter your email content..."
-                                  className="mt-1 w-full h-64 p-3 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-                                  onChange={(e) => {
-                                    const subject = customizedContent?.subject || selectedTemplate.subject;
-                                    handleSaveCustomization(subject, e.target.value);
-                                  }}
-                                />
-                              </div>
-                              {customizedContent && (
-                                <Badge variant="outline" className="border-success text-success">
-                                  ✓ Your edits are saved automatically
-                                </Badge>
-                              )}
-                            </div>
-                            <AIEmailAssistant
-                              template={selectedTemplate}
-                              leads={leads}
-                              currentSubject={customizedContent?.subject || selectedTemplate.subject}
-                              currentBody={customizedContent?.body || selectedTemplate.body}
-                              onApplySubject={(subject) => {
-                                const body = customizedContent?.body || selectedTemplate.body || '';
-                                handleSaveCustomization(subject, body);
-                              }}
-                              onApplyBody={(newBody) => {
-                                const subject = customizedContent?.subject || selectedTemplate.subject;
-                                const currentBody = customizedContent?.body || selectedTemplate.body || '';
-                                const updatedBody = currentBody ? `${currentBody}\n\n${newBody}` : newBody;
-                                handleSaveCustomization(subject, updatedBody.replace(/<[^>]*>/g, ''));
-                              }}
-                            />
-                          </div>
-                        ) : (
-                          <div className="text-center py-12 bg-muted/20 rounded-xl border border-dashed border-border">
-                            <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
-                            <h3 className="font-semibold mb-2">No Template Selected</h3>
-                            <p className="text-muted-foreground text-sm mb-4">Select a template first to edit it</p>
-                            <Button size="sm" onClick={() => setCurrentPhase('template')}>Choose Template</Button>
-                          </div>
-                        )}
-                      </div>
+                    {/* AI TEMPLATE BUILDER VIEW */}
+                    {activeTab === 'ai-builder' && (
+                      <AIEmailTemplateBuilder
+                        currentSubject={customizedContent?.subject || selectedTemplate?.subject || ''}
+                        currentBody={customizedContent?.body || selectedTemplate?.body || ''}
+                        onSaveTemplate={(template) => {
+                          // Create a new template from AI builder
+                          const newTemplate = {
+                            id: 'ai-built-' + Date.now(),
+                            name: 'AI-Built Custom Template',
+                            subject: template.subject,
+                            body: template.body,
+                            body_html: template.heroImage 
+                              ? `<img src="${template.heroImage}" alt="Hero" style="width:100%;max-width:600px;height:auto;margin-bottom:20px;" />\n${template.body}`
+                              : template.body,
+                            category: 'ai-generated',
+                            conversionRate: '0%',
+                            useCase: 'Custom AI-generated email template',
+                          };
+                          setSelectedTemplate(newTemplate);
+                          handleSaveCustomization(template.subject, template.body);
+                          localStorage.setItem('bamlead_selected_template', JSON.stringify(newTemplate));
+                          toast.success('Your AI template has been created and selected!');
+                        }}
+                      />
                     )}
 
                     {/* SMTP SETTINGS VIEW */}
