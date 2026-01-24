@@ -12,7 +12,8 @@ import { toast } from 'sonner';
 import {
   Mail, Bot, User, Send, Edit3, Check, X, RefreshCw,
   Sparkles, Clock, CheckCircle2, MessageSquare, Loader2,
-  ThumbsUp, ThumbsDown, RotateCcw, Eye, ArrowRight
+  ThumbsUp, ThumbsDown, RotateCcw, Eye, ArrowRight, Flame, Zap, 
+  TrendingUp, AlertCircle, BarChart3, Brain
 } from 'lucide-react';
 
 interface EmailReply {
@@ -28,13 +29,16 @@ interface EmailReply {
   ai_draft?: string;
   human_response?: string;
   sentiment?: 'positive' | 'neutral' | 'negative';
+  sentimentScore?: number; // 0-100 confidence
+  urgencyLevel?: 'hot' | 'warm' | 'cold';
+  buyingSignals?: string[];
 }
 
 interface AIResponseInboxProps {
   onSendResponse?: (replyId: string, response: string) => Promise<void>;
 }
 
-// Demo replies for demonstration
+// Demo replies with enhanced sentiment data
 const DEMO_REPLIES: EmailReply[] = [
   {
     id: '1',
@@ -45,6 +49,9 @@ const DEMO_REPLIES: EmailReply[] = [
     received_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
     status: 'ai_drafted',
     sentiment: 'positive',
+    sentimentScore: 87,
+    urgencyLevel: 'hot',
+    buyingSignals: ['Asking about pricing', 'Expressing interest', 'Timeline question'],
     ai_draft: `Hi John,
 
 Thank you for your interest! I'd be happy to provide more details.
@@ -65,7 +72,10 @@ Best regards`
     body: "This looks interesting but we're not sure if now is the right time. What kind of results have you seen with other landscaping companies?",
     received_at: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
     status: 'new',
-    sentiment: 'neutral'
+    sentiment: 'neutral',
+    sentimentScore: 52,
+    urgencyLevel: 'warm',
+    buyingSignals: ['Asking for case studies', 'Considering timing']
   },
   {
     id: '3',
@@ -76,6 +86,9 @@ Best regards`
     received_at: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
     status: 'approved',
     sentiment: 'positive',
+    sentimentScore: 95,
+    urgencyLevel: 'hot',
+    buyingSignals: ['Ready to schedule call', 'Expressing pain point', 'High urgency'],
     ai_draft: `Hi Mike,
 
 Fantastic! I'd love to help you attract more customers to City Auto Repair.
@@ -87,8 +100,92 @@ I have availability:
 Which time works best for you? The call will be about 20 minutes, and I'll walk you through exactly how we can help you get more repair jobs.
 
 Looking forward to connecting!`
+  },
+  {
+    id: '4',
+    from_email: 'linda@budgetflooring.com',
+    from_name: 'Linda Martinez',
+    subject: 'Re: SEO Services',
+    body: "We already have an SEO company. Please remove us from your list.",
+    received_at: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
+    status: 'new',
+    sentiment: 'negative',
+    sentimentScore: 18,
+    urgencyLevel: 'cold',
+    buyingSignals: []
+  },
+  {
+    id: '5',
+    from_email: 'david@quickprintshop.com',
+    from_name: 'David Kim',
+    subject: 'Re: Business Growth Consultation',
+    body: "This is exactly what we need! Our sales have been flat and we're looking for ways to reach more customers. What's the next step?",
+    received_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+    status: 'new',
+    sentiment: 'positive',
+    sentimentScore: 92,
+    urgencyLevel: 'hot',
+    buyingSignals: ['Ready for next step', 'Describing pain point', 'High motivation']
   }
 ];
+
+// Sentiment analysis keywords for scoring
+const POSITIVE_SIGNALS = [
+  'interested', 'definitely', 'schedule', 'call', 'pricing', 'when can',
+  'love to', 'excited', 'perfect', 'great', 'exactly what we need', 'next step',
+  'looking for', 'need help', 'struggling', 'want to', 'yes', 'let\'s'
+];
+
+const NEGATIVE_SIGNALS = [
+  'not interested', 'remove', 'unsubscribe', 'stop', 'already have', 'no thanks',
+  'not now', 'maybe later', 'budget', 'can\'t afford', 'too expensive'
+];
+
+// AI Sentiment Analysis function (simulated - in production would use real AI)
+const analyzeSentiment = (text: string): { sentiment: 'positive' | 'neutral' | 'negative'; score: number; signals: string[] } => {
+  const lowerText = text.toLowerCase();
+  const signals: string[] = [];
+  let score = 50; // Start neutral
+  
+  // Check positive signals
+  POSITIVE_SIGNALS.forEach(signal => {
+    if (lowerText.includes(signal)) {
+      score += 8;
+      if (signal === 'schedule' || signal === 'call') signals.push('Ready to talk');
+      if (signal === 'pricing') signals.push('Asking about pricing');
+      if (signal === 'interested' || signal === 'definitely') signals.push('Expressing interest');
+      if (signal === 'next step') signals.push('Ready for next step');
+      if (signal === 'struggling' || signal === 'need help') signals.push('Describing pain point');
+    }
+  });
+  
+  // Check negative signals
+  NEGATIVE_SIGNALS.forEach(signal => {
+    if (lowerText.includes(signal)) {
+      score -= 15;
+      if (signal === 'remove' || signal === 'unsubscribe') signals.push('Opt-out request');
+      if (signal === 'already have') signals.push('Has existing solution');
+      if (signal === 'budget' || signal === 'too expensive') signals.push('Budget concern');
+    }
+  });
+  
+  // Clamp score
+  score = Math.max(0, Math.min(100, score));
+  
+  // Determine sentiment
+  let sentiment: 'positive' | 'neutral' | 'negative' = 'neutral';
+  if (score >= 65) sentiment = 'positive';
+  else if (score <= 35) sentiment = 'negative';
+  
+  return { sentiment, score, signals: [...new Set(signals)] };
+};
+
+// Get urgency level from sentiment score
+const getUrgencyLevel = (score: number): 'hot' | 'warm' | 'cold' => {
+  if (score >= 75) return 'hot';
+  if (score >= 40) return 'warm';
+  return 'cold';
+};
 
 export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps) {
   const [replies, setReplies] = useState<EmailReply[]>(DEMO_REPLIES);
@@ -97,9 +194,26 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [autoAIDraft, setAutoAIDraft] = useState(true);
-  const [responseMode, setResponseMode] = useState<'ai_suggest' | 'manual'>('ai_suggest');
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [sortBy, setSortBy] = useState<'priority' | 'time'>('priority');
+
+  // Sort replies by priority (hot first) or time
+  const sortedReplies = [...replies].sort((a, b) => {
+    if (sortBy === 'priority') {
+      const priorityOrder = { hot: 0, warm: 1, cold: 2 };
+      const aPriority = priorityOrder[a.urgencyLevel || 'cold'];
+      const bPriority = priorityOrder[b.urgencyLevel || 'cold'];
+      if (aPriority !== bPriority) return aPriority - bPriority;
+      // Secondary sort by sentiment score
+      return (b.sentimentScore || 50) - (a.sentimentScore || 50);
+    }
+    return new Date(b.received_at).getTime() - new Date(a.received_at).getTime();
+  });
 
   // Stats
+  const hotCount = replies.filter(r => r.urgencyLevel === 'hot' && r.status !== 'sent').length;
+  const warmCount = replies.filter(r => r.urgencyLevel === 'warm' && r.status !== 'sent').length;
+  const coldCount = replies.filter(r => r.urgencyLevel === 'cold' && r.status !== 'sent').length;
   const newCount = replies.filter(r => r.status === 'new').length;
   const draftedCount = replies.filter(r => r.status === 'ai_drafted').length;
   const approvedCount = replies.filter(r => r.status === 'approved').length;
@@ -229,23 +343,75 @@ Best regards`;
     setEditedDraft(reply.ai_draft || reply.human_response || '');
   };
 
+  // Get urgency badge
+  const getUrgencyBadge = (urgency?: 'hot' | 'warm' | 'cold') => {
+    switch (urgency) {
+      case 'hot':
+        return (
+          <Badge className="bg-red-500/20 text-red-400 border-red-500/30 gap-1 animate-pulse">
+            <Flame className="w-3 h-3" />
+            HOT
+          </Badge>
+        );
+      case 'warm':
+        return (
+          <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 gap-1">
+            <Zap className="w-3 h-3" />
+            Warm
+          </Badge>
+        );
+      case 'cold':
+        return (
+          <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 gap-1">
+            <AlertCircle className="w-3 h-3" />
+            Cold
+          </Badge>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="space-y-4">
-      {/* Header with Mode Toggle */}
-      <div className="flex items-center justify-between">
+      {/* Header with Mode Toggle and Sort */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
-            <Mail className="w-5 h-5 text-white" />
+            <Brain className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h3 className="font-bold text-lg">Inbox Replies</h3>
-            <p className="text-xs text-muted-foreground">AI drafts responses • You approve before sending</p>
+            <h3 className="font-bold text-lg flex items-center gap-2">
+              AI-Powered Inbox
+              <Badge className="bg-primary/20 text-primary text-[10px]">Sentiment Analysis</Badge>
+            </h3>
+            <p className="text-xs text-muted-foreground">Hot leads prioritized • AI drafts • You approve</p>
           </div>
         </div>
         
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-muted/50 rounded-lg p-1">
+            <Button
+              size="sm"
+              variant={sortBy === 'priority' ? 'default' : 'ghost'}
+              onClick={() => setSortBy('priority')}
+              className="h-7 text-xs gap-1"
+            >
+              <Flame className="w-3 h-3" />
+              Priority
+            </Button>
+            <Button
+              size="sm"
+              variant={sortBy === 'time' ? 'default' : 'ghost'}
+              onClick={() => setSortBy('time')}
+              className="h-7 text-xs gap-1"
+            >
+              <Clock className="w-3 h-3" />
+              Time
+            </Button>
+          </div>
           <div className="flex items-center gap-2">
-            <Label htmlFor="auto-ai" className="text-xs text-muted-foreground">Auto AI Draft</Label>
+            <Label htmlFor="auto-ai" className="text-xs text-muted-foreground">Auto Draft</Label>
             <Switch 
               id="auto-ai"
               checked={autoAIDraft}
@@ -255,63 +421,112 @@ Best regards`;
         </div>
       </div>
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-3 gap-3">
-        <Card className="bg-blue-500/10 border-blue-500/30">
-          <CardContent className="p-3 text-center">
-            <div className="text-2xl font-bold text-blue-400">{newCount}</div>
-            <div className="text-xs text-muted-foreground">New Replies</div>
+      {/* Priority Stats Row */}
+      <div className="grid grid-cols-3 lg:grid-cols-6 gap-2">
+        <Card className="bg-red-500/10 border-red-500/30">
+          <CardContent className="p-2 text-center">
+            <div className="flex items-center justify-center gap-1">
+              <Flame className="w-4 h-4 text-red-400" />
+              <span className="text-xl font-bold text-red-400">{hotCount}</span>
+            </div>
+            <div className="text-[10px] text-muted-foreground">Hot Leads</div>
           </CardContent>
         </Card>
         <Card className="bg-amber-500/10 border-amber-500/30">
-          <CardContent className="p-3 text-center">
-            <div className="text-2xl font-bold text-amber-400">{draftedCount}</div>
-            <div className="text-xs text-muted-foreground">AI Drafts Ready</div>
+          <CardContent className="p-2 text-center">
+            <div className="flex items-center justify-center gap-1">
+              <Zap className="w-4 h-4 text-amber-400" />
+              <span className="text-xl font-bold text-amber-400">{warmCount}</span>
+            </div>
+            <div className="text-[10px] text-muted-foreground">Warm</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-blue-500/10 border-blue-500/30">
+          <CardContent className="p-2 text-center">
+            <div className="flex items-center justify-center gap-1">
+              <AlertCircle className="w-4 h-4 text-blue-400" />
+              <span className="text-xl font-bold text-blue-400">{coldCount}</span>
+            </div>
+            <div className="text-[10px] text-muted-foreground">Cold</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-primary/10 border-primary/30">
+          <CardContent className="p-2 text-center">
+            <div className="text-xl font-bold text-primary">{newCount}</div>
+            <div className="text-[10px] text-muted-foreground">New</div>
+          </CardContent>
+        </Card>
+        <Card className="bg-violet-500/10 border-violet-500/30">
+          <CardContent className="p-2 text-center">
+            <div className="text-xl font-bold text-violet-400">{draftedCount}</div>
+            <div className="text-[10px] text-muted-foreground">Drafted</div>
           </CardContent>
         </Card>
         <Card className="bg-success/10 border-success/30">
-          <CardContent className="p-3 text-center">
-            <div className="text-2xl font-bold text-success">{approvedCount}</div>
-            <div className="text-xs text-muted-foreground">Ready to Send</div>
+          <CardContent className="p-2 text-center">
+            <div className="text-xl font-bold text-success">{approvedCount}</div>
+            <div className="text-[10px] text-muted-foreground">Ready</div>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">
-        {/* Reply List */}
+        {/* Reply List - Now Sorted by Priority */}
         <Card className="border-border/50">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" />
-              Incoming Replies
+            <CardTitle className="text-sm flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <MessageSquare className="w-4 h-4" />
+                Incoming Replies
+              </span>
+              <Badge variant="outline" className="text-[10px]">
+                {sortBy === 'priority' ? '🔥 Priority Sort' : '🕐 Time Sort'}
+              </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <ScrollArea className="h-[400px]">
               <div className="space-y-1 p-3">
-                {replies.filter(r => r.status !== 'sent').map(reply => (
+                {sortedReplies.filter(r => r.status !== 'sent').map(reply => (
                   <motion.button
                     key={reply.id}
                     onClick={() => selectReply(reply)}
                     className={`w-full text-left p-3 rounded-lg border transition-all ${
                       selectedReply?.id === reply.id
                         ? 'bg-primary/10 border-primary/50'
+                        : reply.urgencyLevel === 'hot'
+                        ? 'bg-red-500/5 hover:bg-red-500/10 border-red-500/30'
                         : 'bg-card hover:bg-muted/50 border-border/50'
                     }`}
                     whileHover={{ scale: 1.01 }}
                     whileTap={{ scale: 0.99 }}
                   >
                     <div className="flex items-start justify-between gap-2 mb-1">
-                      <span className="font-medium text-sm truncate">{reply.from_name}</span>
-                      {getStatusBadge(reply.status)}
+                      <div className="flex items-center gap-2">
+                        {reply.urgencyLevel === 'hot' && (
+                          <Flame className="w-4 h-4 text-red-500 animate-pulse" />
+                        )}
+                        <span className="font-medium text-sm truncate">{reply.from_name}</span>
+                      </div>
+                      {getUrgencyBadge(reply.urgencyLevel)}
                     </div>
                     <div className="text-xs text-muted-foreground truncate mb-1">
                       {reply.subject}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className={`text-[10px] ${getSentimentColor(reply.sentiment)}`}>
-                        {reply.sentiment || 'neutral'}
-                      </Badge>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {/* Sentiment Score Bar */}
+                      <div className="flex items-center gap-1">
+                        <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full ${
+                              (reply.sentimentScore || 50) >= 65 ? 'bg-success' :
+                              (reply.sentimentScore || 50) <= 35 ? 'bg-destructive' : 'bg-amber-500'
+                            }`}
+                            style={{ width: `${reply.sentimentScore || 50}%` }}
+                          />
+                        </div>
+                        <span className="text-[9px] text-muted-foreground">{reply.sentimentScore || 50}%</span>
+                      </div>
                       <span className="text-[10px] text-muted-foreground flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {new Date(reply.received_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -342,6 +557,57 @@ Best regards`;
           <CardContent>
             {selectedReply ? (
               <div className="space-y-4">
+                {/* Sentiment Analysis Card */}
+                <div className={`p-3 rounded-lg border ${
+                  selectedReply.urgencyLevel === 'hot' 
+                    ? 'bg-red-500/10 border-red-500/30' 
+                    : selectedReply.urgencyLevel === 'warm'
+                    ? 'bg-amber-500/10 border-amber-500/30'
+                    : 'bg-blue-500/10 border-blue-500/30'
+                }`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Brain className="w-4 h-4 text-primary" />
+                      <span className="text-xs font-semibold">AI Sentiment Analysis</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {getUrgencyBadge(selectedReply.urgencyLevel)}
+                      <Badge variant="outline" className="text-[10px]">
+                        {selectedReply.sentimentScore || 50}% confidence
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  {/* Sentiment Score Bar */}
+                  <div className="mb-2">
+                    <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full transition-all ${
+                          (selectedReply.sentimentScore || 50) >= 65 ? 'bg-success' :
+                          (selectedReply.sentimentScore || 50) <= 35 ? 'bg-destructive' : 'bg-amber-500'
+                        }`}
+                        style={{ width: `${selectedReply.sentimentScore || 50}%` }}
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Buying Signals */}
+                  {selectedReply.buyingSignals && selectedReply.buyingSignals.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      <span className="text-[10px] text-muted-foreground mr-1">Signals:</span>
+                      {selectedReply.buyingSignals.map((signal, i) => (
+                        <Badge 
+                          key={i} 
+                          variant="outline" 
+                          className="text-[9px] bg-background/50"
+                        >
+                          {signal}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {/* Original Message Preview */}
                 <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
                   <div className="flex items-center gap-2 mb-2">
@@ -349,7 +615,7 @@ Best regards`;
                     <span className="text-sm font-medium">{selectedReply.from_name}</span>
                     <span className="text-xs text-muted-foreground">({selectedReply.from_email})</span>
                   </div>
-                  <p className="text-sm text-muted-foreground line-clamp-3">{selectedReply.body}</p>
+                  <p className="text-sm text-muted-foreground">{selectedReply.body}</p>
                 </div>
 
                 <Separator />
