@@ -8,13 +8,58 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
 import {
   Mail, Bot, User, Send, Edit3, Check, X, RefreshCw,
   Sparkles, Clock, CheckCircle2, MessageSquare, Loader2,
   ThumbsUp, ThumbsDown, RotateCcw, Eye, ArrowRight, Flame, Zap, 
-  TrendingUp, AlertCircle, BarChart3, Brain
+  TrendingUp, AlertCircle, BarChart3, Brain, Settings, Bell,
+  Calendar, Phone, BellRing, ChevronDown, Shield, CalendarCheck
 } from 'lucide-react';
+
+// AI Automation Settings interface
+interface AIAutomationSettings {
+  // Response Mode
+  responseMode: 'automatic' | 'manual';
+  // Auto-scheduling
+  autoScheduling: boolean;
+  // Notification settings
+  notifyEmail: boolean;
+  notifyEmailAddress: string;
+  notifySMS: boolean;
+  notifyPhone: string;
+  // What to notify about
+  notifyOnHotLead: boolean;
+  notifyOnScheduleRequest: boolean;
+  notifyOnAIAction: boolean;
+}
+
+const DEFAULT_SETTINGS: AIAutomationSettings = {
+  responseMode: 'manual',
+  autoScheduling: false,
+  notifyEmail: true,
+  notifyEmailAddress: '',
+  notifySMS: false,
+  notifyPhone: '',
+  notifyOnHotLead: true,
+  notifyOnScheduleRequest: true,
+  notifyOnAIAction: true,
+};
+
+const loadSettings = (): AIAutomationSettings => {
+  try {
+    const saved = localStorage.getItem('bamlead_ai_inbox_settings');
+    return saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS;
+  } catch {
+    return DEFAULT_SETTINGS;
+  }
+};
+
+const saveSettings = (settings: AIAutomationSettings) => {
+  localStorage.setItem('bamlead_ai_inbox_settings', JSON.stringify(settings));
+};
 
 interface EmailReply {
   id: string;
@@ -196,6 +241,27 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
   const [autoAIDraft, setAutoAIDraft] = useState(true);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [sortBy, setSortBy] = useState<'priority' | 'time'>('priority');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState<AIAutomationSettings>(loadSettings);
+
+  // Save settings when they change
+  useEffect(() => {
+    saveSettings(settings);
+  }, [settings]);
+
+  const updateSetting = <K extends keyof AIAutomationSettings>(key: K, value: AIAutomationSettings[K]) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  // Detect scheduling intent in message
+  const hasSchedulingIntent = (body: string): boolean => {
+    const schedulingKeywords = ['schedule', 'book', 'appointment', 'call', 'meeting', 'when can', 'available', 'calendar', 'slot', 'time'];
+    const lowerBody = body.toLowerCase();
+    return schedulingKeywords.some(kw => lowerBody.includes(kw));
+  };
+
+  // Check if reply has scheduling intent
+  const replyHasSchedulingIntent = selectedReply ? hasSchedulingIntent(selectedReply.body) : false;
 
   // Sort replies by priority (hot first) or time
   const sortedReplies = [...replies].sort((a, b) => {
@@ -374,6 +440,251 @@ Best regards`;
 
   return (
     <div className="space-y-4">
+      {/* AI Automation Settings Panel */}
+      <Collapsible open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <Card className={`border-2 transition-all ${settingsOpen ? 'border-primary/50 bg-primary/5' : 'border-primary/20'}`}>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="pb-3 cursor-pointer hover:bg-muted/30 transition-colors">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center">
+                    <Settings className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base flex items-center gap-2">
+                      AI Automation Settings
+                      {settings.responseMode === 'automatic' && (
+                        <Badge className="bg-primary text-primary-foreground text-[10px]">Full Auto</Badge>
+                      )}
+                      {settings.autoScheduling && (
+                        <Badge className="bg-emerald-500 text-white text-[10px]">Auto-Schedule</Badge>
+                      )}
+                    </CardTitle>
+                    <CardDescription className="text-sm">
+                      Configure how AI handles responses, scheduling, and notifications
+                    </CardDescription>
+                  </div>
+                </div>
+                <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${settingsOpen ? 'rotate-180' : ''}`} />
+              </div>
+            </CardHeader>
+          </CollapsibleTrigger>
+          
+          <CollapsibleContent>
+            <CardContent className="pt-0 space-y-6">
+              {/* Response Mode Selection */}
+              <div className="space-y-3">
+                <Label className="text-sm font-semibold flex items-center gap-2">
+                  <Bot className="w-4 h-4 text-primary" />
+                  AI Response Mode
+                </Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <button
+                    onClick={() => updateSetting('responseMode', 'automatic')}
+                    className={`relative p-4 rounded-xl border-2 text-left transition-all ${
+                      settings.responseMode === 'automatic'
+                        ? 'border-primary bg-primary/10 shadow-lg'
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    {settings.responseMode === 'automatic' && (
+                      <Badge className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-[10px]">Active</Badge>
+                    )}
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
+                        settings.responseMode === 'automatic' ? 'bg-primary text-white' : 'bg-muted'
+                      }`}>
+                        <Zap className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold">Fully Automatic</h4>
+                        <p className="text-xs text-muted-foreground">AI responds instantly</p>
+                      </div>
+                    </div>
+                    <ul className="text-xs text-muted-foreground space-y-1">
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-500" /> AI sends responses automatically
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-500" /> 24/7 instant engagement
+                      </li>
+                    </ul>
+                  </button>
+                  
+                  <button
+                    onClick={() => updateSetting('responseMode', 'manual')}
+                    className={`relative p-4 rounded-xl border-2 text-left transition-all ${
+                      settings.responseMode === 'manual'
+                        ? 'border-emerald-500 bg-emerald-500/10 shadow-lg'
+                        : 'border-border hover:border-emerald-500/50'
+                    }`}
+                  >
+                    {settings.responseMode === 'manual' && (
+                      <Badge className="absolute -top-2 -right-2 bg-emerald-500 text-white text-[10px]">Active</Badge>
+                    )}
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
+                        settings.responseMode === 'manual' ? 'bg-emerald-500 text-white' : 'bg-muted'
+                      }`}>
+                        <Shield className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold">You Control</h4>
+                        <p className="text-xs text-muted-foreground">Review before sending</p>
+                      </div>
+                    </div>
+                    <ul className="text-xs text-muted-foreground space-y-1">
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-500" /> AI drafts, you approve
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-500" /> Full control over every reply
+                      </li>
+                    </ul>
+                  </button>
+                </div>
+              </div>
+              
+              <Separator />
+              
+              {/* Auto-Scheduling */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold flex items-center gap-2">
+                    <CalendarCheck className="w-4 h-4 text-emerald-500" />
+                    Auto-Schedule Appointments
+                  </Label>
+                  <Switch
+                    checked={settings.autoScheduling}
+                    onCheckedChange={(v) => updateSetting('autoScheduling', v)}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  When a lead asks to schedule a call or meeting, AI will automatically book an appointment based on your calendar availability and send them a confirmation.
+                </p>
+                {settings.autoScheduling && (
+                  <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-sm">
+                    <div className="flex items-center gap-2 text-emerald-600 font-medium mb-1">
+                      <CalendarCheck className="w-4 h-4" />
+                      Auto-Schedule Active
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Make sure your Google Calendar is connected for this to work.
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              <Separator />
+              
+              {/* Notification Settings */}
+              <div className="space-y-4">
+                <Label className="text-sm font-semibold flex items-center gap-2">
+                  <BellRing className="w-4 h-4 text-amber-500" />
+                  Notification Settings
+                </Label>
+                
+                {/* Email Notifications */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm flex items-center gap-2">
+                      <Mail className="w-4 h-4" />
+                      Email Notifications
+                    </Label>
+                    <Switch
+                      checked={settings.notifyEmail}
+                      onCheckedChange={(v) => updateSetting('notifyEmail', v)}
+                    />
+                  </div>
+                  {settings.notifyEmail && (
+                    <Input
+                      type="email"
+                      value={settings.notifyEmailAddress}
+                      onChange={(e) => updateSetting('notifyEmailAddress', e.target.value)}
+                      placeholder="your@email.com"
+                      className="h-9 text-sm"
+                    />
+                  )}
+                </div>
+                
+                {/* SMS Notifications */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm flex items-center gap-2">
+                      <Phone className="w-4 h-4" />
+                      SMS Notifications
+                    </Label>
+                    <Switch
+                      checked={settings.notifySMS}
+                      onCheckedChange={(v) => updateSetting('notifySMS', v)}
+                    />
+                  </div>
+                  {settings.notifySMS && (
+                    <Input
+                      type="tel"
+                      value={settings.notifyPhone}
+                      onChange={(e) => updateSetting('notifyPhone', e.target.value)}
+                      placeholder="+1 (555) 123-4567"
+                      className="h-9 text-sm"
+                    />
+                  )}
+                </div>
+                
+                {/* What to Notify About */}
+                {(settings.notifyEmail || settings.notifySMS) && (
+                  <div className="space-y-2 p-3 rounded-lg bg-muted/50 border">
+                    <p className="text-xs font-medium text-muted-foreground">Notify me when:</p>
+                    <div className="space-y-2">
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={settings.notifyOnHotLead}
+                          onChange={(e) => updateSetting('notifyOnHotLead', e.target.checked)}
+                          className="rounded"
+                        />
+                        <Flame className="w-3.5 h-3.5 text-red-500" />
+                        A hot lead replies
+                      </label>
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={settings.notifyOnScheduleRequest}
+                          onChange={(e) => updateSetting('notifyOnScheduleRequest', e.target.checked)}
+                          className="rounded"
+                        />
+                        <Calendar className="w-3.5 h-3.5 text-primary" />
+                        Someone wants to schedule
+                      </label>
+                      <label className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={settings.notifyOnAIAction}
+                          onChange={(e) => updateSetting('notifyOnAIAction', e.target.checked)}
+                          className="rounded"
+                        />
+                        <Bot className="w-3.5 h-3.5 text-amber-500" />
+                        AI takes an action (auto-response, auto-schedule)
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <Button 
+                onClick={() => {
+                  toast.success('AI Automation settings saved!');
+                  setSettingsOpen(false);
+                }}
+                className="w-full"
+              >
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+                Save Settings
+              </Button>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
+
       {/* Header with Mode Toggle and Sort */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
@@ -385,11 +696,24 @@ Best regards`;
               AI-Powered Inbox
               <Badge className="bg-primary/20 text-primary text-[10px]">Sentiment Analysis</Badge>
             </h3>
-            <p className="text-xs text-muted-foreground">Hot leads prioritized • AI drafts • You approve</p>
+            <p className="text-xs text-muted-foreground">
+              {settings.responseMode === 'automatic' 
+                ? 'AI responds automatically • Hot leads prioritized' 
+                : 'Hot leads prioritized • AI drafts • You approve'}
+            </p>
           </div>
         </div>
         
         <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSettingsOpen(!settingsOpen)}
+            className="gap-2"
+          >
+            <Settings className="w-4 h-4" />
+            Settings
+          </Button>
           <div className="flex items-center gap-2 bg-muted/50 rounded-lg p-1">
             <Button
               size="sm"
@@ -508,7 +832,15 @@ Best regards`;
                         )}
                         <span className="font-medium text-sm truncate">{reply.from_name}</span>
                       </div>
-                      {getUrgencyBadge(reply.urgencyLevel)}
+                      <div className="flex items-center gap-1">
+                        {hasSchedulingIntent(reply.body) && (
+                          <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[9px] gap-0.5">
+                            <Calendar className="w-2.5 h-2.5" />
+                            Schedule
+                          </Badge>
+                        )}
+                        {getUrgencyBadge(reply.urgencyLevel)}
+                      </div>
                     </div>
                     <div className="text-xs text-muted-foreground truncate mb-1">
                       {reply.subject}
@@ -607,6 +939,40 @@ Best regards`;
                     </div>
                   )}
                 </div>
+
+                {/* Scheduling Intent Alert */}
+                {replyHasSchedulingIntent && (
+                  <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CalendarCheck className="w-5 h-5 text-emerald-500" />
+                        <div>
+                          <p className="text-sm font-medium text-emerald-600">Scheduling Intent Detected!</p>
+                          <p className="text-xs text-muted-foreground">This lead wants to schedule a call or meeting</p>
+                        </div>
+                      </div>
+                      {settings.autoScheduling ? (
+                        <Badge className="bg-emerald-500 text-white">
+                          <Zap className="w-3 h-3 mr-1" />
+                          Auto-Schedule ON
+                        </Badge>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/10"
+                          onClick={() => {
+                            toast.success('Opening calendar to schedule...');
+                            // In production, this would open calendar integration
+                          }}
+                        >
+                          <Calendar className="w-3 h-3 mr-1" />
+                          Schedule Now
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* Original Message Preview */}
                 <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
