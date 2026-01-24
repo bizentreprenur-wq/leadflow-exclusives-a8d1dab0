@@ -963,21 +963,17 @@ export default function Dashboard() {
                         <h3 className="text-2xl font-bold text-foreground mb-2">
                           🤖 Super AI Business Search
                         </h3>
-                        <p className="text-xs text-muted-foreground mb-2">Aggregating 40+ data sources:</p>
-                        <div className="flex flex-wrap justify-center gap-1 text-[10px] max-w-lg">
+                        <p className="text-xs text-muted-foreground mb-2">Searching 3 major platforms + AI Analysis:</p>
+                        <div className="flex flex-wrap justify-center gap-2 text-xs max-w-md">
                           {[
-                            "Google Maps", "Google Business", "Bing Places", "Apple Maps", "Yelp",
-                            "Yellow Pages", "BBB", "Foursquare", "Manta", "Alignable",
-                            "Chamber of Commerce", "Data Axle", "InfoUSA", "OpenCorporates",
-                            "State Registries", "County Registries", "City Directories",
-                            "Angi", "HomeAdvisor", "Thumbtack", "Houzz", "Avvo",
-                            "Healthgrades", "Zocdoc", "Clutch", "UpCity", "Crunchbase",
-                            "Facebook Pages", "LinkedIn Companies", "Superpages", "Local.com",
-                            "Hotfrog", "MerchantCircle", "Bizapedia", "D&B Listings", "Kompass",
-                            "Industry Directories", "Trade Associations", "Website Crawling", "AI Analysis"
+                            { name: "Google Maps", icon: "🗺️" },
+                            { name: "Yelp", icon: "⭐" },
+                            { name: "Bing Places", icon: "🔍" },
+                            { name: "AI Analysis", icon: "🤖" }
                           ].map((source) => (
-                            <span key={source} className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary font-medium whitespace-nowrap">
-                              {source}
+                            <span key={source.name} className="px-2.5 py-1 rounded-full bg-primary/20 text-primary font-medium whitespace-nowrap flex items-center gap-1.5">
+                              <span>{source.icon}</span>
+                              {source.name}
                             </span>
                           ))}
                         </div>
