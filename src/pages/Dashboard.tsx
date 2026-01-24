@@ -963,16 +963,23 @@ export default function Dashboard() {
                         <h3 className="text-2xl font-bold text-foreground mb-2">
                           🤖 Super AI Business Search
                         </h3>
-                        <div className="flex flex-wrap justify-center gap-1.5 text-xs max-w-md">
-                          <span className="px-2 py-1 rounded-full bg-primary/20 text-primary font-medium">Google Maps</span>
-                          <span className="px-2 py-1 rounded-full bg-primary/20 text-primary font-medium">Google Business</span>
-                          <span className="px-2 py-1 rounded-full bg-primary/20 text-primary font-medium">Yelp</span>
-                          <span className="px-2 py-1 rounded-full bg-primary/20 text-primary font-medium">Yellow Pages</span>
-                          <span className="px-2 py-1 rounded-full bg-primary/20 text-primary font-medium">BBB</span>
-                          <span className="px-2 py-1 rounded-full bg-primary/20 text-primary font-medium">LinkedIn</span>
-                          <span className="px-2 py-1 rounded-full bg-primary/20 text-primary font-medium">Facebook</span>
-                          <span className="px-2 py-1 rounded-full bg-primary/20 text-primary font-medium">Website Crawling</span>
-                          <span className="px-2 py-1 rounded-full bg-primary/20 text-primary font-medium">AI Analysis</span>
+                        <p className="text-xs text-muted-foreground mb-2">Aggregating 40+ data sources:</p>
+                        <div className="flex flex-wrap justify-center gap-1 text-[10px] max-w-lg">
+                          {[
+                            "Google Maps", "Google Business", "Bing Places", "Apple Maps", "Yelp",
+                            "Yellow Pages", "BBB", "Foursquare", "Manta", "Alignable",
+                            "Chamber of Commerce", "Data Axle", "InfoUSA", "OpenCorporates",
+                            "State Registries", "County Registries", "City Directories",
+                            "Angi", "HomeAdvisor", "Thumbtack", "Houzz", "Avvo",
+                            "Healthgrades", "Zocdoc", "Clutch", "UpCity", "Crunchbase",
+                            "Facebook Pages", "LinkedIn Companies", "Superpages", "Local.com",
+                            "Hotfrog", "MerchantCircle", "Bizapedia", "D&B Listings", "Kompass",
+                            "Industry Directories", "Trade Associations", "Website Crawling", "AI Analysis"
+                          ].map((source) => (
+                            <span key={source} className="px-1.5 py-0.5 rounded-full bg-primary/15 text-primary font-medium whitespace-nowrap">
+                              {source}
+                            </span>
+                          ))}
                         </div>
                       </div>
 
