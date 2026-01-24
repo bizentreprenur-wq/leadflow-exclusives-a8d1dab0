@@ -42,13 +42,25 @@ if ($checks['config_exists'] && $checks['database_exists']) {
     $checks['database_connected'] = false;
 }
 
+// Check Stripe SDK
+$checks['stripe_autoload_exists'] = file_exists(__DIR__ . '/vendor/autoload.php');
+if ($checks['stripe_autoload_exists']) {
+    require_once __DIR__ . '/vendor/autoload.php';
+    $checks['stripe_sdk_installed'] = class_exists('\Stripe\Stripe');
+    if ($checks['stripe_sdk_installed']) {
+        $checks['stripe_version'] = \Stripe\Stripe::VERSION;
+    }
+} else {
+    $checks['stripe_sdk_installed'] = false;
+}
+
 // Overall status
 $allGood = $checks['includes_exists'] && $checks['auth_exists'] && $checks['database_exists'] && $checks['config_exists'] && $checks['database_connected'];
 
 echo json_encode([
     'status' => $allGood ? 'ok' : 'degraded',
-    'version' => '1.0.4',
-    'deployed' => '2026-01-24T00:00:00Z',
+    'version' => '1.0.5',
+    'deployed' => '2026-01-24T06:05:00Z',
     'checks' => $checks,
     'cors_fix' => 'permissive-lovable-origins'
 ], JSON_PRETTY_PRINT);
