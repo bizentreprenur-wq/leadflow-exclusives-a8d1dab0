@@ -89,6 +89,7 @@ function generateLeadInsight(lead: SearchResult): LeadInsight {
   const reasons: string[] = [];
   const painPoints: string[] = [];
   const talkingPoints: string[] = [];
+  const issues = lead.websiteAnalysis?.issues || [];
 
   // Score based on website status
   if (!lead.website || lead.websiteAnalysis?.hasWebsite === false) {
@@ -107,29 +108,118 @@ function generateLeadInsight(lead: SearchResult): LeadInsight {
     talkingPoints.push('Ask when they last updated their site');
   }
 
-  const issueCount = lead.websiteAnalysis?.issues?.length || 0;
+  const issueCount = issues.length;
   if (issueCount >= 3) {
     score += 25;
     reasons.push(`${issueCount} website issues detected`);
     painPoints.push('Multiple technical issues affecting performance');
-    lead.websiteAnalysis?.issues?.forEach(issue => {
-      talkingPoints.push(`Address: ${issue}`);
-    });
   }
 
+  // === MOBILE READINESS ===
   const mobileScore = lead.websiteAnalysis?.mobileScore;
-  if (mobileScore !== null && mobileScore !== undefined && mobileScore < 50) {
+  const notMobileResponsive = issues.includes('Not mobile responsive');
+  
+  if (notMobileResponsive) {
+    score += 20;
+    reasons.push('Not mobile ready');
+    painPoints.push('Website broken on mobile devices - losing 60%+ of visitors');
+    talkingPoints.push('Ask about their mobile traffic and conversions');
+  } else if (mobileScore !== null && mobileScore !== undefined && mobileScore < 50) {
     score += 20;
     reasons.push('Poor mobile experience');
     painPoints.push('50%+ of visitors on mobile seeing broken site');
     talkingPoints.push('Ask about their mobile traffic percentage');
+  } else if (mobileScore !== null && mobileScore !== undefined && mobileScore < 70) {
+    score += 10;
+    reasons.push('Mobile needs improvement');
+    painPoints.push('Mobile experience suboptimal - room for improvement');
   }
 
-  if (lead.phone) score += 5;
+  // === NO TRACKING PIXELS ===
+  if (issues.includes('No Facebook Pixel installed')) {
+    score += 15;
+    reasons.push('No Facebook Pixel');
+    painPoints.push('Wasting ad spend - no conversion tracking on Facebook/Instagram');
+    talkingPoints.push('Ask if they run Facebook ads and how they track ROI');
+  }
+
+  if (issues.includes('No Google Analytics or Tag Manager')) {
+    score += 15;
+    reasons.push('No Google Analytics');
+    painPoints.push('Flying blind - no visitor tracking or marketing data');
+    talkingPoints.push('Ask how they know which marketing channels work');
+  }
+
+  // === NO BOOKING/CONTACT FUNNEL ===
+  if (issues.includes('No booking system or contact funnel')) {
+    score += 20;
+    reasons.push('No booking/contact system');
+    painPoints.push('No way for customers to book or inquire - leaking leads daily');
+    talkingPoints.push('Ask how customers currently book appointments');
+  } else if (issues.includes('No online booking system')) {
+    score += 12;
+    reasons.push('No online booking');
+    painPoints.push('Missing online booking - friction in customer journey');
+    talkingPoints.push('Ask if customers request online booking');
+  }
+
+  // === SOCIAL MEDIA PRESENCE ===
+  if (issues.includes('No social media presence linked')) {
+    score += 15;
+    reasons.push('No social presence');
+    painPoints.push('Zero social proof - customers can\'t find or verify them online');
+    talkingPoints.push('Ask about their social media strategy');
+  } else if (issues.includes('Weak social media presence (only 1 platform)')) {
+    score += 8;
+    reasons.push('Weak social presence');
+    painPoints.push('Only on 1 platform - missing audience elsewhere');
+    talkingPoints.push('Ask which platforms their customers use most');
+  }
+
+  // === SEVERELY OUTDATED ===
+  if (issues.includes('Severely outdated website (needs complete rebuild)')) {
+    score += 25;
+    reasons.push('Severely outdated site');
+    painPoints.push('Website is embarrassingly outdated - hurting brand image');
+    talkingPoints.push('Mention how modern websites convert 2-3x better');
+  }
+
+  // === SPENDING ON ADS BUT LEAKING LEADS ===
+  if (issues.includes('Spending on ads but no conversion tracking (leaking leads)')) {
+    score += 22;
+    reasons.push('Leaking ad spend');
+    painPoints.push('Spending money on ads with no tracking - pouring money down the drain');
+    talkingPoints.push('Ask about their monthly ad budget and ROI tracking');
+  }
+
+  // === NO CLEAR CTAs ===
+  if (issues.includes('No clear call-to-action buttons')) {
+    score += 10;
+    reasons.push('No clear CTAs');
+    painPoints.push('Visitors don\'t know what action to take - losing conversions');
+    talkingPoints.push('Ask about their website conversion rate');
+  }
+
+  // === RATINGS & REVIEWS ===
   if (lead.rating && lead.rating >= 4.5) {
     score += 10;
     talkingPoints.push('Compliment their excellent reviews');
+  } else if (lead.rating && lead.rating < 3.5) {
+    score += 15;
+    reasons.push('Low ratings');
+    painPoints.push('Low ratings hurting reputation and driving customers away');
+    talkingPoints.push('Ask about their review management strategy');
   }
+
+  // Check for zero reviews
+  if (lead.rating === 0 || (lead as any).reviewCount === 0) {
+    score += 12;
+    reasons.push('Zero reviews');
+    painPoints.push('No reviews - missing crucial social proof');
+    talkingPoints.push('Ask if they actively request customer reviews');
+  }
+
+  if (lead.phone) score += 5;
 
   // Check for legacy platforms
   const legacyPlatforms = ['joomla', 'drupal', 'weebly', 'godaddy'];
@@ -184,10 +274,16 @@ function generateLeadInsight(lead: SearchResult): LeadInsight {
     optimalEmailWindow = 'Weekly newsletter: Tuesday/Thursday mornings';
   }
 
-  // Generate AI recommendation
+  // Generate AI recommendation based on top issues
   let aiRecommendation: string;
   if (!lead.website) {
     aiRecommendation = `High-value prospect without online presence. Lead with: "I noticed ${lead.name} doesn't have a website yet. Many of your competitors in ${lead.address?.split(',')[1]?.trim() || 'your area'} are getting customers online..."`;
+  } else if (issues.includes('Spending on ads but no conversion tracking (leaking leads)')) {
+    aiRecommendation = `They're spending money but can't track ROI. Open with: "I noticed you might be running ads without proper conversion tracking. You could be losing valuable data on what's working..."`;
+  } else if (issues.includes('No booking system or contact funnel')) {
+    aiRecommendation = `No way to capture leads. Say: "I visited your website and couldn't find an easy way to book an appointment. How are potential customers reaching you?"`;
+  } else if (notMobileResponsive || (mobileScore !== null && mobileScore < 50)) {
+    aiRecommendation = `Mobile experience is broken. Approach: "I checked your site on my phone and noticed some issues. With 60% of searches on mobile, this might be costing you customers..."`;
   } else if (lead.websiteAnalysis?.needsUpgrade) {
     aiRecommendation = `Website needs modernization. Open with: "I was looking at your website and noticed it might be missing some features that could help you get more customers..."`;
   } else if (issueCount > 0) {
@@ -559,6 +655,52 @@ export default function LeadDocumentViewer({
             </div>
           </div>
 
+          {/* Issues Detected Section */}
+          {lead.websiteAnalysis?.issues && lead.websiteAnalysis.issues.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600" />
+                <span className="font-medium text-sm text-amber-800">AI-Detected Issues ({lead.websiteAnalysis.issues.length})</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {lead.websiteAnalysis.issues.slice(0, 6).map((issue, i) => (
+                  <span key={i} className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-amber-100 text-amber-800 border border-amber-200">
+                    {issue.includes('mobile') || issue.includes('Mobile') ? '📱' : 
+                     issue.includes('Facebook') || issue.includes('Pixel') ? '📊' :
+                     issue.includes('Google') || issue.includes('Analytics') ? '📈' :
+                     issue.includes('booking') || issue.includes('contact') || issue.includes('funnel') ? '📅' :
+                     issue.includes('social') ? '🔗' :
+                     issue.includes('outdated') || issue.includes('Outdated') ? '⚠️' :
+                     issue.includes('ads') || issue.includes('leaking') ? '💸' :
+                     issue.includes('CTA') || issue.includes('call-to-action') ? '🎯' :
+                     issue.includes('review') || issue.includes('rating') ? '⭐' : '🔍'} {issue}
+                  </span>
+                ))}
+                {lead.websiteAnalysis.issues.length > 6 && (
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-600">
+                    +{lead.websiteAnalysis.issues.length - 6} more
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Mobile Score Badge */}
+          {lead.websiteAnalysis?.mobileScore !== null && lead.websiteAnalysis?.mobileScore !== undefined && (
+            <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg mb-3 ${
+              lead.websiteAnalysis.mobileScore < 50 ? 'bg-red-100 text-red-800' :
+              lead.websiteAnalysis.mobileScore < 70 ? 'bg-amber-100 text-amber-800' :
+              'bg-green-100 text-green-800'
+            }`}>
+              <span className="text-sm">📱 Mobile Score:</span>
+              <span className="font-bold">{lead.websiteAnalysis.mobileScore}/100</span>
+              <span className="text-xs">
+                {lead.websiteAnalysis.mobileScore < 50 ? '(Critical)' :
+                 lead.websiteAnalysis.mobileScore < 70 ? '(Needs Work)' : '(Good)'}
+              </span>
+            </div>
+          )}
+
           {/* Pain Points & Talking Points */}
           <div className="grid md:grid-cols-2 gap-3 mb-3">
             <div className="bg-gray-50 rounded-lg p-3">
@@ -567,7 +709,7 @@ export default function LeadDocumentViewer({
                 <span className="font-medium text-sm text-gray-700">Pain Points</span>
               </div>
               <ul className="text-sm text-gray-600 space-y-1">
-                {lead.insight.painPoints.slice(0, 2).map((point, i) => (
+                {lead.insight.painPoints.slice(0, 3).map((point, i) => (
                   <li key={i} className="flex items-start gap-1">
                     <span className="text-red-400 mt-0.5">•</span>
                     <span>{point}</span>
@@ -581,7 +723,7 @@ export default function LeadDocumentViewer({
                 <span className="font-medium text-sm text-gray-700">Talking Points</span>
               </div>
               <ul className="text-sm text-gray-600 space-y-1">
-                {lead.insight.talkingPoints.slice(0, 2).map((point, i) => (
+                {lead.insight.talkingPoints.slice(0, 3).map((point, i) => (
                   <li key={i} className="flex items-start gap-1">
                     <span className="text-green-400 mt-0.5">•</span>
                     <span>{point}</span>
