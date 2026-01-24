@@ -12,6 +12,8 @@ export interface User {
   is_owner: boolean;
   has_active_subscription: boolean;
   created_at: string;
+  email_verified?: boolean;
+  email_verified_at?: string | null;
 }
 
 export interface AuthResponse {

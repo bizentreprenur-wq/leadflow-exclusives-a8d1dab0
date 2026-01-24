@@ -42,6 +42,7 @@ import SubscriptionManagement from '@/components/SubscriptionManagement';
 import EmailWidget from '@/components/EmailWidget';
 import AIVerifierWidget from '@/components/AIVerifierWidget';
 import PaymentMethodModal from '@/components/PaymentMethodModal';
+import EmailVerificationRequired from '@/components/EmailVerificationRequired';
 import bamMascot from '@/assets/bamlead-mascot.png';
 import { LeadForEmail } from '@/lib/api/email';
 import { searchGMB, GMBResult } from '@/lib/api/gmb';
@@ -861,6 +862,15 @@ export default function Dashboard() {
         </div>
       </div>
     );
+  }
+
+  // Show email verification required screen for unverified users
+  // Skip check for owners, admins, and preview bypass users
+  const isPrivilegedUser = user?.is_owner || user?.role === 'admin' || user?.subscription_plan === 'preview_bypass';
+  const needsEmailVerification = user && !user.email_verified && !isPrivilegedUser;
+  
+  if (needsEmailVerification) {
+    return <EmailVerificationRequired />;
   }
 
   const renderWorkflowContent = () => {
