@@ -907,31 +907,31 @@ export default function Dashboard() {
                         </p>
                       </div>
 
-                      {/* What You Get - 7 Points */}
+                      {/* What You Get - 6 Points */}
                       <div className="space-y-3 mb-6">
                         <p className="text-base font-semibold text-primary mb-3">✨ What you'll get:</p>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                        <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg transition-all duration-200 group-hover:bg-primary/10 group-hover:translate-x-1">
+                          <CheckCircle2 className="w-5 h-5 text-primary shrink-0 transition-transform duration-200 group-hover:scale-110" />
                           <span className="text-foreground text-base">100+ data points per business</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                        <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg transition-all duration-200 group-hover:bg-primary/10 group-hover:translate-x-1 delay-[50ms]">
+                          <CheckCircle2 className="w-5 h-5 text-primary shrink-0 transition-transform duration-200 group-hover:scale-110" />
                           <span className="text-foreground text-base">AI-powered outreach scripts</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                        <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg transition-all duration-200 group-hover:bg-primary/10 group-hover:translate-x-1 delay-[100ms]">
+                          <CheckCircle2 className="w-5 h-5 text-primary shrink-0 transition-transform duration-200 group-hover:scale-110" />
                           <span className="text-foreground text-base">Website & SEO health analysis</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                        <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg transition-all duration-200 group-hover:bg-primary/10 group-hover:translate-x-1 delay-[150ms]">
+                          <CheckCircle2 className="w-5 h-5 text-primary shrink-0 transition-transform duration-200 group-hover:scale-110" />
                           <span className="text-foreground text-base">Google reviews & rating insights</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                        <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg transition-all duration-200 group-hover:bg-primary/10 group-hover:translate-x-1 delay-[200ms]">
+                          <CheckCircle2 className="w-5 h-5 text-primary shrink-0 transition-transform duration-200 group-hover:scale-110" />
                           <span className="text-foreground text-base">Social media presence check</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-primary shrink-0" />
+                        <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg transition-all duration-200 group-hover:bg-primary/10 group-hover:translate-x-1 delay-[250ms]">
+                          <CheckCircle2 className="w-5 h-5 text-primary shrink-0 transition-transform duration-200 group-hover:scale-110" />
                           <span className="text-foreground text-base">Lead scoring & priority ranking</span>
                         </div>
                       </div>
@@ -995,28 +995,28 @@ export default function Dashboard() {
                       {/* What You Get - 6 Points */}
                       <div className="space-y-3 mb-6">
                         <p className="text-base font-semibold text-violet-500 mb-3">✨ Find clients who need:</p>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
+                        <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg transition-all duration-200 group-hover:bg-violet-500/10 group-hover:translate-x-1">
+                          <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0 transition-transform duration-200 group-hover:scale-110" />
                           <span className="text-foreground text-base">Website redesigns & rebuilds</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
+                        <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg transition-all duration-200 group-hover:bg-violet-500/10 group-hover:translate-x-1 delay-[50ms]">
+                          <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0 transition-transform duration-200 group-hover:scale-110" />
                           <span className="text-foreground text-base">Social media management</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
+                        <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg transition-all duration-200 group-hover:bg-violet-500/10 group-hover:translate-x-1 delay-[100ms]">
+                          <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0 transition-transform duration-200 group-hover:scale-110" />
                           <span className="text-foreground text-base">Digital marketing & ads setup</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
+                        <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg transition-all duration-200 group-hover:bg-violet-500/10 group-hover:translate-x-1 delay-[150ms]">
+                          <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0 transition-transform duration-200 group-hover:scale-110" />
                           <span className="text-foreground text-base">GMB & reputation management</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
+                        <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg transition-all duration-200 group-hover:bg-violet-500/10 group-hover:translate-x-1 delay-[200ms]">
+                          <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0 transition-transform duration-200 group-hover:scale-110" />
                           <span className="text-foreground text-base">SEO & local search optimization</span>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
+                        <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg transition-all duration-200 group-hover:bg-violet-500/10 group-hover:translate-x-1 delay-[250ms]">
+                          <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0 transition-transform duration-200 group-hover:scale-110" />
                           <span className="text-foreground text-base">Tracking & analytics setup</span>
                         </div>
                       </div>
