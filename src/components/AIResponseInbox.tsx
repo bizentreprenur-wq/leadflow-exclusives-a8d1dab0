@@ -10,14 +10,19 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
   Mail, Bot, User, Send, Edit3, Check, X, RefreshCw,
   Sparkles, Clock, CheckCircle2, MessageSquare, Loader2,
   ThumbsUp, ThumbsDown, RotateCcw, Eye, ArrowRight, Flame, Zap, 
   TrendingUp, AlertCircle, BarChart3, Brain, Settings, Bell,
-  Calendar, Phone, BellRing, ChevronDown, Shield, CalendarCheck
+  Calendar, Phone, BellRing, ChevronDown, Shield, CalendarCheck,
+  FileText, FileSignature, Rocket, Star, Gift, Target, Briefcase,
+  ArrowUpRight, Copy, Download, ExternalLink
 } from 'lucide-react';
+import { PROPOSAL_TEMPLATES, ProposalTemplate, generateProposalHTML } from '@/lib/proposalTemplates';
+import { CONTRACT_TEMPLATES, ContractTemplate, generateContractHTML } from '@/lib/contractTemplates';
 
 // AI Automation Settings interface
 interface AIAutomationSettings {
@@ -25,6 +30,8 @@ interface AIAutomationSettings {
   responseMode: 'automatic' | 'manual';
   // Auto-scheduling
   autoScheduling: boolean;
+  // Auto-proposals
+  autoProposals: boolean;
   // Notification settings
   notifyEmail: boolean;
   notifyEmailAddress: string;
@@ -34,11 +41,13 @@ interface AIAutomationSettings {
   notifyOnHotLead: boolean;
   notifyOnScheduleRequest: boolean;
   notifyOnAIAction: boolean;
+  notifyOnReadyToClose: boolean;
 }
 
 const DEFAULT_SETTINGS: AIAutomationSettings = {
   responseMode: 'manual',
   autoScheduling: false,
+  autoProposals: true,
   notifyEmail: true,
   notifyEmailAddress: '',
   notifySMS: false,
@@ -46,6 +55,7 @@ const DEFAULT_SETTINGS: AIAutomationSettings = {
   notifyOnHotLead: true,
   notifyOnScheduleRequest: true,
   notifyOnAIAction: true,
+  notifyOnReadyToClose: true,
 };
 
 const loadSettings = (): AIAutomationSettings => {
@@ -60,6 +70,15 @@ const loadSettings = (): AIAutomationSettings => {
 const saveSettings = (settings: AIAutomationSettings) => {
   localStorage.setItem('bamlead_ai_inbox_settings', JSON.stringify(settings));
 };
+
+// Document recommendation types
+interface DocumentRecommendation {
+  type: 'proposal' | 'contract';
+  document: ProposalTemplate | ContractTemplate;
+  reason: string;
+  confidence: number; // 0-100
+  urgency: 'high' | 'medium' | 'low';
+}
 
 interface EmailReply {
   id: string;
@@ -77,13 +96,114 @@ interface EmailReply {
   sentimentScore?: number; // 0-100 confidence
   urgencyLevel?: 'hot' | 'warm' | 'cold';
   buyingSignals?: string[];
+  documentRecommendations?: DocumentRecommendation[];
 }
 
 interface AIResponseInboxProps {
   onSendResponse?: (replyId: string, response: string) => Promise<void>;
 }
 
-// Demo replies with enhanced sentiment data
+// Closing intent keywords - when lead is ready to move forward
+const CLOSING_KEYWORDS = [
+  'next step', 'move forward', 'get started', 'sign up', 'proceed',
+  'let\'s do it', 'sounds good', 'ready to', 'how do we begin', 'send me',
+  'contract', 'agreement', 'proposal', 'quote', 'invoice', 'pricing',
+  'payment', 'deposit', 'start date', 'when can you start', 'let\'s proceed'
+];
+
+// Document type detection keywords
+const WEBSITE_KEYWORDS = ['website', 'site', 'web', 'design', 'redesign', 'online presence', 'landing page'];
+const MARKETING_KEYWORDS = ['marketing', 'leads', 'customers', 'grow', 'sales', 'advertising', 'ads', 'social media'];
+const SEO_KEYWORDS = ['seo', 'search', 'google', 'ranking', 'visibility', 'found online'];
+
+// AI Document Recommendation Engine
+const analyzeForDocumentRecommendation = (
+  reply: EmailReply
+): DocumentRecommendation[] => {
+  const recommendations: DocumentRecommendation[] = [];
+  const lowerBody = reply.body.toLowerCase();
+  const lowerSubject = reply.subject.toLowerCase();
+  const combinedText = `${lowerBody} ${lowerSubject}`;
+  
+  // Check if lead shows closing intent
+  const hasClosingIntent = CLOSING_KEYWORDS.some(kw => combinedText.includes(kw));
+  const isHotLead = reply.urgencyLevel === 'hot' && (reply.sentimentScore || 0) >= 80;
+  
+  if (!hasClosingIntent && !isHotLead) {
+    return recommendations;
+  }
+  
+  // Detect what type of service they're interested in
+  const wantsWebsite = WEBSITE_KEYWORDS.some(kw => combinedText.includes(kw));
+  const wantsMarketing = MARKETING_KEYWORDS.some(kw => combinedText.includes(kw));
+  const wantsSEO = SEO_KEYWORDS.some(kw => combinedText.includes(kw));
+  
+  // Add proposal recommendations
+  if (wantsWebsite) {
+    const websiteProposal = PROPOSAL_TEMPLATES.find(p => p.id === 'website-design');
+    if (websiteProposal) {
+      recommendations.push({
+        type: 'proposal',
+        document: websiteProposal,
+        reason: 'Lead mentioned website interest',
+        confidence: hasClosingIntent ? 95 : 75,
+        urgency: hasClosingIntent ? 'high' : 'medium'
+      });
+    }
+    const websiteContract = CONTRACT_TEMPLATES.find(c => c.id === 'website-design-agreement');
+    if (websiteContract) {
+      recommendations.push({
+        type: 'contract',
+        document: websiteContract,
+        reason: 'Ready to formalize website project',
+        confidence: hasClosingIntent ? 90 : 65,
+        urgency: hasClosingIntent ? 'high' : 'medium'
+      });
+    }
+  }
+  
+  if (wantsMarketing || wantsSEO) {
+    const marketingProposal = PROPOSAL_TEMPLATES.find(p => p.id === 'lead-generation');
+    if (marketingProposal) {
+      recommendations.push({
+        type: 'proposal',
+        document: marketingProposal,
+        reason: 'Lead interested in growth/marketing',
+        confidence: hasClosingIntent ? 92 : 70,
+        urgency: hasClosingIntent ? 'high' : 'medium'
+      });
+    }
+    const marketingContract = CONTRACT_TEMPLATES.find(c => c.id === 'marketing-services-agreement');
+    if (marketingContract) {
+      recommendations.push({
+        type: 'contract',
+        document: marketingContract,
+        reason: 'Ready to formalize marketing services',
+        confidence: hasClosingIntent ? 88 : 60,
+        urgency: hasClosingIntent ? 'high' : 'medium'
+      });
+    }
+  }
+  
+  // If no specific service detected but showing closing intent, recommend general proposal
+  if (recommendations.length === 0 && (hasClosingIntent || isHotLead)) {
+    const generalProposal = PROPOSAL_TEMPLATES.find(p => p.id === 'custom-scope');
+    if (generalProposal) {
+      recommendations.push({
+        type: 'proposal',
+        document: generalProposal,
+        reason: 'Lead ready to move forward',
+        confidence: 80,
+        urgency: 'high'
+      });
+    }
+  }
+  
+  // Sort by confidence
+  return recommendations.sort((a, b) => b.confidence - a.confidence);
+};
+
+// Demo replies with enhanced sentiment data and document recommendations
 const DEMO_REPLIES: EmailReply[] = [
   {
     id: '1',
@@ -97,6 +217,15 @@ const DEMO_REPLIES: EmailReply[] = [
     sentimentScore: 87,
     urgencyLevel: 'hot',
     buyingSignals: ['Asking about pricing', 'Expressing interest', 'Timeline question'],
+    documentRecommendations: [
+      {
+        type: 'proposal',
+        document: PROPOSAL_TEMPLATES.find(p => p.id === 'website-design')!,
+        reason: 'Lead mentioned website interest',
+        confidence: 92,
+        urgency: 'high'
+      }
+    ],
     ai_draft: `Hi John,
 
 Thank you for your interest! I'd be happy to provide more details.
@@ -127,13 +256,29 @@ Best regards`
     from_email: 'mike@cityautorepair.com',
     from_name: 'Mike Thompson',
     subject: 'Re: Lead Generation Services',
-    body: "We're definitely interested! We've been struggling to get new customers. When can we schedule a call?",
+    body: "We're definitely interested! We've been struggling to get new customers. When can we schedule a call? I want to move forward with this.",
     received_at: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
     status: 'approved',
     sentiment: 'positive',
     sentimentScore: 95,
     urgencyLevel: 'hot',
-    buyingSignals: ['Ready to schedule call', 'Expressing pain point', 'High urgency'],
+    buyingSignals: ['Ready to schedule call', 'Expressing pain point', 'High urgency', 'Ready to close'],
+    documentRecommendations: [
+      {
+        type: 'proposal',
+        document: PROPOSAL_TEMPLATES.find(p => p.id === 'lead-generation')!,
+        reason: 'Lead ready to move forward with marketing',
+        confidence: 95,
+        urgency: 'high'
+      },
+      {
+        type: 'contract',
+        document: CONTRACT_TEMPLATES.find(c => c.id === 'marketing-services-agreement')!,
+        reason: 'Ready to formalize marketing services',
+        confidence: 88,
+        urgency: 'high'
+      }
+    ],
     ai_draft: `Hi Mike,
 
 Fantastic! I'd love to help you attract more customers to City Auto Repair.
@@ -164,13 +309,58 @@ Looking forward to connecting!`
     from_email: 'david@quickprintshop.com',
     from_name: 'David Kim',
     subject: 'Re: Business Growth Consultation',
-    body: "This is exactly what we need! Our sales have been flat and we're looking for ways to reach more customers. What's the next step?",
+    body: "This is exactly what we need! Our sales have been flat and we're looking for ways to reach more customers. What's the next step? Send me a proposal!",
     received_at: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
     status: 'new',
     sentiment: 'positive',
-    sentimentScore: 92,
+    sentimentScore: 98,
     urgencyLevel: 'hot',
-    buyingSignals: ['Ready for next step', 'Describing pain point', 'High motivation']
+    buyingSignals: ['Ready for next step', 'Describing pain point', 'High motivation', 'Requesting proposal'],
+    documentRecommendations: [
+      {
+        type: 'proposal',
+        document: PROPOSAL_TEMPLATES.find(p => p.id === 'lead-generation')!,
+        reason: 'Lead explicitly requested proposal',
+        confidence: 98,
+        urgency: 'high'
+      },
+      {
+        type: 'proposal',
+        document: PROPOSAL_TEMPLATES.find(p => p.id === 'local-business')!,
+        reason: 'Local business growth opportunity',
+        confidence: 85,
+        urgency: 'medium'
+      }
+    ]
+  },
+  {
+    id: '6',
+    from_email: 'jennifer@coastalrealty.com',
+    from_name: 'Jennifer Adams',
+    subject: 'Re: Website Redesign Quote',
+    body: "This sounds perfect! We've been meaning to update our website for months. Let's proceed - please send me the contract and we can get started this week!",
+    received_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+    status: 'new',
+    sentiment: 'positive',
+    sentimentScore: 99,
+    urgencyLevel: 'hot',
+    buyingSignals: ['Ready to sign', 'Requesting contract', 'Immediate timeline', 'Ready to close'],
+    documentRecommendations: [
+      {
+        type: 'contract',
+        document: CONTRACT_TEMPLATES.find(c => c.id === 'website-design-agreement')!,
+        reason: 'Lead explicitly requested contract',
+        confidence: 99,
+        urgency: 'high'
+      },
+      {
+        type: 'proposal',
+        document: PROPOSAL_TEMPLATES.find(p => p.id === 'website-redesign')!,
+        reason: 'Website redesign interest confirmed',
+        confidence: 95,
+        urgency: 'high'
+      }
+    ]
   }
 ];
 
@@ -178,7 +368,8 @@ Looking forward to connecting!`
 const POSITIVE_SIGNALS = [
   'interested', 'definitely', 'schedule', 'call', 'pricing', 'when can',
   'love to', 'excited', 'perfect', 'great', 'exactly what we need', 'next step',
-  'looking for', 'need help', 'struggling', 'want to', 'yes', 'let\'s'
+  'looking for', 'need help', 'struggling', 'want to', 'yes', 'let\'s',
+  'move forward', 'proceed', 'get started', 'send me', 'contract', 'proposal'
 ];
 
 const NEGATIVE_SIGNALS = [
@@ -243,6 +434,102 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
   const [sortBy, setSortBy] = useState<'priority' | 'time'>('priority');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<AIAutomationSettings>(loadSettings);
+  
+  // Document preview state
+  const [showDocumentPreview, setShowDocumentPreview] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState<DocumentRecommendation | null>(null);
+  const [isSendingDocument, setIsSendingDocument] = useState(false);
+  const [documentPreviewHTML, setDocumentPreviewHTML] = useState('');
+
+  // Load branding for document generation
+  const loadBranding = () => {
+    try {
+      const saved = localStorage.getItem('bamlead_user_branding');
+      return saved ? JSON.parse(saved) : {
+        companyName: 'Your Company',
+        contactName: 'Your Name',
+        email: 'you@company.com',
+        phone: '',
+        logoUrl: ''
+      };
+    } catch {
+      return {
+        companyName: 'Your Company',
+        contactName: 'Your Name',
+        email: 'you@company.com',
+        phone: '',
+        logoUrl: ''
+      };
+    }
+  };
+
+  // Generate document preview HTML
+  const generateDocumentPreviewHTML = (recommendation: DocumentRecommendation, recipientEmail: string, recipientName: string) => {
+    const branding = loadBranding();
+    
+    if (recommendation.type === 'proposal') {
+      return generateProposalHTML(
+        recommendation.document as ProposalTemplate,
+        {
+          businessName: recipientName.split(' ').pop() || recipientName,
+          contactName: recipientName,
+          email: recipientEmail,
+        },
+        {
+          companyName: branding.companyName,
+          contactName: branding.contactName,
+          email: branding.email,
+          phone: branding.phone,
+          logoUrl: branding.logoUrl
+        }
+      );
+    } else {
+      return generateContractHTML(
+        recommendation.document as ContractTemplate,
+        {},
+        {
+          companyName: branding.companyName,
+          logoUrl: branding.logoUrl
+        }
+      );
+    }
+  };
+
+  // Handle document preview
+  const handlePreviewDocument = (recommendation: DocumentRecommendation) => {
+    if (!selectedReply) return;
+    
+    const html = generateDocumentPreviewHTML(
+      recommendation,
+      selectedReply.from_email,
+      selectedReply.from_name
+    );
+    
+    setSelectedDocument(recommendation);
+    setDocumentPreviewHTML(html);
+    setShowDocumentPreview(true);
+  };
+
+  // Handle sending document
+  const handleSendDocument = async () => {
+    if (!selectedDocument || !selectedReply) return;
+    
+    setIsSendingDocument(true);
+    
+    // Simulate sending - in production this would use the email service
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    toast.success(
+      `${selectedDocument.type === 'proposal' ? 'Proposal' : 'Contract'} sent to ${selectedReply.from_email}!`,
+      {
+        description: `${selectedDocument.document.name} has been delivered.`
+      }
+    );
+    
+    setShowDocumentPreview(false);
+    setIsSendingDocument(false);
+    setSelectedDocument(null);
+  };
 
   // Save settings when they change
   useEffect(() => {
@@ -451,7 +738,7 @@ Best regards`;
                     <Settings className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <CardTitle className="text-base flex items-center gap-2">
+                    <CardTitle className="text-base flex items-center gap-2 flex-wrap">
                       AI Automation Settings
                       {settings.responseMode === 'automatic' && (
                         <Badge className="bg-primary text-primary-foreground text-[10px]">Full Auto</Badge>
@@ -459,9 +746,12 @@ Best regards`;
                       {settings.autoScheduling && (
                         <Badge className="bg-emerald-500 text-white text-[10px]">Auto-Schedule</Badge>
                       )}
+                      {settings.autoProposals && (
+                        <Badge className="bg-gradient-to-r from-primary to-violet-600 text-white text-[10px]">Smart Docs</Badge>
+                      )}
                     </CardTitle>
                     <CardDescription className="text-sm">
-                      Configure how AI handles responses, scheduling, and notifications
+                      Configure how AI handles responses, scheduling, documents, and notifications
                     </CardDescription>
                   </div>
                 </div>
@@ -570,6 +860,36 @@ Best regards`;
                     </div>
                     <p className="text-xs text-muted-foreground">
                       Make sure your Google Calendar is connected for this to work.
+                    </p>
+                  </div>
+                )}
+              </div>
+              
+              <Separator />
+              
+              {/* Auto-Proposals & Contracts */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-semibold flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-primary" />
+                    Smart Document Suggestions
+                  </Label>
+                  <Switch
+                    checked={settings.autoProposals}
+                    onCheckedChange={(v) => updateSetting('autoProposals', v)}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  AI will automatically recommend proposals and contracts when it detects that a lead is ready to move forward.
+                </p>
+                {settings.autoProposals && (
+                  <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-violet-500/10 border border-primary/30 text-sm">
+                    <div className="flex items-center gap-2 text-primary font-medium mb-1">
+                      <Rocket className="w-4 h-4" />
+                      Smart Documents Active
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      When leads show buying intent, you'll see personalized document recommendations.
                     </p>
                   </div>
                 )}
@@ -832,7 +1152,13 @@ Best regards`;
                         )}
                         <span className="font-medium text-sm truncate">{reply.from_name}</span>
                       </div>
-                      <div className="flex items-center gap-1">
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {reply.documentRecommendations && reply.documentRecommendations.length > 0 && (
+                          <Badge className="bg-gradient-to-r from-primary/20 to-violet-500/20 text-primary border-primary/30 text-[9px] gap-0.5">
+                            <FileText className="w-2.5 h-2.5" />
+                            {reply.documentRecommendations.length} Doc{reply.documentRecommendations.length > 1 ? 's' : ''}
+                          </Badge>
+                        )}
                         {hasSchedulingIntent(reply.body) && (
                           <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[9px] gap-0.5">
                             <Calendar className="w-2.5 h-2.5" />
@@ -974,6 +1300,159 @@ Best regards`;
                   </div>
                 )}
 
+                {/* 🚀 AI Document Recommendations - The Star Feature */}
+                {selectedReply.documentRecommendations && selectedReply.documentRecommendations.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    className="relative overflow-hidden"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500/10 via-primary/10 to-amber-500/10 rounded-xl" />
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-primary/20 to-transparent rounded-full blur-2xl" />
+                    
+                    <div className="relative p-4 rounded-xl border-2 border-primary/40 bg-background/80 backdrop-blur-sm">
+                      {/* Header */}
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center">
+                            <Rocket className="w-4 h-4 text-white" />
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-sm flex items-center gap-2">
+                              AI Recommends: Close This Deal!
+                              <Badge className="bg-gradient-to-r from-primary to-violet-600 text-white text-[10px] animate-pulse">
+                                <Star className="w-2.5 h-2.5 mr-0.5" />
+                                HOT
+                              </Badge>
+                            </h4>
+                            <p className="text-xs text-muted-foreground">
+                              This lead is ready to move forward — send a proposal or contract now
+                            </p>
+                          </div>
+                        </div>
+                        {settings.autoProposals && (
+                          <Badge variant="outline" className="text-[10px] border-primary/50 text-primary">
+                            <Zap className="w-2.5 h-2.5 mr-0.5" />
+                            Auto-Suggest ON
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* Document Recommendations Grid */}
+                      <div className="grid gap-2">
+                        {selectedReply.documentRecommendations.slice(0, 3).map((rec, idx) => (
+                          <motion.div
+                            key={`${rec.type}-${rec.document.id}`}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: idx * 0.1 }}
+                            className={`relative group p-3 rounded-lg border-2 transition-all cursor-pointer hover:shadow-lg ${
+                              rec.urgency === 'high'
+                                ? 'border-primary/50 bg-primary/5 hover:border-primary hover:bg-primary/10'
+                                : 'border-border/50 bg-muted/20 hover:border-primary/30 hover:bg-muted/40'
+                            }`}
+                            onClick={() => handlePreviewDocument(rec)}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-start gap-3 flex-1">
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg ${
+                                  rec.type === 'proposal'
+                                    ? 'bg-gradient-to-br from-amber-500/20 to-orange-500/20'
+                                    : 'bg-gradient-to-br from-primary/20 to-violet-500/20'
+                                }`}>
+                                  {rec.type === 'proposal' ? <FileText className="w-5 h-5 text-amber-600" /> : <FileSignature className="w-5 h-5 text-primary" />}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-0.5">
+                                    <span className="font-semibold text-sm truncate">{rec.document.name}</span>
+                                    <Badge 
+                                      variant="outline" 
+                                      className={`text-[9px] ${
+                                        rec.type === 'proposal' 
+                                          ? 'border-amber-500/50 text-amber-600' 
+                                          : 'border-primary/50 text-primary'
+                                      }`}
+                                    >
+                                      {rec.type === 'proposal' ? 'Proposal' : 'Contract'}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground line-clamp-1">{rec.reason}</p>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <div className="flex items-center gap-1">
+                                      <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                                        <div 
+                                          className="h-full rounded-full bg-gradient-to-r from-primary to-violet-500"
+                                          style={{ width: `${rec.confidence}%` }}
+                                        />
+                                      </div>
+                                      <span className="text-[9px] text-muted-foreground font-medium">{rec.confidence}% match</span>
+                                    </div>
+                                    {rec.urgency === 'high' && (
+                                      <Badge className="bg-red-500/20 text-red-500 border-red-500/30 text-[9px] gap-0.5">
+                                        <Flame className="w-2.5 h-2.5" />
+                                        Urgent
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Action Buttons */}
+                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handlePreviewDocument(rec);
+                                  }}
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  className="h-8 gap-1 bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handlePreviewDocument(rec);
+                                  }}
+                                >
+                                  <Send className="w-3 h-3" />
+                                  Send
+                                </Button>
+                              </div>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+
+                      {/* Quick Send All */}
+                      {selectedReply.documentRecommendations.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between">
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Target className="w-3 h-3" />
+                            {selectedReply.documentRecommendations.length} document{selectedReply.documentRecommendations.length > 1 ? 's' : ''} recommended for this conversation
+                          </p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs gap-1 border-primary/50 text-primary hover:bg-primary/10"
+                            onClick={() => {
+                              toast.info('Opening Document Hub...', {
+                                description: 'View and customize all proposals and contracts'
+                              });
+                            }}
+                          >
+                            <Briefcase className="w-3 h-3" />
+                            View All Documents
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+
                 {/* Original Message Preview */}
                 <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
                   <div className="flex items-center gap-2 mb-2">
@@ -1091,35 +1570,137 @@ Best regards`;
         </Card>
       </div>
 
-      {/* How It Works */}
-      <Card className="bg-gradient-to-r from-amber-500/5 to-orange-500/5 border-amber-500/20">
+      {/* How It Works - Updated */}
+      <Card className="bg-gradient-to-r from-violet-500/5 via-primary/5 to-amber-500/5 border-primary/20">
         <CardContent className="p-4">
           <div className="flex items-start gap-3">
-            <Sparkles className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <Rocket className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
             <div>
-              <h4 className="font-semibold text-sm mb-1">How AI Response Assistant Works</h4>
-              <div className="text-xs text-muted-foreground space-y-1">
+              <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
+                AI-Powered Inbox + Smart Documents
+                <Badge className="bg-primary/20 text-primary text-[9px]">NEW</Badge>
+              </h4>
+              <div className="text-xs text-muted-foreground space-y-1.5">
                 <p className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-[10px] font-bold">1</span>
-                  Replies come in and AI analyzes sentiment
+                  <span className="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[10px] font-bold">1</span>
+                  AI analyzes sentiment & detects buying signals
                 </p>
                 <p className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center text-[10px] font-bold">2</span>
-                  AI drafts a personalized response based on context
+                  <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-600 flex items-center justify-center text-[10px] font-bold">2</span>
+                  Smart document recommendations when leads are ready
                 </p>
                 <p className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-success/20 text-success flex items-center justify-center text-[10px] font-bold">3</span>
-                  You review, edit if needed, and approve
+                  <span className="w-5 h-5 rounded-full bg-violet-500/20 text-violet-500 flex items-center justify-center text-[10px] font-bold">3</span>
+                  One-click send proposals & contracts
                 </p>
                 <p className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-primary/20 text-primary flex items-center justify-center text-[10px] font-bold">4</span>
-                  Response is sent only after your approval
+                  <span className="w-5 h-5 rounded-full bg-success/20 text-success flex items-center justify-center text-[10px] font-bold">4</span>
+                  Auto-schedule meetings & close deals faster
                 </p>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      {/* Document Preview Dialog */}
+      <Dialog open={showDocumentPreview} onOpenChange={setShowDocumentPreview}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="flex items-center gap-3">
+              {selectedDocument?.type === 'proposal' ? (
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-white" />
+                </div>
+              ) : (
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-violet-600 flex items-center justify-center">
+                  <FileSignature className="w-5 h-5 text-white" />
+                </div>
+              )}
+              <div>
+                <span className="text-lg">{selectedDocument?.document.name}</span>
+                <p className="text-sm font-normal text-muted-foreground">
+                  Preview for {selectedReply?.from_name} ({selectedReply?.from_email})
+                </p>
+              </div>
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              Preview and send the {selectedDocument?.type} to the lead
+            </DialogDescription>
+          </DialogHeader>
+          
+          {/* Document Preview */}
+          <div className="flex-1 overflow-hidden rounded-lg border bg-white">
+            <iframe
+              srcDoc={documentPreviewHTML}
+              className="w-full h-[50vh] border-0"
+              title="Document Preview"
+            />
+          </div>
+          
+          {/* Actions */}
+          <div className="flex-shrink-0 flex items-center justify-between pt-4 border-t">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  navigator.clipboard.writeText(documentPreviewHTML);
+                  toast.success('HTML copied to clipboard!');
+                }}
+                className="gap-1"
+              >
+                <Copy className="w-4 h-4" />
+                Copy HTML
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const blob = new Blob([documentPreviewHTML], { type: 'text/html' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `${selectedDocument?.document.name?.replace(/\s+/g, '-').toLowerCase() || 'document'}.html`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  toast.success('Document downloaded!');
+                }}
+                className="gap-1"
+              >
+                <Download className="w-4 h-4" />
+                Download
+              </Button>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowDocumentPreview(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSendDocument}
+                disabled={isSendingDocument}
+                className="gap-2 bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90 min-w-[140px]"
+              >
+                {isSendingDocument ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    Send to {selectedReply?.from_name?.split(' ')[0]}
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
