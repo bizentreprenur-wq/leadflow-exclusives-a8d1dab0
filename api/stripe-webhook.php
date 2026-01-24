@@ -101,9 +101,24 @@ function handleCheckoutCompleted($session) {
 
 /**
  * Handle subscription created or updated
+ * Also marks user as having used their trial to prevent future trial abuse
  */
 function handleSubscriptionUpdated($subscription) {
     syncSubscriptionFromStripe($subscription);
+    
+    // Mark user as having used their trial (prevents repeat trials after cancellation)
+    $userId = $subscription->metadata->user_id ?? null;
+    if ($userId) {
+        $db = getDB();
+        $db->update(
+            "UPDATE users SET 
+                had_trial = 1,
+                first_subscription_at = COALESCE(first_subscription_at, NOW())
+             WHERE id = ?",
+            [$userId]
+        );
+    }
+    
     error_log("Subscription synced: " . $subscription->id);
 }
 
