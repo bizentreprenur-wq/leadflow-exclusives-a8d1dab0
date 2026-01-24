@@ -68,25 +68,25 @@ const AgentCardsSection = () => {
             </Link>
           </div>
 
-          {/* Platform Scanner Card */}
+          {/* Agency Lead Finder Card */}
           <div className="group relative bg-card rounded-3xl border border-border p-8 shadow-card hover:shadow-elevated transition-all duration-300">
             {/* Avatar */}
             <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-accent/20 to-accent/5 flex items-center justify-center mb-6">
-              <img src={mascotLogo} alt="Platform Scanner" className="w-20 h-20 object-contain" />
+              <img src={mascotLogo} alt="Agency Lead Finder" className="w-20 h-20 object-contain" />
             </div>
 
             {/* Title & Type */}
             <h3 className="text-2xl font-display font-bold text-foreground mb-2">
-              Platform Scanner
+              Agency Lead Finder
             </h3>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-semibold uppercase tracking-wide mb-4">
               <Code className="w-3 h-3" />
-              Legacy Platforms
+              For Agencies & SMMA
             </div>
 
             {/* Description */}
             <p className="text-muted-foreground mb-6">
-              Finds businesses using outdated platforms like Wix, Joomla, or custom PHP sites
+              Finds businesses needing website fixes, GMB help, reviews, Yelp profiles & social media fixes
             </p>
 
             {/* Features */}
@@ -95,15 +95,15 @@ const AgentCardsSection = () => {
               <ul className="space-y-1.5 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-                  Detects 16+ legacy platforms
+                  Fix websites, GMB & Yelp profiles
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-                  Scans Google & Bing results
+                  Find missing reviews & social profiles
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-                  Identifies modernization opportunities
+                  Detect no retargeting or inactive socials
                 </li>
               </ul>
             </div>

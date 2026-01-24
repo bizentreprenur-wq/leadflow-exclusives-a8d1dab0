@@ -136,8 +136,8 @@ const RevolutionaryFeaturesSection = () => {
   const coreFeatures = [
     {
       icon: <Search className="h-5 w-5" />,
-      name: "GMB & Platform Scanner",
-      description: "Find businesses with outdated websites on Google My Business and legacy platforms like Wix, Joomla, Magento"
+      name: "GMB & Agency Lead Finder",
+      description: "Find local businesses via GMB, plus clients needing website fixes, GMB optimization, reviews & social media help"
     },
     {
       icon: <Sparkles className="h-5 w-5" />,

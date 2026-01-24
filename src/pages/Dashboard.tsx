@@ -977,10 +977,10 @@ export default function Dashboard() {
                       
                       <div className="text-center mb-6">
                         <h3 className="text-2xl font-bold text-foreground mb-2">
-                          🔍 Outdated Website Finder
+                          🔍 Agency Lead Finder
                         </h3>
                         <p className="text-muted-foreground">
-                          Find sites using old technology
+                          For web designers, agencies & SMMA
                         </p>
                       </div>
 
@@ -989,19 +989,19 @@ export default function Dashboard() {
                         <p className="text-sm font-semibold text-violet-500 mb-2">✨ What you'll get:</p>
                         <div className="flex items-center gap-3">
                           <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
-                          <span className="text-foreground text-sm">Old WordPress, Wix, Joomla sites</span>
+                          <span className="text-foreground text-sm">Broken websites & missing GMB/Yelp</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
-                          <span className="text-foreground text-sm">Slow, outdated websites</span>
+                          <span className="text-foreground text-sm">No/low reviews & inactive social profiles</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
-                          <span className="text-foreground text-sm">Businesses needing redesigns</span>
+                          <span className="text-foreground text-sm">Missing retargeting & tracking pixels</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <CheckCircle2 className="w-5 h-5 text-violet-500 shrink-0" />
-                          <span className="text-foreground text-sm">Contact info & website URLs</span>
+                          <span className="text-foreground text-sm">Businesses leaking leads & ad spend</span>
                         </div>
                       </div>
 
@@ -1009,7 +1009,7 @@ export default function Dashboard() {
                       <div className="bg-violet-500/10 rounded-xl p-4 text-center">
                         <p className="text-violet-500 font-bold text-sm mb-1">👍 Best for:</p>
                         <p className="text-muted-foreground text-sm">
-                          Web designers looking for redesign projects
+                          Agencies, web designers & SMMA companies
                         </p>
                       </div>
                       
@@ -1059,10 +1059,10 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <h3 className="font-bold text-foreground">
-                        {searchType === 'gmb' ? '🏢 Local Business Search' : '🔍 Outdated Website Scanner'}
+                        {searchType === 'gmb' ? '🏢 Local Business Search' : '🔍 Agency Lead Finder'}
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        {searchType === 'gmb' ? 'Google Maps listings' : 'Old WordPress, Wix, Joomla sites'}
+                        {searchType === 'gmb' ? 'Google Maps listings' : 'Websites, GMB, reviews, social & more'}
                       </p>
                     </div>
                   </div>

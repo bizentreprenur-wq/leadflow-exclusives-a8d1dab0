@@ -330,22 +330,22 @@ Best regards,
                 </CardContent>
               </Card>
 
-              {/* Platform Search - VIOLET color */}
+              {/* Agency Lead Finder - VIOLET color */}
               <Card className="border-2 border-violet-500/30 bg-violet-500/5 hover:border-violet-500/50 transition-all cursor-pointer">
                 <CardHeader className="text-center pb-2">
                   <div className="w-16 h-16 bg-violet-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
                     <Globe className="w-8 h-8 text-violet-500" />
                   </div>
-                  <CardTitle className="text-violet-400">🔍 Outdated Website Scanner</CardTitle>
-                  <p className="text-sm text-muted-foreground">Find sites using old technology</p>
+                  <CardTitle className="text-violet-400">🔍 Agency Lead Finder</CardTitle>
+                  <p className="text-sm text-muted-foreground">For agencies, web designers & SMMA</p>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <Input 
-                    placeholder="e.g., Wix, WordPress, Joomla..."
+                    placeholder="e.g., plumbers, dentists, restaurants..."
                     className="border-violet-500/30 focus:border-violet-500"
                   />
                   <Input 
-                    placeholder="Industry (optional)"
+                    placeholder="City, State or ZIP"
                     className="border-violet-500/30 focus:border-violet-500"
                   />
                   <Button 
@@ -353,7 +353,7 @@ Best regards,
                     className="w-full bg-violet-500 hover:bg-violet-600 text-white"
                   >
                     <Globe className="w-4 h-4 mr-2" />
-                    Scan for Outdated Sites
+                    Find Agency Leads
                   </Button>
                 </CardContent>
               </Card>
