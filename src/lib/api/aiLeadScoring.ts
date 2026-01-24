@@ -98,6 +98,60 @@ function scoreLeadLocally(lead: any): ScoredLead {
       score += 7;
       painPoints.push('Google ranking penalized by poor performance');
     }
+    
+    // NEW: No Facebook Pixel or Google Tag
+    if (analysis.issues.includes('No Facebook Pixel installed')) {
+      score += 10;
+      emailScore += 8;
+      painPoints.push('Missing Facebook Pixel - wasting ad spend with no tracking');
+    }
+    if (analysis.issues.includes('No Google Analytics or Tag Manager')) {
+      score += 10;
+      emailScore += 8;
+      painPoints.push('No visitor tracking - flying blind on marketing ROI');
+    }
+    
+    // NEW: No booking system or contact funnel
+    if (analysis.issues.includes('No booking system or contact funnel')) {
+      score += 15;
+      callScore += 12;
+      painPoints.push('No way for customers to book - losing leads every day');
+    }
+    if (analysis.issues.includes('No online booking system')) {
+      score += 8;
+      painPoints.push('Missing online booking - friction in customer journey');
+    }
+    
+    // NEW: Social media issues
+    if (analysis.issues.includes('No social media presence linked')) {
+      score += 10;
+      painPoints.push('No social proof - customers can\'t find them online');
+    }
+    if (analysis.issues.includes('Weak social media presence (only 1 platform)')) {
+      score += 5;
+      painPoints.push('Weak social presence - missing audience on other platforms');
+    }
+    
+    // NEW: Severely outdated website
+    if (analysis.issues.includes('Severely outdated website (needs complete rebuild)')) {
+      score += 20;
+      callScore += 15;
+      painPoints.push('Website is severely outdated - embarrassing online presence');
+    }
+    
+    // NEW: Spending on ads but leaking leads
+    if (analysis.issues.includes('Spending on ads but no conversion tracking (leaking leads)')) {
+      score += 18;
+      callScore += 15;
+      emailScore += 10;
+      painPoints.push('Running ads with no tracking - money going down the drain');
+    }
+    
+    // NEW: No clear CTAs
+    if (analysis.issues.includes('No clear call-to-action buttons')) {
+      score += 8;
+      painPoints.push('No clear call-to-action - visitors don\'t know what to do');
+    }
   }
   
   // Mobile score impacts conversion
@@ -145,6 +199,16 @@ function scoreLeadLocally(lead: any): ScoredLead {
       callScore += 10;
       painPoints.push('Low ratings hurting reputation - need improvement');
     }
+    // NEW: Zero or very few reviews
+    if (lead.rating === 0 || lead.reviewCount === 0) {
+      score += 12;
+      callScore += 8;
+      painPoints.push('Zero reviews - no social proof, losing trust');
+    }
+  } else {
+    // No rating data at all
+    score += 8;
+    painPoints.push('No online reviews found - missing credibility');
   }
   
   // === CALCULATE FINAL SCORES ===
