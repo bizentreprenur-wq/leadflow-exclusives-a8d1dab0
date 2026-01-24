@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
@@ -15,20 +14,19 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import {
-  Mail, Clock, Zap, TrendingUp, Users, Play, Pause, Settings,
-  CheckCircle, XCircle, RefreshCw, Sparkles, Calendar, ArrowRight,
-  Brain, Target, BarChart3, Eye, MousePointer, MessageSquare, Edit
+  Mail, Clock, Zap, TrendingUp, Users, Play, RefreshCw, Sparkles,
+  CheckCircle, Brain, Target, Eye, MousePointer, Settings, ArrowRight,
+  Rocket, Shield, Bot, ToggleLeft, ToggleRight, ChevronRight
 } from 'lucide-react';
 import { getSends, getEmailStats, sendBulkEmails, EmailSend, EmailStats } from '@/lib/api/email';
 import { fetchVerifiedLeads, updateLeadStatus, SavedLead } from '@/lib/api/verifiedLeads';
-import { HIGH_CONVERTING_TEMPLATES, getTemplatePerformance } from '@/lib/highConvertingTemplates';
 
 // Follow-up templates based on engagement pattern
 const FOLLOW_UP_TEMPLATES = {
   noOpen: {
     name: 'Re-engagement (No Open)',
     subject: 'Did you see my message about {{business_name}}?',
-    timing: 3, // days after initial
+    timing: 3,
     body: `Hi {{first_name}},
 
 I wanted to make sure my previous email didn't get lost in your inbox.
@@ -90,7 +88,6 @@ Best,
   },
 };
 
-// Engagement pattern types
 type EngagementPattern = 'no_open' | 'opened_no_reply' | 'clicked_no_reply' | 'nurture';
 
 interface FollowUpSequence {
@@ -118,16 +115,19 @@ export default function AutoFollowUpBuilder() {
   const [leadEngagements, setLeadEngagements] = useState<LeadEngagement[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
+  const [showSetupGuide, setShowSetupGuide] = useState(true);
   
-  // Sequence settings
+  // Automation settings
+  const [automationMode, setAutomationMode] = useState<'automatic' | 'manual'>(() => {
+    return (localStorage.getItem('bamlead_followup_mode') as 'automatic' | 'manual') || 'manual';
+  });
+  
   const [sequences, setSequences] = useState<FollowUpSequence[]>([
     { id: 'noOpen', name: 'No Open Follow-up', pattern: 'no_open', enabled: true, delayDays: 3, leadsEligible: 0 },
     { id: 'openedNoReply', name: 'Opened But No Reply', pattern: 'opened_no_reply', enabled: true, delayDays: 4, leadsEligible: 0 },
     { id: 'clickedNoReply', name: 'Clicked (Hot Lead!)', pattern: 'clicked_no_reply', enabled: true, delayDays: 2, leadsEligible: 0 },
     { id: 'finalNurture', name: 'Final Nurture', pattern: 'nurture', enabled: false, delayDays: 7, leadsEligible: 0 },
   ]);
-  
-  const [autoMode, setAutoMode] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -146,7 +146,6 @@ export default function AutoFollowUpBuilder() {
       if (sendsRes.success && sendsRes.sends) setSends(sendsRes.sends);
       if (leadsRes.success && leadsRes.data) setSavedLeads(leadsRes.data.leads);
 
-      // Analyze engagement patterns
       analyzeEngagement(sendsRes.sends || [], leadsRes.data?.leads || []);
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -165,7 +164,6 @@ export default function AutoFollowUpBuilder() {
       nurture: 0,
     };
 
-    // Group sends by email
     const sendsByEmail = sends.reduce((acc, send) => {
       const email = send.recipient_email.toLowerCase();
       if (!acc[email]) acc[email] = [];
@@ -173,14 +171,12 @@ export default function AutoFollowUpBuilder() {
       return acc;
     }, {} as Record<string, EmailSend[]>);
 
-    // Analyze each lead
     for (const lead of leads) {
       if (!lead.email || lead.outreachStatus === 'converted' || lead.outreachStatus === 'replied') continue;
 
       const leadSends = sendsByEmail[lead.email.toLowerCase()] || [];
       if (leadSends.length === 0) continue;
 
-      // Get most recent send
       const latestSend = leadSends.sort((a, b) => 
         new Date(b.sent_at || b.created_at).getTime() - new Date(a.sent_at || a.created_at).getTime()
       )[0];
@@ -190,7 +186,6 @@ export default function AutoFollowUpBuilder() {
       const sentDate = new Date(latestSend.sent_at);
       const daysSince = Math.floor((now.getTime() - sentDate.getTime()) / (1000 * 60 * 60 * 24));
 
-      // Determine engagement pattern
       let pattern: EngagementPattern;
       if (latestSend.clicked_at) {
         pattern = 'clicked_no_reply';
@@ -202,10 +197,9 @@ export default function AutoFollowUpBuilder() {
         pattern = 'no_open';
       }
 
-      // Check eligibility based on delay
       const sequenceForPattern = sequences.find(s => s.pattern === pattern);
       const eligibleForFollowUp = sequenceForPattern 
-        ? daysSince >= sequenceForPattern.delayDays && leadSends.length < 3 // Max 3 emails
+        ? daysSince >= sequenceForPattern.delayDays && leadSends.length < 3
         : false;
 
       if (eligibleForFollowUp) {
@@ -221,8 +215,6 @@ export default function AutoFollowUpBuilder() {
     }
 
     setLeadEngagements(engagements);
-    
-    // Update sequence counts
     setSequences(prev => prev.map(seq => ({
       ...seq,
       leadsEligible: patternCounts[seq.pattern] || 0,
@@ -240,10 +232,10 @@ export default function AutoFollowUpBuilder() {
 
   const getPatternColor = (pattern: EngagementPattern) => {
     switch (pattern) {
-      case 'no_open': return 'bg-slate-500/10 text-slate-600 border-slate-500/20';
-      case 'opened_no_reply': return 'bg-amber-500/10 text-amber-600 border-amber-500/20';
-      case 'clicked_no_reply': return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
-      case 'nurture': return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
+      case 'no_open': return 'text-slate-400 bg-slate-500/10 border-slate-500/20';
+      case 'opened_no_reply': return 'text-amber-500 bg-amber-500/10 border-amber-500/20';
+      case 'clicked_no_reply': return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
+      case 'nurture': return 'text-blue-500 bg-blue-500/10 border-blue-500/20';
     }
   };
 
@@ -275,7 +267,6 @@ export default function AutoFollowUpBuilder() {
       
       toast.info(`Sending follow-ups to ${eligibleLeads.length} leads...`);
 
-      // Convert to email format
       const leadsForEmail = eligibleLeads.map(lead => ({
         id: lead.dbId,
         email: lead.email,
@@ -285,14 +276,12 @@ export default function AutoFollowUpBuilder() {
         phone: lead.phone,
       }));
 
-      // Build HTML template
       const htmlTemplate = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <p style="white-space: pre-line; line-height: 1.6;">${template.body}</p>
         </div>
       `;
 
-      // Send in batches
       const batchSize = 10;
       let sent = 0;
       
@@ -311,7 +300,6 @@ export default function AutoFollowUpBuilder() {
         setProcessingProgress((sent / leadsForEmail.length) * 100);
       }
 
-      // Update lead statuses
       for (const lead of eligibleLeads) {
         if (lead.dbId) {
           await updateLeadStatus(lead.dbId, { 
@@ -323,14 +311,12 @@ export default function AutoFollowUpBuilder() {
 
       toast.success(`✅ Sent ${eligibleLeads.length} follow-up emails!`);
       
-      // Update sequence
       setSequences(prev => prev.map(s => 
         s.id === sequenceId 
           ? { ...s, lastRun: new Date().toISOString(), leadsEligible: 0 }
           : s
       ));
 
-      // Refresh data
       await loadData();
     } catch (error: any) {
       toast.error(error.message || 'Failed to send follow-ups');
@@ -350,8 +336,16 @@ export default function AutoFollowUpBuilder() {
     setSequences(prev => prev.map(s =>
       s.id === sequenceId ? { ...s, delayDays: days } : s
     ));
-    // Re-analyze with new delay
     analyzeEngagement(sends, savedLeads);
+  };
+
+  const handleModeChange = (mode: 'automatic' | 'manual') => {
+    setAutomationMode(mode);
+    localStorage.setItem('bamlead_followup_mode', mode);
+    toast.success(mode === 'automatic' 
+      ? '🤖 AI will automatically send follow-ups on schedule' 
+      : '✅ You control when follow-ups are sent'
+    );
   };
 
   const totalEligible = sequences.reduce((sum, s) => sum + (s.enabled ? s.leadsEligible : 0), 0);
@@ -366,96 +360,160 @@ export default function AutoFollowUpBuilder() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-primary" />
-            Auto Follow-Up Builder
-          </h2>
-          <p className="text-muted-foreground mt-1">
-            Automatically send follow-ups based on engagement patterns
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Switch 
-              checked={autoMode} 
-              onCheckedChange={setAutoMode}
-              id="auto-mode"
-            />
-            <Label htmlFor="auto-mode" className="text-sm">
-              Auto Mode {autoMode && <Badge variant="secondary" className="ml-1">Beta</Badge>}
-            </Label>
+    <div className="space-y-6 max-w-4xl mx-auto">
+      {/* Hero Setup Section */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-violet-500/10 to-pink-500/10 border border-primary/20 p-8">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary/20 to-transparent rounded-full blur-3xl" />
+        
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center shadow-lg shadow-primary/20">
+              <Bot className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">AI Follow-Up Automation</h1>
+              <p className="text-muted-foreground">Let AI handle your follow-ups automatically</p>
+            </div>
           </div>
-          <Button onClick={loadData} variant="outline" size="sm" className="gap-2">
-            <RefreshCw className="w-4 h-4" />
-            Refresh
-          </Button>
+
+          <div className="mt-6 space-y-4">
+            <p className="text-sm font-medium text-muted-foreground mb-3">Choose how AI handles follow-ups:</p>
+            
+            <div className="grid md:grid-cols-2 gap-4">
+              {/* Automatic Mode */}
+              <button
+                onClick={() => handleModeChange('automatic')}
+                className={`relative p-5 rounded-xl border-2 text-left transition-all ${
+                  automationMode === 'automatic'
+                    ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10'
+                    : 'border-border/50 hover:border-primary/50 bg-background/50'
+                }`}
+              >
+                {automationMode === 'automatic' && (
+                  <Badge className="absolute -top-2 -right-2 bg-primary text-primary-foreground">Active</Badge>
+                )}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    automationMode === 'automatic' ? 'bg-primary text-white' : 'bg-muted'
+                  }`}>
+                    <Zap className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Fully Automatic</h3>
+                    <p className="text-xs text-muted-foreground">AI sends on schedule</p>
+                  </div>
+                </div>
+                <ul className="text-xs text-muted-foreground space-y-1.5">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                    AI sends follow-ups automatically
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                    24/7 engagement without manual work
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                    Smart timing based on patterns
+                  </li>
+                </ul>
+              </button>
+
+              {/* Manual Mode */}
+              <button
+                onClick={() => handleModeChange('manual')}
+                className={`relative p-5 rounded-xl border-2 text-left transition-all ${
+                  automationMode === 'manual'
+                    ? 'border-emerald-500 bg-emerald-500/5 shadow-lg shadow-emerald-500/10'
+                    : 'border-border/50 hover:border-emerald-500/50 bg-background/50'
+                }`}
+              >
+                {automationMode === 'manual' && (
+                  <Badge className="absolute -top-2 -right-2 bg-emerald-500 text-white">Active</Badge>
+                )}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    automationMode === 'manual' ? 'bg-emerald-500 text-white' : 'bg-muted'
+                  }`}>
+                    <Shield className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">You Control</h3>
+                    <p className="text-xs text-muted-foreground">Review & send manually</p>
+                  </div>
+                </div>
+                <ul className="text-xs text-muted-foreground space-y-1.5">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                    AI suggests follow-ups to send
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                    You review before sending
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />
+                    Full control over timing
+                  </li>
+                </ul>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-primary/20 bg-primary/5">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                <Users className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{totalEligible}</p>
-                <p className="text-xs text-muted-foreground">Ready for Follow-up</p>
-              </div>
+      {/* Quick Stats */}
+      <div className="grid grid-cols-4 gap-3">
+        <Card className="border-primary/20">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Users className="w-5 h-5 text-primary" />
             </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="border-emerald-500/20 bg-emerald-500/5">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                <MousePointer className="w-5 h-5 text-emerald-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-emerald-600">
-                  {sequences.find(s => s.pattern === 'clicked_no_reply')?.leadsEligible || 0}
-                </p>
-                <p className="text-xs text-muted-foreground">Hot Leads (Clicked)</p>
-              </div>
+            <div>
+              <p className="text-2xl font-bold">{totalEligible}</p>
+              <p className="text-xs text-muted-foreground">Ready</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-amber-500/20 bg-amber-500/5">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
-                <Eye className="w-5 h-5 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-amber-600">
-                  {sequences.find(s => s.pattern === 'opened_no_reply')?.leadsEligible || 0}
-                </p>
-                <p className="text-xs text-muted-foreground">Opened (Warm)</p>
-              </div>
+        <Card className="border-emerald-500/20">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+              <MousePointer className="w-5 h-5 text-emerald-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-emerald-500">
+                {sequences.find(s => s.pattern === 'clicked_no_reply')?.leadsEligible || 0}
+              </p>
+              <p className="text-xs text-muted-foreground">Hot 🔥</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-slate-500/20 bg-slate-500/5">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-slate-500/20 flex items-center justify-center">
-                <Mail className="w-5 h-5 text-slate-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-slate-600">
-                  {sequences.find(s => s.pattern === 'no_open')?.leadsEligible || 0}
-                </p>
-                <p className="text-xs text-muted-foreground">No Open (Cold)</p>
-              </div>
+        <Card className="border-amber-500/20">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+              <Eye className="w-5 h-5 text-amber-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-amber-500">
+                {sequences.find(s => s.pattern === 'opened_no_reply')?.leadsEligible || 0}
+              </p>
+              <p className="text-xs text-muted-foreground">Warm</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-500/20">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-slate-500/10 flex items-center justify-center">
+              <Mail className="w-5 h-5 text-slate-400" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-slate-400">
+                {sequences.find(s => s.pattern === 'no_open')?.leadsEligible || 0}
+              </p>
+              <p className="text-xs text-muted-foreground">Cold</p>
             </div>
           </CardContent>
         </Card>
@@ -475,72 +533,90 @@ export default function AutoFollowUpBuilder() {
         </Card>
       )}
 
+      {/* Run All CTA */}
+      {totalEligible > 0 && (
+        <Card className="border-primary/30 bg-gradient-to-r from-primary/10 to-violet-500/10">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-violet-500 flex items-center justify-center">
+                  <Rocket className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg">Send All Follow-ups Now</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {totalEligible} leads ready across {sequences.filter(s => s.enabled && s.leadsEligible > 0).length} sequences
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={async () => {
+                  for (const seq of sequences.filter(s => s.enabled && s.leadsEligible > 0)) {
+                    await handleRunSequence(seq.id);
+                  }
+                }}
+                disabled={isProcessing}
+                size="lg"
+                className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:from-primary/90 hover:to-violet-500/90"
+              >
+                <Zap className="w-5 h-5" />
+                Run All Sequences
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Sequence Cards */}
-      <div className="space-y-4">
-        <h3 className="font-semibold flex items-center gap-2">
-          <Target className="w-4 h-4" />
-          Follow-up Sequences
-        </h3>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold flex items-center gap-2">
+            <Target className="w-4 h-4 text-primary" />
+            Follow-up Sequences
+          </h3>
+          <Button onClick={loadData} variant="ghost" size="sm" className="gap-2 text-muted-foreground">
+            <RefreshCw className="w-3.5 h-3.5" />
+            Refresh
+          </Button>
+        </div>
 
         {sequences.map((sequence) => {
           const Icon = getPatternIcon(sequence.pattern);
           const template = getTemplateForPattern(sequence.pattern);
+          const colorClasses = getPatternColor(sequence.pattern);
           
           return (
             <Card 
               key={sequence.id}
-              className={`transition-all ${sequence.enabled ? 'border-primary/30' : 'border-border/50 opacity-60'}`}
+              className={`transition-all ${sequence.enabled ? 'border-border' : 'border-border/30 opacity-50'}`}
             >
-              <CardContent className="p-6">
+              <CardContent className="p-5">
                 <div className="flex items-start gap-4">
-                  {/* Icon */}
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${getPatternColor(sequence.pattern).replace('text-', 'bg-').replace('/10', '/20')}`}>
-                    <Icon className="w-6 h-6" />
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${colorClasses}`}>
+                    <Icon className="w-5 h-5" />
                   </div>
 
-                  {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center gap-2 mb-1">
                       <h4 className="font-semibold">{sequence.name}</h4>
-                      <Badge variant="outline" className={getPatternColor(sequence.pattern)}>
-                        {sequence.leadsEligible} eligible
+                      <Badge variant="outline" className={`text-xs ${colorClasses}`}>
+                        {sequence.leadsEligible} ready
                       </Badge>
                       {sequence.pattern === 'clicked_no_reply' && sequence.leadsEligible > 0 && (
-                        <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
-                          🔥 Hot Leads
+                        <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20 text-xs">
+                          🔥 Hot
                         </Badge>
                       )}
                     </div>
 
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Trigger: {sequence.pattern === 'no_open' ? 'Email not opened' :
-                                sequence.pattern === 'opened_no_reply' ? 'Opened but no reply' :
-                                sequence.pattern === 'clicked_no_reply' ? 'Clicked link but no reply' :
-                                '7+ days with no engagement'}
-                    </p>
-
-                    {/* Template Preview */}
-                    <Card className="border-dashed bg-muted/30 mb-4">
-                      <CardContent className="p-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Mail className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm font-medium">{template.subject}</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground line-clamp-2">
-                          {template.body.substring(0, 150)}...
-                        </p>
-                      </CardContent>
-                    </Card>
-
-                    {/* Settings Row */}
-                    <div className="flex items-center gap-4 flex-wrap">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-muted-foreground" />
+                    <div className="flex items-center gap-4 mt-2">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Clock className="w-3.5 h-3.5" />
                         <Select 
                           value={sequence.delayDays.toString()}
                           onValueChange={(v) => updateSequenceDelay(sequence.id, parseInt(v))}
                         >
-                          <SelectTrigger className="w-[140px] h-8">
+                          <SelectTrigger className="w-[120px] h-7 text-xs">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -554,16 +630,13 @@ export default function AutoFollowUpBuilder() {
                         </Select>
                       </div>
 
-                      {sequence.lastRun && (
-                        <span className="text-xs text-muted-foreground">
-                          Last run: {new Date(sequence.lastRun).toLocaleDateString()}
-                        </span>
-                      )}
+                      <span className="text-xs text-muted-foreground hidden md:inline">
+                        Subject: "{template.subject.substring(0, 40)}..."
+                      </span>
                     </div>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex flex-col items-end gap-3 shrink-0">
+                  <div className="flex items-center gap-3 shrink-0">
                     <Switch 
                       checked={sequence.enabled}
                       onCheckedChange={() => toggleSequence(sequence.id)}
@@ -572,10 +645,11 @@ export default function AutoFollowUpBuilder() {
                       onClick={() => handleRunSequence(sequence.id)}
                       disabled={!sequence.enabled || sequence.leadsEligible === 0 || isProcessing}
                       size="sm"
-                      className="gap-2"
+                      variant={sequence.leadsEligible > 0 ? "default" : "outline"}
+                      className="gap-1.5"
                     >
-                      <Play className="w-4 h-4" />
-                      Send Now
+                      <Play className="w-3.5 h-3.5" />
+                      Send
                     </Button>
                   </div>
                 </div>
@@ -586,57 +660,32 @@ export default function AutoFollowUpBuilder() {
       </div>
 
       {/* AI Insights */}
-      <Card className="border-violet-500/30 bg-gradient-to-r from-violet-500/5 to-purple-500/5">
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Brain className="w-4 h-4 text-violet-600" />
-            AI Follow-up Insights
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <Card className="border-violet-500/20 bg-gradient-to-br from-violet-500/5 to-purple-500/5">
+        <CardContent className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Brain className="w-5 h-5 text-violet-500" />
+            <h3 className="font-semibold">AI Insights</h3>
+          </div>
+          
           <div className="grid md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-lg bg-background/50">
-              <p className="text-sm font-medium text-violet-600 mb-1">Best Follow-up Time</p>
-              <p className="text-lg font-bold">Tuesday, 10:00 AM</p>
-              <p className="text-xs text-muted-foreground">Based on your open rate patterns</p>
+            <div className="p-4 rounded-xl bg-background/50 border border-border/50">
+              <p className="text-xs text-violet-500 font-medium mb-1">Best Time to Send</p>
+              <p className="text-lg font-bold">Tue, 10 AM</p>
+              <p className="text-xs text-muted-foreground">Highest open rates</p>
             </div>
-            <div className="p-4 rounded-lg bg-background/50">
-              <p className="text-sm font-medium text-violet-600 mb-1">Optimal Sequence Length</p>
+            <div className="p-4 rounded-xl bg-background/50 border border-border/50">
+              <p className="text-xs text-violet-500 font-medium mb-1">Optimal Sequence</p>
               <p className="text-lg font-bold">2-3 Emails</p>
-              <p className="text-xs text-muted-foreground">Higher response rate than 4+ emails</p>
+              <p className="text-xs text-muted-foreground">Better response rate</p>
             </div>
-            <div className="p-4 rounded-lg bg-background/50">
-              <p className="text-sm font-medium text-violet-600 mb-1">Predicted Response Rate</p>
-              <p className="text-lg font-bold text-emerald-600">
-                {sequences.find(s => s.pattern === 'clicked_no_reply')?.leadsEligible 
-                  ? '35-45%' : '15-25%'}
+            <div className="p-4 rounded-xl bg-background/50 border border-border/50">
+              <p className="text-xs text-violet-500 font-medium mb-1">Predicted Response</p>
+              <p className="text-lg font-bold text-emerald-500">
+                {sequences.find(s => s.pattern === 'clicked_no_reply')?.leadsEligible ? '35-45%' : '15-25%'}
               </p>
-              <p className="text-xs text-muted-foreground">Based on engagement signals</p>
+              <p className="text-xs text-muted-foreground">Based on engagement</p>
             </div>
           </div>
-
-          {totalEligible > 0 && (
-            <div className="flex items-center justify-between p-4 rounded-lg bg-primary/10 border border-primary/20">
-              <div>
-                <p className="font-medium">Ready to send all follow-ups?</p>
-                <p className="text-sm text-muted-foreground">
-                  {totalEligible} leads across {sequences.filter(s => s.enabled && s.leadsEligible > 0).length} sequences
-                </p>
-              </div>
-              <Button
-                onClick={async () => {
-                  for (const seq of sequences.filter(s => s.enabled && s.leadsEligible > 0)) {
-                    await handleRunSequence(seq.id);
-                  }
-                }}
-                disabled={isProcessing}
-                className="gap-2"
-              >
-                <Zap className="w-4 h-4" />
-                Run All Sequences
-              </Button>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>
