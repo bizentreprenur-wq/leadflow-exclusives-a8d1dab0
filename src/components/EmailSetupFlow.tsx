@@ -565,8 +565,17 @@ export default function EmailSetupFlow({
                           <FileText className="w-4 h-4" />
                           Edit Template
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={handleClearTemplate} className="text-muted-foreground hover:text-destructive">
+                        <Button variant="ghost" size="sm" onClick={handleClearTemplate} className="text-muted-foreground hover:text-foreground">
                           Choose Different
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={handleClearTemplate} 
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Delete
                         </Button>
                       </div>
                     </div>
