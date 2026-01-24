@@ -8,6 +8,12 @@
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/database.php';
 
+// Load Composer autoloader if present (needed for PHPMailer)
+$composerAutoload = __DIR__ . '/../vendor/autoload.php';
+if (file_exists($composerAutoload)) {
+    require_once $composerAutoload;
+}
+
 // Email log file path
 define('EMAIL_LOG_FILE', __DIR__ . '/../logs/email.log');
 
@@ -35,6 +41,7 @@ function sendEmail($to, $subject, $htmlBody, $textBody = '') {
         'to' => $to,
         'subject' => $subject,
         'smtp_configured' => defined('SMTP_HOST') && SMTP_HOST ? 'yes' : 'no',
+        'composer_autoload_present' => file_exists(__DIR__ . '/../vendor/autoload.php') ? 'yes' : 'no',
         'phpmailer_available' => class_exists('PHPMailer\PHPMailer\PHPMailer') ? 'yes' : 'no'
     ]);
     
@@ -82,6 +89,12 @@ function sendEmailNative($to, $subject, $htmlBody) {
  * Send email via SMTP (requires PHPMailer)
  */
 function sendEmailSMTP($to, $subject, $htmlBody, $textBody = '') {
+    // Attempt to load PHPMailer via Composer autoload (in case this file was loaded before autoload)
+    $autoloadPath = __DIR__ . '/../vendor/autoload.php';
+    if (!class_exists('PHPMailer\PHPMailer\PHPMailer') && file_exists($autoloadPath)) {
+        require_once $autoloadPath;
+    }
+
     // If PHPMailer is not installed, fall back to native mail
     if (!class_exists('PHPMailer\PHPMailer\PHPMailer')) {
         logEmail('WARN', 'PHPMailer not installed, falling back to native mail()', [
