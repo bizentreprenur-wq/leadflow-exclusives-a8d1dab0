@@ -22,8 +22,9 @@ if (ob_get_level()) ob_end_clean();
 ini_set('output_buffering', 'off');
 ini_set('zlib.output_compression', false);
 
-// Increase time limit for large searches
-set_time_limit(300);
+// Increase time limit for large searches (up to 2000 leads = ~10 min)
+set_time_limit(600);
+ini_set('memory_limit', '512M');
 
 // Handle preflight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -195,15 +196,39 @@ function streamGMBSearch($service, $location, $limit) {
 
 /**
  * Search a single SerpAPI engine
+ * Supports up to 2000 total leads by increasing page limits per engine
  */
 function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sourceName) {
     $results = [];
-    $resultsPerPage = 20;
+    
+    // Yelp returns 10 per page, others return 20
+    $resultsPerPage = ($engine === 'yelp') ? 10 : 20;
+    
+    // Calculate max pages needed - scale based on requested limit
+    // For 2000 leads split across 3 engines = ~667 per engine
+    // Google Maps: 667/20 = 34 pages, Yelp: 667/10 = 67 pages, Bing: 667/20 = 34 pages
     $maxPages = ceil($limit / $resultsPerPage);
-    $maxPages = min($maxPages, 10); // Cap pages per engine
+    
+    // Dynamic page cap based on limit requested
+    // Small searches (≤100): 10 pages, Medium (≤500): 30 pages, Large (≤2000): 50 pages
+    if ($limit <= 100) {
+        $pageCap = 10;
+    } elseif ($limit <= 500) {
+        $pageCap = 30;
+    } else {
+        $pageCap = 50; // Support up to 1000 results per engine
+    }
+    $maxPages = min($maxPages, $pageCap);
+    
+    $emptyPageStreak = 0; // Track consecutive empty pages to exit early
     
     for ($page = 0; $page < $maxPages; $page++) {
         if (count($results) >= $limit) {
+            break;
+        }
+        
+        // Exit if we've had 3 consecutive empty pages (API exhausted)
+        if ($emptyPageStreak >= 3) {
             break;
         }
         
@@ -224,7 +249,7 @@ function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sour
             $params['find_desc'] = explode(' in ', $query)[0];
             $params['find_loc'] = explode(' in ', $query)[1] ?? $query;
             if ($page > 0) {
-                $params['start'] = $page * 10; // Yelp uses 10 per page
+                $params['start'] = $page * $resultsPerPage;
             }
         } elseif ($engine === 'bing_local') {
             if ($page > 0) {
@@ -233,18 +258,22 @@ function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sour
         }
         
         $url = "https://serpapi.com/search.json?" . http_build_query($params);
-        $response = curlRequest($url, [], 15);
+        $response = curlRequest($url, [], 20); // Increased timeout for pagination
         
         if ($response['httpCode'] !== 200) {
-            break;
+            $emptyPageStreak++;
+            continue; // Try next page on error instead of breaking
         }
         
         $data = json_decode($response['response'], true);
         $items = $data[$resultsKey] ?? [];
         
         if (empty($items)) {
-            break;
+            $emptyPageStreak++;
+            continue;
         }
+        
+        $emptyPageStreak = 0; // Reset on successful results
         
         foreach ($items as $item) {
             if (count($results) >= $limit) {
@@ -257,12 +286,16 @@ function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sour
             }
         }
         
-        // Check for pagination
-        if (!isset($data['serpapi_pagination']['next'])) {
+        // Check for pagination - but don't break, just note it
+        $hasPagination = isset($data['serpapi_pagination']['next']) || 
+                         isset($data['serpapi_pagination']['next_page_token']);
+        
+        // For large searches, continue even without explicit pagination (try next offset)
+        if (!$hasPagination && $limit <= 100) {
             break;
         }
         
-        usleep(100000); // 100ms between pages
+        usleep(150000); // 150ms between pages for stability
     }
     
     return $results;
