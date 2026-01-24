@@ -13,10 +13,10 @@ const DualSearchShowcase = () => {
   const [activeDemo, setActiveDemo] = useState<"gmb" | "platform">("gmb");
 
   const gmbFeatures = [
-    { icon: MapPin, text: "Find local businesses with Google My Business listings" },
-    { icon: Database, text: "Extract contact info, phone numbers, addresses" },
-    { icon: Filter, text: "Filter by industry, rating, and website quality" },
-    { icon: Zap, text: "Instant website analysis with mobile scores" },
+    { icon: MapPin, text: "Find any business with comprehensive AI analysis" },
+    { icon: Database, text: "Get complete contact info, phone, email, address" },
+    { icon: Filter, text: "100+ data points: website health, reviews, social, tracking" },
+    { icon: Zap, text: "AI scoring with personalized sales intelligence" },
   ];
 
   const platformFeatures = [
@@ -44,14 +44,14 @@ const DualSearchShowcase = () => {
         <div className="text-center mb-16">
           <Badge className="bg-gradient-to-r from-primary to-accent text-white px-4 py-1.5 mb-6">
             <Sparkles className="h-3 w-3 mr-1" />
-            TWO POWERFUL SEARCH METHODS
+            🤖 TWO POWERFUL AI SEARCH METHODS
           </Badge>
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold text-foreground mb-4">
-            Find Leads <span className="text-primary">Two Ways</span>
+            Find Leads <span className="text-primary">Your Way</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-            Whether you want to find local businesses through Google My Business or use our Agency Lead Finder 
-            to discover clients who need your digital expertise — BamLead helps you find your next project.
+            Use our Super AI Business Search for comprehensive intelligence on any business, or the Agency Lead Finder 
+            to discover clients who need your digital expertise — BamLead helps you close your next deal.
           </p>
         </div>
 
@@ -76,12 +76,12 @@ const DualSearchShowcase = () => {
             )}
             
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-emerald-500/20 flex items-center justify-center">
                 <Building2 className="w-8 h-8 text-primary" />
               </div>
               <div>
-                <h3 className="text-2xl font-display font-bold text-foreground">Google My Business</h3>
-                <p className="text-sm text-muted-foreground">Find local businesses with GMB listings</p>
+                <h3 className="text-2xl font-display font-bold text-foreground">🤖 Super AI Business Search</h3>
+                <p className="text-sm text-muted-foreground">Advanced business intelligence for any lead</p>
               </div>
             </div>
 
@@ -99,8 +99,8 @@ const DualSearchShowcase = () => {
             <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
               <p className="text-sm font-semibold text-primary mb-2">Perfect For:</p>
               <p className="text-sm text-muted-foreground">
-                Web designers, agencies, and marketers targeting local service businesses 
-                (plumbers, dentists, lawyers, restaurants, etc.)
+                Sales teams, SDRs, agencies, SaaS companies, investors, and anyone who needs 
+                comprehensive intelligence on businesses to call or email
               </p>
             </div>
           </div>
@@ -154,23 +154,30 @@ const DualSearchShowcase = () => {
           </div>
         </div>
 
-        {/* Platform Detection List */}
+        {/* AI Intelligence Features List */}
         <div className="mb-16">
           <div className="text-center mb-8">
             <h3 className="text-xl font-display font-bold text-foreground mb-2">
-              <Code className="w-5 h-5 inline mr-2 text-accent" />
-              16+ Platforms We Detect
+              <Zap className="w-5 h-5 inline mr-2 text-primary" />
+              Super AI Detects & Analyzes
             </h3>
-            <p className="text-sm text-muted-foreground">Our scanner identifies businesses using these outdated or basic platforms</p>
+            <p className="text-sm text-muted-foreground">Our AI analyzes every aspect of a business for comprehensive intelligence</p>
           </div>
-          <div className="flex flex-wrap justify-center gap-2 max-w-4xl mx-auto">
-            {platforms.map((platform, i) => (
+          <div className="flex flex-wrap justify-center gap-2 max-w-5xl mx-auto">
+            {[
+              "Website Health", "Mobile Score", "Page Speed", "SSL Status",
+              "Google Reviews", "Rating Score", "Review Velocity", "Owner Responses",
+              "Facebook", "Instagram", "LinkedIn", "Social Activity",
+              "GA4 Tracking", "Facebook Pixel", "GTM", "Call Tracking",
+              "Booking System", "Contact Forms", "Live Chat", "Trust Badges",
+              "Business Hours", "Service Area", "Years in Business", "Owner Info"
+            ].map((item, i) => (
               <Badge 
                 key={i} 
                 variant="outline" 
-                className="px-4 py-2 text-sm bg-card hover:bg-accent/10 hover:border-accent/50 transition-colors"
+                className="px-4 py-2 text-sm bg-card hover:bg-primary/10 hover:border-primary/50 transition-colors"
               >
-                {platform}
+                {item}
               </Badge>
             ))}
           </div>
@@ -181,13 +188,13 @@ const DualSearchShowcase = () => {
           <div className="text-center mb-8">
             <Badge variant="outline" className="bg-success/10 text-success border-success/30 mb-4">
               <Play className="h-3 w-3 mr-1" />
-              LIVE DEMO
+              🤖 LIVE AI DEMO
             </Badge>
             <h3 className="text-2xl md:text-3xl font-display font-bold text-foreground mb-2">
-              Try Both Search Methods
+              Try Both AI Search Methods
             </h3>
             <p className="text-muted-foreground">
-              Click the tabs below to switch between GMB Search and Platform Scanner
+              Experience the power of Super AI Business Search and Agency Lead Finder
             </p>
           </div>
 
@@ -207,8 +214,8 @@ const DualSearchShowcase = () => {
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12">
           {[
-            { value: "60+", label: "Leads per search", icon: Users },
-            { value: "16+", label: "Platforms detected", icon: Code },
+            { value: "100+", label: "Data points analyzed", icon: Database },
+            { value: "AI", label: "Powered scoring", icon: Sparkles },
             { value: "2", label: "Search engines", icon: Globe },
             { value: "24/7", label: "Always available", icon: Zap },
           ].map((stat, i) => (

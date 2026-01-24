@@ -3,9 +3,9 @@ import { Search, Filter, MapPin, Globe, Code, Zap, CheckCircle2, AlertTriangle, 
 const LeadGenSection = () => {
   const features = [
     {
-      icon: MapPin,
-      title: "GMB Scanner",
-      description: "Find local businesses with outdated websites and weak online presence",
+      icon: Search,
+      title: "Super AI Business Search",
+      description: "Find any business with 100+ AI-analyzed data points for comprehensive intelligence",
       color: "primary"
     },
     {
@@ -16,25 +16,25 @@ const LeadGenSection = () => {
     },
     {
       icon: AlertTriangle,
-      title: "Issue Detection",
-      description: "Detect broken websites, missing reviews, inactive social profiles & more",
+      title: "Problem Detection",
+      description: "AI detects website issues, missing tracking, weak reviews & social gaps",
       color: "warning"
     },
     {
       icon: Filter,
-      title: "Smart Filters",
-      description: "Filter by industry, location, and specific issues to find your ideal clients",
+      title: "Sales Intelligence",
+      description: "AI scoring, personalized talking points & recommended outreach actions",
       color: "success"
     }
   ];
 
   const capabilities = [
-    "Find businesses with broken or outdated websites",
-    "Detect missing tracking pixels & retargeting",
-    "Identify weak or inactive social media profiles",
-    "Find businesses with low or no reviews",
-    "Discover clients leaking leads online",
-    "AI-powered lead scoring & prioritization"
+    "Complete business identity & validation",
+    "Website health, speed & conversion analysis",
+    "Google reviews, ratings & reputation signals",
+    "Social media presence & activity tracking",
+    "Tracking pixels & analytics detection",
+    "AI scoring with sales intelligence"
   ];
 
   return (
@@ -47,15 +47,15 @@ const LeadGenSection = () => {
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
             <Search className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-primary">Lead Generation</span>
+            <span className="text-sm font-semibold text-primary">🤖 AI-Powered Search</span>
           </div>
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold text-foreground mb-4">
-            Find clients who need
+            Find businesses to
             <br />
-            <span className="text-primary">your expertise</span>
+            <span className="text-primary">call or email</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Built for website designers, social media marketers & digital agencies. Our AI finds businesses with gaps you can fill.
+            Get comprehensive AI intelligence on every lead. Perfect for sales teams, agencies, investors & digital professionals.
           </p>
         </div>
 

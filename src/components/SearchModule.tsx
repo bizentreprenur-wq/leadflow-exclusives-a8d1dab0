@@ -164,56 +164,67 @@ const SearchModule = () => {
 
       {/* Two Search Options Side by Side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* GMB Search Card */}
-        <div className="rounded-2xl border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent p-6 hover:border-primary/40 transition-all">
+        {/* Super AI Business Intelligence Search Card */}
+        <div className="rounded-2xl border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-emerald-500/5 to-transparent p-6 hover:border-primary/40 transition-all relative overflow-hidden">
+          {/* Premium badge */}
+          <div className="absolute top-3 right-3">
+            <span className="px-2 py-1 text-[10px] font-bold bg-gradient-to-r from-primary to-emerald-500 text-white rounded-full">
+              🤖 SUPER AI
+            </span>
+          </div>
+          
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
+            <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-emerald-500/20 border border-primary/20">
               <Building2 className="w-6 h-6 text-primary" />
             </div>
             <div>
               <h3 className="font-display font-bold text-lg text-foreground">
-                Local Business Search
+                Super AI Business Search
               </h3>
               <p className="text-sm text-muted-foreground">
-                Google My Business listings
+                Advanced Business Intelligence
               </p>
             </div>
           </div>
 
           <p className="text-sm text-muted-foreground mb-4">
-            Find businesses with GMB listings that need website upgrades. Perfect for targeting local service providers.
+            <span className="font-semibold text-primary">Find businesses to call or email.</span> Get comprehensive AI-powered insights on every lead — perfect for sales teams, agencies & digital professionals.
           </p>
 
           <ul className="text-sm text-muted-foreground space-y-2 mb-6">
             <li className="flex items-center gap-2">
               <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-              Phone numbers & addresses
+              Complete business profile & validation
             </li>
             <li className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-              Website analysis included
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              Website health & conversion readiness
             </li>
             <li className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-              Business hours & ratings
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+              Reviews, social presence & reputation
+            </li>
+            <li className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-violet-500" />
+              AI scoring & sales intelligence
             </li>
           </ul>
 
           <Button
             onClick={() => handleSearch("gmb")}
             disabled={isLoading || !service.trim() || !location.trim()}
-            className="w-full h-12"
+            className="w-full h-12 bg-gradient-to-r from-primary to-emerald-600 hover:from-primary/90 hover:to-emerald-600/90"
             variant="default"
           >
             {isLoading && selectedSearch === "gmb" ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                Searching...
+                AI Analyzing...
               </>
             ) : (
               <>
                 <Search className="w-5 h-5 mr-2" />
-                Search GMB
+                🚀 Run Super AI Search
               </>
             )}
           </Button>

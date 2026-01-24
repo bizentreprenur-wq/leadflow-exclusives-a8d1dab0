@@ -23,6 +23,7 @@ import AutoSearchFeature from "@/components/AutoSearchFeature";
 import VoiceCallingSection from "@/components/VoiceCallingSection";
 import ROICalculatorSection from "@/components/ROICalculatorSection";
 import AIEmailAssistantDemo from "@/components/AIEmailAssistantDemo";
+import SuperAIFeaturesSection from "@/components/SuperAIFeaturesSection";
 
 const Index = () => {
   return (
@@ -31,6 +32,7 @@ const Index = () => {
       <Navbar />
       <main>
         <HeroSection />
+        <SuperAIFeaturesSection />
         <DualSearchShowcase />
         <HowItWorksSection />
         <AgentCardsSection />

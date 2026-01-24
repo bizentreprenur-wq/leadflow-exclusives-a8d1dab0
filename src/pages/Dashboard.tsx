@@ -1219,21 +1219,18 @@ export default function Dashboard() {
                       searchLocation={location}
                     />
 
-                    {/* No Website Filter (GMB only) */}
+                    {/* Super AI Business Intelligence Info */}
                     {searchType === 'gmb' && (
-                      <div className="p-4 rounded-lg border-2 border-emerald-500/30 bg-emerald-500/5">
-                        <label className="flex items-center gap-3 cursor-pointer">
-                          <Checkbox
-                            checked={filterNoWebsite}
-                            onCheckedChange={(checked) => setFilterNoWebsite(checked === true)}
-                          />
+                      <div className="p-4 rounded-lg border-2 border-primary/30 bg-primary/5">
+                        <div className="flex items-start gap-3">
+                          <span className="text-xl">🤖</span>
                           <div>
-                            <span className="font-medium text-emerald-600">🔥 Only businesses WITHOUT a website</span>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              High-value leads for web design outreach - these businesses need your services most!
+                            <span className="font-semibold text-primary">Super AI Business Intelligence Search</span>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Find businesses to contact with calls or emails. Get comprehensive AI-powered insights on each lead including website health, online presence, reviews, tracking, and growth opportunities.
                             </p>
                           </div>
-                        </label>
+                        </div>
                       </div>
                     )}
 
