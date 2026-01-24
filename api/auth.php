@@ -185,7 +185,9 @@ function handleGetCurrentUser() {
             'subscription_ends_at' => $user['subscription_ends_at'],
             'is_owner' => (bool)$user['is_owner'],
             'has_active_subscription' => $hasAccess,
-            'created_at' => $user['created_at']
+            'created_at' => $user['created_at'],
+            'email_verified' => (bool)$user['email_verified'],
+            'email_verified_at' => $user['email_verified_at'] ?? null
         ]
     ]);
 }

@@ -227,38 +227,61 @@ function sendPasswordResetEmail($userId, $email, $name) {
  * Get email template
  */
 function getEmailTemplate($template, $vars = []) {
+    // BamLead logo as base64 (small teal "B" badge logo)
+    $logoBase64 = 'data:image/png;base64,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';
+    
     $templates = [
         'verify_email' => '
             <!DOCTYPE html>
             <html>
             <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <style>
-                    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #333; }
-                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                    .header { text-align: center; padding: 20px 0; }
-                    .logo { font-size: 28px; font-weight: bold; color: #14b8a6; }
-                    .content { background: #f8fafc; border-radius: 8px; padding: 30px; margin: 20px 0; }
-                    .button { display: inline-block; background: #14b8a6; color: white; padding: 12px 30px; border-radius: 6px; text-decoration: none; font-weight: 600; }
-                    .footer { text-align: center; color: #64748b; font-size: 14px; margin-top: 20px; }
+                    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f1f5f9; }
+                    .wrapper { padding: 40px 20px; }
+                    .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden; }
+                    .header { text-align: center; padding: 30px 20px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
+                    .logo-container { display: inline-block; margin-bottom: 15px; }
+                    .logo-img { width: 60px; height: 60px; border-radius: 12px; }
+                    .logo-text { font-size: 32px; font-weight: bold; color: #14b8a6; margin: 0; letter-spacing: -1px; }
+                    .content { padding: 40px 30px; }
+                    .content h2 { color: #0f172a; margin-top: 0; margin-bottom: 20px; font-size: 24px; }
+                    .content p { color: #475569; margin-bottom: 16px; }
+                    .button-container { text-align: center; margin: 35px 0; }
+                    .button { display: inline-block; background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); color: #ffffff !important; padding: 14px 40px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; box-shadow: 0 4px 14px rgba(20, 184, 166, 0.4); }
+                    .button:hover { background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%); }
+                    .warning { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 20px 0; border-radius: 0 8px 8px 0; color: #92400e; font-size: 14px; }
+                    .footer { text-align: center; padding: 25px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; }
+                    .footer p { color: #64748b; font-size: 13px; margin: 0; }
+                    .footer a { color: #14b8a6; text-decoration: none; }
                 </style>
             </head>
             <body>
-                <div class="container">
-                    <div class="header">
-                        <div class="logo">BamLead</div>
-                    </div>
-                    <div class="content">
-                        <h2>Verify your email address</h2>
-                        <p>Hi {{name}},</p>
-                        <p>Thanks for signing up! Please verify your email address by clicking the button below:</p>
-                        <p style="text-align: center; margin: 30px 0;">
-                            <a href="{{verify_url}}" class="button">Verify Email</a>
-                        </p>
-                        <p>This link will expire in {{expires}}.</p>
-                        <p>If you didn\'t create an account, you can safely ignore this email.</p>
-                    </div>
-                    <div class="footer">
-                        <p>&copy; ' . date('Y') . ' BamLead. All rights reserved.</p>
+                <div class="wrapper">
+                    <div class="container">
+                        <div class="header">
+                            <div class="logo-container">
+                                <img src="' . $logoBase64 . '" alt="BamLead Logo" class="logo-img" />
+                            </div>
+                            <div class="logo-text">BamLead</div>
+                        </div>
+                        <div class="content">
+                            <h2>Verify your email address</h2>
+                            <p>Hi {{name}},</p>
+                            <p>Thanks for signing up for BamLead! To complete your registration and start generating leads, please verify your email address by clicking the button below:</p>
+                            <div class="button-container">
+                                <a href="{{verify_url}}" class="button">Verify Email</a>
+                            </div>
+                            <p style="font-size: 14px; color: #64748b;">This link will expire in {{expires}}.</p>
+                            <div class="warning">
+                                <strong>Didn\'t sign up?</strong> If you didn\'t create an account, you can safely ignore this email.
+                            </div>
+                        </div>
+                        <div class="footer">
+                            <p>&copy; ' . date('Y') . ' BamLead. All rights reserved.</p>
+                            <p style="margin-top: 8px;"><a href="https://bamlead.com">bamlead.com</a></p>
+                        </div>
                     </div>
                 </div>
             </body>
@@ -268,37 +291,52 @@ function getEmailTemplate($template, $vars = []) {
             <!DOCTYPE html>
             <html>
             <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <style>
-                    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #333; }
-                    .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-                    .header { text-align: center; padding: 20px 0; }
-                    .logo { font-size: 28px; font-weight: bold; color: #14b8a6; }
-                    .content { background: #f8fafc; border-radius: 8px; padding: 30px; margin: 20px 0; }
-                    .button { display: inline-block; background: #14b8a6; color: white; padding: 12px 30px; border-radius: 6px; text-decoration: none; font-weight: 600; }
-                    .footer { text-align: center; color: #64748b; font-size: 14px; margin-top: 20px; }
-                    .warning { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin: 20px 0; }
+                    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f1f5f9; }
+                    .wrapper { padding: 40px 20px; }
+                    .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden; }
+                    .header { text-align: center; padding: 30px 20px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); }
+                    .logo-container { display: inline-block; margin-bottom: 15px; }
+                    .logo-img { width: 60px; height: 60px; border-radius: 12px; }
+                    .logo-text { font-size: 32px; font-weight: bold; color: #14b8a6; margin: 0; letter-spacing: -1px; }
+                    .content { padding: 40px 30px; }
+                    .content h2 { color: #0f172a; margin-top: 0; margin-bottom: 20px; font-size: 24px; }
+                    .content p { color: #475569; margin-bottom: 16px; }
+                    .button-container { text-align: center; margin: 35px 0; }
+                    .button { display: inline-block; background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); color: #ffffff !important; padding: 14px 40px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px; box-shadow: 0 4px 14px rgba(20, 184, 166, 0.4); }
+                    .warning { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; margin: 20px 0; border-radius: 0 8px 8px 0; color: #92400e; font-size: 14px; }
+                    .footer { text-align: center; padding: 25px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0; }
+                    .footer p { color: #64748b; font-size: 13px; margin: 0; }
+                    .footer a { color: #14b8a6; text-decoration: none; }
                 </style>
             </head>
             <body>
-                <div class="container">
-                    <div class="header">
-                        <div class="logo">BamLead</div>
-                    </div>
-                    <div class="content">
-                        <h2>Reset your password</h2>
-                        <p>Hi {{name}},</p>
-                        <p>We received a request to reset your password. Click the button below to choose a new password:</p>
-                        <p style="text-align: center; margin: 30px 0;">
-                            <a href="{{reset_url}}" class="button">Reset Password</a>
-                        </p>
-                        <p>This link will expire in {{expires}}.</p>
-                        <div class="warning">
-                            <strong>Didn\'t request this?</strong><br>
-                            If you didn\'t request a password reset, please ignore this email or contact support if you have concerns.
+                <div class="wrapper">
+                    <div class="container">
+                        <div class="header">
+                            <div class="logo-container">
+                                <img src="' . $logoBase64 . '" alt="BamLead Logo" class="logo-img" />
+                            </div>
+                            <div class="logo-text">BamLead</div>
                         </div>
-                    </div>
-                    <div class="footer">
-                        <p>&copy; ' . date('Y') . ' BamLead. All rights reserved.</p>
+                        <div class="content">
+                            <h2>Reset your password</h2>
+                            <p>Hi {{name}},</p>
+                            <p>We received a request to reset your password. Click the button below to choose a new password:</p>
+                            <div class="button-container">
+                                <a href="{{reset_url}}" class="button">Reset Password</a>
+                            </div>
+                            <p style="font-size: 14px; color: #64748b;">This link will expire in {{expires}}.</p>
+                            <div class="warning">
+                                <strong>Didn\'t request this?</strong> If you didn\'t request a password reset, please ignore this email or contact support if you have concerns.
+                            </div>
+                        </div>
+                        <div class="footer">
+                            <p>&copy; ' . date('Y') . ' BamLead. All rights reserved.</p>
+                            <p style="margin-top: 8px;"><a href="https://bamlead.com">bamlead.com</a></p>
+                        </div>
                     </div>
                 </div>
             </body>
