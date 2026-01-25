@@ -72,6 +72,7 @@ import UserManualDownload from '@/components/UserManualDownload';
 import { VideoTutorialSection } from '@/components/VideoTutorialSection';
 import AIProcessingPipeline from '@/components/AIProcessingPipeline';
 import StreamingLeadsIndicator from '@/components/StreamingLeadsIndicator';
+import LeadSyncAI from '@/components/LeadSyncAI';
 
 interface SearchResult {
   id: string;
@@ -1625,6 +1626,8 @@ export default function Dashboard() {
     switch (activeTab) {
       case 'workflow':
         return null; // Workflow handles its own rendering
+      case 'leadsync-ai':
+        return null; // LeadSync AI handles its own full-screen rendering
       case 'sequences':
         return {
           title: 'Multi-Channel Sequences',
@@ -1958,7 +1961,10 @@ export default function Dashboard() {
 
           {/* Main Content */}
           <main className="flex-1 p-6">
-            {activeTab === 'workflow' ? (
+            {activeTab === 'leadsync-ai' ? (
+              /* LeadSync AI - Full Screen */
+              <LeadSyncAI onNavigateToSearch={() => setActiveTab('workflow')} />
+            ) : activeTab === 'workflow' ? (
               <>
                 {/* Workflow Step Progress */}
                 <div className="mb-8">

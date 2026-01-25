@@ -1,0 +1,736 @@
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { toast } from 'sonner';
+import {
+  Brain,
+  Zap,
+  Mail,
+  Phone,
+  MessageSquare,
+  BarChart3,
+  Users,
+  Play,
+  Pause,
+  Settings,
+  Target,
+  TrendingUp,
+  Clock,
+  CheckCircle2,
+  Send,
+  Bot,
+  Sparkles,
+  Globe,
+  Filter,
+  RefreshCw,
+  Activity,
+  ChevronRight,
+  Eye,
+  MousePointer,
+  Calendar,
+  ArrowUpRight,
+  AlertCircle,
+  Layers,
+} from 'lucide-react';
+
+// Types
+interface LeadSyncStats {
+  leadsGenerated: number;
+  emailsSent: number;
+  callsMade: number;
+  chatsHandled: number;
+  conversionRate: number;
+  responseRate: number;
+}
+
+interface Campaign {
+  id: string;
+  name: string;
+  status: 'active' | 'paused' | 'scheduled' | 'completed';
+  type: 'email' | 'call' | 'multi-channel';
+  leads: number;
+  sent: number;
+  opened: number;
+  replied: number;
+  startedAt: string;
+}
+
+interface LeadSyncAIProps {
+  onNavigateToSearch?: () => void;
+}
+
+// Demo data
+const DEMO_STATS: LeadSyncStats = {
+  leadsGenerated: 1847,
+  emailsSent: 3256,
+  callsMade: 428,
+  chatsHandled: 156,
+  conversionRate: 12.4,
+  responseRate: 34.7,
+};
+
+const DEMO_CAMPAIGNS: Campaign[] = [
+  {
+    id: '1',
+    name: 'Q1 Local Business Outreach',
+    status: 'active',
+    type: 'multi-channel',
+    leads: 250,
+    sent: 187,
+    opened: 94,
+    replied: 23,
+    startedAt: '2025-01-20',
+  },
+  {
+    id: '2',
+    name: 'Agency Website Audit Campaign',
+    status: 'active',
+    type: 'email',
+    leads: 500,
+    sent: 312,
+    opened: 156,
+    replied: 47,
+    startedAt: '2025-01-18',
+  },
+  {
+    id: '3',
+    name: 'Follow-up Sequence - Hot Leads',
+    status: 'paused',
+    type: 'email',
+    leads: 78,
+    sent: 78,
+    opened: 45,
+    replied: 12,
+    startedAt: '2025-01-15',
+  },
+];
+
+const AI_CAPABILITIES = [
+  {
+    id: 'lead-gen',
+    title: 'AI Lead Generation',
+    description: 'Automatically collect leads based on location, industry, and custom criteria',
+    icon: Target,
+    color: 'from-blue-500 to-cyan-500',
+    status: 'active',
+  },
+  {
+    id: 'email-nurture',
+    title: 'Smart Email Sequences',
+    description: 'AI writes and optimizes personalized email campaigns based on engagement',
+    icon: Mail,
+    color: 'from-emerald-500 to-teal-500',
+    status: 'active',
+  },
+  {
+    id: 'ai-calls',
+    title: 'AI Voice Calling',
+    description: 'Automated outbound calls with AI-driven conversations and lead qualification',
+    icon: Phone,
+    color: 'from-amber-500 to-orange-500',
+    status: 'active',
+  },
+  {
+    id: 'chat-ai',
+    title: 'Chat Conversations',
+    description: 'NLP-powered responses to inbound messages with intelligent routing',
+    icon: MessageSquare,
+    color: 'from-purple-500 to-pink-500',
+    status: 'coming-soon',
+  },
+  {
+    id: 'analytics',
+    title: 'Reporting & Analytics',
+    description: 'Track interactions, analyze behavior, and continuously improve AI responses',
+    icon: BarChart3,
+    color: 'from-rose-500 to-red-500',
+    status: 'active',
+  },
+];
+
+export default function LeadSyncAI({ onNavigateToSearch }: LeadSyncAIProps) {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [isAutoPilot, setIsAutoPilot] = useState(false);
+  const [stats] = useState<LeadSyncStats>(DEMO_STATS);
+  const [campaigns, setCampaigns] = useState<Campaign[]>(DEMO_CAMPAIGNS);
+
+  // Lead Generation Settings
+  const [leadGenSettings, setLeadGenSettings] = useState({
+    industry: 'Local Services',
+    location: 'United States',
+    companySize: '10-50 employees',
+    autoCollect: false,
+    dailyLimit: 100,
+  });
+
+  // Handlers
+  const toggleAutoPilot = () => {
+    setIsAutoPilot(!isAutoPilot);
+    toast.success(
+      !isAutoPilot 
+        ? '🚀 LeadSync AI Autopilot activated! AI is now managing your outreach.' 
+        : 'Autopilot paused. You are now in manual control.'
+    );
+  };
+
+  const toggleCampaign = (id: string) => {
+    setCampaigns(prev => prev.map(c => 
+      c.id === id 
+        ? { ...c, status: c.status === 'active' ? 'paused' : 'active' } 
+        : c
+    ));
+    toast.success('Campaign status updated');
+  };
+
+  const startLeadGeneration = () => {
+    toast.success('🎯 AI Lead Generation started! Collecting leads based on your criteria...');
+  };
+
+  return (
+    <div className="flex-1 h-full overflow-y-auto bg-slate-950 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center shadow-lg shadow-violet-500/30">
+              <Brain className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+                LeadSync AI
+                <Badge className="bg-violet-500/20 text-violet-300 border-violet-500/30">
+                  <Sparkles className="w-3 h-3 mr-1" />
+                  Powered by AI
+                </Badge>
+              </h1>
+              <p className="text-slate-400">
+                Autonomous lead generation, nurturing, calling, and engagement system
+              </p>
+            </div>
+          </div>
+
+          {/* Autopilot Toggle */}
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700">
+              <span className="text-sm text-slate-400">AI Autopilot</span>
+              <Switch
+                checked={isAutoPilot}
+                onCheckedChange={toggleAutoPilot}
+                className="data-[state=checked]:bg-violet-500"
+              />
+              {isAutoPilot && (
+                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Autopilot Status Banner */}
+        {isAutoPilot && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-between px-5 py-4 rounded-xl bg-gradient-to-r from-violet-600/20 to-fuchsia-600/20 border border-violet-500/30 backdrop-blur"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse shadow-lg shadow-emerald-400/50" />
+              <Bot className="w-5 h-5 text-violet-400" />
+              <div>
+                <span className="font-semibold text-violet-300">LeadSync AI is running</span>
+                <span className="text-slate-400 ml-2">
+                  Automatically finding leads, sending emails, and managing conversations
+                </span>
+              </div>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="text-violet-300 hover:text-white hover:bg-violet-500/20"
+              onClick={toggleAutoPilot}
+            >
+              <Pause className="w-4 h-4 mr-1" />
+              Pause
+            </Button>
+          </motion.div>
+        )}
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {[
+            { label: 'Leads Generated', value: stats.leadsGenerated.toLocaleString(), icon: Users, color: 'text-blue-400' },
+            { label: 'Emails Sent', value: stats.emailsSent.toLocaleString(), icon: Mail, color: 'text-emerald-400' },
+            { label: 'Calls Made', value: stats.callsMade.toLocaleString(), icon: Phone, color: 'text-amber-400' },
+            { label: 'Chats Handled', value: stats.chatsHandled.toLocaleString(), icon: MessageSquare, color: 'text-purple-400' },
+            { label: 'Conversion Rate', value: `${stats.conversionRate}%`, icon: TrendingUp, color: 'text-rose-400' },
+            { label: 'Response Rate', value: `${stats.responseRate}%`, icon: Eye, color: 'text-cyan-400' },
+          ].map((stat, idx) => (
+            <Card key={idx} className="bg-slate-900 border-slate-800">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <stat.icon className={`w-4 h-4 ${stat.color}`} />
+                  <span className="text-xs text-slate-500 uppercase tracking-wide">{stat.label}</span>
+                </div>
+                <div className="text-2xl font-bold text-white">{stat.value}</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Main Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="bg-slate-900 border border-slate-800 p-1">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white">
+              <Layers className="w-4 h-4 mr-2" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="lead-gen" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white">
+              <Target className="w-4 h-4 mr-2" />
+              Lead Generation
+            </TabsTrigger>
+            <TabsTrigger value="campaigns" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white">
+              <Mail className="w-4 h-4 mr-2" />
+              Email Sequences
+            </TabsTrigger>
+            <TabsTrigger value="calls" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white">
+              <Phone className="w-4 h-4 mr-2" />
+              AI Calls
+            </TabsTrigger>
+            <TabsTrigger value="chat" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white">
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Chat AI
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white">
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Analytics
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-6">
+            {/* AI Capabilities Grid */}
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {AI_CAPABILITIES.map((cap) => (
+                <Card 
+                  key={cap.id} 
+                  className="bg-slate-900 border-slate-800 hover:border-slate-700 transition-all cursor-pointer group"
+                  onClick={() => setActiveTab(cap.id === 'lead-gen' ? 'lead-gen' : cap.id === 'email-nurture' ? 'campaigns' : cap.id === 'ai-calls' ? 'calls' : cap.id === 'chat-ai' ? 'chat' : 'analytics')}
+                >
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${cap.color} flex items-center justify-center shadow-lg`}>
+                        <cap.icon className="w-6 h-6 text-white" />
+                      </div>
+                      {cap.status === 'active' ? (
+                        <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                          Active
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-slate-700 text-slate-400 border-slate-600">
+                          Coming Soon
+                        </Badge>
+                      )}
+                    </div>
+                    <h3 className="font-semibold text-white mb-1 group-hover:text-violet-300 transition-colors">
+                      {cap.title}
+                    </h3>
+                    <p className="text-sm text-slate-400">{cap.description}</p>
+                    <div className="flex items-center gap-1 mt-3 text-violet-400 text-sm">
+                      <span>Configure</span>
+                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Active Campaigns */}
+            <Card className="bg-slate-900 border-slate-800">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-white">Active Campaigns</CardTitle>
+                    <CardDescription>AI-managed outreach sequences currently running</CardDescription>
+                  </div>
+                  <Button 
+                    className="bg-violet-500 hover:bg-violet-600"
+                    onClick={() => setActiveTab('campaigns')}
+                  >
+                    <Zap className="w-4 h-4 mr-2" />
+                    New Campaign
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {campaigns.filter(c => c.status === 'active').map((campaign) => (
+                    <div 
+                      key={campaign.id}
+                      className="flex items-center justify-between p-4 rounded-xl bg-slate-800/50 border border-slate-700"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                          campaign.type === 'multi-channel' 
+                            ? 'bg-gradient-to-br from-violet-500 to-fuchsia-500'
+                            : campaign.type === 'email'
+                            ? 'bg-gradient-to-br from-emerald-500 to-teal-500'
+                            : 'bg-gradient-to-br from-amber-500 to-orange-500'
+                        }`}>
+                          {campaign.type === 'multi-channel' ? <Layers className="w-5 h-5 text-white" /> :
+                           campaign.type === 'email' ? <Mail className="w-5 h-5 text-white" /> :
+                           <Phone className="w-5 h-5 text-white" />}
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-white">{campaign.name}</h4>
+                          <p className="text-sm text-slate-400">
+                            {campaign.sent} / {campaign.leads} sent • {campaign.opened} opened • {campaign.replied} replied
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Progress 
+                          value={(campaign.sent / campaign.leads) * 100} 
+                          className="w-24 h-2 bg-slate-700"
+                        />
+                        <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                          <Activity className="w-3 h-3 mr-1" />
+                          {Math.round((campaign.sent / campaign.leads) * 100)}%
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => toggleCampaign(campaign.id)}
+                          className="text-slate-400 hover:text-white"
+                        >
+                          <Pause className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Lead Generation Tab */}
+          <TabsContent value="lead-gen" className="space-y-6">
+            <div className="grid lg:grid-cols-2 gap-6">
+              {/* Settings Card */}
+              <Card className="bg-slate-900 border-slate-800">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Target className="w-5 h-5 text-blue-400" />
+                    Lead Collection Criteria
+                  </CardTitle>
+                  <CardDescription>
+                    Define what types of leads AI should automatically collect
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-3">
+                    <Label className="text-slate-300">Industry / Niche</Label>
+                    <Input
+                      value={leadGenSettings.industry}
+                      onChange={(e) => setLeadGenSettings(prev => ({ ...prev, industry: e.target.value }))}
+                      placeholder="e.g., Local Services, SaaS, Healthcare"
+                      className="bg-slate-800 border-slate-700 text-white"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="text-slate-300">Location</Label>
+                    <Input
+                      value={leadGenSettings.location}
+                      onChange={(e) => setLeadGenSettings(prev => ({ ...prev, location: e.target.value }))}
+                      placeholder="e.g., United States, California, New York City"
+                      className="bg-slate-800 border-slate-700 text-white"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="text-slate-300">Company Size</Label>
+                    <Input
+                      value={leadGenSettings.companySize}
+                      onChange={(e) => setLeadGenSettings(prev => ({ ...prev, companySize: e.target.value }))}
+                      placeholder="e.g., 10-50 employees"
+                      className="bg-slate-800 border-slate-700 text-white"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <Label className="text-slate-300">Daily Lead Limit</Label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="range"
+                        min={10}
+                        max={500}
+                        value={leadGenSettings.dailyLimit}
+                        onChange={(e) => setLeadGenSettings(prev => ({ ...prev, dailyLimit: parseInt(e.target.value) }))}
+                        className="flex-1"
+                      />
+                      <span className="text-white font-medium w-12">{leadGenSettings.dailyLimit}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between p-4 rounded-xl bg-slate-800 border border-slate-700">
+                    <div>
+                      <div className="font-medium text-white">Auto-Collect Mode</div>
+                      <div className="text-sm text-slate-400">AI continuously finds and adds leads</div>
+                    </div>
+                    <Switch
+                      checked={leadGenSettings.autoCollect}
+                      onCheckedChange={(checked) => setLeadGenSettings(prev => ({ ...prev, autoCollect: checked }))}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Actions Card */}
+              <Card className="bg-slate-900 border-slate-800">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-amber-400" />
+                    Quick Actions
+                  </CardTitle>
+                  <CardDescription>
+                    Start AI-powered lead generation instantly
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Button 
+                    className="w-full h-14 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-lg"
+                    onClick={startLeadGeneration}
+                  >
+                    <Target className="w-5 h-5 mr-2" />
+                    Start AI Lead Generation
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    className="w-full h-14 border-slate-700 text-slate-300 hover:bg-slate-800 text-lg"
+                    onClick={onNavigateToSearch}
+                  >
+                    <Globe className="w-5 h-5 mr-2" />
+                    Manual Search Mode
+                  </Button>
+                  <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Brain className="w-4 h-4 text-blue-400" />
+                      <span className="font-medium text-blue-300">AI Learning</span>
+                    </div>
+                    <p className="text-sm text-slate-400">
+                      The AI analyzes your successful conversions to identify patterns and find more leads like your best customers.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Email Sequences Tab */}
+          <TabsContent value="campaigns" className="space-y-6">
+            <Card className="bg-slate-900 border-slate-800">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-white flex items-center gap-2">
+                      <Mail className="w-5 h-5 text-emerald-400" />
+                      AI Email Sequences
+                    </CardTitle>
+                    <CardDescription>
+                      Personalized email campaigns that learn and optimize
+                    </CardDescription>
+                  </div>
+                  <Button className="bg-emerald-500 hover:bg-emerald-600">
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Create AI Sequence
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {campaigns.map((campaign) => (
+                    <div 
+                      key={campaign.id}
+                      className="p-5 rounded-xl bg-slate-800/50 border border-slate-700 space-y-4"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <h4 className="font-semibold text-white">{campaign.name}</h4>
+                          <Badge className={
+                            campaign.status === 'active' 
+                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                              : campaign.status === 'paused'
+                              ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                              : 'bg-slate-700 text-slate-400'
+                          }>
+                            {campaign.status}
+                          </Badge>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleCampaign(campaign.id)}
+                          className="text-slate-400 hover:text-white"
+                        >
+                          {campaign.status === 'active' ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                        </Button>
+                      </div>
+                      <div className="grid grid-cols-4 gap-4">
+                        <div className="text-center p-3 rounded-lg bg-slate-900">
+                          <div className="text-lg font-bold text-white">{campaign.leads}</div>
+                          <div className="text-xs text-slate-500">Total Leads</div>
+                        </div>
+                        <div className="text-center p-3 rounded-lg bg-slate-900">
+                          <div className="text-lg font-bold text-emerald-400">{campaign.sent}</div>
+                          <div className="text-xs text-slate-500">Sent</div>
+                        </div>
+                        <div className="text-center p-3 rounded-lg bg-slate-900">
+                          <div className="text-lg font-bold text-blue-400">{campaign.opened}</div>
+                          <div className="text-xs text-slate-500">Opened</div>
+                        </div>
+                        <div className="text-center p-3 rounded-lg bg-slate-900">
+                          <div className="text-lg font-bold text-violet-400">{campaign.replied}</div>
+                          <div className="text-xs text-slate-500">Replied</div>
+                        </div>
+                      </div>
+                      <Progress 
+                        value={(campaign.sent / campaign.leads) * 100} 
+                        className="h-2 bg-slate-700"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* AI Calls Tab */}
+          <TabsContent value="calls" className="space-y-6">
+            <Card className="bg-slate-900 border-slate-800">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Phone className="w-5 h-5 text-amber-400" />
+                  AI Voice Calling
+                </CardTitle>
+                <CardDescription>
+                  Automated outbound calls with AI-driven conversations
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="p-5 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/30 text-center">
+                    <Phone className="w-8 h-8 text-amber-400 mx-auto mb-2" />
+                    <div className="text-2xl font-bold text-white">{stats.callsMade}</div>
+                    <div className="text-sm text-slate-400">Total Calls Made</div>
+                  </div>
+                  <div className="p-5 rounded-xl bg-slate-800 border border-slate-700 text-center">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                    <div className="text-2xl font-bold text-white">67%</div>
+                    <div className="text-sm text-slate-400">Answer Rate</div>
+                  </div>
+                  <div className="p-5 rounded-xl bg-slate-800 border border-slate-700 text-center">
+                    <Calendar className="w-8 h-8 text-violet-400 mx-auto mb-2" />
+                    <div className="text-2xl font-bold text-white">24</div>
+                    <div className="text-sm text-slate-400">Meetings Booked</div>
+                  </div>
+                </div>
+                <div className="p-5 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                  <div className="flex items-center gap-3 mb-3">
+                    <Bot className="w-5 h-5 text-amber-400" />
+                    <span className="font-semibold text-amber-300">AI Voice Agent Ready</span>
+                  </div>
+                  <p className="text-sm text-slate-400 mb-4">
+                    Configure your ElevenLabs agent to start making AI-powered calls. The AI learns from successful conversations to improve over time.
+                  </p>
+                  <Button className="bg-amber-500 hover:bg-amber-600 text-black">
+                    Configure Voice Agent
+                    <ArrowUpRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Chat AI Tab */}
+          <TabsContent value="chat" className="space-y-6">
+            <Card className="bg-slate-900 border-slate-800">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5 text-purple-400" />
+                  Chat Conversations AI
+                </CardTitle>
+                <CardDescription>
+                  NLP-powered responses for inbound messages
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 flex items-center justify-center mb-4">
+                    <MessageSquare className="w-10 h-10 text-purple-400" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-white mb-2">Coming Soon</h3>
+                  <p className="text-slate-400 max-w-md mb-6">
+                    AI-powered chat will understand customer intent and provide intelligent responses, escalating to humans when needed.
+                  </p>
+                  <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30">
+                    <Clock className="w-3 h-3 mr-1" />
+                    In Development
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Analytics Tab */}
+          <TabsContent value="analytics" className="space-y-6">
+            <Card className="bg-slate-900 border-slate-800">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-rose-400" />
+                  AI Performance Analytics
+                </CardTitle>
+                <CardDescription>
+                  Track interactions and optimize AI responses
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  {[
+                    { label: 'Open Rate', value: '47.3%', change: '+5.2%', positive: true },
+                    { label: 'Reply Rate', value: '12.8%', change: '+2.1%', positive: true },
+                    { label: 'Bounce Rate', value: '2.4%', change: '-0.8%', positive: true },
+                    { label: 'Unsubscribe', value: '0.3%', change: '-0.1%', positive: true },
+                  ].map((metric, idx) => (
+                    <div key={idx} className="p-4 rounded-xl bg-slate-800 border border-slate-700">
+                      <div className="text-sm text-slate-400 mb-1">{metric.label}</div>
+                      <div className="flex items-end gap-2">
+                        <span className="text-2xl font-bold text-white">{metric.value}</span>
+                        <span className={`text-sm ${metric.positive ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {metric.change}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="p-5 rounded-xl bg-rose-500/10 border border-rose-500/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Brain className="w-4 h-4 text-rose-400" />
+                    <span className="font-medium text-rose-300">AI Insights</span>
+                  </div>
+                  <ul className="text-sm text-slate-400 space-y-2">
+                    <li>• Emails sent on Tuesday at 10 AM have 23% higher open rates</li>
+                    <li>• Subject lines with questions get 18% more replies</li>
+                    <li>• Follow-up on day 3 converts 2x better than day 7</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+}
