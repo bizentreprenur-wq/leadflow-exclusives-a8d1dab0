@@ -76,6 +76,7 @@ export default function EmailSetupFlow({
   const [showCRMModal, setShowCRMModal] = useState(false);
   const [showAutoCampaign, setShowAutoCampaign] = useState(false);
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
+  const [mailboxOpen, setMailboxOpen] = useState(false);
   
   // Auth context for persistent branding
   const { isAuthenticated } = useAuth();
@@ -726,6 +727,7 @@ export default function EmailSetupFlow({
                             const sentCount = Object.values(statuses).filter(s => s === 'sent' || s === 'delivered').length;
                             setDemoSentCount(sentCount);
                           }}
+                          onOpenMailbox={() => setMailboxOpen(true)}
                           renderAfterBanner={
                             <div className="flex justify-center">
                               <Button onClick={() => setShowAutoCampaign(true)} className="gap-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700">
@@ -1016,7 +1018,20 @@ export default function EmailSetupFlow({
   return (
     <div className="space-y-6">
       {/* Floating mailbox on the right (visible throughout Step 3) */}
-      <MailboxDock enabled={true} badgeCount={1} />
+      <MailboxDock 
+        enabled={true} 
+        badgeCount={1}
+        isOpen={mailboxOpen}
+        onOpen={() => setMailboxOpen(true)}
+        onClose={() => setMailboxOpen(false)}
+        campaignContext={
+          (demoIsActive || realSendingMode) ? {
+            isActive: true,
+            sentCount: demoSentCount,
+            totalLeads: emailLeads.length
+          } : undefined
+        }
+      />
 
       {/* Back Buttons */}
       <div className="flex items-center gap-2">
