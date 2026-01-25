@@ -441,22 +441,22 @@ export default function SequenceBuilderModule({ leads = [] }: SequenceBuilderMod
   // Sequence Builder View
   if (showBuilder) {
     return (
-      <div className="space-y-6">
+      <div className="flex-1 h-full overflow-y-auto bg-slate-950 p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold">
+            <h2 className="text-xl font-bold text-white">
               {activeSequence ? 'Edit Sequence' : 'Create New Sequence'}
             </h2>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-slate-400">
               Build your multi-channel outreach flow
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setShowBuilder(false)}>
+            <Button variant="outline" onClick={() => setShowBuilder(false)} className="border-slate-700 text-slate-300 hover:text-white">
               Cancel
             </Button>
-            <Button onClick={handleSaveSequence} className="gap-2">
+            <Button onClick={handleSaveSequence} className="gap-2 bg-emerald-500 hover:bg-emerald-600">
               <Save className="w-4 h-4" />
               Save Sequence
             </Button>
@@ -747,19 +747,19 @@ export default function SequenceBuilderModule({ leads = [] }: SequenceBuilderMod
 
   // Sequences List View
   return (
-    <div className="space-y-6">
+    <div className="flex-1 h-full overflow-y-auto bg-slate-950 p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <Zap className="w-5 h-5 text-primary" />
+          <h2 className="text-xl font-bold flex items-center gap-2 text-white">
+            <Zap className="w-5 h-5 text-emerald-400" />
             Multi-Channel Sequences
           </h2>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-slate-400">
             Automate Email → LinkedIn → SMS outreach flows
           </p>
         </div>
-        <Button onClick={handleCreateSequence} className="gap-2">
+        <Button onClick={handleCreateSequence} className="gap-2 bg-emerald-500 hover:bg-emerald-600">
           <Plus className="w-4 h-4" />
           New Sequence
         </Button>
