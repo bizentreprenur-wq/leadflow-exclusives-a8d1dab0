@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { X, Mail } from "lucide-react";
 
@@ -11,15 +11,51 @@ type MailboxDockProps = {
   /** Small badge count shown on the mailbox (defaults to 1 to match the mock) */
   badgeCount?: number;
   className?: string;
+  /** Controlled open state - when provided, component becomes controlled */
+  isOpen?: boolean;
+  /** Callback when the mailbox should open */
+  onOpen?: () => void;
+  /** Callback when the mailbox should close */
+  onClose?: () => void;
+  /** Campaign context to show in mailbox header */
+  campaignContext?: {
+    isActive: boolean;
+    sentCount: number;
+    totalLeads: number;
+  };
 };
 
 export default function MailboxDock({
   enabled = true,
   badgeCount = 1,
   className,
+  isOpen: controlledIsOpen,
+  onOpen,
+  onClose,
+  campaignContext,
 }: MailboxDockProps) {
   const [mounted, setMounted] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  
+  // Support both controlled and uncontrolled modes
+  const isControlled = controlledIsOpen !== undefined;
+  const isOpen = isControlled ? controlledIsOpen : internalIsOpen;
+
+  const handleOpen = useCallback(() => {
+    if (isControlled && onOpen) {
+      onOpen();
+    } else {
+      setInternalIsOpen(true);
+    }
+  }, [isControlled, onOpen]);
+
+  const handleClose = useCallback(() => {
+    if (isControlled && onClose) {
+      onClose();
+    } else {
+      setInternalIsOpen(false);
+    }
+  }, [isControlled, onClose]);
 
   useEffect(() => {
     setMounted(true);
@@ -28,7 +64,7 @@ export default function MailboxDock({
   // Close on Escape key
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsOpen(false);
+      if (e.key === 'Escape') handleClose();
     };
     if (isOpen) {
       document.addEventListener('keydown', handleEsc);
@@ -38,7 +74,7 @@ export default function MailboxDock({
       document.removeEventListener('keydown', handleEsc);
       document.body.style.overflow = '';
     };
-  }, [isOpen]);
+  }, [isOpen, handleClose]);
 
   if (!enabled || !mounted) return null;
 
@@ -56,7 +92,7 @@ export default function MailboxDock({
       >
         <button
           type="button"
-          onClick={() => setIsOpen(true)}
+          onClick={handleOpen}
           className={cn(
             "group relative flex flex-col items-center gap-1",
             "rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-600 to-emerald-700",
@@ -92,9 +128,17 @@ export default function MailboxDock({
       {/* Full Screen Mailbox Modal */}
       {isOpen && (
         <div className="fixed inset-0 z-[100] animate-in fade-in duration-200">
+          {/* Campaign Running Indicator */}
+          {campaignContext?.isActive && (
+            <div className="absolute top-4 left-4 z-[110] flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-600/90 text-white text-sm shadow-lg backdrop-blur">
+              <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+              <span>Campaign running: {campaignContext.sentCount}/{campaignContext.totalLeads} sent</span>
+            </div>
+          )}
+
           {/* Close Button - floating on top */}
           <button
-            onClick={() => setIsOpen(false)}
+            onClick={handleClose}
             className="absolute top-4 right-4 z-[110] p-2.5 rounded-full bg-slate-800/90 hover:bg-slate-700 text-white shadow-lg transition-colors backdrop-blur"
             aria-label="Close mailbox"
           >

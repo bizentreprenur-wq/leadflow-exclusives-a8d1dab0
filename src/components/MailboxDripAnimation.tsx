@@ -39,6 +39,7 @@ interface MailboxDripAnimationProps {
   onSend?: () => void;
   showControls?: boolean;
   renderAfterBanner?: React.ReactNode;
+  onOpenMailbox?: () => void;
 }
 
 export default function MailboxDripAnimation({
@@ -55,6 +56,7 @@ export default function MailboxDripAnimation({
   onSend,
   showControls = true,
   renderAfterBanner,
+  onOpenMailbox,
 }: MailboxDripAnimationProps) {
   const [flyingEmails, setFlyingEmails] = useState<number[]>([]);
   const [emailId, setEmailId] = useState(0);
@@ -340,14 +342,19 @@ export default function MailboxDripAnimation({
         {/* PROGRESS BAR: Queue → Live → Delivered */}
         <div className="relative mb-8">
           <div className="flex items-center justify-between mb-2">
-            {/* Queue */}
-            <div className="flex flex-col items-center">
-              <div className="w-14 h-14 rounded-xl bg-cyan-500/20 border-2 border-cyan-400/50 flex items-center justify-center mb-1">
+            {/* Queue - Clickable to open mailbox */}
+            <button
+              type="button"
+              onClick={onOpenMailbox}
+              className="flex flex-col items-center group cursor-pointer focus:outline-none"
+              aria-label="Open mailbox queue"
+            >
+              <div className="w-14 h-14 rounded-xl bg-cyan-500/20 border-2 border-cyan-400/50 flex items-center justify-center mb-1 group-hover:bg-cyan-500/30 group-hover:border-cyan-400 transition-all duration-200 group-hover:scale-105">
                 <Inbox className="w-6 h-6 text-cyan-400" />
               </div>
-              <p className="text-xs text-cyan-400 font-medium">Queue</p>
+              <p className="text-xs text-cyan-400 font-medium group-hover:text-cyan-300">Queue</p>
               <p className="text-lg font-bold text-white">{pendingCount}</p>
-            </div>
+            </button>
 
             {/* Progress Track */}
             <div className="flex-1 mx-4 relative">
@@ -385,9 +392,14 @@ export default function MailboxDripAnimation({
               </AnimatePresence>
             </div>
 
-            {/* Delivered */}
-            <div className="flex flex-col items-center">
-              <div className="w-14 h-14 rounded-xl bg-emerald-500/20 border-2 border-emerald-400/50 flex items-center justify-center mb-1 relative">
+            {/* Delivered - Clickable to open mailbox */}
+            <button
+              type="button"
+              onClick={onOpenMailbox}
+              className="flex flex-col items-center group cursor-pointer focus:outline-none"
+              aria-label="Open mailbox delivered"
+            >
+              <div className="w-14 h-14 rounded-xl bg-emerald-500/20 border-2 border-emerald-400/50 flex items-center justify-center mb-1 relative group-hover:bg-emerald-500/30 group-hover:border-emerald-400 transition-all duration-200 group-hover:scale-105">
                 <CheckCircle2 className="w-6 h-6 text-emerald-400" />
                 {actualSentCount > 0 && (
                   <motion.div
@@ -397,9 +409,9 @@ export default function MailboxDripAnimation({
                   />
                 )}
               </div>
-              <p className="text-xs text-emerald-400 font-medium">Delivered</p>
+              <p className="text-xs text-emerald-400 font-medium group-hover:text-emerald-300">Delivered</p>
               <p className="text-lg font-bold text-white">{actualSentCount}</p>
-            </div>
+            </button>
           </div>
 
           {/* Percentage markers */}
