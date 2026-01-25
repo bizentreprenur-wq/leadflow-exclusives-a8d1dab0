@@ -45,6 +45,7 @@ import SMTPConfigPanel from './SMTPConfigPanel';
 import ProposalsContractsPanel from './ProposalsContractsPanel';
 import EmailActivityFeed from './EmailActivityFeed';
 import SequenceBuilderModule from './SequenceBuilderModule';
+import LeadJourneyDashboard from './LeadJourneyDashboard';
 
 // Email template interface
 interface EmailTemplate {
@@ -484,7 +485,7 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
   
   // Top-level mailbox navigation state
   type TopNavTab = 'mailbox' | 'preview' | 'crm' | 'ab' | 'smtp';
-  type MailboxSubTab = 'inbox' | 'sent' | 'activity' | 'sequences' | 'followups' | 'documents';
+  type MailboxSubTab = 'inbox' | 'sent' | 'journey' | 'activity' | 'sequences' | 'followups' | 'documents';
   type DocumentWorkspaceTab = 'proposals' | 'contracts' | 'my-documents';
   const [topTab, setTopTab] = useState<TopNavTab>('mailbox');
   const [mailboxSubTab, setMailboxSubTab] = useState<MailboxSubTab>('inbox');
@@ -1175,7 +1176,8 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
   const mailboxSubTabs: { id: MailboxSubTab; label: string; icon: React.ReactNode }[] = [
     { id: 'inbox', label: 'Inbox', icon: <Inbox className="w-4 h-4" /> },
     { id: 'sent', label: 'Sent', icon: <Send className="w-4 h-4" /> },
-    { id: 'activity', label: 'Activity', icon: <TrendingUp className="w-4 h-4" /> },
+    { id: 'journey', label: 'Lead Journey', icon: <TrendingUp className="w-4 h-4" /> },
+    { id: 'activity', label: 'Activity', icon: <BarChart3 className="w-4 h-4" /> },
     { id: 'sequences', label: 'Multi-Channel Sequences', icon: <Workflow className="w-4 h-4" /> },
     { id: 'followups', label: 'Auto Follow-Ups', icon: <RefreshCw className="w-4 h-4" /> },
     { id: 'documents', label: 'Done For You', icon: <FileSignature className="w-4 h-4" /> },
@@ -1404,6 +1406,18 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
         /* MULTI-CHANNEL SEQUENCES: FULL-SCREEN LAYOUT */
         <div className="flex-1 flex flex-col overflow-hidden bg-slate-950 p-6">
           <SequenceBuilderModule />
+        </div>
+      ) : topTab === 'mailbox' && mailboxSubTab === 'journey' ? (
+        /* LEAD JOURNEY DASHBOARD: FULL-SCREEN LAYOUT */
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <LeadJourneyDashboard 
+            isAutopilotActive={settings.responseMode === 'automatic'}
+            onToggleAutopilot={(active) => {
+              setSettings(prev => ({ ...prev, responseMode: active ? 'automatic' : 'manual' }));
+              saveSettings({ ...settings, responseMode: active ? 'automatic' : 'manual' });
+            }}
+            campaignContext={campaignContext}
+          />
         </div>
       ) : topTab === 'mailbox' && mailboxSubTab === 'activity' ? (
         /* ACTIVITY FEED: FULL-SCREEN LAYOUT */
