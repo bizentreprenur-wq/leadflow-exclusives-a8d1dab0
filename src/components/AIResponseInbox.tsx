@@ -1357,7 +1357,12 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
       </header>
 
       {/* MAIN CONTENT AREA - Changes based on top tab */}
-      {topTab === 'mailbox' ? (
+      {topTab === 'mailbox' && mailboxSubTab === 'followups' ? (
+        /* AUTO FOLLOW-UPS: FULL-SCREEN LAYOUT */
+        <div className="flex-1 flex flex-col overflow-hidden bg-slate-950">
+          <AutoFollowUpBuilder />
+        </div>
+      ) : topTab === 'mailbox' ? (
         /* MAILBOX: 3-PANEL LAYOUT */
         <div className="flex-1 flex overflow-hidden">
           {/* LEFT SIDEBAR - Dark Theme */}
@@ -1586,25 +1591,7 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
             ) : mailboxSubTab === 'activity' ? (
               <EmailActivityFeed />
             ) : activeTab === 'sequences' ? (
-              mailboxSubTab === 'followups' ? (
-                <div className="flex-1 flex flex-col">
-                  <div className="p-4 border-b border-slate-800">
-                    <h2 className="font-bold text-white flex items-center gap-2">
-                      <RefreshCw className="w-5 h-5 text-emerald-400" />
-                      Auto Follow-Ups
-                    </h2>
-                    <p className="text-xs text-slate-400 mt-1">
-                      Let AI automatically follow up based on engagement.
-                    </p>
-                  </div>
-                  <ScrollArea className="flex-1">
-                    <div className="p-3">
-                      <AutoFollowUpBuilder />
-                    </div>
-                  </ScrollArea>
-                </div>
-              ) : (
-                <>
+              <>
                   {/* Sequences Header - Dark Theme */}
                   <div className="p-4 border-b border-slate-800">
                     <div className="flex items-center justify-between mb-3">
@@ -1681,7 +1668,6 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                     </div>
                   </ScrollArea>
                 </>
-              )
             ) : activeTab === 'contracts' ? (
               /* DONE FOR YOU DOCUMENTS - Full-Width Workspace with 3 Tabs */
               <div className="flex-1 flex flex-col bg-slate-900">
