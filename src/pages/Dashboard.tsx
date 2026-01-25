@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -1966,6 +1967,54 @@ export default function Dashboard() {
               <LeadSyncAI onNavigateToSearch={() => setActiveTab('workflow')} />
             ) : activeTab === 'workflow' ? (
               <>
+                {/* LeadSync AI Hero CTA */}
+                <motion.div
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-8"
+                >
+                  <button
+                    onClick={() => setActiveTab('leadsync-ai')}
+                    className="w-full group relative overflow-hidden rounded-2xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-violet-600 p-1 shadow-2xl shadow-violet-500/30 hover:shadow-violet-500/50 transition-all duration-300 hover:scale-[1.01]"
+                  >
+                    <div className="relative flex items-center justify-between gap-6 rounded-xl bg-slate-950/90 backdrop-blur px-8 py-6">
+                      {/* Animated background */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-violet-600/10 via-fuchsia-600/10 to-violet-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      
+                      {/* Left side - Icon and text */}
+                      <div className="relative flex items-center gap-5">
+                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/40 group-hover:scale-110 transition-transform">
+                          <Brain className="w-8 h-8 text-white" />
+                        </div>
+                        <div className="text-left">
+                          <div className="flex items-center gap-3 mb-1">
+                            <h2 className="text-2xl font-bold text-white">LeadSync AI</h2>
+                            <Badge className="bg-violet-500/30 text-violet-300 border-violet-500/50 animate-pulse">
+                              ✨ NEW
+                            </Badge>
+                          </div>
+                          <p className="text-slate-400 text-sm">
+                            100% automated lead generation → Email → SMS → AI Calls → Meetings booked
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Right side - CTA */}
+                      <div className="relative flex items-center gap-4">
+                        <div className="hidden md:flex flex-col items-end text-right">
+                          <span className="text-emerald-400 font-semibold text-sm">7-day free trial</span>
+                          <span className="text-slate-500 text-xs">No credit card required</span>
+                        </div>
+                        <div className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-semibold group-hover:from-violet-400 group-hover:to-fuchsia-400 transition-all shadow-lg">
+                          <Sparkles className="w-5 h-5" />
+                          <span>Launch LeadSync AI</span>
+                          <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                </motion.div>
+
                 {/* Workflow Step Progress */}
                 <div className="mb-8">
                   <div className="flex items-center justify-between mb-6">
