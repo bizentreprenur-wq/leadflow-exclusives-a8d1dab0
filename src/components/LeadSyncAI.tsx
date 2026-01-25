@@ -42,6 +42,8 @@ import {
   Loader2,
 } from 'lucide-react';
 import { getCampaigns, getSends, getEmailStats, EmailCampaign, EmailStats as APIEmailStats } from '@/lib/api/email';
+import { searchGMB, GMBResult } from '@/lib/api/gmb';
+import { quickScoreLeads } from '@/lib/api/aiLeadScoring';
 
 // Types
 interface LeadSyncStats {
@@ -173,6 +175,12 @@ export default function LeadSyncAI({ onNavigateToSearch }: LeadSyncAIProps) {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Lead Generation State
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchProgress, setSearchProgress] = useState(0);
+  const [generatedLeads, setGeneratedLeads] = useState<GMBResult[]>([]);
+  const [lastSearchQuery, setLastSearchQuery] = useState<{ industry: string; location: string } | null>(null);
+
   // Lead Generation Settings
   const [leadGenSettings, setLeadGenSettings] = useState({
     industry: 'Local Services',
@@ -284,8 +292,94 @@ export default function LeadSyncAI({ onNavigateToSearch }: LeadSyncAIProps) {
     toast.success('Campaign status updated');
   };
 
-  const startLeadGeneration = () => {
-    toast.success('🎯 AI Lead Generation started! Collecting leads based on your criteria...');
+  // Perform actual GMB search with configured criteria
+  const startLeadGeneration = async () => {
+    if (isSearching) return;
+    
+    const { industry, location, dailyLimit } = leadGenSettings;
+    
+    if (!industry.trim() || !location.trim()) {
+      toast.error('Please enter both industry and location');
+      return;
+    }
+
+    setIsSearching(true);
+    setSearchProgress(0);
+    setGeneratedLeads([]);
+    
+    toast.loading(`🎯 AI Lead Generation starting for "${industry}" in "${location}"...`, { id: 'lead-gen' });
+
+    try {
+      const response = await searchGMB(
+        industry,
+        location,
+        Math.min(dailyLimit, 200), // Cap at 200 for initial generation
+        (results, progress) => {
+          // Progressive loading callback
+          setSearchProgress(progress);
+          setGeneratedLeads(results);
+          
+          if (results.length > 0 && results.length % 25 === 0) {
+            toast.loading(`Found ${results.length} leads so far...`, { id: 'lead-gen' });
+          }
+        }
+      );
+
+      if (response.success && response.data) {
+        // Apply AI scoring to all leads
+        const scoredLeads = quickScoreLeads(response.data.map(r => ({
+          id: r.id,
+          name: r.name,
+          phone: r.phone,
+          website: r.url || r.displayLink,
+          email: undefined,
+          address: r.address,
+          rating: r.rating,
+          source: 'gmb' as const,
+          websiteAnalysis: r.websiteAnalysis,
+        })));
+
+        // Store in sessionStorage for dashboard access
+        sessionStorage.setItem('bamlead_search_results', JSON.stringify(scoredLeads));
+        sessionStorage.setItem('bamlead_query', industry);
+        sessionStorage.setItem('bamlead_location', location);
+        sessionStorage.setItem('bamlead_search_type', 'gmb');
+        sessionStorage.setItem('bamlead_current_step', '2');
+
+        setGeneratedLeads(response.data);
+        setLastSearchQuery({ industry, location });
+        
+        // Update stats
+        setStats(prev => ({
+          ...prev,
+          leadsGenerated: prev.leadsGenerated + response.data!.length,
+        }));
+
+        const hotCount = scoredLeads.filter(l => l.aiClassification === 'hot').length;
+        const warmCount = scoredLeads.filter(l => l.aiClassification === 'warm').length;
+
+        toast.success(
+          `🎉 Found ${response.data.length} leads! ${hotCount} hot, ${warmCount} warm. Ready for outreach!`,
+          { id: 'lead-gen', duration: 5000 }
+        );
+      } else {
+        throw new Error(response.error || 'No leads found');
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Search failed';
+      toast.error(`Lead generation failed: ${message}`, { id: 'lead-gen' });
+      console.error('[LeadSyncAI] Search error:', error);
+    } finally {
+      setIsSearching(false);
+      setSearchProgress(100);
+    }
+  };
+
+  // Navigate to dashboard with leads loaded
+  const viewLeadsInDashboard = () => {
+    if (onNavigateToSearch) {
+      onNavigateToSearch();
+    }
   };
 
   const manualRefresh = () => {
@@ -631,12 +725,67 @@ export default function LeadSyncAI({ onNavigateToSearch }: LeadSyncAIProps) {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* Search Progress */}
+                  {isSearching && (
+                    <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/30 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
+                          <span className="font-medium text-blue-300">Finding leads...</span>
+                        </div>
+                        <span className="text-sm text-slate-400">{generatedLeads.length} found</span>
+                      </div>
+                      <Progress value={searchProgress} className="h-2 bg-slate-700" />
+                      <p className="text-xs text-slate-500">
+                        Searching "{leadGenSettings.industry}" in "{leadGenSettings.location}"
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Results Summary */}
+                  {!isSearching && generatedLeads.length > 0 && lastSearchQuery && (
+                    <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                          <span className="font-medium text-emerald-300">
+                            {generatedLeads.length} leads found!
+                          </span>
+                        </div>
+                        <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
+                          Ready
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-slate-400">
+                        "{lastSearchQuery.industry}" in "{lastSearchQuery.location}"
+                      </p>
+                      <Button 
+                        size="sm"
+                        className="w-full bg-emerald-500 hover:bg-emerald-600"
+                        onClick={viewLeadsInDashboard}
+                      >
+                        <ArrowUpRight className="w-4 h-4 mr-2" />
+                        View Leads in Dashboard
+                      </Button>
+                    </div>
+                  )}
+
                   <Button 
-                    className="w-full h-14 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-lg"
+                    className="w-full h-14 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-lg disabled:opacity-50"
                     onClick={startLeadGeneration}
+                    disabled={isSearching}
                   >
-                    <Target className="w-5 h-5 mr-2" />
-                    Start AI Lead Generation
+                    {isSearching ? (
+                      <>
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        Searching...
+                      </>
+                    ) : (
+                      <>
+                        <Target className="w-5 h-5 mr-2" />
+                        Start AI Lead Generation
+                      </>
+                    )}
                   </Button>
                   <Button 
                     variant="outline"
@@ -658,6 +807,70 @@ export default function LeadSyncAI({ onNavigateToSearch }: LeadSyncAIProps) {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Generated Leads Preview */}
+            {generatedLeads.length > 0 && !isSearching && (
+              <Card className="bg-slate-900 border-slate-800">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-white flex items-center gap-2">
+                        <Users className="w-5 h-5 text-blue-400" />
+                        Recently Generated Leads
+                      </CardTitle>
+                      <CardDescription>
+                        Preview of leads found from your last search
+                      </CardDescription>
+                    </div>
+                    <Button 
+                      variant="outline"
+                      className="border-slate-700 text-slate-300 hover:bg-slate-800"
+                      onClick={viewLeadsInDashboard}
+                    >
+                      View All {generatedLeads.length} Leads
+                      <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {generatedLeads.slice(0, 6).map((lead, idx) => (
+                      <div 
+                        key={lead.id || idx}
+                        className="p-4 rounded-xl bg-slate-800/50 border border-slate-700"
+                      >
+                        <h4 className="font-medium text-white truncate">{lead.name}</h4>
+                        <p className="text-sm text-slate-400 truncate">{lead.address || 'No address'}</p>
+                        <div className="flex items-center gap-2 mt-2">
+                          {lead.phone && (
+                            <Badge variant="outline" className="text-xs border-slate-600 text-slate-400">
+                              <Phone className="w-3 h-3 mr-1" />
+                              Phone
+                            </Badge>
+                          )}
+                          {lead.websiteAnalysis?.hasWebsite && (
+                            <Badge variant="outline" className="text-xs border-slate-600 text-slate-400">
+                              <Globe className="w-3 h-3 mr-1" />
+                              Website
+                            </Badge>
+                          )}
+                          {lead.rating && (
+                            <Badge variant="outline" className="text-xs border-amber-500/50 text-amber-400">
+                              ★ {lead.rating}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {generatedLeads.length > 6 && (
+                    <p className="text-center text-sm text-slate-500 mt-4">
+                      +{generatedLeads.length - 6} more leads available
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
 
           {/* Email Sequences Tab */}
