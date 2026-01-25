@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import LeadActionModal from "./LeadActionModal";
 
 const platforms = [
+  { id: "gmb", label: "Google My Business", category: "Directory" },
   { id: "wordpress", label: "WordPress", category: "CMS" },
   { id: "wix", label: "Wix", category: "Builder" },
   { id: "weebly", label: "Weebly", category: "Builder" },
