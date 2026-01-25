@@ -20,10 +20,35 @@ import {
   ArrowUpRight, Copy, Download, ExternalLink, Inbox, Workflow,
   Linkedin, Plus, Pause, Play, Users, ChevronRight, MoreHorizontal,
   MousePointer, Sun, Moon, Flag, Archive, Reply, ReplyAll, Forward,
-  Filter, Search, ChevronLeft, MailOpen, Trash2
+  Filter, Search, ChevronLeft, MailOpen, Trash2, Image, Bold, Italic,
+  Underline, List, Link2, PenTool, Wand2, CalendarPlus
 } from 'lucide-react';
 import { PROPOSAL_TEMPLATES, ProposalTemplate, generateProposalHTML } from '@/lib/proposalTemplates';
 import { CONTRACT_TEMPLATES, ContractTemplate, generateContractHTML } from '@/lib/contractTemplates';
+import { getUserLogoFromStorage } from '@/hooks/useUserBranding';
+
+// Compose email interface
+interface ComposeEmail {
+  to: string;
+  toName: string;
+  subject: string;
+  body: string;
+  attachedDocument?: {
+    type: 'proposal' | 'contract';
+    document: ProposalTemplate | ContractTemplate;
+  };
+  includeAppointmentLink: boolean;
+  appointmentSlots: string[];
+  isAIGenerated: boolean;
+}
+
+// Appointment slot interface
+interface AppointmentSlot {
+  id: string;
+  date: string;
+  time: string;
+  duration: number;
+}
 
 // AI Automation Settings interface
 interface AIAutomationSettings {
@@ -124,6 +149,15 @@ interface Sequence {
   leadsEnrolled: number;
   stats: { sent: number; opened: number; replied: number; };
 }
+
+// Default appointment slots
+const DEFAULT_APPOINTMENT_SLOTS = [
+  'Tomorrow at 2:00 PM',
+  'Tomorrow at 4:00 PM',
+  'Thursday at 10:00 AM',
+  'Thursday at 3:00 PM',
+  'Friday at 11:00 AM'
+];
 
 // Demo data
 const DEMO_SEQUENCES: Sequence[] = [
@@ -352,6 +386,25 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
   const [isSendingDocument, setIsSendingDocument] = useState(false);
   const [documentPreviewHTML, setDocumentPreviewHTML] = useState('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  
+  // Compose email state
+  const [showComposeModal, setShowComposeModal] = useState(false);
+  const [composeEmail, setComposeEmail] = useState<ComposeEmail>({
+    to: '',
+    toName: '',
+    subject: '',
+    body: '',
+    includeAppointmentLink: false,
+    appointmentSlots: [],
+    isAIGenerated: false
+  });
+  const [composeAIMode, setComposeAIMode] = useState(true);
+  const [showDocumentPicker, setShowDocumentPicker] = useState(false);
+  const [isGeneratingComposeAI, setIsGeneratingComposeAI] = useState(false);
+  const [selectedAppointmentSlots, setSelectedAppointmentSlots] = useState<string[]>([]);
+  const [showSequenceBuilder, setShowSequenceBuilder] = useState(false);
+  const [newSequenceName, setNewSequenceName] = useState('');
+  const [newSequenceSteps, setNewSequenceSteps] = useState<SequenceStep[]>([]);
 
   // Save settings
   useEffect(() => {
@@ -512,6 +565,181 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
     toast.success(sequences.find(s => s.id === id)?.status === 'active' ? 'Sequence paused' : 'Sequence activated');
   };
 
+  // Compose email handlers
+  const openComposeModal = (prefillTo?: string, prefillName?: string) => {
+    setComposeEmail({
+      to: prefillTo || '',
+      toName: prefillName || '',
+      subject: '',
+      body: '',
+      includeAppointmentLink: false,
+      appointmentSlots: [],
+      isAIGenerated: false
+    });
+    setSelectedAppointmentSlots([]);
+    setShowComposeModal(true);
+  };
+
+  const generateAIEmailContent = async () => {
+    if (!composeEmail.to || !composeEmail.toName) {
+      toast.error('Please enter recipient details first');
+      return;
+    }
+    setIsGeneratingComposeAI(true);
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    const branding = loadBranding();
+    const firstName = composeEmail.toName.split(' ')[0];
+    
+    let aiSubject = `Exciting Opportunity for ${composeEmail.toName.split(' ').pop() || 'Your Business'}`;
+    let aiBody = `Hi ${firstName},\n\nI hope this email finds you well! I came across your business and was impressed by what you're doing.\n\nI wanted to reach out because I believe we could help you take your business to the next level with our proven lead generation and marketing solutions.\n\n`;
+    
+    if (composeEmail.attachedDocument) {
+      aiBody += `I've attached a ${composeEmail.attachedDocument.type} that outlines exactly how we can help: "${composeEmail.attachedDocument.document.name}"\n\n`;
+    }
+    
+    if (selectedAppointmentSlots.length > 0) {
+      aiBody += `I'd love to schedule a quick call to discuss this further. Here are some available times:\n`;
+      selectedAppointmentSlots.forEach(slot => {
+        aiBody += `• ${slot}\n`;
+      });
+      aiBody += `\nJust reply with the time that works best for you, and I'll send a calendar invite right away.\n\n`;
+    }
+    
+    aiBody += `Looking forward to connecting!\n\nBest regards,\n${branding.contactName || 'Your Name'}\n${branding.companyName || 'Your Company'}`;
+    
+    setComposeEmail(prev => ({
+      ...prev,
+      subject: aiSubject,
+      body: aiBody,
+      isAIGenerated: true
+    }));
+    setIsGeneratingComposeAI(false);
+    toast.success('AI generated email content! Review and customize as needed.');
+  };
+
+  const attachDocumentToEmail = (doc: ProposalTemplate | ContractTemplate, type: 'proposal' | 'contract') => {
+    setComposeEmail(prev => ({
+      ...prev,
+      attachedDocument: { type, document: doc }
+    }));
+    setShowDocumentPicker(false);
+    toast.success(`${type === 'proposal' ? 'Proposal' : 'Contract'} attached to email`);
+  };
+
+  const toggleAppointmentSlot = (slot: string) => {
+    setSelectedAppointmentSlots(prev => 
+      prev.includes(slot) 
+        ? prev.filter(s => s !== slot)
+        : [...prev, slot]
+    );
+  };
+
+  const handleSendComposedEmail = async () => {
+    if (!composeEmail.to || !composeEmail.subject || !composeEmail.body) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    setIsSending(true);
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    const branding = loadBranding();
+    const logoUrl = getUserLogoFromStorage();
+    
+    // Build email with branding
+    const emailWithBranding = `
+${composeEmail.body}
+
+---
+${logoUrl ? `[Company Logo: ${logoUrl}]` : ''}
+${branding.companyName || ''}
+${branding.email || ''}
+${branding.phone || ''}
+    `.trim();
+    
+    console.log('Sending email with branding:', { 
+      to: composeEmail.to, 
+      subject: composeEmail.subject, 
+      body: emailWithBranding,
+      logoUrl,
+      branding 
+    });
+    
+    toast.success(`Email sent to ${composeEmail.toName || composeEmail.to}!`, {
+      description: composeEmail.attachedDocument 
+        ? `Included: ${composeEmail.attachedDocument.document.name}` 
+        : undefined
+    });
+    
+    setShowComposeModal(false);
+    setComposeEmail({
+      to: '',
+      toName: '',
+      subject: '',
+      body: '',
+      includeAppointmentLink: false,
+      appointmentSlots: [],
+      isAIGenerated: false
+    });
+    setIsSending(false);
+  };
+
+  // Sequence builder handlers
+  const addSequenceStep = (type: SequenceStep['type']) => {
+    const newStep: SequenceStep = {
+      id: Date.now().toString(),
+      type,
+      content: type === 'wait' ? undefined : `${type.charAt(0).toUpperCase() + type.slice(1)} content`,
+      subject: type === 'email' ? 'Email Subject' : undefined,
+      waitDays: type === 'wait' ? 2 : undefined
+    };
+    setNewSequenceSteps(prev => [...prev, newStep]);
+  };
+
+  const removeSequenceStep = (stepId: string) => {
+    setNewSequenceSteps(prev => prev.filter(s => s.id !== stepId));
+  };
+
+  const saveNewSequence = () => {
+    if (!newSequenceName || newSequenceSteps.length === 0) {
+      toast.error('Please add a name and at least one step');
+      return;
+    }
+    const newSequence: Sequence = {
+      id: Date.now().toString(),
+      name: newSequenceName,
+      steps: newSequenceSteps,
+      status: 'draft',
+      leadsEnrolled: 0,
+      stats: { sent: 0, opened: 0, replied: 0 }
+    };
+    setSequences(prev => [...prev, newSequence]);
+    setShowSequenceBuilder(false);
+    setNewSequenceName('');
+    setNewSequenceSteps([]);
+    toast.success('Sequence created! Activate it to start enrolling leads.');
+  };
+
+  const generateAISequence = async () => {
+    setIsGeneratingComposeAI(true);
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    const aiSteps: SequenceStep[] = [
+      { id: '1', type: 'email', subject: 'Introduction Email', content: 'Personalized intro' },
+      { id: '2', type: 'wait', waitDays: 2 },
+      { id: '3', type: 'linkedin', content: 'Connection request' },
+      { id: '4', type: 'wait', waitDays: 3 },
+      { id: '5', type: 'email', subject: 'Follow-up Value', content: 'Share case study' },
+      { id: '6', type: 'wait', waitDays: 4 },
+      { id: '7', type: 'call', content: 'Personal outreach call' },
+    ];
+    
+    setNewSequenceSteps(aiSteps);
+    setNewSequenceName('AI-Optimized Outreach');
+    setIsGeneratingComposeAI(false);
+    toast.success('AI generated an optimized sequence! Review and customize.');
+  };
+
   // Navigation items
   const navItems = [
     { id: 'inbox' as MailboxTab, label: 'Inbox', icon: Inbox, count: unreadCount },
@@ -552,9 +780,22 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
           </button>
         </div>
 
+        {/* New Email Button */}
+        {!sidebarCollapsed && (
+          <div className="px-3 py-2">
+            <Button 
+              onClick={() => openComposeModal()}
+              className="w-full gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg"
+            >
+              <PenTool className="w-4 h-4" />
+              New Email
+            </Button>
+          </div>
+        )}
+
         {/* New Email Counter */}
         {!sidebarCollapsed && unreadCount > 0 && (
-          <div className="px-4 py-3">
+          <div className="px-4 py-2">
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-lg animate-pulse">
                 {unreadCount}
@@ -723,7 +964,11 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
             <div className="p-4 border-b border-slate-200">
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-bold text-slate-900">Sequences</h2>
-                <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5">
+                <Button 
+                  size="sm" 
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5"
+                  onClick={() => setShowSequenceBuilder(true)}
+                >
                   <Plus className="w-4 h-4" /> Create
                 </Button>
               </div>
@@ -1230,6 +1475,484 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                 )}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Compose Email Modal */}
+      <Dialog open={showComposeModal} onOpenChange={setShowComposeModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                <PenTool className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <span className="text-lg">Compose New Email</span>
+                <p className="text-sm font-normal text-slate-500">Create and send personalized emails with AI assistance</p>
+              </div>
+            </DialogTitle>
+            <DialogDescription className="sr-only">Compose a new email</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* AI Mode Toggle */}
+            <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+                  <Wand2 className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-900">AI Writing Assistant</p>
+                  <p className="text-xs text-slate-500">Let AI help craft the perfect message</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-slate-500">{composeAIMode ? 'AI Mode' : 'Manual'}</span>
+                <Switch 
+                  checked={composeAIMode} 
+                  onCheckedChange={setComposeAIMode}
+                  className="data-[state=checked]:bg-amber-500"
+                />
+              </div>
+            </div>
+
+            {/* Recipient Fields */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Recipient Email *</Label>
+                <Input
+                  type="email"
+                  placeholder="contact@company.com"
+                  value={composeEmail.to}
+                  onChange={(e) => setComposeEmail(prev => ({ ...prev, to: e.target.value }))}
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold">Recipient Name *</Label>
+                <Input
+                  placeholder="John Smith"
+                  value={composeEmail.toName}
+                  onChange={(e) => setComposeEmail(prev => ({ ...prev, toName: e.target.value }))}
+                  className="h-10"
+                />
+              </div>
+            </div>
+
+            {/* Subject */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Subject *</Label>
+              <Input
+                placeholder="Your email subject..."
+                value={composeEmail.subject}
+                onChange={(e) => setComposeEmail(prev => ({ ...prev, subject: e.target.value }))}
+                className="h-10"
+              />
+            </div>
+
+            {/* Attachments Row */}
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Attach Document */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDocumentPicker(true)}
+                className="gap-2"
+              >
+                <FileText className="w-4 h-4" />
+                {composeEmail.attachedDocument 
+                  ? composeEmail.attachedDocument.document.name 
+                  : 'Attach Proposal/Contract'}
+              </Button>
+
+              {composeEmail.attachedDocument && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setComposeEmail(prev => ({ ...prev, attachedDocument: undefined }))}
+                  className="text-red-500 hover:text-red-700"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              )}
+
+              {/* Include Appointment */}
+              <div className="flex items-center gap-2 ml-auto">
+                <CalendarPlus className="w-4 h-4 text-emerald-600" />
+                <Label className="text-sm">Include Appointment Slots</Label>
+                <Switch
+                  checked={composeEmail.includeAppointmentLink}
+                  onCheckedChange={(v) => setComposeEmail(prev => ({ ...prev, includeAppointmentLink: v }))}
+                  className="data-[state=checked]:bg-emerald-500"
+                />
+              </div>
+            </div>
+
+            {/* Appointment Slots Picker */}
+            {composeEmail.includeAppointmentLink && (
+              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-emerald-600" />
+                  <span className="font-semibold text-sm text-emerald-900">Select Available Time Slots (like jeeva.ai)</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {DEFAULT_APPOINTMENT_SLOTS.map(slot => (
+                    <button
+                      key={slot}
+                      onClick={() => toggleAppointmentSlot(slot)}
+                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                        selectedAppointmentSlots.includes(slot)
+                          ? 'bg-emerald-500 text-white'
+                          : 'bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                      }`}
+                    >
+                      {slot}
+                    </button>
+                  ))}
+                </div>
+                {selectedAppointmentSlots.length > 0 && (
+                  <p className="text-xs text-emerald-600">
+                    ✓ {selectedAppointmentSlots.length} slots selected - AI will intelligently respond and book appointments
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* AI Generate Button */}
+            {composeAIMode && (
+              <Button
+                onClick={generateAIEmailContent}
+                disabled={isGeneratingComposeAI || !composeEmail.to || !composeEmail.toName}
+                className="w-full gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+              >
+                {isGeneratingComposeAI ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    AI is writing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    Generate Email with AI
+                  </>
+                )}
+              </Button>
+            )}
+
+            {/* Email Body */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-semibold">Email Body *</Label>
+                {composeEmail.isAIGenerated && (
+                  <Badge className="bg-amber-100 text-amber-700 text-xs">AI Generated</Badge>
+                )}
+              </div>
+              
+              {/* Simple Formatting Toolbar */}
+              <div className="flex items-center gap-1 p-2 bg-slate-50 rounded-t-lg border border-b-0 border-slate-200">
+                <button className="p-1.5 hover:bg-slate-200 rounded transition-colors">
+                  <Bold className="w-4 h-4 text-slate-600" />
+                </button>
+                <button className="p-1.5 hover:bg-slate-200 rounded transition-colors">
+                  <Italic className="w-4 h-4 text-slate-600" />
+                </button>
+                <button className="p-1.5 hover:bg-slate-200 rounded transition-colors">
+                  <Underline className="w-4 h-4 text-slate-600" />
+                </button>
+                <div className="w-px h-5 bg-slate-300 mx-1" />
+                <button className="p-1.5 hover:bg-slate-200 rounded transition-colors">
+                  <List className="w-4 h-4 text-slate-600" />
+                </button>
+                <button className="p-1.5 hover:bg-slate-200 rounded transition-colors">
+                  <Link2 className="w-4 h-4 text-slate-600" />
+                </button>
+                <button className="p-1.5 hover:bg-slate-200 rounded transition-colors">
+                  <Image className="w-4 h-4 text-slate-600" />
+                </button>
+              </div>
+              
+              <Textarea
+                value={composeEmail.body}
+                onChange={(e) => setComposeEmail(prev => ({ ...prev, body: e.target.value, isAIGenerated: false }))}
+                className="min-h-[200px] rounded-t-none border-t-0 text-sm"
+                placeholder="Write your email content here..."
+              />
+            </div>
+
+            {/* Logo Reminder */}
+            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-slate-200 flex items-center justify-center overflow-hidden">
+                {getUserLogoFromStorage() ? (
+                  <img src={getUserLogoFromStorage()!} alt="Logo" className="w-full h-full object-contain" />
+                ) : (
+                  <Image className="w-5 h-5 text-slate-400" />
+                )}
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-slate-700">Your Logo Will Be Included</p>
+                <p className="text-xs text-slate-500">
+                  {getUserLogoFromStorage() 
+                    ? 'Your business logo will appear in the email footer' 
+                    : 'Upload a logo in Settings to include it in emails'}
+                </p>
+              </div>
+              {!getUserLogoFromStorage() && (
+                <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
+                  Add Logo
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center justify-between pt-4 border-t">
+            <Button variant="outline" onClick={() => setShowComposeModal(false)}>
+              Cancel
+            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" className="gap-2">
+                <Edit3 className="w-4 h-4" />
+                Save Draft
+              </Button>
+              <Button
+                onClick={handleSendComposedEmail}
+                disabled={isSending || !composeEmail.to || !composeEmail.subject || !composeEmail.body}
+                className="gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 min-w-[140px]"
+              >
+                {isSending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    Send Email
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Document Picker Modal */}
+      <Dialog open={showDocumentPicker} onOpenChange={setShowDocumentPicker}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSignature className="w-5 h-5" />
+              Attach Proposal or Contract
+            </DialogTitle>
+            <DialogDescription>Select a document to include with your email</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* Proposals */}
+            <div>
+              <h3 className="font-semibold text-sm text-slate-900 mb-3 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-amber-500" />
+                Proposals
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                {PROPOSAL_TEMPLATES.slice(0, 4).map(proposal => (
+                  <button
+                    key={proposal.id}
+                    onClick={() => attachDocumentToEmail(proposal, 'proposal')}
+                    className="p-4 rounded-xl border border-slate-200 hover:border-amber-300 hover:bg-amber-50 text-left transition-all group"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0 group-hover:bg-amber-200 transition-colors">
+                        <FileText className="w-5 h-5 text-amber-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm text-slate-900">{proposal.name}</p>
+                        <p className="text-xs text-slate-500 line-clamp-2">{proposal.description}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Contracts */}
+            <div>
+              <h3 className="font-semibold text-sm text-slate-900 mb-3 flex items-center gap-2">
+                <FileSignature className="w-4 h-4 text-violet-500" />
+                Contracts
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                {CONTRACT_TEMPLATES.slice(0, 4).map(contract => (
+                  <button
+                    key={contract.id}
+                    onClick={() => attachDocumentToEmail(contract, 'contract')}
+                    className="p-4 rounded-xl border border-slate-200 hover:border-violet-300 hover:bg-violet-50 text-left transition-all group"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-violet-100 flex items-center justify-center flex-shrink-0 group-hover:bg-violet-200 transition-colors">
+                        <FileSignature className="w-5 h-5 text-violet-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-sm text-slate-900">{contract.name}</p>
+                        <p className="text-xs text-slate-500 line-clamp-2">{contract.description}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sequence Builder Modal */}
+      <Dialog open={showSequenceBuilder} onOpenChange={setShowSequenceBuilder}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                <Workflow className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <span className="text-lg">Create Email Sequence</span>
+                <p className="text-sm font-normal text-slate-500">Build automated multi-channel outreach flows</p>
+              </div>
+            </DialogTitle>
+            <DialogDescription className="sr-only">Create a new email sequence</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* AI Mode Toggle for Sequences */}
+            <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-200">
+              <div className="flex items-center gap-3">
+                <Bot className="w-8 h-8 text-violet-600" />
+                <div>
+                  <p className="font-semibold text-slate-900">AI Sequence Builder</p>
+                  <p className="text-xs text-slate-500">Let AI create an optimized outreach sequence</p>
+                </div>
+              </div>
+              <Button
+                onClick={generateAISequence}
+                disabled={isGeneratingComposeAI}
+                size="sm"
+                className="gap-2 bg-violet-600 hover:bg-violet-700"
+              >
+                {isGeneratingComposeAI ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Wand2 className="w-4 h-4" />
+                )}
+                Generate with AI
+              </Button>
+            </div>
+
+            {/* Sequence Name */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Sequence Name</Label>
+              <Input
+                placeholder="e.g., Cold Outreach Sequence"
+                value={newSequenceName}
+                onChange={(e) => setNewSequenceName(e.target.value)}
+              />
+            </div>
+
+            {/* Add Step Buttons */}
+            <div>
+              <Label className="text-sm font-semibold mb-3 block">Add Steps</Label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { type: 'email' as const, icon: Mail, label: 'Email', color: 'emerald' },
+                  { type: 'linkedin' as const, icon: Linkedin, label: 'LinkedIn', color: 'blue' },
+                  { type: 'sms' as const, icon: MessageSquare, label: 'SMS', color: 'violet' },
+                  { type: 'call' as const, icon: Phone, label: 'Call', color: 'amber' },
+                  { type: 'wait' as const, icon: Clock, label: 'Wait', color: 'slate' },
+                ].map(item => (
+                  <Button
+                    key={item.type}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => addSequenceStep(item.type)}
+                    className={`gap-2 hover:bg-${item.color}-50 hover:border-${item.color}-300`}
+                  >
+                    <item.icon className="w-4 h-4" />
+                    {item.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Steps List */}
+            <div className="space-y-2">
+              <Label className="text-sm font-semibold">Sequence Steps ({newSequenceSteps.length})</Label>
+              {newSequenceSteps.length === 0 ? (
+                <div className="p-8 rounded-xl border-2 border-dashed border-slate-200 text-center">
+                  <Workflow className="w-10 h-10 mx-auto mb-3 text-slate-300" />
+                  <p className="text-sm text-slate-500">Click the buttons above to add steps</p>
+                  <p className="text-xs text-slate-400">Or use AI to generate a complete sequence</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {newSequenceSteps.map((step, idx) => (
+                    <div 
+                      key={step.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg border ${
+                        step.type === 'email' ? 'bg-emerald-50 border-emerald-200' :
+                        step.type === 'linkedin' ? 'bg-blue-50 border-blue-200' :
+                        step.type === 'sms' ? 'bg-violet-50 border-violet-200' :
+                        step.type === 'call' ? 'bg-amber-50 border-amber-200' :
+                        'bg-slate-50 border-slate-200'
+                      }`}
+                    >
+                      <span className="text-xs font-bold text-slate-400 w-6">{idx + 1}</span>
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                        step.type === 'email' ? 'bg-emerald-200 text-emerald-700' :
+                        step.type === 'linkedin' ? 'bg-blue-200 text-blue-700' :
+                        step.type === 'sms' ? 'bg-violet-200 text-violet-700' :
+                        step.type === 'call' ? 'bg-amber-200 text-amber-700' :
+                        'bg-slate-200 text-slate-700'
+                      }`}>
+                        {step.type === 'email' && <Mail className="w-4 h-4" />}
+                        {step.type === 'linkedin' && <Linkedin className="w-4 h-4" />}
+                        {step.type === 'sms' && <MessageSquare className="w-4 h-4" />}
+                        {step.type === 'call' && <Phone className="w-4 h-4" />}
+                        {step.type === 'wait' && <Clock className="w-4 h-4" />}
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-medium text-sm text-slate-900 capitalize">
+                          {step.type === 'wait' ? `Wait ${step.waitDays} days` : step.type}
+                        </p>
+                        {step.subject && <p className="text-xs text-slate-500">{step.subject}</p>}
+                        {step.content && step.type !== 'wait' && <p className="text-xs text-slate-500">{step.content}</p>}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeSequenceStep(step.id)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center justify-between pt-4 border-t">
+            <Button variant="outline" onClick={() => { setShowSequenceBuilder(false); setNewSequenceSteps([]); setNewSequenceName(''); }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={saveNewSequence}
+              disabled={!newSequenceName || newSequenceSteps.length === 0}
+              className="gap-2 bg-gradient-to-r from-violet-500 to-purple-600"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              Create Sequence
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
