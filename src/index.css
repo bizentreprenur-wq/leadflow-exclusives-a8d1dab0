@@ -253,16 +253,20 @@
 @layer components {
   /* Mailbox-only theme scope (does not affect the rest of the site) */
   .mailbox-scope {
-    --mailbox-surface: 0 0% 100%;
-    --mailbox-surface-2: 210 40% 98%;
+    --mailbox-bg: 0 0% 100%;
+    --mailbox-surface: 210 40% 98%;
+    --mailbox-surface-2: 214 32% 96%;
     --mailbox-border: 214 32% 91%;
     --mailbox-foreground: 222 47% 11%;
     --mailbox-muted-foreground: 215 16% 47%;
     --mailbox-input: 210 40% 96%;
     --mailbox-hover: 210 40% 94%;
+    --mailbox-header-bg: 215 28% 17%;
+    --mailbox-header-text: 0 0% 100%;
   }
 
   .mailbox-scope[data-mailbox-theme="dark"] {
+    --mailbox-bg: 222 47% 6%;
     --mailbox-surface: 222 47% 9%;
     --mailbox-surface-2: 222 47% 11%;
     --mailbox-border: 217 33% 20%;
@@ -270,13 +274,20 @@
     --mailbox-muted-foreground: 215 20% 65%;
     --mailbox-input: 217 33% 15%;
     --mailbox-hover: 217 33% 17%;
+    --mailbox-header-bg: 222 47% 8%;
+    --mailbox-header-text: 210 40% 98%;
   }
+
+  /* Mailbox background */
+  .mailbox-scope { background-color: hsl(var(--mailbox-bg)); }
 
   /* Override the few hard-coded Tailwind palette utilities used inside the mailbox */
   .mailbox-scope .bg-white { background-color: hsl(var(--mailbox-surface)); }
   .mailbox-scope .bg-slate-50 { background-color: hsl(var(--mailbox-surface-2)); }
   .mailbox-scope .bg-slate-100 { background-color: hsl(var(--mailbox-hover)); }
   .mailbox-scope .border-slate-200 { border-color: hsl(var(--mailbox-border)); }
+  .mailbox-scope .divide-slate-100 > * + * { border-color: hsl(var(--mailbox-border)); }
+  .mailbox-scope .divide-slate-200 > * + * { border-color: hsl(var(--mailbox-border)); }
 
   .mailbox-scope .text-slate-900,
   .mailbox-scope .text-slate-800,
@@ -290,4 +301,9 @@
   .mailbox-scope .hover\:bg-slate-200:hover { background-color: hsl(var(--mailbox-hover)); }
 
   .mailbox-scope .hover\:text-slate-900:hover { color: hsl(var(--mailbox-foreground)); }
+
+  /* Card and input overrides */
+  .mailbox-scope .bg-slate-800 { background-color: hsl(var(--mailbox-header-bg)); }
+  .mailbox-scope .bg-slate-700 { background-color: hsl(217 33% 25%); }
+  .mailbox-scope .bg-slate-700\/50 { background-color: hsl(217 33% 25% / 0.5); }
 }
