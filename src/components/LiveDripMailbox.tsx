@@ -60,13 +60,24 @@ const DEMO_LEADS: QueuedEmail[] = [
 
 type ViewMode = 'mailbox' | 'preview' | 'crm' | 'ab' | 'smtp' | 'inbox';
 
+// Email template type
+interface EmailTemplate {
+  id?: string;
+  name: string;
+  subject: string;
+  body?: string;
+  html?: string;
+  category?: string;
+}
+
 interface LiveDripMailboxProps {
   onSwitchToFullMailbox?: () => void;
   leads?: Lead[];
   verifiedLeads?: Lead[];
+  selectedTemplate?: EmailTemplate | null;
 }
 
-export default function LiveDripMailbox({ onSwitchToFullMailbox, leads = [], verifiedLeads = [] }: LiveDripMailboxProps) {
+export default function LiveDripMailbox({ onSwitchToFullMailbox, leads = [], verifiedLeads = [], selectedTemplate }: LiveDripMailboxProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('mailbox');
   const [isLiveMode, setIsLiveMode] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -79,6 +90,28 @@ export default function LiveDripMailbox({ onSwitchToFullMailbox, leads = [], ver
   const [sendHot, setSendHot] = useState(true);
   const [sendWarm, setSendWarm] = useState(true);
   const [sendCold, setSendCold] = useState(false);
+  
+  // Template assignments per category
+  const [hotTemplate, setHotTemplate] = useState<EmailTemplate | null>(null);
+  const [warmTemplate, setWarmTemplate] = useState<EmailTemplate | null>(null);
+  const [coldTemplate, setColdTemplate] = useState<EmailTemplate | null>(null);
+  
+  // Default templates for each category
+  const defaultTemplates: EmailTemplate[] = [
+    { id: 'aggressive', name: 'Aggressive Pitch', subject: 'Quick question about {{business}}', category: 'hot' },
+    { id: 'friendly', name: 'Friendly Intro', subject: 'Helping {{business}} grow online', category: 'warm' },
+    { id: 'educational', name: 'Educational Value', subject: 'Free tips for {{business}}', category: 'cold' },
+    { id: 'followup', name: 'Follow-Up', subject: 'Following up on my last email', category: 'all' },
+  ];
+  
+  // Auto-assign selected template from Step 2 to all categories
+  useEffect(() => {
+    if (selectedTemplate) {
+      if (!hotTemplate) setHotTemplate(selectedTemplate);
+      if (!warmTemplate) setWarmTemplate(selectedTemplate);
+      if (!coldTemplate) setColdTemplate(selectedTemplate);
+    }
+  }, [selectedTemplate]);
   
   // Computed stats
   const sentCount = emailQueue.filter(e => e.status === 'sent').length;
@@ -641,21 +674,33 @@ export default function LiveDripMailbox({ onSwitchToFullMailbox, leads = [], ver
             </div>
           </div>
 
-          {/* Lead Category Toggles */}
+          {/* Lead Category Toggles with Template Assignment */}
           <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
             <h3 className="font-semibold text-sm text-slate-300 mb-4 flex items-center gap-2">
               <Zap className="w-4 h-4 text-amber-400" />
-              Select Lead Categories to Send
+              Select Lead Categories & Assign Templates
             </h3>
+            
+            {/* Selected Template from Step 2 */}
+            {selectedTemplate && (
+              <div className="mb-4 p-3 bg-emerald-900/30 border border-emerald-500/30 rounded-lg">
+                <div className="flex items-center gap-2 text-xs text-emerald-400 mb-1">
+                  <FileText className="w-3 h-3" />
+                  Template from Step 2
+                </div>
+                <p className="font-medium text-white text-sm">{selectedTemplate.name}</p>
+                <p className="text-xs text-slate-400 truncate">{selectedTemplate.subject}</p>
+              </div>
+            )}
+            
             <div className="grid grid-cols-3 gap-4">
               {/* Hot Leads */}
-              <button
-                onClick={() => setSendHot(!sendHot)}
+              <div
                 className={cn(
                   "p-4 rounded-xl border-2 transition-all",
                   sendHot
                     ? "border-red-500 bg-red-500/10"
-                    : "border-slate-700 bg-slate-800/50 hover:border-slate-600"
+                    : "border-slate-700 bg-slate-800/50"
                 )}
               >
                 <div className="flex items-center justify-between mb-2">
@@ -663,17 +708,39 @@ export default function LiveDripMailbox({ onSwitchToFullMailbox, leads = [], ver
                   <Switch checked={sendHot} onCheckedChange={setSendHot} />
                 </div>
                 <p className="text-2xl font-bold text-red-400">{hotLeads.length}</p>
-                <p className="text-xs text-slate-500">High-intent leads</p>
-              </button>
+                <p className="text-xs text-slate-500 mb-3">High-intent leads</p>
+                
+                {/* Template selector */}
+                <div className="space-y-2">
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wide">Template:</p>
+                  <select 
+                    className="w-full text-xs bg-slate-900 border border-slate-700 rounded-md px-2 py-1.5 text-white"
+                    value={hotTemplate?.id || selectedTemplate?.id || 'aggressive'}
+                    onChange={(e) => {
+                      const tmpl = [...defaultTemplates, selectedTemplate].find(t => t?.id === e.target.value);
+                      if (tmpl) setHotTemplate(tmpl);
+                    }}
+                  >
+                    {selectedTemplate && (
+                      <option value={selectedTemplate.id}>✓ {selectedTemplate.name}</option>
+                    )}
+                    {defaultTemplates.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                  {hotTemplate && (
+                    <p className="text-[10px] text-slate-500 truncate">"{hotTemplate.subject}"</p>
+                  )}
+                </div>
+              </div>
 
               {/* Warm Leads */}
-              <button
-                onClick={() => setSendWarm(!sendWarm)}
+              <div
                 className={cn(
                   "p-4 rounded-xl border-2 transition-all",
                   sendWarm
                     ? "border-amber-500 bg-amber-500/10"
-                    : "border-slate-700 bg-slate-800/50 hover:border-slate-600"
+                    : "border-slate-700 bg-slate-800/50"
                 )}
               >
                 <div className="flex items-center justify-between mb-2">
@@ -681,17 +748,39 @@ export default function LiveDripMailbox({ onSwitchToFullMailbox, leads = [], ver
                   <Switch checked={sendWarm} onCheckedChange={setSendWarm} />
                 </div>
                 <p className="text-2xl font-bold text-amber-400">{warmLeads.length}</p>
-                <p className="text-xs text-slate-500">Interested prospects</p>
-              </button>
+                <p className="text-xs text-slate-500 mb-3">Interested prospects</p>
+                
+                {/* Template selector */}
+                <div className="space-y-2">
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wide">Template:</p>
+                  <select 
+                    className="w-full text-xs bg-slate-900 border border-slate-700 rounded-md px-2 py-1.5 text-white"
+                    value={warmTemplate?.id || selectedTemplate?.id || 'friendly'}
+                    onChange={(e) => {
+                      const tmpl = [...defaultTemplates, selectedTemplate].find(t => t?.id === e.target.value);
+                      if (tmpl) setWarmTemplate(tmpl);
+                    }}
+                  >
+                    {selectedTemplate && (
+                      <option value={selectedTemplate.id}>✓ {selectedTemplate.name}</option>
+                    )}
+                    {defaultTemplates.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                  {warmTemplate && (
+                    <p className="text-[10px] text-slate-500 truncate">"{warmTemplate.subject}"</p>
+                  )}
+                </div>
+              </div>
 
               {/* Cold Leads */}
-              <button
-                onClick={() => setSendCold(!sendCold)}
+              <div
                 className={cn(
                   "p-4 rounded-xl border-2 transition-all",
                   sendCold
                     ? "border-blue-500 bg-blue-500/10"
-                    : "border-slate-700 bg-slate-800/50 hover:border-slate-600"
+                    : "border-slate-700 bg-slate-800/50"
                 )}
               >
                 <div className="flex items-center justify-between mb-2">
@@ -699,8 +788,31 @@ export default function LiveDripMailbox({ onSwitchToFullMailbox, leads = [], ver
                   <Switch checked={sendCold} onCheckedChange={setSendCold} />
                 </div>
                 <p className="text-2xl font-bold text-blue-400">{coldLeads.length}</p>
-                <p className="text-xs text-slate-500">New prospects</p>
-              </button>
+                <p className="text-xs text-slate-500 mb-3">New prospects</p>
+                
+                {/* Template selector */}
+                <div className="space-y-2">
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wide">Template:</p>
+                  <select 
+                    className="w-full text-xs bg-slate-900 border border-slate-700 rounded-md px-2 py-1.5 text-white"
+                    value={coldTemplate?.id || selectedTemplate?.id || 'educational'}
+                    onChange={(e) => {
+                      const tmpl = [...defaultTemplates, selectedTemplate].find(t => t?.id === e.target.value);
+                      if (tmpl) setColdTemplate(tmpl);
+                    }}
+                  >
+                    {selectedTemplate && (
+                      <option value={selectedTemplate.id}>✓ {selectedTemplate.name}</option>
+                    )}
+                    {defaultTemplates.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                  {coldTemplate && (
+                    <p className="text-[10px] text-slate-500 truncate">"{coldTemplate.subject}"</p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
