@@ -427,7 +427,7 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
   
   // Top-level mailbox navigation state
   type TopNavTab = 'mailbox' | 'preview' | 'crm' | 'ab' | 'smtp';
-  type MailboxSubTab = 'inbox' | 'sent' | 'sequences' | 'followups';
+  type MailboxSubTab = 'inbox' | 'sent' | 'sequences' | 'followups' | 'documents';
   const [topTab, setTopTab] = useState<TopNavTab>('mailbox');
   const [mailboxSubTab, setMailboxSubTab] = useState<MailboxSubTab>('inbox');
 
@@ -970,6 +970,7 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
     { id: 'sent', label: 'Sent', icon: <Send className="w-4 h-4" /> },
     { id: 'sequences', label: 'Multi-Channel Sequences', icon: <Workflow className="w-4 h-4" /> },
     { id: 'followups', label: 'Auto Follow-Ups', icon: <RefreshCw className="w-4 h-4" /> },
+    { id: 'documents', label: 'Done For You', icon: <FileSignature className="w-4 h-4" /> },
   ];
 
   // AI Auto-Send Document (for autopilot mode)
@@ -1149,7 +1150,8 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                   if (tab.id === 'inbox') setActiveTab('inbox');
                   else if (tab.id === 'sent') setActiveTab('sent');
                   else if (tab.id === 'sequences') setActiveTab('sequences');
-                  else if (tab.id === 'followups') setActiveTab('sequences'); // Use sequences tab content with different view
+                  else if (tab.id === 'followups') setActiveTab('sequences');
+                  else if (tab.id === 'documents') setActiveTab('contracts');
                 }}
                 className={cn(
                   "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all border",
@@ -1536,17 +1538,131 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                 </ScrollArea>
               </>
             ) : activeTab === 'contracts' ? (
-              /* Proposals & Contracts Tab - Dark Theme */
+              /* Proposals & Contracts Tab - Dark Theme - Clickable to insert into email */
               <div className="flex-1 flex flex-col">
                 <div className="p-4 border-b border-slate-800">
                   <h2 className="font-bold text-white flex items-center gap-2">
                     <FileText className="w-5 h-5 text-emerald-400" />
                     Done For You Documents
                   </h2>
-                  <p className="text-xs text-slate-400 mt-1">Send professional proposals & contracts</p>
+                  <p className="text-xs text-slate-400 mt-1">Click to insert into a new email</p>
                 </div>
-                <ScrollArea className="flex-1 p-4">
-                  <ProposalsContractsPanel />
+                <ScrollArea className="flex-1 p-3">
+                  <div className="space-y-4">
+                    {/* Proposals Section */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <FileText className="w-4 h-4 text-cyan-400" />
+                        <span className="text-sm font-semibold text-white">Proposals</span>
+                        <Badge className="bg-cyan-900/50 text-cyan-300 text-[10px]">{PROPOSAL_TEMPLATES.length}</Badge>
+                      </div>
+                      <div className="space-y-1.5">
+                        {PROPOSAL_TEMPLATES.map(proposal => (
+                          <button
+                            key={proposal.id}
+                            onClick={() => {
+                              setComposeEmail(prev => ({
+                                ...prev,
+                                attachedDocument: { type: 'proposal', document: proposal }
+                              }));
+                              openComposeModal();
+                              toast.success(`${proposal.name} added to email`);
+                            }}
+                            className="w-full flex items-center justify-between p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-cyan-500/50 hover:bg-slate-800 transition-all group text-left"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-cyan-900/50 flex items-center justify-center group-hover:bg-cyan-800/50">
+                                <span className="text-sm">{proposal.icon}</span>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-white group-hover:text-cyan-300">{proposal.name}</p>
+                                <p className="text-xs text-slate-500 line-clamp-1">{proposal.description}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Badge className="bg-emerald-900/50 text-emerald-400 text-[10px]">
+                                <Send className="w-3 h-3 mr-1" /> Use
+                              </Badge>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Contracts Section */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <FileSignature className="w-4 h-4 text-violet-400" />
+                        <span className="text-sm font-semibold text-white">Contracts</span>
+                        <Badge className="bg-violet-900/50 text-violet-300 text-[10px]">{CONTRACT_TEMPLATES.length}</Badge>
+                      </div>
+                      <div className="space-y-1.5">
+                        {CONTRACT_TEMPLATES.map(contract => (
+                          <button
+                            key={contract.id}
+                            onClick={() => {
+                              setComposeEmail(prev => ({
+                                ...prev,
+                                attachedDocument: { type: 'contract', document: contract }
+                              }));
+                              openComposeModal();
+                              toast.success(`${contract.name} added to email`);
+                            }}
+                            className="w-full flex items-center justify-between p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-violet-500/50 hover:bg-slate-800 transition-all group text-left"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-violet-900/50 flex items-center justify-center group-hover:bg-violet-800/50">
+                                <span className="text-sm">{contract.icon}</span>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-white group-hover:text-violet-300">{contract.name}</p>
+                                <p className="text-xs text-slate-500 line-clamp-1">{contract.description}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Badge className="bg-emerald-900/50 text-emerald-400 text-[10px]">
+                                <Send className="w-3 h-3 mr-1" /> Use
+                              </Badge>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Sequences - Quick Insert */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Workflow className="w-4 h-4 text-amber-400" />
+                        <span className="text-sm font-semibold text-white">Quick Sequences</span>
+                      </div>
+                      <div className="space-y-1.5">
+                        {sequences.slice(0, 3).map(seq => (
+                          <button
+                            key={seq.id}
+                            onClick={() => {
+                              toast.success(`Enrolled in "${seq.name}" sequence`, {
+                                description: 'Lead will receive automated outreach'
+                              });
+                            }}
+                            className="w-full flex items-center justify-between p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-amber-500/50 hover:bg-slate-800 transition-all group text-left"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg bg-amber-900/50 flex items-center justify-center group-hover:bg-amber-800/50">
+                                <Workflow className="w-4 h-4 text-amber-400" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-white group-hover:text-amber-300">{seq.name}</p>
+                                <p className="text-xs text-slate-500">{seq.steps.length} steps • {seq.leadsEnrolled} enrolled</p>
+                              </div>
+                            </div>
+                            <Badge className={seq.status === 'active' ? 'bg-emerald-900/50 text-emerald-400' : 'bg-slate-700 text-slate-400'}>
+                              {seq.status}
+                            </Badge>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </ScrollArea>
               </div>
             ) : (
