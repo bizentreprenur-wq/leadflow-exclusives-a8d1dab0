@@ -44,6 +44,8 @@ import {
 import { getCampaigns, getSends, getEmailStats, EmailCampaign, EmailStats as APIEmailStats } from '@/lib/api/email';
 import { searchGMB, GMBResult } from '@/lib/api/gmb';
 import { quickScoreLeads } from '@/lib/api/aiLeadScoring';
+import MultiChannelAutomation from './MultiChannelAutomation';
+import AutomationResultsDelivery from './AutomationResultsDelivery';
 
 // Types
 interface LeadSyncStats {
@@ -520,17 +522,14 @@ export default function LeadSyncAI({ onNavigateToSearch }: LeadSyncAIProps) {
               <Target className="w-4 h-4 mr-2" />
               Lead Generation
             </TabsTrigger>
-            <TabsTrigger value="campaigns" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white">
-              <Mail className="w-4 h-4 mr-2" />
-              Email Sequences
+            <TabsTrigger value="automation" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white">
+              <Zap className="w-4 h-4 mr-2" />
+              Multi-Channel
+              <Badge className="ml-2 bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]">NEW</Badge>
             </TabsTrigger>
-            <TabsTrigger value="calls" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white">
-              <Phone className="w-4 h-4 mr-2" />
-              AI Calls
-            </TabsTrigger>
-            <TabsTrigger value="chat" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white">
-              <MessageSquare className="w-4 h-4 mr-2" />
-              Chat AI
+            <TabsTrigger value="delivery" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white">
+              <Send className="w-4 h-4 mr-2" />
+              Results
             </TabsTrigger>
             <TabsTrigger value="analytics" className="data-[state=active]:bg-slate-800 data-[state=active]:text-white">
               <BarChart3 className="w-4 h-4 mr-2" />
@@ -873,7 +872,24 @@ export default function LeadSyncAI({ onNavigateToSearch }: LeadSyncAIProps) {
             )}
           </TabsContent>
 
-          {/* Email Sequences Tab */}
+          {/* Multi-Channel Automation Tab */}
+          <TabsContent value="automation" className="space-y-6">
+            <MultiChannelAutomation leads={generatedLeads.map(l => ({
+              id: l.id,
+              name: l.name,
+              email: undefined,
+              phone: l.phone,
+              businessName: l.name,
+              website: l.url || l.displayLink,
+            }))} />
+          </TabsContent>
+
+          {/* Results Delivery Tab */}
+          <TabsContent value="delivery" className="space-y-6">
+            <AutomationResultsDelivery />
+          </TabsContent>
+
+          {/* Email Sequences Tab (legacy) */}
           <TabsContent value="campaigns" className="space-y-6">
             <Card className="bg-slate-900 border-slate-800">
               <CardHeader>
