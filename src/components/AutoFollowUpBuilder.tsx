@@ -107,7 +107,16 @@ interface LeadEngagement {
   eligibleForFollowUp: boolean;
 }
 
-export default function AutoFollowUpBuilder() {
+interface AutoFollowUpBuilderProps {
+  /** Campaign context to show real-time drip status */
+  campaignContext?: {
+    isActive: boolean;
+    sentCount: number;
+    totalLeads: number;
+  };
+}
+
+export default function AutoFollowUpBuilder({ campaignContext }: AutoFollowUpBuilderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<EmailStats | null>(null);
   const [sends, setSends] = useState<EmailSend[]>([]);
@@ -362,6 +371,31 @@ export default function AutoFollowUpBuilder() {
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto bg-slate-950 p-6">
       <div className="max-w-6xl mx-auto w-full space-y-6">
+      
+      {/* Real-time Campaign Status Banner */}
+      {campaignContext?.isActive && (
+        <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-600/20 to-teal-600/20 border border-emerald-500/30 backdrop-blur">
+          <div className="flex items-center gap-3">
+            <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse shadow-lg shadow-emerald-400/50" />
+            <div>
+              <span className="font-semibold text-emerald-300">Drip Campaign Active</span>
+              <span className="text-slate-400 ml-2">
+                {campaignContext.sentCount} of {campaignContext.totalLeads} emails sent
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Progress 
+              value={(campaignContext.sentCount / campaignContext.totalLeads) * 100} 
+              className="w-32 h-2 bg-slate-700"
+            />
+            <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30">
+              {Math.round((campaignContext.sentCount / campaignContext.totalLeads) * 100)}%
+            </Badge>
+          </div>
+        </div>
+      )}
+
       {/* Hero Setup Section - Dark Theme */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-slate-700 p-8">
         <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-emerald-500/10 to-transparent rounded-full blur-3xl" />
