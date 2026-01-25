@@ -1,32 +1,45 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, CheckCircle2, Clock, Zap, Info, ArrowRight, Shield, TrendingUp, Eye, AlertCircle, RefreshCw, Pause, Play, Send } from 'lucide-react';
+import { Mail, CheckCircle2, Clock, Zap, Shield, AlertCircle, RefreshCw, Pause, Play, Send, ChevronDown, User, Building2, Inbox, ArrowRight, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { getSends } from '@/lib/api/email';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type EmailStatus = 'pending' | 'sending' | 'sent' | 'delivered' | 'failed' | 'bounced';
+type LeadCategory = 'hot' | 'warm' | 'cold';
+type LeadScope = 'hot' | 'warm' | 'cold' | 'hot_warm' | 'all';
+
+interface Lead {
+  id: string;
+  name: string;
+  email?: string;
+  business?: string;
+  category?: LeadCategory;
+  verified?: boolean;
+}
 
 interface MailboxDripAnimationProps {
   totalEmails: number;
   sentCount: number;
   isActive: boolean;
   emailsPerHour?: number;
-  leads?: Array<{ id: string; name: string; email?: string }>;
+  leads?: Lead[];
   onEmailStatusUpdate?: (statuses: Record<string, EmailStatus>) => void;
-  // Real sending mode - when true, polls backend for actual delivery status
   realSendingMode?: boolean;
   campaignId?: string;
-  // Pause/Send controls
   isPaused?: boolean;
   onPause?: () => void;
   onResume?: () => void;
   onSend?: () => void;
   showControls?: boolean;
-  showCampaignSpeed?: boolean;
-  // Content to render after the PREVIEW MODE banner
   renderAfterBanner?: React.ReactNode;
+  onOpenMailbox?: () => void;
 }
 
 export default function MailboxDripAnimation({
@@ -37,28 +50,53 @@ export default function MailboxDripAnimation({
   leads = [],
   onEmailStatusUpdate,
   realSendingMode = false,
-  campaignId,
   isPaused = false,
   onPause,
   onResume,
   onSend,
   showControls = true,
-  showCampaignSpeed = true,
   renderAfterBanner,
+  onOpenMailbox,
 }: MailboxDripAnimationProps) {
   const [flyingEmails, setFlyingEmails] = useState<number[]>([]);
   const [emailId, setEmailId] = useState(0);
-  const [showExplanation, setShowExplanation] = useState(false);
   const [currentSendingIndex, setCurrentSendingIndex] = useState(0);
   const [emailStatuses, setEmailStatuses] = useState<Record<string, EmailStatus>>({});
   const [isPolling, setIsPolling] = useState(false);
   const [lastPollTime, setLastPollTime] = useState<Date | null>(null);
-  const [deliveryStats, setDeliveryStats] = useState({
-    sent: 0,
-    delivered: 0,
-    failed: 0,
-    bounced: 0,
-  });
+  const [deliveryStats, setDeliveryStats] = useState({ sent: 0, delivered: 0, failed: 0, bounced: 0 });
+  const [leadScope, setLeadScope] = useState<LeadScope>('all');
+  const [lastSentTime, setLastSentTime] = useState<Date | null>(null);
+
+  // Scope labels
+  const scopeLabels: Record<LeadScope, string> = {
+    hot: 'Hot Leads',
+    warm: 'Warm Leads',
+    cold: 'Cold Leads',
+    hot_warm: 'Hot + Warm',
+    all: 'All Verified Leads',
+  };
+
+  // Filter leads by scope
+  const getFilteredLeads = useCallback(() => {
+    const leadsWithEmail = leads.filter(l => l.email);
+    switch (leadScope) {
+      case 'hot':
+        return leadsWithEmail.filter(l => l.category === 'hot');
+      case 'warm':
+        return leadsWithEmail.filter(l => l.category === 'warm');
+      case 'cold':
+        return leadsWithEmail.filter(l => l.category === 'cold');
+      case 'hot_warm':
+        return leadsWithEmail.filter(l => l.category === 'hot' || l.category === 'warm');
+      default:
+        return leadsWithEmail;
+    }
+  }, [leads, leadScope]);
+
+  const filteredLeads = getFilteredLeads();
+  const verifiedCount = filteredLeads.filter(l => l.verified !== false).length;
+  const userApprovedCount = filteredLeads.filter(l => l.verified === false).length;
 
   // Initialize email statuses from leads
   useEffect(() => {
@@ -87,7 +125,6 @@ export default function MailboxDripAnimation({
         let sentCount = 0, deliveredCount = 0, failedCount = 0, bouncedCount = 0;
         
         result.sends.forEach(send => {
-          // Match by email address
           const matchingLead = leads.find(l => l.email === send.recipient_email);
           if (matchingLead) {
             const status = send.status as EmailStatus;
@@ -115,31 +152,24 @@ export default function MailboxDripAnimation({
   // Auto-poll every 5 seconds in real sending mode
   useEffect(() => {
     if (!realSendingMode || !isActive) return;
-    
-    // Initial poll
     pollDeliveryStatus();
-    
-    // Poll every 5 seconds
     const pollInterval = setInterval(pollDeliveryStatus, 5000);
-    
     return () => clearInterval(pollInterval);
   }, [realSendingMode, isActive, pollDeliveryStatus]);
 
   // Simulate sending each lead's email (demo mode only)
   useEffect(() => {
-    if (realSendingMode || !isActive || leads.length === 0) return;
+    if (realSendingMode || !isActive || isPaused || filteredLeads.length === 0) return;
 
-    const leadsWithEmail = leads.filter(l => l.email);
-    if (currentSendingIndex >= leadsWithEmail.length) return;
+    if (currentSendingIndex >= filteredLeads.length) return;
 
     const interval = setInterval(() => {
-      if (currentSendingIndex < leadsWithEmail.length) {
-        const currentLead = leadsWithEmail[currentSendingIndex];
+      if (currentSendingIndex < filteredLeads.length) {
+        const currentLead = filteredLeads[currentSendingIndex];
         
-        // Mark as sending
         setEmailStatuses(prev => ({ ...prev, [currentLead.id]: 'sending' }));
+        setLastSentTime(new Date());
         
-        // After animation, mark as sent
         setTimeout(() => {
           setEmailStatuses(prev => {
             const updated = { ...prev, [currentLead.id]: 'sent' as const };
@@ -153,576 +183,478 @@ export default function MailboxDripAnimation({
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [realSendingMode, isActive, currentSendingIndex, leads, onEmailStatusUpdate]);
+  }, [realSendingMode, isActive, isPaused, currentSendingIndex, filteredLeads, onEmailStatusUpdate]);
 
-  // Simulate email flying animation
+  // Flying email animation
   useEffect(() => {
-    if (!isActive) return;
+    if (!isActive || isPaused) return;
 
     const interval = setInterval(() => {
       setEmailId(prev => prev + 1);
       setFlyingEmails(prev => [...prev, emailId]);
       
-      // Remove email after animation completes
       setTimeout(() => {
         setFlyingEmails(prev => prev.filter(id => id !== emailId));
       }, 2000);
     }, 800);
 
     return () => clearInterval(interval);
-  }, [isActive, emailId]);
+  }, [isActive, isPaused, emailId]);
 
-  const progress = totalEmails > 0 ? (sentCount / totalEmails) * 100 : 0;
-  const pendingCount = totalEmails - sentCount;
+  // Calculate stats
+  const actualSentCount = Object.values(emailStatuses).filter(s => s === 'sent' || s === 'delivered').length;
+  const progress = filteredLeads.length > 0 ? (actualSentCount / filteredLeads.length) * 100 : 0;
+  const pendingCount = filteredLeads.length - actualSentCount;
   const etaMinutes = Math.ceil(pendingCount / emailsPerHour * 60);
   const etaHours = Math.floor(etaMinutes / 60);
   const etaRemainingMins = etaMinutes % 60;
 
-  // Get leads with email
-  const leadsWithEmail = leads.filter(l => l.email);
+  // Get current sending, last sent, and up next leads
+  const sendingNowIndex = filteredLeads.findIndex(l => emailStatuses[l.id] === 'sending');
+  const lastSentLead = currentSendingIndex > 0 ? filteredLeads[currentSendingIndex - 1] : null;
+  const sendingNowLead = sendingNowIndex >= 0 ? filteredLeads[sendingNowIndex] : (currentSendingIndex < filteredLeads.length ? filteredLeads[currentSendingIndex] : null);
+  const upNextLead = currentSendingIndex + 1 < filteredLeads.length ? filteredLeads[currentSendingIndex + 1] : null;
 
-  // Helper to get status display info
-  const getStatusDisplay = (status: EmailStatus) => {
-    switch (status) {
-      case 'sending':
-        return { icon: '📤', label: realSendingMode ? 'Sending...' : 'Simulating...', className: 'bg-primary/30 text-primary border-primary/50 animate-pulse' };
-      case 'sent':
-        return { icon: '✅', label: realSendingMode ? 'Sent' : 'Preview Sent', className: 'bg-success/20 text-success border-success/30' };
-      case 'delivered':
-        return { icon: '📬', label: 'Delivered', className: 'bg-success/30 text-success border-success/50' };
-      case 'failed':
-        return { icon: '❌', label: 'Failed', className: 'bg-destructive/20 text-destructive border-destructive/30' };
-      case 'bounced':
-        return { icon: '↩️', label: 'Bounced', className: 'bg-warning/20 text-warning border-warning/30' };
-      default:
-        return { icon: '⏳', label: 'Queued', className: 'bg-muted/30 text-muted-foreground border-muted/30' };
-    }
+  // Time since last sent
+  const getTimeSince = (date: Date | null) => {
+    if (!date) return null;
+    const seconds = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    if (seconds < 60) return `${seconds}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    return `${minutes} min ago`;
+  };
+
+  // ETA for next email
+  const getNextEta = () => {
+    const secondsPerEmail = 3600 / emailsPerHour;
+    return `in ${Math.round(secondsPerEmail)}s`;
   };
 
   return (
     <div className="space-y-4">
-      {/* MODE BANNER - Changes based on real vs demo mode */}
-      {realSendingMode ? (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-success/20 to-emerald-500/20 border-2 border-success/50">
-          <div className="w-12 h-12 rounded-full bg-success/30 flex items-center justify-center">
-            <Mail className="w-6 h-6 text-success" />
-          </div>
-          <div className="flex-1">
+      {/* Lead Scope Selector - TOP PRIORITY */}
+      <div className="bg-slate-900/80 rounded-xl p-4 border border-slate-700">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2 bg-slate-800 border-slate-600 text-white hover:bg-slate-700">
+                {scopeLabels[leadScope]}
+                <ChevronDown className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="bg-slate-800 border-slate-600">
+              <DropdownMenuItem onClick={() => setLeadScope('hot')} className="text-red-400 hover:bg-slate-700">
+                🔥 Hot Leads
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setLeadScope('warm')} className="text-amber-400 hover:bg-slate-700">
+                🌡️ Warm Leads
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setLeadScope('cold')} className="text-blue-400 hover:bg-slate-700">
+                ❄️ Cold Leads
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setLeadScope('hot_warm')} className="text-orange-400 hover:bg-slate-700">
+                🔥🌡️ Hot + Warm
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setLeadScope('all')} className="text-emerald-400 hover:bg-slate-700">
+                ✅ All Verified Leads
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <div className="flex items-center gap-4 text-sm">
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-success text-lg">📧 LIVE SENDING</h3>
-              <Badge className="bg-success/30 text-success border-success/50">
-                Real Emails
-              </Badge>
-              {isPolling && (
-                <RefreshCw className="w-4 h-4 text-success animate-spin" />
+              <span className="text-slate-400">Total Leads Selected:</span>
+              <span className="font-bold text-white">{filteredLeads.length}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span className="text-slate-400">AI-Verified:</span>
+              <span className="font-bold text-emerald-400">{verifiedCount}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400">Unverified (User Approved):</span>
+              <span className="font-bold text-amber-400">{userApprovedCount}</span>
+            </div>
+          </div>
+
+          {/* Controls */}
+          {showControls && (
+            <div className="flex items-center gap-2">
+              {isPaused ? (
+                <Button onClick={onResume} size="sm" className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
+                  <Play className="w-4 h-4" />
+                  Resume
+                </Button>
+              ) : (
+                <Button onClick={onPause} size="sm" variant="outline" className="gap-2 border-amber-500/50 text-amber-400 hover:bg-amber-500/10">
+                  <Pause className="w-4 h-4" />
+                  Pause
+                </Button>
+              )}
+              <Button onClick={onSend} size="sm" className="gap-2 bg-primary hover:bg-primary/90" disabled={isActive && !isPaused}>
+                <Send className="w-4 h-4" />
+                Send Now
+              </Button>
+              {!realSendingMode && (
+                <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/50">
+                  <Eye className="w-3 h-3 mr-1" />
+                  PREVIEW
+                </Badge>
               )}
             </div>
-            <p className="text-sm text-success/80">
-              Emails are being sent to real recipients. Status updates every 5 seconds.
-              {lastPollTime && (
-                <span className="ml-2 text-muted-foreground">
-                  Last updated: {lastPollTime.toLocaleTimeString()}
-                </span>
-              )}
-            </p>
-          </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={pollDeliveryStatus}
-            disabled={isPolling}
-            className="gap-2 border-success/30 text-success hover:bg-success/10"
-          >
-            <RefreshCw className={`w-4 h-4 ${isPolling ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+          )}
         </div>
-      ) : (
-        <div className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-warning/20 to-orange-500/20 border-2 border-warning/50">
-          <div className="w-12 h-12 rounded-full bg-warning/30 flex items-center justify-center">
-            <Eye className="w-6 h-6 text-warning" />
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <h3 className="font-bold text-warning text-lg">📧 PREVIEW MODE</h3>
-              <Badge className="bg-warning/30 text-warning border-warning/50">
-                Demo Only
-              </Badge>
-            </div>
-            <p className="text-sm text-warning/80">
-              This is a <strong>simulation</strong> showing how your emails will be sent. 
-              <strong className="text-foreground"> No emails are being sent yet.</strong>
-            </p>
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* Content injected after the banner */}
       {renderAfterBanner}
 
-      {/* Real-time Delivery Stats (only in real mode) */}
-      {realSendingMode && (deliveryStats.sent > 0 || deliveryStats.delivered > 0 || deliveryStats.failed > 0) && (
-        <div className="grid grid-cols-4 gap-2">
-          <div className="bg-muted/20 rounded-lg p-3 text-center border border-muted/30">
-            <p className="text-2xl font-bold text-success">{deliveryStats.sent}</p>
-            <p className="text-xs text-muted-foreground">Sent</p>
-          </div>
-          <div className="bg-muted/20 rounded-lg p-3 text-center border border-muted/30">
-            <p className="text-2xl font-bold text-success">{deliveryStats.delivered}</p>
-            <p className="text-xs text-muted-foreground">Delivered</p>
-          </div>
-          <div className="bg-muted/20 rounded-lg p-3 text-center border border-muted/30">
-            <p className="text-2xl font-bold text-destructive">{deliveryStats.failed}</p>
-            <p className="text-xs text-muted-foreground">Failed</p>
-          </div>
-          <div className="bg-muted/20 rounded-lg p-3 text-center border border-muted/30">
-            <p className="text-2xl font-bold text-warning">{deliveryStats.bounced}</p>
-            <p className="text-xs text-muted-foreground">Bounced</p>
-          </div>
+      {/* HEADER: Smart Drip Campaign with TOTAL as anchor */}
+      <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl p-6 border border-slate-700">
+        <div className="text-center mb-6">
+          <h2 className="text-2xl font-bold text-white mb-2">Smart Drip Campaign</h2>
+          <p className="text-slate-400">BamLead is sending emails slowly to improve deliverability</p>
         </div>
-      )}
 
-      {/* Live Email Queue - Shows each lead */}
-      {leadsWithEmail.length > 0 && (
-        <div className="bg-gradient-to-br from-muted/20 to-muted/10 rounded-xl border border-border overflow-hidden">
-          <div className="p-3 border-b border-border flex items-center justify-between bg-muted/10">
-            <h4 className="font-semibold text-foreground flex items-center gap-2">
-              <Mail className="w-4 h-4 text-primary" />
-              {realSendingMode ? 'Email Delivery Queue' : 'Email Queue Preview'}
-            </h4>
-            <div className="flex items-center gap-2 text-xs">
-              <Badge variant="outline" className="bg-success/20 text-success border-success/30">
-                {Object.values(emailStatuses).filter(s => s === 'sent' || s === 'delivered').length} {realSendingMode ? 'Delivered' : 'Simulated'}
-              </Badge>
-              <Badge variant="outline" className="bg-warning/20 text-warning border-warning/30">
-                {Object.values(emailStatuses).filter(s => s === 'pending').length} Pending
-              </Badge>
-              {realSendingMode && Object.values(emailStatuses).filter(s => s === 'failed').length > 0 && (
-                <Badge variant="outline" className="bg-destructive/20 text-destructive border-destructive/30">
-                  {Object.values(emailStatuses).filter(s => s === 'failed').length} Failed
-                </Badge>
-              )}
-            </div>
-          </div>
-          
-          <ScrollArea className="h-48">
-            <div className="p-2 space-y-1">
-              {leadsWithEmail.slice(0, 20).map((lead, idx) => {
-                const status = emailStatuses[lead.id] || 'pending';
-                const statusDisplay = getStatusDisplay(status);
-                return (
-                  <motion.div
-                    key={lead.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className={`flex items-center gap-3 p-2 rounded-lg transition-all ${
-                      status === 'sending' 
-                        ? 'bg-primary/20 border border-primary/50 animate-pulse' 
-                        : status === 'sent' || status === 'delivered'
-                          ? 'bg-success/10 border border-success/30'
-                          : status === 'failed' || status === 'bounced'
-                            ? 'bg-destructive/10 border border-destructive/30'
-                            : 'bg-muted/10 border border-transparent'
-                    }`}
-                  >
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
-                      status === 'sending'
-                        ? 'bg-primary/30 text-primary'
-                        : status === 'sent' || status === 'delivered'
-                          ? 'bg-success/30 text-success'
-                          : status === 'failed' || status === 'bounced'
-                            ? 'bg-destructive/30 text-destructive'
-                            : 'bg-muted/30 text-muted-foreground'
-                    }`}>
-                      {status === 'sent' || status === 'delivered' ? (
-                        <CheckCircle2 className="w-4 h-4" />
-                      ) : status === 'failed' || status === 'bounced' ? (
-                        <AlertCircle className="w-4 h-4" />
-                      ) : (
-                        idx + 1
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{lead.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{lead.email}</p>
-                    </div>
-                    <Badge className={`text-xs ${statusDisplay.className}`}>
-                      {statusDisplay.icon} {statusDisplay.label}
-                    </Badge>
-                  </motion.div>
-                );
-              })}
-              {leadsWithEmail.length > 20 && (
-                <div className="text-center py-2 text-sm text-muted-foreground">
-                  + {leadsWithEmail.length - 20} more leads in queue
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-        </div>
-      )}
-
-      {/* Main Animation Container */}
-      <div className="relative bg-gradient-to-br from-blue-900/30 to-indigo-900/30 rounded-2xl p-6 border border-blue-500/30 overflow-hidden">
-        {/* Background glow */}
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-transparent to-indigo-500/10" />
-        
-        {/* Header */}
-        <div className="relative flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            {/* Mailbox Icon */}
-            <div className="relative w-14 h-14">
-              {/* Mailbox body */}
-              <div className="absolute bottom-0 w-12 h-10 bg-gradient-to-b from-blue-500 to-blue-700 rounded-lg border-2 border-blue-400/60">
-                {/* Mail slot */}
-                <div className="absolute top-1 left-1/2 -translate-x-1/2 w-8 h-1 bg-blue-900/60 rounded-full" />
+        {/* ANCHOR NUMBER - Total Leads */}
+        <div className="flex items-center justify-center mb-8">
+          <div className="relative">
+            <motion.div
+              animate={{ scale: isActive && !isPaused ? [1, 1.02, 1] : 1 }}
+              transition={{ repeat: Infinity, duration: 2 }}
+              className="w-32 h-32 rounded-full bg-gradient-to-br from-cyan-500/30 to-teal-500/30 border-4 border-cyan-400/50 flex items-center justify-center"
+            >
+              <div className="text-center">
+                <p className="text-4xl font-bold text-cyan-400">{filteredLeads.length}</p>
+                <p className="text-xs text-slate-400">leads queued</p>
               </div>
-              {/* Mailbox flag */}
-              <motion.div 
-                className="absolute right-0 top-2 w-2 h-6 bg-red-500 rounded-sm origin-bottom"
-                animate={isActive ? { rotate: [0, -45, 0] } : { rotate: 0 }}
-                transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+            </motion.div>
+            {isActive && !isPaused && (
+              <motion.div
+                className="absolute inset-0 rounded-full border-2 border-cyan-400/30"
+                animate={{ scale: [1, 1.2], opacity: [0.5, 0] }}
+                transition={{ repeat: Infinity, duration: 1.5 }}
               />
-              {/* Mailbox post */}
-              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1.5 h-4 bg-blue-800" />
-            </div>
-            <div>
-              <h3 className="font-bold text-white">Smart Drip Campaign Preview</h3>
-              <div className="flex items-center gap-2 text-sm text-blue-300/80">
-                <span className="font-semibold text-primary">{emailsPerHour} emails/hour</span>
-                <span>•</span>
-                <span>~{Math.round(60 / emailsPerHour * 10) / 10} min between each</span>
+            )}
+          </div>
+        </div>
+
+        {/* PROGRESS BAR: Queue → Live → Delivered */}
+        <div className="relative mb-8">
+          <div className="flex items-center justify-between mb-2">
+            {/* Queue - Clickable to open mailbox */}
+            <button
+              type="button"
+              onClick={onOpenMailbox}
+              className="flex flex-col items-center group cursor-pointer focus:outline-none"
+              aria-label="Open mailbox queue"
+            >
+              <div className="w-14 h-14 rounded-xl bg-cyan-500/20 border-2 border-cyan-400/50 flex items-center justify-center mb-1 group-hover:bg-cyan-500/30 group-hover:border-cyan-400 transition-all duration-200 group-hover:scale-105">
+                <Inbox className="w-6 h-6 text-cyan-400" />
               </div>
+              <p className="text-xs text-cyan-400 font-medium group-hover:text-cyan-300">Queue</p>
+              <p className="text-lg font-bold text-white">{pendingCount}</p>
+            </button>
+
+            {/* Progress Track */}
+            <div className="flex-1 mx-4 relative">
+              <div className="h-3 bg-slate-700 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-500 rounded-full"
+                  style={{ width: `${progress}%` }}
+                  animate={{ opacity: isActive ? [0.8, 1, 0.8] : 1 }}
+                  transition={{ repeat: Infinity, duration: 1.5 }}
+                />
+              </div>
+              <p className="text-center text-sm text-slate-400 mt-1">Sending Now</p>
+              
+              {/* Flying emails */}
+              <AnimatePresence>
+                {flyingEmails.map((id) => (
+                  <motion.div
+                    key={id}
+                    initial={{ left: '0%', top: -20, opacity: 0, scale: 0.5 }}
+                    animate={{ 
+                      left: ['0%', '50%', '100%'],
+                      top: [-20, -25, -20],
+                      opacity: [0, 1, 0],
+                      scale: [0.5, 1, 0.5],
+                    }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 2, ease: "easeInOut" }}
+                    className="absolute"
+                  >
+                    <div className="w-8 h-6 bg-white rounded shadow-lg shadow-primary/40 flex items-center justify-center">
+                      <Mail className="w-4 h-4 text-primary" />
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+
+            {/* Delivered - Clickable to open mailbox */}
+            <button
+              type="button"
+              onClick={onOpenMailbox}
+              className="flex flex-col items-center group cursor-pointer focus:outline-none"
+              aria-label="Open mailbox delivered"
+            >
+              <div className="w-14 h-14 rounded-xl bg-emerald-500/20 border-2 border-emerald-400/50 flex items-center justify-center mb-1 relative group-hover:bg-emerald-500/30 group-hover:border-emerald-400 transition-all duration-200 group-hover:scale-105">
+                <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                {actualSentCount > 0 && (
+                  <motion.div
+                    className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full"
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ repeat: Infinity, duration: 1 }}
+                  />
+                )}
+              </div>
+              <p className="text-xs text-emerald-400 font-medium group-hover:text-emerald-300">Delivered</p>
+              <p className="text-lg font-bold text-white">{actualSentCount}</p>
+            </button>
+          </div>
+
+          {/* Percentage markers */}
+          <div className="flex justify-between px-16 mt-1">
+            <span className="text-xs text-slate-500">0%</span>
+            <span className="text-xs text-slate-400 font-medium">{Math.round(progress)}%</span>
+            <span className="text-xs text-slate-500">100%</span>
+          </div>
+        </div>
+
+        {/* 3-COLUMN TIMELINE: Last Sent | Sending Now | Up Next */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          {/* Last Sent */}
+          <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+            <div className="flex items-center gap-2 mb-3">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <span className="text-sm font-medium text-slate-300">Last Sent</span>
+            </div>
+            {lastSentLead ? (
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                  <User className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-white truncate">{lastSentLead.name}</p>
+                  <p className="text-xs text-slate-400 truncate flex items-center gap-1">
+                    <Building2 className="w-3 h-3" />
+                    {lastSentLead.business || 'Unknown Business'}
+                  </p>
+                  <p className="text-xs text-slate-500 truncate">{lastSentLead.email}</p>
+                  <p className="text-xs text-emerald-400 mt-1">{getTimeSince(lastSentTime)}</p>
+                </div>
+                <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500 italic">No emails sent yet</p>
+            )}
+          </div>
+
+          {/* Sending Now */}
+          <div className="bg-gradient-to-br from-cyan-500/10 to-teal-500/10 rounded-xl p-4 border-2 border-cyan-400/50 relative overflow-hidden">
+            <motion.div
+              className="absolute inset-0 bg-gradient-to-r from-transparent via-cyan-400/10 to-transparent"
+              animate={{ x: ['-100%', '100%'] }}
+              transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
+            />
+            <div className="relative">
+              <div className="flex items-center gap-2 mb-3">
+                <Mail className="w-4 h-4 text-cyan-400" />
+                <span className="text-sm font-medium text-cyan-300">Sending Now</span>
+                <motion.span
+                  animate={{ opacity: [1, 0.5, 1] }}
+                  transition={{ repeat: Infinity, duration: 1 }}
+                  className="text-xs text-cyan-400"
+                >
+                  •••
+                </motion.span>
+              </div>
+              {sendingNowLead && isActive && !isPaused ? (
+                <div className="flex items-start gap-3">
+                  <motion.div
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ repeat: Infinity, duration: 1.5 }}
+                    className="w-10 h-10 rounded-full bg-cyan-500/30 flex items-center justify-center flex-shrink-0"
+                  >
+                    <User className="w-5 h-5 text-cyan-400" />
+                  </motion.div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-white truncate">{sendingNowLead.name}</p>
+                    <p className="text-xs text-slate-400 truncate flex items-center gap-1">
+                      <Building2 className="w-3 h-3" />
+                      {sendingNowLead.business || 'Unknown Business'}
+                    </p>
+                    <p className="text-xs text-slate-500 truncate">{sendingNowLead.email}</p>
+                    <motion.p
+                      animate={{ opacity: [1, 0.5, 1] }}
+                      transition={{ repeat: Infinity, duration: 1 }}
+                      className="text-xs text-cyan-400 mt-1"
+                    >
+                      Sending...
+                    </motion.p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500 italic">{isPaused ? 'Paused' : 'Ready to send'}</p>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {/* Pause/Resume and Send Controls */}
-            {showControls && (
-              <div className="flex items-center gap-2 mr-2">
-                {isPaused ? (
-                  <Button
-                    onClick={onResume}
-                    size="sm"
-                    className="gap-2 bg-success hover:bg-success/90 text-white"
-                  >
-                    <Play className="w-4 h-4" />
-                    Resume
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={onPause}
-                    size="sm"
-                    variant="outline"
-                    className="gap-2 border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
-                  >
-                    <Pause className="w-4 h-4" />
-                    Pause
-                  </Button>
-                )}
+
+          {/* Up Next */}
+          <div className="bg-slate-800/50 rounded-xl p-4 border border-slate-700">
+            <div className="flex items-center gap-2 mb-3">
+              <ArrowRight className="w-4 h-4 text-amber-400" />
+              <span className="text-sm font-medium text-slate-300">Up Next</span>
+            </div>
+            {upNextLead ? (
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                  <User className="w-5 h-5 text-amber-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-white truncate">{upNextLead.name}</p>
+                  <p className="text-xs text-slate-400 truncate flex items-center gap-1">
+                    <Building2 className="w-3 h-3" />
+                    {upNextLead.business || 'Unknown Business'}
+                  </p>
+                  <p className="text-xs text-slate-500 truncate">{upNextLead.email}</p>
+                  <p className="text-xs text-amber-400 mt-1">{getNextEta()}</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500 italic">Queue complete</p>
+            )}
+          </div>
+        </div>
+
+        {/* Stats Row: Total | Pending | Sent | ETA */}
+        <div className="grid grid-cols-4 gap-3 mb-6">
+          <div className="bg-slate-800/50 rounded-xl p-3 text-center border border-slate-700">
+            <Mail className="w-5 h-5 text-cyan-400 mx-auto mb-1" />
+            <p className="text-xl font-bold text-white">{filteredLeads.length}</p>
+            <p className="text-xs text-slate-500">Total</p>
+          </div>
+          <div className="bg-slate-800/50 rounded-xl p-3 text-center border border-slate-700">
+            <Clock className="w-5 h-5 text-amber-400 mx-auto mb-1" />
+            <p className="text-xl font-bold text-white">{pendingCount}</p>
+            <p className="text-xs text-slate-500">Pending</p>
+          </div>
+          <div className="bg-slate-800/50 rounded-xl p-3 text-center border border-slate-700">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400 mx-auto mb-1" />
+            <p className="text-xl font-bold text-white">{actualSentCount}</p>
+            <p className="text-xs text-slate-500">Sent</p>
+          </div>
+          <div className="bg-slate-800/50 rounded-xl p-3 text-center border border-slate-700">
+            <Zap className="w-5 h-5 text-purple-400 mx-auto mb-1" />
+            <p className="text-xl font-bold text-white">
+              {etaHours > 0 ? `${etaHours}h ${etaRemainingMins}m` : `${etaMinutes}m`}
+            </p>
+            <p className="text-xs text-slate-500">ETA</p>
+          </div>
+        </div>
+
+        {/* Real-time stats if in live mode */}
+        {realSendingMode && (deliveryStats.sent > 0 || deliveryStats.delivered > 0 || deliveryStats.failed > 0) && (
+          <div className="grid grid-cols-4 gap-2 mb-6 p-3 bg-emerald-500/10 rounded-lg border border-emerald-500/30">
+            <div className="text-center">
+              <p className="text-xl font-bold text-emerald-400">{deliveryStats.sent}</p>
+              <p className="text-xs text-slate-400">Sent</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xl font-bold text-emerald-400">{deliveryStats.delivered}</p>
+              <p className="text-xs text-slate-400">Delivered</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xl font-bold text-red-400">{deliveryStats.failed}</p>
+              <p className="text-xs text-slate-400">Failed</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xl font-bold text-amber-400">{deliveryStats.bounced}</p>
+              <p className="text-xs text-slate-400">Bounced</p>
+            </div>
+            {lastPollTime && (
+              <div className="col-span-4 flex items-center justify-center gap-2 text-xs text-slate-400 mt-2">
+                <RefreshCw className={`w-3 h-3 ${isPolling ? 'animate-spin' : ''}`} />
+                Last updated: {lastPollTime.toLocaleTimeString()}
                 <Button
-                  onClick={onSend}
+                  variant="ghost"
                   size="sm"
-                  className="gap-2 bg-primary hover:bg-primary/90"
-                  disabled={isActive && !isPaused}
+                  onClick={pollDeliveryStatus}
+                  disabled={isPolling}
+                  className="h-6 text-xs text-emerald-400 hover:text-emerald-300"
                 >
-                  <Send className="w-4 h-4" />
-                  Send Now
+                  Refresh
                 </Button>
               </div>
             )}
-            <button
-              onClick={() => setShowExplanation(!showExplanation)}
-              className="p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors"
-              title="How does drip sending work?"
-            >
-              <Info className="w-4 h-4 text-blue-300" />
-            </button>
-            {isActive && !isPaused && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/20 rounded-full border border-amber-500/30">
-                <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" />
-                <span className="text-xs font-medium text-amber-400">PREVIEW</span>
-              </div>
-            )}
-            {isPaused && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/30 rounded-full border border-amber-500/50">
-                <Pause className="w-3 h-3 text-amber-400" />
-                <span className="text-xs font-medium text-amber-400">PAUSED</span>
-              </div>
-            )}
           </div>
-        </div>
-
-        {/* Animation Container - Mailbox Style */}
-        <div className="relative h-36 mb-6">
-          {/* Outbox Mailbox (Left) */}
-          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-24 flex flex-col items-center">
-            <motion.div
-              animate={{ scale: isActive ? [1, 1.02, 1] : 1 }}
-              transition={{ repeat: Infinity, duration: 1.5 }}
-              className="relative"
-            >
-              {/* Mailbox body */}
-              <div className="w-20 h-16 bg-gradient-to-b from-blue-500 to-blue-700 rounded-t-3xl rounded-b-lg border-2 border-blue-400/50 flex flex-col items-center justify-center shadow-lg shadow-blue-500/30">
-                {/* Mail slot */}
-                <div className="absolute top-2 w-12 h-1.5 bg-blue-900/70 rounded-full" />
-                {/* Door */}
-                <motion.div 
-                  className="absolute bottom-0 w-10 h-8 bg-blue-600 border-t-2 border-blue-400/50 rounded-b-md origin-bottom"
-                  animate={isActive ? { rotateX: [0, 30, 0] } : { rotateX: 0 }}
-                  transition={{ repeat: Infinity, duration: 2 }}
-                />
-                <span className="text-2xl font-bold text-white mt-2">{pendingCount}</span>
-              </div>
-              {/* Post */}
-              <div className="w-3 h-6 bg-blue-800 mx-auto rounded-b" />
-              {/* Flag */}
-              <motion.div
-                className="absolute -right-1 top-4 w-1.5 h-4 bg-amber-500 rounded-sm origin-bottom"
-                animate={isActive && pendingCount > 0 ? { rotate: [-45, 0] } : { rotate: 0 }}
-                transition={{ repeat: Infinity, duration: 3 }}
-              />
-            </motion.div>
-            <p className="text-sm text-blue-300 font-medium mt-2">Outbox</p>
-            <p className="text-xs text-muted-foreground">Pending</p>
-          </div>
-
-          {/* Flying Emails Path */}
-          <div className="absolute left-28 right-28 top-1/2 -translate-y-1/2">
-            {/* Path line - styled like a road/conveyor */}
-            <div className="relative h-3 bg-gradient-to-r from-blue-800/80 via-indigo-800/80 to-green-800/80 rounded-full border border-white/10">
-              {/* Progress indicator */}
-              <motion.div
-                className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-400 via-indigo-400 to-green-400 rounded-full"
-                style={{ width: `${progress}%` }}
-                animate={{ opacity: [0.7, 1, 0.7] }}
-                transition={{ repeat: Infinity, duration: 2 }}
-              />
-              {/* Center line markings */}
-              <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white/20" />
-            </div>
-            
-            {/* Progress markers */}
-            <div className="flex justify-between mt-3 px-1">
-              {[0, 25, 50, 75, 100].map((marker, i) => (
-                <div key={i} className="flex flex-col items-center">
-                  <motion.div
-                    className={`w-2 h-2 rounded-full ${progress >= marker ? 'bg-green-400' : 'bg-white/30'}`}
-                    animate={{ 
-                      scale: progress >= marker && isActive ? [1, 1.3, 1] : 1,
-                    }}
-                    transition={{ repeat: Infinity, duration: 1.5, delay: i * 0.1 }}
-                  />
-                  <span className="text-[10px] text-muted-foreground mt-1">{marker}%</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Flying email animations */}
-            <AnimatePresence>
-              {flyingEmails.map((id) => (
-                <motion.div
-                  key={id}
-                  initial={{ x: 0, y: -30, opacity: 0, scale: 0.5 }}
-                  animate={{ 
-                    x: [0, 60, 120, 180, 240], 
-                    y: [-30, -35, -30, -25, -30],
-                    opacity: [0, 1, 1, 1, 0],
-                    scale: [0.5, 1, 1, 1, 0.5],
-                    rotate: [0, 5, 0, -5, 0],
-                  }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 2, ease: "easeInOut" }}
-                  className="absolute left-0 top-0"
-                >
-                  <div className="w-10 h-7 bg-white rounded-md shadow-lg shadow-primary/40 flex items-center justify-center border border-primary/20">
-                    <Mail className="w-5 h-5 text-primary" />
-                  </div>
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          </div>
-
-          {/* Inbox Mailbox (Right) */}
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 w-24 flex flex-col items-center">
-            <motion.div
-              animate={{ 
-                scale: isActive && sentCount > 0 ? [1, 1.05, 1] : 1,
-              }}
-              transition={{ repeat: Infinity, duration: 1.5 }}
-              className="relative"
-            >
-              {/* Mailbox body */}
-              <div className="w-20 h-16 bg-gradient-to-b from-green-500 to-green-700 rounded-t-3xl rounded-b-lg border-2 border-green-400/50 flex flex-col items-center justify-center shadow-lg shadow-green-500/30">
-                {/* Mail slot */}
-                <div className="absolute top-2 w-12 h-1.5 bg-green-900/70 rounded-full" />
-                {/* Checkmark badge */}
-                <motion.div
-                  className="absolute -top-2 -right-2 w-6 h-6 bg-green-400 rounded-full flex items-center justify-center"
-                  animate={{ scale: sentCount > 0 ? [1, 1.2, 1] : 1 }}
-                  transition={{ repeat: Infinity, duration: 2 }}
-                >
-                  <CheckCircle2 className="w-4 h-4 text-green-900" />
-                </motion.div>
-                <span className="text-2xl font-bold text-white mt-2">{sentCount}</span>
-              </div>
-              {/* Post */}
-              <div className="w-3 h-6 bg-green-800 mx-auto rounded-b" />
-            </motion.div>
-            <p className="text-sm text-green-300 font-medium mt-2">Delivered</p>
-            <p className="text-xs text-muted-foreground">Sent</p>
-          </div>
-        </div>
-
-        {/* Stats Row */}
-        <div className="grid grid-cols-4 gap-3">
-          <div className="bg-white/5 rounded-xl p-3 text-center border border-white/10">
-            <div className="flex items-center justify-center gap-1 text-blue-400 mb-1">
-              <Mail className="w-4 h-4" />
-            </div>
-            <p className="text-lg font-bold text-white">{totalEmails}</p>
-            <p className="text-xs text-muted-foreground">Total</p>
-          </div>
-          <div className="bg-white/5 rounded-xl p-3 text-center border border-white/10">
-            <div className="flex items-center justify-center gap-1 text-amber-400 mb-1">
-              <Clock className="w-4 h-4" />
-            </div>
-            <p className="text-lg font-bold text-white">{pendingCount}</p>
-            <p className="text-xs text-muted-foreground">Pending</p>
-          </div>
-          <div className="bg-white/5 rounded-xl p-3 text-center border border-white/10">
-            <div className="flex items-center justify-center gap-1 text-green-400 mb-1">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-            <p className="text-lg font-bold text-white">{sentCount}</p>
-            <p className="text-xs text-muted-foreground">Sent</p>
-          </div>
-          <div className="bg-white/5 rounded-xl p-3 text-center border border-white/10">
-            <div className="flex items-center justify-center gap-1 text-purple-400 mb-1">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-            <p className="text-lg font-bold text-white">
-              {etaHours > 0 ? `${etaHours}h ${etaRemainingMins}m` : `${etaMinutes}m`}
-            </p>
-            <p className="text-xs text-muted-foreground">ETA</p>
-          </div>
-        </div>
-
-        {/* Drip Rate Indicator */}
-        <div className="mt-4 flex items-center justify-center gap-2 text-sm bg-white/5 rounded-lg p-3 border border-white/10">
-          <Zap className="w-4 h-4 text-amber-400" />
-          <span className="text-muted-foreground">
-            Sending <span className="text-white font-semibold">{emailsPerHour} emails per hour</span>
-          </span>
-          <span className="text-muted-foreground">•</span>
-          <span className="text-muted-foreground">
-            1 email every <span className="text-primary font-semibold">{Math.round(60 / emailsPerHour * 10) / 10} minutes</span>
-          </span>
-        </div>
+        )}
       </div>
 
-      {/* Explanation Panel */}
-      <AnimatePresence>
-        {showExplanation && (
+      {/* EXPLANATION: Why emails are drip-fed (always visible, not hidden) */}
+      <div className="bg-slate-900/80 rounded-xl p-5 border border-slate-700">
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+            <Shield className="w-6 h-6 text-emerald-400" />
+          </div>
+          <div className="flex-1">
+            <h4 className="font-semibold text-white flex items-center gap-2 mb-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              Emails are drip-fed intentionally
+            </h4>
+            <p className="text-slate-400 text-sm leading-relaxed">
+              This protects your sender reputation and increases inbox placement. Sending too fast triggers spam filters — BamLead sends like a human, not a spam tool.
+            </p>
+          </div>
+        </div>
+
+        {/* AI Warmup indicator */}
+        {isActive && actualSentCount < 5 && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="overflow-hidden"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4 p-3 bg-amber-500/10 rounded-lg border border-amber-500/30 flex items-center gap-3"
           >
-            <div className="bg-gradient-to-br from-indigo-900/30 to-purple-900/30 rounded-xl p-5 border border-indigo-500/30">
-              <h4 className="font-bold text-white mb-3 flex items-center gap-2">
-                <Info className="w-5 h-5 text-indigo-400" />
-                How Drip Sending Works
-              </h4>
-              
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-sm font-bold text-primary">1</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-white">Controlled Sending Speed</p>
-                    <p className="text-sm text-muted-foreground">
-                      Your emails are sent at <span className="text-primary font-medium">{emailsPerHour} per hour</span> — 
-                      that's roughly one email every <span className="text-primary font-medium">{Math.round(60 / emailsPerHour * 10) / 10} minutes</span>.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Shield className="w-4 h-4 text-green-400" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-white">Why Not Send All At Once?</p>
-                    <p className="text-sm text-muted-foreground">
-                      Sending too many emails too fast triggers spam filters. Drip sending mimics natural human 
-                      behavior, keeping your sender reputation high and emails landing in the inbox.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Clock className="w-4 h-4 text-amber-400" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-white">Time Estimate</p>
-                    <p className="text-sm text-muted-foreground">
-                      With <span className="text-white font-medium">{pendingCount} emails</span> remaining at{' '}
-                      <span className="text-white font-medium">{emailsPerHour}/hour</span>, your campaign will complete in approximately{' '}
-                      <span className="text-amber-400 font-medium">
-                        {etaHours > 0 ? `${etaHours} hour${etaHours > 1 ? 's' : ''} and ${etaRemainingMins} minutes` : `${etaMinutes} minutes`}
-                      </span>.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="bg-white/5 rounded-lg p-3 border border-white/10 flex items-center gap-3">
-                  <ArrowRight className="w-5 h-5 text-primary" />
-                  <p className="text-sm text-muted-foreground">
-                    <span className="text-white font-medium">Pro tip:</span> You can close this page — emails will continue sending in the background!
-                  </p>
-                </div>
-              </div>
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 2, ease: 'linear' }}
+            >
+              <Zap className="w-5 h-5 text-amber-400" />
+            </motion.div>
+            <div>
+              <p className="text-sm font-medium text-amber-400">AI warming & testing delivery...</p>
+              <p className="text-xs text-slate-400">Sending test batch to optimize timing</p>
             </div>
           </motion.div>
         )}
-      </AnimatePresence>
 
-      {/* Campaign speed summary (only when real campaign activity exists) */}
-      {showCampaignSpeed && (
-        <div className="bg-gradient-to-r from-blue-900/20 to-green-900/20 rounded-xl p-4 border border-white/10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                <Zap className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <p className="font-medium text-white">Campaign Speed</p>
-                <p className="text-sm text-muted-foreground">Optimized for maximum deliverability</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold text-primary">{emailsPerHour}</p>
-              <p className="text-xs text-muted-foreground">emails/hour</p>
-            </div>
+        {/* Campaign speed summary */}
+        <div className="mt-4 pt-4 border-t border-slate-700 flex items-center justify-between text-sm">
+          <div className="flex items-center gap-4">
+            <span className="text-slate-400">
+              Sending <span className="text-white font-semibold">{emailsPerHour} emails/hour</span>
+            </span>
+            <span className="text-slate-600">•</span>
+            <span className="text-slate-400">
+              1 email every <span className="text-primary font-semibold">{Math.round(3600 / emailsPerHour)}s</span>
+            </span>
           </div>
-          
-          <div className="mt-3 pt-3 border-t border-white/10 grid grid-cols-3 gap-4 text-center">
-            <div>
-              <p className="text-lg font-semibold text-white">{Math.round(60 / emailsPerHour * 10) / 10}</p>
-              <p className="text-xs text-muted-foreground">min between emails</p>
-            </div>
-            <div>
-              <p className="text-lg font-semibold text-white">{emailsPerHour * 24}</p>
-              <p className="text-xs text-muted-foreground">emails/day max</p>
-            </div>
-            <div>
-              <p className="text-lg font-semibold text-green-400">99%</p>
-              <p className="text-xs text-muted-foreground">inbox rate</p>
-            </div>
+          <div className="flex items-center gap-2">
+            <span className="text-emerald-400 font-medium">99% inbox rate</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Failed/bounced alert if any */}
+      {(deliveryStats.failed > 0 || deliveryStats.bounced > 0) && (
+        <div className="bg-red-500/10 rounded-xl p-4 border border-red-500/30 flex items-center gap-3">
+          <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0" />
+          <div>
+            <p className="font-medium text-red-400">Some emails failed to deliver</p>
+            <p className="text-sm text-slate-400">
+              {deliveryStats.failed} failed, {deliveryStats.bounced} bounced. Check recipient emails for typos.
+            </p>
           </div>
         </div>
       )}

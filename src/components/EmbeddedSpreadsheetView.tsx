@@ -66,6 +66,7 @@ interface SearchResult {
   email?: string;
   rating?: number;
   source: 'gmb' | 'platform';
+  sources?: string[]; // Platforms that found this lead (Google Maps, Yelp, Bing Places)
   platform?: string;
   websiteAnalysis?: {
     hasWebsite: boolean;
@@ -87,6 +88,40 @@ interface SearchResult {
   employeeCount?: string;
   annualRevenue?: string;
 }
+
+// Source badge helper - shows which platforms found each lead
+const getSourceBadges = (sources?: string[]) => {
+  if (!sources || sources.length === 0) return null;
+  
+  const sourceConfig: Record<string, { icon: string; color: string; short: string }> = {
+    'Google Maps': { icon: '🗺️', color: 'bg-blue-500/20 text-blue-400', short: 'G' },
+    'Yelp': { icon: '⭐', color: 'bg-red-500/20 text-red-400', short: 'Y' },
+    'Bing Places': { icon: '🔍', color: 'bg-cyan-500/20 text-cyan-400', short: 'B' },
+  };
+  
+  return (
+    <div className="flex items-center gap-0.5 ml-1">
+      {sources.map((source) => {
+        const config = sourceConfig[source];
+        if (!config) return null;
+        return (
+          <span
+            key={source}
+            className={`inline-flex items-center justify-center w-4 h-4 rounded text-[9px] font-bold ${config.color}`}
+            title={`Found on ${source}`}
+          >
+            {config.short}
+          </span>
+        );
+      })}
+      {sources.length > 1 && (
+        <span className="text-[9px] text-emerald-500 font-medium ml-0.5" title={`Verified on ${sources.length} platforms`}>
+          ✓{sources.length}
+        </span>
+      )}
+    </div>
+  );
+};
 
 interface EmbeddedSpreadsheetViewProps {
   leads: SearchResult[];
@@ -1341,7 +1376,10 @@ export default function EmbeddedSpreadsheetView({
                 </TableCell>
                 <TableCell>
                   <div>
-                    <p className="font-medium truncate max-w-[200px]">{lead.name}</p>
+                    <div className="flex items-center">
+                      <p className="font-medium truncate max-w-[180px]">{lead.name}</p>
+                      {getSourceBadges(lead.sources)}
+                    </div>
                     <p className="text-xs text-muted-foreground truncate max-w-[200px]">{lead.address}</p>
                   </div>
                 </TableCell>

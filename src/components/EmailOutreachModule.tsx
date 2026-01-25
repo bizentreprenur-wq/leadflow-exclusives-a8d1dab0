@@ -479,6 +479,22 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
   // Success state
   const [lastSendResult, setLastSendResult] = useState<{ sent: number; failed: number; scheduled?: string } | null>(null);
 
+  // AI Response Mode state - persisted to localStorage
+  const [aiResponseMode, setAiResponseMode] = useState<'automatic' | 'approve'>(() => {
+    const saved = localStorage.getItem('bamlead_ai_response_mode');
+    return (saved as 'automatic' | 'approve') || 'approve';
+  });
+
+  // Persist AI response mode changes
+  const handleAiResponseModeChange = (mode: 'automatic' | 'approve') => {
+    setAiResponseMode(mode);
+    localStorage.setItem('bamlead_ai_response_mode', mode);
+    toast.success(mode === 'automatic' 
+      ? '🤖 AI will automatically respond to all replies!' 
+      : '✅ AI will draft responses for your approval'
+    );
+  };
+
   // Check SMTP configuration on mount
   useEffect(() => {
     const savedConfig = localStorage.getItem('smtp_config');
@@ -1494,6 +1510,157 @@ export default function EmailOutreachModule({ selectedLeads = [], onClearSelecti
               <p className="text-muted-foreground max-w-md mx-auto">
                 Reach out to your leads via personalized emails or AI-powered voice calls
               </p>
+            </CardContent>
+          </Card>
+
+          {/* 🤖 AI AUTO-RESPONSE FEATURE - Prominent Banner */}
+          <Card className="border-2 border-pink-500/50 bg-gradient-to-r from-pink-500/10 via-rose-500/5 to-amber-500/10 overflow-hidden relative">
+            {/* Animated glow effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-pink-500/20 via-transparent to-amber-500/20 animate-pulse" />
+            
+            <CardContent className="relative pt-6 pb-6">
+              <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+                {/* Icon with pulse effect */}
+                <div className="relative">
+                  <div className="absolute inset-0 bg-pink-500/30 rounded-full blur-xl animate-pulse" />
+                  <div className="relative w-16 h-16 rounded-full bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shadow-lg shadow-pink-500/30">
+                    <Sparkles className="w-8 h-8 text-white" />
+                  </div>
+                </div>
+                
+                {/* Content */}
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="text-xl font-bold bg-gradient-to-r from-pink-500 to-amber-500 bg-clip-text text-transparent">
+                      🤖 AI Auto-Response Available!
+                    </h3>
+                    <Badge className="bg-pink-500 text-white border-0 animate-pulse">NEW</Badge>
+                  </div>
+                  <p className="text-muted-foreground mb-3">
+                    When leads reply to your emails, <strong className="text-foreground">AI can automatically draft responses</strong> for you! 
+                    Choose your preferred mode below.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    <Badge variant="outline" className="text-pink-600 border-pink-500/50 bg-pink-500/10">
+                      <Sparkles className="w-3 h-3 mr-1" />
+                      AI drafts replies
+                    </Badge>
+                    <Badge variant="outline" className="text-amber-600 border-amber-500/50 bg-amber-500/10">
+                      <RefreshCw className="w-3 h-3 mr-1" />
+                      Auto follow-ups
+                    </Badge>
+                    <Badge variant="outline" className="text-emerald-600 border-emerald-500/50 bg-emerald-500/10">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Smart prioritization
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+              
+              {/* AI RESPONSE MODE TOGGLE */}
+              <div className="mt-6 pt-4 border-t border-pink-500/20">
+                <p className="text-sm font-semibold mb-4 text-pink-600 dark:text-pink-400">
+                  ⚙️ Choose Your AI Response Mode:
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Fully Automatic Option */}
+                  <button
+                    onClick={() => handleAiResponseModeChange('automatic')}
+                    className={`relative p-4 rounded-xl border-2 text-left transition-all ${
+                      aiResponseMode === 'automatic'
+                        ? 'border-pink-500 bg-pink-500/10 shadow-lg shadow-pink-500/20'
+                        : 'border-border/50 bg-card/50 hover:border-pink-500/50 hover:bg-pink-500/5'
+                    }`}
+                  >
+                    {aiResponseMode === 'automatic' && (
+                      <div className="absolute top-3 right-3">
+                        <CheckCircle className="w-5 h-5 text-pink-500" />
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                        aiResponseMode === 'automatic' ? 'bg-pink-500' : 'bg-pink-500/20'
+                      }`}>
+                        <Zap className={`w-5 h-5 ${aiResponseMode === 'automatic' ? 'text-white' : 'text-pink-500'}`} />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-foreground">🚀 Fully Automatic</h4>
+                        <p className="text-xs text-muted-foreground">AI sends responses instantly</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      AI analyzes incoming replies and <strong className="text-foreground">sends responses automatically</strong> without waiting for your approval. Best for high-volume outreach.
+                    </p>
+                    {aiResponseMode === 'automatic' && (
+                      <Badge className="mt-3 bg-pink-500 text-white border-0">
+                        ✓ Active
+                      </Badge>
+                    )}
+                  </button>
+
+                  {/* AI Suggests, Human Approves Option */}
+                  <button
+                    onClick={() => handleAiResponseModeChange('approve')}
+                    className={`relative p-4 rounded-xl border-2 text-left transition-all ${
+                      aiResponseMode === 'approve'
+                        ? 'border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/20'
+                        : 'border-border/50 bg-card/50 hover:border-emerald-500/50 hover:bg-emerald-500/5'
+                    }`}
+                  >
+                    {aiResponseMode === 'approve' && (
+                      <div className="absolute top-3 right-3">
+                        <CheckCircle className="w-5 h-5 text-emerald-500" />
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                        aiResponseMode === 'approve' ? 'bg-emerald-500' : 'bg-emerald-500/20'
+                      }`}>
+                        <Shield className={`w-5 h-5 ${aiResponseMode === 'approve' ? 'text-white' : 'text-emerald-500'}`} />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-foreground">✅ AI Suggests, You Approve</h4>
+                        <p className="text-xs text-muted-foreground">Review before sending</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      AI drafts intelligent responses and <strong className="text-foreground">waits for your approval</strong> before sending. Best for personalized, high-value leads.
+                    </p>
+                    {aiResponseMode === 'approve' && (
+                      <Badge className="mt-3 bg-emerald-500 text-white border-0">
+                        ✓ Active (Recommended)
+                      </Badge>
+                    )}
+                  </button>
+                </div>
+
+                {/* Current mode status */}
+                <div className={`mt-4 p-3 rounded-lg flex items-center gap-3 ${
+                  aiResponseMode === 'automatic' 
+                    ? 'bg-pink-500/10 border border-pink-500/30' 
+                    : 'bg-emerald-500/10 border border-emerald-500/30'
+                }`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                    aiResponseMode === 'automatic' ? 'bg-pink-500' : 'bg-emerald-500'
+                  }`}>
+                    {aiResponseMode === 'automatic' ? (
+                      <Zap className="w-4 h-4 text-white" />
+                    ) : (
+                      <Shield className="w-4 h-4 text-white" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">
+                      {aiResponseMode === 'automatic' 
+                        ? '🤖 AI will automatically respond to all email replies' 
+                        : '👤 AI will draft responses for your review before sending'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Access your AI inbox in Step 4 → Inbox tab
+                    </p>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
 

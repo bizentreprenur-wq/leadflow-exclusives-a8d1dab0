@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -72,6 +73,8 @@ import UserManualDownload from '@/components/UserManualDownload';
 import { VideoTutorialSection } from '@/components/VideoTutorialSection';
 import AIProcessingPipeline from '@/components/AIProcessingPipeline';
 import StreamingLeadsIndicator from '@/components/StreamingLeadsIndicator';
+import LeadSyncAI from '@/components/LeadSyncAI';
+import LeadSyncOnboardingWizard, { LeadSyncConfig } from '@/components/LeadSyncOnboardingWizard';
 
 interface SearchResult {
   id: string;
@@ -195,6 +198,13 @@ export default function Dashboard() {
   
   // Live data mode indicator (true when real SerpAPI data is being used)
   const [isLiveDataMode, setIsLiveDataMode] = useState(false);
+
+  // LeadSync Onboarding Wizard state
+  const [showLeadSyncOnboarding, setShowLeadSyncOnboarding] = useState(false);
+  const [leadSyncConfig, setLeadSyncConfig] = useState<LeadSyncConfig | null>(() => {
+    const saved = localStorage.getItem('leadsync_config');
+    return saved ? JSON.parse(saved) : null;
+  });
 
   // Form validation state
   const [validationErrors, setValidationErrors] = useState<{ query?: boolean; location?: boolean; platforms?: boolean }>({});
@@ -963,9 +973,20 @@ export default function Dashboard() {
                         <h3 className="text-2xl font-bold text-foreground mb-2">
                           🤖 Super AI Business Search
                         </h3>
-                        <p className="text-muted-foreground">
-                          Google Maps + AI Intelligence
-                        </p>
+                        <p className="text-xs text-muted-foreground mb-2">Searching 3 major platforms + AI Analysis:</p>
+                        <div className="flex flex-wrap justify-center gap-2 text-xs max-w-md">
+                          {[
+                            { name: "Google Maps", icon: "🗺️" },
+                            { name: "Yelp", icon: "⭐" },
+                            { name: "Bing Places", icon: "🔍" },
+                            { name: "AI Analysis", icon: "🤖" }
+                          ].map((source) => (
+                            <span key={source.name} className="px-2.5 py-1 rounded-full bg-primary/20 text-primary font-medium whitespace-nowrap flex items-center gap-1.5">
+                              <span>{source.icon}</span>
+                              {source.name}
+                            </span>
+                          ))}
+                        </div>
                       </div>
 
                       {/* What You Get - 6 Points */}
@@ -1614,6 +1635,8 @@ export default function Dashboard() {
     switch (activeTab) {
       case 'workflow':
         return null; // Workflow handles its own rendering
+      case 'leadsync-ai':
+        return null; // LeadSync AI handles its own full-screen rendering
       case 'sequences':
         return {
           title: 'Multi-Channel Sequences',
@@ -1947,8 +1970,111 @@ export default function Dashboard() {
 
           {/* Main Content */}
           <main className="flex-1 p-6">
-            {activeTab === 'workflow' ? (
+            {activeTab === 'leadsync-ai' ? (
+              /* LeadSync AI - Full Screen */
+              <LeadSyncAI onNavigateToSearch={() => setActiveTab('workflow')} />
+            ) : activeTab === 'workflow' ? (
               <>
+                {/* LeadSync AI Hero CTA - Enhanced with Floating Animation */}
+                <motion.div
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-8"
+                >
+                  <motion.button
+                    onClick={() => {
+                      const onboardingComplete = localStorage.getItem('leadsync_onboarding_complete');
+                      if (onboardingComplete) {
+                        setActiveTab('leadsync-ai');
+                      } else {
+                        setShowLeadSyncOnboarding(true);
+                      }
+                    }}
+                    animate={{ 
+                      y: [0, -8, 0],
+                      boxShadow: [
+                        '0 25px 50px -12px rgba(139, 92, 246, 0.3)',
+                        '0 35px 60px -15px rgba(139, 92, 246, 0.5)',
+                        '0 25px 50px -12px rgba(139, 92, 246, 0.3)'
+                      ]
+                    }}
+                    transition={{ 
+                      duration: 3, 
+                      repeat: Infinity, 
+                      ease: "easeInOut" 
+                    }}
+                    className="w-full group relative overflow-hidden rounded-2xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-violet-600 p-1"
+                  >
+                    {/* Animated Gradient Border */}
+                    <motion.div 
+                      className="absolute inset-0 bg-gradient-to-r from-violet-400 via-fuchsia-400 to-violet-400 opacity-0 group-hover:opacity-100"
+                      animate={{
+                        backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
+                      }}
+                      transition={{ duration: 3, repeat: Infinity }}
+                      style={{ backgroundSize: '200% 200%' }}
+                    />
+                    
+                    <div className="relative flex items-center justify-between gap-6 rounded-xl bg-slate-950/95 backdrop-blur px-8 py-7">
+                      {/* Pulsing Glow Effect */}
+                      <motion.div 
+                        className="absolute inset-0 rounded-xl bg-gradient-to-r from-violet-600/20 via-fuchsia-600/20 to-violet-600/20"
+                        animate={{ opacity: [0.3, 0.6, 0.3] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                      />
+                      
+                      {/* Left side - Icon and text */}
+                      <div className="relative flex items-center gap-5">
+                        <motion.div 
+                          animate={{ 
+                            scale: [1, 1.1, 1],
+                            rotate: [0, 5, -5, 0]
+                          }}
+                          transition={{ duration: 4, repeat: Infinity }}
+                          className="w-18 h-18 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-xl shadow-violet-500/50"
+                          style={{ width: '72px', height: '72px' }}
+                        >
+                          <Brain className="w-9 h-9 text-white" />
+                        </motion.div>
+                        <div className="text-left">
+                          <div className="flex items-center gap-3 mb-1">
+                            <h2 className="text-2xl md:text-3xl font-bold text-white">LeadSync AI</h2>
+                            <motion.div
+                              animate={{ scale: [1, 1.15, 1] }}
+                              transition={{ duration: 1.5, repeat: Infinity }}
+                            >
+                              <Badge className="bg-violet-500/30 text-violet-300 border-violet-500/50">
+                                <Sparkles className="w-3 h-3 mr-1" />
+                                NEW
+                              </Badge>
+                            </motion.div>
+                          </div>
+                          <p className="text-slate-300 text-sm md:text-base">
+                            100% hands-off: Lead Gen → AI Emails → AI Calls → Meetings Booked
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Right side - CTA */}
+                      <div className="relative flex items-center gap-4">
+                        <div className="hidden md:flex flex-col items-end text-right">
+                          <span className="text-emerald-400 font-semibold text-sm">7-day free trial</span>
+                          <span className="text-slate-500 text-xs">No credit card required</span>
+                        </div>
+                        <motion.div 
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.98 }}
+                          className="flex items-center gap-2 px-6 py-4 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-bold text-lg shadow-xl shadow-violet-500/40"
+                        >
+                          <Sparkles className="w-5 h-5" />
+                          <span className="hidden sm:inline">Get Started</span>
+                          <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                        </motion.div>
+                      </div>
+                    </div>
+                  </motion.button>
+                </motion.div>
+
                 {/* Workflow Step Progress */}
                 <div className="mb-8">
                   <div className="flex items-center justify-between mb-6">
@@ -2190,6 +2316,21 @@ export default function Dashboard() {
         onSuccess={handlePaymentMethodSuccess}
         plan="pro"
       />
+
+      {/* LeadSync AI Onboarding Wizard */}
+      {showLeadSyncOnboarding && (
+        <LeadSyncOnboardingWizard
+          onComplete={(config) => {
+            setLeadSyncConfig(config);
+            setShowLeadSyncOnboarding(false);
+            setActiveTab('leadsync-ai');
+          }}
+          onSkip={() => {
+            setShowLeadSyncOnboarding(false);
+            setActiveTab('leadsync-ai');
+          }}
+        />
+      )}
 
     </SidebarProvider>
   );

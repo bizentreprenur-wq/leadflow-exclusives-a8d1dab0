@@ -11,8 +11,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, ArrowRight, Server, FileText, Send, 
   CheckCircle2, Mail, Users, Loader2, Link2, Database,
-  Eye, Zap, Rocket, FlaskConical, Home,
-  Clock, TrendingUp, Info, Settings, Phone, X, AlertCircle, Upload, Image, Trash2
+  Eye, Zap, Rocket, FlaskConical, Home, Brain,
+  Clock, TrendingUp, Info, Settings, Phone, X, AlertCircle, Upload, Image, Trash2, Sparkles
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -35,6 +35,7 @@ import { addLeadsToCRM, queueLeadsForEmail } from '@/lib/customTemplates';
 import EmailDeliveryNotifications from './EmailDeliveryNotifications';
 import { useAuth } from '@/contexts/AuthContext';
 import { loadBrandingFromBackend, saveUserBranding, deleteUserLogo } from '@/lib/api/branding';
+import MailboxDock from '@/components/MailboxDock';
 
 interface SearchResult {
   id: string;
@@ -43,6 +44,11 @@ interface SearchResult {
   email?: string;
   website?: string;
   address?: string;
+  // AI Scoring fields
+  aiClassification?: 'hot' | 'warm' | 'cold';
+  leadScore?: number;
+  successProbability?: number;
+  verified?: boolean;
 }
 
 interface EmailSetupFlowProps {
@@ -70,6 +76,7 @@ export default function EmailSetupFlow({
   const [showCRMModal, setShowCRMModal] = useState(false);
   const [showAutoCampaign, setShowAutoCampaign] = useState(false);
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
+  const [mailboxOpen, setMailboxOpen] = useState(false);
   
   // Auth context for persistent branding
   const { isAuthenticated } = useAuth();
@@ -533,74 +540,6 @@ export default function EmailSetupFlow({
                 onSelectTemplate={handleTemplateSelect}
                 selectedTemplateId={selectedTemplate?.id}
               />
-
-              {/* Your Selected Template - appears below the gallery */}
-              {selectedTemplate && (
-                <Card className="border-2 border-success/50 bg-gradient-to-r from-success/10 to-green-500/5 mt-6">
-                  <CardContent className="p-5">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-success/20 flex items-center justify-center">
-                          <CheckCircle2 className="w-6 h-6 text-success" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-bold text-lg">Your Selected Template</h3>
-                            <Badge className="bg-success text-white text-xs">Active</Badge>
-                            {customizedContent && (
-                              <Badge variant="outline" className="border-warning text-warning text-xs">Customized</Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {selectedTemplate.name} • {selectedTemplate.category || 'General'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button 
-                          size="sm" 
-                          onClick={() => setShowTemplateEditor(true)} 
-                          className="gap-2 bg-black hover:bg-black/80 text-white rounded-full px-4"
-                        >
-                          <FileText className="w-4 h-4" />
-                          Edit Template
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={handleClearTemplate} className="text-muted-foreground hover:text-destructive">
-                          Choose Different
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="bg-background/80 rounded-lg p-4 border border-border">
-                      <div className="mb-3">
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Subject Line</p>
-                        <p className="font-semibold text-foreground">
-                          {customizedContent?.subject || selectedTemplate.subject}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Preview</p>
-                        <p className="text-sm text-muted-foreground line-clamp-3">
-                          {(customizedContent?.body || selectedTemplate.body || '').replace(/<[^>]*>/g, '').slice(0, 200)}...
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-                      <p className="text-sm text-muted-foreground">
-                        Ready to send to <span className="font-bold text-success">{leadsWithEmail.length}</span> leads
-                      </p>
-                      <Button 
-                        onClick={() => setCurrentPhase('send')}
-                        className="gap-2 bg-gradient-to-r from-success to-green-600 hover:from-success/90 hover:to-green-700"
-                      >
-                        <Send className="w-4 h-4" />
-                        Use This Template & Continue
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
             </div>
           </div>
         );
@@ -716,7 +655,6 @@ export default function EmailSetupFlow({
                       { tab: 'preview', icon: Eye, label: 'Preview', color: 'cyan', tooltip: 'Preview how your email looks in Gmail, Outlook & Apple Mail' },
                       { tab: 'crm', icon: Database, label: 'CRM', color: 'violet', tooltip: 'Connect HubSpot, Salesforce, or use BamLead CRM to manage leads' },
                       { tab: 'ab-testing', icon: FlaskConical, label: 'A/B', color: 'pink', tooltip: 'Create email variants & test which performs best' },
-                      { tab: 'edit-template', icon: FileText, label: 'Edit', color: 'emerald', tooltip: 'Customize your email subject & body with AI assistance' },
                       { tab: 'settings', icon: Settings, label: 'SMTP', color: 'slate', tooltip: 'Configure your email server (Gmail, Outlook, custom SMTP)' },
                       { tab: 'inbox', icon: Mail, label: 'Inbox', color: 'slate', tooltip: 'View inbox messages (coming soon)' },
                     ].map((item) => (
@@ -756,7 +694,7 @@ export default function EmailSetupFlow({
                       Get Started: Click the tabs above!
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      Select <strong className="text-primary">Preview</strong>, <strong className="text-primary">CRM</strong>, <strong className="text-primary">A/B</strong>, <strong className="text-primary">Edit</strong>, or <strong className="text-primary">SMTP</strong> to configure your email campaign
+                      Select <strong className="text-primary">Preview</strong>, <strong className="text-primary">CRM</strong>, <strong className="text-primary">A/B</strong>, or <strong className="text-primary">SMTP</strong> to configure your email campaign
                     </span>
                   </div>
                 </div>
@@ -775,198 +713,6 @@ export default function EmailSetupFlow({
                     {/* MAILBOX VIEW - Default home */}
                     {activeTab === 'mailbox' && (
                       <div className="space-y-6">
-                        {/* SELECTED TEMPLATE WITH INLINE EDITING */}
-                        {selectedTemplate ? (
-                          <div className="rounded-xl border-2 border-success/40 bg-gradient-to-r from-success/10 to-emerald-500/5 overflow-hidden">
-                            {/* Template Header */}
-                            <div className="flex items-center justify-between p-4 border-b border-success/20">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-lg bg-success/20 flex items-center justify-center">
-                                  <CheckCircle2 className="w-5 h-5 text-success" />
-                                </div>
-                                <div>
-                                  <h3 className="font-bold text-foreground flex items-center gap-2">
-                                    {selectedTemplate.name}
-                                    <Badge className="bg-success/20 text-success border-success/40 text-xs">Active</Badge>
-                                    {customizedContent && (
-                                      <Badge variant="outline" className="border-warning/50 text-warning text-xs">Edited</Badge>
-                                    )}
-                                  </h3>
-                                  <p className="text-xs text-muted-foreground">{selectedTemplate.category || 'General'}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <button 
-                                  onClick={() => setShowTemplateEditor(!showTemplateEditor)}
-                                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-all border-primary bg-primary/20 text-foreground shadow-lg shadow-primary/20"
-                                >
-                                  <FileText className="w-4 h-4" />
-                                  {showTemplateEditor ? 'Hide Editor' : 'Edit Template'}
-                                </button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  onClick={() => setCurrentPhase('template')}
-                                  className="text-muted-foreground hover:text-foreground"
-                                >
-                                  Change Template
-                                </Button>
-                              </div>
-                            </div>
-                            
-                            {/* Inline Template Editor - Expandable */}
-                            <AnimatePresence>
-                              {showTemplateEditor && (
-                                <motion.div
-                                  initial={{ height: 0, opacity: 0 }}
-                                  animate={{ height: 'auto', opacity: 1 }}
-                                  exit={{ height: 0, opacity: 0 }}
-                                  transition={{ duration: 0.2 }}
-                                  className="overflow-hidden"
-                                >
-                                  <div className="p-4 bg-background/50 border-b border-success/20">
-                                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                      {/* Editor Fields */}
-                                      <div className="space-y-4">
-                                        <div>
-                                          <Label htmlFor="mailbox-subject" className="text-sm font-medium flex items-center gap-2">
-                                            Subject Line
-                                            <Badge variant="outline" className="text-xs">Required</Badge>
-                                          </Label>
-                                          <Input 
-                                            id="mailbox-subject"
-                                            value={customizedContent?.subject || selectedTemplate.subject}
-                                            placeholder="Enter your subject line..."
-                                            className="mt-1.5"
-                                            onChange={(e) => {
-                                              const body = customizedContent?.body || selectedTemplate.body || '';
-                                              handleSaveCustomization(e.target.value, body);
-                                            }}
-                                          />
-                                        </div>
-                                        <div>
-                                          <Label htmlFor="mailbox-body" className="text-sm font-medium">Email Body</Label>
-                                          <textarea 
-                                            id="mailbox-body"
-                                            value={(customizedContent?.body || selectedTemplate.body || '').replace(/<[^>]*>/g, '')}
-                                            placeholder="Enter your email content..."
-                                            className="mt-1.5 w-full h-40 p-3 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-                                            onChange={(e) => {
-                                              const subject = customizedContent?.subject || selectedTemplate.subject;
-                                              handleSaveCustomization(subject, e.target.value);
-                                            }}
-                                          />
-                                        </div>
-                                        
-                                        {/* Personalization Tokens */}
-                                        <div className="flex flex-wrap gap-2">
-                                          <span className="text-xs text-muted-foreground">Quick tokens:</span>
-                                          {['{{business_name}}', '{{first_name}}', '{{website}}'].map(token => (
-                                            <button
-                                              key={token}
-                                              onClick={() => {
-                                                const currentBody = customizedContent?.body || selectedTemplate.body || '';
-                                                const subject = customizedContent?.subject || selectedTemplate.subject;
-                                                handleSaveCustomization(subject, currentBody + ' ' + token);
-                                              }}
-                                              className="px-2 py-0.5 text-xs rounded bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                                            >
-                                              {token}
-                                            </button>
-                                          ))}
-                                        </div>
-                                        
-                                        {customizedContent && (
-                                          <div className="flex items-center gap-2">
-                                            <Badge className="bg-success/20 text-success border-success/40 text-xs">
-                                              ✓ Changes saved automatically
-                                            </Badge>
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              onClick={() => {
-                                                setCustomizedContent(null);
-                                                localStorage.removeItem('bamlead_template_customizations');
-                                                toast.info('Reverted to original template');
-                                              }}
-                                              className="text-xs text-muted-foreground hover:text-destructive"
-                                            >
-                                              Reset to Original
-                                            </Button>
-                                          </div>
-                                        )}
-                                      </div>
-                                      
-                                      {/* Live Preview */}
-                                      <div className="bg-background rounded-lg border border-border p-4">
-                                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-2">
-                                          <Eye className="w-3 h-3" />
-                                          Live Preview
-                                        </p>
-                                        <div className="space-y-3">
-                                          <div>
-                                            <p className="text-xs text-muted-foreground">Subject:</p>
-                                            <p className="font-medium text-sm">
-                                              {personalizeContent(
-                                                customizedContent?.subject || selectedTemplate.subject,
-                                                { business_name: 'Acme Corp', first_name: 'John' }
-                                              )}
-                                            </p>
-                                          </div>
-                                          <Separator />
-                                          <div>
-                                            <p className="text-xs text-muted-foreground">Body:</p>
-                                            <p className="text-sm text-foreground/80 whitespace-pre-wrap line-clamp-6">
-                                              {personalizeContent(
-                                                (customizedContent?.body || selectedTemplate.body || '').replace(/<[^>]*>/g, ''),
-                                                { business_name: 'Acme Corp', first_name: 'John', website: 'acme.com' }
-                                              ).slice(0, 300)}...
-                                            </p>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                            
-                            {/* Collapsed Preview */}
-                            {!showTemplateEditor && (
-                              <div className="p-4">
-                                <div className="flex items-start gap-4">
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-xs text-muted-foreground mb-1">Subject:</p>
-                                    <p className="font-medium text-foreground truncate">
-                                      {customizedContent?.subject || selectedTemplate.subject}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
-                                      {(customizedContent?.body || selectedTemplate.body || '').replace(/<[^>]*>/g, '').slice(0, 150)}...
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="rounded-xl border-2 border-warning/40 bg-warning/10 p-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-lg bg-warning/20 flex items-center justify-center">
-                                  <FileText className="w-5 h-5 text-warning" />
-                                </div>
-                                <div>
-                                  <h3 className="font-bold text-warning">No Template Selected</h3>
-                                  <p className="text-xs text-muted-foreground">Choose a template to start your campaign</p>
-                                </div>
-                              </div>
-                              <Button onClick={() => setCurrentPhase('template')} className="gap-2">
-                                <FileText className="w-4 h-4" />
-                                Choose Template
-                              </Button>
-                            </div>
-                          </div>
-                        )}
 
                         {/* The Mailbox Animation - THE STAR OF THE SHOW */}
                         <MailboxDripAnimation
@@ -974,15 +720,14 @@ export default function EmailSetupFlow({
                           sentCount={demoSentCount}
                           isActive={demoIsActive || realSendingMode}
                           emailsPerHour={50}
-                          leads={leads.map(l => ({ id: l.id, name: l.name, email: l.email }))}
+                          leads={leads.map(l => ({ id: l.id, name: l.name, email: l.email, business: l.name, category: l.aiClassification, verified: l.verified ?? (l.successProbability !== undefined && l.successProbability >= 60) }))}
                           realSendingMode={realSendingMode}
                           campaignId={campaignId || undefined}
-                          showCampaignSpeed={realSendingMode}
                           onEmailStatusUpdate={(statuses) => {
-                            // Update sent count based on real status
                             const sentCount = Object.values(statuses).filter(s => s === 'sent' || s === 'delivered').length;
                             setDemoSentCount(sentCount);
                           }}
+                          onOpenMailbox={() => setMailboxOpen(true)}
                           renderAfterBanner={
                             <div className="flex justify-center">
                               <Button onClick={() => setShowAutoCampaign(true)} className="gap-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700">
@@ -1224,76 +969,6 @@ export default function EmailSetupFlow({
                       </div>
                     )}
 
-                    {/* EDIT TEMPLATE VIEW */}
-                    {activeTab === 'edit-template' && (
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 mb-4">
-                          <FileText className="w-5 h-5 text-emerald-400" />
-                          <h3 className="font-bold text-lg">Edit Template</h3>
-                        </div>
-                        {selectedTemplate ? (
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div className="space-y-4">
-                              <div>
-                                <Label htmlFor="edit-subject">Subject Line</Label>
-                                <Input 
-                                  id="edit-subject"
-                                  value={customizedContent?.subject || selectedTemplate.subject}
-                                  placeholder="Enter your subject line..."
-                                  className="mt-1"
-                                  onChange={(e) => {
-                                    const body = customizedContent?.body || selectedTemplate.body || '';
-                                    handleSaveCustomization(e.target.value, body);
-                                  }}
-                                />
-                              </div>
-                              <div>
-                                <Label htmlFor="edit-body">Email Body</Label>
-                                <textarea 
-                                  id="edit-body"
-                                  value={(customizedContent?.body || selectedTemplate.body || '').replace(/<[^>]*>/g, '')}
-                                  placeholder="Enter your email content..."
-                                  className="mt-1 w-full h-64 p-3 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
-                                  onChange={(e) => {
-                                    const subject = customizedContent?.subject || selectedTemplate.subject;
-                                    handleSaveCustomization(subject, e.target.value);
-                                  }}
-                                />
-                              </div>
-                              {customizedContent && (
-                                <Badge variant="outline" className="border-success text-success">
-                                  ✓ Your edits are saved automatically
-                                </Badge>
-                              )}
-                            </div>
-                            <AIEmailAssistant
-                              template={selectedTemplate}
-                              leads={leads}
-                              currentSubject={customizedContent?.subject || selectedTemplate.subject}
-                              currentBody={customizedContent?.body || selectedTemplate.body}
-                              onApplySubject={(subject) => {
-                                const body = customizedContent?.body || selectedTemplate.body || '';
-                                handleSaveCustomization(subject, body);
-                              }}
-                              onApplyBody={(newBody) => {
-                                const subject = customizedContent?.subject || selectedTemplate.subject;
-                                const currentBody = customizedContent?.body || selectedTemplate.body || '';
-                                const updatedBody = currentBody ? `${currentBody}\n\n${newBody}` : newBody;
-                                handleSaveCustomization(subject, updatedBody.replace(/<[^>]*>/g, ''));
-                              }}
-                            />
-                          </div>
-                        ) : (
-                          <div className="text-center py-12 bg-muted/20 rounded-xl border border-dashed border-border">
-                            <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
-                            <h3 className="font-semibold mb-2">No Template Selected</h3>
-                            <p className="text-muted-foreground text-sm mb-4">Select a template first to edit it</p>
-                            <Button size="sm" onClick={() => setCurrentPhase('template')}>Choose Template</Button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
                     {/* SMTP SETTINGS VIEW */}
                     {activeTab === 'settings' && (
                       <div className="space-y-4">
@@ -1342,15 +1017,50 @@ export default function EmailSetupFlow({
 
   return (
     <div className="space-y-6">
-      {/* Back Buttons */}
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" onClick={onBack} className="gap-2">
-          <ArrowLeft className="w-4 h-4" />
-          Back to Leads
-        </Button>
-        <Button variant="ghost" onClick={() => window.location.href = '/'} className="gap-2 text-muted-foreground hover:text-foreground">
-          <Home className="w-4 h-4" />
-          Home
+      {/* Floating mailbox on the right (visible throughout Step 3) */}
+      <MailboxDock 
+        enabled={true} 
+        badgeCount={1}
+        isOpen={mailboxOpen}
+        onOpen={() => setMailboxOpen(true)}
+        onClose={() => setMailboxOpen(false)}
+        campaignContext={
+          (demoIsActive || realSendingMode) ? {
+            isActive: true,
+            sentCount: demoSentCount,
+            totalLeads: emailLeads.length
+          } : undefined
+        }
+      />
+
+      {/* Back Buttons + LeadSync AI Button */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" onClick={onBack} className="gap-2">
+            <ArrowLeft className="w-4 h-4" />
+            Back to Leads
+          </Button>
+          <Button variant="ghost" onClick={() => window.location.href = '/'} className="gap-2 text-muted-foreground hover:text-foreground">
+            <Home className="w-4 h-4" />
+            Home
+          </Button>
+        </div>
+        
+        {/* LeadSync AI Button */}
+        <Button 
+          onClick={() => {
+            // Navigate to LeadSync AI tab
+            const event = new CustomEvent('navigate-to-leadsync', { detail: { tab: 'leadsync-ai' } });
+            window.dispatchEvent(event);
+            toast.success('🧠 Opening LeadSync AI - Full automation hub!');
+          }}
+          className="gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white shadow-lg shadow-violet-500/30"
+        >
+          <Brain className="w-4 h-4" />
+          LeadSync AI
+          <Badge className="bg-white/20 text-white border-0 text-[10px] px-1.5 py-0">
+            NEW
+          </Badge>
         </Button>
       </div>
 
@@ -1401,6 +1111,27 @@ export default function EmailSetupFlow({
           {renderPhaseContent()}
         </CardContent>
       </Card>
+
+      {/* Fixed Next Button at Bottom */}
+      <div className="sticky bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t border-border p-4 -mx-6 mt-6 shadow-lg">
+        <div className="flex items-center justify-between max-w-4xl mx-auto">
+          <Button variant="outline" onClick={onBack} className="gap-2">
+            <ArrowLeft className="w-4 h-4" />
+            Back to Step 2
+          </Button>
+          <Button 
+            onClick={() => {
+              setCurrentPhase('send');
+              smartDripRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }} 
+            className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground px-8 py-3 text-lg font-bold shadow-elevated"
+            size="lg"
+          >
+            Next: Send Emails
+            <Send className="w-5 h-5" />
+          </Button>
+        </div>
+      </div>
 
       {/* CRM Modal */}
       <CRMIntegrationModal

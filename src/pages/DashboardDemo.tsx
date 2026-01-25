@@ -28,8 +28,11 @@ import { SocialFinderButton } from "@/components/SocialProfileFinder";
 import EmailHelpOverlay from "@/components/EmailHelpOverlay";
 import HighConvertingTemplateGallery from "@/components/HighConvertingTemplateGallery";
 import LeadSpreadsheetViewer from "@/components/LeadSpreadsheetViewer";
+import AIResponseInbox from "@/components/AIResponseInbox";
+import LiveDripMailbox from "@/components/LiveDripMailbox";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
+import { Inbox } from "lucide-react";
 
 // Generate 100 sample leads
 const businessTypes = ["Auto Repair", "Dental Clinic", "Law Firm", "Restaurant", "Plumber", "Electrician", "Real Estate", "Accounting", "Marketing Agency", "Fitness Studio"];
@@ -71,6 +74,7 @@ const WORKFLOW_STEPS = [
   { id: 2, label: "Leads", icon: Building2 },
   { id: 3, label: "Email", icon: Mail },
   { id: 4, label: "Call", icon: Phone },
+  { id: 5, label: "Mailbox", icon: Inbox },
 ];
 
 export default function DashboardDemo() {
@@ -89,6 +93,7 @@ export default function DashboardDemo() {
   const [sendProgress, setSendProgress] = useState(0);
   const [outreachMode, setOutreachMode] = useState<'email' | 'verify'>('email');
   const [showSpreadsheetViewer, setShowSpreadsheetViewer] = useState(false);
+  const [mailboxView, setMailboxView] = useState<'drip' | 'full'>('drip');
 
   // Convert leads to SearchResult format for LeadSpreadsheetViewer
   const leadsAsSearchResults = leads.map(lead => ({
@@ -928,6 +933,67 @@ Best regards,
                 </div>
               </CardContent>
             </Card>
+          </div>
+        )}
+
+        {/* Step 5: AI Mailbox - Full Experience */}
+        {currentStep === 5 && (
+          <div className="space-y-6">
+            {/* Toggle Header */}
+            <div className="flex items-center justify-between">
+              <Button variant="outline" onClick={() => setCurrentStep(4)} className="gap-2">
+                ← Back to Voice Calls
+              </Button>
+              
+              <div className="flex items-center gap-2 bg-slate-800 rounded-lg p-1">
+                <button
+                  onClick={() => setMailboxView('drip')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    mailboxView === 'drip' 
+                      ? 'bg-emerald-500 text-white' 
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  📤 Live Sending
+                </button>
+                <button
+                  onClick={() => setMailboxView('full')}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    mailboxView === 'full' 
+                      ? 'bg-emerald-500 text-white' 
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  📬 Full Mailbox
+                </button>
+              </div>
+            </div>
+
+            {/* Conditional Render: Live Drip or Full Mailbox */}
+            {mailboxView === 'drip' ? (
+              <LiveDripMailbox 
+                onSwitchToFullMailbox={() => setMailboxView('full')} 
+                leads={leads}
+                verifiedLeads={leads.filter((_, idx) => selectedLeads.includes(idx))}
+                selectedTemplate={selectedTemplate}
+              />
+            ) : (
+              <>
+                {/* Big Header */}
+                <div className="text-center py-6 bg-gradient-to-r from-primary/10 to-emerald-500/10 rounded-2xl border-2 border-primary/30">
+                  <div className="text-5xl mb-3">📬</div>
+                  <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
+                    STEP 5: AI Mailbox
+                  </h2>
+                  <p className="text-lg text-muted-foreground max-w-xl mx-auto">
+                    Manage replies, sequences, and follow-ups with AI automation
+                  </p>
+                </div>
+
+                {/* AI Response Inbox */}
+                <AIResponseInbox />
+              </>
+            )}
           </div>
         )}
       </div>

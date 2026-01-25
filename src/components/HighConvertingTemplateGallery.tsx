@@ -60,6 +60,7 @@ import { toast } from "sonner";
 import { saveUserBranding } from "@/lib/api/branding";
 import { useAuth } from "@/contexts/AuthContext";
 import TemplateAIAssistant from "./TemplateAIAssistant";
+import AIEmailTemplateBuilder from "./AIEmailTemplateBuilder";
 
 interface HighConvertingTemplateGalleryProps {
   onSelectTemplate?: (template: EmailTemplate) => void;
@@ -140,6 +141,7 @@ export default function HighConvertingTemplateGallery({
   
   // Upload your own template state
   const [showUploadSection, setShowUploadSection] = useState(false);
+  const [showAIBuilder, setShowAIBuilder] = useState(false);
   const [uploadTemplateName, setUploadTemplateName] = useState('');
   const [uploadSubject, setUploadSubject] = useState('');
   const [uploadBody, setUploadBody] = useState('');
@@ -675,359 +677,6 @@ export default function HighConvertingTemplateGallery({
         </Tabs>
       </div>
 
-      {/* Upload Your Own Template Section */}
-      <Card className="border-2 border-dashed border-primary/40 bg-primary/5">
-        <CardContent className="p-4">
-          {!showUploadSection ? (
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-                  <Upload className="w-6 h-6 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">Upload Your Own Template</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Create a custom email template with your own content and images
-                  </p>
-                </div>
-              </div>
-              <Button 
-                onClick={() => setShowUploadSection(true)}
-                className="gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Create Template
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-5">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Upload className="w-5 h-5 text-primary" />
-                  Create Your Custom Template
-                </h3>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => setShowUploadSection(false)}
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-
-              {/* Logo Upload Section - Show if user doesn't have a logo */}
-              {!branding?.logo_url && !uploadLogoLocal && (
-                <div className="p-4 rounded-lg bg-warning/10 border border-warning/30">
-                  <div className="flex items-center gap-3 mb-3">
-                    <ImageIcon className="w-5 h-5 text-warning" />
-                    <div>
-                      <p className="font-medium text-sm">No Business Logo Found</p>
-                      <p className="text-xs text-muted-foreground">
-                        Upload your logo to include in all email templates
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <input
-                      ref={uploadLogoRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleLogoUploadLocal}
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => uploadLogoRef.current?.click()}
-                      className="gap-2"
-                    >
-                      <Upload className="w-4 h-4" />
-                      Upload Business Logo
-                    </Button>
-                    <span className="text-xs text-muted-foreground">Max 2MB • PNG, JPG</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Show uploaded logo preview */}
-              {(branding?.logo_url || uploadLogoLocal) && (
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-success/10 border border-success/30">
-                  <img 
-                    src={branding?.logo_url || uploadLogoLocal || ''} 
-                    alt="Business Logo" 
-                    className="h-10 max-w-[120px] object-contain"
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-success">✓ Business Logo Ready</p>
-                    <p className="text-xs text-muted-foreground">Will be included in your emails</p>
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Template Name */}
-                <div className="space-y-2">
-                  <Label htmlFor="upload-name">Template Name *</Label>
-                  <Input
-                    id="upload-name"
-                    value={uploadTemplateName}
-                    onChange={(e) => setUploadTemplateName(e.target.value)}
-                    placeholder="e.g., My Follow-up Template"
-                  />
-                </div>
-
-                {/* Industry/Category */}
-                <div className="space-y-2">
-                  <Label htmlFor="upload-industry">Industry/Category</Label>
-                  <Input
-                    id="upload-industry"
-                    value={uploadIndustry}
-                    onChange={(e) => setUploadIndustry(e.target.value)}
-                    placeholder="e.g., Real Estate, HVAC, etc."
-                  />
-                </div>
-              </div>
-
-              {/* Subject Line */}
-              <div className="space-y-2">
-                <Label htmlFor="upload-subject">Subject Line *</Label>
-                <Input
-                  id="upload-subject"
-                  value={uploadSubject}
-                  onChange={(e) => setUploadSubject(e.target.value)}
-                  placeholder="e.g., Quick question about {{business_name}}"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Use placeholders: {"{{first_name}}"}, {"{{business_name}}"}, {"{{website}}"}
-                </p>
-              </div>
-
-              {/* Content Mode Tabs */}
-              <div className="space-y-3">
-                <Label>Email Content *</Label>
-                <div className="flex gap-2 mb-3">
-                  <Button
-                    type="button"
-                    variant={contentMode === 'text' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setContentMode('text')}
-                    className="gap-2"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                    Write Text
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={contentMode === 'html' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => htmlFileRef.current?.click()}
-                    className="gap-2"
-                  >
-                    <Upload className="w-4 h-4" />
-                    Upload HTML File
-                  </Button>
-                  <input
-                    ref={htmlFileRef}
-                    type="file"
-                    accept=".html,.htm,.txt,text/html,text/plain"
-                    className="hidden"
-                    onChange={handleHtmlFileUpload}
-                  />
-                </div>
-
-                {/* Text Mode - Write with inline images */}
-                {contentMode === 'text' && (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {/* Left Column - Text Editor */}
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs text-muted-foreground">
-                          Write your email and insert images anywhere
-                        </p>
-                        <div className="flex items-center gap-2">
-                          <input
-                            ref={inlineImageRef}
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={handleInlineImageUpload}
-                          />
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => inlineImageRef.current?.click()}
-                            className="gap-1.5 text-xs"
-                          >
-                            <ImageIcon className="w-3.5 h-3.5" />
-                            Insert Image
-                          </Button>
-                        </div>
-                      </div>
-                      <Textarea
-                        ref={uploadBodyRef}
-                        id="upload-body"
-                        value={uploadBody}
-                        onChange={(e) => setUploadBody(e.target.value)}
-                        placeholder={`Hi {{first_name}},
-
-I noticed your business {{business_name}} and wanted to reach out...
-
-[Click "Insert Image" to add images anywhere in your email]
-
-Looking forward to connecting!
-
-Best regards,
-[Your Name]`}
-                        className="min-h-[280px] font-mono text-sm"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Use placeholders: {"{{first_name}}"}, {"{{business_name}}"}, {"{{website}}"}
-                      </p>
-                      
-                      {/* Inline Images Preview */}
-                      {Object.keys(inlineImages).length > 0 && (
-                        <div className="space-y-2">
-                          <Label>Inserted Images</Label>
-                          <div className="flex flex-wrap gap-3 p-3 rounded-lg bg-muted/30 border">
-                            {Object.entries(inlineImages).map(([placeholder, src]) => (
-                              <div key={placeholder} className="relative group">
-                                <img 
-                                  src={src} 
-                                  alt={placeholder} 
-                                  className="h-16 w-24 object-cover rounded-lg border shadow-sm"
-                                />
-                                <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                                  <Button
-                                    size="icon"
-                                    variant="destructive"
-                                    className="w-6 h-6"
-                                    onClick={() => handleRemoveInlineImage(placeholder)}
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </Button>
-                                </div>
-                                <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-background/70 text-foreground py-0.5 rounded-b-lg">
-                                  {placeholder}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Right Column - AI Assistant */}
-                    <div>
-                      <TemplateAIAssistant
-                        industry={uploadIndustry || 'local business'}
-                        onApplySubject={(subject) => setUploadSubject(subject)}
-                        onApplyBody={(body) => setUploadBody(body)}
-                        currentSubject={uploadSubject}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* HTML Mode - Show uploaded HTML preview */}
-                {contentMode === 'html' && (
-                  <div className="space-y-3">
-                    {uploadedHtml ? (
-                      <>
-                        <div className="flex items-center justify-between p-3 rounded-lg bg-success/10 border border-success/30">
-                          <div className="flex items-center gap-3">
-                            <Check className="w-5 h-5 text-success" />
-                            <div>
-                              <p className="text-sm font-medium text-success">✓ HTML Template Loaded</p>
-                              <p className="text-xs text-muted-foreground">
-                                {uploadedHtml.length.toLocaleString()} characters
-                              </p>
-                            </div>
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setUploadedHtml('');
-                              setContentMode('text');
-                            }}
-                            className="gap-1.5"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                            Remove
-                          </Button>
-                        </div>
-                        
-                        {/* HTML Preview */}
-                        <div className="space-y-2">
-                          <Label>Preview</Label>
-                          <div className="max-h-[300px] overflow-auto rounded-lg border bg-background p-4">
-                            <div 
-                              dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(uploadedHtml) }} 
-                              className="prose prose-sm max-w-none"
-                            />
-                          </div>
-                        </div>
-                        
-                        {/* Raw HTML Editor */}
-                        <div className="space-y-2">
-                          <Label>Edit HTML (optional)</Label>
-                          <Textarea
-                            value={uploadedHtml}
-                            onChange={(e) => setUploadedHtml(e.target.value)}
-                            className="min-h-[150px] font-mono text-xs"
-                            placeholder="Your HTML content..."
-                          />
-                        </div>
-                      </>
-                    ) : (
-                      <div 
-                        className="border-2 border-dashed border-primary/30 rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
-                        onClick={() => htmlFileRef.current?.click()}
-                      >
-                        <Upload className="w-12 h-12 mx-auto text-primary/60 mb-3" />
-                        <p className="font-medium">Click to upload an HTML template</p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Supports .html, .htm, or .txt files up to 5MB
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setShowUploadSection(false);
-                    setUploadTemplateName('');
-                    setUploadSubject('');
-                    setUploadBody('');
-                    setUploadIndustry('');
-                    setUploadedHtml('');
-                    setContentMode('text');
-                    setInlineImages({});
-                    setInlineImageCounter(1);
-                  }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleSaveUploadedTemplate}
-                  className="gap-2"
-                  disabled={!uploadTemplateName.trim() || !uploadSubject.trim() || (contentMode === 'text' && !uploadBody.trim()) || (contentMode === 'html' && !uploadedHtml.trim())}
-                >
-                  <Save className="w-4 h-4" />
-                  Save Template
-                </Button>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Template Grid - CLICK OPENS PREVIEW */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-24">
         {filteredTemplates.map((template) => {
@@ -1164,6 +813,423 @@ Best regards,
           <p className="text-muted-foreground">No templates found matching your search.</p>
         </div>
       )}
+
+      {/* AI Template Builder Section - UNDER the Email Template Gallery */}
+      <Card className="border-2 border-dashed border-violet-500/40 bg-gradient-to-r from-violet-500/5 to-purple-500/5">
+        <CardContent className="p-4">
+          {!showAIBuilder ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center">
+                  <Sparkles className="w-6 h-6 text-violet-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold flex items-center gap-2">
+                    Build your own Email Template with AI
+                    <Badge className="bg-violet-500/20 text-violet-400 border-violet-500/40 text-xs">AI Powered</Badge>
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Create stunning email templates with AI-generated content and hero images
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={() => setShowAIBuilder(true)}
+                className="gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+              >
+                <Wand2 className="w-4 h-4" />
+                Start Building
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-violet-400" />
+                  Build your own Email Template with AI
+                </h3>
+                <Button variant="ghost" size="sm" onClick={() => setShowAIBuilder(false)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <AIEmailTemplateBuilder
+                onSaveTemplate={(template) => {
+                  const newTemplate = saveCustomTemplate({
+                    id: '',
+                    name: 'AI-Built Template',
+                    category: 'general',
+                    industry: 'AI Generated',
+                    subject: template.subject,
+                    body_html: template.heroImage
+                      ? `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">\n                          <img src="${template.heroImage}" alt="Hero" style="width:100%;max-width:600px;height:auto;margin-bottom:20px;border-radius:8px;" />\n                          ${template.body.split('\\n').map(p => `<p style=\"margin: 0 0 15px 0; line-height: 1.6;\">${p}</p>`).join('')}\n                        </div>`
+                      : `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">\n                          ${template.body.split('\\n').map(p => `<p style=\"margin: 0 0 15px 0; line-height: 1.6;\">${p}</p>`).join('')}\n                        </div>`,
+                    description: 'AI-generated custom template',
+                    previewImage:
+                      template.heroImage ||
+                      'https://images.unsplash.com/photo-1557200134-90327ee9fafa?w=400&h=300&fit=crop',
+                    conversionTip: 'Personalize with recipient details for better engagement',
+                    openRate: 0,
+                    replyRate: 0,
+                    folderId: undefined,
+                  });
+
+                  setCustomTemplates(getCustomTemplates());
+                  onSelectTemplate?.(newTemplate);
+                  setHighlightedTemplate(newTemplate);
+                  setShowAIBuilder(false);
+                  toast.success('🎉 AI Template created and selected!');
+                }}
+              />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Upload Your Own Template Section - BELOW the AI Builder */}
+      <Card className="border-2 border-dashed border-primary/40 bg-primary/5">
+        <CardContent className="p-4">
+          {!showUploadSection ? (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
+                  <Upload className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Upload Your Own Template</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Create a custom email template with your own content and images
+                  </p>
+                </div>
+              </div>
+              <Button onClick={() => setShowUploadSection(true)} className="gap-2">
+                <Plus className="w-4 h-4" />
+                Create Template
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Upload className="w-5 h-5 text-primary" />
+                  Create Your Custom Template
+                </h3>
+                <Button variant="ghost" size="sm" onClick={() => setShowUploadSection(false)}>
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+
+              {/* Logo Upload Section - Show if user doesn't have a logo */}
+              {!branding?.logo_url && !uploadLogoLocal && (
+                <div className="p-4 rounded-lg bg-warning/10 border border-warning/30">
+                  <div className="flex items-center gap-3 mb-3">
+                    <ImageIcon className="w-5 h-5 text-warning" />
+                    <div>
+                      <p className="font-medium text-sm">No Business Logo Found</p>
+                      <p className="text-xs text-muted-foreground">
+                        Upload your logo to include in all email templates
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      ref={uploadLogoRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleLogoUploadLocal}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => uploadLogoRef.current?.click()}
+                      className="gap-2"
+                    >
+                      <Upload className="w-4 h-4" />
+                      Upload Business Logo
+                    </Button>
+                    <span className="text-xs text-muted-foreground">Max 2MB • PNG, JPG</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Show uploaded logo preview */}
+              {(branding?.logo_url || uploadLogoLocal) && (
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-success/10 border border-success/30">
+                  <img
+                    src={branding?.logo_url || uploadLogoLocal || ''}
+                    alt="Business Logo"
+                    className="h-10 max-w-[120px] object-contain"
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-success">✓ Business Logo Ready</p>
+                    <p className="text-xs text-muted-foreground">Will be included in your emails</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Template Name */}
+                <div className="space-y-2">
+                  <Label htmlFor="upload-name">Template Name *</Label>
+                  <Input
+                    id="upload-name"
+                    value={uploadTemplateName}
+                    onChange={(e) => setUploadTemplateName(e.target.value)}
+                    placeholder="e.g., My Follow-up Template"
+                  />
+                </div>
+
+                {/* Industry/Category */}
+                <div className="space-y-2">
+                  <Label htmlFor="upload-industry">Industry/Category</Label>
+                  <Input
+                    id="upload-industry"
+                    value={uploadIndustry}
+                    onChange={(e) => setUploadIndustry(e.target.value)}
+                    placeholder="e.g., Real Estate, HVAC, etc."
+                  />
+                </div>
+              </div>
+
+              {/* Subject Line */}
+              <div className="space-y-2">
+                <Label htmlFor="upload-subject">Subject Line *</Label>
+                <Input
+                  id="upload-subject"
+                  value={uploadSubject}
+                  onChange={(e) => setUploadSubject(e.target.value)}
+                  placeholder="e.g., Quick question about {{business_name}}"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Use placeholders: {"{{first_name}}"}, {"{{business_name}}"}, {"{{website}}"}
+                </p>
+              </div>
+
+              {/* Content Mode Tabs */}
+              <div className="space-y-3">
+                <Label>Email Content *</Label>
+                <div className="flex gap-2 mb-3">
+                  <Button
+                    type="button"
+                    variant={contentMode === 'text' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setContentMode('text')}
+                    className="gap-2"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                    Write Text
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={contentMode === 'html' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => htmlFileRef.current?.click()}
+                    className="gap-2"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Upload HTML File
+                  </Button>
+                  <input
+                    ref={htmlFileRef}
+                    type="file"
+                    accept=".html,.htm,.txt,text/html,text/plain"
+                    className="hidden"
+                    onChange={handleHtmlFileUpload}
+                  />
+                </div>
+
+                {/* Text Mode - Write with inline images */}
+                {contentMode === 'text' && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {/* Left Column - Text Editor */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs text-muted-foreground">Write your email and insert images anywhere</p>
+                        <div className="flex items-center gap-2">
+                          <input
+                            ref={inlineImageRef}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleInlineImageUpload}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => inlineImageRef.current?.click()}
+                            className="gap-1.5 text-xs"
+                          >
+                            <ImageIcon className="w-3.5 h-3.5" />
+                            Insert Image
+                          </Button>
+                        </div>
+                      </div>
+                      <Textarea
+                        ref={uploadBodyRef}
+                        id="upload-body"
+                        value={uploadBody}
+                        onChange={(e) => setUploadBody(e.target.value)}
+                        placeholder={`Hi {{first_name}},
+
+I noticed your business {{business_name}} and wanted to reach out...
+
+[Click "Insert Image" to add images anywhere in your email]
+
+Looking forward to connecting!
+
+Best regards,
+[Your Name]`}
+                        className="min-h-[280px] font-mono text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Use placeholders: {"{{first_name}}"}, {"{{business_name}}"}, {"{{website}}"}
+                      </p>
+
+                      {/* Inline Images Preview */}
+                      {Object.keys(inlineImages).length > 0 && (
+                        <div className="space-y-2">
+                          <Label>Inserted Images</Label>
+                          <div className="flex flex-wrap gap-3 p-3 rounded-lg bg-muted/30 border">
+                            {Object.entries(inlineImages).map(([placeholder, src]) => (
+                              <div key={placeholder} className="relative group">
+                                <img
+                                  src={src}
+                                  alt={placeholder}
+                                  className="h-16 w-24 object-cover rounded-lg border shadow-sm"
+                                />
+                                <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                                  <Button
+                                    size="icon"
+                                    variant="destructive"
+                                    className="w-6 h-6"
+                                    onClick={() => handleRemoveInlineImage(placeholder)}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                                <span className="absolute bottom-0 left-0 right-0 text-[10px] text-center bg-background/70 text-foreground py-0.5 rounded-b-lg">
+                                  {placeholder}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right Column - AI Assistant */}
+                    <div>
+                      <TemplateAIAssistant
+                        industry={uploadIndustry || 'local business'}
+                        onApplySubject={(subject) => setUploadSubject(subject)}
+                        onApplyBody={(body) => setUploadBody(body)}
+                        currentSubject={uploadSubject}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* HTML Mode - Show uploaded HTML preview */}
+                {contentMode === 'html' && (
+                  <div className="space-y-3">
+                    {uploadedHtml ? (
+                      <>
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-success/10 border border-success/30">
+                          <div className="flex items-center gap-3">
+                            <Check className="w-5 h-5 text-success" />
+                            <div>
+                              <p className="text-sm font-medium text-success">✓ HTML Template Loaded</p>
+                              <p className="text-xs text-muted-foreground">{uploadedHtml.length.toLocaleString()} characters</p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setUploadedHtml('');
+                              setContentMode('text');
+                            }}
+                            className="gap-1.5"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            Remove
+                          </Button>
+                        </div>
+
+                        {/* HTML Preview */}
+                        <div className="space-y-2">
+                          <Label>Preview</Label>
+                          <div className="max-h-[300px] overflow-auto rounded-lg border bg-background p-4">
+                            <div
+                              dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(uploadedHtml) }}
+                              className="prose prose-sm max-w-none"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Raw HTML Editor */}
+                        <div className="space-y-2">
+                          <Label>Edit HTML (optional)</Label>
+                          <Textarea
+                            value={uploadedHtml}
+                            onChange={(e) => setUploadedHtml(e.target.value)}
+                            className="min-h-[150px] font-mono text-xs"
+                            placeholder="Your HTML content..."
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <div
+                        className="border-2 border-dashed border-primary/30 rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
+                        onClick={() => htmlFileRef.current?.click()}
+                      >
+                        <Upload className="w-12 h-12 mx-auto text-primary/60 mb-3" />
+                        <p className="font-medium">Click to upload an HTML template</p>
+                        <p className="text-sm text-muted-foreground mt-1">Supports .html, .htm, or .txt files up to 5MB</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowUploadSection(false);
+                    setUploadTemplateName('');
+                    setUploadSubject('');
+                    setUploadBody('');
+                    setUploadIndustry('');
+                    setUploadedHtml('');
+                    setContentMode('text');
+                    setInlineImages({});
+                    setInlineImageCounter(1);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveUploadedTemplate}
+                  className="gap-2"
+                  disabled={
+                    !uploadTemplateName.trim() ||
+                    !uploadSubject.trim() ||
+                    (contentMode === 'text' && !uploadBody.trim()) ||
+                    (contentMode === 'html' && !uploadedHtml.trim())
+                  }
+                >
+                  <Save className="w-4 h-4" />
+                  Save Template
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Preview/Edit Modal */}
       {previewTemplate &&

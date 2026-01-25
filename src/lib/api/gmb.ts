@@ -224,12 +224,14 @@ async function searchGMBStreaming(
     const initialTimeoutId = setTimeout(() => {
       controller.abort();
       fail(new Error('Search timed out before streaming started.'));
-    }, 25000); // 25s to receive headers / first bytes
+    }, 30000); // 30s to receive headers / first bytes
 
+    // Scale timeout based on limit - 2min for small, 10min for 2000 leads
+    const totalTimeoutMs = limit <= 100 ? 120000 : limit <= 500 ? 300000 : 600000;
     const timeoutId = setTimeout(() => {
       controller.abort();
-      fail(new Error('Stream timeout after 120 seconds'));
-    }, 120000); // 2 minute total timeout
+      fail(new Error(`Stream timeout after ${totalTimeoutMs / 60000} minutes`));
+    }, totalTimeoutMs);
     
     fetch(`${API_BASE_URL}/gmb-search-stream.php`, {
       method: 'POST',

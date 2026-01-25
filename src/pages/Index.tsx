@@ -4,7 +4,6 @@ import HeroSection from "@/components/HeroSection";
 import StatsSection from "@/components/StatsSection";
 import LeadGenSection from "@/components/LeadGenSection";
 import EmailOutreachSection from "@/components/EmailOutreachSection";
-import ChromeExtensionSection from "@/components/ChromeExtensionSection";
 import HowItWorksSection from "@/components/HowItWorksSection";
 import WhoThisIsForSection from "@/components/WhoThisIsForSection";
 import WhyItWorksSection from "@/components/WhyItWorksSection";
@@ -15,15 +14,14 @@ import NewFeaturesShowcase from "@/components/NewFeaturesShowcase";
 import FreeTrialBanner from "@/components/FreeTrialBanner";
 import SecretAISection from "@/components/SecretAISection";
 import RevolutionaryFeaturesSection from "@/components/RevolutionaryFeaturesSection";
-import DualSearchShowcase from "@/components/DualSearchShowcase";
 import AgentCardsSection from "@/components/AgentCardsSection";
 import WhenAIActivatesSection from "@/components/WhenAIActivatesSection";
 import SponsorSection from "@/components/SponsorSection";
-import AutoSearchFeature from "@/components/AutoSearchFeature";
 import VoiceCallingSection from "@/components/VoiceCallingSection";
 import ROICalculatorSection from "@/components/ROICalculatorSection";
 import AIEmailAssistantDemo from "@/components/AIEmailAssistantDemo";
 import SuperAIFeaturesSection from "@/components/SuperAIFeaturesSection";
+import LeadSyncShowcase from "@/components/LeadSyncShowcase";
 
 const Index = () => {
   return (
@@ -33,10 +31,9 @@ const Index = () => {
       <main>
         <HeroSection />
         <SuperAIFeaturesSection />
-        <DualSearchShowcase />
+        <LeadSyncShowcase />
         <HowItWorksSection />
         <AgentCardsSection />
-        <AutoSearchFeature />
         <VoiceCallingSection />
         <WhenAIActivatesSection />
         <RevolutionaryFeaturesSection />

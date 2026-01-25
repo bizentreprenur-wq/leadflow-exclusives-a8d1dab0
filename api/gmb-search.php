@@ -92,108 +92,207 @@ try {
 }
 
 /**
- * Search for GMB listings using SerpAPI Google Maps
- * Fetches multiple pages for comprehensive results up to the specified limit
+ * Search for business listings using multiple SerpAPI engines
+ * Queries Google Maps, Yelp, and Bing Local for comprehensive results
  */
 function searchGMBListings($service, $location, $limit = 100) {
     $apiKey = defined('SERPAPI_KEY') ? SERPAPI_KEY : '';
     
     if (empty($apiKey)) {
-        // NO MOCK DATA - require real API key
         throw new Exception('SERPAPI_KEY is not configured. Please add it to config.php for real search results.');
     }
     
-    // Increase PHP time limit for large searches
-    set_time_limit(300); // 5 minutes max
+    set_time_limit(300);
     
     $query = "$service in $location";
     $allResults = [];
-    $resultsPerPage = 20;
-    $maxPages = ceil($limit / $resultsPerPage);
-    $maxPages = min($maxPages, 100); // Cap at 100 pages (2000 results max)
+    $seenBusinesses = [];
     
-    for ($page = 0; $page < $maxPages; $page++) {
+    // Search engines supported by SerpAPI
+    $searchEngines = [
+        ['engine' => 'google_maps', 'name' => 'Google Maps', 'resultsKey' => 'local_results'],
+        ['engine' => 'yelp', 'name' => 'Yelp', 'resultsKey' => 'organic_results'],
+        ['engine' => 'bing_local', 'name' => 'Bing Places', 'resultsKey' => 'local_results'],
+    ];
+    
+    $resultsPerEngine = ceil($limit / count($searchEngines));
+    
+    foreach ($searchEngines as $engineConfig) {
         if (count($allResults) >= $limit) {
             break;
         }
         
-        $params = [
-            'engine' => 'google_maps',
-            'q' => $query,
-            'type' => 'search',
-            'api_key' => $apiKey,
-            'hl' => 'en',
-            'num' => $resultsPerPage,
-        ];
+        $engineResults = searchSingleEngineNonStream(
+            $apiKey,
+            $engineConfig['engine'],
+            $query,
+            $engineConfig['resultsKey'],
+            $resultsPerEngine,
+            $engineConfig['name']
+        );
         
-        if ($page > 0) {
-            $params['start'] = $page * $resultsPerPage;
-        }
-        
-        $url = "https://serpapi.com/search.json?" . http_build_query($params);
-        
-        $response = curlRequest($url);
-        
-        if ($response['httpCode'] !== 200) {
-            if ($page === 0) {
-                throw new Exception('Failed to fetch search results from SerpAPI');
-            }
-            break;
-        }
-        
-        $data = json_decode($response['response'], true);
-        
-        if (!isset($data['local_results']) || empty($data['local_results'])) {
-            break;
-        }
-        
-        foreach ($data['local_results'] as $item) {
+        foreach ($engineResults as $business) {
             if (count($allResults) >= $limit) {
                 break;
             }
             
-            $websiteUrl = $item['website'] ?? '';
+            $dedupeKey = strtolower(trim($business['name'])) . '|' . strtolower(trim($business['address'] ?? ''));
             
-            $business = [
-                'id' => generateId('gmb_'),
-                'name' => $item['title'] ?? 'Unknown Business',
-                'url' => $websiteUrl,
-                'snippet' => $item['description'] ?? ($item['type'] ?? ''),
-                'displayLink' => parse_url($websiteUrl, PHP_URL_HOST) ?? '',
-                'address' => $item['address'] ?? '',
-                'phone' => $item['phone'] ?? '',
-                'rating' => $item['rating'] ?? null,
-                'reviews' => $item['reviews'] ?? null,
-                'placeId' => $item['place_id'] ?? '',
-            ];
-            
-            // SKIP deep website analysis to prevent timeout
-            // Use quick detection from URL only
-            if (!empty($websiteUrl)) {
-                $business['websiteAnalysis'] = quickWebsiteCheck($websiteUrl);
+            if (!isset($seenBusinesses[$dedupeKey])) {
+                $seenBusinesses[$dedupeKey] = true;
+                $business['sources'] = [$engineConfig['name']];
+                $allResults[] = $business;
             } else {
-                $business['websiteAnalysis'] = [
-                    'hasWebsite' => false,
-                    'platform' => null,
-                    'needsUpgrade' => true,
-                    'issues' => ['No website found'],
-                    'mobileScore' => null,
-                    'loadTime' => null
-                ];
+                // Update existing with additional source
+                foreach ($allResults as &$existing) {
+                    $existingKey = strtolower(trim($existing['name'])) . '|' . strtolower(trim($existing['address'] ?? ''));
+                    if ($existingKey === $dedupeKey && !in_array($engineConfig['name'], $existing['sources'] ?? [])) {
+                        $existing['sources'][] = $engineConfig['name'];
+                        break;
+                    }
+                }
+            }
+        }
+        
+        usleep(200000); // 200ms between engines
+    }
+    
+    return $allResults;
+}
+
+/**
+ * Search a single SerpAPI engine (non-streaming version)
+ */
+function searchSingleEngineNonStream($apiKey, $engine, $query, $resultsKey, $limit, $sourceName) {
+    $results = [];
+    $resultsPerPage = 20;
+    $maxPages = ceil($limit / $resultsPerPage);
+    $maxPages = min($maxPages, 10);
+    
+    for ($page = 0; $page < $maxPages; $page++) {
+        if (count($results) >= $limit) {
+            break;
+        }
+        
+        $params = [
+            'engine' => $engine,
+            'q' => $query,
+            'api_key' => $apiKey,
+        ];
+        
+        if ($engine === 'google_maps') {
+            $params['type'] = 'search';
+            $params['hl'] = 'en';
+            if ($page > 0) {
+                $params['start'] = $page * $resultsPerPage;
+            }
+        } elseif ($engine === 'yelp') {
+            $params['find_desc'] = explode(' in ', $query)[0];
+            $params['find_loc'] = explode(' in ', $query)[1] ?? $query;
+            if ($page > 0) {
+                $params['start'] = $page * 10;
+            }
+        } elseif ($engine === 'bing_local') {
+            if ($page > 0) {
+                $params['first'] = $page * $resultsPerPage;
+            }
+        }
+        
+        $url = "https://serpapi.com/search.json?" . http_build_query($params);
+        $response = curlRequest($url);
+        
+        if ($response['httpCode'] !== 200) {
+            break;
+        }
+        
+        $data = json_decode($response['response'], true);
+        $items = $data[$resultsKey] ?? [];
+        
+        if (empty($items)) {
+            break;
+        }
+        
+        foreach ($items as $item) {
+            if (count($results) >= $limit) {
+                break;
             }
             
-            $allResults[] = $business;
+            $business = normalizeBusinessResultNonStream($item, $engine, $sourceName);
+            if ($business) {
+                $results[] = $business;
+            }
         }
         
         if (!isset($data['serpapi_pagination']['next'])) {
             break;
         }
         
-        // Minimal delay
-        usleep(100000); // 100ms delay
+        usleep(100000);
     }
     
-    return $allResults;
+    return $results;
+}
+
+/**
+ * Normalize business result from different engines
+ */
+function normalizeBusinessResultNonStream($item, $engine, $sourceName) {
+    $websiteUrl = '';
+    $name = '';
+    $address = '';
+    $phone = '';
+    $rating = null;
+    $reviews = null;
+    $snippet = '';
+    
+    if ($engine === 'google_maps') {
+        $name = $item['title'] ?? '';
+        $websiteUrl = $item['website'] ?? '';
+        $address = $item['address'] ?? '';
+        $phone = $item['phone'] ?? '';
+        $rating = $item['rating'] ?? null;
+        $reviews = $item['reviews'] ?? null;
+        $snippet = $item['description'] ?? ($item['type'] ?? '');
+    } elseif ($engine === 'yelp') {
+        $name = $item['title'] ?? ($item['name'] ?? '');
+        $websiteUrl = $item['link'] ?? '';
+        $address = $item['address'] ?? ($item['neighborhood'] ?? '');
+        $phone = $item['phone'] ?? '';
+        $rating = $item['rating'] ?? null;
+        $reviews = $item['reviews'] ?? null;
+        $snippet = $item['snippet'] ?? ($item['categories'] ?? '');
+        if (is_array($snippet)) {
+            $snippet = implode(', ', $snippet);
+        }
+    } elseif ($engine === 'bing_local') {
+        $name = $item['title'] ?? '';
+        $websiteUrl = $item['link'] ?? ($item['website'] ?? '');
+        $address = $item['address'] ?? '';
+        $phone = $item['phone'] ?? '';
+        $rating = $item['rating'] ?? null;
+        $reviews = $item['reviews'] ?? null;
+        $snippet = $item['description'] ?? '';
+    }
+    
+    if (empty($name)) {
+        return null;
+    }
+    
+    $websiteAnalysis = quickWebsiteCheck($websiteUrl);
+    
+    return [
+        'id' => generateId(strtolower(substr($engine, 0, 3)) . '_'),
+        'name' => $name,
+        'url' => $websiteUrl,
+        'snippet' => $snippet,
+        'displayLink' => parse_url($websiteUrl, PHP_URL_HOST) ?? '',
+        'address' => $address,
+        'phone' => $phone,
+        'rating' => $rating,
+        'reviews' => $reviews,
+        'source' => $sourceName,
+        'websiteAnalysis' => $websiteAnalysis
+    ];
 }
 
 /**

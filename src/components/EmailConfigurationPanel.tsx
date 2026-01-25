@@ -1107,63 +1107,59 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
 
               {/* Proposals & Contracts Panel - Right Side */}
               <Card className="border-accent/30 bg-gradient-to-br from-accent/5 to-transparent lg:col-span-2">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-accent" />
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-accent" />
                     Done For You Documents
                   </CardTitle>
-                  <CardDescription className="text-xs">
+                  <CardDescription className="text-sm">
                     Send professional proposals & contracts
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-4">
                   {/* Quick Actions */}
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-3">
                     <Button
                       variant="outline"
-                      size="sm"
-                      className="h-auto py-3 flex-col gap-1 border-primary/30 hover:bg-primary/10"
+                      className="h-auto py-4 flex-col gap-2 border-primary/30 hover:bg-primary/10"
                       onClick={() => setShowProposalsPanel('proposals')}
                     >
-                      <FileText className="w-5 h-5 text-primary" />
-                      <span className="text-xs font-medium">Proposals</span>
-                      <span className="text-[10px] text-muted-foreground">10 templates</span>
+                      <FileText className="w-6 h-6 text-primary" />
+                      <span className="text-sm font-semibold">Proposals</span>
+                      <span className="text-xs text-muted-foreground">10 templates</span>
                     </Button>
                     <Button
                       variant="outline"
-                      size="sm"
-                      className="h-auto py-3 flex-col gap-1 border-amber-500/30 hover:bg-amber-500/10"
+                      className="h-auto py-4 flex-col gap-2 border-amber-500/30 hover:bg-amber-500/10"
                       onClick={() => setShowProposalsPanel('contracts')}
                     >
-                      <FileSignature className="w-5 h-5 text-amber-500" />
-                      <span className="text-xs font-medium">Contracts</span>
-                      <span className="text-[10px] text-muted-foreground">10 templates</span>
+                      <FileSignature className="w-6 h-6 text-amber-500" />
+                      <span className="text-sm font-semibold">Contracts</span>
+                      <span className="text-xs text-muted-foreground">10 templates</span>
                     </Button>
                   </div>
 
                   {/* Popular Templates Quick Pick */}
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Quick Pick:</Label>
-                    <ScrollArea className="h-[180px]">
-                      <div className="space-y-1.5">
+                  <div className="space-y-3">
+                    <Label className="text-sm text-muted-foreground">Quick Pick:</Label>
+                    <ScrollArea className="h-[200px]">
+                      <div className="space-y-2">
                         {[
                           { icon: '🎨', name: 'Website Design Proposal', type: 'proposals' },
                           { icon: '🎯', name: 'Lead Generation Proposal', type: 'proposals' },
                           { icon: '📈', name: 'Marketing Services', type: 'contracts' },
                           { icon: '🤝', name: 'Monthly Retainer', type: 'contracts' },
                           { icon: '🔒', name: 'NDA / Confidentiality', type: 'contracts' },
-                          { icon: '⚡', name: 'Rush Job Agreement', type: 'contracts' },
                         ].map((item, idx) => (
                           <Button
                             key={idx}
                             variant="ghost"
-                            size="sm"
-                            className="w-full justify-start h-8 text-xs hover:bg-accent/10"
+                            className="w-full justify-start h-10 text-sm hover:bg-accent/10"
                             onClick={() => setShowProposalsPanel(item.type as 'proposals' | 'contracts')}
                           >
-                            <span className="mr-2">{item.icon}</span>
-                            {item.name}
-                            <Badge variant="outline" className="ml-auto text-[9px] px-1">
+                            <span className="mr-3 text-base">{item.icon}</span>
+                            <span className="font-medium">{item.name}</span>
+                            <Badge variant="outline" className="ml-auto text-xs px-2">
                               {item.type === 'proposals' ? 'Proposal' : 'Contract'}
                             </Badge>
                           </Button>
@@ -1175,7 +1171,7 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
                   <Separator />
 
                   <div className="text-center">
-                    <p className="text-[10px] text-muted-foreground mb-2">
+                    <p className="text-xs text-muted-foreground mb-2">
                       ✨ Branded with your logo & details
                     </p>
                     <Button

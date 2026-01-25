@@ -22,8 +22,9 @@ if (ob_get_level()) ob_end_clean();
 ini_set('output_buffering', 'off');
 ini_set('zlib.output_compression', false);
 
-// Increase time limit for large searches
-set_time_limit(300);
+// Increase time limit for large searches (up to 2000 leads = ~10 min)
+set_time_limit(600);
+ini_set('memory_limit', '512M');
 
 // Handle preflight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -85,7 +86,8 @@ function sendSSEError($message) {
 }
 
 /**
- * Stream GMB search results progressively
+ * Stream multi-source search results progressively
+ * Searches Google Maps, Yelp, and Bing Local via SerpAPI
  */
 function streamGMBSearch($service, $location, $limit) {
     $apiKey = defined('SERPAPI_KEY') ? SERPAPI_KEY : '';
@@ -96,112 +98,267 @@ function streamGMBSearch($service, $location, $limit) {
     }
     
     $query = "$service in $location";
-    $resultsPerPage = 20;
-    $maxPages = ceil($limit / $resultsPerPage);
-    $maxPages = min($maxPages, 100);
-    
-    $totalResults = 0;
     $allResults = [];
+    $seenBusinesses = []; // Track by name+address for deduplication
+    $totalResults = 0;
+    
+    // Define search engines to query (all supported by SerpAPI)
+    $searchEngines = [
+        ['engine' => 'google_maps', 'name' => 'Google Maps', 'resultsKey' => 'local_results'],
+        ['engine' => 'yelp', 'name' => 'Yelp', 'resultsKey' => 'organic_results'],
+        ['engine' => 'bing_local', 'name' => 'Bing Places', 'resultsKey' => 'local_results'],
+    ];
     
     // Send initial status
     sendSSE('start', [
         'query' => $query,
         'limit' => $limit,
-        'estimatedPages' => $maxPages
+        'sources' => array_column($searchEngines, 'name'),
+        'estimatedSources' => count($searchEngines)
     ]);
     
-    for ($page = 0; $page < $maxPages; $page++) {
+    $resultsPerEngine = ceil($limit / count($searchEngines));
+    
+    foreach ($searchEngines as $engineConfig) {
         if ($totalResults >= $limit) {
             break;
         }
         
-        $params = [
-            'engine' => 'google_maps',
-            'q' => $query,
-            'type' => 'search',
-            'api_key' => $apiKey,
-            'hl' => 'en',
-            'num' => $resultsPerPage,
-        ];
+        $engineName = $engineConfig['engine'];
+        $sourceName = $engineConfig['name'];
+        $resultsKey = $engineConfig['resultsKey'];
         
-        if ($page > 0) {
-            $params['start'] = $page * $resultsPerPage;
-        }
-        
-        $url = "https://serpapi.com/search.json?" . http_build_query($params);
-        
-        // Use shorter timeout for individual requests
-        $response = curlRequest($url, [], 15);
-        
-        if ($response['httpCode'] !== 200) {
-            if ($page === 0) {
-                sendSSEError('Failed to fetch results from SerpAPI');
-                return;
-            }
-            // Continue with what we have
-            break;
-        }
-        
-        $data = json_decode($response['response'], true);
-        
-        if (!isset($data['local_results']) || empty($data['local_results'])) {
-            break;
-        }
-        
-        $pageResults = [];
-        foreach ($data['local_results'] as $item) {
-            if ($totalResults >= $limit) {
-                break;
-            }
-            
-            $websiteUrl = $item['website'] ?? '';
-            
-            $business = [
-                'id' => generateId('gmb_'),
-                'name' => $item['title'] ?? 'Unknown Business',
-                'url' => $websiteUrl,
-                'snippet' => $item['description'] ?? ($item['type'] ?? ''),
-                'displayLink' => parse_url($websiteUrl, PHP_URL_HOST) ?? '',
-                'address' => $item['address'] ?? '',
-                'phone' => $item['phone'] ?? '',
-                'rating' => $item['rating'] ?? null,
-                'reviews' => $item['reviews'] ?? null,
-                'placeId' => $item['place_id'] ?? '',
-                'websiteAnalysis' => quickWebsiteCheck($websiteUrl)
-            ];
-            
-            $pageResults[] = $business;
-            $allResults[] = $business;
-            $totalResults++;
-        }
-        
-        // Send this batch of results
-        $progress = min(100, round(($totalResults / $limit) * 100));
-        sendSSE('results', [
-            'leads' => $pageResults,
-            'total' => $totalResults,
-            'progress' => $progress,
-            'page' => $page + 1
+        sendSSE('source_start', [
+            'source' => $sourceName,
+            'engine' => $engineName
         ]);
         
-        // Check for more pages
-        if (!isset($data['serpapi_pagination']['next'])) {
-            break;
+        $engineResults = searchSingleEngine($apiKey, $engineName, $query, $resultsKey, $resultsPerEngine, $sourceName);
+        
+        // Deduplicate and add results
+        $newResults = [];
+        foreach ($engineResults as $business) {
+            $dedupeKey = strtolower(trim($business['name'])) . '|' . strtolower(trim($business['address'] ?? ''));
+            
+            if (!isset($seenBusinesses[$dedupeKey])) {
+                $seenBusinesses[$dedupeKey] = true;
+                $business['sources'] = [$sourceName];
+                $newResults[] = $business;
+                $allResults[] = $business;
+                $totalResults++;
+                
+                if ($totalResults >= $limit) {
+                    break;
+                }
+            } else {
+                // Business already exists, track that we found it in multiple sources
+                foreach ($allResults as &$existing) {
+                    $existingKey = strtolower(trim($existing['name'])) . '|' . strtolower(trim($existing['address'] ?? ''));
+                    if ($existingKey === $dedupeKey && !in_array($sourceName, $existing['sources'] ?? [])) {
+                        $existing['sources'][] = $sourceName;
+                        break;
+                    }
+                }
+            }
         }
         
-        // Small delay between pages
-        usleep(100000); // 100ms
+        if (!empty($newResults)) {
+            $progress = min(100, round(($totalResults / $limit) * 100));
+            sendSSE('results', [
+                'leads' => $newResults,
+                'total' => $totalResults,
+                'progress' => $progress,
+                'source' => $sourceName
+            ]);
+        }
+        
+        sendSSE('source_complete', [
+            'source' => $sourceName,
+            'found' => count($engineResults),
+            'added' => count($newResults)
+        ]);
+        
+        // Small delay between engines
+        usleep(200000); // 200ms
     }
     
     // Send completion
     sendSSE('complete', [
         'total' => $totalResults,
+        'sources' => array_column($searchEngines, 'name'),
         'query' => [
             'service' => $service,
             'location' => $location,
             'limit' => $limit
         ]
     ]);
+}
+
+/**
+ * Search a single SerpAPI engine
+ * Supports up to 2000 total leads by increasing page limits per engine
+ */
+function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sourceName) {
+    $results = [];
+    
+    // Yelp returns 10 per page, others return 20
+    $resultsPerPage = ($engine === 'yelp') ? 10 : 20;
+    
+    // Calculate max pages needed - scale based on requested limit
+    // For 2000 leads split across 3 engines = ~667 per engine
+    // Google Maps: 667/20 = 34 pages, Yelp: 667/10 = 67 pages, Bing: 667/20 = 34 pages
+    $maxPages = ceil($limit / $resultsPerPage);
+    
+    // Dynamic page cap based on limit requested
+    // Small searches (≤100): 10 pages, Medium (≤500): 30 pages, Large (≤2000): 50 pages
+    if ($limit <= 100) {
+        $pageCap = 10;
+    } elseif ($limit <= 500) {
+        $pageCap = 30;
+    } else {
+        $pageCap = 50; // Support up to 1000 results per engine
+    }
+    $maxPages = min($maxPages, $pageCap);
+    
+    $emptyPageStreak = 0; // Track consecutive empty pages to exit early
+    
+    for ($page = 0; $page < $maxPages; $page++) {
+        if (count($results) >= $limit) {
+            break;
+        }
+        
+        // Exit if we've had 3 consecutive empty pages (API exhausted)
+        if ($emptyPageStreak >= 3) {
+            break;
+        }
+        
+        $params = [
+            'engine' => $engine,
+            'q' => $query,
+            'api_key' => $apiKey,
+        ];
+        
+        // Engine-specific parameters
+        if ($engine === 'google_maps') {
+            $params['type'] = 'search';
+            $params['hl'] = 'en';
+            if ($page > 0) {
+                $params['start'] = $page * $resultsPerPage;
+            }
+        } elseif ($engine === 'yelp') {
+            $params['find_desc'] = explode(' in ', $query)[0];
+            $params['find_loc'] = explode(' in ', $query)[1] ?? $query;
+            if ($page > 0) {
+                $params['start'] = $page * $resultsPerPage;
+            }
+        } elseif ($engine === 'bing_local') {
+            if ($page > 0) {
+                $params['first'] = $page * $resultsPerPage;
+            }
+        }
+        
+        $url = "https://serpapi.com/search.json?" . http_build_query($params);
+        $response = curlRequest($url, [], 20); // Increased timeout for pagination
+        
+        if ($response['httpCode'] !== 200) {
+            $emptyPageStreak++;
+            continue; // Try next page on error instead of breaking
+        }
+        
+        $data = json_decode($response['response'], true);
+        $items = $data[$resultsKey] ?? [];
+        
+        if (empty($items)) {
+            $emptyPageStreak++;
+            continue;
+        }
+        
+        $emptyPageStreak = 0; // Reset on successful results
+        
+        foreach ($items as $item) {
+            if (count($results) >= $limit) {
+                break;
+            }
+            
+            $business = normalizeBusinessResult($item, $engine, $sourceName);
+            if ($business) {
+                $results[] = $business;
+            }
+        }
+        
+        // Check for pagination - but don't break, just note it
+        $hasPagination = isset($data['serpapi_pagination']['next']) || 
+                         isset($data['serpapi_pagination']['next_page_token']);
+        
+        // For large searches, continue even without explicit pagination (try next offset)
+        if (!$hasPagination && $limit <= 100) {
+            break;
+        }
+        
+        usleep(150000); // 150ms between pages for stability
+    }
+    
+    return $results;
+}
+
+/**
+ * Normalize business result from different engines to common format
+ */
+function normalizeBusinessResult($item, $engine, $sourceName) {
+    $websiteUrl = '';
+    $name = '';
+    $address = '';
+    $phone = '';
+    $rating = null;
+    $reviews = null;
+    $snippet = '';
+    
+    if ($engine === 'google_maps') {
+        $name = $item['title'] ?? '';
+        $websiteUrl = $item['website'] ?? '';
+        $address = $item['address'] ?? '';
+        $phone = $item['phone'] ?? '';
+        $rating = $item['rating'] ?? null;
+        $reviews = $item['reviews'] ?? null;
+        $snippet = $item['description'] ?? ($item['type'] ?? '');
+    } elseif ($engine === 'yelp') {
+        $name = $item['title'] ?? ($item['name'] ?? '');
+        $websiteUrl = $item['link'] ?? '';
+        $address = $item['address'] ?? ($item['neighborhood'] ?? '');
+        $phone = $item['phone'] ?? '';
+        $rating = $item['rating'] ?? null;
+        $reviews = $item['reviews'] ?? null;
+        $snippet = $item['snippet'] ?? ($item['categories'] ?? '');
+        if (is_array($snippet)) {
+            $snippet = implode(', ', $snippet);
+        }
+    } elseif ($engine === 'bing_local') {
+        $name = $item['title'] ?? '';
+        $websiteUrl = $item['link'] ?? ($item['website'] ?? '');
+        $address = $item['address'] ?? '';
+        $phone = $item['phone'] ?? '';
+        $rating = $item['rating'] ?? null;
+        $reviews = $item['reviews'] ?? null;
+        $snippet = $item['description'] ?? '';
+    }
+    
+    if (empty($name)) {
+        return null;
+    }
+    
+    return [
+        'id' => generateId(strtolower(substr($engine, 0, 3)) . '_'),
+        'name' => $name,
+        'url' => $websiteUrl,
+        'snippet' => $snippet,
+        'displayLink' => parse_url($websiteUrl, PHP_URL_HOST) ?? '',
+        'address' => $address,
+        'phone' => $phone,
+        'rating' => $rating,
+        'reviews' => $reviews,
+        'source' => $sourceName,
+        'websiteAnalysis' => quickWebsiteCheck($websiteUrl)
+    ];
 }
 
 /**

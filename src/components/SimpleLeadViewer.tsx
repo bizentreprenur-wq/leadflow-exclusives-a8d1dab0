@@ -43,6 +43,7 @@ interface SearchResult {
   email?: string;
   rating?: number;
   source: 'gmb' | 'platform';
+  sources?: string[]; // Platforms that found this lead (Google Maps, Yelp, Bing Places)
   platform?: string;
   // AI Scoring fields
   aiClassification?: 'hot' | 'warm' | 'cold';
@@ -62,6 +63,40 @@ interface SearchResult {
     mobileScore: number | null;
   };
 }
+
+// Source badge helper - shows which platforms found each lead
+const getSourceBadges = (sources?: string[]) => {
+  if (!sources || sources.length === 0) return null;
+  
+  const sourceConfig: Record<string, { icon: string; color: string; short: string }> = {
+    'Google Maps': { icon: '🗺️', color: 'bg-blue-500/20 text-blue-400', short: 'G' },
+    'Yelp': { icon: '⭐', color: 'bg-red-500/20 text-red-400', short: 'Y' },
+    'Bing Places': { icon: '🔍', color: 'bg-cyan-500/20 text-cyan-400', short: 'B' },
+  };
+  
+  return (
+    <div className="flex items-center gap-0.5 ml-1">
+      {sources.map((source) => {
+        const config = sourceConfig[source];
+        if (!config) return null;
+        return (
+          <span
+            key={source}
+            className={`inline-flex items-center justify-center w-4 h-4 rounded text-[9px] font-bold ${config.color}`}
+            title={`Found on ${source}`}
+          >
+            {config.short}
+          </span>
+        );
+      })}
+      {sources.length > 1 && (
+        <span className="text-[9px] text-emerald-500 font-medium ml-0.5" title={`Verified on ${sources.length} platforms`}>
+          ✓{sources.length}
+        </span>
+      )}
+    </div>
+  );
+};
 
 interface SimpleLeadViewerProps {
   leads: SearchResult[];
@@ -679,7 +714,10 @@ export default function SimpleLeadViewer({
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <div>
-                              <p className="font-medium">{lead.name}</p>
+                              <div className="flex items-center">
+                                <p className="font-medium">{lead.name}</p>
+                                {getSourceBadges(lead.sources)}
+                              </div>
                               {lead.website && (
                                 <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                                   <Globe className="w-3 h-3" />

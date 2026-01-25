@@ -12,8 +12,10 @@ import {
   Phone, Calendar as CalendarIcon, Database, ArrowLeft, Home,
   CheckCircle2, ExternalLink, Clock, Users, Video, Link2,
   Sparkles, Info, AlertTriangle, Plus, Settings2, Send, Loader2, RefreshCw,
-  PlayCircle, ListOrdered
+  PlayCircle, ListOrdered, Mail, Inbox
 } from 'lucide-react';
+import AIResponseInbox from './AIResponseInbox';
+import AutoFollowUpBuilder from './AutoFollowUpBuilder';
 import CallQueueModal from './CallQueueModal';
 import type { CallOutcome } from '@/lib/api/callLogs';
 import { 
@@ -501,12 +503,25 @@ export default function Step4OutreachHub({
 
       {/* Tabs Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-4 w-full max-w-2xl mx-auto bg-muted/50 p-1">
+        <TabsList className="grid grid-cols-6 w-full max-w-4xl mx-auto bg-muted/50 p-1">
           <TabsTrigger 
             value="overview" 
             className="gap-2 data-[state=active]:bg-violet-500 data-[state=active]:text-white transition-all"
           >
             <Sparkles className="w-4 h-4" />Overview
+          </TabsTrigger>
+          <TabsTrigger 
+            value="inbox" 
+            className="gap-2 data-[state=active]:bg-amber-500 data-[state=active]:text-white transition-all"
+          >
+            <Inbox className="w-4 h-4" />Inbox
+          </TabsTrigger>
+          <TabsTrigger 
+            value="followups" 
+            className="gap-2 data-[state=active]:bg-pink-500 data-[state=active]:text-white transition-all relative"
+          >
+            <RefreshCw className="w-4 h-4" />Follow-ups
+            <Badge className="absolute -top-2 -right-2 text-[10px] px-1 py-0.5 bg-pink-500 text-white border-0">AI</Badge>
           </TabsTrigger>
           <TabsTrigger 
             value="calls" 
@@ -622,6 +637,58 @@ export default function Step4OutreachHub({
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* Inbox - AI Response Assistant */}
+        <TabsContent value="inbox" className="space-y-6">
+          <AIResponseInbox />
+        </TabsContent>
+
+        {/* Follow-ups - Auto AI Follow-up Builder */}
+        <TabsContent value="followups" className="space-y-6">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-gradient-to-r from-pink-500/10 via-rose-500/5 to-pink-500/10 border-2 border-pink-500/30 rounded-2xl p-6"
+          >
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center">
+                <RefreshCw className="w-7 h-7 text-white" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-rose-600 bg-clip-text text-transparent">
+                  🤖 AI Auto Follow-ups
+                </h2>
+                <p className="text-muted-foreground">
+                  Let AI automatically follow up with leads who haven't responded - choose AI or Human response mode
+                </p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <Card className="bg-card/50 border-pink-500/20">
+                <CardContent className="pt-4 text-center">
+                  <div className="text-3xl mb-2">📭</div>
+                  <h4 className="font-semibold">No Opens</h4>
+                  <p className="text-xs text-muted-foreground">Re-engage cold leads</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-card/50 border-pink-500/20">
+                <CardContent className="pt-4 text-center">
+                  <div className="text-3xl mb-2">👀</div>
+                  <h4 className="font-semibold">Opened, No Reply</h4>
+                  <p className="text-xs text-muted-foreground">Gentle nudge sequences</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-card/50 border-pink-500/20">
+                <CardContent className="pt-4 text-center">
+                  <div className="text-3xl mb-2">🔥</div>
+                  <h4 className="font-semibold">Clicked (Hot!)</h4>
+                  <p className="text-xs text-muted-foreground">Priority follow-up</p>
+                </CardContent>
+              </Card>
+            </div>
+          </motion.div>
+          <AutoFollowUpBuilder />
         </TabsContent>
 
         {/* Calls */}
