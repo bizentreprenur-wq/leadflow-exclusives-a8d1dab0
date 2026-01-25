@@ -1,11 +1,9 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { X, Mail } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import AIResponseInbox from "@/components/AIResponseInbox";
-
-import mailboxImage from "@/assets/mailbox-3d.png";
 
 type MailboxDockProps = {
   /** Render nothing when false */
@@ -60,28 +58,24 @@ export default function MailboxDock({
           type="button"
           onClick={() => setIsOpen(true)}
           className={cn(
-            "group relative",
-            "rounded-2xl border border-border bg-background/80 backdrop-blur",
-            "shadow-lg hover:shadow-xl",
-            "transition-all duration-200 hover:translate-x-1",
-            "p-3 w-[104px]",
+            "group relative flex flex-col items-center gap-1",
+            "rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-600 to-emerald-700",
+            "shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30",
+            "transition-all duration-200 hover:scale-105",
+            "p-3",
           )}
           aria-label="Open mailbox"
         >
           <div className="relative">
-            <img
-              src={mailboxImage}
-              alt="Mailbox"
-              loading="lazy"
-              className="w-full h-auto"
-            />
+            <Mail className="w-8 h-8 text-white" strokeWidth={1.5} />
             {badgeCount > 0 && (
               <span
                 className={cn(
                   "absolute -top-2 -right-2",
-                  "inline-flex h-6 w-6 items-center justify-center",
-                  "rounded-full bg-destructive text-destructive-foreground",
-                  "text-xs font-bold",
+                  "inline-flex h-5 w-5 items-center justify-center",
+                  "rounded-full bg-red-500 text-white",
+                  "text-[10px] font-bold",
+                  "animate-pulse",
                 )}
               >
                 {badgeText}
@@ -89,12 +83,9 @@ export default function MailboxDock({
             )}
           </div>
 
-          <div className="mt-2 text-center text-xs font-semibold text-foreground">
+          <span className="text-[10px] font-medium text-white/90">
             Mailbox
-          </div>
-          <div className="text-[10px] text-center text-muted-foreground">
-            Ready to send mail
-          </div>
+          </span>
         </button>
       </div>
 
