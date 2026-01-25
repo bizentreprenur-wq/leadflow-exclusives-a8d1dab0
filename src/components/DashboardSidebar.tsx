@@ -247,7 +247,7 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
 
       {/* Main Content */}
       <SidebarContent>
-        {/* Dashboard Link */}
+        {/* Dashboard & LeadSync AI */}
         <SidebarGroup>
           <SidebarMenu>
             <SidebarMenuItem>
@@ -258,6 +258,20 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
               >
                 <LayoutDashboard className="w-4 h-4" />
                 <span>Dashboard</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                isActive={activeTab === 'leadsync-ai'}
+                tooltip="LeadSync AI"
+                onClick={() => onTabChange('leadsync-ai')}
+                className="bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10 hover:from-violet-500/20 hover:to-fuchsia-500/20 border border-violet-500/20"
+              >
+                <Brain className="w-4 h-4 text-violet-400" />
+                <span className="font-semibold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">LeadSync AI</span>
+                <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0 bg-violet-500/20 text-violet-300 border-violet-500/30">
+                  NEW
+                </Badge>
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
