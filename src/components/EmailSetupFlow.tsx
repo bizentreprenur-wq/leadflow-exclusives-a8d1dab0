@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, ArrowRight, Server, FileText, Send, 
   CheckCircle2, Mail, Users, Loader2, Link2, Database,
-  Eye, Zap, Rocket, FlaskConical, Home,
+  Eye, Zap, Rocket, FlaskConical, Home, Brain,
   Clock, TrendingUp, Info, Settings, Phone, X, AlertCircle, Upload, Image, Trash2, Sparkles
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -1033,15 +1033,34 @@ export default function EmailSetupFlow({
         }
       />
 
-      {/* Back Buttons */}
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" onClick={onBack} className="gap-2">
-          <ArrowLeft className="w-4 h-4" />
-          Back to Leads
-        </Button>
-        <Button variant="ghost" onClick={() => window.location.href = '/'} className="gap-2 text-muted-foreground hover:text-foreground">
-          <Home className="w-4 h-4" />
-          Home
+      {/* Back Buttons + LeadSync AI Button */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" onClick={onBack} className="gap-2">
+            <ArrowLeft className="w-4 h-4" />
+            Back to Leads
+          </Button>
+          <Button variant="ghost" onClick={() => window.location.href = '/'} className="gap-2 text-muted-foreground hover:text-foreground">
+            <Home className="w-4 h-4" />
+            Home
+          </Button>
+        </div>
+        
+        {/* LeadSync AI Button */}
+        <Button 
+          onClick={() => {
+            // Navigate to LeadSync AI tab
+            const event = new CustomEvent('navigate-to-leadsync', { detail: { tab: 'leadsync-ai' } });
+            window.dispatchEvent(event);
+            toast.success('🧠 Opening LeadSync AI - Full automation hub!');
+          }}
+          className="gap-2 bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:from-violet-600 hover:to-fuchsia-600 text-white shadow-lg shadow-violet-500/30"
+        >
+          <Brain className="w-4 h-4" />
+          LeadSync AI
+          <Badge className="bg-white/20 text-white border-0 text-[10px] px-1.5 py-0">
+            NEW
+          </Badge>
         </Button>
       </div>
 
