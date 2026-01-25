@@ -166,6 +166,12 @@ interface EmailReply {
 
 interface AIResponseInboxProps {
   onSendResponse?: (replyId: string, response: string) => Promise<void>;
+  /** Campaign context passed from MailboxDock */
+  campaignContext?: {
+    isActive: boolean;
+    sentCount: number;
+    totalLeads: number;
+  };
 }
 
 // Tab types
@@ -409,7 +415,7 @@ const DEMO_REPLIES: EmailReply[] = [
   }
 ];
 
-export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps) {
+export default function AIResponseInbox({ onSendResponse, campaignContext }: AIResponseInboxProps) {
   // State
   const [activeTab, setActiveTab] = useState<MailboxTab>('inbox');
   const [mailboxTheme, setMailboxTheme] = useState<'light' | 'dark'>(() => {
@@ -1387,7 +1393,7 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
       {topTab === 'mailbox' && mailboxSubTab === 'followups' ? (
         /* AUTO FOLLOW-UPS: FULL-SCREEN LAYOUT */
         <div className="flex-1 flex flex-col overflow-hidden bg-slate-950">
-          <AutoFollowUpBuilder />
+          <AutoFollowUpBuilder campaignContext={campaignContext} />
         </div>
       ) : topTab === 'mailbox' && mailboxSubTab === 'documents' ? (
         /* DONE FOR YOU DOCUMENTS: FULL-SCREEN LAYOUT */

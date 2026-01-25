@@ -147,7 +147,7 @@ export default function MailboxDock({
 
           {/* Full Screen Inbox - fills entire viewport */}
           <div className="w-full h-full">
-            <AIResponseInbox />
+            <AIResponseInbox campaignContext={campaignContext} />
           </div>
         </div>
       )}
