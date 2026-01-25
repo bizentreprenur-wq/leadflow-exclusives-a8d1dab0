@@ -42,6 +42,7 @@ import ABTestingPanel from './ABTestingPanel';
 import AutoFollowUpBuilder from './AutoFollowUpBuilder';
 import SMTPConfigPanel from './SMTPConfigPanel';
 import ProposalsContractsPanel from './ProposalsContractsPanel';
+import EmailActivityFeed from './EmailActivityFeed';
 
 // Compose email interface
 interface ComposeEmail {
@@ -428,7 +429,7 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
   
   // Top-level mailbox navigation state
   type TopNavTab = 'mailbox' | 'preview' | 'crm' | 'ab' | 'smtp';
-  type MailboxSubTab = 'inbox' | 'sent' | 'sequences' | 'followups' | 'documents';
+  type MailboxSubTab = 'inbox' | 'sent' | 'activity' | 'sequences' | 'followups' | 'documents';
   const [topTab, setTopTab] = useState<TopNavTab>('mailbox');
   const [mailboxSubTab, setMailboxSubTab] = useState<MailboxSubTab>('inbox');
 
@@ -1019,6 +1020,7 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
   const mailboxSubTabs: { id: MailboxSubTab; label: string; icon: React.ReactNode }[] = [
     { id: 'inbox', label: 'Inbox', icon: <Inbox className="w-4 h-4" /> },
     { id: 'sent', label: 'Sent', icon: <Send className="w-4 h-4" /> },
+    { id: 'activity', label: 'Activity', icon: <TrendingUp className="w-4 h-4" /> },
     { id: 'sequences', label: 'Multi-Channel Sequences', icon: <Workflow className="w-4 h-4" /> },
     { id: 'followups', label: 'Auto Follow-Ups', icon: <RefreshCw className="w-4 h-4" /> },
     { id: 'documents', label: 'Done For You', icon: <FileSignature className="w-4 h-4" /> },
@@ -1200,6 +1202,7 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                   // Sync with activeTab for content rendering
                   if (tab.id === 'inbox') setActiveTab('inbox');
                   else if (tab.id === 'sent') setActiveTab('sent');
+                  else if (tab.id === 'activity') setActiveTab('sent'); // Activity uses sent tab area
                   else if (tab.id === 'sequences') setActiveTab('sequences');
                   else if (tab.id === 'followups') setActiveTab('sequences');
                   else if (tab.id === 'documents') setActiveTab('contracts');
@@ -1549,6 +1552,8 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                   </div>
                 </ScrollArea>
               </>
+            ) : mailboxSubTab === 'activity' ? (
+              <EmailActivityFeed />
             ) : activeTab === 'sequences' ? (
               mailboxSubTab === 'followups' ? (
                 <div className="flex-1 flex flex-col">
