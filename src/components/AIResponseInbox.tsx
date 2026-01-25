@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 import {
   Mail, Bot, User, Send, Edit3, Check, X, RefreshCw,
   Sparkles, Clock, CheckCircle2, MessageSquare, Loader2,
@@ -942,44 +943,141 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
     { id: 'flagged' as QuickFilter, label: 'Flagged', count: flaggedCount },
     { id: 'followup' as QuickFilter, label: 'Follow-Up' },
   ];
+  // Top nav tabs for mailbox header
+  const topNavTabs: { id: MailboxTab; label: string }[] = [
+    { id: 'inbox', label: 'Inbox' },
+    { id: 'sent', label: 'Sent' },
+    { id: 'templates', label: 'Templates' },
+    { id: 'sequences', label: 'Sequences & Follow-Up' },
+  ];
 
-  // Render the 3-panel mailbox layout
+  // Render the full-screen mailbox layout with top nav bar
   return (
     <div
-      className="mailbox-scope w-full h-[calc(100vh-200px)] min-h-[600px] bg-white rounded-xl shadow-xl overflow-hidden flex border border-slate-200"
+      className="mailbox-scope w-full h-full min-h-screen flex flex-col"
       data-mailbox-theme={mailboxTheme}
     >
-      {/* LEFT PANEL - Navigation */}
-      <div className={`bg-slate-50 border-r border-slate-200 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-56'}`}>
-        {/* Logo & Toggle */}
-        <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-          {!sidebarCollapsed && (
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                <Mail className="w-4 h-4 text-white" />
-              </div>
-              <span className="font-bold text-slate-900">Mailbox</span>
-            </div>
-          )}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setMailboxTheme(prev => (prev === 'light' ? 'dark' : 'light'))}
-              className="p-1.5 hover:bg-slate-200 rounded-md transition-colors"
-              aria-label={mailboxTheme === 'light' ? 'Switch mailbox to dark mode' : 'Switch mailbox to light mode'}
-            >
-              {mailboxTheme === 'light' ? (
-                <Moon className="w-4 h-4 text-slate-500" />
-              ) : (
-                <Sun className="w-4 h-4 text-slate-500" />
-              )}
-            </button>
+      {/* TOP NAVIGATION BAR */}
+      <header className="bg-slate-800 flex items-center justify-between px-6 py-3 flex-shrink-0">
+        {/* Left: Logo */}
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
+            <Mail className="w-4 h-4 text-white" />
+          </div>
+          <span className="font-bold text-lg text-white">BamLead.com</span>
+        </div>
 
+        {/* Center: Tabs */}
+        <nav className="flex items-center gap-1 bg-slate-700/50 rounded-lg p-1">
+          {topNavTabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={cn(
+                "px-4 py-2 rounded-md text-sm font-medium transition-all",
+                activeTab === tab.id
+                  ? "bg-white text-slate-900"
+                  : "text-slate-300 hover:text-white hover:bg-slate-600"
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+
+        {/* Right: Actions */}
+        <div className="flex items-center gap-3">
+          {/* Create Sequence Button */}
+          <Button
+            size="sm"
+            onClick={() => setShowSequenceBuilder(true)}
+            className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5"
+          >
+            <Plus className="w-4 h-4" /> Create Sequence
+          </Button>
+
+          {/* AI Autopilot Toggle */}
+          <div className="flex items-center gap-2 bg-slate-700 rounded-lg px-3 py-1.5">
+            <span className="text-xs text-slate-300">AI Autopilot:</span>
+            <Badge className={cn(
+              "text-xs font-bold px-2",
+              settings.responseMode === 'automatic' 
+                ? 'bg-emerald-500 text-white' 
+                : 'bg-slate-500 text-white'
+            )}>
+              {settings.responseMode === 'automatic' ? 'ON' : 'OFF'}
+            </Badge>
+            <Switch
+              checked={settings.responseMode === 'automatic'}
+              onCheckedChange={(checked) => {
+                updateSetting('responseMode', checked ? 'automatic' : 'manual');
+                toast.success(checked 
+                  ? '🤖 AI Autopilot enabled - AI will respond automatically' 
+                  : 'Autopilot off - You control all responses'
+                );
+              }}
+              className="data-[state=checked]:bg-emerald-500"
+            />
+          </div>
+
+          {/* Theme toggle */}
+          <button
+            type="button"
+            onClick={() => setMailboxTheme(prev => (prev === 'light' ? 'dark' : 'light'))}
+            className="p-2 hover:bg-slate-700 rounded-lg transition-colors"
+            aria-label="Toggle theme"
+          >
+            {mailboxTheme === 'light' ? (
+              <Moon className="w-5 h-5 text-white" />
+            ) : (
+              <Sun className="w-5 h-5 text-white" />
+            )}
+          </button>
+
+          {/* Notifications */}
+          <button className="p-2 hover:bg-slate-700 rounded-lg transition-colors relative">
+            <Bell className="w-5 h-5 text-white" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-[10px] font-bold rounded-full flex items-center justify-center text-white">
+                {unreadCount}
+              </span>
+            )}
+          </button>
+
+          {/* Settings */}
+          <button 
+            onClick={() => setSettingsOpen(true)}
+            className="p-2 hover:bg-slate-700 rounded-lg transition-colors"
+          >
+            <Settings className="w-5 h-5 text-white" />
+          </button>
+
+          {/* User Avatar */}
+          <div className="flex items-center gap-2 pl-2 border-l border-slate-600">
+            <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center font-bold text-sm text-white">
+              JS
+            </div>
+            <ChevronDown className="w-4 h-4 text-slate-400" />
+          </div>
+        </div>
+      </header>
+
+      {/* MAIN 3-PANEL CONTENT AREA */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* LEFT SIDEBAR */}
+        <aside className={cn(
+          "flex flex-col border-r border-slate-200 bg-white transition-all",
+          sidebarCollapsed ? "w-16" : "w-56"
+        )}>
+          {/* Sidebar Toggle */}
+          <div className="p-3 border-b border-slate-200 flex items-center justify-between">
+            {!sidebarCollapsed && (
+              <span className="font-semibold text-slate-900 text-sm">Navigation</span>
+            )}
             <button
               type="button"
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="p-1.5 hover:bg-slate-200 rounded-md transition-colors"
-              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              className="p-1.5 hover:bg-slate-200 rounded-md transition-colors ml-auto"
             >
               {sidebarCollapsed ? (
                 <ChevronRight className="w-4 h-4 text-slate-500" />
@@ -988,74 +1086,75 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
               )}
             </button>
           </div>
-        </div>
 
-        {/* New Email Button */}
-        {!sidebarCollapsed && (
-          <div className="px-3 py-2">
+          {/* New Email Button */}
+          <div className="p-3">
             <Button 
               onClick={() => openComposeModal()}
-              className="w-full gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg"
+              className={cn(
+                "gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg",
+                sidebarCollapsed ? "w-10 h-10 p-0" : "w-full"
+              )}
             >
               <PenTool className="w-4 h-4" />
-              New Email
+              {!sidebarCollapsed && "New Email"}
             </Button>
           </div>
-        )}
 
-        {/* New Email Counter */}
-        {!sidebarCollapsed && unreadCount > 0 && (
-          <div className="px-4 py-2">
-            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-lg animate-pulse">
-                {unreadCount}
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-emerald-900">New Emails</p>
-                <p className="text-xs text-emerald-600">{hotCount} hot leads!</p>
+          {/* Unread Counter */}
+          {!sidebarCollapsed && unreadCount > 0 && (
+            <div className="px-3 pb-2">
+              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-lg animate-pulse">
+                  {unreadCount}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-emerald-900">New Emails</p>
+                  <p className="text-xs text-emerald-600">{hotCount} hot leads!</p>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Navigation Tabs */}
-        <nav className="flex-1 p-2 space-y-1">
-          {navItems.map(item => (
+          {/* Navigation */}
+          <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+            {navItems.map(item => (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={cn(
+                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+                  activeTab === item.id
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                )}
+              >
+                <item.icon className="w-5 h-5 flex-shrink-0" />
+                {!sidebarCollapsed && (
+                  <>
+                    <span className="flex-1 text-left truncate">{item.label}</span>
+                    {item.count && item.count > 0 && (
+                      <Badge className="bg-emerald-500 text-white text-[10px] px-1.5 min-w-[20px] justify-center">
+                        {item.count}
+                      </Badge>
+                    )}
+                  </>
+                )}
+              </button>
+            ))}
+          </nav>
+
+          {/* Sidebar Settings Button */}
+          <div className="p-2 border-t border-slate-200">
             <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                activeTab === item.id
-                  ? 'bg-emerald-100 text-emerald-700'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-              }`}
+              onClick={() => setSettingsOpen(true)}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all"
             >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              {!sidebarCollapsed && (
-                <>
-                  <span className="flex-1 text-left truncate">{item.label}</span>
-                  {item.count && item.count > 0 && (
-                    <Badge className="bg-emerald-500 text-white text-[10px] px-1.5 min-w-[20px] justify-center">
-                      {item.count}
-                    </Badge>
-                  )}
-                </>
-              )}
+              <Settings className="w-5 h-5 flex-shrink-0" />
+              {!sidebarCollapsed && <span>Settings</span>}
             </button>
-          ))}
-        </nav>
-
-        {/* Settings */}
-        <div className="p-2 border-t border-slate-200">
-          <button
-            onClick={() => setSettingsOpen(true)}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all"
-          >
-            <Settings className="w-5 h-5 flex-shrink-0" />
-            {!sidebarCollapsed && <span>Settings</span>}
-          </button>
-        </div>
-      </div>
+          </div>
+        </aside>
 
       {/* CENTER PANEL - Email List / Tab Content */}
       <div className="w-80 border-r border-slate-200 flex flex-col bg-white">
@@ -1534,6 +1633,7 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
           </div>
         )}
       </div>
+      </div> {/* End MAIN 3-PANEL CONTENT AREA */}
 
       {/* Settings Dialog */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
