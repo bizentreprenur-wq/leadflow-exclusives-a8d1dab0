@@ -22,7 +22,8 @@ import {
   Linkedin, Plus, Pause, Play, Users, ChevronRight, MoreHorizontal,
   MousePointer, Sun, Moon, Flag, Archive, Reply, ReplyAll, Forward,
   Filter, Search, ChevronLeft, MailOpen, Trash2, Image, Bold, Italic,
-  Underline, List, Link2, PenTool, Wand2, CalendarPlus, WifiOff, Server
+  Underline, List, Link2, PenTool, Wand2, CalendarPlus, WifiOff, Server,
+  GripVertical
 } from 'lucide-react';
 import { PROPOSAL_TEMPLATES, ProposalTemplate, generateProposalHTML } from '@/lib/proposalTemplates';
 import { CONTRACT_TEMPLATES, ContractTemplate, generateContractHTML } from '@/lib/contractTemplates';
@@ -899,6 +900,57 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
 
   const removeSequenceStep = (stepId: string) => {
     setNewSequenceSteps(prev => prev.filter(s => s.id !== stepId));
+  };
+
+  // Drag-and-drop state and handlers for sequence steps
+  const [draggedStepId, setDraggedStepId] = useState<string | null>(null);
+  const [dragOverStepId, setDragOverStepId] = useState<string | null>(null);
+
+  const handleDragStart = (e: React.DragEvent, stepId: string) => {
+    setDraggedStepId(stepId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', stepId);
+  };
+
+  const handleDragOver = (e: React.DragEvent, stepId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (stepId !== draggedStepId) {
+      setDragOverStepId(stepId);
+    }
+  };
+
+  const handleDragLeave = () => {
+    setDragOverStepId(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetStepId: string) => {
+    e.preventDefault();
+    if (!draggedStepId || draggedStepId === targetStepId) {
+      setDraggedStepId(null);
+      setDragOverStepId(null);
+      return;
+    }
+
+    setNewSequenceSteps(prev => {
+      const draggedIndex = prev.findIndex(s => s.id === draggedStepId);
+      const targetIndex = prev.findIndex(s => s.id === targetStepId);
+      if (draggedIndex === -1 || targetIndex === -1) return prev;
+
+      const newSteps = [...prev];
+      const [draggedItem] = newSteps.splice(draggedIndex, 1);
+      newSteps.splice(targetIndex, 0, draggedItem);
+      return newSteps;
+    });
+
+    setDraggedStepId(null);
+    setDragOverStepId(null);
+    toast.success('Step reordered');
+  };
+
+  const handleDragEnd = () => {
+    setDraggedStepId(null);
+    setDragOverStepId(null);
   };
 
   const saveNewSequence = () => {
@@ -2570,14 +2622,25 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                   {newSequenceSteps.map((step, idx) => (
                     <div 
                       key={step.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border ${
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, step.id)}
+                      onDragOver={(e) => handleDragOver(e, step.id)}
+                      onDragLeave={handleDragLeave}
+                      onDrop={(e) => handleDrop(e, step.id)}
+                      onDragEnd={handleDragEnd}
+                      className={cn(
+                        `flex items-center gap-3 p-3 rounded-lg border cursor-grab active:cursor-grabbing transition-all duration-150`,
                         step.type === 'email' ? 'bg-emerald-50 border-emerald-200' :
                         step.type === 'linkedin' ? 'bg-blue-50 border-blue-200' :
                         step.type === 'sms' ? 'bg-violet-50 border-violet-200' :
                         step.type === 'call' ? 'bg-amber-50 border-amber-200' :
-                        'bg-slate-50 border-slate-200'
-                      }`}
+                        'bg-slate-50 border-slate-200',
+                        draggedStepId === step.id && 'opacity-50 scale-95',
+                        dragOverStepId === step.id && 'ring-2 ring-emerald-400 ring-offset-2'
+                      )}
                     >
+                      {/* Drag Handle */}
+                      <GripVertical className="w-4 h-4 text-slate-400 flex-shrink-0" />
                       <span className="text-xs font-bold text-slate-400 w-6">{idx + 1}</span>
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                         step.type === 'email' ? 'bg-emerald-200 text-emerald-700' :
