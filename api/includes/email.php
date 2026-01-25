@@ -171,11 +171,23 @@ function sendEmailSMTP($to, $subject, $htmlBody, $textBody = '') {
         $mail->Timeout = 10;
         $mail->CharSet = 'UTF-8';
         
-        // Enable debug output for logging in DEBUG_MODE
-        if (defined('DEBUG_MODE') && DEBUG_MODE) {
-            $mail->SMTPDebug = 2;
+        // Enable safe SMTP debug logging when SMTP_DEBUG is true.
+        // This logs server responses only (no credentials or client commands).
+        if (defined('SMTP_DEBUG') && SMTP_DEBUG) {
+            $mail->SMTPDebug = \PHPMailer\PHPMailer\SMTP::DEBUG_SERVER;
             $mail->Debugoutput = function ($str, $level) {
-                logEmail('DEBUG', 'SMTP: ' . trim($str), ['level' => $level]);
+                $line = trim((string) $str);
+                if ($line === '') {
+                    return;
+                }
+                if (stripos($line, 'SERVER -> CLIENT:') === 0 || stripos($line, 'SMTP NOTICE:') === 0 || stripos($line, 'CONNECTION:') === 0) {
+                    logEmail('DEBUG', 'SMTP: ' . $line, ['level' => $level]);
+                }
+            };
+        } elseif (defined('DEBUG_MODE') && DEBUG_MODE) {
+            $mail->SMTPDebug = \PHPMailer\PHPMailer\SMTP::DEBUG_SERVER;
+            $mail->Debugoutput = function ($str, $level) {
+                logEmail('DEBUG', 'SMTP: ' . trim((string) $str), ['level' => $level]);
             };
         } else {
             $mail->SMTPDebug = 0;
