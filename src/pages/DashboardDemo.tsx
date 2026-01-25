@@ -975,6 +975,7 @@ Best regards,
                 onSwitchToFullMailbox={() => setMailboxView('full')} 
                 leads={leads}
                 verifiedLeads={leads.filter((_, idx) => selectedLeads.includes(idx))}
+                selectedTemplate={selectedTemplate}
               />
             ) : (
               <>
