@@ -23,7 +23,7 @@ import {
   MousePointer, Sun, Moon, Flag, Archive, Reply, ReplyAll, Forward,
   Filter, Search, ChevronLeft, MailOpen, Trash2, Image, Bold, Italic,
   Underline, List, Link2, PenTool, Wand2, CalendarPlus, WifiOff, Server,
-  GripVertical
+  GripVertical, ListChecks
 } from 'lucide-react';
 import { PROPOSAL_TEMPLATES, ProposalTemplate, generateProposalHTML } from '@/lib/proposalTemplates';
 import { CONTRACT_TEMPLATES, ContractTemplate, generateContractHTML } from '@/lib/contractTemplates';
@@ -473,8 +473,87 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
   // Top-level mailbox navigation state
   type TopNavTab = 'mailbox' | 'preview' | 'crm' | 'ab' | 'smtp';
   type MailboxSubTab = 'inbox' | 'sent' | 'activity' | 'sequences' | 'followups' | 'documents';
+  type DocumentWorkspaceTab = 'proposals' | 'contracts' | 'my-documents';
   const [topTab, setTopTab] = useState<TopNavTab>('mailbox');
   const [mailboxSubTab, setMailboxSubTab] = useState<MailboxSubTab>('inbox');
+  const [documentWorkspaceTab, setDocumentWorkspaceTab] = useState<DocumentWorkspaceTab>('proposals');
+  
+  // Custom user documents storage
+  const [customProposals, setCustomProposals] = useState<ProposalTemplate[]>(() => {
+    try {
+      const saved = localStorage.getItem('bamlead_custom_proposals');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  const [customContracts, setCustomContracts] = useState<ContractTemplate[]>(() => {
+    try {
+      const saved = localStorage.getItem('bamlead_custom_contracts');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+  
+  // Document selection for auto-compose
+  const [selectedDocForCompose, setSelectedDocForCompose] = useState<{
+    type: 'proposal' | 'contract';
+    document: ProposalTemplate | ContractTemplate;
+  } | null>(null);
+  const [showDocumentEditor, setShowDocumentEditor] = useState(false);
+  const [editingDocument, setEditingDocument] = useState<{
+    type: 'proposal' | 'contract';
+    document: ProposalTemplate | ContractTemplate;
+    isNew: boolean;
+  } | null>(null);
+  
+  // Handle document selection and auto-compose
+  const handleDocumentSelect = (type: 'proposal' | 'contract', document: ProposalTemplate | ContractTemplate) => {
+    setSelectedDocForCompose({ type, document });
+    toast.success(`✅ "${document.name}" selected! Click "Use This" to compose email.`);
+  };
+  
+  const handleUseDocument = () => {
+    if (!selectedDocForCompose) return;
+    setComposeEmail(prev => ({
+      ...prev,
+      attachedDocument: selectedDocForCompose
+    }));
+    openComposeModal();
+    toast.success(`📧 Email composer opened with ${selectedDocForCompose.document.name}!`);
+    setSelectedDocForCompose(null);
+  };
+  
+  // Create/Edit custom document
+  const handleSaveCustomDocument = (type: 'proposal' | 'contract', document: ProposalTemplate | ContractTemplate) => {
+    if (type === 'proposal') {
+      const newDoc = { ...(document as ProposalTemplate), id: `custom-${Date.now()}` } as ProposalTemplate;
+      const updated = [newDoc, ...customProposals];
+      setCustomProposals(updated);
+      localStorage.setItem('bamlead_custom_proposals', JSON.stringify(updated));
+      toast.success(`✅ Proposal "${document.name}" saved to My Documents!`);
+    } else {
+      const newDoc = { ...(document as ContractTemplate), id: `custom-${Date.now()}` } as ContractTemplate;
+      const updated = [newDoc, ...customContracts];
+      setCustomContracts(updated);
+      localStorage.setItem('bamlead_custom_contracts', JSON.stringify(updated));
+      toast.success(`✅ Contract "${document.name}" saved to My Documents!`);
+    }
+    setShowDocumentEditor(false);
+    setEditingDocument(null);
+  };
+  
+  const handleDuplicateDocument = (type: 'proposal' | 'contract', document: ProposalTemplate | ContractTemplate) => {
+    if (type === 'proposal') {
+      const duplicated = { ...(document as ProposalTemplate), id: `copy-${Date.now()}`, name: `Copy of ${document.name}` } as ProposalTemplate;
+      const updated = [duplicated, ...customProposals];
+      setCustomProposals(updated);
+      localStorage.setItem('bamlead_custom_proposals', JSON.stringify(updated));
+    } else {
+      const duplicated = { ...(document as ContractTemplate), id: `copy-${Date.now()}`, name: `Copy of ${document.name}` } as ContractTemplate;
+      const updated = [duplicated, ...customContracts];
+      setCustomContracts(updated);
+      localStorage.setItem('bamlead_custom_contracts', JSON.stringify(updated));
+    }
+    toast.success(`📋 Duplicated "${document.name}" to My Documents!`);
+  };
 
   // Save settings
   useEffect(() => {
@@ -1361,114 +1440,23 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
               ))}
             </nav>
 
-            {/* Done For You Documents Section */}
+            {/* Sidebar Footer - Branded Documents hint */}
             {!sidebarCollapsed && (
               <div className="p-3 border-t border-slate-800">
-                <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3">
-                  <div className="flex items-center gap-2 mb-3">
-                    <FileText className="w-4 h-4 text-emerald-400" />
-                    <span className="text-sm font-semibold text-white">Done For You Documents</span>
+                <button
+                  onClick={() => {
+                    setMailboxSubTab('documents');
+                    setActiveTab('contracts');
+                  }}
+                  className="w-full flex items-center gap-2 p-3 rounded-lg bg-gradient-to-r from-emerald-900/30 to-teal-900/30 border border-emerald-500/30 hover:border-emerald-500/50 transition-all group"
+                >
+                  <FileSignature className="w-5 h-5 text-emerald-400" />
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-semibold text-white group-hover:text-emerald-300">Done For You</p>
+                    <p className="text-[10px] text-slate-400">Proposals & Contracts</p>
                   </div>
-                  <p className="text-xs text-slate-400 mb-3">Send professional proposals & contracts</p>
-                  
-                  {/* Quick Tabs */}
-                  <div className="flex gap-2 mb-3">
-                    <button
-                      onClick={() => {
-                        setMailboxSubTab('documents');
-                        setActiveTab('contracts');
-                      }}
-                      className="flex-1 flex flex-col items-center gap-1 p-2 rounded-lg bg-slate-700/50 border border-cyan-500/30 hover:border-cyan-500/60 transition-all"
-                    >
-                      <FileText className="w-4 h-4 text-cyan-400" />
-                      <span className="text-xs text-cyan-300">Proposals</span>
-                      <span className="text-[10px] text-slate-400">10 templates</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setMailboxSubTab('documents');
-                        setActiveTab('contracts');
-                      }}
-                      className="flex-1 flex flex-col items-center gap-1 p-2 rounded-lg bg-slate-700/50 border border-emerald-500/30 hover:border-emerald-500/60 transition-all"
-                    >
-                      <FileSignature className="w-4 h-4 text-emerald-400" />
-                      <span className="text-xs text-emerald-300">Contracts</span>
-                      <span className="text-[10px] text-slate-400">10 templates</span>
-                    </button>
-                  </div>
-
-                  {/* Quick Pick */}
-                  <div className="space-y-2">
-                    <p className="text-[10px] text-slate-500 uppercase tracking-wide">Quick Pick:</p>
-
-                    <div className="space-y-1.5">
-                      {PROPOSAL_TEMPLATES.slice(0, 2).map((proposal) => (
-                        <button
-                          key={proposal.id}
-                          onClick={() => {
-                            setMailboxSubTab('documents');
-                            setActiveTab('contracts');
-                            setComposeEmail(prev => ({
-                              ...prev,
-                              attachedDocument: { type: 'proposal', document: proposal },
-                            }));
-                            openComposeModal();
-                            toast.success(`${proposal.name} added to email`);
-                          }}
-                          className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-slate-700/50 transition-colors group"
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-sm">{proposal.icon}</span>
-                            <span className="text-xs text-slate-300 group-hover:text-white truncate">{proposal.name}</span>
-                          </div>
-                          <Badge className="bg-slate-700 text-slate-300 text-[10px]">Proposal</Badge>
-                        </button>
-                      ))}
-
-                      {CONTRACT_TEMPLATES.slice(0, 2).map((contract) => (
-                        <button
-                          key={contract.id}
-                          onClick={() => {
-                            setMailboxSubTab('documents');
-                            setActiveTab('contracts');
-                            setComposeEmail(prev => ({
-                              ...prev,
-                              attachedDocument: { type: 'contract', document: contract },
-                            }));
-                            openComposeModal();
-                            toast.success(`${contract.name} added to email`);
-                          }}
-                          className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-slate-700/50 transition-colors group"
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-sm">{contract.icon}</span>
-                            <span className="text-xs text-slate-300 group-hover:text-white truncate">{contract.name}</span>
-                          </div>
-                          <Badge className="bg-slate-700 text-slate-300 text-[10px]">Contract</Badge>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Open Full Gallery */}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setMailboxSubTab('documents');
-                      setActiveTab('contracts');
-                    }}
-                    className="w-full mt-3 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 gap-2"
-                  >
-                    <Sparkles className="w-3 h-3" />
-                    Open Full Gallery
-                  </Button>
-                  
-                  <p className="text-[10px] text-slate-500 text-center mt-2 flex items-center justify-center gap-1">
-                    <Star className="w-3 h-3 text-amber-400" />
-                    Branded with your logo & details
-                  </p>
-                </div>
+                  <ArrowRight className="w-4 h-4 text-emerald-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                </button>
               </div>
             )}
 
@@ -1695,131 +1683,293 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                 </>
               )
             ) : activeTab === 'contracts' ? (
-              /* Proposals & Contracts Tab - Dark Theme - Clickable to insert into email */
-              <div className="flex-1 flex flex-col">
+              /* DONE FOR YOU DOCUMENTS - Full-Width Workspace with 3 Tabs */
+              <div className="flex-1 flex flex-col bg-slate-900">
+                {/* Header with Selection Action */}
                 <div className="p-4 border-b border-slate-800">
-                  <h2 className="font-bold text-white flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-emerald-400" />
-                    Done For You Documents
-                  </h2>
-                  <p className="text-xs text-slate-400 mt-1">Click to insert into a new email</p>
-                </div>
-                <ScrollArea className="flex-1 p-3">
-                  <div className="space-y-4">
-                    {/* Proposals Section */}
+                  <div className="flex items-center justify-between">
                     <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <FileText className="w-4 h-4 text-cyan-400" />
-                        <span className="text-sm font-semibold text-white">Proposals</span>
-                        <Badge className="bg-cyan-900/50 text-cyan-300 text-[10px]">{PROPOSAL_TEMPLATES.length}</Badge>
-                      </div>
-                      <div className="space-y-1.5">
-                        {PROPOSAL_TEMPLATES.map(proposal => (
-                          <button
-                            key={proposal.id}
-                            onClick={() => {
-                              setComposeEmail(prev => ({
-                                ...prev,
-                                attachedDocument: { type: 'proposal', document: proposal }
-                              }));
-                              openComposeModal();
-                              toast.success(`${proposal.name} added to email`);
-                            }}
-                            className="w-full flex items-center justify-between p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-cyan-500/50 hover:bg-slate-800 transition-all group text-left"
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-8 h-8 rounded-lg bg-cyan-900/50 flex items-center justify-center group-hover:bg-cyan-800/50 flex-shrink-0">
-                                <span className="text-sm">{proposal.icon}</span>
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium text-white group-hover:text-cyan-300 truncate">{proposal.name}</p>
-                                <p className="text-xs text-slate-500 truncate">{proposal.description}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Badge className="bg-emerald-900/50 text-emerald-400 text-[10px]">
-                                <Send className="w-3 h-3 mr-1" /> Use
-                              </Badge>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
+                      <h2 className="font-bold text-xl text-white flex items-center gap-2">
+                        <FileSignature className="w-6 h-6 text-emerald-400" />
+                        Done For You Documents
+                      </h2>
+                      <p className="text-sm text-slate-400 mt-1">Select a document, edit if needed, then compose your email</p>
                     </div>
-                    
-                    {/* Contracts Section */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <FileSignature className="w-4 h-4 text-violet-400" />
-                        <span className="text-sm font-semibold text-white">Contracts</span>
-                        <Badge className="bg-violet-900/50 text-violet-300 text-[10px]">{CONTRACT_TEMPLATES.length}</Badge>
-                      </div>
-                      <div className="space-y-1.5">
-                        {CONTRACT_TEMPLATES.map(contract => (
-                          <button
-                            key={contract.id}
-                            onClick={() => {
-                              setComposeEmail(prev => ({
-                                ...prev,
-                                attachedDocument: { type: 'contract', document: contract }
-                              }));
-                              openComposeModal();
-                              toast.success(`${contract.name} added to email`);
-                            }}
-                            className="w-full flex items-center justify-between p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-violet-500/50 hover:bg-slate-800 transition-all group text-left"
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-8 h-8 rounded-lg bg-violet-900/50 flex items-center justify-center group-hover:bg-violet-800/50 flex-shrink-0">
-                                <span className="text-sm">{contract.icon}</span>
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium text-white group-hover:text-violet-300 truncate">{contract.name}</p>
-                                <p className="text-xs text-slate-500 truncate">{contract.description}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Badge className="bg-emerald-900/50 text-emerald-400 text-[10px]">
-                                <Send className="w-3 h-3 mr-1" /> Use
-                              </Badge>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Sequences - Quick Insert */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <Workflow className="w-4 h-4 text-amber-400" />
-                        <span className="text-sm font-semibold text-white">Quick Sequences</span>
-                      </div>
-                      <div className="space-y-1.5">
-                        {sequences.slice(0, 3).map(seq => (
-                          <button
-                            key={seq.id}
-                            onClick={() => {
-                              toast.success(`Enrolled in "${seq.name}" sequence`, {
-                                description: 'Lead will receive automated outreach'
-                              });
-                            }}
-                            className="w-full flex items-center justify-between p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-amber-500/50 hover:bg-slate-800 transition-all group text-left"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-amber-900/50 flex items-center justify-center group-hover:bg-amber-800/50">
-                                <Workflow className="w-4 h-4 text-amber-400" />
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-white group-hover:text-amber-300">{seq.name}</p>
-                                <p className="text-xs text-slate-500">{seq.steps.length} steps • {seq.leadsEnrolled} enrolled</p>
-                              </div>
-                            </div>
-                            <Badge className={seq.status === 'active' ? 'bg-emerald-900/50 text-emerald-400' : 'bg-slate-700 text-slate-400'}>
-                              {seq.status}
-                            </Badge>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    {selectedDocForCompose && (
+                      <Button
+                        onClick={handleUseDocument}
+                        className="gap-2 bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg shadow-emerald-500/20"
+                      >
+                        <Send className="w-4 h-4" />
+                        Use "{selectedDocForCompose.document.name}"
+                      </Button>
+                    )}
                   </div>
+                  
+                  {/* 3-Tab Navigation */}
+                  <div className="flex gap-2 mt-4">
+                    {[
+                      { id: 'proposals' as const, label: 'Proposals', icon: FileText, count: PROPOSAL_TEMPLATES.length, color: 'cyan' },
+                      { id: 'contracts' as const, label: 'Contracts', icon: FileSignature, count: CONTRACT_TEMPLATES.length, color: 'violet' },
+                      { id: 'my-documents' as const, label: 'My Documents', icon: Star, count: customProposals.length + customContracts.length, color: 'amber' },
+                    ].map(tab => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setDocumentWorkspaceTab(tab.id)}
+                        className={cn(
+                          "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all border",
+                          documentWorkspaceTab === tab.id
+                            ? tab.color === 'cyan' 
+                              ? "bg-cyan-900/50 text-cyan-300 border-cyan-500/50"
+                              : tab.color === 'violet'
+                              ? "bg-violet-900/50 text-violet-300 border-violet-500/50"
+                              : "bg-amber-900/50 text-amber-300 border-amber-500/50"
+                            : "bg-slate-800/50 text-slate-400 border-slate-700 hover:bg-slate-800 hover:text-white"
+                        )}
+                      >
+                        <tab.icon className="w-4 h-4" />
+                        {tab.label}
+                        <Badge className={cn(
+                          "text-[10px]",
+                          documentWorkspaceTab === tab.id
+                            ? tab.color === 'cyan' ? "bg-cyan-800 text-cyan-200"
+                              : tab.color === 'violet' ? "bg-violet-800 text-violet-200"
+                              : "bg-amber-800 text-amber-200"
+                            : "bg-slate-700 text-slate-400"
+                        )}>
+                          {tab.count}
+                        </Badge>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Tab Content */}
+                <ScrollArea className="flex-1 p-4">
+                  {documentWorkspaceTab === 'proposals' && (
+                    <div className="space-y-3">
+                      <p className="text-sm text-slate-400 mb-4">Professional proposals ready to send. Click to select, then click "Use" to compose email.</p>
+                      {PROPOSAL_TEMPLATES.map(proposal => (
+                        <div
+                          key={proposal.id}
+                          onClick={() => handleDocumentSelect('proposal', proposal)}
+                          className={cn(
+                            "w-full p-4 rounded-xl border transition-all cursor-pointer group",
+                            selectedDocForCompose?.document.id === proposal.id
+                              ? "bg-cyan-900/30 border-cyan-500 ring-2 ring-cyan-500/30"
+                              : "bg-slate-800/50 border-slate-700 hover:border-cyan-500/50 hover:bg-slate-800"
+                          )}
+                        >
+                          <div className="flex items-start gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-cyan-900/50 flex items-center justify-center flex-shrink-0 group-hover:bg-cyan-800/50">
+                              <span className="text-xl">{proposal.icon}</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <h3 className="text-lg font-semibold text-white group-hover:text-cyan-300">{proposal.name}</h3>
+                                <div className="flex items-center gap-2">
+                                  <Badge className="bg-slate-700 text-slate-300 text-xs">{proposal.category}</Badge>
+                                  <Badge className="bg-emerald-900/50 text-emerald-400 text-xs">{proposal.investmentRange}</Badge>
+                                </div>
+                              </div>
+                              <p className="text-sm text-slate-400 leading-relaxed">{proposal.description}</p>
+                              <div className="flex items-center gap-4 mt-3 text-xs text-slate-500">
+                                <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {proposal.timeline}</span>
+                                <span className="flex items-center gap-1"><ListChecks className="w-3 h-3" /> {proposal.scope.length} scope items</span>
+                                <span className="flex items-center gap-1"><Target className="w-3 h-3" /> {proposal.deliverables.length} deliverables</span>
+                              </div>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={(e) => { e.stopPropagation(); handleDuplicateDocument('proposal', proposal); }}
+                                className="text-slate-400 hover:text-white hover:bg-slate-700"
+                              >
+                                <Copy className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {documentWorkspaceTab === 'contracts' && (
+                    <div className="space-y-3">
+                      <p className="text-sm text-slate-400 mb-4">Legal contracts ready to send. Click to select, then click "Use" to compose email.</p>
+                      {CONTRACT_TEMPLATES.map(contract => (
+                        <div
+                          key={contract.id}
+                          onClick={() => handleDocumentSelect('contract', contract)}
+                          className={cn(
+                            "w-full p-4 rounded-xl border transition-all cursor-pointer group",
+                            selectedDocForCompose?.document.id === contract.id
+                              ? "bg-violet-900/30 border-violet-500 ring-2 ring-violet-500/30"
+                              : "bg-slate-800/50 border-slate-700 hover:border-violet-500/50 hover:bg-slate-800"
+                          )}
+                        >
+                          <div className="flex items-start gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-violet-900/50 flex items-center justify-center flex-shrink-0 group-hover:bg-violet-800/50">
+                              <span className="text-xl">{contract.icon}</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-1">
+                                <h3 className="text-lg font-semibold text-white group-hover:text-violet-300">{contract.name}</h3>
+                                <Badge className="bg-slate-700 text-slate-300 text-xs">{contract.category}</Badge>
+                              </div>
+                              <p className="text-sm text-slate-400 leading-relaxed">{contract.description}</p>
+                              <div className="flex items-center gap-4 mt-3 text-xs text-slate-500">
+                                <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> {contract.sections.length} sections</span>
+                                <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> Legal protection</span>
+                              </div>
+                            </div>
+                            <div className="flex flex-col gap-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={(e) => { e.stopPropagation(); handleDuplicateDocument('contract', contract); }}
+                                className="text-slate-400 hover:text-white hover:bg-slate-700"
+                              >
+                                <Copy className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {documentWorkspaceTab === 'my-documents' && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-slate-400">Your custom proposals and contracts. Create, edit, duplicate, and send.</p>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              const newProposal: ProposalTemplate = {
+                                id: `new-${Date.now()}`,
+                                name: 'New Proposal',
+                                category: 'Custom',
+                                icon: '📄',
+                                description: 'Your custom proposal description...',
+                                scope: ['Service 1', 'Service 2'],
+                                timeline: '2-4 weeks',
+                                deliverables: ['Deliverable 1', 'Deliverable 2'],
+                                investmentRange: '$1,000 - $5,000',
+                                defaultPrice: '$2,500',
+                                callToAction: 'Get Started',
+                                colorAccent: '#10b981'
+                              };
+                              handleSaveCustomDocument('proposal', newProposal);
+                            }}
+                            className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 gap-2"
+                          >
+                            <Plus className="w-4 h-4" /> New Proposal
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              const newContract: ContractTemplate = {
+                                id: `new-${Date.now()}`,
+                                name: 'New Contract',
+                                category: 'Custom',
+                                icon: '📜',
+                                description: 'Your custom contract description...',
+                                sections: [
+                                  { title: 'AGREEMENT', content: 'This agreement is entered into...' },
+                                  { title: 'SCOPE OF WORK', content: 'The contractor agrees to...' }
+                                ],
+                                colorAccent: '#8b5cf6'
+                              };
+                              handleSaveCustomDocument('contract', newContract);
+                            }}
+                            className="border-violet-500/50 text-violet-400 hover:bg-violet-500/10 gap-2"
+                          >
+                            <Plus className="w-4 h-4" /> New Contract
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      {customProposals.length === 0 && customContracts.length === 0 ? (
+                        <div className="text-center py-12 border border-dashed border-slate-700 rounded-xl">
+                          <Star className="w-12 h-12 mx-auto mb-4 text-amber-500/50" />
+                          <h3 className="text-lg font-semibold text-white mb-2">No Custom Documents Yet</h3>
+                          <p className="text-sm text-slate-400 mb-4">Create your own proposals and contracts, or duplicate existing templates to customize.</p>
+                          <p className="text-xs text-slate-500">Tip: Click the copy icon on any proposal or contract to duplicate it here.</p>
+                        </div>
+                      ) : (
+                        <>
+                          {/* Custom Proposals */}
+                          {customProposals.length > 0 && (
+                            <div className="space-y-3">
+                              <h3 className="text-sm font-semibold text-cyan-400 flex items-center gap-2">
+                                <FileText className="w-4 h-4" /> My Proposals ({customProposals.length})
+                              </h3>
+                              {customProposals.map(proposal => (
+                                <div
+                                  key={proposal.id}
+                                  onClick={() => handleDocumentSelect('proposal', proposal)}
+                                  className={cn(
+                                    "w-full p-4 rounded-xl border transition-all cursor-pointer group",
+                                    selectedDocForCompose?.document.id === proposal.id
+                                      ? "bg-cyan-900/30 border-cyan-500 ring-2 ring-cyan-500/30"
+                                      : "bg-slate-800/50 border-slate-700 hover:border-cyan-500/50 hover:bg-slate-800"
+                                  )}
+                                >
+                                  <div className="flex items-start gap-4">
+                                    <div className="w-12 h-12 rounded-xl bg-cyan-900/50 flex items-center justify-center flex-shrink-0">
+                                      <span className="text-xl">{proposal.icon}</span>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <h3 className="text-lg font-semibold text-white">{proposal.name}</h3>
+                                      <p className="text-sm text-slate-400 leading-relaxed">{proposal.description}</p>
+                                    </div>
+                                    <Badge className="bg-amber-900/50 text-amber-400">Custom</Badge>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          
+                          {/* Custom Contracts */}
+                          {customContracts.length > 0 && (
+                            <div className="space-y-3">
+                              <h3 className="text-sm font-semibold text-violet-400 flex items-center gap-2">
+                                <FileSignature className="w-4 h-4" /> My Contracts ({customContracts.length})
+                              </h3>
+                              {customContracts.map(contract => (
+                                <div
+                                  key={contract.id}
+                                  onClick={() => handleDocumentSelect('contract', contract)}
+                                  className={cn(
+                                    "w-full p-4 rounded-xl border transition-all cursor-pointer group",
+                                    selectedDocForCompose?.document.id === contract.id
+                                      ? "bg-violet-900/30 border-violet-500 ring-2 ring-violet-500/30"
+                                      : "bg-slate-800/50 border-slate-700 hover:border-violet-500/50 hover:bg-slate-800"
+                                  )}
+                                >
+                                  <div className="flex items-start gap-4">
+                                    <div className="w-12 h-12 rounded-xl bg-violet-900/50 flex items-center justify-center flex-shrink-0">
+                                      <span className="text-xl">{contract.icon}</span>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <h3 className="text-lg font-semibold text-white">{contract.name}</h3>
+                                      <p className="text-sm text-slate-400 leading-relaxed">{contract.description}</p>
+                                    </div>
+                                    <Badge className="bg-amber-900/50 text-amber-400">Custom</Badge>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
                 </ScrollArea>
               </div>
             ) : (
