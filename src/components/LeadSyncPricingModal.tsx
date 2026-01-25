@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Check, X, Zap, Crown, Rocket, Sparkles, ArrowRight, Mail, Phone, MessageSquare, Users, BarChart3 } from 'lucide-react';
 import {
   Dialog,
@@ -14,12 +15,14 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import { LEADSYNC_PLANS_ARRAY, LeadSyncTier, formatLimit } from '@/lib/leadsyncPricing';
+import { useAuth } from '@/contexts/AuthContext';
+import { createCheckoutSession } from '@/lib/api/stripe';
 
 interface LeadSyncPricingModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   currentTier?: LeadSyncTier | null;
-  onSelectPlan: (tier: LeadSyncTier) => void;
+  onSelectPlan?: (tier: LeadSyncTier) => void;
 }
 
 const tierIcons = {
@@ -34,12 +37,21 @@ const tierColors = {
   agency: 'from-amber-500 to-orange-500',
 };
 
+// Map LeadSync tiers to Stripe plan names
+const tierToStripePlan: Record<LeadSyncTier, 'basic' | 'pro' | 'agency'> = {
+  starter: 'basic',
+  pro: 'pro',
+  agency: 'agency',
+};
+
 export default function LeadSyncPricingModal({
   open,
   onOpenChange,
   currentTier,
   onSelectPlan,
 }: LeadSyncPricingModalProps) {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [isYearly, setIsYearly] = useState(false);
   const [selectedTier, setSelectedTier] = useState<LeadSyncTier | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -50,16 +62,32 @@ export default function LeadSyncPricingModal({
       return;
     }
 
+    // Check if user is logged in
+    if (!user) {
+      // Redirect to auth with plan parameter
+      const billingPeriod = isYearly ? 'yearly' : 'monthly';
+      toast.info('Please sign in to subscribe');
+      onOpenChange(false);
+      navigate(`/auth?plan=${tierToStripePlan[tier]}&billing=${billingPeriod}&redirect=dashboard`);
+      return;
+    }
+
     setSelectedTier(tier);
     setIsProcessing(true);
 
-    // Simulate processing
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
-    onSelectPlan(tier);
-    setIsProcessing(false);
-    onOpenChange(false);
-    toast.success(`🚀 Upgraded to LeadSync AI ${LEADSYNC_PLANS_ARRAY.find(p => p.id === tier)?.name}!`);
+    try {
+      // Create Stripe checkout session
+      const billingPeriod = isYearly ? 'yearly' : 'monthly';
+      const { checkout_url } = await createCheckoutSession(tierToStripePlan[tier], billingPeriod);
+      
+      // Redirect to Stripe checkout
+      window.location.href = checkout_url;
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      toast.error(error.message || 'Failed to start checkout. Please try again.');
+      setIsProcessing(false);
+      setSelectedTier(null);
+    }
   };
 
   const yearlySavings = (monthly: number, yearly: number) => {
@@ -190,13 +218,13 @@ export default function LeadSyncPricingModal({
                       >
                         <Sparkles className="w-4 h-4" />
                       </motion.div>
-                      Processing...
+                      Redirecting to Checkout...
                     </span>
                   ) : isCurrentPlan ? (
                     'Current Plan'
                   ) : (
                     <span className="flex items-center gap-2">
-                      Get Started
+                      {user ? 'Subscribe Now' : 'Sign In to Subscribe'}
                       <ArrowRight className="w-4 h-4" />
                     </span>
                   )}
