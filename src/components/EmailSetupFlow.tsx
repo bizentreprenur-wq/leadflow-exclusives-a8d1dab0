@@ -714,12 +714,10 @@ export default function EmailSetupFlow({
                           sentCount={demoSentCount}
                           isActive={demoIsActive || realSendingMode}
                           emailsPerHour={50}
-                          leads={leads.map(l => ({ id: l.id, name: l.name, email: l.email }))}
+                          leads={leads.map(l => ({ id: l.id, name: l.name, email: l.email, business: (l as any).businessName || l.name, category: (l as any).category, verified: (l as any).verified }))}
                           realSendingMode={realSendingMode}
                           campaignId={campaignId || undefined}
-                          showCampaignSpeed={realSendingMode}
                           onEmailStatusUpdate={(statuses) => {
-                            // Update sent count based on real status
                             const sentCount = Object.values(statuses).filter(s => s === 'sent' || s === 'delivered').length;
                             setDemoSentCount(sentCount);
                           }}
