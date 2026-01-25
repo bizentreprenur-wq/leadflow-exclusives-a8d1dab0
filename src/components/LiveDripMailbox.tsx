@@ -26,29 +26,47 @@ interface QueuedEmail {
   status: 'pending' | 'sending' | 'sent' | 'failed';
   sentAt?: string;
   openedAt?: string;
+  category?: 'hot' | 'warm' | 'cold';
+  verified?: boolean;
+}
+
+// Lead from Step 2
+interface Lead {
+  id?: string | number;
+  title?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+  address?: string;
+  category?: string;
+  score?: number;
+  verified?: boolean;
 }
 
 // Demo leads for simulation
 const DEMO_LEADS: QueuedEmail[] = [
-  { id: '1', businessName: 'Acme Plumbing Co', contactName: 'John Miller', email: 'john@acmeplumbing.com', subject: 'Grow Your Plumbing Business with Us', status: 'sent', sentAt: new Date(Date.now() - 120000).toISOString() },
-  { id: '2', businessName: 'Green Leaf Landscaping', contactName: 'Sarah Chen', email: 'sarah@greenleaf.com', subject: 'Marketing Solutions for Landscapers', status: 'sent', sentAt: new Date(Date.now() - 60000).toISOString() },
-  { id: '3', businessName: 'City Auto Repair', contactName: 'Mike Thompson', email: 'mike@cityauto.com', subject: 'Get More Customers for Your Auto Shop', status: 'sending' },
-  { id: '4', businessName: 'Budget Flooring', contactName: 'Linda Martinez', email: 'linda@budgetflooring.com', subject: 'Lead Generation for Flooring Businesses', status: 'pending' },
-  { id: '5', businessName: 'Quick Print Shop', contactName: 'David Kim', email: 'david@quickprint.com', subject: 'Digital Marketing for Print Shops', status: 'pending' },
-  { id: '6', businessName: 'Coastal Realty', contactName: 'Jennifer Adams', email: 'jennifer@coastalrealty.com', subject: 'Real Estate Lead Generation', status: 'pending' },
-  { id: '7', businessName: 'Mountain View HVAC', contactName: 'Robert Taylor', email: 'robert@mvhvac.com', subject: 'HVAC Business Growth Strategies', status: 'pending' },
-  { id: '8', businessName: 'Sunrise Bakery', contactName: 'Emily Brown', email: 'emily@sunrisebakery.com', subject: 'Local Marketing for Bakeries', status: 'pending' },
-  { id: '9', businessName: 'Premier Dental Care', contactName: 'Dr. James Wilson', email: 'james@premierdental.com', subject: 'Patient Acquisition Solutions', status: 'pending' },
-  { id: '10', businessName: 'Tech Solutions Pro', contactName: 'Amanda Lee', email: 'amanda@techsolpro.com', subject: 'IT Services Marketing', status: 'pending' },
+  { id: '1', businessName: 'Acme Plumbing Co', contactName: 'John Miller', email: 'john@acmeplumbing.com', subject: 'Grow Your Plumbing Business with Us', status: 'sent', sentAt: new Date(Date.now() - 120000).toISOString(), category: 'hot', verified: true },
+  { id: '2', businessName: 'Green Leaf Landscaping', contactName: 'Sarah Chen', email: 'sarah@greenleaf.com', subject: 'Marketing Solutions for Landscapers', status: 'sent', sentAt: new Date(Date.now() - 60000).toISOString(), category: 'hot', verified: true },
+  { id: '3', businessName: 'City Auto Repair', contactName: 'Mike Thompson', email: 'mike@cityauto.com', subject: 'Get More Customers for Your Auto Shop', status: 'sending', category: 'warm', verified: true },
+  { id: '4', businessName: 'Budget Flooring', contactName: 'Linda Martinez', email: 'linda@budgetflooring.com', subject: 'Lead Generation for Flooring Businesses', status: 'pending', category: 'warm', verified: false },
+  { id: '5', businessName: 'Quick Print Shop', contactName: 'David Kim', email: 'david@quickprint.com', subject: 'Digital Marketing for Print Shops', status: 'pending', category: 'cold', verified: false },
+  { id: '6', businessName: 'Coastal Realty', contactName: 'Jennifer Adams', email: 'jennifer@coastalrealty.com', subject: 'Real Estate Lead Generation', status: 'pending', category: 'hot', verified: true },
+  { id: '7', businessName: 'Mountain View HVAC', contactName: 'Robert Taylor', email: 'robert@mvhvac.com', subject: 'HVAC Business Growth Strategies', status: 'pending', category: 'warm', verified: false },
+  { id: '8', businessName: 'Sunrise Bakery', contactName: 'Emily Brown', email: 'emily@sunrisebakery.com', subject: 'Local Marketing for Bakeries', status: 'pending', category: 'cold', verified: false },
+  { id: '9', businessName: 'Premier Dental Care', contactName: 'Dr. James Wilson', email: 'james@premierdental.com', subject: 'Patient Acquisition Solutions', status: 'pending', category: 'hot', verified: true },
+  { id: '10', businessName: 'Tech Solutions Pro', contactName: 'Amanda Lee', email: 'amanda@techsolpro.com', subject: 'IT Services Marketing', status: 'pending', category: 'cold', verified: false },
 ];
 
 type ViewMode = 'mailbox' | 'preview' | 'crm' | 'ab' | 'smtp' | 'inbox';
 
 interface LiveDripMailboxProps {
   onSwitchToFullMailbox?: () => void;
+  leads?: Lead[];
+  verifiedLeads?: Lead[];
 }
 
-export default function LiveDripMailbox({ onSwitchToFullMailbox }: LiveDripMailboxProps) {
+export default function LiveDripMailbox({ onSwitchToFullMailbox, leads = [], verifiedLeads = [] }: LiveDripMailboxProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('mailbox');
   const [isLiveMode, setIsLiveMode] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -57,12 +75,33 @@ export default function LiveDripMailbox({ onSwitchToFullMailbox }: LiveDripMailb
   const [showPreviewMode, setShowPreviewMode] = useState(true);
   const sendIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
+  // Lead category filters
+  const [sendHot, setSendHot] = useState(true);
+  const [sendWarm, setSendWarm] = useState(true);
+  const [sendCold, setSendCold] = useState(false);
+  
   // Computed stats
   const sentCount = emailQueue.filter(e => e.status === 'sent').length;
   const pendingCount = emailQueue.filter(e => e.status === 'pending').length;
   const sendingEmail = emailQueue.find(e => e.status === 'sending');
   const progress = (sentCount / emailQueue.length) * 100;
   const timeBetweenEmails = Math.round((60 / sendingSpeed) * 60); // seconds
+  
+  // Category counts
+  const hotLeads = emailQueue.filter(e => e.category === 'hot');
+  const warmLeads = emailQueue.filter(e => e.category === 'warm');
+  const coldLeads = emailQueue.filter(e => e.category === 'cold');
+  const verifiedInQueue = emailQueue.filter(e => e.verified);
+  
+  // Calculate total emails to send based on filters
+  const totalToSend = emailQueue.filter(e => {
+    if (e.status === 'sent' || e.status === 'sending') return true;
+    if (e.category === 'hot' && sendHot) return true;
+    if (e.category === 'warm' && sendWarm) return true;
+    if (e.category === 'cold' && sendCold) return true;
+    return false;
+  }).length;
+  
 
   // Logo upload handler
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -540,6 +579,164 @@ export default function LiveDripMailbox({ onSwitchToFullMailbox }: LiveDripMailb
                 )}
               </div>
             </ScrollArea>
+          </div>
+        </div>
+
+        {/* Leads Summary Section - Bottom of Campaign Preview */}
+        <div className="mt-6 space-y-4">
+          {/* Total Emails to Send Header */}
+          <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                  <Send className="w-5 h-5 text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-400">Total Emails to Send</p>
+                  <p className="text-2xl font-bold text-emerald-400">{totalToSend}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-slate-500">Based on selected categories</p>
+                <p className="text-sm text-slate-300">
+                  {sendHot && 'Hot'}{sendHot && (sendWarm || sendCold) && ' + '}
+                  {sendWarm && 'Warm'}{sendWarm && sendCold && ' + '}
+                  {sendCold && 'Cold'}
+                  {!sendHot && !sendWarm && !sendCold && <span className="text-amber-400">No categories selected</span>}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Lead Category Toggles */}
+          <div className="bg-slate-800 border border-slate-700 rounded-xl p-4">
+            <h3 className="font-semibold text-sm text-slate-300 mb-4 flex items-center gap-2">
+              <Zap className="w-4 h-4 text-amber-400" />
+              Select Lead Categories to Send
+            </h3>
+            <div className="grid grid-cols-3 gap-4">
+              {/* Hot Leads */}
+              <button
+                onClick={() => setSendHot(!sendHot)}
+                className={cn(
+                  "p-4 rounded-xl border-2 transition-all",
+                  sendHot
+                    ? "border-red-500 bg-red-500/10"
+                    : "border-slate-700 bg-slate-800/50 hover:border-slate-600"
+                )}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <Badge className="bg-red-500 text-white text-xs">🔥 HOT</Badge>
+                  <Switch checked={sendHot} onCheckedChange={setSendHot} />
+                </div>
+                <p className="text-2xl font-bold text-red-400">{hotLeads.length}</p>
+                <p className="text-xs text-slate-500">High-intent leads</p>
+              </button>
+
+              {/* Warm Leads */}
+              <button
+                onClick={() => setSendWarm(!sendWarm)}
+                className={cn(
+                  "p-4 rounded-xl border-2 transition-all",
+                  sendWarm
+                    ? "border-amber-500 bg-amber-500/10"
+                    : "border-slate-700 bg-slate-800/50 hover:border-slate-600"
+                )}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <Badge className="bg-amber-500 text-white text-xs">🌡️ WARM</Badge>
+                  <Switch checked={sendWarm} onCheckedChange={setSendWarm} />
+                </div>
+                <p className="text-2xl font-bold text-amber-400">{warmLeads.length}</p>
+                <p className="text-xs text-slate-500">Interested prospects</p>
+              </button>
+
+              {/* Cold Leads */}
+              <button
+                onClick={() => setSendCold(!sendCold)}
+                className={cn(
+                  "p-4 rounded-xl border-2 transition-all",
+                  sendCold
+                    ? "border-blue-500 bg-blue-500/10"
+                    : "border-slate-700 bg-slate-800/50 hover:border-slate-600"
+                )}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <Badge className="bg-blue-500 text-white text-xs">❄️ COLD</Badge>
+                  <Switch checked={sendCold} onCheckedChange={setSendCold} />
+                </div>
+                <p className="text-2xl font-bold text-blue-400">{coldLeads.length}</p>
+                <p className="text-xs text-slate-500">New prospects</p>
+              </button>
+            </div>
+          </div>
+
+          {/* AI Verified Leads Summary */}
+          <div className="bg-gradient-to-r from-amber-900/30 to-orange-900/30 border border-amber-500/30 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                  <CheckCircle2 className="w-5 h-5 text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-sm text-slate-300 flex items-center gap-2">
+                    AI Verified Leads
+                    <Badge className="bg-amber-500/20 text-amber-400 text-[10px]">From Step 2</Badge>
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Leads verified with enhanced accuracy for better deliverability
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-3xl font-bold text-amber-400">{verifiedInQueue.length}</p>
+                <p className="text-xs text-slate-500">verified & ready</p>
+              </div>
+            </div>
+            
+            {/* Verified leads breakdown */}
+            {verifiedInQueue.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-amber-500/20">
+                <div className="flex items-center gap-6 text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-red-500" />
+                    <span className="text-slate-400">Hot:</span>
+                    <span className="font-semibold text-red-400">
+                      {verifiedInQueue.filter(e => e.category === 'hot').length}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-amber-500" />
+                    <span className="text-slate-400">Warm:</span>
+                    <span className="font-semibold text-amber-400">
+                      {verifiedInQueue.filter(e => e.category === 'warm').length}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-blue-500" />
+                    <span className="text-slate-400">Cold:</span>
+                    <span className="font-semibold text-blue-400">
+                      {verifiedInQueue.filter(e => e.category === 'cold').length}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Total Leads Ready - Full Width Bar */}
+          <div className="bg-slate-800 border-2 border-primary/30 rounded-xl p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-slate-300 font-medium">Total Leads Ready</span>
+              <span className="text-3xl font-bold text-emerald-400">{emailQueue.length}</span>
+            </div>
+            <Progress 
+              value={(totalToSend / emailQueue.length) * 100} 
+              className="h-2 mt-3 bg-slate-700" 
+            />
+            <p className="text-xs text-slate-500 mt-2 text-center">
+              {totalToSend} of {emailQueue.length} leads selected for sending
+            </p>
           </div>
         </div>
       </div>
