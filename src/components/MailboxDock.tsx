@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Mail } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -19,11 +21,17 @@ export default function MailboxDock({
   badgeCount = 1,
   className,
 }: MailboxDockProps) {
-  if (!enabled) return null;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!enabled || !mounted) return null;
 
   const badgeText = badgeCount > 9 ? "9+" : String(badgeCount);
 
-  return (
+  const dock = (
     <div
       className={cn(
         "fixed right-4 z-50 bottom-24 md:bottom-auto md:top-1/2 md:-translate-y-1/2",
@@ -68,7 +76,7 @@ export default function MailboxDock({
               Mailbox
             </div>
             <div className="text-[10px] text-center text-muted-foreground">
-              Ready to send
+              Ready to send mail
             </div>
           </button>
         </SheetTrigger>
@@ -87,4 +95,7 @@ export default function MailboxDock({
       </Sheet>
     </div>
   );
+
+  return createPortal(dock, document.body);
 }
+
