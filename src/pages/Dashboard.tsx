@@ -74,6 +74,7 @@ import { VideoTutorialSection } from '@/components/VideoTutorialSection';
 import AIProcessingPipeline from '@/components/AIProcessingPipeline';
 import StreamingLeadsIndicator from '@/components/StreamingLeadsIndicator';
 import LeadSyncAI from '@/components/LeadSyncAI';
+import LeadSyncOnboardingWizard, { LeadSyncConfig } from '@/components/LeadSyncOnboardingWizard';
 
 interface SearchResult {
   id: string;
@@ -197,6 +198,13 @@ export default function Dashboard() {
   
   // Live data mode indicator (true when real SerpAPI data is being used)
   const [isLiveDataMode, setIsLiveDataMode] = useState(false);
+
+  // LeadSync Onboarding Wizard state
+  const [showLeadSyncOnboarding, setShowLeadSyncOnboarding] = useState(false);
+  const [leadSyncConfig, setLeadSyncConfig] = useState<LeadSyncConfig | null>(() => {
+    const saved = localStorage.getItem('leadsync_config');
+    return saved ? JSON.parse(saved) : null;
+  });
 
   // Form validation state
   const [validationErrors, setValidationErrors] = useState<{ query?: boolean; location?: boolean; platforms?: boolean }>({});
@@ -1967,34 +1975,82 @@ export default function Dashboard() {
               <LeadSyncAI onNavigateToSearch={() => setActiveTab('workflow')} />
             ) : activeTab === 'workflow' ? (
               <>
-                {/* LeadSync AI Hero CTA */}
+                {/* LeadSync AI Hero CTA - Enhanced with Floating Animation */}
                 <motion.div
                   initial={{ opacity: 0, y: -20 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="mb-8"
                 >
-                  <button
-                    onClick={() => setActiveTab('leadsync-ai')}
-                    className="w-full group relative overflow-hidden rounded-2xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-violet-600 p-1 shadow-2xl shadow-violet-500/30 hover:shadow-violet-500/50 transition-all duration-300 hover:scale-[1.01]"
+                  <motion.button
+                    onClick={() => {
+                      const onboardingComplete = localStorage.getItem('leadsync_onboarding_complete');
+                      if (onboardingComplete) {
+                        setActiveTab('leadsync-ai');
+                      } else {
+                        setShowLeadSyncOnboarding(true);
+                      }
+                    }}
+                    animate={{ 
+                      y: [0, -8, 0],
+                      boxShadow: [
+                        '0 25px 50px -12px rgba(139, 92, 246, 0.3)',
+                        '0 35px 60px -15px rgba(139, 92, 246, 0.5)',
+                        '0 25px 50px -12px rgba(139, 92, 246, 0.3)'
+                      ]
+                    }}
+                    transition={{ 
+                      duration: 3, 
+                      repeat: Infinity, 
+                      ease: "easeInOut" 
+                    }}
+                    className="w-full group relative overflow-hidden rounded-2xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-violet-600 p-1"
                   >
-                    <div className="relative flex items-center justify-between gap-6 rounded-xl bg-slate-950/90 backdrop-blur px-8 py-6">
-                      {/* Animated background */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-violet-600/10 via-fuchsia-600/10 to-violet-600/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    {/* Animated Gradient Border */}
+                    <motion.div 
+                      className="absolute inset-0 bg-gradient-to-r from-violet-400 via-fuchsia-400 to-violet-400 opacity-0 group-hover:opacity-100"
+                      animate={{
+                        backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
+                      }}
+                      transition={{ duration: 3, repeat: Infinity }}
+                      style={{ backgroundSize: '200% 200%' }}
+                    />
+                    
+                    <div className="relative flex items-center justify-between gap-6 rounded-xl bg-slate-950/95 backdrop-blur px-8 py-7">
+                      {/* Pulsing Glow Effect */}
+                      <motion.div 
+                        className="absolute inset-0 rounded-xl bg-gradient-to-r from-violet-600/20 via-fuchsia-600/20 to-violet-600/20"
+                        animate={{ opacity: [0.3, 0.6, 0.3] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                      />
                       
                       {/* Left side - Icon and text */}
                       <div className="relative flex items-center gap-5">
-                        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-lg shadow-violet-500/40 group-hover:scale-110 transition-transform">
-                          <Brain className="w-8 h-8 text-white" />
-                        </div>
+                        <motion.div 
+                          animate={{ 
+                            scale: [1, 1.1, 1],
+                            rotate: [0, 5, -5, 0]
+                          }}
+                          transition={{ duration: 4, repeat: Infinity }}
+                          className="w-18 h-18 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-xl shadow-violet-500/50"
+                          style={{ width: '72px', height: '72px' }}
+                        >
+                          <Brain className="w-9 h-9 text-white" />
+                        </motion.div>
                         <div className="text-left">
                           <div className="flex items-center gap-3 mb-1">
-                            <h2 className="text-2xl font-bold text-white">LeadSync AI</h2>
-                            <Badge className="bg-violet-500/30 text-violet-300 border-violet-500/50 animate-pulse">
-                              ✨ NEW
-                            </Badge>
+                            <h2 className="text-2xl md:text-3xl font-bold text-white">LeadSync AI</h2>
+                            <motion.div
+                              animate={{ scale: [1, 1.15, 1] }}
+                              transition={{ duration: 1.5, repeat: Infinity }}
+                            >
+                              <Badge className="bg-violet-500/30 text-violet-300 border-violet-500/50">
+                                <Sparkles className="w-3 h-3 mr-1" />
+                                NEW
+                              </Badge>
+                            </motion.div>
                           </div>
-                          <p className="text-slate-400 text-sm">
-                            100% automated lead generation → Email → SMS → AI Calls → Meetings booked
+                          <p className="text-slate-300 text-sm md:text-base">
+                            100% hands-off: Lead Gen → AI Emails → AI Calls → Meetings Booked
                           </p>
                         </div>
                       </div>
@@ -2005,14 +2061,18 @@ export default function Dashboard() {
                           <span className="text-emerald-400 font-semibold text-sm">7-day free trial</span>
                           <span className="text-slate-500 text-xs">No credit card required</span>
                         </div>
-                        <div className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-semibold group-hover:from-violet-400 group-hover:to-fuchsia-400 transition-all shadow-lg">
+                        <motion.div 
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.98 }}
+                          className="flex items-center gap-2 px-6 py-4 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-bold text-lg shadow-xl shadow-violet-500/40"
+                        >
                           <Sparkles className="w-5 h-5" />
-                          <span>Launch LeadSync AI</span>
+                          <span className="hidden sm:inline">Get Started</span>
                           <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                        </div>
+                        </motion.div>
                       </div>
                     </div>
-                  </button>
+                  </motion.button>
                 </motion.div>
 
                 {/* Workflow Step Progress */}
@@ -2256,6 +2316,21 @@ export default function Dashboard() {
         onSuccess={handlePaymentMethodSuccess}
         plan="pro"
       />
+
+      {/* LeadSync AI Onboarding Wizard */}
+      {showLeadSyncOnboarding && (
+        <LeadSyncOnboardingWizard
+          onComplete={(config) => {
+            setLeadSyncConfig(config);
+            setShowLeadSyncOnboarding(false);
+            setActiveTab('leadsync-ai');
+          }}
+          onSkip={() => {
+            setShowLeadSyncOnboarding(false);
+            setActiveTab('leadsync-ai');
+          }}
+        />
+      )}
 
     </SidebarProvider>
   );
