@@ -22,7 +22,7 @@ import {
   Linkedin, Plus, Pause, Play, Users, ChevronRight, MoreHorizontal,
   MousePointer, Sun, Moon, Flag, Archive, Reply, ReplyAll, Forward,
   Filter, Search, ChevronLeft, MailOpen, Trash2, Image, Bold, Italic,
-  Underline, List, Link2, PenTool, Wand2, CalendarPlus, WifiOff
+  Underline, List, Link2, PenTool, Wand2, CalendarPlus, WifiOff, Server
 } from 'lucide-react';
 import { PROPOSAL_TEMPLATES, ProposalTemplate, generateProposalHTML } from '@/lib/proposalTemplates';
 import { CONTRACT_TEMPLATES, ContractTemplate, generateContractHTML } from '@/lib/contractTemplates';
@@ -33,6 +33,13 @@ import {
   getEmailBranding, 
   applyBrandingToHtml 
 } from '@/lib/emailService';
+
+// Import the tab content components
+import HighConvertingTemplateGallery from './HighConvertingTemplateGallery';
+import BamLeadCRMPanel from './BamLeadCRMPanel';
+import ABTestingPanel from './ABTestingPanel';
+import AutoFollowUpBuilder from './AutoFollowUpBuilder';
+import SMTPConfigPanel from './SMTPConfigPanel';
 
 // Compose email interface
 interface ComposeEmail {
@@ -1171,578 +1178,596 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
         </div>
       </header>
 
-      {/* MAIN 3-PANEL CONTENT AREA */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* LEFT SIDEBAR */}
-        <aside className={cn(
-          "flex flex-col border-r border-slate-200 bg-white transition-all",
-          sidebarCollapsed ? "w-16" : "w-56"
-        )}>
-          {/* Sidebar Toggle */}
-          <div className="p-3 border-b border-slate-200 flex items-center justify-between">
-            {!sidebarCollapsed && (
-              <span className="font-semibold text-slate-900 text-sm">Navigation</span>
-            )}
-            <button
-              type="button"
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="p-1.5 hover:bg-slate-200 rounded-md transition-colors ml-auto"
-            >
-              {sidebarCollapsed ? (
-                <ChevronRight className="w-4 h-4 text-slate-500" />
-              ) : (
-                <ChevronLeft className="w-4 h-4 text-slate-500" />
+      {/* MAIN CONTENT AREA - Changes based on top tab */}
+      {topTab === 'mailbox' ? (
+        /* MAILBOX: 3-PANEL LAYOUT */
+        <div className="flex-1 flex overflow-hidden">
+          {/* LEFT SIDEBAR */}
+          <aside className={cn(
+            "flex flex-col border-r border-slate-200 bg-white transition-all",
+            sidebarCollapsed ? "w-16" : "w-56"
+          )}>
+            {/* Sidebar Toggle */}
+            <div className="p-3 border-b border-slate-200 flex items-center justify-between">
+              {!sidebarCollapsed && (
+                <span className="font-semibold text-slate-900 text-sm">Navigation</span>
               )}
-            </button>
-          </div>
-
-          {/* New Email Button */}
-          <div className="p-3">
-            <Button 
-              onClick={() => openComposeModal()}
-              className={cn(
-                "gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg",
-                sidebarCollapsed ? "w-10 h-10 p-0" : "w-full"
-              )}
-            >
-              <PenTool className="w-4 h-4" />
-              {!sidebarCollapsed && "New Email"}
-            </Button>
-          </div>
-
-          {/* Unread Counter */}
-          {!sidebarCollapsed && unreadCount > 0 && (
-            <div className="px-3 pb-2">
-              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-lg animate-pulse">
-                  {unreadCount}
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-emerald-900">New Emails</p>
-                  <p className="text-xs text-emerald-600">{hotCount} hot leads!</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Navigation */}
-          <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
-            {navItems.map(item => (
               <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={cn(
-                  "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
-                  activeTab === item.id
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                )}
+                type="button"
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                className="p-1.5 hover:bg-slate-200 rounded-md transition-colors ml-auto"
               >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
-                {!sidebarCollapsed && (
-                  <>
-                    <span className="flex-1 text-left truncate">{item.label}</span>
-                    {item.count && item.count > 0 && (
-                      <Badge className="bg-emerald-500 text-white text-[10px] px-1.5 min-w-[20px] justify-center">
-                        {item.count}
-                      </Badge>
-                    )}
-                  </>
+                {sidebarCollapsed ? (
+                  <ChevronRight className="w-4 h-4 text-slate-500" />
+                ) : (
+                  <ChevronLeft className="w-4 h-4 text-slate-500" />
                 )}
               </button>
-            ))}
-          </nav>
-
-          {/* Sidebar Settings Button */}
-          <div className="p-2 border-t border-slate-200">
-            <button
-              onClick={() => setSettingsOpen(true)}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all"
-            >
-              <Settings className="w-5 h-5 flex-shrink-0" />
-              {!sidebarCollapsed && <span>Settings</span>}
-            </button>
-          </div>
-        </aside>
-
-      {/* CENTER PANEL - Email List / Tab Content */}
-      <div className="w-80 border-r border-slate-200 flex flex-col bg-white">
-        {activeTab === 'inbox' ? (
-          <>
-            {/* Search & Filters */}
-            <div className="p-3 border-b border-slate-200 space-y-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search emails..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
-                />
-              </div>
-              
-              {/* Quick Filters */}
-              <div className="flex gap-1.5 flex-wrap">
-                {quickFilters.map(filter => (
-                  <button
-                    key={filter.id}
-                    onClick={() => setQuickFilter(filter.id)}
-                    className={`px-2.5 py-1 text-xs font-medium rounded-full transition-all flex items-center gap-1 ${
-                      quickFilter === filter.id
-                        ? 'bg-emerald-500 text-white'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {filter.label}
-                    {filter.count && filter.count > 0 && (
-                      <span className={`px-1 rounded-full text-[10px] ${
-                        quickFilter === filter.id ? 'bg-white/20' : 'bg-slate-200'
-                      }`}>
-                        {filter.count}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
             </div>
 
-            {/* Email List */}
-            <ScrollArea className="flex-1">
-              <div className="divide-y divide-slate-100">
-                {filteredReplies.map(reply => (
-                  <button
-                    key={reply.id}
-                    onClick={() => selectReply(reply)}
-                    className={`w-full p-3 text-left transition-all hover:bg-slate-50 ${
-                      selectedReply?.id === reply.id ? 'bg-emerald-50 border-l-2 border-l-emerald-500' : ''
-                    } ${!reply.isRead ? 'bg-blue-50/50' : ''}`}
-                  >
-                    <div className="flex items-start gap-3">
-                      {/* Avatar */}
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0 ${
-                        reply.urgencyLevel === 'hot' ? 'bg-red-500' :
-                        reply.urgencyLevel === 'warm' ? 'bg-amber-500' : 'bg-slate-400'
-                      }`}>
-                        {reply.from_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-0.5">
-                          <span className={`text-sm truncate ${!reply.isRead ? 'font-bold text-slate-900' : 'font-medium text-slate-700'}`}>
-                            {reply.from_name}
-                          </span>
-                          <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2">
-                            {new Date(reply.received_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                        
-                        <p className={`text-xs truncate mb-1 ${!reply.isRead ? 'font-semibold text-slate-800' : 'text-slate-600'}`}>
-                          {reply.subject}
-                        </p>
-                        
-                        <p className="text-xs text-slate-400 truncate">{reply.body}</p>
-                        
-                        {/* Status indicators */}
-                        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                          {reply.urgencyLevel === 'hot' && (
-                            <Badge className="bg-red-100 text-red-700 border-0 text-[10px] gap-0.5 px-1.5">
-                              <Flame className="w-2.5 h-2.5" /> Hot
-                            </Badge>
-                          )}
-                          {reply.isFlagged && (
-                            <Flag className="w-3 h-3 text-amber-500 fill-amber-500" />
-                          )}
-                          {!reply.isRead && (
-                            <div className="w-2 h-2 rounded-full bg-blue-500" />
-                          )}
-                          {reply.documentRecommendations && reply.documentRecommendations.length > 0 && (
-                            <Badge className="bg-violet-100 text-violet-700 border-0 text-[10px] px-1.5">
-                              <FileText className="w-2.5 h-2.5 mr-0.5" /> Doc
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-
-                {filteredReplies.length === 0 && (
-                  <div className="text-center py-12 text-slate-400">
-                    <MailOpen className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                    <p className="text-sm">No emails match your filter</p>
-                  </div>
+            {/* New Email Button */}
+            <div className="p-3">
+              <Button 
+                onClick={() => openComposeModal()}
+                className={cn(
+                  "gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg",
+                  sidebarCollapsed ? "w-10 h-10 p-0" : "w-full"
                 )}
-              </div>
-            </ScrollArea>
-          </>
-        ) : activeTab === 'sequences' ? (
-          <>
-            {/* Sequences Header */}
-            <div className="p-4 border-b border-slate-200">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-bold text-slate-900">Sequences</h2>
-                <Button 
-                  size="sm" 
-                  className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5"
-                  onClick={() => setShowSequenceBuilder(true)}
-                >
-                  <Plus className="w-4 h-4" /> Create
-                </Button>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">Automation:</span>
-                <Badge className={`text-xs ${automationEnabled ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
-                  {automationEnabled ? 'ON' : 'OFF'}
-                </Badge>
-                <Switch
-                  checked={automationEnabled}
-                  onCheckedChange={(v) => {
-                    setAutomationEnabled(v);
-                    toast.success(v ? '🤖 AI automation enabled' : 'Automation paused');
-                  }}
-                  className="data-[state=checked]:bg-emerald-500"
-                />
-              </div>
+              >
+                <PenTool className="w-4 h-4" />
+                {!sidebarCollapsed && "New Email"}
+              </Button>
             </div>
 
-            {/* Sequences List */}
-            <ScrollArea className="flex-1">
-              <div className="p-3 space-y-2">
-                {sequences.map(sequence => (
-                  <div
-                    key={sequence.id}
-                    className="bg-white border border-slate-200 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold text-sm text-slate-900">{sequence.name}</h3>
-                      <Badge className={`text-[10px] ${sequence.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
-                        {sequence.status === 'active' ? 'Active' : 'Paused'}
-                      </Badge>
-                    </div>
-                    
-                    {/* Steps preview */}
-                    <div className="flex items-center gap-1 mb-2 flex-wrap">
-                      {sequence.steps.slice(0, 4).map((step, idx) => (
-                        <div key={step.id} className="flex items-center">
-                          <div className={`p-1 rounded text-[10px] ${
-                            step.type === 'email' ? 'bg-emerald-100 text-emerald-700' :
-                            step.type === 'linkedin' ? 'bg-blue-100 text-blue-700' :
-                            step.type === 'sms' ? 'bg-violet-100 text-violet-700' :
-                            step.type === 'call' ? 'bg-amber-100 text-amber-700' :
-                            'bg-slate-100 text-slate-600'
-                          }`}>
-                            {step.type === 'email' && <Mail className="w-3 h-3" />}
-                            {step.type === 'linkedin' && <Linkedin className="w-3 h-3" />}
-                            {step.type === 'sms' && <MessageSquare className="w-3 h-3" />}
-                            {step.type === 'call' && <Phone className="w-3 h-3" />}
-                            {step.type === 'wait' && <Clock className="w-3 h-3" />}
-                          </div>
-                          {idx < sequence.steps.length - 1 && idx < 3 && (
-                            <ChevronRight className="w-3 h-3 text-slate-300" />
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                    
-                    <div className="flex items-center justify-between text-[10px] text-slate-500">
-                      <span>{sequence.leadsEnrolled} leads enrolled</span>
-                      <span>{sequence.stats.replied} replies</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-slate-400">
-            <div className="text-center">
-              <FileText className="w-10 h-10 mx-auto mb-3 opacity-50" />
-              <p className="text-sm font-medium">{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</p>
-              <p className="text-xs">Coming soon</p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* RIGHT PANEL - Email Viewer / Editor */}
-      <div className="flex-1 flex flex-col bg-white">
-        {selectedReply ? (
-          <>
-            {/* Email Header */}
-            <div className="p-4 border-b border-slate-200">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold ${
-                    selectedReply.urgencyLevel === 'hot' ? 'bg-red-500' :
-                    selectedReply.urgencyLevel === 'warm' ? 'bg-amber-500' : 'bg-slate-400'
-                  }`}>
-                    {selectedReply.from_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+            {/* Unread Counter */}
+            {!sidebarCollapsed && unreadCount > 0 && (
+              <div className="px-3 pb-2">
+                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-lg animate-pulse">
+                    {unreadCount}
                   </div>
                   <div>
-                    <h2 className="font-bold text-slate-900">{selectedReply.from_name}</h2>
-                    <p className="text-sm text-slate-500">{selectedReply.from_email}</p>
+                    <p className="text-sm font-semibold text-emerald-900">New Emails</p>
+                    <p className="text-xs text-emerald-600">{hotCount} hot leads!</p>
                   </div>
                 </div>
-                
-                {/* Action buttons */}
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" onClick={() => toast.info('Reply')}>
-                    <Reply className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => toast.info('Reply All')}>
-                    <ReplyAll className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => toast.info('Forward')}>
-                    <Forward className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="icon" onClick={() => archiveEmail(selectedReply.id)}>
-                    <Archive className="w-4 h-4" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => toggleFlag(selectedReply.id)}
-                    className={selectedReply.isFlagged ? 'text-amber-500' : ''}
-                  >
-                    <Flag className={`w-4 h-4 ${selectedReply.isFlagged ? 'fill-amber-500' : ''}`} />
-                  </Button>
-                </div>
               </div>
-              
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">{selectedReply.subject}</h3>
-              
-              <div className="flex items-center gap-2 flex-wrap">
-                {selectedReply.urgencyLevel === 'hot' && (
-                  <Badge className="bg-red-100 text-red-700 border-0 gap-1">
-                    <Flame className="w-3 h-3" /> Hot Lead
-                  </Badge>
-                )}
-                {selectedReply.sentiment === 'positive' && (
-                  <Badge className="bg-emerald-100 text-emerald-700 border-0">Positive Sentiment</Badge>
-                )}
-                {hasSchedulingIntent(selectedReply.body) && (
-                  <Badge className="bg-blue-100 text-blue-700 border-0 gap-1">
-                    <Calendar className="w-3 h-3" /> Wants to Schedule
-                  </Badge>
-                )}
-                <span className="text-xs text-slate-400">
-                  {new Date(selectedReply.received_at).toLocaleString()}
-                </span>
-              </div>
-            </div>
+            )}
 
-            {/* Email Content */}
-            <ScrollArea className="flex-1 p-4">
-              {/* AI Analysis Card */}
-              {selectedReply.urgencyLevel && (
-                <div className={`mb-4 p-4 rounded-xl border ${
-                  selectedReply.urgencyLevel === 'hot' ? 'bg-red-50 border-red-200' :
-                  selectedReply.urgencyLevel === 'warm' ? 'bg-amber-50 border-amber-200' :
-                  'bg-slate-50 border-slate-200'
-                }`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Brain className="w-4 h-4 text-violet-600" />
-                    <span className="text-sm font-semibold text-slate-900">AI Analysis</span>
-                    <Badge className="bg-violet-100 text-violet-700 border-0 text-[10px]">
-                      {selectedReply.sentimentScore}% confidence
-                    </Badge>
-                  </div>
-                  
-                  {/* Sentiment bar */}
-                  <div className="mb-3">
-                    <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                      <div 
-                        className={`h-full rounded-full transition-all ${
-                          (selectedReply.sentimentScore || 50) >= 65 ? 'bg-emerald-500' :
-                          (selectedReply.sentimentScore || 50) <= 35 ? 'bg-red-500' : 'bg-amber-500'
-                        }`}
-                        style={{ width: `${selectedReply.sentimentScore || 50}%` }}
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* Buying Signals */}
-                  {selectedReply.buyingSignals && selectedReply.buyingSignals.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      <span className="text-xs text-slate-500">Signals:</span>
-                      {selectedReply.buyingSignals.map((signal, i) => (
-                        <Badge key={i} className="bg-white border border-slate-200 text-slate-700 text-[10px]">
-                          {signal}
-                        </Badge>
-                      ))}
-                    </div>
+            {/* Navigation */}
+            <nav className="flex-1 p-2 space-y-1 overflow-y-auto">
+              {navItems.map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => setActiveTab(item.id)}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+                    activeTab === item.id
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                   )}
-                </div>
-              )}
+                >
+                  <item.icon className="w-5 h-5 flex-shrink-0" />
+                  {!sidebarCollapsed && (
+                    <>
+                      <span className="flex-1 text-left truncate">{item.label}</span>
+                      {item.count && item.count > 0 && (
+                        <Badge className="bg-emerald-500 text-white text-[10px] px-1.5 min-w-[20px] justify-center">
+                          {item.count}
+                        </Badge>
+                      )}
+                    </>
+                  )}
+                </button>
+              ))}
+            </nav>
 
-              {/* Document Recommendations */}
-              {selectedReply.documentRecommendations && selectedReply.documentRecommendations.length > 0 && (
-                <div className="mb-4 p-4 rounded-xl bg-gradient-to-r from-violet-50 to-emerald-50 border border-violet-200">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Rocket className="w-4 h-4 text-violet-600" />
-                    <span className="text-sm font-semibold text-slate-900">AI Recommends: Close This Deal!</span>
-                    <Badge className="bg-gradient-to-r from-violet-500 to-emerald-500 text-white text-[10px] animate-pulse">
-                      Ready to Close
-                    </Badge>
+            {/* Sidebar Settings Button */}
+            <div className="p-2 border-t border-slate-200">
+              <button
+                onClick={() => setSettingsOpen(true)}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all"
+              >
+                <Settings className="w-5 h-5 flex-shrink-0" />
+                {!sidebarCollapsed && <span>Settings</span>}
+              </button>
+            </div>
+          </aside>
+
+          {/* CENTER PANEL - Email List / Tab Content */}
+          <div className="w-80 border-r border-slate-200 flex flex-col bg-white">
+            {activeTab === 'inbox' ? (
+              <>
+                {/* Search & Filters */}
+                <div className="p-3 border-b border-slate-200 space-y-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search emails..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                    />
                   </div>
                   
-                  <div className="space-y-2">
-                    {selectedReply.documentRecommendations.slice(0, 2).map((rec, idx) => (
-                      <div 
-                        key={idx}
-                        onClick={() => handlePreviewDocument(rec)}
-                        className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200 hover:shadow-md transition-all cursor-pointer group"
+                  {/* Quick Filters */}
+                  <div className="flex gap-1.5 flex-wrap">
+                    {quickFilters.map(filter => (
+                      <button
+                        key={filter.id}
+                        onClick={() => setQuickFilter(filter.id)}
+                        className={`px-2.5 py-1 text-xs font-medium rounded-full transition-all flex items-center gap-1 ${
+                          quickFilter === filter.id
+                            ? 'bg-emerald-500 text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
                       >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                            rec.type === 'proposal' ? 'bg-amber-100' : 'bg-violet-100'
+                        {filter.label}
+                        {filter.count && filter.count > 0 && (
+                          <span className={`px-1 rounded-full text-[10px] ${
+                            quickFilter === filter.id ? 'bg-white/20' : 'bg-slate-200'
                           }`}>
-                            {rec.type === 'proposal' ? 
-                              <FileText className="w-5 h-5 text-amber-600" /> : 
-                              <FileSignature className="w-5 h-5 text-violet-600" />
-                            }
+                            {filter.count}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Email List */}
+                <ScrollArea className="flex-1">
+                  <div className="divide-y divide-slate-100">
+                    {filteredReplies.map(reply => (
+                      <button
+                        key={reply.id}
+                        onClick={() => selectReply(reply)}
+                        className={`w-full p-3 text-left transition-all hover:bg-slate-50 ${
+                          selectedReply?.id === reply.id ? 'bg-emerald-50 border-l-2 border-l-emerald-500' : ''
+                        } ${!reply.isRead ? 'bg-blue-50/50' : ''}`}
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* Avatar */}
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0 ${
+                            reply.urgencyLevel === 'hot' ? 'bg-red-500' :
+                            reply.urgencyLevel === 'warm' ? 'bg-amber-500' : 'bg-slate-400'
+                          }`}>
+                            {reply.from_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                           </div>
-                          <div>
-                            <p className="font-medium text-sm text-slate-900">{rec.document.name}</p>
-                            <p className="text-xs text-slate-500">{rec.reason}</p>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between mb-0.5">
+                              <span className={`text-sm truncate ${!reply.isRead ? 'font-bold text-slate-900' : 'font-medium text-slate-700'}`}>
+                                {reply.from_name}
+                              </span>
+                              <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2">
+                                {new Date(reply.received_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            
+                            <p className={`text-xs truncate mb-1 ${!reply.isRead ? 'font-semibold text-slate-800' : 'text-slate-600'}`}>
+                              {reply.subject}
+                            </p>
+                            
+                            <p className="text-xs text-slate-400 truncate">{reply.body}</p>
+                            
+                            {/* Status indicators */}
+                            <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                              {reply.urgencyLevel === 'hot' && (
+                                <Badge className="bg-red-100 text-red-700 border-0 text-[10px] gap-0.5 px-1.5">
+                                  <Flame className="w-2.5 h-2.5" /> Hot
+                                </Badge>
+                              )}
+                              {reply.isFlagged && (
+                                <Flag className="w-3 h-3 text-amber-500 fill-amber-500" />
+                              )}
+                              {!reply.isRead && (
+                                <div className="w-2 h-2 rounded-full bg-blue-500" />
+                              )}
+                              {reply.documentRecommendations && reply.documentRecommendations.length > 0 && (
+                                <Badge className="bg-violet-100 text-violet-700 border-0 text-[10px] px-1.5">
+                                  <FileText className="w-2.5 h-2.5 mr-0.5" /> Doc
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className="bg-slate-100 text-slate-700 text-[10px]">
-                            {rec.confidence}% match
+                      </button>
+                    ))}
+
+                    {filteredReplies.length === 0 && (
+                      <div className="text-center py-12 text-slate-400">
+                        <MailOpen className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                        <p className="text-sm">No emails match your filter</p>
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </>
+            ) : activeTab === 'sequences' ? (
+              <>
+                {/* Sequences Header */}
+                <div className="p-4 border-b border-slate-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="font-bold text-slate-900">Sequences</h2>
+                    <Button 
+                      size="sm" 
+                      className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5"
+                      onClick={() => setShowSequenceBuilder(true)}
+                    >
+                      <Plus className="w-4 h-4" /> Create
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500">Automation:</span>
+                    <Badge className={`text-xs ${automationEnabled ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                      {automationEnabled ? 'ON' : 'OFF'}
+                    </Badge>
+                    <Switch
+                      checked={automationEnabled}
+                      onCheckedChange={(v) => {
+                        setAutomationEnabled(v);
+                        toast.success(v ? '🤖 AI automation enabled' : 'Automation paused');
+                      }}
+                      className="data-[state=checked]:bg-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Sequences List */}
+                <ScrollArea className="flex-1">
+                  <div className="p-3 space-y-2">
+                    {sequences.map(sequence => (
+                      <div
+                        key={sequence.id}
+                        className="bg-white border border-slate-200 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-semibold text-sm text-slate-900">{sequence.name}</h3>
+                          <Badge className={`text-[10px] ${sequence.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                            {sequence.status === 'active' ? 'Active' : 'Paused'}
                           </Badge>
-                          <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Send className="w-3 h-3 mr-1" /> Send
-                          </Button>
+                        </div>
+                        
+                        {/* Steps preview */}
+                        <div className="flex items-center gap-1 mb-2 flex-wrap">
+                          {sequence.steps.slice(0, 4).map((step, idx) => (
+                            <div key={step.id} className="flex items-center">
+                              <div className={`p-1 rounded text-[10px] ${
+                                step.type === 'email' ? 'bg-emerald-100 text-emerald-700' :
+                                step.type === 'linkedin' ? 'bg-blue-100 text-blue-700' :
+                                step.type === 'sms' ? 'bg-violet-100 text-violet-700' :
+                                step.type === 'call' ? 'bg-amber-100 text-amber-700' :
+                                'bg-slate-100 text-slate-600'
+                              }`}>
+                                {step.type === 'email' && <Mail className="w-3 h-3" />}
+                                {step.type === 'linkedin' && <Linkedin className="w-3 h-3" />}
+                                {step.type === 'sms' && <MessageSquare className="w-3 h-3" />}
+                                {step.type === 'call' && <Phone className="w-3 h-3" />}
+                                {step.type === 'wait' && <Clock className="w-3 h-3" />}
+                              </div>
+                              {idx < sequence.steps.length - 1 && idx < 3 && (
+                                <ChevronRight className="w-3 h-3 text-slate-300" />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        
+                        <div className="flex items-center justify-between text-[10px] text-slate-500">
+                          <span>{sequence.leadsEnrolled} leads enrolled</span>
+                          <span>{sequence.stats.replied} replies</span>
                         </div>
                       </div>
                     ))}
                   </div>
+                </ScrollArea>
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-slate-400">
+                <div className="text-center">
+                  <FileText className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm font-medium">{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</p>
+                  <p className="text-xs">Coming soon</p>
                 </div>
-              )}
-
-              {/* Original Message */}
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 mb-4">
-                <p className="text-sm text-slate-700 whitespace-pre-wrap">{selectedReply.body}</p>
               </div>
+            )}
+          </div>
 
-              <Separator className="my-4" />
-
-              {/* Response Section */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <Bot className="w-5 h-5 text-amber-500" />
-                  <span className="font-semibold text-slate-900">AI Response</span>
-                  {selectedReply.status === 'ai_drafted' && (
-                    <Badge className="bg-amber-100 text-amber-700">Draft Ready</Badge>
-                  )}
-                  {selectedReply.status === 'approved' && (
-                    <Badge className="bg-emerald-100 text-emerald-700">Approved</Badge>
-                  )}
-                </div>
-
-                {selectedReply.status === 'new' && !selectedReply.ai_draft ? (
-                  <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-300">
-                    <Bot className="w-12 h-12 mx-auto mb-3 text-amber-500" />
-                    <p className="text-sm text-slate-500 mb-4">Let AI draft a response based on the conversation</p>
-                    <Button 
-                      onClick={() => generateAIDraft(selectedReply)}
-                      disabled={isGenerating}
-                      className="gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
-                    >
-                      {isGenerating ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Generating...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-4 h-4" />
-                          Generate AI Draft
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-end">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => generateAIDraft(selectedReply)}
-                        disabled={isGenerating}
-                        className="text-xs gap-1"
-                      >
-                        <RotateCcw className="w-3 h-3" />
-                        Regenerate
-                      </Button>
+          {/* RIGHT PANEL - Email Viewer / Editor */}
+          <div className="flex-1 flex flex-col bg-white">
+            {selectedReply ? (
+              <>
+                {/* Email Header */}
+                <div className="p-4 border-b border-slate-200">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold ${
+                        selectedReply.urgencyLevel === 'hot' ? 'bg-red-500' :
+                        selectedReply.urgencyLevel === 'warm' ? 'bg-amber-500' : 'bg-slate-400'
+                      }`}>
+                        {selectedReply.from_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                      </div>
+                      <div>
+                        <h2 className="font-bold text-slate-900">{selectedReply.from_name}</h2>
+                        <p className="text-sm text-slate-500">{selectedReply.from_email}</p>
+                      </div>
                     </div>
                     
-                    <Textarea
-                      value={editedDraft}
-                      onChange={(e) => setEditedDraft(e.target.value)}
-                      className="min-h-[200px] text-sm border-slate-200 focus:ring-emerald-500 focus:border-emerald-500"
-                      placeholder="Edit the AI draft or write your own response..."
-                    />
-
-                    {/* Action Buttons */}
-                    <div className="flex items-center gap-2 pt-2">
-                      {selectedReply.status !== 'approved' && (
-                        <Button 
-                          onClick={handleApprove}
-                          className="flex-1 gap-2 bg-emerald-500 hover:bg-emerald-600"
-                        >
-                          <ThumbsUp className="w-4 h-4" />
-                          Approve Draft
-                        </Button>
+                    <div className="flex items-center gap-2">
+                      {selectedReply.urgencyLevel === 'hot' && (
+                        <Badge className="bg-red-100 text-red-700 gap-1">
+                          <Flame className="w-3 h-3" /> Hot Lead
+                        </Badge>
                       )}
-                      
-                      {selectedReply.status === 'approved' && (
-                        <Button 
-                          onClick={handleSend}
-                          disabled={isSending}
-                          className="flex-1 gap-2 bg-gradient-to-r from-emerald-500 to-teal-500"
-                        >
-                          {isSending ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              Sending...
-                            </>
-                          ) : (
-                            <>
-                              <Send className="w-4 h-4" />
-                              Send Response
-                            </>
-                          )}
-                        </Button>
-                      )}
-                      
-                      <Button 
-                        variant="outline" 
-                        onClick={handleReject}
-                        className="gap-2 text-red-600 border-red-200 hover:bg-red-50"
+                      <button
+                        onClick={() => toggleFlag(selectedReply.id)}
+                        className={`p-2 rounded-lg transition-colors ${selectedReply.isFlagged ? 'bg-amber-100' : 'hover:bg-slate-100'}`}
                       >
-                        <ThumbsDown className="w-4 h-4" />
-                        Reject
-                      </Button>
+                        <Flag className={`w-4 h-4 ${selectedReply.isFlagged ? 'text-amber-500 fill-amber-500' : 'text-slate-400'}`} />
+                      </button>
+                      <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                        <Archive className="w-4 h-4 text-slate-400" />
+                      </button>
+                      <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
+                        <Trash2 className="w-4 h-4 text-slate-400" />
+                      </button>
                     </div>
                   </div>
-                )}
+                  
+                  <h3 className="font-semibold text-lg text-slate-900 mb-1">{selectedReply.subject}</h3>
+                  <p className="text-xs text-slate-400">
+                    Received {new Date(selectedReply.received_at).toLocaleString()}
+                  </p>
+                </div>
+
+                {/* Email Body + AI Analysis */}
+                <ScrollArea className="flex-1">
+                  <div className="p-4 space-y-4">
+                    {/* Original Email */}
+                    <div className="prose prose-sm max-w-none">
+                      <p className="text-slate-700 whitespace-pre-wrap">{selectedReply.body}</p>
+                    </div>
+                    
+                    {/* AI Sentiment Analysis */}
+                    {selectedReply.sentiment && (
+                      <div className={`p-4 rounded-xl border ${
+                        selectedReply.sentiment === 'positive' ? 'bg-emerald-50 border-emerald-200' :
+                        selectedReply.sentiment === 'negative' ? 'bg-red-50 border-red-200' :
+                        'bg-slate-50 border-slate-200'
+                      }`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <Brain className={`w-4 h-4 ${
+                            selectedReply.sentiment === 'positive' ? 'text-emerald-600' :
+                            selectedReply.sentiment === 'negative' ? 'text-red-600' : 'text-slate-600'
+                          }`} />
+                          <span className="text-sm font-semibold">AI Analysis</span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                          <div>
+                            <p className="text-xs text-slate-500">Sentiment</p>
+                            <p className={`font-semibold capitalize ${
+                              selectedReply.sentiment === 'positive' ? 'text-emerald-700' :
+                              selectedReply.sentiment === 'negative' ? 'text-red-700' : 'text-slate-700'
+                            }`}>
+                              {selectedReply.sentiment} ({selectedReply.sentimentScore}%)
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500">Urgency</p>
+                            <p className={`font-semibold capitalize ${
+                              selectedReply.urgencyLevel === 'hot' ? 'text-red-600' :
+                              selectedReply.urgencyLevel === 'warm' ? 'text-amber-600' : 'text-slate-600'
+                            }`}>
+                              🔥 {selectedReply.urgencyLevel}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {selectedReply.buyingSignals && selectedReply.buyingSignals.length > 0 && (
+                          <div>
+                            <p className="text-xs text-slate-500 mb-1">Buying Signals Detected:</p>
+                            <div className="flex flex-wrap gap-1">
+                              {selectedReply.buyingSignals.map((signal, i) => (
+                                <Badge key={i} className="bg-white/80 text-emerald-700 border border-emerald-200 text-xs">
+                                  ✓ {signal}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Document Recommendations */}
+                    {selectedReply.documentRecommendations && selectedReply.documentRecommendations.length > 0 && (
+                      <div className="p-4 rounded-xl bg-violet-50 border border-violet-200">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Sparkles className="w-4 h-4 text-violet-600" />
+                          <span className="text-sm font-semibold text-violet-900">AI Document Recommendations</span>
+                        </div>
+                        <div className="space-y-2">
+                          {selectedReply.documentRecommendations.map((rec, i) => (
+                            <div key={i} className="flex items-center justify-between p-3 bg-white rounded-lg border border-violet-200">
+                              <div className="flex items-center gap-3">
+                                {rec.type === 'proposal' ? (
+                                  <FileText className="w-5 h-5 text-amber-500" />
+                                ) : (
+                                  <FileSignature className="w-5 h-5 text-blue-500" />
+                                )}
+                                <div>
+                                  <p className="font-semibold text-sm text-slate-900">{rec.document.name}</p>
+                                  <p className="text-xs text-slate-500">{rec.reason}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge className={`text-xs ${
+                                  rec.urgency === 'high' ? 'bg-red-100 text-red-700' :
+                                  rec.urgency === 'medium' ? 'bg-amber-100 text-amber-700' :
+                                  'bg-slate-100 text-slate-600'
+                                }`}>
+                                  {rec.confidence}% match
+                                </Badge>
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedDocument(rec);
+                                    setShowDocumentPreview(true);
+                                    setDocumentPreviewHTML(
+                                      generateDocumentPreviewHTML(rec, selectedReply.from_email, selectedReply.from_name)
+                                    );
+                                  }}
+                                  className="bg-violet-500 hover:bg-violet-600 text-white gap-1"
+                                >
+                                  <Eye className="w-3 h-3" /> View
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedDocument(rec);
+                                    setDocumentPreviewHTML(
+                                      generateDocumentPreviewHTML(rec, selectedReply.from_email, selectedReply.from_name)
+                                    );
+                                    // Delay to allow state to update
+                                    setTimeout(() => handleSendDocument(), 100);
+                                  }}
+                                  disabled={isSendingDocument}
+                                  className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1"
+                                >
+                                  <Send className="w-3 h-3" /> Send
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* AI Draft */}
+                    {selectedReply.ai_draft && (
+                      <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <Bot className="w-4 h-4 text-amber-600" />
+                            <span className="text-sm font-semibold text-amber-900">AI Draft Response</span>
+                          </div>
+                          <Badge className="bg-amber-100 text-amber-700">
+                            {settings.responseMode === 'automatic' ? 'Will send automatically' : 'Awaiting approval'}
+                          </Badge>
+                        </div>
+                        
+                        <Textarea
+                          value={editedDraft}
+                          onChange={(e) => setEditedDraft(e.target.value)}
+                          className="min-h-[150px] bg-white border-amber-200 mb-3"
+                        />
+                        
+                        <div className="flex items-center gap-2">
+                          <Button
+                            onClick={() => handleApprove()}
+                            disabled={isSending}
+                            className="gap-2 bg-emerald-500 hover:bg-emerald-600"
+                          >
+                            {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                            Send Response
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => selectedReply && generateAIDraft(selectedReply)}
+                            disabled={isGenerating}
+                            className="gap-2"
+                          >
+                            {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                            Regenerate
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            onClick={handleReject}
+                            className="text-red-500 hover:text-red-700 gap-2"
+                          >
+                            <X className="w-4 h-4" />
+                            Reject
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center bg-slate-50">
+                <div className="text-center">
+                  <Mail className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                  <h3 className="font-semibold text-slate-700 mb-1">Select an email</h3>
+                  <p className="text-sm text-slate-500">Choose an email from the list to view details</p>
+                </div>
               </div>
-            </ScrollArea>
-          </>
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-slate-400">
-            <div className="text-center">
-              <Mail className="w-16 h-16 mx-auto mb-4 opacity-30" />
-              <h3 className="text-lg font-medium text-slate-600 mb-2">Select an email to view</h3>
-              <p className="text-sm">Choose from your inbox to read and respond</p>
-            </div>
+            )}
           </div>
-        )}
-      </div>
-      </div> {/* End MAIN 3-PANEL CONTENT AREA */}
+        </div>
+      ) : topTab === 'preview' ? (
+        /* PREVIEW: Email Templates Gallery */
+        <div className="flex-1 overflow-auto bg-slate-50 p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                <Eye className="w-6 h-6 text-emerald-500" />
+                Email Templates
+              </h2>
+              <p className="text-slate-600">Browse and select templates for your campaigns</p>
+            </div>
+            <HighConvertingTemplateGallery 
+              onSelectTemplate={(template) => {
+                localStorage.setItem('bamlead_selected_template', JSON.stringify(template));
+                toast.success(`Template "${template.name}" selected!`);
+              }}
+            />
+          </div>
+        </div>
+      ) : topTab === 'crm' ? (
+        /* CRM: Lead Management */
+        <div className="flex-1 overflow-auto bg-slate-50 p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                <Briefcase className="w-6 h-6 text-emerald-500" />
+                CRM Dashboard
+              </h2>
+              <p className="text-slate-600">Manage your leads and track outreach progress</p>
+            </div>
+            <BamLeadCRMPanel leads={[]} />
+          </div>
+        </div>
+      ) : topTab === 'ab' ? (
+        /* A/B Testing */
+        <div className="flex-1 overflow-auto bg-slate-50 p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                <BarChart3 className="w-6 h-6 text-emerald-500" />
+                A/B Testing
+              </h2>
+              <p className="text-slate-600">Test and optimize your email campaigns</p>
+            </div>
+            <ABTestingPanel />
+          </div>
+        </div>
+      ) : topTab === 'smtp' ? (
+        /* SMTP Configuration */
+        <div className="flex-1 overflow-auto bg-slate-50 p-6">
+          <div className="max-w-7xl mx-auto">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                <Server className="w-6 h-6 text-emerald-500" />
+                SMTP Configuration
+              </h2>
+              <p className="text-slate-600">Configure your email server settings</p>
+            </div>
+            <SMTPConfigPanel />
+          </div>
+        </div>
+      ) : null}
 
       {/* Settings Dialog */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
