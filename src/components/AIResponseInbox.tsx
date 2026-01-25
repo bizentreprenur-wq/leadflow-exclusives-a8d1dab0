@@ -416,6 +416,12 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
   const [showSequenceBuilder, setShowSequenceBuilder] = useState(false);
   const [newSequenceName, setNewSequenceName] = useState('');
   const [newSequenceSteps, setNewSequenceSteps] = useState<SequenceStep[]>([]);
+  
+  // Top-level mailbox navigation state
+  type TopNavTab = 'mailbox' | 'preview' | 'crm' | 'ab' | 'smtp';
+  type MailboxSubTab = 'inbox' | 'sent' | 'sequences' | 'followups';
+  const [topTab, setTopTab] = useState<TopNavTab>('mailbox');
+  const [mailboxSubTab, setMailboxSubTab] = useState<MailboxSubTab>('inbox');
 
   // Save settings
   useEffect(() => {
@@ -943,12 +949,19 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
     { id: 'flagged' as QuickFilter, label: 'Flagged', count: flaggedCount },
     { id: 'followup' as QuickFilter, label: 'Follow-Up' },
   ];
-  // Top nav tabs for mailbox header
-  const topNavTabs: { id: MailboxTab; label: string }[] = [
-    { id: 'inbox', label: 'Inbox' },
-    { id: 'sent', label: 'Sent' },
-    { id: 'templates', label: 'Templates' },
-    { id: 'sequences', label: 'Sequences & Follow-Up' },
+  const topNavTabs: { id: TopNavTab; label: string; icon: React.ReactNode }[] = [
+    { id: 'mailbox', label: 'Mailbox', icon: <Mail className="w-4 h-4" /> },
+    { id: 'preview', label: 'Preview', icon: <Eye className="w-4 h-4" /> },
+    { id: 'crm', label: 'CRM', icon: <Briefcase className="w-4 h-4" /> },
+    { id: 'ab', label: 'A/B', icon: <BarChart3 className="w-4 h-4" /> },
+    { id: 'smtp', label: 'SMTP', icon: <Settings className="w-4 h-4" /> },
+  ];
+
+  const mailboxSubTabs: { id: MailboxSubTab; label: string; icon: React.ReactNode }[] = [
+    { id: 'inbox', label: 'Inbox', icon: <Inbox className="w-4 h-4" /> },
+    { id: 'sent', label: 'Sent', icon: <Send className="w-4 h-4" /> },
+    { id: 'sequences', label: 'Multi-Channel Sequences', icon: <Workflow className="w-4 h-4" /> },
+    { id: 'followups', label: 'Auto Follow-Ups', icon: <RefreshCw className="w-4 h-4" /> },
   ];
 
   // Render the full-screen mailbox layout with top nav bar
@@ -957,33 +970,129 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
       className="mailbox-scope w-full h-full min-h-screen flex flex-col"
       data-mailbox-theme={mailboxTheme}
     >
-      {/* TOP NAVIGATION BAR */}
-      <header className="bg-slate-800 flex items-center justify-between px-6 py-3 flex-shrink-0">
-        {/* Left: Logo */}
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
-            <Mail className="w-4 h-4 text-white" />
+      {/* TOP NAVIGATION BAR - Matching reference design */}
+      <header className="bg-slate-900 border-b border-slate-700 px-6 py-4 flex-shrink-0">
+        <div className="flex items-center justify-between">
+          {/* Left: Logo + Title */}
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+              <Mail className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-lg text-white">Smart Drip Mailbox</span>
+                <Badge className="bg-emerald-500 text-white text-[10px] px-1.5">PRO</Badge>
+              </div>
+              <p className="text-xs text-slate-400">Your unified outreach command center</p>
+            </div>
           </div>
-          <span className="font-bold text-lg text-white">BamLead.com</span>
+
+          {/* Center: Main Tabs - Matching reference */}
+          <nav className="flex items-center gap-1">
+            {topNavTabs.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setTopTab(tab.id)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all",
+                  topTab === tab.id
+                    ? "bg-emerald-600 text-white shadow-lg shadow-emerald-500/30"
+                    : "text-slate-400 hover:text-white hover:bg-slate-800"
+                )}
+              >
+                {tab.icon}
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+
+          {/* Right: AI Autopilot + Actions */}
+          <div className="flex items-center gap-3">
+            {/* AI Autopilot Master Toggle */}
+            <div className="flex items-center gap-3 bg-slate-800 border border-slate-700 rounded-xl px-4 py-2">
+              <Bot className="w-5 h-5 text-emerald-400" />
+              <div className="flex flex-col">
+                <span className="text-xs font-semibold text-white">AI Autopilot</span>
+                <span className="text-[10px] text-slate-400">
+                  {settings.responseMode === 'automatic' ? 'Sends automatically' : 'You approve'}
+                </span>
+              </div>
+              <Switch
+                checked={settings.responseMode === 'automatic'}
+                onCheckedChange={(checked) => {
+                  updateSetting('responseMode', checked ? 'automatic' : 'manual');
+                  toast.success(checked 
+                    ? '🤖 AI Autopilot ON - AI sends sequences & follow-ups automatically' 
+                    : 'Autopilot OFF - You control all outreach'
+                  );
+                }}
+                className="data-[state=checked]:bg-emerald-500"
+              />
+            </div>
+
+            {/* Theme toggle */}
+            <button
+              type="button"
+              onClick={() => setMailboxTheme(prev => (prev === 'light' ? 'dark' : 'light'))}
+              className="p-2.5 hover:bg-slate-800 rounded-lg transition-colors border border-slate-700"
+              aria-label="Toggle theme"
+            >
+              {mailboxTheme === 'light' ? (
+                <Moon className="w-5 h-5 text-slate-300" />
+              ) : (
+                <Sun className="w-5 h-5 text-yellow-400" />
+              )}
+            </button>
+
+            {/* Settings */}
+            <button 
+              onClick={() => setSettingsOpen(true)}
+              className="p-2.5 hover:bg-slate-800 rounded-lg transition-colors border border-slate-700"
+            >
+              <Settings className="w-5 h-5 text-slate-300" />
+            </button>
+          </div>
         </div>
 
-        {/* Center: Tabs */}
-        <nav className="flex items-center gap-1 bg-slate-700/50 rounded-lg p-1">
-          {topNavTabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                "px-4 py-2 rounded-md text-sm font-medium transition-all",
-                activeTab === tab.id
-                  ? "bg-white text-slate-900"
-                  : "text-slate-300 hover:text-white hover:bg-slate-600"
-              )}
+        {/* Sub-tabs for Mailbox (only visible when mailbox tab is active) */}
+        {topTab === 'mailbox' && (
+          <div className="mt-4 flex items-center gap-2">
+            {mailboxSubTabs.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setMailboxSubTab(tab.id);
+                  // Sync with activeTab for content rendering
+                  if (tab.id === 'inbox') setActiveTab('inbox');
+                  else if (tab.id === 'sent') setActiveTab('sent');
+                  else if (tab.id === 'sequences') setActiveTab('sequences');
+                  else if (tab.id === 'followups') setActiveTab('sequences'); // Use sequences tab content with different view
+                }}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all border",
+                  mailboxSubTab === tab.id
+                    ? "bg-slate-800 text-emerald-400 border-emerald-500/50 shadow-lg shadow-emerald-500/10"
+                    : "text-slate-400 border-slate-700 hover:text-white hover:bg-slate-800 hover:border-slate-600"
+                )}
+              >
+                {tab.icon}
+                {tab.label}
+                {tab.id === 'inbox' && unreadCount > 0 && (
+                  <Badge className="bg-red-500 text-white text-[10px] px-1.5 ml-1">{unreadCount}</Badge>
+                )}
+              </button>
+            ))}
+            
+            {/* Create Sequence Button */}
+            <Button
+              size="sm"
+              onClick={() => setShowSequenceBuilder(true)}
+              className="ml-auto bg-emerald-500 hover:bg-emerald-600 text-white gap-2 shadow-lg shadow-emerald-500/20"
             >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
+              <Plus className="w-4 h-4" /> Create Sequence
+            </Button>
+          </div>
+        )}
 
         {/* Right: Actions */}
         <div className="flex items-center gap-3">
