@@ -469,7 +469,7 @@ export default function ProposalsContractsPanel({ leads = [], initialView = 'pro
   };
 
   return (
-    <div className="space-y-4">
+    <div className="flex-1 h-full overflow-y-auto bg-slate-950 p-6 space-y-6">
       {/* Branding Setup Card */}
       <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
         <CardHeader className="pb-3">
