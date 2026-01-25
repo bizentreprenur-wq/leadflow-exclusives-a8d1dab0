@@ -44,6 +44,27 @@ import SMTPConfigPanel from './SMTPConfigPanel';
 import ProposalsContractsPanel from './ProposalsContractsPanel';
 import EmailActivityFeed from './EmailActivityFeed';
 
+// Email template interface
+interface EmailTemplate {
+  id?: string;
+  name: string;
+  subject: string;
+  body?: string;
+  html?: string;
+  category?: string;
+}
+
+// Lead interface
+interface Lead {
+  id?: string | number;
+  title?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  category?: 'hot' | 'warm' | 'cold';
+  verified?: boolean;
+}
+
 // Compose email interface
 interface ComposeEmail {
   to: string;
@@ -57,6 +78,8 @@ interface ComposeEmail {
   includeAppointmentLink: boolean;
   appointmentSlots: string[];
   isAIGenerated: boolean;
+  selectedTemplate?: EmailTemplate | null;
+  selectedLeadCategory?: 'hot' | 'warm' | 'cold' | 'all';
 }
 
 // Appointment slot interface
@@ -417,7 +440,9 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
     body: '',
     includeAppointmentLink: false,
     appointmentSlots: [],
-    isAIGenerated: false
+    isAIGenerated: false,
+    selectedTemplate: null,
+    selectedLeadCategory: 'all'
   });
   const [composeAIMode, setComposeAIMode] = useState(true);
   const [showDocumentPicker, setShowDocumentPicker] = useState(false);
@@ -426,6 +451,24 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
   const [showSequenceBuilder, setShowSequenceBuilder] = useState(false);
   const [newSequenceName, setNewSequenceName] = useState('');
   const [newSequenceSteps, setNewSequenceSteps] = useState<SequenceStep[]>([]);
+  
+  // Default email templates
+  const defaultEmailTemplates: EmailTemplate[] = [
+    { id: 'aggressive', name: 'Aggressive Pitch', subject: 'Quick question about {{business}}', category: 'hot' },
+    { id: 'friendly', name: 'Friendly Intro', subject: 'Helping {{business}} grow online', category: 'warm' },
+    { id: 'educational', name: 'Educational Value', subject: 'Free tips for {{business}}', category: 'cold' },
+    { id: 'followup', name: 'Follow-Up', subject: 'Following up on my last email', category: 'all' },
+    { id: 'referral', name: 'Referral Request', subject: 'Quick favor to ask', category: 'warm' },
+  ];
+  
+  // Demo leads for selection
+  const [availableLeads] = useState<Lead[]>([
+    { id: '1', name: 'Acme Plumbing Co', email: 'john@acmeplumbing.com', category: 'hot', verified: true },
+    { id: '2', name: 'Green Leaf Landscaping', email: 'sarah@greenleaf.com', category: 'hot', verified: true },
+    { id: '3', name: 'City Auto Repair', email: 'mike@cityauto.com', category: 'warm', verified: true },
+    { id: '4', name: 'Budget Flooring', email: 'linda@budgetflooring.com', category: 'warm', verified: false },
+    { id: '5', name: 'Quick Print Shop', email: 'david@quickprint.com', category: 'cold', verified: false },
+  ]);
   
   // Top-level mailbox navigation state
   type TopNavTab = 'mailbox' | 'preview' | 'crm' | 'ab' | 'smtp';
@@ -2304,6 +2347,109 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                 />
               </div>
             </div>
+
+            {/* Template & Lead Category Selection */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Template Selection */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-emerald-600" />
+                  Email Template
+                </Label>
+                <select 
+                  className="w-full h-10 px-3 text-sm bg-white border border-slate-200 rounded-md"
+                  value={composeEmail.selectedTemplate?.id || ''}
+                  onChange={(e) => {
+                    const tmpl = defaultEmailTemplates.find(t => t.id === e.target.value);
+                    if (tmpl) {
+                      setComposeEmail(prev => ({ 
+                        ...prev, 
+                        selectedTemplate: tmpl,
+                        subject: tmpl.subject.replace('{{business}}', prev.toName || 'Your Business')
+                      }));
+                    }
+                  }}
+                >
+                  <option value="">Select template...</option>
+                  {defaultEmailTemplates.map(t => (
+                    <option key={t.id} value={t.id}>
+                      {t.category === 'hot' ? '🔥 ' : t.category === 'warm' ? '🌡️ ' : t.category === 'cold' ? '❄️ ' : '📧 '}
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+                {composeEmail.selectedTemplate && (
+                  <p className="text-xs text-slate-500">Subject: "{composeEmail.selectedTemplate.subject}"</p>
+                )}
+              </div>
+
+              {/* Lead Category Filter */}
+              <div className="space-y-2">
+                <Label className="text-sm font-semibold flex items-center gap-2">
+                  <Target className="w-4 h-4 text-blue-600" />
+                  Send to Lead Category
+                </Label>
+                <div className="flex gap-2">
+                  {(['all', 'hot', 'warm', 'cold'] as const).map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setComposeEmail(prev => ({ ...prev, selectedLeadCategory: cat }))}
+                      className={cn(
+                        "flex-1 py-2 px-2 rounded-lg text-xs font-medium border transition-all",
+                        composeEmail.selectedLeadCategory === cat
+                          ? cat === 'hot' ? "bg-red-100 border-red-500 text-red-700"
+                            : cat === 'warm' ? "bg-amber-100 border-amber-500 text-amber-700"
+                            : cat === 'cold' ? "bg-blue-100 border-blue-500 text-blue-700"
+                            : "bg-emerald-100 border-emerald-500 text-emerald-700"
+                          : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-400"
+                      )}
+                    >
+                      {cat === 'hot' ? '🔥' : cat === 'warm' ? '🌡️' : cat === 'cold' ? '❄️' : '📋'} {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-slate-500">
+                  {composeEmail.selectedLeadCategory === 'all' 
+                    ? `${availableLeads.length} leads selected`
+                    : `${availableLeads.filter(l => l.category === composeEmail.selectedLeadCategory).length} ${composeEmail.selectedLeadCategory} leads`
+                  }
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Lead Selection */}
+            {composeEmail.selectedLeadCategory !== 'all' && (
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <p className="text-xs font-semibold text-slate-600 mb-2 flex items-center gap-2">
+                  <Users className="w-3 h-3" />
+                  Quick Select Lead ({composeEmail.selectedLeadCategory})
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {availableLeads
+                    .filter(l => l.category === composeEmail.selectedLeadCategory)
+                    .map(lead => (
+                      <button
+                        key={String(lead.id)}
+                        onClick={() => setComposeEmail(prev => ({
+                          ...prev,
+                          to: lead.email || '',
+                          toName: lead.name || ''
+                        }))}
+                        className={cn(
+                          "px-3 py-1.5 rounded-full text-xs border transition-all flex items-center gap-1",
+                          composeEmail.to === lead.email
+                            ? "bg-emerald-100 border-emerald-500 text-emerald-700"
+                            : "bg-white border-slate-200 text-slate-600 hover:border-emerald-400"
+                        )}
+                      >
+                        {lead.verified && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
+                        {lead.name}
+                      </button>
+                    ))
+                  }
+                </div>
+              </div>
+            )}
 
             {/* Recipient Fields */}
             <div className="grid grid-cols-2 gap-4">
