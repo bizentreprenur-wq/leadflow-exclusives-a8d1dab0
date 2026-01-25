@@ -360,7 +360,7 @@ export default function AutoFollowUpBuilder() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 w-full overflow-x-hidden">
       {/* Hero Setup Section */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-violet-500/10 to-pink-500/10 border border-primary/20 p-8">
         <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-bl from-primary/20 to-transparent rounded-full blur-3xl" />
