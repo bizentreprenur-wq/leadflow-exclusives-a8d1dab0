@@ -1000,7 +1000,6 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
     { id: 'drafts' as MailboxTab, label: 'Drafts', icon: Edit3 },
     { id: 'templates' as MailboxTab, label: 'Templates', icon: FileText },
     { id: 'sequences' as MailboxTab, label: 'Sequences & Follow-Up', icon: Workflow },
-    { id: 'contracts' as MailboxTab, label: 'Contracts & Proposals', icon: FileSignature },
   ];
 
   const quickFilters = [
@@ -1329,7 +1328,10 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                   {/* Quick Tabs */}
                   <div className="flex gap-2 mb-3">
                     <button
-                      onClick={() => setActiveTab('contracts')}
+                      onClick={() => {
+                        setMailboxSubTab('documents');
+                        setActiveTab('contracts');
+                      }}
                       className="flex-1 flex flex-col items-center gap-1 p-2 rounded-lg bg-slate-700/50 border border-cyan-500/30 hover:border-cyan-500/60 transition-all"
                     >
                       <FileText className="w-4 h-4 text-cyan-400" />
@@ -1337,7 +1339,10 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                       <span className="text-[10px] text-slate-400">10 templates</span>
                     </button>
                     <button
-                      onClick={() => setActiveTab('contracts')}
+                      onClick={() => {
+                        setMailboxSubTab('documents');
+                        setActiveTab('contracts');
+                      }}
                       className="flex-1 flex flex-col items-center gap-1 p-2 rounded-lg bg-slate-700/50 border border-emerald-500/30 hover:border-emerald-500/60 transition-all"
                     >
                       <FileSignature className="w-4 h-4 text-emerald-400" />
@@ -1347,33 +1352,66 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                   </div>
 
                   {/* Quick Pick */}
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     <p className="text-[10px] text-slate-500 uppercase tracking-wide">Quick Pick:</p>
-                    {PROPOSAL_TEMPLATES.slice(0, 3).map(template => (
-                      <button
-                        key={template.id}
-                        onClick={() => {
-                          setActiveTab('contracts');
-                          toast.success(`Selected: ${template.name}`);
-                        }}
-                        className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-slate-700/50 transition-colors group"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">{template.icon}</span>
-                          <span className="text-xs text-slate-300 group-hover:text-white truncate">{template.name}</span>
-                        </div>
-                        <Badge className="bg-slate-700 text-slate-300 text-[10px]">
-                          {template.category === 'design' ? 'Proposal' : 'Proposal'}
-                        </Badge>
-                      </button>
-                    ))}
+
+                    <div className="space-y-1.5">
+                      {PROPOSAL_TEMPLATES.slice(0, 2).map((proposal) => (
+                        <button
+                          key={proposal.id}
+                          onClick={() => {
+                            setMailboxSubTab('documents');
+                            setActiveTab('contracts');
+                            setComposeEmail(prev => ({
+                              ...prev,
+                              attachedDocument: { type: 'proposal', document: proposal },
+                            }));
+                            openComposeModal();
+                            toast.success(`${proposal.name} added to email`);
+                          }}
+                          className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-slate-700/50 transition-colors group"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm">{proposal.icon}</span>
+                            <span className="text-xs text-slate-300 group-hover:text-white truncate">{proposal.name}</span>
+                          </div>
+                          <Badge className="bg-slate-700 text-slate-300 text-[10px]">Proposal</Badge>
+                        </button>
+                      ))}
+
+                      {CONTRACT_TEMPLATES.slice(0, 2).map((contract) => (
+                        <button
+                          key={contract.id}
+                          onClick={() => {
+                            setMailboxSubTab('documents');
+                            setActiveTab('contracts');
+                            setComposeEmail(prev => ({
+                              ...prev,
+                              attachedDocument: { type: 'contract', document: contract },
+                            }));
+                            openComposeModal();
+                            toast.success(`${contract.name} added to email`);
+                          }}
+                          className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-slate-700/50 transition-colors group"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-sm">{contract.icon}</span>
+                            <span className="text-xs text-slate-300 group-hover:text-white truncate">{contract.name}</span>
+                          </div>
+                          <Badge className="bg-slate-700 text-slate-300 text-[10px]">Contract</Badge>
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Open Full Gallery */}
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setActiveTab('contracts')}
+                    onClick={() => {
+                      setMailboxSubTab('documents');
+                      setActiveTab('contracts');
+                    }}
                     className="w-full mt-3 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 gap-2"
                   >
                     <Sparkles className="w-3 h-3" />
@@ -1512,83 +1550,102 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                 </ScrollArea>
               </>
             ) : activeTab === 'sequences' ? (
-              <>
-                {/* Sequences Header - Dark Theme */}
-                <div className="p-4 border-b border-slate-800">
-                  <div className="flex items-center justify-between mb-3">
-                    <h2 className="font-bold text-white">Sequences</h2>
-                    <Button 
-                      size="sm" 
-                      className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5"
-                      onClick={() => setShowSequenceBuilder(true)}
-                    >
-                      <Plus className="w-4 h-4" /> Create
-                    </Button>
+              mailboxSubTab === 'followups' ? (
+                <div className="flex-1 flex flex-col">
+                  <div className="p-4 border-b border-slate-800">
+                    <h2 className="font-bold text-white flex items-center gap-2">
+                      <RefreshCw className="w-5 h-5 text-emerald-400" />
+                      Auto Follow-Ups
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-1">
+                      Let AI automatically follow up based on engagement.
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-400">Automation:</span>
-                    <Badge className={`text-xs ${automationEnabled ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-400'}`}>
-                      {automationEnabled ? 'ON' : 'OFF'}
-                    </Badge>
-                    <Switch
-                      checked={automationEnabled}
-                      onCheckedChange={(v) => {
-                        setAutomationEnabled(v);
-                        toast.success(v ? '🤖 AI automation enabled' : 'Automation paused');
-                      }}
-                      className="data-[state=checked]:bg-emerald-500"
-                    />
-                  </div>
+                  <ScrollArea className="flex-1">
+                    <div className="p-3">
+                      <AutoFollowUpBuilder />
+                    </div>
+                  </ScrollArea>
                 </div>
-
-                {/* Sequences List - Dark Theme */}
-                <ScrollArea className="flex-1">
-                  <div className="p-3 space-y-2">
-                    {sequences.map(sequence => (
-                      <div
-                        key={sequence.id}
-                        className="bg-slate-800 border border-slate-700 rounded-lg p-3 hover:border-slate-600 transition-all cursor-pointer"
+              ) : (
+                <>
+                  {/* Sequences Header - Dark Theme */}
+                  <div className="p-4 border-b border-slate-800">
+                    <div className="flex items-center justify-between mb-3">
+                      <h2 className="font-bold text-white">Sequences</h2>
+                      <Button 
+                        size="sm" 
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5"
+                        onClick={() => setShowSequenceBuilder(true)}
                       >
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-semibold text-sm text-white">{sequence.name}</h3>
-                          <Badge className={`text-[10px] ${sequence.status === 'active' ? 'bg-emerald-900/50 text-emerald-400 border border-emerald-700' : 'bg-slate-700 text-slate-400'}`}>
-                            {sequence.status === 'active' ? 'Active' : 'Paused'}
-                          </Badge>
-                        </div>
-                        
-                        {/* Steps preview - Dark Theme */}
-                        <div className="flex items-center gap-1 mb-2 flex-wrap">
-                          {sequence.steps.slice(0, 4).map((step, idx) => (
-                            <div key={step.id} className="flex items-center">
-                              <div className={`p-1 rounded text-[10px] ${
-                                step.type === 'email' ? 'bg-emerald-900/50 text-emerald-400' :
-                                step.type === 'linkedin' ? 'bg-blue-900/50 text-blue-400' :
-                                step.type === 'sms' ? 'bg-violet-900/50 text-violet-400' :
-                                step.type === 'call' ? 'bg-amber-900/50 text-amber-400' :
-                                'bg-slate-700 text-slate-400'
-                              }`}>
-                                {step.type === 'email' && <Mail className="w-3 h-3" />}
-                                {step.type === 'linkedin' && <Linkedin className="w-3 h-3" />}
-                                {step.type === 'sms' && <MessageSquare className="w-3 h-3" />}
-                                {step.type === 'call' && <Phone className="w-3 h-3" />}
-                                {step.type === 'wait' && <Clock className="w-3 h-3" />}
-                              </div>
-                              {idx < sequence.steps.length - 1 && idx < 3 && (
-                                <ChevronRight className="w-3 h-3 text-slate-600" />
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                        
-                        <div className="flex items-center justify-between text-[10px] text-slate-500">
-                          <span>{sequence.leadsEnrolled} leads enrolled</span>
-                          <span>{sequence.stats.replied} replies</span>
-                        </div>
-                      </div>
-                    ))}
+                        <Plus className="w-4 h-4" /> Create
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-400">Automation:</span>
+                      <Badge className={`text-xs ${automationEnabled ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-400'}`}>
+                        {automationEnabled ? 'ON' : 'OFF'}
+                      </Badge>
+                      <Switch
+                        checked={automationEnabled}
+                        onCheckedChange={(v) => {
+                          setAutomationEnabled(v);
+                          toast.success(v ? '🤖 AI automation enabled' : 'Automation paused');
+                        }}
+                        className="data-[state=checked]:bg-emerald-500"
+                      />
+                    </div>
                   </div>
-                </ScrollArea>
-              </>
+
+                  {/* Sequences List - Dark Theme */}
+                  <ScrollArea className="flex-1">
+                    <div className="p-3 space-y-2">
+                      {sequences.map(sequence => (
+                        <div
+                          key={sequence.id}
+                          className="bg-slate-800 border border-slate-700 rounded-lg p-3 hover:border-slate-600 transition-all cursor-pointer"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="font-semibold text-sm text-white">{sequence.name}</h3>
+                            <Badge className={`text-[10px] ${sequence.status === 'active' ? 'bg-emerald-900/50 text-emerald-400 border border-emerald-700' : 'bg-slate-700 text-slate-400'}`}>
+                              {sequence.status === 'active' ? 'Active' : 'Paused'}
+                            </Badge>
+                          </div>
+                          
+                          {/* Steps preview - Dark Theme */}
+                          <div className="flex items-center gap-1 mb-2 flex-wrap">
+                            {sequence.steps.slice(0, 4).map((step, idx) => (
+                              <div key={step.id} className="flex items-center">
+                                <div className={`p-1 rounded text-[10px] ${
+                                  step.type === 'email' ? 'bg-emerald-900/50 text-emerald-400' :
+                                  step.type === 'linkedin' ? 'bg-blue-900/50 text-blue-400' :
+                                  step.type === 'sms' ? 'bg-violet-900/50 text-violet-400' :
+                                  step.type === 'call' ? 'bg-amber-900/50 text-amber-400' :
+                                  'bg-slate-700 text-slate-400'
+                                }`}>
+                                  {step.type === 'email' && <Mail className="w-3 h-3" />}
+                                  {step.type === 'linkedin' && <Linkedin className="w-3 h-3" />}
+                                  {step.type === 'sms' && <MessageSquare className="w-3 h-3" />}
+                                  {step.type === 'call' && <Phone className="w-3 h-3" />}
+                                  {step.type === 'wait' && <Clock className="w-3 h-3" />}
+                                </div>
+                                {idx < sequence.steps.length - 1 && idx < 3 && (
+                                  <ChevronRight className="w-3 h-3 text-slate-600" />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                          
+                          <div className="flex items-center justify-between text-[10px] text-slate-500">
+                            <span>{sequence.leadsEnrolled} leads enrolled</span>
+                            <span>{sequence.stats.replied} replies</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </>
+              )
             ) : activeTab === 'contracts' ? (
               /* Proposals & Contracts Tab - Dark Theme - Clickable to insert into email */
               <div className="flex-1 flex flex-col">
@@ -1620,14 +1677,21 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                               openComposeModal();
                               toast.success(`${proposal.name} added to email`);
                             }}
-                            className="inline-flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-cyan-500/50 hover:bg-slate-800 transition-all group text-left max-w-full"
+                            className="w-full flex items-center justify-between p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-cyan-500/50 hover:bg-slate-800 transition-all group text-left"
                           >
-                            <div className="w-8 h-8 rounded-lg bg-cyan-900/50 flex items-center justify-center group-hover:bg-cyan-800/50 flex-shrink-0">
-                              <span className="text-sm">{proposal.icon}</span>
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-8 h-8 rounded-lg bg-cyan-900/50 flex items-center justify-center group-hover:bg-cyan-800/50 flex-shrink-0">
+                                <span className="text-sm">{proposal.icon}</span>
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-white group-hover:text-cyan-300 truncate">{proposal.name}</p>
+                                <p className="text-xs text-slate-500 truncate">{proposal.description}</p>
+                              </div>
                             </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-white group-hover:text-cyan-300 truncate">{proposal.name}</p>
-                              <p className="text-xs text-slate-500 truncate">{proposal.description}</p>
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Badge className="bg-emerald-900/50 text-emerald-400 text-[10px]">
+                                <Send className="w-3 h-3 mr-1" /> Use
+                              </Badge>
                             </div>
                           </button>
                         ))}
@@ -1653,14 +1717,21 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                               openComposeModal();
                               toast.success(`${contract.name} added to email`);
                             }}
-                            className="inline-flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-violet-500/50 hover:bg-slate-800 transition-all group text-left max-w-full"
+                            className="w-full flex items-center justify-between p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-violet-500/50 hover:bg-slate-800 transition-all group text-left"
                           >
-                            <div className="w-8 h-8 rounded-lg bg-violet-900/50 flex items-center justify-center group-hover:bg-violet-800/50 flex-shrink-0">
-                              <span className="text-sm">{contract.icon}</span>
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-8 h-8 rounded-lg bg-violet-900/50 flex items-center justify-center group-hover:bg-violet-800/50 flex-shrink-0">
+                                <span className="text-sm">{contract.icon}</span>
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-white group-hover:text-violet-300 truncate">{contract.name}</p>
+                                <p className="text-xs text-slate-500 truncate">{contract.description}</p>
+                              </div>
                             </div>
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-white group-hover:text-violet-300 truncate">{contract.name}</p>
-                              <p className="text-xs text-slate-500 truncate">{contract.description}</p>
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Badge className="bg-emerald-900/50 text-emerald-400 text-[10px]">
+                                <Send className="w-3 h-3 mr-1" /> Use
+                              </Badge>
                             </div>
                           </button>
                         ))}
