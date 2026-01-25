@@ -376,6 +376,10 @@ const DEMO_REPLIES: EmailReply[] = [
 export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps) {
   // State
   const [activeTab, setActiveTab] = useState<MailboxTab>('inbox');
+  const [mailboxTheme, setMailboxTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('bamlead_mailbox_theme');
+    return saved === 'dark' ? 'dark' : 'light';
+  });
   const [quickFilter, setQuickFilter] = useState<QuickFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sequences, setSequences] = useState<Sequence[]>(DEMO_SEQUENCES);
@@ -416,6 +420,11 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
   useEffect(() => {
     saveSettings(settings);
   }, [settings]);
+
+  // Persist mailbox theme locally (mailbox-only)
+  useEffect(() => {
+    localStorage.setItem('bamlead_mailbox_theme', mailboxTheme);
+  }, [mailboxTheme]);
 
   const updateSetting = <K extends keyof AIAutomationSettings>(key: K, value: AIAutomationSettings[K]) => {
     setSettings(prev => ({ ...prev, [key]: value }));
@@ -936,7 +945,10 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
 
   // Render the 3-panel mailbox layout
   return (
-    <div className="w-full h-[calc(100vh-200px)] min-h-[600px] bg-white rounded-xl shadow-xl overflow-hidden flex border border-slate-200">
+    <div
+      className="mailbox-scope w-full h-[calc(100vh-200px)] min-h-[600px] bg-white rounded-xl shadow-xl overflow-hidden flex border border-slate-200"
+      data-mailbox-theme={mailboxTheme}
+    >
       {/* LEFT PANEL - Navigation */}
       <div className={`bg-slate-50 border-r border-slate-200 flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-56'}`}>
         {/* Logo & Toggle */}
@@ -949,12 +961,33 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
               <span className="font-bold text-slate-900">Mailbox</span>
             </div>
           )}
-          <button 
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="p-1.5 hover:bg-slate-200 rounded-md transition-colors"
-          >
-            {sidebarCollapsed ? <ChevronRight className="w-4 h-4 text-slate-500" /> : <ChevronLeft className="w-4 h-4 text-slate-500" />}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setMailboxTheme(prev => (prev === 'light' ? 'dark' : 'light'))}
+              className="p-1.5 hover:bg-slate-200 rounded-md transition-colors"
+              aria-label={mailboxTheme === 'light' ? 'Switch mailbox to dark mode' : 'Switch mailbox to light mode'}
+            >
+              {mailboxTheme === 'light' ? (
+                <Moon className="w-4 h-4 text-slate-500" />
+              ) : (
+                <Sun className="w-4 h-4 text-slate-500" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="p-1.5 hover:bg-slate-200 rounded-md transition-colors"
+              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {sidebarCollapsed ? (
+                <ChevronRight className="w-4 h-4 text-slate-500" />
+              ) : (
+                <ChevronLeft className="w-4 h-4 text-slate-500" />
+              )}
+            </button>
+          </div>
         </div>
 
         {/* New Email Button */}

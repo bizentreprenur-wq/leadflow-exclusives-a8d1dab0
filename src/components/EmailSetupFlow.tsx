@@ -1012,8 +1012,8 @@ export default function EmailSetupFlow({
 
   return (
     <div className="space-y-6">
-      {/* Floating mailbox on the right (visible in the Send phase) */}
-      <MailboxDock enabled={currentPhase === 'send'} badgeCount={1} />
+      {/* Floating mailbox on the right (visible throughout Step 3) */}
+      <MailboxDock enabled={true} badgeCount={1} />
 
       {/* Back Buttons */}
       <div className="flex items-center gap-2">
