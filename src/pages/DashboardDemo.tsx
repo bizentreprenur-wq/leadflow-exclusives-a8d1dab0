@@ -971,7 +971,11 @@ Best regards,
 
             {/* Conditional Render: Live Drip or Full Mailbox */}
             {mailboxView === 'drip' ? (
-              <LiveDripMailbox onSwitchToFullMailbox={() => setMailboxView('full')} />
+              <LiveDripMailbox 
+                onSwitchToFullMailbox={() => setMailboxView('full')} 
+                leads={leads}
+                verifiedLeads={leads.filter((_, idx) => selectedLeads.includes(idx))}
+              />
             ) : (
               <>
                 {/* Big Header */}
