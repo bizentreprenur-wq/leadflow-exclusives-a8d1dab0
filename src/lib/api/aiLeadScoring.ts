@@ -510,6 +510,8 @@ export async function analyzeLeadWithAI(lead: any): Promise<{
 export function quickScoreLeads(leads: any[]): any[] {
   const scored = leads.map(lead => {
     const analysis = scoreLeadLocally(lead);
+    // Consider leads AI-verified if they have good success probability and valid contact info
+    const isAIVerified = analysis.successProbability >= 60 && (lead.email || lead.phone);
     return {
       ...lead,
       aiClassification: analysis.priority === 'high' ? 'hot' : analysis.priority === 'medium' ? 'warm' : 'cold',
@@ -521,6 +523,7 @@ export function quickScoreLeads(leads: any[]): any[] {
       urgency: analysis.urgency,
       painPoints: analysis.painPoints,
       readyToCall: lead.phone && analysis.callScore >= 50,
+      verified: isAIVerified,
     };
   });
   

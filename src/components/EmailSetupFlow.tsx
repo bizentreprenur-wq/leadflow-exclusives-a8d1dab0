@@ -44,6 +44,11 @@ interface SearchResult {
   email?: string;
   website?: string;
   address?: string;
+  // AI Scoring fields
+  aiClassification?: 'hot' | 'warm' | 'cold';
+  leadScore?: number;
+  successProbability?: number;
+  verified?: boolean;
 }
 
 interface EmailSetupFlowProps {
@@ -714,7 +719,7 @@ export default function EmailSetupFlow({
                           sentCount={demoSentCount}
                           isActive={demoIsActive || realSendingMode}
                           emailsPerHour={50}
-                          leads={leads.map(l => ({ id: l.id, name: l.name, email: l.email, business: (l as any).businessName || l.name, category: (l as any).category, verified: (l as any).verified }))}
+                          leads={leads.map(l => ({ id: l.id, name: l.name, email: l.email, business: l.name, category: l.aiClassification, verified: l.verified ?? (l.successProbability !== undefined && l.successProbability >= 60) }))}
                           realSendingMode={realSendingMode}
                           campaignId={campaignId || undefined}
                           onEmailStatusUpdate={(statuses) => {
