@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -39,7 +39,9 @@ import {
   ArrowUpRight,
   AlertCircle,
   Layers,
+  Loader2,
 } from 'lucide-react';
+import { getCampaigns, getSends, getEmailStats, EmailCampaign, EmailStats as APIEmailStats } from '@/lib/api/email';
 
 // Types
 interface LeadSyncStats {
@@ -49,6 +51,9 @@ interface LeadSyncStats {
   chatsHandled: number;
   conversionRate: number;
   responseRate: number;
+  openRate: number;
+  clickRate: number;
+  replyRate: number;
 }
 
 interface Campaign {
@@ -75,6 +80,9 @@ const DEMO_STATS: LeadSyncStats = {
   chatsHandled: 156,
   conversionRate: 12.4,
   responseRate: 34.7,
+  openRate: 47.3,
+  clickRate: 12.8,
+  replyRate: 8.4,
 };
 
 const DEMO_CAMPAIGNS: Campaign[] = [
@@ -159,8 +167,11 @@ const AI_CAPABILITIES = [
 export default function LeadSyncAI({ onNavigateToSearch }: LeadSyncAIProps) {
   const [activeTab, setActiveTab] = useState('overview');
   const [isAutoPilot, setIsAutoPilot] = useState(false);
-  const [stats] = useState<LeadSyncStats>(DEMO_STATS);
+  const [stats, setStats] = useState<LeadSyncStats>(DEMO_STATS);
   const [campaigns, setCampaigns] = useState<Campaign[]>(DEMO_CAMPAIGNS);
+  const [isPolling, setIsPolling] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Lead Generation Settings
   const [leadGenSettings, setLeadGenSettings] = useState({
@@ -171,13 +182,96 @@ export default function LeadSyncAI({ onNavigateToSearch }: LeadSyncAIProps) {
     dailyLimit: 100,
   });
 
+  // Fetch real-time data from API
+  const fetchLiveData = useCallback(async () => {
+    setIsPolling(true);
+    try {
+      // Fetch campaigns and stats in parallel
+      const [campaignsResponse, statsResponse, sendsResponse] = await Promise.all([
+        getCampaigns(),
+        getEmailStats(30), // Last 30 days
+        getSends({ limit: 100 }),
+      ]);
+
+      // Update campaigns from API
+      if (campaignsResponse.success && campaignsResponse.campaigns.length > 0) {
+        const mappedCampaigns: Campaign[] = campaignsResponse.campaigns.map((c: EmailCampaign) => ({
+          id: c.id.toString(),
+          name: c.name,
+          status: c.status === 'sending' ? 'active' : c.status === 'draft' ? 'scheduled' : c.status,
+          type: 'email' as const,
+          leads: c.total_recipients,
+          sent: c.sent_count,
+          opened: c.opened_count,
+          replied: c.replied_count,
+          startedAt: c.started_at || c.created_at,
+        }));
+        setCampaigns(prev => mappedCampaigns.length > 0 ? mappedCampaigns : prev);
+      }
+
+      // Update stats from API
+      if (statsResponse.success && statsResponse.stats) {
+        const apiStats = statsResponse.stats;
+        setStats(prev => ({
+          ...prev,
+          emailsSent: apiStats.total_sent || prev.emailsSent,
+          openRate: apiStats.open_rate || prev.openRate,
+          clickRate: apiStats.click_rate || prev.clickRate,
+          replyRate: apiStats.reply_rate || prev.replyRate,
+          responseRate: apiStats.reply_rate || prev.responseRate,
+        }));
+      }
+
+      // Count leads from sends
+      if (sendsResponse.success) {
+        const uniqueRecipients = new Set(sendsResponse.sends.map(s => s.recipient_email));
+        setStats(prev => ({
+          ...prev,
+          leadsGenerated: Math.max(uniqueRecipients.size, prev.leadsGenerated),
+        }));
+      }
+
+      setLastUpdated(new Date());
+    } catch (error) {
+      console.error('[LeadSyncAI] Polling error:', error);
+    } finally {
+      setIsPolling(false);
+    }
+  }, []);
+
+  // Set up polling when autopilot is active
+  useEffect(() => {
+    if (isAutoPilot) {
+      // Fetch immediately when autopilot is enabled
+      fetchLiveData();
+      
+      // Set up 10-second polling interval
+      pollingIntervalRef.current = setInterval(() => {
+        fetchLiveData();
+      }, 10000);
+
+      return () => {
+        if (pollingIntervalRef.current) {
+          clearInterval(pollingIntervalRef.current);
+          pollingIntervalRef.current = null;
+        }
+      };
+    } else {
+      // Clear interval when autopilot is disabled
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    }
+  }, [isAutoPilot, fetchLiveData]);
+
   // Handlers
   const toggleAutoPilot = () => {
     setIsAutoPilot(!isAutoPilot);
     toast.success(
       !isAutoPilot 
-        ? '🚀 LeadSync AI Autopilot activated! AI is now managing your outreach.' 
-        : 'Autopilot paused. You are now in manual control.'
+        ? '🚀 LeadSync AI Autopilot activated! Real-time monitoring every 10 seconds.' 
+        : 'Autopilot paused. Real-time polling stopped.'
     );
   };
 
@@ -192,6 +286,11 @@ export default function LeadSyncAI({ onNavigateToSearch }: LeadSyncAIProps) {
 
   const startLeadGeneration = () => {
     toast.success('🎯 AI Lead Generation started! Collecting leads based on your criteria...');
+  };
+
+  const manualRefresh = () => {
+    fetchLiveData();
+    toast.success('📊 Data refreshed!');
   };
 
   return (
@@ -243,43 +342,75 @@ export default function LeadSyncAI({ onNavigateToSearch }: LeadSyncAIProps) {
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse shadow-lg shadow-emerald-400/50" />
               <Bot className="w-5 h-5 text-violet-400" />
-              <div>
-                <span className="font-semibold text-violet-300">LeadSync AI is running</span>
-                <span className="text-slate-400 ml-2">
-                  Automatically finding leads, sending emails, and managing conversations
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-violet-300">LeadSync AI is running</span>
+                  {isPolling && (
+                    <Loader2 className="w-3 h-3 text-violet-400 animate-spin" />
+                  )}
+                </div>
+                <span className="text-slate-400 text-sm">
+                  Auto-refreshing every 10 seconds
+                  {lastUpdated && (
+                    <span className="ml-2 text-slate-500">
+                      • Last updated: {lastUpdated.toLocaleTimeString()}
+                    </span>
+                  )}
                 </span>
               </div>
             </div>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="text-violet-300 hover:text-white hover:bg-violet-500/20"
-              onClick={toggleAutoPilot}
-            >
-              <Pause className="w-4 h-4 mr-1" />
-              Pause
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="text-slate-400 hover:text-white hover:bg-slate-700"
+                onClick={manualRefresh}
+                disabled={isPolling}
+              >
+                <RefreshCw className={`w-4 h-4 mr-1 ${isPolling ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="text-violet-300 hover:text-white hover:bg-violet-500/20"
+                onClick={toggleAutoPilot}
+              >
+                <Pause className="w-4 h-4 mr-1" />
+                Pause
+              </Button>
+            </div>
           </motion.div>
         )}
 
         {/* Quick Stats */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {[
-            { label: 'Leads Generated', value: stats.leadsGenerated.toLocaleString(), icon: Users, color: 'text-blue-400' },
-            { label: 'Emails Sent', value: stats.emailsSent.toLocaleString(), icon: Mail, color: 'text-emerald-400' },
-            { label: 'Calls Made', value: stats.callsMade.toLocaleString(), icon: Phone, color: 'text-amber-400' },
-            { label: 'Chats Handled', value: stats.chatsHandled.toLocaleString(), icon: MessageSquare, color: 'text-purple-400' },
-            { label: 'Conversion Rate', value: `${stats.conversionRate}%`, icon: TrendingUp, color: 'text-rose-400' },
-            { label: 'Response Rate', value: `${stats.responseRate}%`, icon: Eye, color: 'text-cyan-400' },
+            { label: 'Leads Generated', value: stats.leadsGenerated.toLocaleString(), icon: Users, color: 'text-blue-400', live: true },
+            { label: 'Emails Sent', value: stats.emailsSent.toLocaleString(), icon: Mail, color: 'text-emerald-400', live: true },
+            { label: 'Calls Made', value: stats.callsMade.toLocaleString(), icon: Phone, color: 'text-amber-400', live: false },
+            { label: 'Chats Handled', value: stats.chatsHandled.toLocaleString(), icon: MessageSquare, color: 'text-purple-400', live: false },
+            { label: 'Open Rate', value: `${stats.openRate}%`, icon: Eye, color: 'text-cyan-400', live: true },
+            { label: 'Reply Rate', value: `${stats.replyRate}%`, icon: TrendingUp, color: 'text-rose-400', live: true },
           ].map((stat, idx) => (
-            <Card key={idx} className="bg-slate-900 border-slate-800">
+            <Card key={idx} className="bg-slate-900 border-slate-800 relative overflow-hidden">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <stat.icon className={`w-4 h-4 ${stat.color}`} />
                   <span className="text-xs text-slate-500 uppercase tracking-wide">{stat.label}</span>
+                  {isAutoPilot && stat.live && (
+                    <span className="ml-auto flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      <span className="text-[10px] text-emerald-400 uppercase">Live</span>
+                    </span>
+                  )}
                 </div>
                 <div className="text-2xl font-bold text-white">{stat.value}</div>
               </CardContent>
+              {/* Subtle gradient overlay when live */}
+              {isAutoPilot && stat.live && (
+                <div className="absolute inset-0 bg-gradient-to-t from-emerald-500/5 to-transparent pointer-events-none" />
+              )}
             </Card>
           ))}
         </div>
