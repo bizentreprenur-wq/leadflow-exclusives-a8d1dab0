@@ -198,13 +198,35 @@ export default function LeadSyncAI({ onNavigateToSearch }: LeadSyncAIProps) {
   const [generatedLeads, setGeneratedLeads] = useState<GMBResult[]>([]);
   const [lastSearchQuery, setLastSearchQuery] = useState<{ industry: string; location: string } | null>(null);
 
-  // Lead Generation Settings
-  const [leadGenSettings, setLeadGenSettings] = useState({
-    industry: 'Local Services',
-    location: 'United States',
-    companySize: '10-50 employees',
-    autoCollect: false,
-    dailyLimit: 100,
+  // Load settings from onboarding config
+  const [leadGenSettings, setLeadGenSettings] = useState(() => {
+    const savedConfig = localStorage.getItem('leadsync_config');
+    if (savedConfig) {
+      try {
+        const config = JSON.parse(savedConfig);
+        return {
+          industry: config.targetIndustry || 'Local Services',
+          location: config.targetLocation || 'United States',
+          companySize: '10-50 employees',
+          autoCollect: config.autoGenerateLeads ?? false,
+          dailyLimit: config.dailyLeadLimit ?? 100,
+        };
+      } catch {
+        // Fall back to defaults
+      }
+    }
+    return {
+      industry: 'Local Services',
+      location: 'United States',
+      companySize: '10-50 employees',
+      autoCollect: false,
+      dailyLimit: 100,
+    };
+  });
+
+  // Check if onboarding was completed
+  const [isOnboardingComplete] = useState(() => {
+    return localStorage.getItem('leadsync_onboarding_complete') === 'true';
   });
 
   // Handle tier selection
