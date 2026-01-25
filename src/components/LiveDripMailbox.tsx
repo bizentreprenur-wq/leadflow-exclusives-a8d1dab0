@@ -101,9 +101,42 @@ export default function LiveDripMailbox({ onSwitchToFullMailbox, leads = [], ver
     if (e.category === 'cold' && sendCold) return true;
     return false;
   }).length;
-  
 
-  // Logo upload handler
+  // Convert incoming leads to email queue format
+  useEffect(() => {
+    if (leads.length > 0) {
+      const convertedLeads: QueuedEmail[] = leads.map((lead, idx) => {
+        // Determine category based on score or position
+        let category: 'hot' | 'warm' | 'cold' = 'cold';
+        const score = lead.score || 0;
+        if (score >= 80 || idx < Math.ceil(leads.length * 0.2)) {
+          category = 'hot';
+        } else if (score >= 50 || idx < Math.ceil(leads.length * 0.5)) {
+          category = 'warm';
+        }
+        
+        // Check if this lead was verified
+        const isVerified = verifiedLeads.some(
+          v => String(v.id) === String(lead.id) || v.name === lead.name
+        );
+        
+        return {
+          id: String(lead.id || idx + 1),
+          businessName: lead.title || lead.name || 'Unknown Business',
+          contactName: lead.name?.split(' ')[0] || 'Business Owner',
+          email: lead.email || `contact@${(lead.website || 'example.com').replace(/^https?:\/\//, '').split('/')[0]}`,
+          subject: `Partnership Opportunity for ${lead.title || lead.name || 'Your Business'}`,
+          status: 'pending' as const,
+          category,
+          verified: isVerified,
+        };
+      });
+      
+      setEmailQueue(convertedLeads);
+    }
+  }, [leads, verifiedLeads]);
+
+
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
