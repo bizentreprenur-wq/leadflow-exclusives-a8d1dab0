@@ -35,6 +35,7 @@ import { addLeadsToCRM, queueLeadsForEmail } from '@/lib/customTemplates';
 import EmailDeliveryNotifications from './EmailDeliveryNotifications';
 import { useAuth } from '@/contexts/AuthContext';
 import { loadBrandingFromBackend, saveUserBranding, deleteUserLogo } from '@/lib/api/branding';
+import MailboxDock from '@/components/MailboxDock';
 
 interface SearchResult {
   id: string;
@@ -1011,6 +1012,9 @@ export default function EmailSetupFlow({
 
   return (
     <div className="space-y-6">
+      {/* Floating mailbox on the right (visible in the Send phase) */}
+      <MailboxDock enabled={currentPhase === 'send'} badgeCount={1} />
+
       {/* Back Buttons */}
       <div className="flex items-center gap-2">
         <Button variant="ghost" onClick={onBack} className="gap-2">
