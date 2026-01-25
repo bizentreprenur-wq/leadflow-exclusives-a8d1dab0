@@ -40,6 +40,7 @@ import BamLeadCRMPanel from './BamLeadCRMPanel';
 import ABTestingPanel from './ABTestingPanel';
 import AutoFollowUpBuilder from './AutoFollowUpBuilder';
 import SMTPConfigPanel from './SMTPConfigPanel';
+import ProposalsContractsPanel from './ProposalsContractsPanel';
 
 // Compose email interface
 interface ComposeEmail {
@@ -971,14 +972,89 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
     { id: 'followups', label: 'Auto Follow-Ups', icon: <RefreshCw className="w-4 h-4" /> },
   ];
 
+  // AI Auto-Send Document (for autopilot mode)
+  const autoSendDocumentForLead = async (reply: EmailReply) => {
+    if (!reply.documentRecommendations || reply.documentRecommendations.length === 0) return;
+    
+    const bestRec = reply.documentRecommendations.reduce((best, rec) => 
+      rec.confidence > best.confidence ? rec : best
+    );
+    
+    if (bestRec.confidence >= 85) {
+      const html = generateDocumentPreviewHTML(bestRec, reply.from_email, reply.from_name);
+      
+      try {
+        const branding = loadBranding();
+        const docType = bestRec.type === 'proposal' ? 'Proposal' : 'Contract';
+        
+        const result = await sendSingleEmail({
+          to: reply.from_email,
+          subject: `${docType}: ${bestRec.document.name}`,
+          bodyHtml: `
+            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+              <p>Hi ${reply.from_name.split(' ')[0]},</p>
+              <p>Based on our conversation, I've prepared this ${docType.toLowerCase()} for you. Please review and let me know if you have any questions!</p>
+              <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+              ${html}
+              <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+              <p>Best regards,<br/>${branding.contactName || 'Your Team'}</p>
+            </div>
+          `,
+          bodyText: `Please find the ${docType.toLowerCase()} "${bestRec.document.name}" attached.`,
+        });
+        
+        if (result.success) {
+          toast.success(`🤖 AI Auto-sent ${docType} to ${reply.from_name}!`, {
+            description: `${bestRec.document.name} - ${bestRec.confidence}% match`
+          });
+          
+          // Send notification if enabled
+          if (settings.notifyOnAIAction && settings.notifyEmail && settings.notifyEmailAddress) {
+            // Trigger notification (in real app, would send email/SMS)
+            console.log(`Notification: AI sent ${docType} to ${reply.from_email}`);
+          }
+        }
+      } catch (error) {
+        console.error('Auto-send document error:', error);
+      }
+    }
+  };
+
+  // AI Auto-Response Effect (when in autopilot mode)
+  useEffect(() => {
+    if (settings.responseMode !== 'automatic') return;
+    
+    // Process new emails automatically
+    const newReplies = replies.filter(r => r.status === 'new' && r.urgencyLevel === 'hot');
+    
+    newReplies.forEach(async (reply) => {
+      // Generate and send AI response
+      if (!reply.ai_draft) {
+        await generateAIDraft(reply);
+      }
+      
+      // Auto-send documents for high-confidence matches
+      if (settings.autoProposals && reply.documentRecommendations) {
+        await autoSendDocumentForLead(reply);
+      }
+      
+      // Notify on hot leads
+      if (settings.notifyOnHotLead) {
+        toast.info(`🔥 Hot Lead Alert: ${reply.from_name}`, {
+          description: 'AI is handling this lead automatically'
+        });
+      }
+    });
+  }, [replies, settings.responseMode]);
+
   // Render the full-screen mailbox layout with top nav bar
   return (
     <div
-      className="mailbox-scope w-full h-full min-h-screen flex flex-col"
-      data-mailbox-theme={mailboxTheme}
+      className="mailbox-scope w-full h-full min-h-screen flex flex-col bg-slate-950"
+      data-mailbox-theme="dark"
     >
-      {/* TOP NAVIGATION BAR - Matching reference design */}
-      <header className="bg-slate-900 border-b border-slate-700 px-6 py-4 flex-shrink-0">
+      {/* TOP NAVIGATION BAR - Dark theme */}
+      <header className="bg-slate-900 border-b border-slate-800 px-6 py-4 flex-shrink-0">
         <div className="flex items-center justify-between">
           {/* Left: Logo + Title */}
           <div className="flex items-center gap-4">
@@ -1100,107 +1176,31 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
             </Button>
           </div>
         )}
-
-        {/* Right: Actions */}
-        <div className="flex items-center gap-3">
-          {/* Create Sequence Button */}
-          <Button
-            size="sm"
-            onClick={() => setShowSequenceBuilder(true)}
-            className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5"
-          >
-            <Plus className="w-4 h-4" /> Create Sequence
-          </Button>
-
-          {/* AI Autopilot Toggle */}
-          <div className="flex items-center gap-2 bg-slate-700 rounded-lg px-3 py-1.5">
-            <span className="text-xs text-slate-300">AI Autopilot:</span>
-            <Badge className={cn(
-              "text-xs font-bold px-2",
-              settings.responseMode === 'automatic' 
-                ? 'bg-emerald-500 text-white' 
-                : 'bg-slate-500 text-white'
-            )}>
-              {settings.responseMode === 'automatic' ? 'ON' : 'OFF'}
-            </Badge>
-            <Switch
-              checked={settings.responseMode === 'automatic'}
-              onCheckedChange={(checked) => {
-                updateSetting('responseMode', checked ? 'automatic' : 'manual');
-                toast.success(checked 
-                  ? '🤖 AI Autopilot enabled - AI will respond automatically' 
-                  : 'Autopilot off - You control all responses'
-                );
-              }}
-              className="data-[state=checked]:bg-emerald-500"
-            />
-          </div>
-
-          {/* Theme toggle */}
-          <button
-            type="button"
-            onClick={() => setMailboxTheme(prev => (prev === 'light' ? 'dark' : 'light'))}
-            className="p-2 hover:bg-slate-700 rounded-lg transition-colors"
-            aria-label="Toggle theme"
-          >
-            {mailboxTheme === 'light' ? (
-              <Moon className="w-5 h-5 text-white" />
-            ) : (
-              <Sun className="w-5 h-5 text-white" />
-            )}
-          </button>
-
-          {/* Notifications */}
-          <button className="p-2 hover:bg-slate-700 rounded-lg transition-colors relative">
-            <Bell className="w-5 h-5 text-white" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-[10px] font-bold rounded-full flex items-center justify-center text-white">
-                {unreadCount}
-              </span>
-            )}
-          </button>
-
-          {/* Settings */}
-          <button 
-            onClick={() => setSettingsOpen(true)}
-            className="p-2 hover:bg-slate-700 rounded-lg transition-colors"
-          >
-            <Settings className="w-5 h-5 text-white" />
-          </button>
-
-          {/* User Avatar */}
-          <div className="flex items-center gap-2 pl-2 border-l border-slate-600">
-            <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center font-bold text-sm text-white">
-              JS
-            </div>
-            <ChevronDown className="w-4 h-4 text-slate-400" />
-          </div>
-        </div>
       </header>
 
       {/* MAIN CONTENT AREA - Changes based on top tab */}
       {topTab === 'mailbox' ? (
         /* MAILBOX: 3-PANEL LAYOUT */
         <div className="flex-1 flex overflow-hidden">
-          {/* LEFT SIDEBAR */}
+          {/* LEFT SIDEBAR - Dark Theme */}
           <aside className={cn(
-            "flex flex-col border-r border-slate-200 bg-white transition-all",
+            "flex flex-col border-r border-slate-800 bg-slate-900 transition-all",
             sidebarCollapsed ? "w-16" : "w-56"
           )}>
             {/* Sidebar Toggle */}
-            <div className="p-3 border-b border-slate-200 flex items-center justify-between">
+            <div className="p-3 border-b border-slate-800 flex items-center justify-between">
               {!sidebarCollapsed && (
-                <span className="font-semibold text-slate-900 text-sm">Navigation</span>
+                <span className="font-semibold text-white text-sm">Navigation</span>
               )}
               <button
                 type="button"
                 onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                className="p-1.5 hover:bg-slate-200 rounded-md transition-colors ml-auto"
+                className="p-1.5 hover:bg-slate-800 rounded-md transition-colors ml-auto"
               >
                 {sidebarCollapsed ? (
-                  <ChevronRight className="w-4 h-4 text-slate-500" />
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
                 ) : (
-                  <ChevronLeft className="w-4 h-4 text-slate-500" />
+                  <ChevronLeft className="w-4 h-4 text-slate-400" />
                 )}
               </button>
             </div>
@@ -1222,13 +1222,13 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
             {/* Unread Counter */}
             {!sidebarCollapsed && unreadCount > 0 && (
               <div className="px-3 pb-2">
-                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 flex items-center gap-3">
+                <div className="bg-emerald-900/50 border border-emerald-700 rounded-lg p-3 flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-lg animate-pulse">
                     {unreadCount}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-emerald-900">New Emails</p>
-                    <p className="text-xs text-emerald-600">{hotCount} hot leads!</p>
+                    <p className="text-sm font-semibold text-emerald-100">New Emails</p>
+                    <p className="text-xs text-emerald-400">{hotCount} hot leads!</p>
                   </div>
                 </div>
               </div>
@@ -1243,8 +1243,8 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                   className={cn(
                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
                     activeTab === item.id
-                      ? 'bg-emerald-100 text-emerald-700'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                      ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30'
+                      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
                   )}
                 >
                   <item.icon className="w-5 h-5 flex-shrink-0" />
@@ -1262,11 +1262,83 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
               ))}
             </nav>
 
+            {/* Done For You Documents Section */}
+            {!sidebarCollapsed && (
+              <div className="p-3 border-t border-slate-800">
+                <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-3">
+                    <FileText className="w-4 h-4 text-emerald-400" />
+                    <span className="text-sm font-semibold text-white">Done For You Documents</span>
+                  </div>
+                  <p className="text-xs text-slate-400 mb-3">Send professional proposals & contracts</p>
+                  
+                  {/* Quick Tabs */}
+                  <div className="flex gap-2 mb-3">
+                    <button
+                      onClick={() => setActiveTab('contracts')}
+                      className="flex-1 flex flex-col items-center gap-1 p-2 rounded-lg bg-slate-700/50 border border-cyan-500/30 hover:border-cyan-500/60 transition-all"
+                    >
+                      <FileText className="w-4 h-4 text-cyan-400" />
+                      <span className="text-xs text-cyan-300">Proposals</span>
+                      <span className="text-[10px] text-slate-400">10 templates</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('contracts')}
+                      className="flex-1 flex flex-col items-center gap-1 p-2 rounded-lg bg-slate-700/50 border border-emerald-500/30 hover:border-emerald-500/60 transition-all"
+                    >
+                      <FileSignature className="w-4 h-4 text-emerald-400" />
+                      <span className="text-xs text-emerald-300">Contracts</span>
+                      <span className="text-[10px] text-slate-400">10 templates</span>
+                    </button>
+                  </div>
+
+                  {/* Quick Pick */}
+                  <div className="space-y-1.5">
+                    <p className="text-[10px] text-slate-500 uppercase tracking-wide">Quick Pick:</p>
+                    {PROPOSAL_TEMPLATES.slice(0, 3).map(template => (
+                      <button
+                        key={template.id}
+                        onClick={() => {
+                          setActiveTab('contracts');
+                          toast.success(`Selected: ${template.name}`);
+                        }}
+                        className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-slate-700/50 transition-colors group"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">{template.icon}</span>
+                          <span className="text-xs text-slate-300 group-hover:text-white truncate">{template.name}</span>
+                        </div>
+                        <Badge className="bg-slate-700 text-slate-300 text-[10px]">
+                          {template.category === 'design' ? 'Proposal' : 'Proposal'}
+                        </Badge>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Open Full Gallery */}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setActiveTab('contracts')}
+                    className="w-full mt-3 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 gap-2"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    Open Full Gallery
+                  </Button>
+                  
+                  <p className="text-[10px] text-slate-500 text-center mt-2 flex items-center justify-center gap-1">
+                    <Star className="w-3 h-3 text-amber-400" />
+                    Branded with your logo & details
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Sidebar Settings Button */}
-            <div className="p-2 border-t border-slate-200">
+            <div className="p-2 border-t border-slate-800">
               <button
                 onClick={() => setSettingsOpen(true)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all"
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white transition-all"
               >
                 <Settings className="w-5 h-5 flex-shrink-0" />
                 {!sidebarCollapsed && <span>Settings</span>}
@@ -1274,20 +1346,20 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
             </div>
           </aside>
 
-          {/* CENTER PANEL - Email List / Tab Content */}
-          <div className="w-80 border-r border-slate-200 flex flex-col bg-white">
+          {/* CENTER PANEL - Email List / Tab Content - Dark Theme */}
+          <div className="w-80 border-r border-slate-800 flex flex-col bg-slate-900">
             {activeTab === 'inbox' ? (
               <>
                 {/* Search & Filters */}
-                <div className="p-3 border-b border-slate-200 space-y-3">
+                <div className="p-3 border-b border-slate-800 space-y-3">
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                     <input
                       type="text"
                       placeholder="Search emails..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
+                      className="w-full pl-10 pr-4 py-2 text-sm border border-slate-700 rounded-lg bg-slate-800 text-white placeholder-slate-500 focus:bg-slate-800 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all"
                     />
                   </div>
                   
@@ -1300,13 +1372,13 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                         className={`px-2.5 py-1 text-xs font-medium rounded-full transition-all flex items-center gap-1 ${
                           quickFilter === filter.id
                             ? 'bg-emerald-500 text-white'
-                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                            : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white border border-slate-700'
                         }`}
                       >
                         {filter.label}
                         {filter.count && filter.count > 0 && (
                           <span className={`px-1 rounded-full text-[10px] ${
-                            quickFilter === filter.id ? 'bg-white/20' : 'bg-slate-200'
+                            quickFilter === filter.id ? 'bg-white/20' : 'bg-slate-700'
                           }`}>
                             {filter.count}
                           </span>
@@ -1318,44 +1390,44 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
 
                 {/* Email List */}
                 <ScrollArea className="flex-1">
-                  <div className="divide-y divide-slate-100">
+                  <div className="divide-y divide-slate-800">
                     {filteredReplies.map(reply => (
                       <button
                         key={reply.id}
                         onClick={() => selectReply(reply)}
-                        className={`w-full p-3 text-left transition-all hover:bg-slate-50 ${
-                          selectedReply?.id === reply.id ? 'bg-emerald-50 border-l-2 border-l-emerald-500' : ''
-                        } ${!reply.isRead ? 'bg-blue-50/50' : ''}`}
+                        className={`w-full p-3 text-left transition-all hover:bg-slate-800 ${
+                          selectedReply?.id === reply.id ? 'bg-emerald-900/30 border-l-2 border-l-emerald-500' : ''
+                        } ${!reply.isRead ? 'bg-slate-800/50' : ''}`}
                       >
                         <div className="flex items-start gap-3">
                           {/* Avatar */}
                           <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0 ${
                             reply.urgencyLevel === 'hot' ? 'bg-red-500' :
-                            reply.urgencyLevel === 'warm' ? 'bg-amber-500' : 'bg-slate-400'
+                            reply.urgencyLevel === 'warm' ? 'bg-amber-500' : 'bg-slate-600'
                           }`}>
                             {reply.from_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                           </div>
                           
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between mb-0.5">
-                              <span className={`text-sm truncate ${!reply.isRead ? 'font-bold text-slate-900' : 'font-medium text-slate-700'}`}>
+                              <span className={`text-sm truncate ${!reply.isRead ? 'font-bold text-white' : 'font-medium text-slate-300'}`}>
                                 {reply.from_name}
                               </span>
-                              <span className="text-[10px] text-slate-400 flex-shrink-0 ml-2">
+                              <span className="text-[10px] text-slate-500 flex-shrink-0 ml-2">
                                 {new Date(reply.received_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>
                             
-                            <p className={`text-xs truncate mb-1 ${!reply.isRead ? 'font-semibold text-slate-800' : 'text-slate-600'}`}>
+                            <p className={`text-xs truncate mb-1 ${!reply.isRead ? 'font-semibold text-slate-200' : 'text-slate-400'}`}>
                               {reply.subject}
                             </p>
                             
-                            <p className="text-xs text-slate-400 truncate">{reply.body}</p>
+                            <p className="text-xs text-slate-500 truncate">{reply.body}</p>
                             
                             {/* Status indicators */}
                             <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                               {reply.urgencyLevel === 'hot' && (
-                                <Badge className="bg-red-100 text-red-700 border-0 text-[10px] gap-0.5 px-1.5">
+                                <Badge className="bg-red-900/50 text-red-300 border border-red-700 text-[10px] gap-0.5 px-1.5">
                                   <Flame className="w-2.5 h-2.5" /> Hot
                                 </Badge>
                               )}
@@ -1366,7 +1438,7 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                                 <div className="w-2 h-2 rounded-full bg-blue-500" />
                               )}
                               {reply.documentRecommendations && reply.documentRecommendations.length > 0 && (
-                                <Badge className="bg-violet-100 text-violet-700 border-0 text-[10px] px-1.5">
+                                <Badge className="bg-violet-900/50 text-violet-300 border border-violet-700 text-[10px] px-1.5">
                                   <FileText className="w-2.5 h-2.5 mr-0.5" /> Doc
                                 </Badge>
                               )}
@@ -1377,7 +1449,7 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                     ))}
 
                     {filteredReplies.length === 0 && (
-                      <div className="text-center py-12 text-slate-400">
+                      <div className="text-center py-12 text-slate-500">
                         <MailOpen className="w-10 h-10 mx-auto mb-3 opacity-50" />
                         <p className="text-sm">No emails match your filter</p>
                       </div>
@@ -1387,10 +1459,10 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
               </>
             ) : activeTab === 'sequences' ? (
               <>
-                {/* Sequences Header */}
-                <div className="p-4 border-b border-slate-200">
+                {/* Sequences Header - Dark Theme */}
+                <div className="p-4 border-b border-slate-800">
                   <div className="flex items-center justify-between mb-3">
-                    <h2 className="font-bold text-slate-900">Sequences</h2>
+                    <h2 className="font-bold text-white">Sequences</h2>
                     <Button 
                       size="sm" 
                       className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5"
@@ -1400,8 +1472,8 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                     </Button>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-500">Automation:</span>
-                    <Badge className={`text-xs ${automationEnabled ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-600'}`}>
+                    <span className="text-xs text-slate-400">Automation:</span>
+                    <Badge className={`text-xs ${automationEnabled ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-400'}`}>
                       {automationEnabled ? 'ON' : 'OFF'}
                     </Badge>
                     <Switch
@@ -1415,31 +1487,31 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                   </div>
                 </div>
 
-                {/* Sequences List */}
+                {/* Sequences List - Dark Theme */}
                 <ScrollArea className="flex-1">
                   <div className="p-3 space-y-2">
                     {sequences.map(sequence => (
                       <div
                         key={sequence.id}
-                        className="bg-white border border-slate-200 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer"
+                        className="bg-slate-800 border border-slate-700 rounded-lg p-3 hover:border-slate-600 transition-all cursor-pointer"
                       >
                         <div className="flex items-center justify-between mb-2">
-                          <h3 className="font-semibold text-sm text-slate-900">{sequence.name}</h3>
-                          <Badge className={`text-[10px] ${sequence.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                          <h3 className="font-semibold text-sm text-white">{sequence.name}</h3>
+                          <Badge className={`text-[10px] ${sequence.status === 'active' ? 'bg-emerald-900/50 text-emerald-400 border border-emerald-700' : 'bg-slate-700 text-slate-400'}`}>
                             {sequence.status === 'active' ? 'Active' : 'Paused'}
                           </Badge>
                         </div>
                         
-                        {/* Steps preview */}
+                        {/* Steps preview - Dark Theme */}
                         <div className="flex items-center gap-1 mb-2 flex-wrap">
                           {sequence.steps.slice(0, 4).map((step, idx) => (
                             <div key={step.id} className="flex items-center">
                               <div className={`p-1 rounded text-[10px] ${
-                                step.type === 'email' ? 'bg-emerald-100 text-emerald-700' :
-                                step.type === 'linkedin' ? 'bg-blue-100 text-blue-700' :
-                                step.type === 'sms' ? 'bg-violet-100 text-violet-700' :
-                                step.type === 'call' ? 'bg-amber-100 text-amber-700' :
-                                'bg-slate-100 text-slate-600'
+                                step.type === 'email' ? 'bg-emerald-900/50 text-emerald-400' :
+                                step.type === 'linkedin' ? 'bg-blue-900/50 text-blue-400' :
+                                step.type === 'sms' ? 'bg-violet-900/50 text-violet-400' :
+                                step.type === 'call' ? 'bg-amber-900/50 text-amber-400' :
+                                'bg-slate-700 text-slate-400'
                               }`}>
                                 {step.type === 'email' && <Mail className="w-3 h-3" />}
                                 {step.type === 'linkedin' && <Linkedin className="w-3 h-3" />}
@@ -1448,7 +1520,7 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                                 {step.type === 'wait' && <Clock className="w-3 h-3" />}
                               </div>
                               {idx < sequence.steps.length - 1 && idx < 3 && (
-                                <ChevronRight className="w-3 h-3 text-slate-300" />
+                                <ChevronRight className="w-3 h-3 text-slate-600" />
                               )}
                             </div>
                           ))}
@@ -1463,93 +1535,107 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                   </div>
                 </ScrollArea>
               </>
+            ) : activeTab === 'contracts' ? (
+              /* Proposals & Contracts Tab - Dark Theme */
+              <div className="flex-1 flex flex-col">
+                <div className="p-4 border-b border-slate-800">
+                  <h2 className="font-bold text-white flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-emerald-400" />
+                    Done For You Documents
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1">Send professional proposals & contracts</p>
+                </div>
+                <ScrollArea className="flex-1 p-4">
+                  <ProposalsContractsPanel />
+                </ScrollArea>
+              </div>
             ) : (
-              <div className="flex-1 flex items-center justify-center text-slate-400">
+              <div className="flex-1 flex items-center justify-center text-slate-500">
                 <div className="text-center">
                   <FileText className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                  <p className="text-sm font-medium">{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</p>
-                  <p className="text-xs">Coming soon</p>
+                  <p className="text-sm font-medium text-slate-400">{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</p>
+                  <p className="text-xs text-slate-500">Coming soon</p>
                 </div>
               </div>
             )}
           </div>
 
-          {/* RIGHT PANEL - Email Viewer / Editor */}
-          <div className="flex-1 flex flex-col bg-white">
+          {/* RIGHT PANEL - Email Viewer / Editor - Dark Theme */}
+          <div className="flex-1 flex flex-col bg-slate-950">
             {selectedReply ? (
               <>
-                {/* Email Header */}
-                <div className="p-4 border-b border-slate-200">
+                {/* Email Header - Dark Theme */}
+                <div className="p-4 border-b border-slate-800">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
                       <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold ${
                         selectedReply.urgencyLevel === 'hot' ? 'bg-red-500' :
-                        selectedReply.urgencyLevel === 'warm' ? 'bg-amber-500' : 'bg-slate-400'
+                        selectedReply.urgencyLevel === 'warm' ? 'bg-amber-500' : 'bg-slate-600'
                       }`}>
                         {selectedReply.from_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                       </div>
                       <div>
-                        <h2 className="font-bold text-slate-900">{selectedReply.from_name}</h2>
-                        <p className="text-sm text-slate-500">{selectedReply.from_email}</p>
+                        <h2 className="font-bold text-white">{selectedReply.from_name}</h2>
+                        <p className="text-sm text-slate-400">{selectedReply.from_email}</p>
                       </div>
                     </div>
                     
                     <div className="flex items-center gap-2">
                       {selectedReply.urgencyLevel === 'hot' && (
-                        <Badge className="bg-red-100 text-red-700 gap-1">
+                        <Badge className="bg-red-900/50 text-red-300 border border-red-700 gap-1">
                           <Flame className="w-3 h-3" /> Hot Lead
                         </Badge>
                       )}
                       <button
                         onClick={() => toggleFlag(selectedReply.id)}
-                        className={`p-2 rounded-lg transition-colors ${selectedReply.isFlagged ? 'bg-amber-100' : 'hover:bg-slate-100'}`}
+                        className={`p-2 rounded-lg transition-colors ${selectedReply.isFlagged ? 'bg-amber-900/50' : 'hover:bg-slate-800'}`}
                       >
-                        <Flag className={`w-4 h-4 ${selectedReply.isFlagged ? 'text-amber-500 fill-amber-500' : 'text-slate-400'}`} />
+                        <Flag className={`w-4 h-4 ${selectedReply.isFlagged ? 'text-amber-500 fill-amber-500' : 'text-slate-500'}`} />
                       </button>
-                      <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                        <Archive className="w-4 h-4 text-slate-400" />
+                      <button className="p-2 hover:bg-slate-800 rounded-lg transition-colors">
+                        <Archive className="w-4 h-4 text-slate-500" />
                       </button>
-                      <button className="p-2 hover:bg-slate-100 rounded-lg transition-colors">
-                        <Trash2 className="w-4 h-4 text-slate-400" />
+                      <button className="p-2 hover:bg-slate-800 rounded-lg transition-colors">
+                        <Trash2 className="w-4 h-4 text-slate-500" />
                       </button>
                     </div>
                   </div>
                   
-                  <h3 className="font-semibold text-lg text-slate-900 mb-1">{selectedReply.subject}</h3>
-                  <p className="text-xs text-slate-400">
+                  <h3 className="font-semibold text-lg text-white mb-1">{selectedReply.subject}</h3>
+                  <p className="text-xs text-slate-500">
                     Received {new Date(selectedReply.received_at).toLocaleString()}
                   </p>
                 </div>
 
-                {/* Email Body + AI Analysis */}
+                {/* Email Body + AI Analysis - Dark Theme */}
                 <ScrollArea className="flex-1">
                   <div className="p-4 space-y-4">
                     {/* Original Email */}
                     <div className="prose prose-sm max-w-none">
-                      <p className="text-slate-700 whitespace-pre-wrap">{selectedReply.body}</p>
+                      <p className="text-slate-300 whitespace-pre-wrap">{selectedReply.body}</p>
                     </div>
                     
-                    {/* AI Sentiment Analysis */}
+                    {/* AI Sentiment Analysis - Dark Theme */}
                     {selectedReply.sentiment && (
                       <div className={`p-4 rounded-xl border ${
-                        selectedReply.sentiment === 'positive' ? 'bg-emerald-50 border-emerald-200' :
-                        selectedReply.sentiment === 'negative' ? 'bg-red-50 border-red-200' :
-                        'bg-slate-50 border-slate-200'
+                        selectedReply.sentiment === 'positive' ? 'bg-emerald-900/30 border-emerald-700' :
+                        selectedReply.sentiment === 'negative' ? 'bg-red-900/30 border-red-700' :
+                        'bg-slate-800 border-slate-700'
                       }`}>
                         <div className="flex items-center gap-2 mb-2">
                           <Brain className={`w-4 h-4 ${
-                            selectedReply.sentiment === 'positive' ? 'text-emerald-600' :
-                            selectedReply.sentiment === 'negative' ? 'text-red-600' : 'text-slate-600'
+                            selectedReply.sentiment === 'positive' ? 'text-emerald-400' :
+                            selectedReply.sentiment === 'negative' ? 'text-red-400' : 'text-slate-400'
                           }`} />
-                          <span className="text-sm font-semibold">AI Analysis</span>
+                          <span className="text-sm font-semibold text-white">AI Analysis</span>
                         </div>
                         
                         <div className="grid grid-cols-2 gap-3 mb-3">
                           <div>
                             <p className="text-xs text-slate-500">Sentiment</p>
                             <p className={`font-semibold capitalize ${
-                              selectedReply.sentiment === 'positive' ? 'text-emerald-700' :
-                              selectedReply.sentiment === 'negative' ? 'text-red-700' : 'text-slate-700'
+                              selectedReply.sentiment === 'positive' ? 'text-emerald-400' :
+                              selectedReply.sentiment === 'negative' ? 'text-red-400' : 'text-slate-300'
                             }`}>
                               {selectedReply.sentiment} ({selectedReply.sentimentScore}%)
                             </p>
@@ -1557,8 +1643,8 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                           <div>
                             <p className="text-xs text-slate-500">Urgency</p>
                             <p className={`font-semibold capitalize ${
-                              selectedReply.urgencyLevel === 'hot' ? 'text-red-600' :
-                              selectedReply.urgencyLevel === 'warm' ? 'text-amber-600' : 'text-slate-600'
+                              selectedReply.urgencyLevel === 'hot' ? 'text-red-400' :
+                              selectedReply.urgencyLevel === 'warm' ? 'text-amber-400' : 'text-slate-400'
                             }`}>
                               🔥 {selectedReply.urgencyLevel}
                             </p>
@@ -1570,7 +1656,7 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                             <p className="text-xs text-slate-500 mb-1">Buying Signals Detected:</p>
                             <div className="flex flex-wrap gap-1">
                               {selectedReply.buyingSignals.map((signal, i) => (
-                                <Badge key={i} className="bg-white/80 text-emerald-700 border border-emerald-200 text-xs">
+                                <Badge key={i} className="bg-emerald-900/50 text-emerald-300 border border-emerald-700 text-xs">
                                   ✓ {signal}
                                 </Badge>
                               ))}
@@ -1580,32 +1666,39 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                       </div>
                     )}
                     
-                    {/* Document Recommendations */}
+                    {/* Document Recommendations - Dark Theme */}
                     {selectedReply.documentRecommendations && selectedReply.documentRecommendations.length > 0 && (
-                      <div className="p-4 rounded-xl bg-violet-50 border border-violet-200">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Sparkles className="w-4 h-4 text-violet-600" />
-                          <span className="text-sm font-semibold text-violet-900">AI Document Recommendations</span>
+                      <div className="p-4 rounded-xl bg-violet-900/30 border border-violet-700">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="w-4 h-4 text-violet-400" />
+                            <span className="text-sm font-semibold text-white">AI Document Recommendations</span>
+                          </div>
+                          {settings.responseMode === 'automatic' && (
+                            <Badge className="bg-emerald-900/50 text-emerald-400 border border-emerald-700 text-xs">
+                              <Bot className="w-3 h-3 mr-1" /> Auto-Send Enabled
+                            </Badge>
+                          )}
                         </div>
                         <div className="space-y-2">
                           {selectedReply.documentRecommendations.map((rec, i) => (
-                            <div key={i} className="flex items-center justify-between p-3 bg-white rounded-lg border border-violet-200">
+                            <div key={i} className="flex items-center justify-between p-3 bg-slate-800 rounded-lg border border-slate-700">
                               <div className="flex items-center gap-3">
                                 {rec.type === 'proposal' ? (
-                                  <FileText className="w-5 h-5 text-amber-500" />
+                                  <FileText className="w-5 h-5 text-amber-400" />
                                 ) : (
-                                  <FileSignature className="w-5 h-5 text-blue-500" />
+                                  <FileSignature className="w-5 h-5 text-blue-400" />
                                 )}
                                 <div>
-                                  <p className="font-semibold text-sm text-slate-900">{rec.document.name}</p>
-                                  <p className="text-xs text-slate-500">{rec.reason}</p>
+                                  <p className="font-semibold text-sm text-white">{rec.document.name}</p>
+                                  <p className="text-xs text-slate-400">{rec.reason}</p>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
                                 <Badge className={`text-xs ${
-                                  rec.urgency === 'high' ? 'bg-red-100 text-red-700' :
-                                  rec.urgency === 'medium' ? 'bg-amber-100 text-amber-700' :
-                                  'bg-slate-100 text-slate-600'
+                                  rec.urgency === 'high' ? 'bg-red-900/50 text-red-300 border border-red-700' :
+                                  rec.urgency === 'medium' ? 'bg-amber-900/50 text-amber-300 border border-amber-700' :
+                                  'bg-slate-700 text-slate-400'
                                 }`}>
                                   {rec.confidence}% match
                                 </Badge>
@@ -1618,7 +1711,7 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                                       generateDocumentPreviewHTML(rec, selectedReply.from_email, selectedReply.from_name)
                                     );
                                   }}
-                                  className="bg-violet-500 hover:bg-violet-600 text-white gap-1"
+                                  className="bg-violet-600 hover:bg-violet-700 text-white gap-1"
                                 >
                                   <Eye className="w-3 h-3" /> View
                                 </Button>
@@ -1629,7 +1722,6 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                                     setDocumentPreviewHTML(
                                       generateDocumentPreviewHTML(rec, selectedReply.from_email, selectedReply.from_name)
                                     );
-                                    // Delay to allow state to update
                                     setTimeout(() => handleSendDocument(), 100);
                                   }}
                                   disabled={isSendingDocument}
@@ -1644,23 +1736,26 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                       </div>
                     )}
                     
-                    {/* AI Draft */}
+                    {/* AI Draft - Dark Theme */}
                     {selectedReply.ai_draft && (
-                      <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
+                      <div className="p-4 rounded-xl bg-amber-900/30 border border-amber-700">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
-                            <Bot className="w-4 h-4 text-amber-600" />
-                            <span className="text-sm font-semibold text-amber-900">AI Draft Response</span>
+                            <Bot className="w-4 h-4 text-amber-400" />
+                            <span className="text-sm font-semibold text-white">AI Draft Response</span>
                           </div>
-                          <Badge className="bg-amber-100 text-amber-700">
-                            {settings.responseMode === 'automatic' ? 'Will send automatically' : 'Awaiting approval'}
+                          <Badge className={settings.responseMode === 'automatic' 
+                            ? 'bg-emerald-900/50 text-emerald-400 border border-emerald-700' 
+                            : 'bg-amber-900/50 text-amber-400 border border-amber-700'
+                          }>
+                            {settings.responseMode === 'automatic' ? '🤖 Will send automatically' : 'Awaiting approval'}
                           </Badge>
                         </div>
                         
                         <Textarea
                           value={editedDraft}
                           onChange={(e) => setEditedDraft(e.target.value)}
-                          className="min-h-[150px] bg-white border-amber-200 mb-3"
+                          className="min-h-[150px] bg-slate-800 border-slate-700 text-white mb-3"
                         />
                         
                         <div className="flex items-center gap-2">
@@ -1676,7 +1771,7 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                             variant="outline"
                             onClick={() => selectedReply && generateAIDraft(selectedReply)}
                             disabled={isGenerating}
-                            className="gap-2"
+                            className="gap-2 border-slate-700 text-slate-300 hover:bg-slate-800"
                           >
                             {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                             Regenerate
@@ -1684,7 +1779,7 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                           <Button
                             variant="ghost"
                             onClick={handleReject}
-                            className="text-red-500 hover:text-red-700 gap-2"
+                            className="text-red-400 hover:text-red-300 hover:bg-red-900/30 gap-2"
                           >
                             <X className="w-4 h-4" />
                             Reject
@@ -1696,10 +1791,10 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                 </ScrollArea>
               </>
             ) : (
-              <div className="flex-1 flex items-center justify-center bg-slate-50">
+              <div className="flex-1 flex items-center justify-center bg-slate-900">
                 <div className="text-center">
-                  <Mail className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                  <h3 className="font-semibold text-slate-700 mb-1">Select an email</h3>
+                  <Mail className="w-16 h-16 text-slate-700 mx-auto mb-4" />
+                  <h3 className="font-semibold text-slate-400 mb-1">Select an email</h3>
                   <p className="text-sm text-slate-500">Choose an email from the list to view details</p>
                 </div>
               </div>
@@ -1707,15 +1802,15 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
           </div>
         </div>
       ) : topTab === 'preview' ? (
-        /* PREVIEW: Email Templates Gallery */
-        <div className="flex-1 overflow-auto bg-slate-50 p-6">
+        /* PREVIEW: Email Templates Gallery - Dark Theme */
+        <div className="flex-1 overflow-auto bg-slate-950 p-6">
           <div className="max-w-7xl mx-auto">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                <Eye className="w-6 h-6 text-emerald-500" />
+              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                <Eye className="w-6 h-6 text-emerald-400" />
                 Email Templates
               </h2>
-              <p className="text-slate-600">Browse and select templates for your campaigns</p>
+              <p className="text-slate-400">Browse and select templates for your campaigns</p>
             </div>
             <HighConvertingTemplateGallery 
               onSelectTemplate={(template) => {
@@ -1726,43 +1821,43 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
           </div>
         </div>
       ) : topTab === 'crm' ? (
-        /* CRM: Lead Management */
-        <div className="flex-1 overflow-auto bg-slate-50 p-6">
+        /* CRM: Lead Management - Dark Theme */
+        <div className="flex-1 overflow-auto bg-slate-950 p-6">
           <div className="max-w-7xl mx-auto">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                <Briefcase className="w-6 h-6 text-emerald-500" />
+              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                <Briefcase className="w-6 h-6 text-emerald-400" />
                 CRM Dashboard
               </h2>
-              <p className="text-slate-600">Manage your leads and track outreach progress</p>
+              <p className="text-slate-400">Manage your leads and track outreach progress</p>
             </div>
             <BamLeadCRMPanel leads={[]} />
           </div>
         </div>
       ) : topTab === 'ab' ? (
-        /* A/B Testing */
-        <div className="flex-1 overflow-auto bg-slate-50 p-6">
+        /* A/B Testing - Dark Theme */
+        <div className="flex-1 overflow-auto bg-slate-950 p-6">
           <div className="max-w-7xl mx-auto">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                <BarChart3 className="w-6 h-6 text-emerald-500" />
+              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                <BarChart3 className="w-6 h-6 text-emerald-400" />
                 A/B Testing
               </h2>
-              <p className="text-slate-600">Test and optimize your email campaigns</p>
+              <p className="text-slate-400">Test and optimize your email campaigns</p>
             </div>
             <ABTestingPanel />
           </div>
         </div>
       ) : topTab === 'smtp' ? (
-        /* SMTP Configuration */
-        <div className="flex-1 overflow-auto bg-slate-50 p-6">
+        /* SMTP Configuration - Dark Theme */
+        <div className="flex-1 overflow-auto bg-slate-950 p-6">
           <div className="max-w-7xl mx-auto">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                <Server className="w-6 h-6 text-emerald-500" />
+              <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                <Server className="w-6 h-6 text-emerald-400" />
                 SMTP Configuration
               </h2>
-              <p className="text-slate-600">Configure your email server settings</p>
+              <p className="text-slate-400">Configure your email server settings</p>
             </div>
             <SMTPConfigPanel />
           </div>
