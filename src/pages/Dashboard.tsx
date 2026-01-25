@@ -525,20 +525,53 @@ export default function Dashboard() {
           throw new Error(response.error);
         }
       } else if (searchType === 'platform') {
-        console.log('[BamLead] Calling searchPlatforms API with limit:', effectiveLimit);
-        const response = await searchPlatforms(query, location, selectedPlatforms, handleProgress, effectiveLimit);
-        console.log('[BamLead] Platform response:', response);
+        // Agency Lead Finder now uses GMB search as primary (Google Maps + Yelp + Bing)
+        // then filters for platform-specific opportunities
+        console.log('[BamLead] Agency Lead Finder: Using GMB search with platform filtering, limit:', effectiveLimit);
+        const response = await searchGMB(query, location, effectiveLimit, handleProgress);
+        console.log('[BamLead] Agency Lead Finder GMB response:', response);
         if (response.success && response.data) {
-          finalResults = response.data.map((r: PlatformResult, index: number) => ({
-            id: r.id || `platform-${index}`,
+          // Filter results to show businesses with platform issues or no website
+          const platformFiltered = response.data.filter((r: GMBResult) => {
+            const analysis = r.websiteAnalysis;
+            // Include if: no website, needs upgrade, has issues, or matches selected platforms
+            if (!analysis?.hasWebsite) return true;
+            if (analysis?.needsUpgrade) return true;
+            if (analysis?.issues && analysis.issues.length > 0) return true;
+            if (analysis?.platform && selectedPlatforms.includes(analysis.platform.toLowerCase())) return true;
+            // Also include businesses without a proper website
+            if (!r.url || r.url.trim() === '') return true;
+            return false;
+          });
+          
+          console.log(`[BamLead] Agency Lead Finder filtered: ${response.data.length} → ${platformFiltered.length} leads with platform opportunities`);
+          
+          finalResults = platformFiltered.map((r: GMBResult, index: number) => ({
+            id: r.id || `agency-${index}`,
             name: r.name || 'Unknown Business',
             address: r.address,
             phone: r.phone,
             website: r.url,
+            rating: r.rating,
             source: 'platform' as const,
             platform: r.websiteAnalysis?.platform || undefined,
             websiteAnalysis: r.websiteAnalysis,
           }));
+          
+          if (platformFiltered.length === 0 && response.data.length > 0) {
+            toast.info(`Found ${response.data.length} businesses but none match platform criteria. Showing all results.`);
+            finalResults = response.data.map((r: GMBResult, index: number) => ({
+              id: r.id || `agency-${index}`,
+              name: r.name || 'Unknown Business',
+              address: r.address,
+              phone: r.phone,
+              website: r.url,
+              rating: r.rating,
+              source: 'platform' as const,
+              platform: r.websiteAnalysis?.platform || undefined,
+              websiteAnalysis: r.websiteAnalysis,
+            }));
+          }
         } else if (response.error) {
           throw new Error(response.error);
         }
@@ -1100,7 +1133,7 @@ export default function Dashboard() {
                             <CheckCircle2 className="w-5 h-5 text-violet-500 absolute inset-0 transition-all duration-300 group-hover:opacity-0 group-hover:scale-0 group-hover:rotate-180" />
                             <Star className="w-5 h-5 text-violet-500 absolute inset-0 transition-all duration-300 opacity-0 scale-0 rotate-180 group-hover:opacity-100 group-hover:scale-100 group-hover:rotate-0" />
                           </div>
-                          <span className="text-foreground text-base">Website redesigns & rebuilds</span>
+                          <span className="text-foreground text-base">Website design & rebuilds</span>
                         </div>
                         <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg transition-all duration-200 group-hover:bg-violet-500/10 group-hover:translate-x-1 delay-[50ms]">
                           <div className="relative w-5 h-5 shrink-0">
