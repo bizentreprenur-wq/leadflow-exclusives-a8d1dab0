@@ -49,7 +49,7 @@ jobs:
       - name: Deploy API via rsync (protects config.php)
         uses: burnett01/rsync-deployments@6.0.0
         with:
-          switches: -avzr --delete --exclude='config.php' --exclude='cache/' --exclude='cache'
+          switches: -avzr --delete --exclude='config.php' --exclude='cache/' --exclude='cache' --exclude='logs/' --exclude='logs'
           path: api/
           remote_path: /home/u497238762/domains/bamlead.com/public_html/api/
           remote_host: ${{ secrets.SSH_HOST }}

@@ -63,3 +63,5 @@ jobs:
           dangerous-clean-slate: false
           exclude: |
             **/config.php
+            **/logs/**
+            **/logs
