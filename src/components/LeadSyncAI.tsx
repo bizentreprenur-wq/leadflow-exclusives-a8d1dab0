@@ -40,12 +40,16 @@ import {
   AlertCircle,
   Layers,
   Loader2,
+  Crown,
 } from 'lucide-react';
 import { getCampaigns, getSends, getEmailStats, EmailCampaign, EmailStats as APIEmailStats } from '@/lib/api/email';
 import { searchGMB, GMBResult } from '@/lib/api/gmb';
 import { quickScoreLeads } from '@/lib/api/aiLeadScoring';
 import MultiChannelAutomation from './MultiChannelAutomation';
 import AutomationResultsDelivery from './AutomationResultsDelivery';
+import LeadSyncPricingModal from './LeadSyncPricingModal';
+import LeadSyncUsageMeter from './LeadSyncUsageMeter';
+import { LeadSyncTier, LEADSYNC_PLANS } from '@/lib/leadsyncPricing';
 
 // Types
 interface LeadSyncStats {
@@ -177,6 +181,17 @@ export default function LeadSyncAI({ onNavigateToSearch }: LeadSyncAIProps) {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Subscription & Usage State
+  const [currentTier, setCurrentTier] = useState<LeadSyncTier>('starter');
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  const [usage, setUsage] = useState({
+    leadsUsed: 247,
+    emailsSent: 512,
+    smsSent: 34,
+    callMinutesUsed: 8,
+    sequencesActive: 2,
+  });
+
   // Lead Generation State
   const [isSearching, setIsSearching] = useState(false);
   const [searchProgress, setSearchProgress] = useState(0);
@@ -191,6 +206,16 @@ export default function LeadSyncAI({ onNavigateToSearch }: LeadSyncAIProps) {
     autoCollect: false,
     dailyLimit: 100,
   });
+
+  // Handle tier selection
+  const handleSelectTier = (tier: LeadSyncTier) => {
+    setCurrentTier(tier);
+    // Reset usage on tier change (in real app, this would sync with backend)
+    setUsage(prev => ({
+      ...prev,
+      // Keep current usage but allow higher limits
+    }));
+  };
 
   // Fetch real-time data from API
   const fetchLiveData = useCallback(async () => {
@@ -412,8 +437,23 @@ export default function LeadSyncAI({ onNavigateToSearch }: LeadSyncAIProps) {
             </div>
           </div>
 
-          {/* Autopilot Toggle */}
-          <div className="flex items-center gap-4">
+          {/* Plan & Autopilot Controls */}
+          <div className="flex items-center gap-3">
+            {/* Current Plan Badge */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowPricingModal(true)}
+              className="gap-2 border-violet-500/50 text-violet-300 hover:bg-violet-500/10"
+            >
+              <Crown className="w-4 h-4" />
+              {LEADSYNC_PLANS[currentTier].name} Plan
+              <Badge className="ml-1 bg-violet-500/30 text-violet-200 text-[10px]">
+                ${LEADSYNC_PLANS[currentTier].price}/mo
+              </Badge>
+            </Button>
+
+            {/* Autopilot Toggle */}
             <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700">
               <span className="text-sm text-slate-400">AI Autopilot</span>
               <Switch
@@ -539,40 +579,54 @@ export default function LeadSyncAI({ onNavigateToSearch }: LeadSyncAIProps) {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
-            {/* AI Capabilities Grid */}
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {AI_CAPABILITIES.map((cap) => (
-                <Card 
-                  key={cap.id} 
-                  className="bg-slate-900 border-slate-800 hover:border-slate-700 transition-all cursor-pointer group"
-                  onClick={() => setActiveTab(cap.id === 'lead-gen' ? 'lead-gen' : cap.id === 'email-nurture' ? 'campaigns' : cap.id === 'ai-calls' ? 'calls' : cap.id === 'chat-ai' ? 'chat' : 'analytics')}
-                >
-                  <CardContent className="p-5">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${cap.color} flex items-center justify-center shadow-lg`}>
-                        <cap.icon className="w-6 h-6 text-white" />
-                      </div>
-                      {cap.status === 'active' ? (
-                        <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-                          Active
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-slate-700 text-slate-400 border-slate-600">
-                          Coming Soon
-                        </Badge>
-                      )}
-                    </div>
-                    <h3 className="font-semibold text-white mb-1 group-hover:text-violet-300 transition-colors">
-                      {cap.title}
-                    </h3>
-                    <p className="text-sm text-slate-400">{cap.description}</p>
-                    <div className="flex items-center gap-1 mt-3 text-violet-400 text-sm">
-                      <span>Configure</span>
-                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            {/* Usage Meter + AI Capabilities Grid */}
+            <div className="grid lg:grid-cols-3 gap-6">
+              {/* Usage Meter - Takes 1 column */}
+              <div className="lg:col-span-1">
+                <LeadSyncUsageMeter
+                  tier={currentTier}
+                  usage={usage}
+                  onUpgrade={() => setShowPricingModal(true)}
+                />
+              </div>
+
+              {/* AI Capabilities - Takes 2 columns */}
+              <div className="lg:col-span-2">
+                <div className="grid md:grid-cols-2 gap-4">
+                  {AI_CAPABILITIES.map((cap) => (
+                    <Card 
+                      key={cap.id} 
+                      className="bg-slate-900 border-slate-800 hover:border-slate-700 transition-all cursor-pointer group"
+                      onClick={() => setActiveTab(cap.id === 'lead-gen' ? 'lead-gen' : cap.id === 'email-nurture' ? 'campaigns' : cap.id === 'ai-calls' ? 'calls' : cap.id === 'chat-ai' ? 'chat' : 'analytics')}
+                    >
+                      <CardContent className="p-5">
+                        <div className="flex items-start justify-between mb-4">
+                          <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${cap.color} flex items-center justify-center shadow-lg`}>
+                            <cap.icon className="w-6 h-6 text-white" />
+                          </div>
+                          {cap.status === 'active' ? (
+                            <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                              Active
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-slate-700 text-slate-400 border-slate-600">
+                              Coming Soon
+                            </Badge>
+                          )}
+                        </div>
+                        <h3 className="font-semibold text-white mb-1 group-hover:text-violet-300 transition-colors">
+                          {cap.title}
+                        </h3>
+                        <p className="text-sm text-slate-400">{cap.description}</p>
+                        <div className="flex items-center gap-1 mt-3 text-violet-400 text-sm">
+                          <span>Configure</span>
+                          <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Active Campaigns */}
@@ -1091,6 +1145,14 @@ export default function LeadSyncAI({ onNavigateToSearch }: LeadSyncAIProps) {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Pricing Modal */}
+      <LeadSyncPricingModal
+        open={showPricingModal}
+        onOpenChange={setShowPricingModal}
+        currentTier={currentTier}
+        onSelectPlan={handleSelectTier}
+      />
     </div>
   );
 }
