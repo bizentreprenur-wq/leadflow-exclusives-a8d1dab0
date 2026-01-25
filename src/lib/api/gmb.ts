@@ -55,6 +55,7 @@ export interface GMBResult {
   url: string;
   snippet: string;
   displayLink: string;
+  email?: string;
   phone?: string;
   address?: string;
   rating?: number;

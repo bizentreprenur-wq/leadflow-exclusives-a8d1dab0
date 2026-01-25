@@ -15,6 +15,7 @@ export interface PlatformResult {
   snippet: string;
   displayLink: string;
   source: string;
+  email?: string;
   phone?: string;
   address?: string;
   websiteAnalysis: {
