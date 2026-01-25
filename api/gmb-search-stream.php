@@ -22,9 +22,9 @@ if (ob_get_level()) ob_end_clean();
 ini_set('output_buffering', 'off');
 ini_set('zlib.output_compression', false);
 
-// Increase time limit for large searches (up to 2000 leads = ~10 min)
-set_time_limit(600);
-ini_set('memory_limit', '512M');
+// Increase time limit for massive searches (up to 50000 leads = ~60 min)
+set_time_limit(3600);
+ini_set('memory_limit', '1024M');
 
 // Handle preflight
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -54,7 +54,7 @@ if (!$input) {
 $service = sanitizeInput($input['service'] ?? '');
 $location = sanitizeInput($input['location'] ?? '');
 $limit = intval($input['limit'] ?? 100);
-$limit = max(20, min(2000, $limit));
+$limit = max(20, min(50000, $limit));
 
 if (empty($service)) {
     sendSSEError('Service type is required');
@@ -196,7 +196,7 @@ function streamGMBSearch($service, $location, $limit) {
 
 /**
  * Search a single SerpAPI engine
- * Supports up to 2000 total leads by increasing page limits per engine
+ * Supports up to 50000 total leads by increasing page limits per engine
  */
 function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sourceName) {
     $results = [];
@@ -205,18 +205,23 @@ function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sour
     $resultsPerPage = ($engine === 'yelp') ? 10 : 20;
     
     // Calculate max pages needed - scale based on requested limit
-    // For 2000 leads split across 3 engines = ~667 per engine
-    // Google Maps: 667/20 = 34 pages, Yelp: 667/10 = 67 pages, Bing: 667/20 = 34 pages
+    // For 50000 leads split across 3 engines = ~16667 per engine
+    // Google Maps: 16667/20 = 834 pages, Yelp: 16667/10 = 1667 pages, Bing: 16667/20 = 834 pages
     $maxPages = ceil($limit / $resultsPerPage);
     
-    // Dynamic page cap based on limit requested
-    // Small searches (≤100): 10 pages, Medium (≤500): 30 pages, Large (≤2000): 50 pages
+    // Dynamic page cap based on limit requested - scaled for massive searches
+    // Small searches (≤100): 10 pages, Medium (≤500): 30 pages, Large (≤2000): 100 pages
+    // Extra Large (≤10000): 500 pages, Massive (≤50000): 2000 pages per engine
     if ($limit <= 100) {
         $pageCap = 10;
     } elseif ($limit <= 500) {
         $pageCap = 30;
+    } elseif ($limit <= 2000) {
+        $pageCap = 100;
+    } elseif ($limit <= 10000) {
+        $pageCap = 500;
     } else {
-        $pageCap = 50; // Support up to 1000 results per engine
+        $pageCap = 2000; // Support up to ~17000 results per engine for 50k total
     }
     $maxPages = min($maxPages, $pageCap);
     

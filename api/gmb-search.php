@@ -37,10 +37,10 @@ if (!$input) {
 
 $service = sanitizeInput($input['service'] ?? '');
 $location = sanitizeInput($input['location'] ?? '');
-$limit = intval($input['limit'] ?? 100); // Default 100, max 2000
+$limit = intval($input['limit'] ?? 100); // Default 100, max 50000
 
-// Validate limit (min 20, max 2000)
-$limit = max(20, min(2000, $limit));
+// Validate limit (min 20, max 50000)
+$limit = max(20, min(50000, $limit));
 
 if (empty($service)) {
     sendError('Service type is required');
@@ -102,7 +102,7 @@ function searchGMBListings($service, $location, $limit = 100) {
         throw new Exception('SERPAPI_KEY is not configured. Please add it to config.php for real search results.');
     }
     
-    set_time_limit(300);
+    set_time_limit(3600); // 60 min for massive searches
     
     $query = "$service in $location";
     $allResults = [];
