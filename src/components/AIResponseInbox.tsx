@@ -21,11 +21,17 @@ import {
   Linkedin, Plus, Pause, Play, Users, ChevronRight, MoreHorizontal,
   MousePointer, Sun, Moon, Flag, Archive, Reply, ReplyAll, Forward,
   Filter, Search, ChevronLeft, MailOpen, Trash2, Image, Bold, Italic,
-  Underline, List, Link2, PenTool, Wand2, CalendarPlus
+  Underline, List, Link2, PenTool, Wand2, CalendarPlus, WifiOff
 } from 'lucide-react';
 import { PROPOSAL_TEMPLATES, ProposalTemplate, generateProposalHTML } from '@/lib/proposalTemplates';
 import { CONTRACT_TEMPLATES, ContractTemplate, generateContractHTML } from '@/lib/contractTemplates';
 import { getUserLogoFromStorage } from '@/hooks/useUserBranding';
+import { 
+  sendSingleEmail, 
+  isSMTPConfigured, 
+  getEmailBranding, 
+  applyBrandingToHtml 
+} from '@/lib/emailService';
 
 // Compose email interface
 interface ComposeEmail {
@@ -479,12 +485,66 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
 
   const handleSendDocument = async () => {
     if (!selectedDocument || !selectedReply) return;
+    
+    // Check if SMTP is configured
+    if (!isSMTPConfigured()) {
+      toast.error('SMTP not configured', {
+        description: 'Please configure your SMTP settings first.',
+      });
+      return;
+    }
+    
     setIsSendingDocument(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    toast.success(`${selectedDocument.type === 'proposal' ? 'Proposal' : 'Contract'} sent to ${selectedReply.from_email}!`, { description: `${selectedDocument.document.name} has been delivered.` });
-    setShowDocumentPreview(false);
-    setIsSendingDocument(false);
-    setSelectedDocument(null);
+    
+    try {
+      const branding = loadBranding();
+      const docType = selectedDocument.type === 'proposal' ? 'Proposal' : 'Contract';
+      const docName = selectedDocument.document.name;
+      
+      // Build the email with embedded document
+      const emailSubject = `${docType}: ${docName}`;
+      const emailBody = `
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+          <p>Hi ${selectedReply.from_name.split(' ')[0]},</p>
+          <p>Thank you for your interest! As discussed, please find the ${docType.toLowerCase()} attached below.</p>
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+          ${documentPreviewHTML}
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 24px 0;" />
+          <p>Please review and let me know if you have any questions. I'm happy to discuss any details.</p>
+          <p>Best regards,<br/>${branding.contactName || 'Your Team'}</p>
+        </div>
+      `;
+      
+      const result = await sendSingleEmail({
+        to: selectedReply.from_email,
+        subject: emailSubject,
+        bodyHtml: emailBody,
+        bodyText: `Please find the ${docType.toLowerCase()} "${docName}" attached. Review and let me know if you have any questions.`,
+        personalization: {
+          business_name: selectedReply.from_name,
+          first_name: selectedReply.from_name.split(' ')[0],
+        },
+      });
+      
+      if (result.success) {
+        toast.success(`${docType} sent to ${selectedReply.from_email}!`, { 
+          description: `${docName} has been delivered successfully.` 
+        });
+        setShowDocumentPreview(false);
+        setSelectedDocument(null);
+      } else {
+        toast.error('Failed to send document', {
+          description: result.error || 'Please check your SMTP settings.',
+        });
+      }
+    } catch (error) {
+      console.error('Send document error:', error);
+      toast.error('Failed to send document', {
+        description: 'An unexpected error occurred.',
+      });
+    } finally {
+      setIsSendingDocument(false);
+    }
   };
 
   const hasSchedulingIntent = (body: string): boolean => {
@@ -515,19 +575,75 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
 
   const handleSend = async () => {
     if (!selectedReply) return;
+    
+    // Check if SMTP is configured
+    if (!isSMTPConfigured()) {
+      toast.error('SMTP not configured', {
+        description: 'Please configure your SMTP settings first.',
+      });
+      return;
+    }
+    
     setIsSending(true);
     try {
       const finalResponse = selectedReply.human_response || editedDraft || selectedReply.ai_draft || '';
+      const branding = loadBranding();
+      const logoUrl = getUserLogoFromStorage();
+      
+      // Build HTML email body
+      let htmlBody = `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">`;
+      htmlBody += finalResponse
+        .split('\n\n')
+        .map(para => `<p style="margin-bottom: 16px;">${para.replace(/\n/g, '<br>')}</p>`)
+        .join('');
+      
+      // Add signature with logo
+      htmlBody += `
+        <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
+          ${logoUrl ? `<img src="${logoUrl}" alt="${branding.companyName || 'Company Logo'}" style="height: 40px; max-width: 150px; margin-bottom: 12px;" />` : ''}
+          <p style="margin: 0; font-weight: 600; color: #374151;">${branding.contactName || ''}</p>
+          <p style="margin: 4px 0 0 0; font-size: 14px; color: #6b7280;">${branding.companyName || ''}</p>
+          ${branding.email ? `<p style="margin: 4px 0 0 0; font-size: 14px; color: #6b7280;">${branding.email}</p>` : ''}
+          ${branding.phone ? `<p style="margin: 4px 0 0 0; font-size: 14px; color: #6b7280;">${branding.phone}</p>` : ''}
+        </div>
+      `;
+      htmlBody += `</div>`;
+      
+      // Apply branding wrapper if enabled
+      const emailBranding = getEmailBranding();
+      const finalHtml = emailBranding?.enabled 
+        ? applyBrandingToHtml(htmlBody, emailBranding)
+        : htmlBody;
+      
+      // Use real API if no custom handler provided
       if (onSendResponse) {
         await onSendResponse(selectedReply.id, finalResponse);
       } else {
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        const result = await sendSingleEmail({
+          to: selectedReply.from_email,
+          subject: `Re: ${selectedReply.subject}`,
+          bodyHtml: finalHtml,
+          bodyText: finalResponse,
+          personalization: {
+            business_name: selectedReply.from_name,
+            first_name: selectedReply.from_name.split(' ')[0],
+          },
+          applyBranding: false,
+        });
+        
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to send email');
+        }
       }
+      
       setReplies(prev => prev.map(r => r.id === selectedReply.id ? { ...r, status: 'sent' as const } : r));
       toast.success(`Response sent to ${selectedReply.from_email}!`);
       setSelectedReply(null);
     } catch (error) {
-      toast.error('Failed to send response');
+      console.error('Send response error:', error);
+      toast.error('Failed to send response', {
+        description: error instanceof Error ? error.message : 'Please check your SMTP settings.',
+      });
     } finally {
       setIsSending(false);
     }
@@ -640,48 +756,109 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
       toast.error('Please fill in all required fields');
       return;
     }
-    setIsSending(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const branding = loadBranding();
-    const logoUrl = getUserLogoFromStorage();
-    
-    // Build email with branding
-    const emailWithBranding = `
-${composeEmail.body}
 
----
-${logoUrl ? `[Company Logo: ${logoUrl}]` : ''}
-${branding.companyName || ''}
-${branding.email || ''}
-${branding.phone || ''}
-    `.trim();
+    // Check if SMTP is configured
+    if (!isSMTPConfigured()) {
+      toast.error('SMTP not configured', {
+        description: 'Please configure your SMTP settings first in the Settings panel.',
+      });
+      return;
+    }
+
+    setIsSending(true);
     
-    console.log('Sending email with branding:', { 
-      to: composeEmail.to, 
-      subject: composeEmail.subject, 
-      body: emailWithBranding,
-      logoUrl,
-      branding 
-    });
-    
-    toast.success(`Email sent to ${composeEmail.toName || composeEmail.to}!`, {
-      description: composeEmail.attachedDocument 
-        ? `Included: ${composeEmail.attachedDocument.document.name}` 
-        : undefined
-    });
-    
-    setShowComposeModal(false);
-    setComposeEmail({
-      to: '',
-      toName: '',
-      subject: '',
-      body: '',
-      includeAppointmentLink: false,
-      appointmentSlots: [],
-      isAIGenerated: false
-    });
-    setIsSending(false);
+    try {
+      const branding = loadBranding();
+      const logoUrl = getUserLogoFromStorage();
+      
+      // Build HTML email body with proper formatting
+      let htmlBody = `<div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">`;
+      
+      // Convert plain text to HTML paragraphs
+      htmlBody += composeEmail.body
+        .split('\n\n')
+        .map(para => `<p style="margin-bottom: 16px;">${para.replace(/\n/g, '<br>')}</p>`)
+        .join('');
+      
+      // Add attached document reference if any
+      if (composeEmail.attachedDocument) {
+        const docName = composeEmail.attachedDocument.document.name;
+        const docType = composeEmail.attachedDocument.type;
+        htmlBody += `
+          <div style="margin: 24px 0; padding: 16px; border: 1px solid #e5e7eb; border-radius: 8px; background: #f9fafb;">
+            <p style="margin: 0; font-weight: 600; color: #374151;">
+              📎 Attached ${docType === 'proposal' ? 'Proposal' : 'Contract'}: ${docName}
+            </p>
+            <p style="margin: 8px 0 0 0; font-size: 14px; color: #6b7280;">
+              Please review the attached document and let me know if you have any questions.
+            </p>
+          </div>
+        `;
+      }
+      
+      // Add signature with logo
+      htmlBody += `
+        <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb;">
+          ${logoUrl ? `<img src="${logoUrl}" alt="${branding.companyName || 'Company Logo'}" style="height: 40px; max-width: 150px; margin-bottom: 12px;" />` : ''}
+          <p style="margin: 0; font-weight: 600; color: #374151;">${branding.contactName || ''}</p>
+          <p style="margin: 4px 0 0 0; font-size: 14px; color: #6b7280;">${branding.companyName || ''}</p>
+          ${branding.email ? `<p style="margin: 4px 0 0 0; font-size: 14px; color: #6b7280;">${branding.email}</p>` : ''}
+          ${branding.phone ? `<p style="margin: 4px 0 0 0; font-size: 14px; color: #6b7280;">${branding.phone}</p>` : ''}
+        </div>
+      `;
+      
+      htmlBody += `</div>`;
+      
+      // Apply branding wrapper if enabled
+      const emailBranding = getEmailBranding();
+      const finalHtml = emailBranding?.enabled 
+        ? applyBrandingToHtml(htmlBody, emailBranding)
+        : htmlBody;
+      
+      // Send the email via the real API
+      const result = await sendSingleEmail({
+        to: composeEmail.to,
+        subject: composeEmail.subject,
+        bodyHtml: finalHtml,
+        bodyText: composeEmail.body,
+        personalization: {
+          business_name: composeEmail.toName,
+          first_name: composeEmail.toName.split(' ')[0],
+        },
+        applyBranding: false, // We already applied it above
+      });
+      
+      if (result.success) {
+        toast.success(`Email sent to ${composeEmail.toName || composeEmail.to}!`, {
+          description: composeEmail.attachedDocument 
+            ? `Included: ${composeEmail.attachedDocument.document.name}` 
+            : 'Your email has been delivered successfully.',
+        });
+        
+        setShowComposeModal(false);
+        setComposeEmail({
+          to: '',
+          toName: '',
+          subject: '',
+          body: '',
+          includeAppointmentLink: false,
+          appointmentSlots: [],
+          isAIGenerated: false
+        });
+        setSelectedAppointmentSlots([]);
+      } else {
+        toast.error('Failed to send email', {
+          description: result.error || 'Please check your SMTP configuration and try again.',
+        });
+      }
+    } catch (error) {
+      console.error('Send email error:', error);
+      toast.error('Failed to send email', {
+        description: 'An unexpected error occurred. Please try again.',
+      });
+    } finally {
+      setIsSending(false);
+    }
   };
 
   // Sequence builder handlers
@@ -1496,6 +1673,25 @@ ${branding.phone || ''}
           </DialogHeader>
 
           <div className="space-y-6 py-4">
+            {/* SMTP Warning if not configured */}
+            {!isSMTPConfigured() && (
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200">
+                <WifiOff className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="font-semibold text-amber-900 text-sm">SMTP Not Configured</p>
+                  <p className="text-xs text-amber-700">Configure your SMTP settings to send real emails.</p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => { setShowComposeModal(false); setSettingsOpen(true); }}
+                  className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                >
+                  Configure
+                </Button>
+              </div>
+            )}
+
             {/* AI Mode Toggle */}
             <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200">
               <div className="flex items-center gap-3">
