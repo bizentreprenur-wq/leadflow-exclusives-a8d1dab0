@@ -1620,21 +1620,14 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                               openComposeModal();
                               toast.success(`${proposal.name} added to email`);
                             }}
-                            className="w-full flex items-center justify-between p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-cyan-500/50 hover:bg-slate-800 transition-all group text-left"
+                            className="inline-flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-cyan-500/50 hover:bg-slate-800 transition-all group text-left max-w-full"
                           >
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-cyan-900/50 flex items-center justify-center group-hover:bg-cyan-800/50">
-                                <span className="text-sm">{proposal.icon}</span>
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-white group-hover:text-cyan-300">{proposal.name}</p>
-                                <p className="text-xs text-slate-500 line-clamp-1">{proposal.description}</p>
-                              </div>
+                            <div className="w-8 h-8 rounded-lg bg-cyan-900/50 flex items-center justify-center group-hover:bg-cyan-800/50 flex-shrink-0">
+                              <span className="text-sm">{proposal.icon}</span>
                             </div>
-                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Badge className="bg-emerald-900/50 text-emerald-400 text-[10px]">
-                                <Send className="w-3 h-3 mr-1" /> Use
-                              </Badge>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-white group-hover:text-cyan-300 truncate">{proposal.name}</p>
+                              <p className="text-xs text-slate-500 truncate">{proposal.description}</p>
                             </div>
                           </button>
                         ))}
@@ -1660,21 +1653,14 @@ export default function AIResponseInbox({ onSendResponse }: AIResponseInboxProps
                               openComposeModal();
                               toast.success(`${contract.name} added to email`);
                             }}
-                            className="w-full flex items-center justify-between p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-violet-500/50 hover:bg-slate-800 transition-all group text-left"
+                            className="inline-flex items-center gap-3 p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-violet-500/50 hover:bg-slate-800 transition-all group text-left max-w-full"
                           >
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg bg-violet-900/50 flex items-center justify-center group-hover:bg-violet-800/50">
-                                <span className="text-sm">{contract.icon}</span>
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-white group-hover:text-violet-300">{contract.name}</p>
-                                <p className="text-xs text-slate-500 line-clamp-1">{contract.description}</p>
-                              </div>
+                            <div className="w-8 h-8 rounded-lg bg-violet-900/50 flex items-center justify-center group-hover:bg-violet-800/50 flex-shrink-0">
+                              <span className="text-sm">{contract.icon}</span>
                             </div>
-                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Badge className="bg-emerald-900/50 text-emerald-400 text-[10px]">
-                                <Send className="w-3 h-3 mr-1" /> Use
-                              </Badge>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-white group-hover:text-violet-300 truncate">{contract.name}</p>
+                              <p className="text-xs text-slate-500 truncate">{contract.description}</p>
                             </div>
                           </button>
                         ))}
