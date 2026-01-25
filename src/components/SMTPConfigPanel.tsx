@@ -52,7 +52,7 @@ export default function SMTPConfigPanel() {
   };
 
   const handleTestConnection = async () => {
-    if (!smtpConfig.host || !smtpConfig.port || !smtpConfig.username) {
+    if (!smtpConfig.host || !smtpConfig.port || !smtpConfig.username || !smtpConfig.password) {
       toast.error('Please fill in all required SMTP fields');
       return;
     }
@@ -60,14 +60,28 @@ export default function SMTPConfigPanel() {
     setIsTesting(true);
     
     try {
-      // Simulate testing
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      setIsConnected(true);
-      toast.success('SMTP connection successful!');
-    } catch (error) {
+      // Save config first
+      localStorage.setItem('bamlead_smtp_config', JSON.stringify(smtpConfig));
+      
+      // Call real backend test
+      const { testSMTPConnection } = await import('@/lib/emailService');
+      const result = await testSMTPConnection(smtpConfig);
+      
+      if (result.success) {
+        setIsConnected(true);
+        toast.success('SMTP connection successful!', {
+          description: result.message || 'Your email server is ready to send.'
+        });
+      } else {
+        setIsConnected(false);
+        toast.error('SMTP connection failed', {
+          description: result.error || 'Please check your credentials and try again.',
+        });
+      }
+    } catch (error: any) {
       setIsConnected(false);
       toast.error('SMTP connection failed', {
-        description: 'Please check your credentials and try again.',
+        description: error.message || 'Network error - check your connection.',
       });
     } finally {
       setIsTesting(false);
@@ -83,16 +97,24 @@ export default function SMTPConfigPanel() {
     setIsSendingTest(true);
     
     try {
-      // Simulate sending
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      toast.success('Test email sent!', {
-        description: `Check ${testEmailAddress} for the test message.`,
-      });
-      setShowTestEmailInput(false);
-      setTestEmailAddress('');
-    } catch (error) {
+      // Use real backend
+      const { sendTestEmail } = await import('@/lib/emailService');
+      const result = await sendTestEmail(testEmailAddress);
+      
+      if (result.success) {
+        toast.success('Test email sent!', {
+          description: `Check ${testEmailAddress} for the test message.`,
+        });
+        setShowTestEmailInput(false);
+        setTestEmailAddress('');
+      } else {
+        toast.error('Failed to send test email', {
+          description: result.error || 'Please check your SMTP settings.',
+        });
+      }
+    } catch (error: any) {
       toast.error('Failed to send test email', {
-        description: 'Please check your SMTP settings.',
+        description: error.message || 'Network error occurred.',
       });
     } finally {
       setIsSendingTest(false);
