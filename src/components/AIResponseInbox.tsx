@@ -2078,7 +2078,7 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
 
       {/* Settings Dialog */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent elevated className="max-w-lg bg-white">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Settings className="w-5 h-5" />
@@ -2180,7 +2180,7 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
 
       {/* Document Preview Dialog */}
       <Dialog open={showDocumentPreview} onOpenChange={setShowDocumentPreview}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent elevated className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col bg-white">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3">
               {selectedDocument?.type === 'proposal' ? (
@@ -2230,9 +2230,9 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
         </DialogContent>
       </Dialog>
 
-      {/* Compose Email Modal */}
+      {/* Compose Email Modal - elevated to appear above MailboxDock's z-[100] */}
       <Dialog open={showComposeModal} onOpenChange={setShowComposeModal}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent elevated className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
