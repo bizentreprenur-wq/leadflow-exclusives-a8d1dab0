@@ -327,6 +327,8 @@ function buildPlatformQueries($platforms) {
         'oscommerce' => '"powered by oscommerce"',
         'customhtml' => 'inurl:".html" OR inurl:".htm"',
         'customphp' => 'inurl:".php"',
+        // GMB/Google Maps - searches for local business listings
+        'gmb' => 'site:google.com/maps OR site:maps.google.com OR "google.com/maps/place"',
     ];
     
     foreach ($platforms as $platform) {
