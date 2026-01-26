@@ -30,6 +30,7 @@ import AIAutopilotSubscription from './AIAutopilotSubscription';
 import EmailScheduleCalendar from './EmailScheduleCalendar';
 import ScheduledQueuePanel from './ScheduledQueuePanel';
 import LeadQueueIndicator from './LeadQueueIndicator';
+import PriorityTemplateSelector from './PriorityTemplateSelector';
 import { isSMTPConfigured, sendSingleEmail } from '@/lib/emailService';
 import { sendEmail as apiSendEmail } from '@/lib/api/email';
 
@@ -119,6 +120,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   // Campaign Wizard state
   const [showCampaignWizard, setShowCampaignWizard] = useState(false);
   const [leadPriority, setLeadPriority] = useState<'all' | 'hot' | 'warm' | 'cold'>('all');
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   
   const readStoredEmailLeads = () => {
     if (typeof window === 'undefined') return [] as any[];
@@ -964,7 +966,18 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-foreground block mb-1.5">Message</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-sm font-medium text-foreground">Message</label>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowTemplateSelector(true)}
+                  className="text-xs h-7 gap-1.5"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  Priority Templates
+                </Button>
+              </div>
               <Textarea
                 value={composeEmail.body}
                 onChange={(e) => setComposeEmail(prev => ({ ...prev, body: e.target.value }))}
@@ -1023,6 +1036,31 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Priority Template Selector */}
+      <PriorityTemplateSelector
+        isOpen={showTemplateSelector}
+        onClose={() => setShowTemplateSelector(false)}
+        onSelectTemplate={(template) => {
+          setComposeEmail(prev => ({
+            ...prev,
+            subject: template.subject,
+            body: template.body,
+          }));
+        }}
+        currentLead={campaignLeads[currentLeadIndex] ? {
+          business_name: campaignLeads[currentLeadIndex]?.business_name || campaignLeads[currentLeadIndex]?.name,
+          first_name: campaignLeads[currentLeadIndex]?.first_name,
+          email: campaignLeads[currentLeadIndex]?.email,
+          website: campaignLeads[currentLeadIndex]?.website,
+          industry: campaignLeads[currentLeadIndex]?.industry,
+          aiClassification: campaignLeads[currentLeadIndex]?.aiClassification,
+          priority: campaignLeads[currentLeadIndex]?.priority,
+          leadScore: campaignLeads[currentLeadIndex]?.leadScore,
+          hasWebsite: !!campaignLeads[currentLeadIndex]?.website,
+          websiteIssues: campaignLeads[currentLeadIndex]?.websiteIssues,
+        } : undefined}
+      />
 
       {/* Campaign Wizard Modal */}
       <AutoCampaignWizard
