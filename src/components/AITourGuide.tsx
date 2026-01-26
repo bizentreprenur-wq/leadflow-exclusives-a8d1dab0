@@ -577,7 +577,7 @@ export default function AITourGuide() {
       return (
         <button
           onClick={() => setIsDemoMinimized(false)}
-          className="fixed top-24 right-4 z-40 hidden md:flex w-10 h-10 bg-primary/80 text-primary-foreground rounded-full shadow-lg hover:scale-110 hover:bg-primary transition-all items-center justify-center"
+          className="fixed top-36 right-4 z-40 hidden md:flex w-10 h-10 bg-primary/80 text-primary-foreground rounded-full shadow-lg hover:scale-110 hover:bg-primary transition-all items-center justify-center"
           title="Show Demo Button"
         >
           <Play className="w-4 h-4" />
@@ -587,7 +587,7 @@ export default function AITourGuide() {
 
     // Full demo button with minimize option - hidden on mobile
     return (
-      <div className="fixed top-24 right-4 z-40 hidden md:flex items-center gap-1">
+      <div className="fixed top-36 right-4 z-40 hidden md:flex items-center gap-1">
         <button
           onClick={() => {
             autoAdvanceRef.current = true;
