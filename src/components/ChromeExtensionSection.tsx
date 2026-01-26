@@ -20,6 +20,13 @@ const ChromeExtensionSection = () => {
     }
   ];
 
+  const browsers = [
+    { name: "Chrome", color: "text-[#4285F4]" },
+    { name: "Edge", color: "text-[#0078D7]" },
+    { name: "Brave", color: "text-[#FB542B]" },
+    { name: "Opera", color: "text-[#FF1B2D]" },
+  ];
+
   return (
     <section className="py-20 md:py-28 bg-background relative overflow-hidden">
       {/* Background accent */}
@@ -30,17 +37,31 @@ const ChromeExtensionSection = () => {
           {/* Left - Content */}
           <div>
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-warning/10 border border-warning/20 mb-6">
-              <Chrome className="w-4 h-4 text-warning" />
-              <span className="text-sm font-semibold text-warning">Chrome Extension</span>
+              <Globe className="w-4 h-4 text-warning" />
+              <span className="text-sm font-semibold text-warning">Browser Extension</span>
             </div>
             <h2 className="text-3xl md:text-4xl font-display font-bold text-foreground mb-4">
               Find leads while
               <br />
               <span className="text-warning">you browse</span>
             </h2>
-            <p className="text-lg text-muted-foreground mb-8">
-              Our Chrome extension lets you extract contact information and analyze websites without leaving your browser.
+            <p className="text-lg text-muted-foreground mb-4">
+              Our browser extension lets you extract contact information and analyze websites without leaving your browser.
             </p>
+
+            {/* Browser compatibility badges */}
+            <div className="flex flex-wrap items-center gap-2 mb-8">
+              <span className="text-sm text-muted-foreground">Works on:</span>
+              {browsers.map((browser) => (
+                <span 
+                  key={browser.name}
+                  className={`px-2.5 py-1 rounded-full bg-muted/50 text-xs font-medium ${browser.color}`}
+                >
+                  {browser.name}
+                </span>
+              ))}
+              <span className="text-xs text-muted-foreground">& more</span>
+            </div>
 
             {/* Features */}
             <div className="space-y-4 mb-8">
@@ -61,6 +82,9 @@ const ChromeExtensionSection = () => {
               <Chrome className="w-4 h-4" />
               Download Extension
             </Button>
+            <p className="text-xs text-muted-foreground mt-2">
+              Manual installation required • See installation guide
+            </p>
           </div>
 
           {/* Right - Visual */}

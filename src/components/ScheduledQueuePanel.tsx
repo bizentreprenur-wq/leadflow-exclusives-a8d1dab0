@@ -9,10 +9,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import {
-  CalendarClock, Edit3, Trash2, Send, RefreshCw, Clock, CheckCircle2, AlertCircle
+  CalendarClock, Edit3, Trash2, Send, RefreshCw, Clock, CheckCircle2, AlertCircle, CloudUpload
 } from 'lucide-react';
-import { getScheduledEmails, cancelScheduledEmail as apiCancelScheduled, ScheduledEmail as ServerScheduledEmail } from '@/lib/api/email';
-import { sendEmail } from '@/lib/api/email';
+import { 
+  getScheduledEmails, 
+  cancelScheduledEmail as apiCancelScheduled, 
+  ScheduledEmail as ServerScheduledEmail,
+  syncLocalScheduledToServer,
+  sendEmail 
+} from '@/lib/api/email';
 
 interface LocalScheduledEmail {
   id: string;
@@ -173,6 +178,29 @@ export default function ScheduledQueuePanel() {
 
   const isPast = (item: ScheduledItem) => getScheduledDate(item) < new Date();
 
+  const handleSyncToServer = async () => {
+    const localCount = scheduled.filter(s => s.source === 'local').length;
+    if (localCount === 0) {
+      toast.info('No local emails to sync');
+      return;
+    }
+    
+    toast.loading('Syncing to server...');
+    const result = await syncLocalScheduledToServer();
+    toast.dismiss();
+    
+    if (result.synced > 0) {
+      toast.success(`Synced ${result.synced} email${result.synced > 1 ? 's' : ''} to server`);
+    }
+    if (result.failed > 0) {
+      toast.error(`Failed to sync ${result.failed} email${result.failed > 1 ? 's' : ''}`);
+    }
+    
+    loadScheduled();
+  };
+
+  const localCount = scheduled.filter(s => s.source === 'local').length;
+
   return (
     <div className="p-5 rounded-xl bg-gradient-to-br from-card to-muted/30 border border-border">
       <div className="flex items-center justify-between mb-4">
@@ -184,6 +212,17 @@ export default function ScheduledQueuePanel() {
           <Badge variant="secondary" className="text-xs">
             {scheduled.length} {scheduled.length === 1 ? 'email' : 'emails'}
           </Badge>
+          {localCount > 0 && (
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={handleSyncToServer} 
+              className="h-7 gap-1 text-xs"
+            >
+              <CloudUpload className="w-3.5 h-3.5" />
+              Sync {localCount}
+            </Button>
+          )}
           <Button size="sm" variant="ghost" onClick={loadScheduled} disabled={isLoading}>
             <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
           </Button>
