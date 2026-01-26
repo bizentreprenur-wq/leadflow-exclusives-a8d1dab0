@@ -1762,14 +1762,7 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
                   </div>
                 </ScrollArea>
               </div>
-            ) : (
-              <div className="flex-1 flex items-center justify-center text-slate-500">
-                <div className="text-center">
-                  <Inbox className="w-10 h-10 mx-auto mb-3 opacity-50" />
-                  <p className="text-sm font-medium text-slate-400">Select a tab to view content</p>
-                </div>
-              </div>
-            )}
+            ) : null}
           </div>
 
           {/* RIGHT PANEL - Email Viewer / Editor - Dark Theme */}
