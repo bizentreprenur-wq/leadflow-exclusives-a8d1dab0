@@ -173,6 +173,8 @@ interface AIResponseInboxProps {
     sentCount: number;
     totalLeads: number;
   };
+  /** Search type context - 'gmb' for Super AI Business Search (Option A), 'platform' for Agency Lead Finder (Option B) */
+  searchType?: 'gmb' | 'platform' | null;
 }
 
 // Tab types
@@ -416,7 +418,13 @@ const DEMO_REPLIES: EmailReply[] = [
   }
 ];
 
-export default function AIResponseInbox({ onSendResponse, campaignContext }: AIResponseInboxProps) {
+export default function AIResponseInbox({ onSendResponse, campaignContext, searchType: propSearchType }: AIResponseInboxProps) {
+  // Get search type from prop or session storage
+  const searchType = propSearchType ?? (() => {
+    try {
+      return sessionStorage.getItem('bamlead_search_type') as 'gmb' | 'platform' | null;
+    } catch { return null; }
+  })();
   // State
   const [activeTab, setActiveTab] = useState<MailboxTab>('inbox');
   const [mailboxTheme, setMailboxTheme] = useState<'light' | 'dark'>(() => {
@@ -1288,8 +1296,27 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
               <div className="flex items-center gap-2">
                 <span className="font-bold text-lg text-white">Smart Drip Mailbox</span>
                 <Badge className="bg-emerald-500 text-white text-[10px] px-1.5">PRO</Badge>
+                {/* Search Type Indicator */}
+                {searchType && (
+                  <Badge 
+                    className={cn(
+                      "text-[10px] px-2",
+                      searchType === 'gmb' 
+                        ? "bg-teal-500/20 text-teal-300 border border-teal-500/40" 
+                        : "bg-violet-500/20 text-violet-300 border border-violet-500/40"
+                    )}
+                  >
+                    {searchType === 'gmb' ? '🤖 Super AI' : '🎯 Agency'}
+                  </Badge>
+                )}
               </div>
-              <p className="text-xs text-slate-400">Your unified outreach command center</p>
+              <p className="text-xs text-slate-400">
+                {searchType === 'gmb' 
+                  ? 'Managing business leads from Google, Yelp & Bing' 
+                  : searchType === 'platform'
+                  ? 'Managing agency leads for web dev & marketing'
+                  : 'Your unified outreach command center'}
+              </p>
             </div>
           </div>
 
@@ -1763,12 +1790,117 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
                   </div>
                 </ScrollArea>
               </div>
+           ) : activeTab === 'drafts' ? (
+              /* Drafts tab */
+              <div className="flex-1 flex flex-col">
+                <div className="p-4 border-b border-slate-800">
+                  <h2 className="font-bold text-white flex items-center gap-2">
+                    <Edit3 className="w-5 h-5 text-amber-400" />
+                    Drafts
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1">Your unsent email drafts</p>
+                </div>
+                <div className="flex-1 flex items-center justify-center bg-slate-900/50">
+                  <div className="text-center">
+                    <Edit3 className="w-12 h-12 text-slate-600 mx-auto mb-3 opacity-40" />
+                    <p className="text-sm text-slate-500">No drafts yet</p>
+                    <p className="text-xs text-slate-600 mt-1">Start composing to save drafts</p>
+                  </div>
+                </div>
+              </div>
+           ) : activeTab === 'templates' ? (
+              /* Templates tab */
+              <div className="flex-1 flex flex-col">
+                <div className="p-4 border-b border-slate-800">
+                  <h2 className="font-bold text-white flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-violet-400" />
+                    Email Templates
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1">Quick access to your templates</p>
+                </div>
+                <ScrollArea className="flex-1">
+                  <div className="p-3 space-y-2">
+                    {defaultEmailTemplates.map((template) => (
+                      <div
+                        key={template.id}
+                        className="p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-emerald-500/50 cursor-pointer transition-all"
+                        onClick={() => {
+                          setComposeEmail(prev => ({
+                            ...prev,
+                            subject: template.subject,
+                            selectedTemplate: template
+                          }));
+                          openComposeModal();
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <FileText className="w-5 h-5 text-violet-400" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-slate-200">{template.name}</p>
+                            <p className="text-xs text-slate-500">{template.subject}</p>
+                          </div>
+                          <Badge className={cn("text-[10px]",
+                            template.category === 'hot' ? 'bg-red-900/50 text-red-300' :
+                            template.category === 'warm' ? 'bg-amber-900/50 text-amber-300' :
+                            template.category === 'cold' ? 'bg-blue-900/50 text-blue-300' :
+                            'bg-slate-700 text-slate-300'
+                          )}>{template.category}</Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+           ) : activeTab === 'contracts' ? (
+              /* Contracts quick access */
+              <div className="flex-1 flex flex-col">
+                <div className="p-4 border-b border-slate-800">
+                  <h2 className="font-bold text-white flex items-center gap-2">
+                    <FileSignature className="w-5 h-5 text-blue-400" />
+                    Contracts
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1">Quick access to contracts</p>
+                </div>
+                <ScrollArea className="flex-1">
+                  <div className="p-3 space-y-2">
+                    {CONTRACT_TEMPLATES.slice(0, 5).map((contract) => (
+                      <div
+                        key={contract.id}
+                        className="p-3 rounded-lg bg-slate-800/50 border border-slate-700 hover:border-blue-500/50 cursor-pointer transition-all"
+                        onClick={() => {
+                          setMailboxSubTab('documents');
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-xl">{contract.icon}</span>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-slate-200">{contract.name}</p>
+                            <p className="text-xs text-slate-500 line-clamp-1">{contract.description}</p>
+                          </div>
+                          <Badge variant="outline" className="text-[10px] border-slate-600 text-slate-400">
+                            {contract.category}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                    <Button
+                      variant="ghost"
+                      onClick={() => setMailboxSubTab('documents')}
+                      className="w-full text-emerald-400 hover:text-emerald-300 mt-2"
+                    >
+                      View All Contracts & Proposals →
+                    </Button>
+                  </div>
+                </ScrollArea>
+              </div>
            ) : (
-             <div className="flex-1 flex items-center justify-center bg-slate-900/30">
-               <div className="text-center opacity-30">
-                 <Inbox className="w-16 h-16 text-slate-600 mx-auto mb-2" />
-               </div>
-             </div>
+              /* Default empty state - translucent */
+              <div className="flex-1 flex items-center justify-center bg-slate-900/30">
+                <div className="text-center opacity-40">
+                  <Inbox className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+                  <p className="text-sm text-slate-500">Select a tab</p>
+                </div>
+              </div>
            )}
           </div>
 

@@ -23,6 +23,8 @@ type MailboxDockProps = {
     sentCount: number;
     totalLeads: number;
   };
+  /** Search type context - 'gmb' for Super AI Business Search, 'platform' for Agency Lead Finder */
+  searchType?: 'gmb' | 'platform' | null;
 };
 
 export default function MailboxDock({
@@ -33,6 +35,7 @@ export default function MailboxDock({
   onOpen,
   onClose,
   campaignContext,
+  searchType,
 }: MailboxDockProps) {
   const [mounted, setMounted] = useState(false);
   const [internalIsOpen, setInternalIsOpen] = useState(false);
@@ -147,7 +150,7 @@ export default function MailboxDock({
 
           {/* Full Screen Inbox - fills entire viewport */}
           <div className="w-full h-full">
-            <AIResponseInbox campaignContext={campaignContext} />
+            <AIResponseInbox campaignContext={campaignContext} searchType={searchType} />
           </div>
         </div>
       )}
