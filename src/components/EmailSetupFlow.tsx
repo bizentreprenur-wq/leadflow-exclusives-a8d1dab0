@@ -110,6 +110,11 @@ export default function EmailSetupFlow({
   const [visitedTabs, setVisitedTabs] = useState<string[]>(['mailbox']);
   
   const handleTabChange = (tab: string) => {
+    // If clicking "Inbox" tab, open the mailbox dock instead
+    if (tab === 'inbox') {
+      setMailboxOpen(true);
+      return;
+    }
     setActiveTab(tab);
     if (!visitedTabs.includes(tab)) {
       setVisitedTabs(prev => [...prev, tab]);
@@ -995,16 +1000,8 @@ export default function EmailSetupFlow({
                       </div>
                     )}
 
-                    {/* INBOX VIEW */}
-                    {activeTab === 'inbox' && (
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 mb-4">
-                          <Mail className="w-5 h-5 text-primary" />
-                          <h3 className="font-bold text-lg">Inbox</h3>
-                        </div>
-                        <EmailConfigurationPanel leads={leads} hideTabBar={true} initialTab="inbox" />
-                      </div>
-                    )}
+                    {/* INBOX VIEW - Now opens the Mailbox Dock instead */}
+                    {/* The inbox tab now triggers setMailboxOpen(true) in handleTabChange */}
                   </motion.div>
                 </AnimatePresence>
               </CardContent>
@@ -1138,6 +1135,7 @@ export default function EmailSetupFlow({
             onClick={() => {
               setCurrentPhase('send');
               smartDripRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              toast.info('📧 Scroll up to configure and send your emails!');
             }} 
             className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground px-8 py-3 text-lg font-bold shadow-elevated"
             size="lg"
