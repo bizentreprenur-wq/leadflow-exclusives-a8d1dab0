@@ -11,8 +11,9 @@ import { searchPlatforms } from "@/lib/api/platforms";
 import { toast } from "sonner";
 import LeadActionModal from "./LeadActionModal";
 
+// Platform options for Agency Lead Finder (website platforms only - NOT Google Maps)
+// Google Maps is searched via the Super AI Business Search, not here
 const platforms = [
-  { id: "gmb", label: "Google Maps", category: "Directory" },
   { id: "wordpress", label: "WordPress", category: "CMS" },
   { id: "wix", label: "Wix", category: "Builder" },
   { id: "weebly", label: "Weebly", category: "Builder" },
@@ -40,7 +41,7 @@ const SearchModule = () => {
   const [isLoading, setIsLoading] = useState(false);
   
   // Platform-specific state
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["gmb", "wordpress", "wix", "weebly", "squarespace"]);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["wordpress", "wix", "weebly", "squarespace"]);
   const [showAllPlatforms, setShowAllPlatforms] = useState(false);
   
   // Results

@@ -7,8 +7,8 @@ import { searchPlatforms, PlatformResult } from "@/lib/api/platforms";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 
+// Platform options for detecting outdated website builders (NOT Google Maps - that's a separate search)
 const platforms = [
-  { id: "gmb", label: "Google Maps", category: "Directory" },
   { id: "wordpress", label: "WordPress", category: "CMS" },
   { id: "wix", label: "Wix", category: "Builder" },
   { id: "weebly", label: "Weebly", category: "Builder" },
@@ -30,7 +30,7 @@ const platforms = [
 const PlatformSearchModule = () => {
   const [service, setService] = useState("");
   const [location, setLocation] = useState("");
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["gmb", "wordpress", "wix", "weebly"]);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["wordpress", "wix", "weebly", "squarespace"]);
   const [showAllPlatforms, setShowAllPlatforms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<PlatformResult[]>([]);
