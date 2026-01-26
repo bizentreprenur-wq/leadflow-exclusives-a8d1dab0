@@ -538,8 +538,8 @@ export default function SimpleLeadViewer({
       )}
 
       {/* Filters & Search Row */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4 overflow-x-auto pb-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {[
             { key: 'all', label: 'All', icon: Users, count: groupedCounts.all, color: '', activeColor: 'bg-primary' },
             { key: 'hot', label: 'Hot', icon: Flame, count: groupedCounts.hot, color: 'text-red-500', activeColor: 'bg-red-500 hover:bg-red-600' },
@@ -555,7 +555,7 @@ export default function SimpleLeadViewer({
               variant={activeFilter === filter.key ? 'default' : 'outline'}
               size="sm"
               onClick={() => setActiveFilter(filter.key as any)}
-              className={`gap-1.5 ${activeFilter === filter.key ? filter.activeColor : ''}`}
+              className={`gap-1.5 flex-shrink-0 ${activeFilter === filter.key ? filter.activeColor : ''}`}
             >
               <filter.icon className={`w-3.5 h-3.5 ${activeFilter !== filter.key ? filter.color : ''}`} />
               {filter.label} ({filter.count})
@@ -563,11 +563,11 @@ export default function SimpleLeadViewer({
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
           <Button
             variant={showSaved ? 'default' : 'outline'}
             size="sm"
-            className="gap-1.5"
+            className="gap-1.5 flex-shrink-0"
             onClick={() => {
               setShowSaved(!showSaved);
               toast.info(showSaved ? 'Showing all leads' : 'Showing saved leads only');
@@ -579,7 +579,7 @@ export default function SimpleLeadViewer({
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5"
+            className="gap-1.5 flex-shrink-0"
             onClick={() => toast.info('Saved leads feature coming soon!')}
           >
             <FileSpreadsheet className="w-3.5 h-3.5" />
