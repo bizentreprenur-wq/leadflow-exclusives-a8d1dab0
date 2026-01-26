@@ -1652,6 +1652,7 @@ export default function Dashboard() {
               setSettingsInitialTab('email');
               setActiveTab('settings');
             }}
+            searchType={searchType}
           />
         );
 

@@ -66,6 +66,8 @@ interface EmailSetupFlowProps {
   onBack: () => void;
   onComplete: () => void;
   onOpenSettings: () => void;
+  /** Search type context - 'gmb' for Super AI Business Search, 'platform' for Agency Lead Finder */
+  searchType?: 'gmb' | 'platform' | null;
 }
 
 export default function EmailSetupFlow({
@@ -73,6 +75,7 @@ export default function EmailSetupFlow({
   onBack,
   onComplete,
   onOpenSettings,
+  searchType,
 }: EmailSetupFlowProps) {
   const [currentPhase, setCurrentPhase] = useState<'smtp' | 'template' | 'send'>('smtp');
   const [selectedTemplate, setSelectedTemplate] = useState<any>(() => {
@@ -1059,6 +1062,7 @@ export default function EmailSetupFlow({
             totalLeads: emailLeads.length
           } : undefined
         }
+        searchType={searchType}
       />
 
       {/* Back Buttons */}
