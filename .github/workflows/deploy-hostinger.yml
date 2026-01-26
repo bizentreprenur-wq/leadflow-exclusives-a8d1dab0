@@ -25,6 +25,11 @@ jobs:
           php-version: '8.2'
           tools: composer
 
+      - name: 🧰 Install swaks
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y swaks
+
       - name: 🏗️ Install and Build (Fixes ERESOLVE error)
         run: |
           # The next line uses --legacy-peer-deps to bypass the conflict
