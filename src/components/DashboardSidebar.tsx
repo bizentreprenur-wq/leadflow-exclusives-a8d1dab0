@@ -247,7 +247,7 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
 
       {/* Main Content */}
       <SidebarContent>
-        {/* Dashboard & LeadSync AI */}
+        {/* Dashboard */}
         <SidebarGroup>
           <SidebarMenu>
             <SidebarMenuItem>
