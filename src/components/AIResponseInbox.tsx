@@ -2232,7 +2232,7 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
 
       {/* Compose Email Modal - elevated to appear above MailboxDock's z-[100] */}
       <Dialog open={showComposeModal} onOpenChange={setShowComposeModal}>
-        <DialogContent elevated className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
+        <DialogContent elevated className="max-w-4xl max-h-[90vh] overflow-y-auto bg-slate-900 border-slate-700 text-white">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
@@ -2240,7 +2240,7 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
               </div>
               <div>
                 <span className="text-lg">Compose New Email</span>
-                <p className="text-sm font-normal text-slate-500">Create and send personalized emails with AI assistance</p>
+                <p className="text-sm font-normal text-slate-400">Create and send personalized emails with AI assistance</p>
               </div>
             </DialogTitle>
             <DialogDescription className="sr-only">Compose a new email</DialogDescription>
@@ -2249,17 +2249,17 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
           <div className="space-y-6 py-4">
             {/* SMTP Warning if not configured */}
             {!isSMTPConfigured() && (
-              <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-50 border border-amber-200">
+              <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-900/30 border border-amber-700">
                 <WifiOff className="w-5 h-5 text-amber-600 flex-shrink-0" />
                 <div className="flex-1">
-                  <p className="font-semibold text-amber-900 text-sm">SMTP Not Configured</p>
-                  <p className="text-xs text-amber-700">Configure your SMTP settings to send real emails.</p>
+                  <p className="font-semibold text-amber-300 text-sm">SMTP Not Configured</p>
+                  <p className="text-xs text-amber-400">Configure your SMTP settings to send real emails.</p>
                 </div>
                 <Button 
                   variant="outline" 
                   size="sm" 
                   onClick={() => { setShowComposeModal(false); setSettingsOpen(true); }}
-                  className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                  className="border-amber-600 text-amber-300 hover:bg-amber-900/50"
                 >
                   Configure
                 </Button>
@@ -2267,18 +2267,18 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
             )}
 
             {/* AI Mode Toggle */}
-            <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200">
+            <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-amber-900/40 to-orange-900/40 border border-amber-700">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
                   <Wand2 className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <p className="font-semibold text-slate-900">AI Writing Assistant</p>
-                  <p className="text-xs text-slate-500">Let AI help craft the perfect message</p>
+                  <p className="font-semibold text-white">AI Writing Assistant</p>
+                  <p className="text-xs text-slate-400">Let AI help craft the perfect message</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-slate-500">{composeAIMode ? 'AI Mode' : 'Manual'}</span>
+                <span className="text-xs font-medium text-slate-300">{composeAIMode ? 'AI Mode' : 'Manual'}</span>
                 <Switch 
                   checked={composeAIMode} 
                   onCheckedChange={setComposeAIMode}
@@ -2291,12 +2291,12 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
             <div className="grid grid-cols-2 gap-4">
               {/* Template Selection */}
               <div className="space-y-2">
-                <Label className="text-sm font-semibold flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-emerald-600" />
+                <Label className="text-sm font-semibold flex items-center gap-2 text-slate-200">
+                  <FileText className="w-4 h-4 text-emerald-400" />
                   Email Template
                 </Label>
                 <select 
-                  className="w-full h-10 px-3 text-sm bg-white border border-slate-200 rounded-md"
+                  className="w-full h-10 px-3 text-sm bg-slate-800 border border-slate-600 rounded-md text-white"
                   value={composeEmail.selectedTemplate?.id || ''}
                   onChange={(e) => {
                     const tmpl = defaultEmailTemplates.find(t => t.id === e.target.value);
@@ -2318,14 +2318,14 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
                   ))}
                 </select>
                 {composeEmail.selectedTemplate && (
-                  <p className="text-xs text-slate-500">Subject: "{composeEmail.selectedTemplate.subject}"</p>
+                  <p className="text-xs text-slate-400">Subject: "{composeEmail.selectedTemplate.subject}"</p>
                 )}
               </div>
 
               {/* Lead Category Filter */}
               <div className="space-y-2">
-                <Label className="text-sm font-semibold flex items-center gap-2">
-                  <Target className="w-4 h-4 text-blue-600" />
+                <Label className="text-sm font-semibold flex items-center gap-2 text-slate-200">
+                  <Target className="w-4 h-4 text-blue-400" />
                   Send to Lead Category
                 </Label>
                 <div className="flex gap-2">
@@ -2340,14 +2340,14 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
                             : cat === 'warm' ? "bg-amber-100 border-amber-500 text-amber-700"
                             : cat === 'cold' ? "bg-blue-100 border-blue-500 text-blue-700"
                             : "bg-emerald-100 border-emerald-500 text-emerald-700"
-                          : "bg-slate-50 border-slate-200 text-slate-600 hover:border-slate-400"
+                          : "bg-slate-800 border-slate-600 text-slate-300 hover:border-slate-400"
                       )}
                     >
                       {cat === 'hot' ? '🔥' : cat === 'warm' ? '🌡️' : cat === 'cold' ? '❄️' : '📋'} {cat.charAt(0).toUpperCase() + cat.slice(1)}
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-400">
                   {composeEmail.selectedLeadCategory === 'all' 
                     ? `${availableLeads.length} leads selected`
                     : `${availableLeads.filter(l => l.category === composeEmail.selectedLeadCategory).length} ${composeEmail.selectedLeadCategory} leads`
@@ -2358,8 +2358,8 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
 
             {/* Quick Lead Selection */}
             {composeEmail.selectedLeadCategory !== 'all' && (
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-                <p className="text-xs font-semibold text-slate-600 mb-2 flex items-center gap-2">
+              <div className="p-3 rounded-lg bg-slate-800 border border-slate-600">
+                <p className="text-xs font-semibold text-slate-300 mb-2 flex items-center gap-2">
                   <Users className="w-3 h-3" />
                   Quick Select Lead ({composeEmail.selectedLeadCategory})
                 </p>
@@ -2378,7 +2378,7 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
                           "px-3 py-1.5 rounded-full text-xs border transition-all flex items-center gap-1",
                           composeEmail.to === lead.email
                             ? "bg-emerald-100 border-emerald-500 text-emerald-700"
-                            : "bg-white border-slate-200 text-slate-600 hover:border-emerald-400"
+                            : "bg-slate-700 border-slate-500 text-slate-300 hover:border-emerald-400"
                         )}
                       >
                         {lead.verified && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
@@ -2393,34 +2393,34 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
             {/* Recipient Fields */}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-sm font-semibold">Recipient Email *</Label>
+                <Label className="text-sm font-semibold text-slate-200">Recipient Email *</Label>
                 <Input
                   type="email"
                   placeholder="contact@company.com"
                   value={composeEmail.to}
                   onChange={(e) => setComposeEmail(prev => ({ ...prev, to: e.target.value }))}
-                  className="h-10"
+                  className="h-10 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-sm font-semibold">Recipient Name *</Label>
+                <Label className="text-sm font-semibold text-slate-200">Recipient Name *</Label>
                 <Input
                   placeholder="John Smith"
                   value={composeEmail.toName}
                   onChange={(e) => setComposeEmail(prev => ({ ...prev, toName: e.target.value }))}
-                  className="h-10"
+                  className="h-10 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
                 />
               </div>
             </div>
 
             {/* Subject */}
             <div className="space-y-2">
-              <Label className="text-sm font-semibold">Subject *</Label>
+              <Label className="text-sm font-semibold text-slate-200">Subject *</Label>
               <Input
                 placeholder="Your email subject..."
                 value={composeEmail.subject}
                 onChange={(e) => setComposeEmail(prev => ({ ...prev, subject: e.target.value }))}
-                className="h-10"
+                className="h-10 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
               />
             </div>
 
@@ -2431,7 +2431,7 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
                 variant="outline"
                 size="sm"
                 onClick={() => setShowDocumentPicker(true)}
-                className="gap-2"
+                className="gap-2 bg-slate-800 border-slate-600 text-white hover:bg-slate-700"
               >
                 <FileText className="w-4 h-4" />
                 {composeEmail.attachedDocument 
@@ -2452,8 +2452,8 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
 
               {/* Include Appointment */}
               <div className="flex items-center gap-2 ml-auto">
-                <CalendarPlus className="w-4 h-4 text-emerald-600" />
-                <Label className="text-sm">Include Appointment Slots</Label>
+                <CalendarPlus className="w-4 h-4 text-emerald-400" />
+                <Label className="text-sm text-slate-200">Include Appointment Slots</Label>
                 <Switch
                   checked={composeEmail.includeAppointmentLink}
                   onCheckedChange={(v) => setComposeEmail(prev => ({ ...prev, includeAppointmentLink: v }))}
@@ -2464,10 +2464,10 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
 
             {/* Appointment Slots Picker */}
             {composeEmail.includeAppointmentLink && (
-              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 space-y-3">
+              <div className="p-4 rounded-xl bg-emerald-900/30 border border-emerald-700 space-y-3">
                 <div className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-emerald-600" />
-                  <span className="font-semibold text-sm text-emerald-900">Select Available Time Slots (like jeeva.ai)</span>
+                  <Calendar className="w-5 h-5 text-emerald-400" />
+                  <span className="font-semibold text-sm text-emerald-300">Select Available Time Slots (like jeeva.ai)</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {DEFAULT_APPOINTMENT_SLOTS.map(slot => (
@@ -2477,7 +2477,7 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
                       className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
                         selectedAppointmentSlots.includes(slot)
                           ? 'bg-emerald-500 text-white'
-                          : 'bg-white border border-emerald-200 text-emerald-700 hover:bg-emerald-100'
+                          : 'bg-slate-800 border border-emerald-600 text-emerald-300 hover:bg-emerald-900/50'
                       }`}
                     >
                       {slot}
@@ -2485,7 +2485,7 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
                   ))}
                 </div>
                 {selectedAppointmentSlots.length > 0 && (
-                  <p className="text-xs text-emerald-600">
+                  <p className="text-xs text-emerald-400">
                     ✓ {selectedAppointmentSlots.length} slots selected - AI will intelligently respond and book appointments
                   </p>
                 )}
@@ -2516,46 +2516,46 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
             {/* Email Body */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-semibold">Email Body *</Label>
+                <Label className="text-sm font-semibold text-slate-200">Email Body *</Label>
                 {composeEmail.isAIGenerated && (
-                  <Badge className="bg-amber-100 text-amber-700 text-xs">AI Generated</Badge>
+                  <Badge className="bg-amber-900/50 text-amber-300 text-xs border border-amber-600">AI Generated</Badge>
                 )}
               </div>
               
               {/* Simple Formatting Toolbar */}
-              <div className="flex items-center gap-1 p-2 bg-slate-50 rounded-t-lg border border-b-0 border-slate-200">
-                <button className="p-1.5 hover:bg-slate-200 rounded transition-colors">
-                  <Bold className="w-4 h-4 text-slate-600" />
+              <div className="flex items-center gap-1 p-2 bg-slate-800 rounded-t-lg border border-b-0 border-slate-600">
+                <button className="p-1.5 hover:bg-slate-700 rounded transition-colors">
+                  <Bold className="w-4 h-4 text-slate-300" />
                 </button>
-                <button className="p-1.5 hover:bg-slate-200 rounded transition-colors">
-                  <Italic className="w-4 h-4 text-slate-600" />
+                <button className="p-1.5 hover:bg-slate-700 rounded transition-colors">
+                  <Italic className="w-4 h-4 text-slate-300" />
                 </button>
-                <button className="p-1.5 hover:bg-slate-200 rounded transition-colors">
-                  <Underline className="w-4 h-4 text-slate-600" />
+                <button className="p-1.5 hover:bg-slate-700 rounded transition-colors">
+                  <Underline className="w-4 h-4 text-slate-300" />
                 </button>
-                <div className="w-px h-5 bg-slate-300 mx-1" />
-                <button className="p-1.5 hover:bg-slate-200 rounded transition-colors">
-                  <List className="w-4 h-4 text-slate-600" />
+                <div className="w-px h-5 bg-slate-600 mx-1" />
+                <button className="p-1.5 hover:bg-slate-700 rounded transition-colors">
+                  <List className="w-4 h-4 text-slate-300" />
                 </button>
-                <button className="p-1.5 hover:bg-slate-200 rounded transition-colors">
-                  <Link2 className="w-4 h-4 text-slate-600" />
+                <button className="p-1.5 hover:bg-slate-700 rounded transition-colors">
+                  <Link2 className="w-4 h-4 text-slate-300" />
                 </button>
-                <button className="p-1.5 hover:bg-slate-200 rounded transition-colors">
-                  <Image className="w-4 h-4 text-slate-600" />
+                <button className="p-1.5 hover:bg-slate-700 rounded transition-colors">
+                  <Image className="w-4 h-4 text-slate-300" />
                 </button>
               </div>
               
               <Textarea
                 value={composeEmail.body}
                 onChange={(e) => setComposeEmail(prev => ({ ...prev, body: e.target.value, isAIGenerated: false }))}
-                className="min-h-[200px] rounded-t-none border-t-0 text-sm"
+                className="min-h-[200px] rounded-t-none border-t-0 text-sm bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
                 placeholder="Write your email content here..."
               />
             </div>
 
             {/* Logo Reminder */}
-            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-slate-200 flex items-center justify-center overflow-hidden">
+            <div className="p-3 rounded-lg bg-slate-800 border border-slate-600 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-slate-700 flex items-center justify-center overflow-hidden">
                 {getUserLogoFromStorage() ? (
                   <img src={getUserLogoFromStorage()!} alt="Logo" className="w-full h-full object-contain" />
                 ) : (
@@ -2563,15 +2563,15 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
                 )}
               </div>
               <div className="flex-1">
-                <p className="text-sm font-medium text-slate-700">Your Logo Will Be Included</p>
-                <p className="text-xs text-slate-500">
+                <p className="text-sm font-medium text-slate-200">Your Logo Will Be Included</p>
+                <p className="text-xs text-slate-400">
                   {getUserLogoFromStorage() 
                     ? 'Your business logo will appear in the email footer' 
                     : 'Upload a logo in Settings to include it in emails'}
                 </p>
               </div>
               {!getUserLogoFromStorage() && (
-                <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)}>
+                <Button variant="outline" size="sm" onClick={() => setSettingsOpen(true)} className="border-slate-500 text-slate-300 hover:bg-slate-700">
                   Add Logo
                 </Button>
               )}
@@ -2579,12 +2579,12 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-between pt-4 border-t">
-            <Button variant="outline" onClick={() => setShowComposeModal(false)}>
+          <div className="flex items-center justify-between pt-4 border-t border-slate-700">
+            <Button variant="outline" onClick={() => setShowComposeModal(false)} className="border-slate-500 text-slate-300 hover:bg-slate-700">
               Cancel
             </Button>
             <div className="flex items-center gap-2">
-              <Button variant="outline" className="gap-2">
+              <Button variant="outline" className="gap-2 border-slate-500 text-slate-300 hover:bg-slate-700">
                 <Edit3 className="w-4 h-4" />
                 Save Draft
               </Button>
