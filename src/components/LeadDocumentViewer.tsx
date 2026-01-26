@@ -18,8 +18,9 @@ import {
   Zap, Building2, Mail, Clock, ChevronRight, FileSpreadsheet,
   TrendingUp, ThermometerSun, Calendar, MessageSquare, DollarSign,
   Eye, PhoneCall, MailOpen, Sparkles, BarChart3, Timer, Lightbulb, Shield,
-  Copy, Check
+  Copy, Check, ZoomIn, ZoomOut, RotateCcw
 } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
 
 interface SearchResult {
   id: string;
@@ -417,6 +418,7 @@ export default function LeadDocumentViewer({
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [zoomLevel, setZoomLevel] = useState(100); // Zoom percentage (50-150)
   const documentRef = useRef<HTMLDivElement>(null);
 
   // Simulate AI analysis loading
@@ -1150,6 +1152,39 @@ export default function LeadDocumentViewer({
                     <FileSpreadsheet className="w-4 h-4 mr-2" />
                     Excel
                   </Button>
+                  
+                  {/* Zoom Controls */}
+                  <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-lg border border-gray-200">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setZoomLevel(Math.max(50, zoomLevel - 10))}
+                      className="h-7 w-7 hover:bg-gray-200"
+                      disabled={zoomLevel <= 50}
+                    >
+                      <ZoomOut className="w-4 h-4 text-gray-600" />
+                    </Button>
+                    <span className="text-sm font-medium text-gray-700 min-w-[3rem] text-center">{zoomLevel}%</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setZoomLevel(Math.min(150, zoomLevel + 10))}
+                      className="h-7 w-7 hover:bg-gray-200"
+                      disabled={zoomLevel >= 150}
+                    >
+                      <ZoomIn className="w-4 h-4 text-gray-600" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setZoomLevel(100)}
+                      className="h-7 w-7 hover:bg-gray-200"
+                      title="Reset zoom"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 text-gray-600" />
+                    </Button>
+                  </div>
+                  
                   <Button 
                     variant="ghost" 
                     size="icon" 
@@ -1180,9 +1215,16 @@ export default function LeadDocumentViewer({
               </div>
             )}
 
-            {/* PDF-like Document Content */}
+            {/* PDF-like Document Content with Zoom */}
             <ScrollArea className="flex-1 p-4" ref={documentRef}>
-              <div className="bg-white rounded-xl shadow-sm border p-8 max-w-[800px] mx-auto">
+              <div 
+                className="bg-white rounded-xl shadow-sm border p-8 mx-auto transition-transform origin-top"
+                style={{ 
+                  transform: `scale(${zoomLevel / 100})`,
+                  maxWidth: `${800 * (100 / zoomLevel)}px`,
+                  width: '100%'
+                }}
+              >
                 {/* Executive Summary */}
                 <div className="border-b pb-6 mb-6">
                   <div className="flex items-center gap-2 mb-4">
