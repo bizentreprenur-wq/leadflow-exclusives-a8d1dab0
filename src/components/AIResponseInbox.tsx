@@ -2002,15 +2002,7 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
                   </div>
                 </ScrollArea>
               </>
-            ) : (
-              <div className="flex-1 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm">
-                <div className="text-center p-8 rounded-xl bg-slate-800/30 border border-slate-700/50">
-                  <Mail className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                  <h3 className="font-semibold text-slate-400 mb-1">Select an email</h3>
-                  <p className="text-sm text-slate-500">Choose an email from the list to view details</p>
-                </div>
-              </div>
-            )}
+            ) : null}
           </div>
         </div>
       ) : topTab === 'preview' ? (
