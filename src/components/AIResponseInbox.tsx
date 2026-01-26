@@ -2075,76 +2075,76 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
 
       {/* Settings Dialog */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent elevated className="max-w-lg bg-white">
+        <DialogContent elevated className="max-w-lg bg-slate-900 border-slate-700 text-white">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-white">
               <Settings className="w-5 h-5" />
               AI Automation Settings
             </DialogTitle>
-            <DialogDescription>Configure how AI handles your responses and notifications</DialogDescription>
+            <DialogDescription className="text-slate-400">Configure how AI handles your responses and notifications</DialogDescription>
           </DialogHeader>
           
           <div className="space-y-6 py-4">
             {/* Response Mode */}
             <div className="space-y-3">
-              <Label className="text-sm font-semibold">AI Response Mode</Label>
+              <Label className="text-sm font-semibold text-slate-200">AI Response Mode</Label>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => updateSetting('responseMode', 'automatic')}
                   className={`p-4 rounded-xl border-2 text-left transition-all ${
-                    settings.responseMode === 'automatic' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-slate-300'
+                    settings.responseMode === 'automatic' ? 'border-emerald-500 bg-emerald-500/20' : 'border-slate-600 hover:border-slate-500 bg-slate-800'
                   }`}
                 >
-                  <Zap className={`w-5 h-5 mb-2 ${settings.responseMode === 'automatic' ? 'text-emerald-600' : 'text-slate-400'}`} />
-                  <h4 className="font-semibold text-sm">Fully Automatic</h4>
-                  <p className="text-xs text-slate-500">AI sends responses instantly</p>
+                  <Zap className={`w-5 h-5 mb-2 ${settings.responseMode === 'automatic' ? 'text-emerald-400' : 'text-slate-400'}`} />
+                  <h4 className="font-semibold text-sm text-white">Fully Automatic</h4>
+                  <p className="text-xs text-slate-400">AI sends responses instantly</p>
                 </button>
                 
                 <button
                   onClick={() => updateSetting('responseMode', 'manual')}
                   className={`p-4 rounded-xl border-2 text-left transition-all ${
-                    settings.responseMode === 'manual' ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-slate-300'
+                    settings.responseMode === 'manual' ? 'border-emerald-500 bg-emerald-500/20' : 'border-slate-600 hover:border-slate-500 bg-slate-800'
                   }`}
                 >
-                  <Shield className={`w-5 h-5 mb-2 ${settings.responseMode === 'manual' ? 'text-emerald-600' : 'text-slate-400'}`} />
-                  <h4 className="font-semibold text-sm">You Control</h4>
-                  <p className="text-xs text-slate-500">Review before sending</p>
+                  <Shield className={`w-5 h-5 mb-2 ${settings.responseMode === 'manual' ? 'text-emerald-400' : 'text-slate-400'}`} />
+                  <h4 className="font-semibold text-sm text-white">You Control</h4>
+                  <p className="text-xs text-slate-400">Review before sending</p>
                 </button>
               </div>
             </div>
             
-            <Separator />
+            <Separator className="bg-slate-700" />
             
             {/* Auto Features */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-sm font-semibold">Auto-Schedule Appointments</Label>
-                  <p className="text-xs text-slate-500">AI books meetings based on your calendar</p>
+                  <Label className="text-sm font-semibold text-slate-200">Auto-Schedule Appointments</Label>
+                  <p className="text-xs text-slate-400">AI books meetings based on your calendar</p>
                 </div>
                 <Switch checked={settings.autoScheduling} onCheckedChange={(v) => updateSetting('autoScheduling', v)} />
               </div>
               
               <div className="flex items-center justify-between">
                 <div>
-                  <Label className="text-sm font-semibold">Smart Document Suggestions</Label>
-                  <p className="text-xs text-slate-500">AI recommends proposals when leads are ready</p>
+                  <Label className="text-sm font-semibold text-slate-200">Smart Document Suggestions</Label>
+                  <p className="text-xs text-slate-400">AI recommends proposals when leads are ready</p>
                 </div>
                 <Switch checked={settings.autoProposals} onCheckedChange={(v) => updateSetting('autoProposals', v)} />
               </div>
             </div>
             
-            <Separator />
+            <Separator className="bg-slate-700" />
             
             {/* Notifications */}
             <div className="space-y-3">
-              <Label className="text-sm font-semibold flex items-center gap-2">
+              <Label className="text-sm font-semibold flex items-center gap-2 text-slate-200">
                 <Bell className="w-4 h-4" />
                 Notifications
               </Label>
               
               <div className="flex items-center justify-between">
-                <Label className="text-sm">Email Notifications</Label>
+                <Label className="text-sm text-slate-300">Email Notifications</Label>
                 <Switch checked={settings.notifyEmail} onCheckedChange={(v) => updateSetting('notifyEmail', v)} />
               </div>
               {settings.notifyEmail && (
@@ -2153,12 +2153,12 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
                   value={settings.notifyEmailAddress}
                   onChange={(e) => updateSetting('notifyEmailAddress', e.target.value)}
                   placeholder="your@email.com"
-                  className="h-9"
+                  className="h-9 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
                 />
               )}
               
               <div className="flex items-center justify-between">
-                <Label className="text-sm">SMS Notifications</Label>
+                <Label className="text-sm text-slate-300">SMS Notifications</Label>
                 <Switch checked={settings.notifySMS} onCheckedChange={(v) => updateSetting('notifySMS', v)} />
               </div>
               {settings.notifySMS && (
@@ -2167,7 +2167,7 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
                   value={settings.notifyPhone}
                   onChange={(e) => updateSetting('notifyPhone', e.target.value)}
                   placeholder="+1 (555) 123-4567"
-                  className="h-9"
+                  className="h-9 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
                 />
               )}
             </div>
