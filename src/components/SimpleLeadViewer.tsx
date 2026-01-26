@@ -606,7 +606,10 @@ export default function SimpleLeadViewer({
         <CardContent className="p-0">
           {/* Table */}
           <div className="h-[450px] overflow-auto">
-            <Table className="w-full" style={{ minWidth: '1400px' }}>
+            <Table
+              className="w-max table-fixed [&_th]:px-3 [&_td]:px-3"
+              style={{ minWidth: '1300px' }}
+            >
                 <TableHeader>
                   <TableRow className="bg-muted/30 hover:bg-muted/30">
                     <TableHead className="w-10">
@@ -618,14 +621,14 @@ export default function SimpleLeadViewer({
                     <TableHead className="w-12">#</TableHead>
                     <TableHead className="w-20 text-center">Score</TableHead>
                     <TableHead className="w-24">Priority</TableHead>
-                    <TableHead className="w-[220px]">Business Name</TableHead>
+                    <TableHead className="w-[160px]">Business Name</TableHead>
                     <TableHead className="w-16 text-center">Website</TableHead>
-                    <TableHead className="min-w-[120px]">Email</TableHead>
-                    <TableHead className="min-w-[100px]">Phone</TableHead>
+                    <TableHead className="w-[120px]">Email</TableHead>
+                    <TableHead className="w-[120px]">Phone</TableHead>
                     <TableHead className="w-24 min-w-[80px]">Timing</TableHead>
                     <TableHead className="w-28 min-w-[100px]">Best Action</TableHead>
-                    <TableHead className="min-w-[130px]">Pain Points</TableHead>
-                    <TableHead className="min-w-[180px]">Recommended Approach</TableHead>
+                    <TableHead className="w-[170px]">Pain Points</TableHead>
+                    <TableHead className="w-[220px]">Recommended Approach</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -708,7 +711,7 @@ export default function SimpleLeadViewer({
                         <TableCell>
                           {getClassBadge(lead.aiClassification)}
                         </TableCell>
-                        <TableCell className="w-[220px]">
+                        <TableCell className="w-[160px]">
                           <div className="flex items-center gap-1 min-w-0">
                             <div className="min-w-0">
                               <p className="font-medium truncate">{lead.name}</p>
@@ -763,10 +766,10 @@ export default function SimpleLeadViewer({
                         <TableCell>
                           {getActionBadge()}
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground max-w-[150px] truncate" title={painPointsDisplay}>
+                        <TableCell className="text-xs text-muted-foreground w-[170px] truncate" title={painPointsDisplay}>
                           {painPointsDisplay}
                         </TableCell>
-                        <TableCell className="text-xs">
+                        <TableCell className="text-xs w-[220px]">
                           {lead.recommendedAction === 'call' ? (
                             <span className="text-green-500 font-medium">Direct call - explain value</span>
                           ) : lead.recommendedAction === 'both' ? (
