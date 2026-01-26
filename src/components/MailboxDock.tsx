@@ -130,7 +130,7 @@ export default function MailboxDock({
 
       {/* Full Screen Mailbox Modal */}
       {isOpen && (
-        <div className="fixed inset-0 z-[100] animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] overflow-hidden bg-background animate-in fade-in duration-200">
           {/* Campaign Running Indicator */}
           {campaignContext?.isActive && (
             <div className="absolute top-4 left-4 z-[110] flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-600/90 text-white text-sm shadow-lg">
