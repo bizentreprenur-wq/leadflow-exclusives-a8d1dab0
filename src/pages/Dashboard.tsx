@@ -52,7 +52,7 @@ import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } fro
 import { quickScoreLeads } from '@/lib/api/aiLeadScoring';
 import { HIGH_CONVERTING_TEMPLATES } from '@/lib/highConvertingTemplates';
 import { generateMechanicLeads, injectTestLeads } from '@/lib/testMechanicLeads';
-import { fetchSearchLeads, saveSearchLeads, SearchLead } from '@/lib/api/searchLeads';
+import { fetchSearchLeads, saveSearchLeads, deleteSearchLeads, SearchLead } from '@/lib/api/searchLeads';
 import { checkPaymentMethod } from '@/lib/api/stripeSetup';
 import AutoFollowUpBuilder from '@/components/AutoFollowUpBuilder';
 import LeadResultsPanel from '@/components/LeadResultsPanel';
@@ -858,7 +858,7 @@ export default function Dashboard() {
     celebrate('subscription-activated');
   };
 
-  const resetWorkflow = () => {
+  const resetWorkflow = async () => {
     setCurrentStep(1);
     setSearchType(null);
     setQuery('');
@@ -883,8 +883,20 @@ export default function Dashboard() {
     localStorage.removeItem('bamlead_selected_leads');
     localStorage.removeItem('bamlead_step2_visited');
     localStorage.removeItem('bamlead_user_cache');
-    
-    toast.success('All data cleared! Start fresh.');
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        const response = await deleteSearchLeads({ clearAll: true });
+        if (!response.success) {
+          throw new Error(response.error || 'Failed to clear server leads');
+        }
+      }
+      toast.success('All data cleared! Start fresh.');
+    } catch (error) {
+      console.error('[BamLead] Failed to clear stored leads:', error);
+      toast.error('Cleared locally, but failed to remove saved leads. They may return after refresh.');
+    }
   };
 
   // Only show brief loading on first paint if no cached user
