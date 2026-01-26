@@ -17,13 +17,17 @@ import {
   Search, MailOpen, PenTool, Sparkles, Target, Rocket,
   Calendar, Phone, BellRing, Shield, CheckCircle2, X, FolderOpen,
   Building2, Globe, MapPin, Megaphone, Palette, Link2, Cloud,
-  BarChart3, MousePointer, Eye, Reply, TrendingUp
+  BarChart3, MousePointer, Eye, Reply, TrendingUp, CalendarIcon
 } from 'lucide-react';
 import SMTPConfigPanel from './SMTPConfigPanel';
 import BrandingSettingsPanel from './BrandingSettingsPanel';
 import CloudCRMIntegrationsPanel from './CloudCRMIntegrationsPanel';
 import DocumentsPanel from './mailbox/DocumentsPanel';
 import AutoCampaignWizard from './AutoCampaignWizard';
+import ClickHeatmapChart from './ClickHeatmapChart';
+import ABTestingChart from './ABTestingChart';
+import AIAutopilotSubscription from './AIAutopilotSubscription';
+import EmailScheduleCalendar from './EmailScheduleCalendar';
 import { isSMTPConfigured, sendSingleEmail } from '@/lib/emailService';
 
 // Tab types for main navigation
@@ -101,8 +105,9 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   });
 
   // Compose email state
-  const [composeEmail, setComposeEmail] = useState({ to: '', subject: '', body: '' });
+  const [composeEmail, setComposeEmail] = useState({ to: '', subject: '', body: '', scheduledFor: null as Date | null });
   const [isSending, setIsSending] = useState(false);
+  const [showScheduler, setShowScheduler] = useState(false);
   
   // Campaign Wizard state
   const [showCampaignWizard, setShowCampaignWizard] = useState(false);
@@ -152,6 +157,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
       to: '',
       subject: doc.name,
       body: doc.fullContent,
+      scheduledFor: null,
     });
     setShowComposeModal(true);
     setMainTab('inbox'); // Switch to inbox to show compose modal
@@ -190,7 +196,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
       });
       toast.success('Email sent successfully!');
       setShowComposeModal(false);
-      setComposeEmail({ to: '', subject: '', body: '' });
+      setComposeEmail({ to: '', subject: '', body: '', scheduledFor: null });
     } catch (error) {
       toast.error('Failed to send email');
     }
@@ -394,29 +400,13 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
         {mainTab === 'automation' && (
           <div className="h-full overflow-auto p-6">
             <div className="max-w-2xl mx-auto space-y-6">
-              {/* Done-For-You Mode Card */}
-              <div className="p-5 rounded-xl bg-slate-900 border border-slate-800">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                      <Sparkles className="w-5 h-5 text-emerald-400" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-white">Done-For-You Mode</h3>
-                      <p className="text-xs text-slate-400">BamLead runs campaigns for you automatically.</p>
-                      <p className="text-xs text-slate-500">You approve once — AI handles the rest.</p>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={automation.doneForYouMode}
-                    onCheckedChange={(v) => {
-                      setAutomation(prev => ({ ...prev, doneForYouMode: v }));
-                      toast.success(v ? '🤖 Done-For-You Mode activated!' : 'Switched to Manual Mode');
-                    }}
-                    className="data-[state=checked]:bg-emerald-500"
-                  />
-                </div>
-              </div>
+              {/* AI Autopilot Subscription Component */}
+              <AIAutopilotSubscription
+                isActive={automation.doneForYouMode}
+                onToggle={(active) => {
+                  setAutomation(prev => ({ ...prev, doneForYouMode: active }));
+                }}
+              />
 
               {/* AI-Managed Sequences (only visible when DFY is ON) */}
               <AnimatePresence>
@@ -427,56 +417,88 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                     exit={{ opacity: 0, height: 0 }}
                     className="space-y-4"
                   >
-                    <h4 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
-                      <Bot className="w-4 h-4 text-emerald-400" />
+                    <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                      <Bot className="w-4 h-4 text-primary" />
                       AI-Managed Outreach Sequences
                     </h4>
                     
-                    {/* Sequence Cards - Read Only */}
-                    {DEMO_SEQUENCES.slice(0, 2).map(seq => (
-                      <div key={seq.id} className="p-4 rounded-xl bg-slate-800/50 border border-slate-700">
-                        <div className="flex items-center justify-between mb-2">
-                          <h5 className="font-medium text-white">{seq.name}</h5>
-                          <Badge variant="outline" className="text-[10px] border-slate-600 text-slate-400">
-                            Manual Mode →
-                          </Badge>
+                    {/* Sequence A - GMB Search */}
+                    <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs">A</Badge>
+                          <h5 className="font-medium text-foreground">GMB Search Sequence</h5>
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-slate-500">
-                          {seq.channels.map(ch => (
-                            <span key={ch} className="px-2 py-0.5 rounded bg-slate-700/50 capitalize">{ch}</span>
-                          ))}
-                        </div>
-                        <p className="text-[10px] text-slate-500 mt-2">
-                          Steps: {seq.steps} • Duration: {seq.duration}
-                        </p>
-                        <p className="text-[10px] text-emerald-400 mt-1">
-                          AI selects and runs this sequence when appropriate.
-                        </p>
+                        <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400">
+                          Active
+                        </Badge>
                       </div>
-                    ))}
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="px-2 py-0.5 rounded bg-muted border border-border">Email</span>
+                        <span className="px-2 py-0.5 rounded bg-muted border border-border">Follow-up x3</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-2">
+                        Steps: 4 • Duration: 10 days • For Google Maps leads
+                      </p>
+                      <p className="text-[10px] text-emerald-400 mt-1">
+                        AI sends initial outreach + 3 follow-ups based on engagement
+                      </p>
+                    </div>
+
+                    {/* Sequence B - Platform Search */}
+                    <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-xs">B</Badge>
+                          <h5 className="font-medium text-foreground">Platform Search Sequence</h5>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400">
+                          Active
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <span className="px-2 py-0.5 rounded bg-muted border border-border">Email</span>
+                        <span className="px-2 py-0.5 rounded bg-muted border border-border">LinkedIn</span>
+                        <span className="px-2 py-0.5 rounded bg-muted border border-border">SMS</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-2">
+                        Steps: 5 • Duration: 14 days • For Yelp, Yellow Pages, etc.
+                      </p>
+                      <p className="text-[10px] text-emerald-400 mt-1">
+                        Multi-channel nurturing with smart channel switching
+                      </p>
+                    </div>
+
+                    {/* CRM Sync Notice */}
+                    <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 flex items-center gap-2">
+                      <Shield className="w-4 h-4 text-primary" />
+                      <span className="text-xs text-foreground">
+                        All AI interactions sync to your connected CRM in real-time
+                      </span>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              <Separator className="bg-slate-800" />
+              <Separator className="bg-border" />
 
               {/* AI Follow-Ups */}
-              <div className="p-5 rounded-xl bg-slate-900 border border-slate-800">
+              <div className="p-5 rounded-xl bg-card border border-border">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
                       <Clock className="w-5 h-5 text-amber-400" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-white">AI Follow-Ups</h3>
-                      <p className="text-xs text-slate-400">AI sends follow-ups automatically</p>
-                      <p className="text-xs text-slate-500">based on engagement and response timing.</p>
+                      <h3 className="font-bold text-foreground">AI Follow-Ups</h3>
+                      <p className="text-xs text-muted-foreground">AI sends follow-ups automatically</p>
+                      <p className="text-xs text-muted-foreground/70">based on engagement and response timing.</p>
                     </div>
                   </div>
                   <Switch
                     checked={automation.autoFollowUps}
                     onCheckedChange={(v) => setAutomation(prev => ({ ...prev, autoFollowUps: v }))}
-                    className="data-[state=checked]:bg-emerald-500"
+                    className="data-[state=checked]:bg-primary"
                   />
                 </div>
               </div>
@@ -607,6 +629,12 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                   </div>
                 </div>
               </div>
+
+              {/* Click Heatmap Visualization */}
+              <ClickHeatmapChart />
+
+              {/* A/B Testing Chart */}
+              <ABTestingChart />
 
               {/* Campaign Cards */}
               <div className="space-y-3">
@@ -762,57 +790,86 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
 
       {/* Compose Email Modal */}
       <Dialog open={showComposeModal} onOpenChange={setShowComposeModal}>
-        <DialogContent elevated className="max-w-lg bg-slate-900 border-slate-700 text-white">
+        <DialogContent elevated className="max-w-xl bg-card border-border">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <PenTool className="w-5 h-5 text-emerald-400" />
+              <PenTool className="w-5 h-5 text-primary" />
               Compose Email
             </DialogTitle>
-            <DialogDescription className="text-slate-400">Write and send an email manually</DialogDescription>
+            <DialogDescription className="text-muted-foreground">Write and send an email manually or schedule for later</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div>
-              <label className="text-sm font-medium text-slate-200 block mb-1.5">To</label>
+              <label className="text-sm font-medium text-foreground block mb-1.5">To</label>
               <Input
                 value={composeEmail.to}
                 onChange={(e) => setComposeEmail(prev => ({ ...prev, to: e.target.value }))}
                 placeholder="recipient@email.com"
-                className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
+                className="bg-muted/30 border-border"
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-slate-200 block mb-1.5">Subject</label>
+              <label className="text-sm font-medium text-foreground block mb-1.5">Subject</label>
               <Input
                 value={composeEmail.subject}
                 onChange={(e) => setComposeEmail(prev => ({ ...prev, subject: e.target.value }))}
                 placeholder="Email subject..."
-                className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
+                className="bg-muted/30 border-border"
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-slate-200 block mb-1.5">Message</label>
+              <label className="text-sm font-medium text-foreground block mb-1.5">Message</label>
               <Textarea
                 value={composeEmail.body}
                 onChange={(e) => setComposeEmail(prev => ({ ...prev, body: e.target.value }))}
                 placeholder="Write your message..."
                 rows={6}
-                className="bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
+                className="bg-muted/30 border-border"
               />
+            </div>
+
+            {/* Email Scheduling */}
+            <div className="pt-2 border-t border-border">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-sm font-medium text-foreground flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-primary" />
+                  Schedule Send
+                </label>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowScheduler(!showScheduler)}
+                  className="text-xs"
+                >
+                  {showScheduler ? 'Hide' : 'Show Options'}
+                </Button>
+              </div>
+              {showScheduler && (
+                <EmailScheduleCalendar
+                  onSchedule={(date) => {
+                    setComposeEmail(prev => ({ ...prev, scheduledFor: date }));
+                    toast.success(`Scheduled for ${date.toLocaleString()}`);
+                  }}
+                  onSendNow={handleSendEmail}
+                />
+              )}
             </div>
           </div>
 
           <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowComposeModal(false)} className="border-slate-700 text-slate-300">
+            <Button variant="outline" onClick={() => setShowComposeModal(false)}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleSendEmail} 
-              disabled={isSending}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white gap-2"
-            >
-              {isSending ? 'Sending...' : <><Send className="w-4 h-4" /> Send Email</>}
-            </Button>
+            {!showScheduler && (
+              <Button 
+                onClick={handleSendEmail} 
+                disabled={isSending}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
+              >
+                {isSending ? 'Sending...' : <><Send className="w-4 h-4" /> Send Now</>}
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>
