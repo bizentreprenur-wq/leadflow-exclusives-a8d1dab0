@@ -159,63 +159,68 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   ];
 
   return (
-    <div className="w-full h-full min-h-screen flex flex-col bg-slate-950">
-      {/* TOP HEADER */}
-      <header className="bg-slate-900 border-b border-slate-800 px-6 py-3 flex-shrink-0">
-        <div className="flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
-              <Mail className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-bold text-white">BamLead</span>
-          </div>
+    <div className="relative w-full h-full min-h-screen flex flex-col">
+      {/* Frosted overlay background so the page behind remains visible (no solid black screen) */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-background/20 backdrop-blur-xl" />
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-glow opacity-60" />
 
-          {/* Main Navigation */}
-          <nav className="flex items-center gap-1">
-            {navTabs.map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setMainTab(tab.id)}
+      <div className="relative flex min-h-screen flex-col">
+        {/* TOP HEADER */}
+        <header className="bg-card/50 backdrop-blur border-b border-border/60 px-6 py-3 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
+                <Mail className="w-4 h-4 text-white" />
+              </div>
+              <span className="font-bold text-white">BamLead</span>
+            </div>
+
+            {/* Main Navigation */}
+            <nav className="flex items-center gap-1">
+              {navTabs.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setMainTab(tab.id)}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                    mainTab === tab.id
+                      ? "bg-emerald-600 text-white"
+                      : "text-slate-400 hover:text-white hover:bg-muted/40"
+                  )}
+                >
+                  <tab.icon className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+
+            {/* Mode indicator */}
+            <div className="flex items-center gap-2">
+              <Badge 
+                variant="outline" 
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
-                  mainTab === tab.id
-                    ? "bg-emerald-600 text-white"
-                    : "text-slate-400 hover:text-white hover:bg-slate-800"
+                  "text-xs px-3 py-1",
+                  automation.doneForYouMode 
+                    ? "border-emerald-500 text-emerald-400" 
+                    : "border-border/70 text-muted-foreground"
                 )}
               >
-                <tab.icon className="w-4 h-4" />
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-
-          {/* Mode indicator */}
-          <div className="flex items-center gap-2">
-            <Badge 
-              variant="outline" 
-              className={cn(
-                "text-xs px-3 py-1",
-                automation.doneForYouMode 
-                  ? "border-emerald-500 text-emerald-400" 
-                  : "border-slate-600 text-slate-400"
-              )}
-            >
-              {automation.doneForYouMode ? '🤖 Auto' : '👤 Manual'}
-            </Badge>
+                {automation.doneForYouMode ? '🤖 Auto' : '👤 Manual'}
+              </Badge>
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* MAIN CONTENT */}
-      <div className="flex-1 overflow-hidden">
+        {/* MAIN CONTENT */}
+        <div className="flex-1 overflow-hidden">
         {/* INBOX VIEW */}
         {mainTab === 'inbox' && (
           <div className="h-full flex">
             {/* Email List Panel */}
-            <div className="w-96 border-r border-slate-800 flex flex-col bg-slate-900">
+            <div className="w-96 border-r border-border/60 flex flex-col bg-card/40 backdrop-blur">
               {/* Inbox Banner */}
-              <div className="p-3 bg-slate-800/50 border-b border-slate-700">
+              <div className="p-3 bg-muted/30 border-b border-border/50">
                 <div className="flex items-center gap-2 text-xs text-slate-300">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   <span>This inbox shows replies only.</span>
@@ -224,7 +229,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
               </div>
 
               {/* Filters */}
-              <div className="p-3 border-b border-slate-800 flex gap-2">
+              <div className="p-3 border-b border-border/50 flex gap-2">
                 {(['all', 'hot', 'unread'] as InboxFilter[]).map(filter => (
                   <button
                     key={filter}
@@ -306,7 +311,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
             </div>
 
             {/* Email Detail Panel */}
-            <div className="flex-1 flex items-center justify-center bg-slate-950">
+            <div className="flex-1 flex items-center justify-center bg-card/20 backdrop-blur-sm">
               {selectedReply ? (
                 <div className="w-full h-full p-6">
                   <div className="max-w-2xl mx-auto">
@@ -317,9 +322,14 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                   </div>
                 </div>
               ) : (
-                <div className="text-center opacity-40">
-                  <MailOpen className="w-16 h-16 text-slate-600 mx-auto mb-3" />
-                  <p className="text-slate-500">Select an email to view</p>
+                <div className="w-full max-w-md px-6">
+                  <div className="rounded-2xl border border-border/40 bg-card/25 backdrop-blur p-10 text-center">
+                    <MailOpen className="w-16 h-16 text-muted-foreground/60 mx-auto mb-3" />
+                    <p className="text-sm text-muted-foreground">Select an email to view</p>
+                    <p className="text-xs text-muted-foreground/70 mt-1">
+                      Replies show here. Campaigns and AI send messages in the background.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -521,6 +531,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
             </div>
           </div>
         )}
+        </div>
       </div>
 
       {/* Compose Email Modal */}
