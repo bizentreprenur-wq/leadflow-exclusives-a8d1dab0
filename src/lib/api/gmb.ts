@@ -434,14 +434,14 @@ async function searchGMBRegular(
   // Simulate progressive reveal for non-streaming
   if (onProgress && data.success && data.data) {
     const allResults = data.data;
-    const batchSize = Math.max(10, Math.floor(allResults.length / 5));
+    const batchSize = Math.max(15, Math.floor(allResults.length / 4));
     let loaded = 0;
     
     while (loaded < allResults.length) {
       loaded = Math.min(loaded + batchSize, allResults.length);
       onProgress(allResults.slice(0, loaded), (loaded / allResults.length) * 100);
       if (loaded < allResults.length) {
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise(resolve => setTimeout(resolve, 25));
       }
     }
   }

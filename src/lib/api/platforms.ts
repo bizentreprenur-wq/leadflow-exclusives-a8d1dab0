@@ -124,14 +124,14 @@ export async function searchPlatforms(
     // Progressive reveal for platform results
     if (onProgress && data.success && data.data) {
       const allResults = data.data;
-      const batchSize = Math.max(2, Math.floor(allResults.length / 4));
+      const batchSize = Math.max(5, Math.floor(allResults.length / 3));
       let loaded = 0;
       
       while (loaded < allResults.length) {
         loaded = Math.min(loaded + batchSize, allResults.length);
         onProgress(allResults.slice(0, loaded), (loaded / allResults.length) * 100);
         if (loaded < allResults.length) {
-          await new Promise(resolve => setTimeout(resolve, 50));
+          await new Promise(resolve => setTimeout(resolve, 25));
         }
       }
     }
