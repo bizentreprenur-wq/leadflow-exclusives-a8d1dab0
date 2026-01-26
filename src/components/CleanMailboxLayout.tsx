@@ -28,7 +28,10 @@ import ClickHeatmapChart from './ClickHeatmapChart';
 import ABTestingChart from './ABTestingChart';
 import AIAutopilotSubscription from './AIAutopilotSubscription';
 import EmailScheduleCalendar from './EmailScheduleCalendar';
+import ScheduledQueuePanel from './ScheduledQueuePanel';
+import LeadQueueIndicator from './LeadQueueIndicator';
 import { isSMTPConfigured, sendSingleEmail } from '@/lib/emailService';
+import { sendEmail as apiSendEmail } from '@/lib/api/email';
 
 // Tab types for main navigation
 type MainTab = 'inbox' | 'campaigns' | 'automation' | 'documents' | 'settings';
@@ -108,6 +111,10 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   const [composeEmail, setComposeEmail] = useState({ to: '', subject: '', body: '', scheduledFor: null as Date | null });
   const [isSending, setIsSending] = useState(false);
   const [showScheduler, setShowScheduler] = useState(false);
+  
+  // Lead queue tracking for Compose modal display
+  const [currentLeadIndex, setCurrentLeadIndex] = useState(0);
+  const [lastSentLeadIndex, setLastSentLeadIndex] = useState(-1);
   
   // Campaign Wizard state
   const [showCampaignWizard, setShowCampaignWizard] = useState(false);
@@ -202,10 +209,26 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
     setMainTab('inbox'); // Switch to inbox to show compose modal
   };
 
-  const queueScheduledEmail = (payload: { to: string; subject: string; body: string; scheduledFor: Date }) => {
+  const queueScheduledEmail = async (payload: { to: string; subject: string; body: string; scheduledFor: Date }) => {
     if (!payload.to || !payload.subject) {
       toast.error('Please fill in recipient and subject before scheduling');
       return;
+    }
+
+    // Also attempt to push to backend for server-side scheduling
+    try {
+      const res = await apiSendEmail({
+        to: payload.to,
+        subject: payload.subject,
+        body_html: `<p>${payload.body.replace(/\n/g, '<br/>')}</p>`,
+        track_opens: true,
+      });
+      // Even if server fails, we still store locally
+      if (!res.success) {
+        console.warn('Server scheduling failed, falling back to local queue:', res.error);
+      }
+    } catch {
+      console.warn('Server scheduling failed, falling back to local queue');
     }
 
     try {
@@ -271,8 +294,23 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
         leadId: 'manual',
       });
       toast.success('Email sent successfully!');
+      
+      // Update lead queue: mark current as sent, advance to next
+      setLastSentLeadIndex(currentLeadIndex);
+      if (currentLeadIndex < campaignLeads.length - 1) {
+        setCurrentLeadIndex(prev => prev + 1);
+        // Pre-fill next lead email
+        const nextLead = campaignLeads[currentLeadIndex + 1];
+        if (nextLead?.email) {
+          setComposeEmail(prev => ({ ...prev, to: nextLead.email, subject: '', body: '', scheduledFor: null }));
+        } else {
+          setComposeEmail({ to: '', subject: '', body: '', scheduledFor: null });
+        }
+      } else {
+        setComposeEmail({ to: '', subject: '', body: '', scheduledFor: null });
+      }
+      
       setShowComposeModal(false);
-      setComposeEmail({ to: '', subject: '', body: '', scheduledFor: null });
     } catch (error) {
       toast.error('Failed to send email');
     }
@@ -611,6 +649,16 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                 </Button>
               </div>
 
+              {/* Lead Queue Indicator - Last Sent / Current / Up Next */}
+              {campaignLeads.length > 0 && (
+                <LeadQueueIndicator
+                  leads={campaignLeads}
+                  currentIndex={currentLeadIndex}
+                  lastSentIndex={lastSentLeadIndex}
+                  variant="horizontal"
+                />
+              )}
+
               {/* Lead Priority Filter */}
               <div className="p-4 rounded-xl bg-muted/30 border border-border">
                 <div className="flex items-center justify-between mb-3">
@@ -760,6 +808,9 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                   </div>
                 ))}
               </div>
+
+              {/* Scheduled Queue Panel */}
+              <ScheduledQueuePanel />
             </div>
           </div>
         )}
@@ -880,6 +931,18 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">Write and send an email manually or schedule for later</DialogDescription>
           </DialogHeader>
+
+          {/* Lead Queue Indicator - compact version in Compose */}
+          {campaignLeads.length > 0 && (
+            <div className="mb-4">
+              <LeadQueueIndicator
+                leads={campaignLeads}
+                currentIndex={currentLeadIndex}
+                lastSentIndex={lastSentLeadIndex}
+                variant="compact"
+              />
+            </div>
+          )}
 
           <div className="space-y-4 py-4">
             <div>
