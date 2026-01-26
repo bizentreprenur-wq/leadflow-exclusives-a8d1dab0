@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -113,13 +113,51 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   const [showCampaignWizard, setShowCampaignWizard] = useState(false);
   const [leadPriority, setLeadPriority] = useState<'all' | 'hot' | 'warm' | 'cold'>('all');
   
-  // Load leads from localStorage
-  const [campaignLeads, setCampaignLeads] = useState<any[]>(() => {
-    try {
-      const stored = localStorage.getItem('bamlead_email_leads');
-      return stored ? JSON.parse(stored) : [];
-    } catch { return []; }
-  });
+  const readStoredEmailLeads = () => {
+    if (typeof window === 'undefined') return [] as any[];
+    const read = (storage: Storage) => {
+      try {
+        const raw = storage.getItem('bamlead_email_leads');
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [] as any[];
+      }
+    };
+
+    const fromSession = read(sessionStorage);
+    if (fromSession.length) return fromSession;
+    return read(localStorage);
+  };
+
+  // Load leads from sessionStorage (Step 3) with localStorage fallback
+  const [campaignLeads, setCampaignLeads] = useState<any[]>(readStoredEmailLeads);
+
+  // Keep mailbox in sync when Step 3 updates lead selection
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sync = () => setCampaignLeads(readStoredEmailLeads());
+    window.addEventListener('storage', sync);
+    window.addEventListener('focus', sync);
+    sync();
+    return () => {
+      window.removeEventListener('storage', sync);
+      window.removeEventListener('focus', sync);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const activeLeadEmail = useMemo(() => {
+    if (selectedReply?.from_email) return selectedReply.from_email;
+    if (typeof window !== 'undefined') {
+      const explicit =
+        sessionStorage.getItem('bamlead_active_lead_email') ||
+        localStorage.getItem('bamlead_active_lead_email');
+      if (explicit) return explicit;
+    }
+    const firstWithEmail = campaignLeads.find((l: any) => l?.email);
+    return (firstWithEmail?.email || campaignLeads?.[0]?.email || '') as string;
+  }, [campaignLeads, selectedReply]);
 
   // Campaign analytics state - sync from localStorage
   const [campaignAnalytics, setCampaignAnalytics] = useState(() => {
@@ -154,13 +192,51 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   // Handler to open compose with document content
   const handleUseDocumentInEmail = (doc: any) => {
     setComposeEmail({
-      to: '',
+      to: activeLeadEmail || '',
       subject: doc.name,
       body: doc.fullContent,
       scheduledFor: null,
     });
     setShowComposeModal(true);
+    setShowScheduler(true);
     setMainTab('inbox'); // Switch to inbox to show compose modal
+  };
+
+  const queueScheduledEmail = (payload: { to: string; subject: string; body: string; scheduledFor: Date }) => {
+    if (!payload.to || !payload.subject) {
+      toast.error('Please fill in recipient and subject before scheduling');
+      return;
+    }
+
+    try {
+      const key = 'bamlead_scheduled_manual_emails';
+      const existingRaw = localStorage.getItem(key);
+      const existing = existingRaw ? JSON.parse(existingRaw) : [];
+      const list = Array.isArray(existing) ? existing : [];
+
+      const id = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
+        ? (crypto as any).randomUUID()
+        : String(Date.now());
+
+      list.unshift({
+        id,
+        type: 'manual_compose',
+        to: payload.to,
+        subject: payload.subject,
+        body: payload.body,
+        scheduledFor: payload.scheduledFor.toISOString(),
+        createdAt: new Date().toISOString(),
+      });
+
+      localStorage.setItem(key, JSON.stringify(list));
+      toast.success(`Queued for ${payload.scheduledFor.toLocaleString()}`);
+
+      setShowComposeModal(false);
+      setShowScheduler(false);
+      setComposeEmail({ to: '', subject: '', body: '', scheduledFor: null });
+    } catch {
+      toast.error('Failed to queue scheduled email');
+    }
   };
   useEffect(() => {
     localStorage.setItem('bamlead_automation_settings', JSON.stringify(automation));
@@ -218,7 +294,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
     { id: 'inbox' as MainTab, label: 'Inbox', icon: Inbox },
     { id: 'campaigns' as MainTab, label: 'Campaigns', icon: Send },
     { id: 'automation' as MainTab, label: 'AI Automation', icon: Bot },
-    { id: 'documents' as MainTab, label: 'Contracts', icon: FolderOpen },
+    { id: 'documents' as MainTab, label: 'PreDone Documents', icon: FolderOpen },
     { id: 'settings' as MainTab, label: 'Settings', icon: Settings },
   ];
 
@@ -309,7 +385,13 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
               {/* Compose Button */}
               <div className="p-3">
                 <Button
-                  onClick={() => setShowComposeModal(true)}
+                  onClick={() => {
+                    setComposeEmail((prev) => ({
+                      ...prev,
+                      to: prev.to || activeLeadEmail || '',
+                    }));
+                    setShowComposeModal(true);
+                  }}
                   className="w-full bg-emerald-600 hover:bg-emerald-500 text-white gap-2"
                 >
                   <PenTool className="w-4 h-4" />
@@ -849,7 +931,12 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                 <EmailScheduleCalendar
                   onSchedule={(date) => {
                     setComposeEmail(prev => ({ ...prev, scheduledFor: date }));
-                    toast.success(`Scheduled for ${date.toLocaleString()}`);
+                    queueScheduledEmail({
+                      to: composeEmail.to,
+                      subject: composeEmail.subject,
+                      body: composeEmail.body,
+                      scheduledFor: date,
+                    });
                   }}
                   onSendNow={handleSendEmail}
                 />

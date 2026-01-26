@@ -1805,16 +1805,13 @@ export default function DocumentsPanel({ searchType, onUseInEmail }: DocumentsPa
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-foreground">Done-For-You Documents</h2>
-            <p className="text-sm text-muted-foreground mt-1">10 Proposals + 10 Contracts — fully editable</p>
+            <h2 className="text-xl font-bold text-foreground">PreDone Documents</h2>
+            <p className="text-sm text-muted-foreground mt-1">Proposals + Contracts — click “Use” to insert into Compose</p>
           </div>
           <Badge 
             variant="outline" 
             className={cn(
-              "px-3 py-1.5 text-xs",
-              effectiveSearchType === 'platform' 
-                ? "border-teal-500 text-teal-400 bg-teal-500/10" 
-                : "border-amber-500 text-amber-400 bg-amber-500/10"
+              "px-3 py-1.5 text-xs bg-primary/10 text-primary border-primary/30"
             )}
           >
             {leadTypeLabel}

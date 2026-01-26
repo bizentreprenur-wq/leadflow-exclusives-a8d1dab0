@@ -21,6 +21,8 @@ import VoiceCallingSection from "@/components/VoiceCallingSection";
 import ROICalculatorSection from "@/components/ROICalculatorSection";
 import AIEmailAssistantDemo from "@/components/AIEmailAssistantDemo";
 import SuperAIFeaturesSection from "@/components/SuperAIFeaturesSection";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 const Index = () => {
   return (
@@ -29,6 +31,19 @@ const Index = () => {
       <Navbar />
       <main>
         <HeroSection />
+        <section className="container px-4 py-8">
+          <div className="rounded-2xl border border-border bg-card p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-semibold text-foreground">See the Mailbox + PreDone Documents</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Open the interactive mailbox UI (Compose scheduling + PreDone Documents → Compose).
+              </p>
+            </div>
+            <Button asChild>
+              <Link to="/mailbox-demo">Open Mailbox Demo</Link>
+            </Button>
+          </div>
+        </section>
         <SuperAIFeaturesSection />
         <HowItWorksSection />
         <AgentCardsSection />
