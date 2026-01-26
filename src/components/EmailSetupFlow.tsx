@@ -9,7 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowLeft, ArrowRight, Server, FileText, Send, 
+  ArrowLeft, ArrowRight, ArrowUp, Server, FileText, Send, 
   CheckCircle2, Mail, Users, Loader2, Link2, Database,
   Eye, Zap, Rocket, FlaskConical, Home, Brain,
   Clock, TrendingUp, Info, Settings, Phone, X, AlertCircle, Upload, Image, Trash2, Sparkles
@@ -684,18 +684,33 @@ export default function EmailSetupFlow({
                   </TooltipProvider>
                 </div>
                 
-                {/* Guidance message - prominent call to action */}
-                <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-primary/10 to-amber-500/10 border border-primary/20 rounded-lg mb-2">
-                  <div className="flex items-center justify-center w-8 h-8 bg-primary/20 rounded-full animate-pulse">
-                    <span className="text-primary text-lg">👆</span>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold text-foreground">
-                      Get Started: Click the tabs above!
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      Select <strong className="text-primary">Preview</strong>, <strong className="text-primary">CRM</strong>, <strong className="text-primary">A/B</strong>, or <strong className="text-primary">SMTP</strong> to configure your email campaign
-                    </span>
+                {/* Guidance message - PROMINENT HERO CTA */}
+                <div className="relative overflow-hidden bg-gradient-to-r from-primary via-primary/90 to-emerald-500 rounded-xl p-5 mb-4 shadow-lg shadow-primary/30 border border-primary/40">
+                  {/* Animated background glow */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-pulse" />
+                  
+                  <div className="relative flex items-center gap-4">
+                    {/* Large animated icon */}
+                    <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center animate-bounce shadow-lg">
+                      <span className="text-3xl">👆</span>
+                    </div>
+                    
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-white mb-1">
+                        🎯 Your Next Step: Choose a Tab Above!
+                      </h3>
+                      <p className="text-white/90 text-sm">
+                        Click <span className="font-bold bg-white/20 px-2 py-0.5 rounded">Preview</span> to see your emails, 
+                        <span className="font-bold bg-white/20 px-2 py-0.5 rounded ml-1">CRM</span> to export leads, 
+                        or <span className="font-bold bg-white/20 px-2 py-0.5 rounded ml-1">SMTP</span> to configure sending.
+                      </p>
+                    </div>
+                    
+                    {/* Arrow pointing up */}
+                    <div className="hidden md:flex flex-col items-center animate-bounce">
+                      <ArrowUp className="w-8 h-8 text-white" />
+                      <span className="text-xs text-white/80 font-medium">CLICK</span>
+                    </div>
                   </div>
                 </div>
               </CardHeader>

@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import {
   Mail, Play, Pause, Send, Eye, Upload, Bell, Clock,
   CheckCircle2, Loader2, Users, BarChart3, Settings,
-  ChevronRight, Zap, TrendingUp, ArrowRight, Rocket,
+  ChevronRight, Zap, TrendingUp, ArrowRight, ArrowUp, Rocket,
   AlertCircle, FileText, RefreshCw, ExternalLink, Image
 } from 'lucide-react';
 import { sendSingleEmail, isSMTPConfigured } from '@/lib/emailService';
@@ -371,17 +371,34 @@ export default function LiveDripMailbox({ onSwitchToFullMailbox, leads = [], ver
         </div>
       </header>
 
-      {/* Help Banner */}
+      {/* Help Banner - PROMINENT HERO CTA */}
       <div className="mx-6 mt-4">
-        <div className="bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-3 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-amber-500/20 flex items-center justify-center">
-            <span className="text-lg">👆</span>
-          </div>
-          <div>
-            <p className="font-semibold text-sm">Get Started: Click the tabs above!</p>
-            <p className="text-xs text-slate-400">
-              Select <span className="text-emerald-400">Preview</span>, <span className="text-cyan-400">CRM</span>, <span className="text-amber-400">A/B</span>, or <span className="text-violet-400">SMTP</span> to configure your email campaign
-            </p>
+        <div className="relative overflow-hidden bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-xl p-5 shadow-lg shadow-emerald-500/30 border border-emerald-400/40">
+          {/* Animated background shimmer */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-pulse" />
+          
+          <div className="relative flex items-center gap-4">
+            {/* Large animated icon */}
+            <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center animate-bounce shadow-lg">
+              <span className="text-3xl">👆</span>
+            </div>
+            
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-white mb-1">
+                🎯 Your Next Step: Choose a Tab Above!
+              </h3>
+              <p className="text-white/90 text-sm">
+                Click <span className="font-bold bg-white/20 px-2 py-0.5 rounded">Preview</span> to see your emails, 
+                <span className="font-bold bg-white/20 px-2 py-0.5 rounded ml-1">CRM</span> to export leads, 
+                or <span className="font-bold bg-white/20 px-2 py-0.5 rounded ml-1">SMTP</span> to configure sending.
+              </p>
+            </div>
+            
+            {/* Arrow pointing up */}
+            <div className="hidden md:flex flex-col items-center animate-bounce">
+              <ArrowUp className="w-8 h-8 text-white" />
+              <span className="text-xs text-white/80 font-medium">CLICK</span>
+            </div>
           </div>
         </div>
       </div>
