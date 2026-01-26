@@ -1928,13 +1928,13 @@ export default function Dashboard() {
               </Link>
             </div>
 
-            {/* SMTP Status Indicator */}
+            {/* SMTP Status Indicator - Navigate to Step 3 */}
             {(() => {
               const smtpConfig = JSON.parse(localStorage.getItem('smtp_config') || '{}');
               const isSmtpConfigured = smtpConfig.username && smtpConfig.password;
               return (
                 <button
-                  onClick={() => setActiveTab('settings')}
+                  onClick={() => setCurrentStep(3)}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
                     isSmtpConfigured
                       ? 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/30'
