@@ -627,7 +627,7 @@ export default function SimpleLeadViewer({
                     <TableHead className="w-24 min-w-[80px]">Timing</TableHead>
                     <TableHead className="w-28 min-w-[100px]">Best Action</TableHead>
                     <TableHead className="min-w-[130px]">Pain Points</TableHead>
-                  <TableHead className="min-w-[160px]">Recommended Approach</TableHead>
+                    <TableHead className="min-w-[180px]">Recommended Approach</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
