@@ -21,7 +21,6 @@ import VoiceCallingSection from "@/components/VoiceCallingSection";
 import ROICalculatorSection from "@/components/ROICalculatorSection";
 import AIEmailAssistantDemo from "@/components/AIEmailAssistantDemo";
 import SuperAIFeaturesSection from "@/components/SuperAIFeaturesSection";
-import LeadSyncShowcase from "@/components/LeadSyncShowcase";
 
 const Index = () => {
   return (
@@ -31,7 +30,6 @@ const Index = () => {
       <main>
         <HeroSection />
         <SuperAIFeaturesSection />
-        <LeadSyncShowcase />
         <HowItWorksSection />
         <AgentCardsSection />
         <VoiceCallingSection />
