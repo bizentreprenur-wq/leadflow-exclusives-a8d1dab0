@@ -248,12 +248,12 @@ export default function SMTPConfigPanel() {
           </div>
 
           {/* Secure Connection */}
-          <div className="flex items-center justify-between p-4 rounded-lg bg-slate-50 border">
+          <div className="flex items-center justify-between p-4 rounded-lg bg-slate-800 border border-slate-700">
             <div className="flex items-center gap-3">
-              <Shield className="w-5 h-5 text-emerald-600" />
+              <Shield className="w-5 h-5 text-emerald-500" />
               <div>
-                <Label className="text-sm font-medium">Use SSL/TLS</Label>
-                <p className="text-xs text-slate-500">Encrypt email transmission for security</p>
+                <Label className="text-sm font-medium text-white">Use SSL/TLS</Label>
+                <p className="text-xs text-slate-400">Encrypt email transmission (recommended)</p>
               </div>
             </div>
             <Switch
@@ -262,60 +262,87 @@ export default function SMTPConfigPanel() {
             />
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-3 pt-4">
-            <Button
-              onClick={handleTestConnection}
-              variant="outline"
-              disabled={isTesting}
-              className="gap-2"
-            >
-              {isTesting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Testing...
-                </>
-              ) : isConnected ? (
-                <>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                  Connected
-                </>
-              ) : (
-                <>
-                  <Key className="w-4 h-4" />
-                  Test Connection
-                </>
-              )}
-            </Button>
+          {/* Test SMTP Section - Prominent */}
+          <div className="p-4 rounded-lg border-2 border-dashed border-amber-500/50 bg-amber-500/5 space-y-3">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-500" />
+              <span className="font-semibold text-amber-400">Test Your SMTP Before Sending</span>
+            </div>
+            <p className="text-sm text-slate-400">
+              Click below to verify your SMTP credentials work. If the test fails, double-check your host, port, username, and password.
+            </p>
+            
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                onClick={handleTestConnection}
+                disabled={isTesting}
+                className={`gap-2 ${
+                  isConnected 
+                    ? 'bg-emerald-600 hover:bg-emerald-700' 
+                    : 'bg-amber-500 hover:bg-amber-600 text-black'
+                }`}
+              >
+                {isTesting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Testing Connection...
+                  </>
+                ) : isConnected ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    SMTP Verified ✓
+                  </>
+                ) : (
+                  <>
+                    <Key className="w-4 h-4" />
+                    Test SMTP Connection
+                  </>
+                )}
+              </Button>
 
-            <Button
-              onClick={saveSMTPConfig}
-              className="gap-2 bg-emerald-500 hover:bg-emerald-600"
-            >
-              Save Configuration
-            </Button>
+              {isConnected && (
+                <Button
+                  variant="outline"
+                  onClick={() => setShowTestEmailInput(!showTestEmailInput)}
+                  className="gap-2 border-emerald-500 text-emerald-500 hover:bg-emerald-500/10"
+                >
+                  <Send className="w-4 h-4" />
+                  Send Test Email
+                </Button>
+              )}
+            </div>
+
+            {/* Connection Result Feedback */}
+            {!isTesting && !isConnected && smtpConfig.username && smtpConfig.password && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+                <XCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium text-red-400">SMTP Not Verified</p>
+                  <p className="text-red-400/70">Click "Test SMTP Connection" to verify your credentials work.</p>
+                </div>
+              </div>
+            )}
 
             {isConnected && (
-              <Button
-                variant="outline"
-                onClick={() => setShowTestEmailInput(!showTestEmailInput)}
-                className="gap-2 ml-auto"
-              >
-                <Send className="w-4 h-4" />
-                Send Test Email
-              </Button>
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium text-emerald-400">SMTP Connection Verified!</p>
+                  <p className="text-emerald-400/70">Your email server is ready to send outreach emails.</p>
+                </div>
+              </div>
             )}
           </div>
 
           {/* Test Email Input */}
           {showTestEmailInput && (
-            <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-lg">
+            <div className="flex items-center gap-3 p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
               <Input
                 type="email"
-                placeholder="Enter email for test..."
+                placeholder="Enter your email to receive a test..."
                 value={testEmailAddress}
                 onChange={(e) => setTestEmailAddress(e.target.value)}
-                className="flex-1"
+                className="flex-1 bg-slate-800 border-slate-600"
               />
               <Button
                 onClick={handleSendTestEmail}
@@ -330,12 +357,22 @@ export default function SMTPConfigPanel() {
                 ) : (
                   <>
                     <Send className="w-4 h-4" />
-                    Send
+                    Send Test
                   </>
                 )}
               </Button>
             </div>
           )}
+
+          {/* Save Button */}
+          <div className="flex items-center gap-3 pt-4 border-t border-slate-700">
+            <Button
+              onClick={saveSMTPConfig}
+              className="gap-2 bg-primary hover:bg-primary/90"
+            >
+              Save Configuration
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
