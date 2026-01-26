@@ -30,7 +30,7 @@ const platforms = [
 const PlatformSearchModule = () => {
   const [service, setService] = useState("");
   const [location, setLocation] = useState("");
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["wordpress", "wix", "weebly"]);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["gmb", "wordpress", "wix", "weebly"]);
   const [showAllPlatforms, setShowAllPlatforms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<PlatformResult[]>([]);

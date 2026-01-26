@@ -40,7 +40,7 @@ const SearchModule = () => {
   const [isLoading, setIsLoading] = useState(false);
   
   // Platform-specific state
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["wordpress", "wix", "weebly", "squarespace"]);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["gmb", "wordpress", "wix", "weebly", "squarespace"]);
   const [showAllPlatforms, setShowAllPlatforms] = useState(false);
   
   // Results
