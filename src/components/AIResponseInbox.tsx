@@ -1450,39 +1450,34 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
               </button>
             </div>
 
-            {/* New Email Button - Gmail-style prominent compose */}
+            {/* Gmail-style Compose Button */}
             <div className="p-3">
               <Button 
                 onClick={() => openComposeModal()}
                 className={cn(
-                  "gap-2 bg-gradient-to-r from-primary to-emerald-500 hover:from-primary/90 hover:to-emerald-600 text-white shadow-lg shadow-primary/30",
-                  sidebarCollapsed ? "w-10 h-10 p-0" : "w-full py-3"
+                  "gap-3 bg-white hover:bg-slate-100 text-slate-800 shadow-md hover:shadow-lg transition-all duration-200 border-0",
+                  sidebarCollapsed ? "w-12 h-12 p-0 rounded-full" : "w-full py-3.5 rounded-2xl"
                 )}
                 size={sidebarCollapsed ? "icon" : "lg"}
               >
-                <PenTool className="w-5 h-5" />
+                <div className="relative">
+                  <PenTool className="w-5 h-5 text-slate-700" />
+                  {sidebarCollapsed && unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                  )}
+                </div>
                 {!sidebarCollapsed && (
-                  <span className="font-semibold">Compose Email</span>
+                  <span className="font-semibold text-base">Compose</span>
                 )}
               </Button>
-              {!sidebarCollapsed && (
-                <p className="text-[10px] text-slate-500 text-center mt-1.5">
-                  Send emails manually like Gmail
-                </p>
-              )}
             </div>
 
-            {/* Unread Counter */}
+            {/* Unread notification - subtle inline badge */}
             {!sidebarCollapsed && unreadCount > 0 && (
-              <div className="px-3 pb-2">
-                <div className="bg-emerald-900/50 border border-emerald-700 rounded-lg p-3 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white font-bold text-lg animate-pulse">
-                    {unreadCount}
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-emerald-100">New Emails</p>
-                    <p className="text-xs text-emerald-400">{hotCount} hot leads!</p>
-                  </div>
+              <div className="px-4 pb-2">
+                <div className="flex items-center gap-2 text-xs text-emerald-400">
+                  <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                  <span>{unreadCount} unread • {hotCount} hot leads</span>
                 </div>
               </div>
             )}
