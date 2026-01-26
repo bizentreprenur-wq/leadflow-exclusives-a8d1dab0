@@ -23,6 +23,7 @@ import ResetPassword from "./pages/ResetPassword";
 import VerifyEmail from "./pages/VerifyEmail";
 import Reviews from "./pages/Reviews";
 import DashboardDemo from "./pages/DashboardDemo";
+import MailboxDemo from "./pages/MailboxDemo";
 import TemplateGallery from "./pages/TemplateGallery";
 import CloseLoop from "./pages/CloseLoop";
 import Privacy from "./pages/Privacy";
@@ -72,6 +73,7 @@ const App = () => {
                 <Route path="/verify-email" element={<VerifyEmail />} />
                 <Route path="/reviews" element={<Reviews />} />
                 <Route path="/dashboard-demo" element={<DashboardDemo />} />
+                <Route path="/mailbox-demo" element={<MailboxDemo />} />
                 <Route path="/template-gallery" element={<TemplateGallery />} />
                 <Route path="/closeloop" element={<CloseLoop />} />
                 <Route path="/privacy" element={<Privacy />} />
