@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,10 +11,23 @@ import {
   Mail, Play, Pause, Send, Eye, Upload, Bell, Clock,
   CheckCircle2, Loader2, Users, BarChart3, Settings,
   ChevronRight, Zap, TrendingUp, ArrowRight, ArrowUp, Rocket,
-  AlertCircle, FileText, RefreshCw, ExternalLink, Image
+  AlertCircle, FileText, RefreshCw, ExternalLink, Image, Inbox
 } from 'lucide-react';
-import { sendSingleEmail, isSMTPConfigured } from '@/lib/emailService';
+import { sendSingleEmail, isSMTPConfigured, getSentEmails } from '@/lib/emailService';
 import { getUserLogoFromStorage } from '@/hooks/useUserBranding';
+
+// Real sent email from backend
+interface SentEmail {
+  id: string;
+  recipient_email: string;
+  recipient_name?: string;
+  business_name?: string;
+  subject: string;
+  status: 'pending' | 'sent' | 'delivered' | 'opened' | 'clicked' | 'replied' | 'bounced' | 'failed';
+  sent_at?: string;
+  opened_at?: string;
+  clicked_at?: string;
+}
 
 // Email queue item
 interface QueuedEmail {
@@ -86,6 +99,11 @@ export default function LiveDripMailbox({ onSwitchToFullMailbox, leads = [], ver
   const [showPreviewMode, setShowPreviewMode] = useState(true);
   const sendIntervalRef = useRef<NodeJS.Timeout | null>(null);
   
+  // Real sent emails from backend
+  const [realSentEmails, setRealSentEmails] = useState<SentEmail[]>([]);
+  const [isLoadingSent, setIsLoadingSent] = useState(false);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  
   // Lead category filters
   const [sendHot, setSendHot] = useState(true);
   const [sendWarm, setSendWarm] = useState(true);
@@ -134,6 +152,37 @@ export default function LiveDripMailbox({ onSwitchToFullMailbox, leads = [], ver
     if (e.category === 'cold' && sendCold) return true;
     return false;
   }).length;
+
+  // Fetch real sent emails from backend
+  const fetchSentEmails = useCallback(async () => {
+    setIsLoadingSent(true);
+    try {
+      const emails = await getSentEmails(50, 0);
+      if (Array.isArray(emails)) {
+        setRealSentEmails(emails);
+      }
+    } catch (error) {
+      console.error('Failed to fetch sent emails:', error);
+    } finally {
+      setIsLoadingSent(false);
+    }
+  }, []);
+
+  // Initial fetch and polling for real sent emails
+  useEffect(() => {
+    fetchSentEmails();
+    
+    // Poll every 5 seconds when sending is active
+    pollingRef.current = setInterval(() => {
+      fetchSentEmails();
+    }, 5000);
+    
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
+  }, [fetchSentEmails]);
 
   // Convert incoming leads to email queue format
   useEffect(() => {
@@ -288,13 +337,27 @@ export default function LiveDripMailbox({ onSwitchToFullMailbox, leads = [], ver
     toast.info('Campaign reset');
   };
 
+  // Status color helper
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'sent': return 'bg-emerald-500/20 text-emerald-400';
+      case 'delivered': return 'bg-green-500/20 text-green-400';
+      case 'opened': return 'bg-blue-500/20 text-blue-400';
+      case 'clicked': return 'bg-violet-500/20 text-violet-400';
+      case 'replied': return 'bg-amber-500/20 text-amber-400';
+      case 'bounced': return 'bg-red-500/20 text-red-400';
+      case 'failed': return 'bg-red-500/20 text-red-400';
+      default: return 'bg-slate-500/20 text-slate-400';
+    }
+  };
+
   const tabs = [
     { id: 'mailbox' as ViewMode, label: 'Mailbox', icon: <Mail className="w-4 h-4" /> },
     { id: 'preview' as ViewMode, label: 'Preview', icon: <Eye className="w-4 h-4" /> },
     { id: 'crm' as ViewMode, label: 'CRM', icon: <Users className="w-4 h-4" /> },
     { id: 'ab' as ViewMode, label: 'A/B', icon: <BarChart3 className="w-4 h-4" /> },
     { id: 'smtp' as ViewMode, label: 'SMTP', icon: <Settings className="w-4 h-4" /> },
-    { id: 'inbox' as ViewMode, label: 'Inbox', icon: <Mail className="w-4 h-4" /> },
+    { id: 'inbox' as ViewMode, label: 'Sent Box', icon: <Inbox className="w-4 h-4" />, badge: realSentEmails.length },
   ];
 
   return (
@@ -358,7 +421,7 @@ export default function LiveDripMailbox({ onSwitchToFullMailbox, leads = [], ver
               key={tab.id}
               onClick={() => setViewMode(tab.id)}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all relative",
                 viewMode === tab.id
                   ? "bg-emerald-600 text-white"
                   : "bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700"
@@ -366,6 +429,11 @@ export default function LiveDripMailbox({ onSwitchToFullMailbox, leads = [], ver
             >
               {tab.icon}
               {tab.label}
+              {tab.badge && tab.badge > 0 && (
+                <Badge className="ml-1 bg-primary text-primary-foreground text-[10px] px-1.5 py-0 h-5 min-w-[20px]">
+                  {tab.badge}
+                </Badge>
+              )}
             </button>
           ))}
         </div>
@@ -436,7 +504,160 @@ export default function LiveDripMailbox({ onSwitchToFullMailbox, leads = [], ver
         </Button>
       </div>
 
-      {/* Main Drip Campaign Preview */}
+      {/* Sent Box View - Real Emails from Backend */}
+      {viewMode === 'inbox' ? (
+        <div className="mx-6 mt-6">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+            {/* Sent Box Header */}
+            <div className="bg-slate-800 px-6 py-4 flex items-center justify-between border-b border-slate-700">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center">
+                  <Send className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white">Sent Emails</h2>
+                  <p className="text-sm text-slate-400">
+                    {realSentEmails.length} emails sent • Updates every 5 seconds
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={fetchSentEmails}
+                  className="border-slate-600 text-slate-300 gap-2"
+                  disabled={isLoadingSent}
+                >
+                  <RefreshCw className={cn("w-4 h-4", isLoadingSent && "animate-spin")} />
+                  Refresh
+                </Button>
+              </div>
+            </div>
+
+            {/* Sent Email List */}
+            <ScrollArea className="h-[600px]">
+              {isLoadingSent && realSentEmails.length === 0 ? (
+                <div className="p-12 text-center">
+                  <Loader2 className="w-10 h-10 text-slate-500 mx-auto animate-spin mb-4" />
+                  <p className="text-slate-400">Loading sent emails...</p>
+                </div>
+              ) : realSentEmails.length === 0 ? (
+                <div className="p-12 text-center">
+                  <Mail className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-slate-300 mb-2">No Emails Sent Yet</h3>
+                  <p className="text-slate-500 mb-4">Once you send emails, they will appear here in real-time.</p>
+                  <Button onClick={() => setViewMode('mailbox')} className="bg-emerald-500 hover:bg-emerald-600">
+                    <Send className="w-4 h-4 mr-2" />
+                    Go Send Some Emails
+                  </Button>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-800">
+                  {realSentEmails.map((email, idx) => (
+                    <motion.div
+                      key={email.id || idx}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                      className="px-6 py-4 hover:bg-slate-800/50 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-start gap-4">
+                        {/* Status Icon */}
+                        <div className={cn(
+                          "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0",
+                          email.status === 'sent' || email.status === 'delivered' ? "bg-emerald-500/20" : 
+                          email.status === 'opened' || email.status === 'clicked' ? "bg-blue-500/20" :
+                          email.status === 'failed' || email.status === 'bounced' ? "bg-red-500/20" :
+                          "bg-slate-700"
+                        )}>
+                          {email.status === 'sent' || email.status === 'delivered' ? (
+                            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                          ) : email.status === 'opened' ? (
+                            <Eye className="w-5 h-5 text-blue-400" />
+                          ) : email.status === 'clicked' ? (
+                            <ExternalLink className="w-5 h-5 text-violet-400" />
+                          ) : email.status === 'failed' || email.status === 'bounced' ? (
+                            <AlertCircle className="w-5 h-5 text-red-400" />
+                          ) : (
+                            <Mail className="w-5 h-5 text-slate-400" />
+                          )}
+                        </div>
+
+                        {/* Email Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-semibold text-white truncate">
+                              {email.business_name || email.recipient_name || 'Unknown Recipient'}
+                            </span>
+                            <Badge className={cn("text-[10px] capitalize", getStatusColor(email.status))}>
+                              {email.status}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-slate-300 truncate mb-1">{email.subject}</p>
+                          <p className="text-xs text-slate-500">
+                            To: {email.recipient_email}
+                          </p>
+                        </div>
+
+                        {/* Timestamp */}
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-xs text-slate-500">
+                            {email.sent_at ? new Date(email.sent_at).toLocaleDateString() : 'Pending'}
+                          </p>
+                          <p className="text-[10px] text-slate-600">
+                            {email.sent_at ? new Date(email.sent_at).toLocaleTimeString() : ''}
+                          </p>
+                          {email.opened_at && (
+                            <p className="text-[10px] text-blue-400 mt-1">
+                              Opened {new Date(email.opened_at).toLocaleTimeString()}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+
+            {/* Stats Footer */}
+            {realSentEmails.length > 0 && (
+              <div className="bg-slate-800 px-6 py-4 border-t border-slate-700">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                      <span className="text-slate-400">Sent:</span>
+                      <span className="text-emerald-400 font-semibold">
+                        {realSentEmails.filter(e => e.status === 'sent' || e.status === 'delivered').length}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-blue-400" />
+                      <span className="text-slate-400">Opened:</span>
+                      <span className="text-blue-400 font-semibold">
+                        {realSentEmails.filter(e => e.status === 'opened' || e.status === 'clicked').length}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-red-400" />
+                      <span className="text-slate-400">Failed:</span>
+                      <span className="text-red-400 font-semibold">
+                        {realSentEmails.filter(e => e.status === 'failed' || e.status === 'bounced').length}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-slate-500">
+                    Last updated: {new Date().toLocaleTimeString()}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : (
+      /* Main Drip Campaign Preview */
       <div className="mx-6 mt-6">
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
           {/* Campaign Header */}
@@ -902,6 +1123,7 @@ export default function LiveDripMailbox({ onSwitchToFullMailbox, leads = [], ver
           </div>
         </div>
       </div>
+      )}
 
       {/* Switch to Full Mailbox */}
       {onSwitchToFullMailbox && (
