@@ -154,7 +154,7 @@ export default function Dashboard() {
   });
   
   // Platform selection for scanner
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['wordpress', 'wix', 'squarespace', 'joomla']);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['gmb', 'wordpress', 'wix', 'squarespace', 'joomla']);
   const [searchLimit, setSearchLimit] = useState<number>(100); // Default 100 results
   const [selectedLeads, setSelectedLeads] = useState<string[]>(() => {
     try {
@@ -1320,6 +1320,7 @@ export default function Dashboard() {
                           validationErrors.platforms ? 'border-red-500 bg-red-500/5' : 'border-transparent'
                         }`}>
                           {[
+                            { id: 'gmb', label: 'Google Maps', icon: '📍' },
                             { id: 'wordpress', label: 'WordPress', icon: '📦' },
                             { id: 'wix', label: 'Wix', icon: '🔷' },
                             { id: 'squarespace', label: 'Squarespace', icon: '⬛' },
