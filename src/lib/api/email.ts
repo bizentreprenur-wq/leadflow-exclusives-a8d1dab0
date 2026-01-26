@@ -121,6 +121,7 @@ const EMAIL_ENDPOINTS = {
   sendBulk: `${API_BASE_URL}/email-outreach.php?action=send-bulk`,
   sends: `${API_BASE_URL}/email-outreach.php?action=sends`,
   scheduled: `${API_BASE_URL}/email-outreach.php?action=scheduled`,
+  queueScheduled: `${API_BASE_URL}/email-outreach.php?action=send`,
   cancelScheduled: (id: number) => `${API_BASE_URL}/email-outreach.php?action=cancel-scheduled&id=${id}`,
   stats: (period?: number) => `${API_BASE_URL}/email-outreach.php?action=stats${period ? `&period=${period}` : ''}`,
 };
@@ -300,6 +301,78 @@ export async function cancelScheduledEmail(id: number): Promise<{ success: boole
     });
   } catch (error: any) {
     return { success: false, error: error.message };
+  }
+}
+
+// Queue a scheduled email to the server
+export interface QueueScheduledEmailParams {
+  to: string;
+  subject: string;
+  body_html: string;
+  body_text?: string;
+  scheduled_for: string; // ISO timestamp
+  recipient_name?: string;
+  business_name?: string;
+  lead_id?: number;
+  template_id?: number;
+}
+
+export async function queueScheduledEmail(params: QueueScheduledEmailParams): Promise<{ success: boolean; send_id?: number; error?: string }> {
+  try {
+    // The send endpoint handles scheduling when scheduled_for is provided
+    return await apiRequest(EMAIL_ENDPOINTS.queueScheduled, {
+      method: 'POST',
+      body: JSON.stringify({
+        ...params,
+        track_opens: true,
+      }),
+    });
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+// Sync local scheduled emails to the server
+export async function syncLocalScheduledToServer(): Promise<{ synced: number; failed: number; errors: string[] }> {
+  const result = { synced: 0, failed: 0, errors: [] as string[] };
+  
+  try {
+    const raw = localStorage.getItem('bamlead_scheduled_manual_emails');
+    const localEmails = raw ? JSON.parse(raw) : [];
+    
+    if (!Array.isArray(localEmails) || localEmails.length === 0) {
+      return result;
+    }
+
+    const remaining: any[] = [];
+    
+    for (const email of localEmails) {
+      const res = await queueScheduledEmail({
+        to: email.to,
+        subject: email.subject,
+        body_html: `<div>${email.body.replace(/\n/g, '<br/>')}</div>`,
+        body_text: email.body,
+        scheduled_for: email.scheduledFor,
+        recipient_name: email.recipientName,
+        business_name: email.businessName,
+      });
+      
+      if (res.success) {
+        result.synced++;
+      } else {
+        result.failed++;
+        result.errors.push(`${email.to}: ${res.error || 'Unknown error'}`);
+        remaining.push(email); // Keep failed ones for retry
+      }
+    }
+    
+    // Update local storage - remove synced emails
+    localStorage.setItem('bamlead_scheduled_manual_emails', JSON.stringify(remaining));
+    
+    return result;
+  } catch (error: any) {
+    result.errors.push(error.message);
+    return result;
   }
 }
 
