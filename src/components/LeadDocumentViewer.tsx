@@ -1089,7 +1089,7 @@ export default function LeadDocumentViewer({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[900px] w-[95vw] h-[90vh] flex flex-col p-0 gap-0 bg-gray-100 rounded-xl shadow-2xl" aria-describedby={undefined}>
+      <DialogContent className="max-w-[1100px] w-[98vw] h-[95vh] flex flex-col p-0 gap-0 bg-gray-100 rounded-xl shadow-2xl" aria-describedby={undefined}>
         <VisuallyHidden>
           <DialogTitle>Lead Intelligence Report</DialogTitle>
           <DialogDescription>AI-analyzed lead intelligence report with categorized leads</DialogDescription>
