@@ -133,7 +133,7 @@ export default function MailboxDock({
         <div className="fixed inset-0 z-[100] animate-in fade-in duration-200">
           {/* Campaign Running Indicator */}
           {campaignContext?.isActive && (
-            <div className="absolute top-4 left-4 z-[110] flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-600/90 text-white text-sm shadow-lg backdrop-blur">
+            <div className="absolute top-4 left-4 z-[110] flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-600/90 text-white text-sm shadow-lg">
               <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
               <span>Campaign running: {campaignContext.sentCount}/{campaignContext.totalLeads} sent</span>
             </div>
@@ -142,7 +142,7 @@ export default function MailboxDock({
           {/* Close Button - floating on top */}
           <button
             onClick={handleClose}
-            className="absolute top-4 right-4 z-[110] p-2.5 rounded-full bg-slate-800/90 hover:bg-slate-700 text-white shadow-lg transition-colors backdrop-blur"
+            className="absolute top-4 right-4 z-[110] p-2.5 rounded-full bg-slate-800/90 hover:bg-slate-700 text-white shadow-lg transition-colors"
             aria-label="Close mailbox"
           >
             <X className="w-5 h-5" />
