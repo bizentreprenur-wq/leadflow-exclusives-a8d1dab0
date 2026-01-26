@@ -538,54 +538,50 @@ export default function SimpleLeadViewer({
       )}
 
       {/* Filters & Search Row */}
-      <div className="flex items-center gap-4 overflow-x-auto pb-2">
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {[
-            { key: 'all', label: 'All', icon: Users, count: groupedCounts.all, color: '', activeColor: 'bg-primary' },
-            { key: 'hot', label: 'Hot', icon: Flame, count: groupedCounts.hot, color: 'text-red-500', activeColor: 'bg-red-500 hover:bg-red-600' },
-            { key: 'warm', label: 'Warm', icon: Thermometer, count: groupedCounts.warm, color: 'text-orange-500', activeColor: 'bg-orange-500 hover:bg-orange-600' },
-            { key: 'cold', label: 'Cold', icon: Snowflake, count: groupedCounts.cold, color: 'text-blue-500', activeColor: 'bg-blue-500 hover:bg-blue-600' },
-            { key: 'withEmail', label: 'Has Email', icon: Mail, count: groupedCounts.withEmail, color: 'text-cyan-500', activeColor: 'bg-cyan-500 hover:bg-cyan-600' },
-            { key: 'phoneOnly', label: 'Phone Only', icon: Phone, count: groupedCounts.phoneOnly, color: 'text-green-500', activeColor: 'bg-green-500 hover:bg-green-600' },
-            { key: 'ready', label: 'Ready', icon: Phone, count: groupedCounts.ready, color: 'text-emerald-500', activeColor: 'bg-emerald-500 hover:bg-emerald-600' },
-            { key: 'nosite', label: 'No Site', icon: Globe, count: groupedCounts.nosite, color: 'text-purple-500', activeColor: 'bg-purple-500 hover:bg-purple-600' },
-          ].map((filter) => (
-            <Button
-              key={filter.key}
-              variant={activeFilter === filter.key ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setActiveFilter(filter.key as any)}
-              className={`gap-1.5 flex-shrink-0 ${activeFilter === filter.key ? filter.activeColor : ''}`}
-            >
-              <filter.icon className={`w-3.5 h-3.5 ${activeFilter !== filter.key ? filter.color : ''}`} />
-              {filter.label} ({filter.count})
-            </Button>
-          ))}
-        </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {[
+          { key: 'all', label: 'All', icon: Users, count: groupedCounts.all, color: '', activeColor: 'bg-primary' },
+          { key: 'hot', label: 'Hot', icon: Flame, count: groupedCounts.hot, color: 'text-red-500', activeColor: 'bg-red-500 hover:bg-red-600' },
+          { key: 'warm', label: 'Warm', icon: Thermometer, count: groupedCounts.warm, color: 'text-orange-500', activeColor: 'bg-orange-500 hover:bg-orange-600' },
+          { key: 'cold', label: 'Cold', icon: Snowflake, count: groupedCounts.cold, color: 'text-blue-500', activeColor: 'bg-blue-500 hover:bg-blue-600' },
+          { key: 'withEmail', label: 'Has Email', icon: Mail, count: groupedCounts.withEmail, color: 'text-cyan-500', activeColor: 'bg-cyan-500 hover:bg-cyan-600' },
+          { key: 'phoneOnly', label: 'Phone Only', icon: Phone, count: groupedCounts.phoneOnly, color: 'text-green-500', activeColor: 'bg-green-500 hover:bg-green-600' },
+          { key: 'ready', label: 'Ready', icon: Phone, count: groupedCounts.ready, color: 'text-emerald-500', activeColor: 'bg-emerald-500 hover:bg-emerald-600' },
+          { key: 'nosite', label: 'No Site', icon: Globe, count: groupedCounts.nosite, color: 'text-purple-500', activeColor: 'bg-purple-500 hover:bg-purple-600' },
+        ].map((filter) => (
+          <Button
+            key={filter.key}
+            variant={activeFilter === filter.key ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setActiveFilter(filter.key as any)}
+            className={`gap-1.5 ${activeFilter === filter.key ? filter.activeColor : ''}`}
+          >
+            <filter.icon className={`w-3.5 h-3.5 ${activeFilter !== filter.key ? filter.color : ''}`} />
+            {filter.label} ({filter.count})
+          </Button>
+        ))}
 
-        <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
-          <Button
-            variant={showSaved ? 'default' : 'outline'}
-            size="sm"
-            className="gap-1.5 flex-shrink-0"
-            onClick={() => {
-              setShowSaved(!showSaved);
-              toast.info(showSaved ? 'Showing all leads' : 'Showing saved leads only');
-            }}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            New
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 flex-shrink-0"
-            onClick={() => toast.info('Saved leads feature coming soon!')}
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-            Saved ({selectedIds.size})
-          </Button>
-        </div>
+        <Button
+          variant={showSaved ? 'default' : 'outline'}
+          size="sm"
+          className="gap-1.5"
+          onClick={() => {
+            setShowSaved(!showSaved);
+            toast.info(showSaved ? 'Showing all leads' : 'Showing saved leads only');
+          }}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+          New
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => toast.info('Saved leads feature coming soon!')}
+        >
+          <FileSpreadsheet className="w-3.5 h-3.5" />
+          Saved ({selectedIds.size})
+        </Button>
       </div>
 
       {/* Search */}
