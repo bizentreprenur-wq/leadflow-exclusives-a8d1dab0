@@ -159,9 +159,8 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   ];
 
   return (
-    <div className="relative w-full h-full min-h-screen flex flex-col bg-background">
-
-      <div className="relative flex min-h-screen flex-col">
+    <div className="relative w-full h-full flex flex-col bg-background">
+      <div className="relative flex h-full flex-col">
         {/* TOP HEADER */}
         <header className="bg-card border-b border-border/60 px-6 py-3 flex-shrink-0">
           <div className="flex items-center justify-between">
