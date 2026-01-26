@@ -229,7 +229,7 @@ export default function AIProcessingPipeline({
 
     let agentIndex = 0;
     const totalAgents = AI_AGENTS.length;
-    const timePerAgent = 600; // Faster: 600ms per agent instead of 800ms
+    const timePerAgent = 400; // Faster: 400ms per agent
     let cancelled = false;
 
     const processAgent = () => {
@@ -304,12 +304,12 @@ export default function AIProcessingPipeline({
         if (cancelled) return;
         setCompletedAgents((prev) => [...prev, agent.id]);
         agentIndex++;
-        setTimeout(processAgent, 150); // Faster transition
+        setTimeout(processAgent, 100); // Faster transition
       }, timePerAgent);
     };
 
     // Start immediately
-    const startTimer = setTimeout(processAgent, 300);
+    const startTimer = setTimeout(processAgent, 150);
     return () => {
       cancelled = true;
       clearTimeout(startTimer);
@@ -325,39 +325,39 @@ export default function AIProcessingPipeline({
   const displayProgress = forceProcessing ? Math.min(progress, 95) : progress;
 
   return (
-    <Card className="border-primary/30 bg-gradient-to-br from-background via-primary/5 to-background overflow-hidden">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-3">
+    <Card className="border-2 border-primary/50 bg-gradient-to-br from-background via-primary/10 to-background overflow-hidden shadow-lg shadow-primary/20">
+      <CardHeader className="pb-4">
+        <CardTitle className="flex items-center gap-4">
           <div className="relative">
-            <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
-              <Brain className="h-6 w-6 text-primary" />
+            <div className="p-3 rounded-xl bg-primary/20 border-2 border-primary/40">
+              <Brain className="h-8 w-8 text-primary" />
             </div>
             {isProcessing && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse" />
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full animate-pulse shadow-lg shadow-green-500/50" />
             )}
           </div>
           <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-bold">8 Revolutionary AI Agents</span>
+            <div className="flex items-center gap-3">
+              <span className="text-xl md:text-2xl font-bold">8 Revolutionary AI Agents</span>
               <Badge
                 variant="outline"
                 className={cn(
-                  "text-xs",
+                  "text-sm px-3 py-1",
                   showProcessing
-                    ? "bg-green-500/10 text-green-500 border-green-500/30 animate-pulse"
+                    ? "bg-green-500/20 text-green-400 border-green-500/50 animate-pulse"
                     : showComplete
-                    ? "bg-primary/10 text-primary border-primary/30"
+                    ? "bg-primary/20 text-primary border-primary/50"
                     : "bg-muted text-muted-foreground"
                 )}
               >
                 {showProcessing ? (
                   <>
-                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
                     PROCESSING
                   </>
                 ) : showComplete ? (
                   <>
-                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    <CheckCircle2 className="h-4 w-4 mr-1.5" />
                     COMPLETE
                   </>
                 ) : (
@@ -365,7 +365,7 @@ export default function AIProcessingPipeline({
                 )}
               </Badge>
             </div>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-base text-muted-foreground mt-1">
               {showProcessing
                 ? `Analyzing ${leads.length} leads with advanced AI...`
                 : showComplete
@@ -376,14 +376,14 @@ export default function AIProcessingPipeline({
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5">
         {/* Progress Bar */}
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Pipeline Progress</span>
-            <span className="font-mono font-bold text-primary">{displayProgress}%</span>
+            <span className="text-muted-foreground font-medium">Pipeline Progress</span>
+            <span className="font-mono font-bold text-primary text-lg">{displayProgress}%</span>
           </div>
-          <Progress value={displayProgress} className="h-2" />
+          <Progress value={displayProgress} className="h-3" />
         </div>
 
         {/* Current Agent Highlight */}
