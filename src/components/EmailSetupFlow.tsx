@@ -16,6 +16,16 @@ import {
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import HighConvertingTemplateGallery from './HighConvertingTemplateGallery';
 import EmailOutreachModule from './EmailOutreachModule';
 import CRMIntegrationModal from './CRMIntegrationModal';
@@ -30,7 +40,7 @@ import AITemplateSuggestions from './AITemplateSuggestions';
 import AIEmailAssistant from './AIEmailAssistant';
 import EmailConfigurationPanel from './EmailConfigurationPanel';
 import { LeadForEmail, sendBulkEmails } from '@/lib/api/email';
-import { isSMTPConfigured, personalizeContent } from '@/lib/emailService';
+import { isSMTPConfigured, personalizeContent, sendTestEmail } from '@/lib/emailService';
 import { addLeadsToCRM, queueLeadsForEmail } from '@/lib/customTemplates';
 import EmailDeliveryNotifications from './EmailDeliveryNotifications';
 import { useAuth } from '@/contexts/AuthContext';
@@ -77,6 +87,12 @@ export default function EmailSetupFlow({
   const [showAutoCampaign, setShowAutoCampaign] = useState(false);
   const [showTemplateEditor, setShowTemplateEditor] = useState(false);
   const [mailboxOpen, setMailboxOpen] = useState(false);
+  const [showSendConfirmation, setShowSendConfirmation] = useState(false);
+  const [pendingSendData, setPendingSendData] = useState<{
+    validLeads: LeadForEmail[];
+    emailSubject: string;
+    emailBody: string;
+  } | null>(null);
   
   // Auth context for persistent branding
   const { isAuthenticated } = useAuth();
@@ -1132,7 +1148,7 @@ export default function EmailSetupFlow({
             Back to Step 2
           </Button>
           <Button 
-            onClick={async () => {
+            onClick={() => {
               // Validate SMTP
               if (!smtpConfigured) {
                 toast.error('⚙️ Please configure SMTP settings first');
@@ -1161,63 +1177,9 @@ export default function EmailSetupFlow({
                 return;
               }
               
-              // Switch to send phase and show mailbox immediately
-              setCurrentPhase('send');
-              setActiveTab('mailbox');
-              setRealSendingMode(true); // Start animation immediately
-              setDemoIsActive(true);
-              smartDripRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              
-              setIsSending(true);
-              try {
-                console.log('Sending emails to:', validLeads.length, 'leads');
-                console.log('Subject:', emailSubject);
-                console.log('Body length:', emailBody.length);
-                
-                // Format leads properly for the email API
-                const formattedLeads = validLeads.map(lead => ({
-                  email: lead.email || '',
-                  business_name: lead.business_name || 'Business',
-                  contact_name: lead.contact_name || 'Contact',
-                  website: lead.website || '',
-                  phone: lead.phone || '',
-                  platform: 'Google',
-                  issues: [],
-                  leadScore: lead.leadScore || 50,
-                  emailValid: true,
-                }));
-                
-                const result = await sendBulkEmails({
-                  leads: formattedLeads,
-                  custom_subject: emailSubject,
-                  custom_body: emailBody,
-                  send_mode: 'instant', // Changed to instant for immediate sending
-                });
-                
-                if (result.success) {
-                  sessionStorage.setItem('emails_sent', 'true');
-                  const sentCount = result.results?.sent || 0;
-                  const totalCount = validLeads.length;
-                  toast.success(`🚀 Emails sent successfully! ${sentCount} of ${totalCount} delivered`, {
-                    description: 'Click "Sent Box" tab in the mailbox to see all sent emails',
-                    duration: 6000,
-                  });
-                  // Update sent count for the visual animation
-                  setDemoSentCount(sentCount);
-                } else {
-                  console.error('Send failed:', result.error);
-                  toast.error(result.error || 'Failed to send emails');
-                  setRealSendingMode(false);
-                  setDemoIsActive(false);
-                }
-              } catch (error) {
-                console.error('Send error:', error);
-                toast.error('Failed to send emails. Check your connection.');
-                setRealSendingMode(false);
-                setDemoIsActive(false);
-              } finally {
-                setIsSending(false);
-              }
+              // Store pending data and show confirmation dialog
+              setPendingSendData({ validLeads, emailSubject, emailBody });
+              setShowSendConfirmation(true);
             }} 
             disabled={isSending}
             className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground px-8 py-3 text-lg font-bold shadow-elevated"
@@ -1267,6 +1229,106 @@ export default function EmailSetupFlow({
           toast.success(`Campaign "${campaignData.name}" launched!`);
         }}
       />
+
+      {/* Send Confirmation Dialog */}
+      <AlertDialog open={showSendConfirmation} onOpenChange={setShowSendConfirmation}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Mail className="w-5 h-5 text-primary" />
+              Confirm Email Campaign
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>You are about to send emails to <strong>{pendingSendData?.validLeads.length || 0}</strong> recipients.</p>
+              
+              <div className="bg-muted/50 rounded-lg p-3 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Subject:</span>
+                  <span className="font-medium truncate max-w-[200px]">{pendingSendData?.emailSubject}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Recipients:</span>
+                  <span className="font-medium">{pendingSendData?.validLeads.length} emails</span>
+                </div>
+              </div>
+              
+              <p className="text-amber-600 dark:text-amber-400 text-sm flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                This action cannot be undone.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                if (!pendingSendData) return;
+                
+                const { validLeads, emailSubject, emailBody } = pendingSendData;
+                
+                // Switch to send phase and show mailbox immediately
+                setCurrentPhase('send');
+                setActiveTab('mailbox');
+                setRealSendingMode(true);
+                setDemoIsActive(true);
+                smartDripRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                
+                setIsSending(true);
+                try {
+                  console.log('Sending emails to:', validLeads.length, 'leads');
+                  
+                  // Format leads properly for the email API
+                  const formattedLeads = validLeads.map(lead => ({
+                    email: lead.email || '',
+                    business_name: lead.business_name || 'Business',
+                    contact_name: lead.contact_name || 'Contact',
+                    website: lead.website || '',
+                    phone: lead.phone || '',
+                    platform: 'Google',
+                    issues: [],
+                    leadScore: lead.leadScore || 50,
+                    emailValid: true,
+                  }));
+                  
+                  const result = await sendBulkEmails({
+                    leads: formattedLeads,
+                    custom_subject: emailSubject,
+                    custom_body: emailBody,
+                    send_mode: 'instant',
+                  });
+                  
+                  if (result.success) {
+                    sessionStorage.setItem('emails_sent', 'true');
+                    const sentCount = result.results?.sent || 0;
+                    toast.success(`🚀 Emails sent successfully! ${sentCount} of ${validLeads.length} delivered`, {
+                      description: 'Click "Sent Box" tab in the mailbox to see all sent emails',
+                      duration: 6000,
+                    });
+                    setDemoSentCount(sentCount);
+                  } else {
+                    console.error('Send failed:', result.error);
+                    toast.error(result.error || 'Failed to send emails');
+                    setRealSendingMode(false);
+                    setDemoIsActive(false);
+                  }
+                } catch (error) {
+                  console.error('Send error:', error);
+                  toast.error('Failed to send emails. Check your connection.');
+                  setRealSendingMode(false);
+                  setDemoIsActive(false);
+                } finally {
+                  setIsSending(false);
+                  setPendingSendData(null);
+                }
+              }}
+              className="bg-primary hover:bg-primary/90"
+            >
+              <Send className="w-4 h-4 mr-2" />
+              Send {pendingSendData?.validLeads.length} Emails
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
