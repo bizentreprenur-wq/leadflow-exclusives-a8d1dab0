@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { X, Mail } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import AIResponseInbox from "@/components/AIResponseInbox";
+import CleanMailboxLayout from "@/components/CleanMailboxLayout";
 
 type MailboxDockProps = {
   /** Render nothing when false */
@@ -150,7 +150,7 @@ export default function MailboxDock({
 
           {/* Full Screen Inbox - fills entire viewport */}
           <div className="w-full h-full">
-            <AIResponseInbox campaignContext={campaignContext} searchType={searchType} />
+            <CleanMailboxLayout campaignContext={campaignContext} searchType={searchType} />
           </div>
         </div>
       )}
