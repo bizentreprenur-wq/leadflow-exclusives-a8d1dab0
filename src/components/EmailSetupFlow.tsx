@@ -1016,7 +1016,7 @@ export default function EmailSetupFlow({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6">
       {/* Floating mailbox on the right (visible throughout Step 3) */}
       <MailboxDock 
         enabled={true} 
@@ -1113,8 +1113,8 @@ export default function EmailSetupFlow({
       </Card>
 
       {/* Fixed Next Button at Bottom */}
-      <div className="sticky bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t border-border p-4 -mx-6 mt-6 shadow-lg">
-        <div className="flex items-center justify-between max-w-4xl mx-auto">
+      <div className="sticky bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t border-border p-4 mt-6 shadow-lg rounded-xl">
+        <div className="flex items-center justify-between">
           <Button variant="outline" onClick={onBack} className="gap-2">
             <ArrowLeft className="w-4 h-4" />
             Back to Step 2
