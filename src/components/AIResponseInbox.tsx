@@ -1762,7 +1762,13 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
                   </div>
                 </ScrollArea>
               </div>
-            ) : null}
+           ) : (
+             <div className="flex-1 flex items-center justify-center bg-slate-900/30">
+               <div className="text-center opacity-30">
+                 <Inbox className="w-16 h-16 text-slate-600 mx-auto mb-2" />
+               </div>
+             </div>
+           )}
           </div>
 
           {/* RIGHT PANEL - Email Viewer / Editor - Dark Theme */}
@@ -1770,7 +1776,7 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
             {selectedReply ? (
               <>
                 {/* Email Header - Dark Theme */}
-                <div className="p-4 border-b border-slate-800">
+               <div className="p-4 border-b border-slate-800 bg-slate-900">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
                       <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold ${
@@ -1995,7 +2001,13 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
                   </div>
                 </ScrollArea>
               </>
-            ) : null}
+           ) : (
+             <div className="flex-1 flex items-center justify-center bg-slate-900/30">
+               <div className="text-center opacity-30">
+                 <Mail className="w-16 h-16 text-slate-600 mx-auto mb-2" />
+               </div>
+             </div>
+           )}
           </div>
         </div>
       ) : topTab === 'preview' ? (
