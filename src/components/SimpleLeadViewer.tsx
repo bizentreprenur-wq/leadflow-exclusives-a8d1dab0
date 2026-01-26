@@ -623,10 +623,10 @@ export default function SimpleLeadViewer({
                   <TableHead className="w-16 text-center">Website</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
-                  <TableHead className="w-24">Timing</TableHead>
-                  <TableHead className="w-24">Best Action</TableHead>
-                  <TableHead>Pain Points</TableHead>
-                  <TableHead>Recommended Approach</TableHead>
+                  <TableHead className="w-24 min-w-[96px]">Timing</TableHead>
+                  <TableHead className="w-24 min-w-[96px]">Best Action</TableHead>
+                  <TableHead className="min-w-[140px]">Pain Points</TableHead>
+                  <TableHead className="min-w-[160px]">Recommended Approach</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
