@@ -618,7 +618,7 @@ export default function SimpleLeadViewer({
                     <TableHead className="w-12">#</TableHead>
                     <TableHead className="w-20 text-center">Score</TableHead>
                     <TableHead className="w-24">Priority</TableHead>
-                    <TableHead className="min-w-[140px]">Business Name</TableHead>
+                    <TableHead className="w-[220px]">Business Name</TableHead>
                     <TableHead className="w-16 text-center">Website</TableHead>
                     <TableHead className="min-w-[120px]">Email</TableHead>
                     <TableHead className="min-w-[100px]">Phone</TableHead>
@@ -708,10 +708,10 @@ export default function SimpleLeadViewer({
                         <TableCell>
                           {getClassBadge(lead.aiClassification)}
                         </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            <div>
-                              <p className="font-medium">{lead.name}</p>
+                        <TableCell className="w-[220px]">
+                          <div className="flex items-center gap-1 min-w-0">
+                            <div className="min-w-0">
+                              <p className="font-medium truncate">{lead.name}</p>
                               {getSourceBadges(lead.sources)}
                             </div>
                           </div>
