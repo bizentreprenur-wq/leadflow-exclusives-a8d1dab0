@@ -1688,8 +1688,6 @@ export default function Dashboard() {
     switch (activeTab) {
       case 'workflow':
         return null; // Workflow handles its own rendering
-      case 'leadsync-ai':
-        return null; // LeadSync AI handles its own full-screen rendering
       case 'sequences':
         return {
           title: 'Multi-Channel Sequences',

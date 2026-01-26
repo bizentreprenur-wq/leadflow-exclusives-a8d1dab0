@@ -443,7 +443,7 @@ export default function AutomationResultsDelivery() {
             <div>
               <h3 className="font-semibold text-white mb-1">100% Hands-Off Operation</h3>
               <p className="text-slate-400 text-sm mb-4">
-                LeadSync AI handles everything automatically. You'll only see qualified leads, scheduled
+                BamLead AI handles everything automatically. You'll only see qualified leads, scheduled
                 meetings, and positive responses in your inbox. The AI does all the heavy lifting.
               </p>
               <div className="flex flex-wrap gap-3">

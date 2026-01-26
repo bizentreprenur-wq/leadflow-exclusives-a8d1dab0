@@ -353,7 +353,7 @@ export default function LeadJourneyDashboard({
           <div className="flex items-center gap-4">
             {/* Autopilot Toggle */}
             <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-slate-800 border border-slate-700">
-              <span className="text-sm text-slate-400">LeadSync AI</span>
+              <span className="text-sm text-slate-400">BamLead AI</span>
               <Switch
                 checked={isAutopilotActive}
                 onCheckedChange={onToggleAutopilot}
@@ -525,7 +525,7 @@ export default function LeadJourneyDashboard({
           {filteredSteps.length === 0 && (
             <div className="text-center py-12 text-slate-500">
               <Activity className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>No activity yet. Enable LeadSync AI to start outreach!</p>
+              <p>No activity yet. Enable BamLead AI to start outreach!</p>
             </div>
           )}
         </div>
