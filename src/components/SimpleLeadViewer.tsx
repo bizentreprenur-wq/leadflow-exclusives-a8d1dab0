@@ -606,26 +606,27 @@ export default function SimpleLeadViewer({
       <Card className="border-border">
         <CardContent className="p-0">
           {/* Table */}
-          <ScrollArea className="h-[450px]">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/30 hover:bg-muted/30">
-                  <TableHead className="w-10">
-                    <Checkbox
-                      checked={selectedIds.size === filteredLeads.length && filteredLeads.length > 0}
-                      onCheckedChange={selectAll}
-                    />
-                  </TableHead>
-                  <TableHead className="w-12">#</TableHead>
-                  <TableHead className="w-20 text-center">Score</TableHead>
-                  <TableHead className="w-24">Priority</TableHead>
-                  <TableHead>Business Name</TableHead>
-                  <TableHead className="w-16 text-center">Website</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead className="w-24 min-w-[96px]">Timing</TableHead>
-                  <TableHead className="w-24 min-w-[96px]">Best Action</TableHead>
-                  <TableHead className="min-w-[140px]">Pain Points</TableHead>
+          <div className="overflow-x-auto">
+            <ScrollArea className="h-[450px]">
+              <Table className="min-w-[1200px]">
+                <TableHeader>
+                  <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={selectedIds.size === filteredLeads.length && filteredLeads.length > 0}
+                        onCheckedChange={selectAll}
+                      />
+                    </TableHead>
+                    <TableHead className="w-12">#</TableHead>
+                    <TableHead className="w-20 text-center">Score</TableHead>
+                    <TableHead className="w-24">Priority</TableHead>
+                    <TableHead className="min-w-[140px]">Business Name</TableHead>
+                    <TableHead className="w-16 text-center">Website</TableHead>
+                    <TableHead className="min-w-[120px]">Email</TableHead>
+                    <TableHead className="min-w-[100px]">Phone</TableHead>
+                    <TableHead className="w-24 min-w-[80px]">Timing</TableHead>
+                    <TableHead className="w-28 min-w-[100px]">Best Action</TableHead>
+                    <TableHead className="min-w-[130px]">Pain Points</TableHead>
                   <TableHead className="min-w-[160px]">Recommended Approach</TableHead>
                 </TableRow>
               </TableHeader>
@@ -783,6 +784,7 @@ export default function SimpleLeadViewer({
               </TableBody>
             </Table>
           </ScrollArea>
+        </div>
 
           {/* Bottom Action Bar */}
           {!selectedIds.size && leads.length > 0 && (
