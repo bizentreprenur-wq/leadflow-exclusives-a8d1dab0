@@ -229,7 +229,7 @@ function searchSerpApi($service, $location, $platformQueries, $limit = 100) {
     // SerpAPI often caps results at 10 per page on lower plans, so paginate in 10s.
     $resultsPerPage = 10;
     $maxPages = ceil($limit / $resultsPerPage);
-    $maxPages = min($maxPages, 20); // Cap at 20 pages (2000 results max)
+    $maxPages = min($maxPages, 50); // Increased from 20 to 50 pages for better results
     
     for ($page = 0; $page < $maxPages; $page++) {
         if (count($results) >= $limit) {
@@ -424,7 +424,7 @@ function searchBing($service, $location, $platformQueries, $limit = 100) {
     // Bing max is 50 per request, paginate for larger limits
     $resultsPerPage = 50;
     $maxPages = ceil($limit / $resultsPerPage);
-    $maxPages = min($maxPages, 40); // Cap at 2000 results
+    $maxPages = min($maxPages, 60); // Increased from 40 to 60 pages for better results
     
     for ($page = 0; $page < $maxPages; $page++) {
         if (count($results) >= $limit) {

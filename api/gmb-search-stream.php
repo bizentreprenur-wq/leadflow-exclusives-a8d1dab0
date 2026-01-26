@@ -212,16 +212,17 @@ function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sour
     // Dynamic page cap based on limit requested - scaled for massive searches
     // Small searches (≤100): 10 pages, Medium (≤500): 30 pages, Large (≤2000): 100 pages
     // Extra Large (≤10000): 500 pages, Massive (≤50000): 2000 pages per engine
+    // Increased page caps for better results yield
     if ($limit <= 100) {
-        $pageCap = 10;
+        $pageCap = 20; // Doubled from 10
     } elseif ($limit <= 500) {
-        $pageCap = 30;
+        $pageCap = 60; // Doubled from 30
     } elseif ($limit <= 2000) {
-        $pageCap = 100;
+        $pageCap = 150; // Increased from 100
     } elseif ($limit <= 10000) {
-        $pageCap = 500;
+        $pageCap = 600; // Increased from 500
     } else {
-        $pageCap = 2000; // Support up to ~17000 results per engine for 50k total
+        $pageCap = 2500; // Increased from 2000
     }
     $maxPages = min($maxPages, $pageCap);
     

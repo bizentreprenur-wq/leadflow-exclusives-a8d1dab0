@@ -1419,7 +1419,7 @@ export default function Dashboard() {
                       </div>
                     )}
 
-                    {/* Phone Leads Only Filter - Available for both search types */}
+                    {/* AI Calling Mode Filter */}
                     <div className="p-4 rounded-lg border-2 border-green-500/30 bg-green-500/5">
                       <label className="flex items-center gap-3 cursor-pointer">
                         <Checkbox
@@ -1427,16 +1427,22 @@ export default function Dashboard() {
                           onCheckedChange={(checked) => setPhoneLeadsOnly(checked === true)}
                         />
                         <div>
-                          <span className="font-medium text-green-600">📞 Phone Leads Only (for AI Calling)</span>
+                          <span className="font-medium text-green-600">📞 AI Calling Mode</span>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            Prioritize leads with phone numbers for Step 4 AI voice outreach — perfect for cold calling campaigns!
+                            Only show leads with phone numbers for AI voice outreach
                           </p>
                         </div>
                       </label>
-                      {phoneLeadsOnly && (
+                      {phoneLeadsOnly ? (
                         <div className="mt-3 p-2 rounded-lg bg-green-500/10 border border-green-500/20">
                           <p className="text-xs text-green-600 font-medium">
-                            ✓ Results will be filtered to only show businesses with phone numbers
+                            ✓ Results will only include leads with phone numbers (for AI calling)
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="mt-3 p-2 rounded-lg bg-primary/10 border border-primary/20">
+                          <p className="text-xs text-primary font-medium">
+                            ✓ Results will include leads with emails AND phone numbers (for email + call outreach)
                           </p>
                         </div>
                       )}
