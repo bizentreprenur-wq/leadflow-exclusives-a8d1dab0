@@ -624,6 +624,7 @@ export default function SimpleLeadViewer({
                   <TableHead className="w-20 text-center">Score</TableHead>
                   <TableHead className="w-24">Priority</TableHead>
                   <TableHead>Business Name</TableHead>
+                  <TableHead className="w-16 text-center">Website</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Phone</TableHead>
                   <TableHead className="w-24">Timing</TableHead>
@@ -641,6 +642,7 @@ export default function SimpleLeadViewer({
                       <TableCell><Skeleton className="w-12 h-4" /></TableCell>
                       <TableCell><Skeleton className="w-16 h-5" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-32" /></TableCell>
+                      <TableCell><Skeleton className="w-8 h-8 rounded-full mx-auto" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-36" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                       <TableCell><Skeleton className="w-16 h-4" /></TableCell>
@@ -651,7 +653,7 @@ export default function SimpleLeadViewer({
                   ))
                 ) : filteredLeads.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} className="text-center py-16">
+                    <TableCell colSpan={12} className="text-center py-16">
                       <Users className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
                       <p className="text-muted-foreground">No leads found</p>
                     </TableCell>
@@ -714,24 +716,27 @@ export default function SimpleLeadViewer({
                         <TableCell>
                           <div className="flex items-center gap-1">
                             <div>
-                              <div className="flex items-center">
-                                <p className="font-medium">{lead.name}</p>
-                                {getSourceBadges(lead.sources)}
-                              </div>
-                              {lead.website && (
-                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                  <Globe className="w-3 h-3" />
-                                  {lead.website.replace(/^https?:\/\//, '').split('/')[0]}
-                                </p>
-                              )}
+                              <p className="font-medium">{lead.name}</p>
+                              {getSourceBadges(lead.sources)}
                             </div>
-                            {/* Website Preview Icon */}
-                            <WebsitePreviewIcon 
-                              website={lead.website} 
-                              businessName={lead.name}
-                              size="sm"
-                            />
                           </div>
+                        </TableCell>
+                        {/* Website Column with prominent icon */}
+                        <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
+                          {lead.website ? (
+                            <button
+                              onClick={() => window.open(lead.website.startsWith('http') ? lead.website : `https://${lead.website}`, '_blank', 'noopener,noreferrer')}
+                              className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-500 hover:text-emerald-400 transition-all hover:scale-110"
+                              title={`Visit ${lead.website.replace(/^https?:\/\//, '').split('/')[0]}`}
+                            >
+                              <Globe className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-500/10 text-red-400 text-xs font-medium">
+                              <Globe className="w-3 h-3" />
+                              No Site
+                            </span>
+                          )}
                         </TableCell>
                         <TableCell>
                           {lead.email ? (
