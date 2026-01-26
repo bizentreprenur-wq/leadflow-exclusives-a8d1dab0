@@ -934,13 +934,23 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
   };
 
   const handleSendComposedEmail = async () => {
+    console.log('[Compose] Attempting to send email:', {
+      to: composeEmail.to,
+      subject: composeEmail.subject,
+      bodyLength: composeEmail.body?.length,
+    });
+
     if (!composeEmail.to || !composeEmail.subject || !composeEmail.body) {
       toast.error('Please fill in all required fields');
+      console.log('[Compose] Missing required fields');
       return;
     }
 
     // Check if SMTP is configured
-    if (!isSMTPConfigured()) {
+    const smtpConfigured = isSMTPConfigured();
+    console.log('[Compose] SMTP configured:', smtpConfigured);
+    
+    if (!smtpConfigured) {
       toast.error('SMTP not configured', {
         description: 'Please configure your SMTP settings first in the Settings panel.',
       });
@@ -948,6 +958,7 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
     }
 
     setIsSending(true);
+    console.log('[Compose] Starting email send...');
     
     try {
       const branding = loadBranding();
@@ -1450,29 +1461,33 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
               </button>
             </div>
 
-            {/* Gmail-style Compose Button */}
+            {/* Gmail-style Compose Button - Primary Action */}
             <div className="p-3">
               <Button 
-                onClick={() => openComposeModal()}
+                onClick={() => {
+                  console.log('[Compose] Opening compose modal');
+                  openComposeModal();
+                }}
                 className={cn(
-                  "gap-3 bg-white hover:bg-slate-100 text-slate-800 shadow-md hover:shadow-lg transition-all duration-200 border-0",
-                  sidebarCollapsed ? "w-12 h-12 p-0 rounded-full" : "w-full py-3.5 rounded-2xl"
+                  "gap-3 shadow-lg hover:shadow-xl transition-all duration-200 border-0",
+                  "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white",
+                  sidebarCollapsed ? "w-12 h-12 p-0 rounded-full" : "w-full py-4 rounded-xl"
                 )}
                 size={sidebarCollapsed ? "icon" : "lg"}
               >
-                <div className="relative">
-                  <PenTool className="w-5 h-5 text-slate-700" />
-                  {sidebarCollapsed && unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                  )}
-                </div>
+                <PenTool className="w-5 h-5" />
                 {!sidebarCollapsed && (
-                  <span className="font-semibold text-base">Compose</span>
+                  <span className="font-bold text-base">✉️ Compose</span>
                 )}
               </Button>
+              {!sidebarCollapsed && (
+                <p className="text-[10px] text-slate-500 text-center mt-1.5">
+                  Write and send emails manually
+                </p>
+              )}
             </div>
 
-            {/* Unread notification - subtle inline badge */}
+            {/* Unread notification */}
             {!sidebarCollapsed && unreadCount > 0 && (
               <div className="px-4 pb-2">
                 <div className="flex items-center gap-2 text-xs text-emerald-400">
