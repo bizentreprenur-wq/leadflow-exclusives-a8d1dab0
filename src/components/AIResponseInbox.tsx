@@ -433,6 +433,7 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsDialogTab, setSettingsDialogTab] = useState<'automation' | 'smtp'>('automation');
   const [settings, setSettings] = useState<AIAutomationSettings>(loadSettings);
   const [showDocumentPreview, setShowDocumentPreview] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<DocumentRecommendation | null>(null);
@@ -2073,105 +2074,141 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
         </div>
       ) : null}
 
-      {/* Settings Dialog */}
+      {/* Settings Dialog - With Tabs for AI Automation and Email Settings */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent elevated className="max-w-lg bg-slate-900 border-slate-700 text-white">
+        <DialogContent elevated className="max-w-2xl max-h-[85vh] bg-slate-900 border-slate-700 text-white overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-white">
               <Settings className="w-5 h-5" />
-              AI Automation Settings
+              Mailbox Settings
             </DialogTitle>
-            <DialogDescription className="text-slate-400">Configure how AI handles your responses and notifications</DialogDescription>
+            <DialogDescription className="text-slate-400">Configure AI automation and email server settings</DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-6 py-4">
-            {/* Response Mode */}
-            <div className="space-y-3">
-              <Label className="text-sm font-semibold text-slate-200">AI Response Mode</Label>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => updateSetting('responseMode', 'automatic')}
-                  className={`p-4 rounded-xl border-2 text-left transition-all ${
-                    settings.responseMode === 'automatic' ? 'border-emerald-500 bg-emerald-500/20' : 'border-slate-600 hover:border-slate-500 bg-slate-800'
-                  }`}
-                >
-                  <Zap className={`w-5 h-5 mb-2 ${settings.responseMode === 'automatic' ? 'text-emerald-400' : 'text-slate-400'}`} />
-                  <h4 className="font-semibold text-sm text-white">Fully Automatic</h4>
-                  <p className="text-xs text-slate-400">AI sends responses instantly</p>
-                </button>
-                
-                <button
-                  onClick={() => updateSetting('responseMode', 'manual')}
-                  className={`p-4 rounded-xl border-2 text-left transition-all ${
-                    settings.responseMode === 'manual' ? 'border-emerald-500 bg-emerald-500/20' : 'border-slate-600 hover:border-slate-500 bg-slate-800'
-                  }`}
-                >
-                  <Shield className={`w-5 h-5 mb-2 ${settings.responseMode === 'manual' ? 'text-emerald-400' : 'text-slate-400'}`} />
-                  <h4 className="font-semibold text-sm text-white">You Control</h4>
-                  <p className="text-xs text-slate-400">Review before sending</p>
-                </button>
-              </div>
-            </div>
-            
-            <Separator className="bg-slate-700" />
-            
-            {/* Auto Features */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm font-semibold text-slate-200">Auto-Schedule Appointments</Label>
-                  <p className="text-xs text-slate-400">AI books meetings based on your calendar</p>
-                </div>
-                <Switch checked={settings.autoScheduling} onCheckedChange={(v) => updateSetting('autoScheduling', v)} />
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm font-semibold text-slate-200">Smart Document Suggestions</Label>
-                  <p className="text-xs text-slate-400">AI recommends proposals when leads are ready</p>
-                </div>
-                <Switch checked={settings.autoProposals} onCheckedChange={(v) => updateSetting('autoProposals', v)} />
-              </div>
-            </div>
-            
-            <Separator className="bg-slate-700" />
-            
-            {/* Notifications */}
-            <div className="space-y-3">
-              <Label className="text-sm font-semibold flex items-center gap-2 text-slate-200">
-                <Bell className="w-4 h-4" />
-                Notifications
-              </Label>
-              
-              <div className="flex items-center justify-between">
-                <Label className="text-sm text-slate-300">Email Notifications</Label>
-                <Switch checked={settings.notifyEmail} onCheckedChange={(v) => updateSetting('notifyEmail', v)} />
-              </div>
-              {settings.notifyEmail && (
-                <Input
-                  type="email"
-                  value={settings.notifyEmailAddress}
-                  onChange={(e) => updateSetting('notifyEmailAddress', e.target.value)}
-                  placeholder="your@email.com"
-                  className="h-9 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
-                />
+          {/* Settings Tabs */}
+          <div className="flex gap-1 p-1 bg-slate-800 rounded-lg mb-4">
+            <button
+              onClick={() => setSettingsDialogTab('automation')}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
+                settingsDialogTab === 'automation'
+                  ? 'bg-emerald-600 text-white'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-700'
               )}
-              
-              <div className="flex items-center justify-between">
-                <Label className="text-sm text-slate-300">SMS Notifications</Label>
-                <Switch checked={settings.notifySMS} onCheckedChange={(v) => updateSetting('notifySMS', v)} />
-              </div>
-              {settings.notifySMS && (
-                <Input
-                  type="tel"
-                  value={settings.notifyPhone}
-                  onChange={(e) => updateSetting('notifyPhone', e.target.value)}
-                  placeholder="+1 (555) 123-4567"
-                  className="h-9 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
-                />
+            >
+              <Bot className="w-4 h-4" />
+              AI Automation
+            </button>
+            <button
+              onClick={() => setSettingsDialogTab('smtp')}
+              className={cn(
+                "flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all",
+                settingsDialogTab === 'smtp'
+                  ? 'bg-emerald-600 text-white'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-700'
               )}
-            </div>
+            >
+              <Server className="w-4 h-4" />
+              Email / SMTP
+            </button>
           </div>
+          
+          <ScrollArea className="flex-1 -mx-6 px-6">
+            {settingsDialogTab === 'automation' ? (
+              <div className="space-y-6 py-2">
+                {/* Response Mode */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold text-slate-200">AI Response Mode</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => updateSetting('responseMode', 'automatic')}
+                      className={`p-4 rounded-xl border-2 text-left transition-all ${
+                        settings.responseMode === 'automatic' ? 'border-emerald-500 bg-emerald-500/20' : 'border-slate-600 hover:border-slate-500 bg-slate-800'
+                      }`}
+                    >
+                      <Zap className={`w-5 h-5 mb-2 ${settings.responseMode === 'automatic' ? 'text-emerald-400' : 'text-slate-400'}`} />
+                      <h4 className="font-semibold text-sm text-white">Fully Automatic</h4>
+                      <p className="text-xs text-slate-400">AI sends responses instantly</p>
+                    </button>
+                    
+                    <button
+                      onClick={() => updateSetting('responseMode', 'manual')}
+                      className={`p-4 rounded-xl border-2 text-left transition-all ${
+                        settings.responseMode === 'manual' ? 'border-emerald-500 bg-emerald-500/20' : 'border-slate-600 hover:border-slate-500 bg-slate-800'
+                      }`}
+                    >
+                      <Shield className={`w-5 h-5 mb-2 ${settings.responseMode === 'manual' ? 'text-emerald-400' : 'text-slate-400'}`} />
+                      <h4 className="font-semibold text-sm text-white">You Control</h4>
+                      <p className="text-xs text-slate-400">Review before sending</p>
+                    </button>
+                  </div>
+                </div>
+                
+                <Separator className="bg-slate-700" />
+                
+                {/* Auto Features */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm font-semibold text-slate-200">Auto-Schedule Appointments</Label>
+                      <p className="text-xs text-slate-400">AI books meetings based on your calendar</p>
+                    </div>
+                    <Switch checked={settings.autoScheduling} onCheckedChange={(v) => updateSetting('autoScheduling', v)} />
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-sm font-semibold text-slate-200">Smart Document Suggestions</Label>
+                      <p className="text-xs text-slate-400">AI recommends proposals when leads are ready</p>
+                    </div>
+                    <Switch checked={settings.autoProposals} onCheckedChange={(v) => updateSetting('autoProposals', v)} />
+                  </div>
+                </div>
+                
+                <Separator className="bg-slate-700" />
+                
+                {/* Notifications */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold flex items-center gap-2 text-slate-200">
+                    <Bell className="w-4 h-4" />
+                    Notifications
+                  </Label>
+                  
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm text-slate-300">Email Notifications</Label>
+                    <Switch checked={settings.notifyEmail} onCheckedChange={(v) => updateSetting('notifyEmail', v)} />
+                  </div>
+                  {settings.notifyEmail && (
+                    <Input
+                      type="email"
+                      value={settings.notifyEmailAddress}
+                      onChange={(e) => updateSetting('notifyEmailAddress', e.target.value)}
+                      placeholder="your@email.com"
+                      className="h-9 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                    />
+                  )}
+                  
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm text-slate-300">SMS Notifications</Label>
+                    <Switch checked={settings.notifySMS} onCheckedChange={(v) => updateSetting('notifySMS', v)} />
+                  </div>
+                  {settings.notifySMS && (
+                    <Input
+                      type="tel"
+                      value={settings.notifyPhone}
+                      onChange={(e) => updateSetting('notifyPhone', e.target.value)}
+                      placeholder="+1 (555) 123-4567"
+                      className="h-9 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                    />
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="py-2">
+                <SMTPConfigPanel />
+              </div>
+            )}
+          </ScrollArea>
         </DialogContent>
       </Dialog>
 
