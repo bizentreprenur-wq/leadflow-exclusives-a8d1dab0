@@ -12,7 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx-js-style';
 import {
@@ -606,9 +605,8 @@ export default function SimpleLeadViewer({
       <Card className="border-border">
         <CardContent className="p-0">
           {/* Table */}
-          <div className="overflow-x-auto">
-            <ScrollArea className="h-[450px]">
-              <Table className="w-full" style={{ minWidth: '1400px' }}>
+          <div className="h-[450px] overflow-auto">
+            <Table className="w-full" style={{ minWidth: '1400px' }}>
                 <TableHeader>
                   <TableRow className="bg-muted/30 hover:bg-muted/30">
                     <TableHead className="w-10">
@@ -783,8 +781,7 @@ export default function SimpleLeadViewer({
                 )}
               </TableBody>
             </Table>
-          </ScrollArea>
-        </div>
+          </div>
 
           {/* Bottom Action Bar */}
           {!selectedIds.size && leads.length > 0 && (
