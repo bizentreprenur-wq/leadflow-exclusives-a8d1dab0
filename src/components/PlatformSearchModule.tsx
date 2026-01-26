@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 
 const platforms = [
-  { id: "gmb", label: "Google My Business", category: "Directory" },
+  { id: "gmb", label: "Google Maps", category: "Directory" },
   { id: "wordpress", label: "WordPress", category: "CMS" },
   { id: "wix", label: "Wix", category: "Builder" },
   { id: "weebly", label: "Weebly", category: "Builder" },
