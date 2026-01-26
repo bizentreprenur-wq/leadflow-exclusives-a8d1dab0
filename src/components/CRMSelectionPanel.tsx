@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -65,11 +65,20 @@ export default function CRMSelectionPanel({ leadCount, onCRMSelected }: CRMSelec
     localStorage.setItem('bamlead_selected_crm', selectedCRM);
   }, [selectedCRM]);
 
+  const externalCRMRef = useRef<HTMLDivElement>(null);
+
   const handleSelectCRM = (crmId: string) => {
     setSelectedCRM(crmId);
     const crm = CRM_OPTIONS.find(c => c.id === crmId);
     toast.success(`${crm?.name} selected as your CRM`);
     onCRMSelected?.(crmId);
+    
+    // Auto-scroll to setup section for external CRMs
+    if (crmId !== 'bamlead') {
+      setTimeout(() => {
+        externalCRMRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
   };
 
   const handleConnectOAuth = async (crmId: string) => {
@@ -171,52 +180,102 @@ export default function CRMSelectionPanel({ leadCount, onCRMSelected }: CRMSelec
         ))}
       </div>
 
-      {/* External CRM Integration Notice with OAuth */}
+      {/* External CRM Integration - PROMINENT Setup Section */}
       {selectedCRM !== 'bamlead' && (
-        <Card className="mt-4 border-amber-500/30 bg-amber-500/10">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <ExternalLink className="w-5 h-5 text-amber-500 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-medium">
-                  External CRM Selected: {CRM_OPTIONS.find(c => c.id === selectedCRM)?.name}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {connectedCRMs[selectedCRM] 
-                    ? '✅ Connected and ready to sync leads' 
-                    : 'Connect your account via OAuth to sync leads automatically.'
-                  }
-                </p>
+        <div ref={externalCRMRef}>
+        <Card className="mt-4 border-2 border-primary bg-gradient-to-r from-primary/20 to-violet-500/20 shadow-lg">
+          <CardContent className="p-6">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center text-2xl">
+                  {CRM_OPTIONS.find(c => c.id === selectedCRM)?.icon}
+                </div>
+                <div className="flex-1">
+                  <p className="text-lg font-bold text-foreground">
+                    {CRM_OPTIONS.find(c => c.id === selectedCRM)?.name} Selected
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {connectedCRMs[selectedCRM] 
+                      ? '✅ Connected and ready to sync your leads' 
+                      : CRM_OPTIONS.find(c => c.id === selectedCRM)?.hasOAuth
+                        ? '🔗 Click below to connect your account via OAuth'
+                        : '⚙️ Configure API credentials to enable syncing'
+                    }
+                  </p>
+                </div>
+                {connectedCRMs[selectedCRM] && (
+                  <Badge className="bg-green-500 text-white text-sm px-3 py-1">
+                    <Check className="w-4 h-4 mr-1" />
+                    Connected
+                  </Badge>
+                )}
               </div>
+              
+              {/* OAuth Connect Button - Large and Prominent */}
               {CRM_OPTIONS.find(c => c.id === selectedCRM)?.hasOAuth && !connectedCRMs[selectedCRM] && (
                 <Button 
-                  size="sm" 
+                  size="lg"
                   onClick={() => handleConnectOAuth(selectedCRM)}
                   disabled={connectingCRM === selectedCRM}
-                  className="gap-2 bg-gradient-to-r from-blue-500 to-violet-500 hover:from-blue-600 hover:to-violet-600"
+                  className="w-full gap-3 bg-gradient-to-r from-blue-500 to-violet-600 hover:from-blue-600 hover:to-violet-700 text-white font-bold py-4 text-lg shadow-lg hover:shadow-xl transition-all"
                 >
                   {connectingCRM === selectedCRM ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Connecting...
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Connecting to {CRM_OPTIONS.find(c => c.id === selectedCRM)?.name}...
                     </>
                   ) : (
                     <>
-                      <Link2 className="w-4 h-4" />
-                      Connect {CRM_OPTIONS.find(c => c.id === selectedCRM)?.name}
+                      <Link2 className="w-5 h-5" />
+                      Connect {CRM_OPTIONS.find(c => c.id === selectedCRM)?.name} Account
                     </>
                   )}
                 </Button>
               )}
+              
+              {/* Non-OAuth CRM - Manual Setup Instructions */}
+              {!CRM_OPTIONS.find(c => c.id === selectedCRM)?.hasOAuth && !connectedCRMs[selectedCRM] && (
+                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                  <div className="flex items-start gap-3">
+                    <ExternalLink className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-semibold text-amber-200">Manual Setup Required</p>
+                      <p className="text-xs text-amber-200/70 mt-1">
+                        To connect {CRM_OPTIONS.find(c => c.id === selectedCRM)?.name}, you'll need to configure API credentials on your server. 
+                        Contact support or check the documentation for setup instructions.
+                      </p>
+                      <div className="flex gap-2 mt-3">
+                        <Button size="sm" variant="outline" className="text-amber-200 border-amber-500/50 hover:bg-amber-500/20">
+                          <ExternalLink className="w-4 h-4 mr-2" />
+                          View Setup Guide
+                        </Button>
+                        <Button size="sm" variant="outline" className="text-amber-200 border-amber-500/50 hover:bg-amber-500/20">
+                          Contact Support
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {/* Success State */}
               {connectedCRMs[selectedCRM] && (
-                <Badge className="bg-green-500 text-white">
-                  <Check className="w-3 h-3 mr-1" />
-                  Connected
-                </Badge>
+                <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/30">
+                  <div className="flex items-center gap-3">
+                    <Check className="w-6 h-6 text-green-500" />
+                    <div>
+                      <p className="text-sm font-semibold text-green-400">Ready to Sync!</p>
+                      <p className="text-xs text-green-400/70">
+                        Your {leadCount} leads will be exported to {CRM_OPTIONS.find(c => c.id === selectedCRM)?.name} when you proceed.
+                      </p>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           </CardContent>
         </Card>
+        </div>
       )}
 
       {/* OAuth CRMs Quick Connect Section */}
