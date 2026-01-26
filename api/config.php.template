@@ -37,11 +37,13 @@ define('CRON_ALLOWED_IPS', ['127.0.0.1', '::1']);
 // =====================================
 define('MAIL_FROM_ADDRESS', 'noreply@bamlead.com');
 define('MAIL_FROM_NAME', 'BamLead');
+define('MAIL_LOGO_URL', 'https://bamlead.com/favicon.png');
 define('SMTP_HOST', 'smtp.hostinger.com');
 define('SMTP_PORT', 465);
 define('SMTP_USER', 'noreply@bamlead.com');
 define('SMTP_PASS', 'YOUR_SMTP_PASSWORD_HERE');
 define('SMTP_SECURE', 'ssl');
+define('SMTP_DEBUG', false);
 define('FRONTEND_URL', 'https://bamlead.com');
 
 // =====================================

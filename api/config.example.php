@@ -42,6 +42,7 @@ define('BING_API_KEY', '');
 // =====================================
 define('MAIL_FROM_ADDRESS', 'noreply@bamlead.com');
 define('MAIL_FROM_NAME', 'BamLead');
+define('MAIL_LOGO_URL', 'https://bamlead.com/favicon.png');
 
 // SMTP Settings (for email verification)
 define('SMTP_HOST', 'smtp.hostinger.com');
@@ -49,6 +50,7 @@ define('SMTP_PORT', 465);
 define('SMTP_USER', 'noreply@bamlead.com');
 define('SMTP_PASS', 'YOUR_NOREPLY_EMAIL_PASSWORD'); // <-- REPLACE THIS
 define('SMTP_SECURE', 'ssl');
+define('SMTP_DEBUG', false);
 
 // Frontend URL (for email links)
 define('FRONTEND_URL', 'https://bamlead.com');

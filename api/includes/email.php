@@ -340,8 +340,15 @@ function sendPasswordResetEmail($userId, $email, $name) {
  * Get email template
  */
 function getEmailTemplate($template, $vars = []) {
-    // BamLead logo as base64 (small teal "B" badge logo)
+    // Use a public logo URL for email clients that block data URIs (e.g., Gmail).
     $logoBase64 = 'data:image/png;base64,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';
+    $logoUrl = '';
+    if (defined('MAIL_LOGO_URL') && MAIL_LOGO_URL) {
+        $logoUrl = (string) MAIL_LOGO_URL;
+    } elseif (defined('FRONTEND_URL') && FRONTEND_URL) {
+        $logoUrl = rtrim((string) FRONTEND_URL, '/') . '/favicon.png';
+    }
+    $logoSrc = $logoUrl ?: $logoBase64;
     
     $templates = [
         'verify_email' => '
@@ -375,7 +382,7 @@ function getEmailTemplate($template, $vars = []) {
                     <div class="container">
                         <div class="header">
                             <div class="logo-container">
-                                <img src="' . $logoBase64 . '" alt="BamLead Logo" class="logo-img" />
+                                <img src="' . $logoSrc . '" alt="BamLead Logo" class="logo-img" />
                             </div>
                             <div class="logo-text">BamLead</div>
                         </div>
@@ -430,7 +437,7 @@ function getEmailTemplate($template, $vars = []) {
                     <div class="container">
                         <div class="header">
                             <div class="logo-container">
-                                <img src="' . $logoBase64 . '" alt="BamLead Logo" class="logo-img" />
+                                <img src="' . $logoSrc . '" alt="BamLead Logo" class="logo-img" />
                             </div>
                             <div class="logo-text">BamLead</div>
                         </div>
