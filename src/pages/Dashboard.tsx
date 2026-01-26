@@ -1419,7 +1419,7 @@ export default function Dashboard() {
                       </div>
                     )}
 
-                    {/* AI Calling Mode Filter */}
+                    {/* AI Calling Mode Filter - applies to both search types */}
                     <div className="p-4 rounded-lg border-2 border-green-500/30 bg-green-500/5">
                       <label className="flex items-center gap-3 cursor-pointer">
                         <Checkbox
@@ -1429,21 +1429,42 @@ export default function Dashboard() {
                         <div>
                           <span className="font-medium text-green-600">📞 AI Calling Mode</span>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            Only show leads with phone numbers for AI voice outreach
+                            Filter results to only show leads with phone numbers for AI voice outreach
                           </p>
                         </div>
                       </label>
                       {phoneLeadsOnly ? (
                         <div className="mt-3 p-2 rounded-lg bg-green-500/10 border border-green-500/20">
                           <p className="text-xs text-green-600 font-medium">
-                            ✓ Results will only include leads with phone numbers (for AI calling)
+                            ✓ Phone Numbers Only — Results filtered for AI calling campaigns
+                          </p>
+                          <p className="text-[10px] text-green-500 mt-1">
+                            Leads without valid phone numbers will be excluded
                           </p>
                         </div>
                       ) : (
                         <div className="mt-3 p-2 rounded-lg bg-primary/10 border border-primary/20">
                           <p className="text-xs text-primary font-medium">
-                            ✓ Results will include leads with emails AND phone numbers (for email + call outreach)
+                            ✓ Full Business Data — {searchType === 'gmb' ? 'Get complete business intelligence including:' : 'Scan for website opportunities including:'}
                           </p>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {searchType === 'gmb' ? (
+                              <>
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-primary/20 text-primary">📍 Address</span>
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-primary/20 text-primary">📞 Phone</span>
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-primary/20 text-primary">🌐 Website</span>
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-primary/20 text-primary">⭐ Reviews</span>
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-primary/20 text-primary">🔍 Online Presence</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-violet-500/20 text-violet-400">🔧 Platform Detected</span>
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-violet-500/20 text-violet-400">📱 Mobile Issues</span>
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-violet-500/20 text-violet-400">⚠️ Upgrade Opportunities</span>
+                                <span className="text-[10px] px-2 py-0.5 rounded bg-violet-500/20 text-violet-400">📊 Website Analysis</span>
+                              </>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
