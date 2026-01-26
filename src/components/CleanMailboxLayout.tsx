@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import {
@@ -15,10 +16,11 @@ import {
   Inbox, MessageSquare, Zap, Users, FileText, ChevronRight,
   Search, MailOpen, PenTool, Sparkles, Target, Rocket,
   Calendar, Phone, BellRing, Shield, CheckCircle2, X, FolderOpen,
-  Building2, Globe, MapPin, Megaphone
+  Building2, Globe, MapPin, Megaphone, Palette, Link2, Cloud
 } from 'lucide-react';
 import SMTPConfigPanel from './SMTPConfigPanel';
-import ProposalsContractsPanel from './ProposalsContractsPanel';
+import BrandingSettingsPanel from './BrandingSettingsPanel';
+import CloudCRMIntegrationsPanel from './CloudCRMIntegrationsPanel';
 import DocumentsPanel from './mailbox/DocumentsPanel';
 import { isSMTPConfigured, sendSingleEmail } from '@/lib/emailService';
 
@@ -499,22 +501,95 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
         {/* SETTINGS VIEW */}
         {mainTab === 'settings' && (
           <div className="h-full overflow-auto p-6">
-            <div className="max-w-2xl mx-auto space-y-6">
-              <h2 className="text-xl font-bold text-white">Settings</h2>
-              
-              {/* SMTP Configuration */}
-              <div className="rounded-xl bg-slate-900 border border-slate-800 overflow-hidden">
-                <div className="p-4 border-b border-slate-800">
-                  <h3 className="font-semibold text-white flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-emerald-400" />
-                    Email / SMTP Configuration
-                  </h3>
-                  <p className="text-xs text-slate-400">Configure your email server settings</p>
-                </div>
-                <div className="p-4">
-                  <SMTPConfigPanel />
-                </div>
+            <div className="max-w-3xl mx-auto space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-foreground">Mailbox Settings</h2>
+                <Badge variant="outline" className="text-xs">
+                  Configure your outreach setup
+                </Badge>
               </div>
+              
+              <Tabs defaultValue="smtp" className="w-full">
+                <TabsList className="bg-muted/50 border border-border p-1 mb-6">
+                  <TabsTrigger value="smtp" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
+                    <Mail className="w-4 h-4" />
+                    Email / SMTP
+                  </TabsTrigger>
+                  <TabsTrigger value="branding" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
+                    <Palette className="w-4 h-4" />
+                    Branding
+                  </TabsTrigger>
+                  <TabsTrigger value="crm" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
+                    <Cloud className="w-4 h-4" />
+                    CRM & Integrations
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* SMTP Tab */}
+                <TabsContent value="smtp">
+                  <div className="rounded-xl bg-card border border-border overflow-hidden">
+                    <div className="p-4 border-b border-border">
+                      <h3 className="font-semibold text-foreground flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-primary" />
+                        Email / SMTP Configuration
+                      </h3>
+                      <p className="text-xs text-muted-foreground">Configure your email server to send campaigns</p>
+                    </div>
+                    <div className="p-4">
+                      <SMTPConfigPanel />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* Branding Tab */}
+                <TabsContent value="branding">
+                  <div className="rounded-xl bg-card border border-border overflow-hidden">
+                    <div className="p-4 border-b border-border">
+                      <h3 className="font-semibold text-foreground flex items-center gap-2">
+                        <Palette className="w-4 h-4 text-primary" />
+                        Email Branding
+                      </h3>
+                      <p className="text-xs text-muted-foreground">Customize your logo, colors, and signature for outgoing emails</p>
+                    </div>
+                    <div className="p-4">
+                      <BrandingSettingsPanel />
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* CRM & Integrations Tab */}
+                <TabsContent value="crm">
+                  <div className="space-y-4">
+                    <CloudCRMIntegrationsPanel />
+                    
+                    {/* Additional Integration Info */}
+                    <div className="rounded-xl bg-card border border-border p-4">
+                      <h4 className="font-medium text-foreground flex items-center gap-2 mb-3">
+                        <Link2 className="w-4 h-4 text-primary" />
+                        Export Options
+                      </h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                          <p className="text-sm font-medium text-foreground">Google Sheets</p>
+                          <p className="text-xs text-muted-foreground">Auto-sync leads to spreadsheets</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                          <p className="text-sm font-medium text-foreground">CSV Export</p>
+                          <p className="text-xs text-muted-foreground">Download leads anytime</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                          <p className="text-sm font-medium text-foreground">Zapier</p>
+                          <p className="text-xs text-muted-foreground">Connect 5000+ apps</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                          <p className="text-sm font-medium text-foreground">Webhooks</p>
+                          <p className="text-xs text-muted-foreground">Real-time lead notifications</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
           </div>
         )}
