@@ -159,14 +159,11 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   ];
 
   return (
-    <div className="relative w-full h-full min-h-screen flex flex-col">
-      {/* Frosted overlay background so the page behind remains visible (no solid black screen) */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 bg-background/20 backdrop-blur-xl" />
-      <div aria-hidden className="pointer-events-none absolute inset-0 bg-gradient-glow opacity-60" />
+    <div className="relative w-full h-full min-h-screen flex flex-col bg-background">
 
       <div className="relative flex min-h-screen flex-col">
         {/* TOP HEADER */}
-        <header className="bg-card/50 backdrop-blur border-b border-border/60 px-6 py-3 flex-shrink-0">
+        <header className="bg-card border-b border-border/60 px-6 py-3 flex-shrink-0">
           <div className="flex items-center justify-between">
             {/* Logo */}
             <div className="flex items-center gap-3">
@@ -218,7 +215,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
         {mainTab === 'inbox' && (
           <div className="h-full flex">
             {/* Email List Panel */}
-            <div className="w-96 border-r border-border/60 flex flex-col bg-card/40 backdrop-blur">
+            <div className="w-96 border-r border-border/60 flex flex-col bg-card">
               {/* Inbox Banner */}
               <div className="p-3 bg-muted/30 border-b border-border/50">
                 <div className="flex items-center gap-2 text-xs text-slate-300">
@@ -311,7 +308,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
             </div>
 
             {/* Email Detail Panel */}
-            <div className="flex-1 flex items-center justify-center bg-card/20 backdrop-blur-sm">
+            <div className="flex-1 flex items-center justify-center bg-card">
               {selectedReply ? (
                 <div className="w-full h-full p-6">
                   <div className="max-w-2xl mx-auto">
@@ -323,7 +320,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                 </div>
               ) : (
                 <div className="w-full max-w-md px-6">
-                  <div className="rounded-2xl border border-border/40 bg-card/25 backdrop-blur p-10 text-center">
+                  <div className="rounded-2xl border border-border/40 bg-card p-10 text-center">
                     <MailOpen className="w-16 h-16 text-muted-foreground/60 mx-auto mb-3" />
                     <p className="text-sm text-muted-foreground">Select an email to view</p>
                     <p className="text-xs text-muted-foreground/70 mt-1">
