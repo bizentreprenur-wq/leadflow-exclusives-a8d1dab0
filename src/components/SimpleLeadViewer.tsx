@@ -608,7 +608,7 @@ export default function SimpleLeadViewer({
           {/* Table */}
           <div className="overflow-x-auto">
             <ScrollArea className="h-[450px]">
-              <Table className="min-w-[1200px]">
+              <Table className="w-full" style={{ minWidth: '1400px' }}>
                 <TableHeader>
                   <TableRow className="bg-muted/30 hover:bg-muted/30">
                     <TableHead className="w-10">
