@@ -36,6 +36,7 @@ export default function ScheduledQueuePanel() {
   const [isLoading, setIsLoading] = useState(false);
   const [editingItem, setEditingItem] = useState<ScheduledItem | null>(null);
   const [editForm, setEditForm] = useState({ to: '', subject: '', body: '' });
+  const [autoRefresh, setAutoRefresh] = useState(true);
 
   const loadScheduled = useCallback(async () => {
     setIsLoading(true);
@@ -77,9 +78,21 @@ export default function ScheduledQueuePanel() {
     setIsLoading(false);
   }, []);
 
+  // Initial load
   useEffect(() => {
     loadScheduled();
   }, [loadScheduled]);
+
+  // Auto-refresh polling every 10 seconds
+  useEffect(() => {
+    if (!autoRefresh) return;
+    
+    const interval = setInterval(() => {
+      loadScheduled();
+    }, 10000); // Poll every 10 seconds
+    
+    return () => clearInterval(interval);
+  }, [autoRefresh, loadScheduled]);
 
   const handleCancel = async (item: ScheduledItem) => {
     if (item.source === 'local') {
@@ -207,6 +220,11 @@ export default function ScheduledQueuePanel() {
         <div className="flex items-center gap-2">
           <CalendarClock className="w-5 h-5 text-primary" />
           <h3 className="font-semibold text-foreground">Scheduled Queue</h3>
+          {autoRefresh && (
+            <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] animate-pulse">
+              Auto-refresh
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="secondary" className="text-xs">
@@ -223,8 +241,14 @@ export default function ScheduledQueuePanel() {
               Sync {localCount}
             </Button>
           )}
-          <Button size="sm" variant="ghost" onClick={loadScheduled} disabled={isLoading}>
-            <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
+          <Button 
+            size="sm" 
+            variant={autoRefresh ? "default" : "ghost"} 
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            className={cn("h-7 w-7 p-0", autoRefresh && "bg-primary")}
+            title={autoRefresh ? "Disable auto-refresh" : "Enable auto-refresh"}
+          >
+            <RefreshCw className={cn("w-4 h-4", autoRefresh && "animate-spin")} />
           </Button>
         </div>
       </div>
