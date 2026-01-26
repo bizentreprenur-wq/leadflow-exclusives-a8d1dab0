@@ -22,6 +22,7 @@ import SMTPConfigPanel from './SMTPConfigPanel';
 import BrandingSettingsPanel from './BrandingSettingsPanel';
 import CloudCRMIntegrationsPanel from './CloudCRMIntegrationsPanel';
 import DocumentsPanel from './mailbox/DocumentsPanel';
+import AutoCampaignWizard from './AutoCampaignWizard';
 import { isSMTPConfigured, sendSingleEmail } from '@/lib/emailService';
 
 // Tab types for main navigation
@@ -101,6 +102,18 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   // Compose email state
   const [composeEmail, setComposeEmail] = useState({ to: '', subject: '', body: '' });
   const [isSending, setIsSending] = useState(false);
+  
+  // Campaign Wizard state
+  const [showCampaignWizard, setShowCampaignWizard] = useState(false);
+  const [leadPriority, setLeadPriority] = useState<'all' | 'hot' | 'warm' | 'cold'>('all');
+  
+  // Load leads from localStorage
+  const [campaignLeads, setCampaignLeads] = useState<any[]>(() => {
+    try {
+      const stored = localStorage.getItem('bamlead_email_leads');
+      return stored ? JSON.parse(stored) : [];
+    } catch { return []; }
+  });
 
   // Persist automation settings
   useEffect(() => {
@@ -435,33 +448,79 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
         {mainTab === 'campaigns' && (
           <div className="h-full overflow-auto p-6">
             <div className="max-w-2xl mx-auto space-y-6">
-              {/* Header */}
+              {/* Header with Create Campaign Button */}
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-xl font-bold text-white">Campaigns</h2>
-                    <Badge variant="outline" className="text-xs border-slate-600 text-slate-400">Manual</Badge>
+                    <h2 className="text-xl font-bold text-foreground">Campaigns</h2>
+                    <Badge variant="outline" className="text-xs border-border text-muted-foreground">Manual</Badge>
                   </div>
-                  <p className="text-sm text-slate-400 mt-1">You control these campaigns.</p>
-                  <p className="text-xs text-slate-500">Messages send only when you start them.</p>
+                  <p className="text-sm text-muted-foreground mt-1">You control these campaigns.</p>
+                  <p className="text-xs text-muted-foreground/70">Messages send only when you start them.</p>
+                </div>
+                <Button 
+                  onClick={() => setShowCampaignWizard(true)}
+                  className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white gap-2 shadow-lg"
+                >
+                  <Zap className="w-4 h-4" />
+                  Create Campaign
+                </Button>
+              </div>
+
+              {/* Lead Priority Filter */}
+              <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Target className="w-4 h-4 text-primary" />
+                    <span className="text-sm font-medium text-foreground">Filter by Lead Priority</span>
+                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    {campaignLeads.filter(l => 
+                      leadPriority === 'all' ? true : 
+                      (l.aiClassification || 'cold') === leadPriority
+                    ).length} leads
+                  </Badge>
+                </div>
+                <div className="flex gap-2">
+                  {[
+                    { value: 'all', label: 'All Leads', color: 'bg-primary/20 text-primary border-primary/30' },
+                    { value: 'hot', label: '🔥 Hot', color: 'bg-red-500/20 text-red-400 border-red-500/30' },
+                    { value: 'warm', label: '🌡️ Warm', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+                    { value: 'cold', label: '❄️ Cold', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+                  ].map(opt => (
+                    <Button
+                      key={opt.value}
+                      size="sm"
+                      variant={leadPriority === opt.value ? "default" : "outline"}
+                      onClick={() => setLeadPriority(opt.value as any)}
+                      className={cn(
+                        "text-xs",
+                        leadPriority === opt.value 
+                          ? opt.color
+                          : "border-border text-muted-foreground"
+                      )}
+                    >
+                      {opt.label}
+                    </Button>
+                  ))}
                 </div>
               </div>
 
               {/* Campaign Cards */}
               <div className="space-y-3">
                 {sequences.map(seq => (
-                  <div key={seq.id} className="p-4 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 transition-all">
+                  <div key={seq.id} className="p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-all">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-medium text-white">{seq.name}</h4>
+                          <h4 className="font-medium text-foreground">{seq.name}</h4>
                           {seq.status === 'active' && (
                             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                           )}
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           {seq.channels.map(ch => (
-                            <span key={ch} className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700 capitalize">{ch}</span>
+                            <span key={ch} className="px-2 py-0.5 rounded bg-muted border border-border capitalize">{ch}</span>
                           ))}
                           <span>•</span>
                           <span>Steps: {seq.steps}</span>
@@ -475,8 +534,8 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                         className={cn(
                           "gap-2",
                           seq.status === 'active'
-                            ? "bg-amber-600 hover:bg-amber-500"
-                            : "bg-emerald-600 hover:bg-emerald-500"
+                            ? "bg-amber-600 hover:bg-amber-500 text-white"
+                            : "bg-emerald-600 hover:bg-emerald-500 text-white"
                         )}
                       >
                         {seq.status === 'active' ? (
@@ -652,6 +711,29 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Campaign Wizard Modal */}
+      <AutoCampaignWizard
+        open={showCampaignWizard}
+        onOpenChange={setShowCampaignWizard}
+        leads={campaignLeads.filter(l => 
+          leadPriority === 'all' ? true : 
+          (l.aiClassification || 'cold') === leadPriority
+        )}
+        onLaunch={(campaignData) => {
+          // Save campaign to localStorage
+          const campaigns = JSON.parse(localStorage.getItem('bamlead_campaigns') || '[]');
+          campaigns.push({
+            ...campaignData,
+            id: Date.now().toString(),
+            createdAt: new Date().toISOString(),
+            priority: leadPriority,
+          });
+          localStorage.setItem('bamlead_campaigns', JSON.stringify(campaigns));
+          toast.success(`Campaign "${campaignData.name}" launched!`);
+          setShowCampaignWizard(false);
+        }}
+      />
     </div>
   );
 }
