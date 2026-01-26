@@ -1133,11 +1133,6 @@ export default function EmailSetupFlow({
           </Button>
           <Button 
             onClick={async () => {
-              // First ensure we're in send phase and mailbox tab is visible
-              setCurrentPhase('send');
-              setActiveTab('mailbox');
-              smartDripRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              
               // Validate SMTP
               if (!smtpConfigured) {
                 toast.error('⚙️ Please configure SMTP settings first');
@@ -1166,32 +1161,60 @@ export default function EmailSetupFlow({
                 return;
               }
               
+              // Switch to send phase and show mailbox immediately
+              setCurrentPhase('send');
+              setActiveTab('mailbox');
+              setRealSendingMode(true); // Start animation immediately
+              setDemoIsActive(true);
+              smartDripRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              
               setIsSending(true);
               try {
                 console.log('Sending emails to:', validLeads.length, 'leads');
                 console.log('Subject:', emailSubject);
                 console.log('Body length:', emailBody.length);
                 
+                // Format leads properly for the email API
+                const formattedLeads = validLeads.map(lead => ({
+                  email: lead.email || '',
+                  business_name: lead.business_name || 'Business',
+                  contact_name: lead.contact_name || 'Contact',
+                  website: lead.website || '',
+                  phone: lead.phone || '',
+                  platform: 'Google',
+                  issues: [],
+                  leadScore: lead.leadScore || 50,
+                  emailValid: true,
+                }));
+                
                 const result = await sendBulkEmails({
-                  leads: validLeads,
+                  leads: formattedLeads,
                   custom_subject: emailSubject,
                   custom_body: emailBody,
-                  send_mode: 'drip',
-                  drip_config: { emailsPerHour: 50, delayMinutes: 1 },
+                  send_mode: 'instant', // Changed to instant for immediate sending
                 });
                 
                 if (result.success) {
                   sessionStorage.setItem('emails_sent', 'true');
-                  setRealSendingMode(true);
-                  setDemoIsActive(true);
-                  toast.success(`🚀 Campaign launched! Sending ${result.results?.sent || validLeads.length} emails...`);
+                  const sentCount = result.results?.sent || 0;
+                  const totalCount = validLeads.length;
+                  toast.success(`🚀 Emails sent successfully! ${sentCount} of ${totalCount} delivered`, {
+                    description: 'Click "Sent Box" tab in the mailbox to see all sent emails',
+                    duration: 6000,
+                  });
+                  // Update sent count for the visual animation
+                  setDemoSentCount(sentCount);
                 } else {
                   console.error('Send failed:', result.error);
                   toast.error(result.error || 'Failed to send emails');
+                  setRealSendingMode(false);
+                  setDemoIsActive(false);
                 }
               } catch (error) {
                 console.error('Send error:', error);
                 toast.error('Failed to send emails. Check your connection.');
+                setRealSendingMode(false);
+                setDemoIsActive(false);
               } finally {
                 setIsSending(false);
               }
