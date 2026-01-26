@@ -14,15 +14,18 @@ import {
   Mail, Bot, User, Send, Flame, Clock, Settings, Play, Pause,
   Inbox, MessageSquare, Zap, Users, FileText, ChevronRight,
   Search, MailOpen, PenTool, Sparkles, Target, Rocket,
-  Calendar, Phone, BellRing, Shield, CheckCircle2, X
+  Calendar, Phone, BellRing, Shield, CheckCircle2, X, FolderOpen,
+  Building2, Globe, MapPin, Megaphone
 } from 'lucide-react';
 import SMTPConfigPanel from './SMTPConfigPanel';
 import ProposalsContractsPanel from './ProposalsContractsPanel';
+import DocumentsPanel from './mailbox/DocumentsPanel';
 import { isSMTPConfigured, sendSingleEmail } from '@/lib/emailService';
 
 // Tab types for main navigation
-type MainTab = 'inbox' | 'campaigns' | 'automation' | 'leads' | 'settings';
+type MainTab = 'inbox' | 'campaigns' | 'automation' | 'documents' | 'settings';
 type InboxFilter = 'all' | 'hot' | 'unread';
+type DocumentsTab = 'proposals' | 'contracts';
 
 // Demo sequence types
 interface OutreachSequence {
@@ -154,7 +157,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
     { id: 'inbox' as MainTab, label: 'Inbox', icon: Inbox },
     { id: 'campaigns' as MainTab, label: 'Campaigns', icon: Send },
     { id: 'automation' as MainTab, label: 'AI Automation', icon: Bot },
-    { id: 'leads' as MainTab, label: 'Leads', icon: Users },
+    { id: 'documents' as MainTab, label: 'Contracts', icon: FolderOpen },
     { id: 'settings' as MainTab, label: 'Settings', icon: Settings },
   ];
 
@@ -488,21 +491,9 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
           </div>
         )}
 
-        {/* LEADS VIEW */}
-        {mainTab === 'leads' && (
-          <div className="h-full overflow-auto p-6">
-            <div className="max-w-4xl mx-auto">
-              <h2 className="text-xl font-bold text-white mb-4">Lead Management</h2>
-              <p className="text-slate-400 mb-6">View and manage your discovered leads.</p>
-              
-              {/* Placeholder - Link back to search */}
-              <div className="p-8 rounded-xl bg-slate-900 border border-slate-800 text-center">
-                <Users className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-                <p className="text-slate-400">Leads are managed in the main dashboard.</p>
-                <p className="text-xs text-slate-500 mt-1">Use the search tabs to find and verify leads.</p>
-              </div>
-            </div>
-          </div>
+        {/* DOCUMENTS VIEW */}
+        {mainTab === 'documents' && (
+          <DocumentsPanel searchType={searchType} />
         )}
 
         {/* SETTINGS VIEW */}
