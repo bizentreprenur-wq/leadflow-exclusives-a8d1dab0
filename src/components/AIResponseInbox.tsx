@@ -1450,18 +1450,26 @@ export default function AIResponseInbox({ onSendResponse, campaignContext }: AIR
               </button>
             </div>
 
-            {/* New Email Button */}
+            {/* New Email Button - Gmail-style prominent compose */}
             <div className="p-3">
               <Button 
                 onClick={() => openComposeModal()}
                 className={cn(
-                  "gap-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white shadow-lg",
-                  sidebarCollapsed ? "w-10 h-10 p-0" : "w-full"
+                  "gap-2 bg-gradient-to-r from-primary to-emerald-500 hover:from-primary/90 hover:to-emerald-600 text-white shadow-lg shadow-primary/30",
+                  sidebarCollapsed ? "w-10 h-10 p-0" : "w-full py-3"
                 )}
+                size={sidebarCollapsed ? "icon" : "lg"}
               >
-                <PenTool className="w-4 h-4" />
-                {!sidebarCollapsed && "New Email"}
+                <PenTool className="w-5 h-5" />
+                {!sidebarCollapsed && (
+                  <span className="font-semibold">Compose Email</span>
+                )}
               </Button>
+              {!sidebarCollapsed && (
+                <p className="text-[10px] text-slate-500 text-center mt-1.5">
+                  Send emails manually like Gmail
+                </p>
+              )}
             </div>
 
             {/* Unread Counter */}
