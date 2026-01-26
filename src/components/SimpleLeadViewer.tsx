@@ -336,7 +336,7 @@ export default function SimpleLeadViewer({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="max-w-5xl mx-auto space-y-4">
       {/* AI Verify Banner */}
       <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/30">
         <div className="flex items-center gap-3">
