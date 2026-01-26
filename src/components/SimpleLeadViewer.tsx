@@ -21,7 +21,7 @@ import {
   Users, Mail, Search, X,
   FileSpreadsheet, Printer, Star,
   Sparkles, Database, Clock, FileText,
-  Send, Calendar, ChevronRight
+  Send, Calendar, ChevronRight, History
 } from 'lucide-react';
 import WebsitePreviewIcon from './WebsitePreviewIcon';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -108,6 +108,16 @@ interface SimpleLeadViewerProps {
   onOpenAIScoring?: () => void;
   isLoading?: boolean;
   loadingProgress?: number;
+  onLoadHistorySearch?: (search: SearchHistoryItem) => void;
+}
+
+interface SearchHistoryItem {
+  id: string;
+  query: string;
+  location: string;
+  leadsCount: number;
+  timestamp: string;
+  leads: SearchResult[];
 }
 
 export default function SimpleLeadViewer({
@@ -121,11 +131,53 @@ export default function SimpleLeadViewer({
   onOpenAIScoring,
   isLoading = false,
   loadingProgress = 0,
+  onLoadHistorySearch,
 }: SimpleLeadViewerProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeFilter, setActiveFilter] = useState<'all' | 'hot' | 'warm' | 'cold' | 'ready' | 'nosite' | 'phoneOnly' | 'withEmail'>('all');
   const [showSaved, setShowSaved] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([]);
+
+  // Load search history from localStorage (separate from Clear All Data)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('bamlead_search_history_permanent');
+      if (saved) {
+        setSearchHistory(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error('Failed to load search history:', e);
+    }
+  }, []);
+
+  // Save current search to history when leads change (and there are leads)
+  useEffect(() => {
+    if (leads.length > 0 && !isLoading) {
+      const query = sessionStorage.getItem('bamlead_query') || 'Unknown';
+      const location = sessionStorage.getItem('bamlead_location') || '';
+      
+      // Check if this search already exists
+      const existingIndex = searchHistory.findIndex(
+        s => s.query === query && s.location === location
+      );
+      
+      if (existingIndex === -1) {
+        const newEntry: SearchHistoryItem = {
+          id: `${Date.now()}`,
+          query,
+          location,
+          leadsCount: leads.length,
+          timestamp: new Date().toISOString(),
+          leads: leads.slice(0, 100), // Store first 100 leads for quick restore
+        };
+        
+        const updated = [newEntry, ...searchHistory].slice(0, 10); // Keep last 10
+        setSearchHistory(updated);
+        localStorage.setItem('bamlead_search_history_permanent', JSON.stringify(updated));
+      }
+    }
+  }, [leads, isLoading]);
 
   // Load selections from localStorage
   useEffect(() => {
@@ -583,7 +635,7 @@ export default function SimpleLeadViewer({
         </Button>
       </div>
 
-      {/* Search */}
+      {/* Search + History */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -599,6 +651,85 @@ export default function SimpleLeadViewer({
             </button>
           )}
         </div>
+
+        {/* Search History Dropdown */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2 border-amber-500/50 text-amber-400 hover:bg-amber-500/10">
+              <History className="w-4 h-4" />
+              History
+              {searchHistory.length > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs bg-amber-500/20 text-amber-400">
+                  {searchHistory.length}
+                </Badge>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto">
+            {searchHistory.length === 0 ? (
+              <div className="p-4 text-center text-muted-foreground text-sm">
+                <History className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p>No search history yet</p>
+                <p className="text-xs mt-1">Your previous searches will appear here</p>
+              </div>
+            ) : (
+              <>
+                <div className="px-3 py-2 border-b border-border">
+                  <p className="text-xs font-medium text-muted-foreground">Previous Searches</p>
+                </div>
+                {searchHistory.map((item) => (
+                  <DropdownMenuItem
+                    key={item.id}
+                    className="flex flex-col items-start gap-1 p-3 cursor-pointer"
+                    onClick={() => {
+                      if (onLoadHistorySearch) {
+                        onLoadHistorySearch(item);
+                        toast.success(`Loaded "${item.query}" search results`, {
+                          description: `${item.leadsCount} leads from ${new Date(item.timestamp).toLocaleDateString()}`
+                        });
+                      } else {
+                        toast.info('Search history restore coming soon!');
+                      }
+                    }}
+                  >
+                    <div className="flex items-center gap-2 w-full">
+                      <Search className="w-4 h-4 text-primary flex-shrink-0" />
+                      <span className="font-medium truncate flex-1">{item.query}</span>
+                      <Badge variant="outline" className="text-xs">
+                        {item.leadsCount} leads
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground pl-6">
+                      {item.location && (
+                        <>
+                          <MapPin className="w-3 h-3" />
+                          <span className="truncate">{item.location}</span>
+                          <span>•</span>
+                        </>
+                      )}
+                      <Clock className="w-3 h-3" />
+                      <span>{new Date(item.timestamp).toLocaleDateString()}</span>
+                    </div>
+                  </DropdownMenuItem>
+                ))}
+                <div className="border-t border-border p-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-xs text-muted-foreground hover:text-red-500"
+                    onClick={() => {
+                      setSearchHistory([]);
+                      localStorage.removeItem('bamlead_search_history_permanent');
+                      toast.success('Search history cleared');
+                    }}
+                  >
+                    Clear History
+                  </Button>
+                </div>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Main Content Card */}
