@@ -37,7 +37,7 @@ const steps = [
 
 const HowItWorksSection = () => {
   return (
-    <section className="py-20 md:py-28 bg-card">
+    <section className="py-12 md:py-16 bg-card">
       <div className="container px-4">
         {/* Section Header */}
         <div className="text-center mb-16">

@@ -13,7 +13,7 @@ const audiences = [
 
 const WhoThisIsForSection = () => {
   return (
-    <section className="py-24 md:py-32">
+    <section className="py-12 md:py-16">
       <div className="container px-4">
         <div className="max-w-5xl mx-auto">
           {/* Section header */}
