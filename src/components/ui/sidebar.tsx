@@ -27,6 +27,8 @@ type SidebarContext = {
   setOpenMobile: (open: boolean) => void;
   isMobile: boolean;
   toggleSidebar: () => void;
+  sidebarWidth: string;
+  setSidebarWidth: (width: string) => void;
 };
 
 const SidebarContext = React.createContext<SidebarContext | null>(null);
@@ -50,6 +52,26 @@ const SidebarProvider = React.forwardRef<
 >(({ defaultOpen = true, open: openProp, onOpenChange: setOpenProp, className, style, children, ...props }, ref) => {
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = React.useState(false);
+
+  // Adjustable desktop sidebar width (persists in localStorage)
+  const [sidebarWidth, setSidebarWidth] = React.useState<string>(() => {
+    if (typeof window === "undefined") return SIDEBAR_WIDTH;
+    try {
+      const saved = window.localStorage.getItem("bamlead_sidebar_width");
+      return saved || SIDEBAR_WIDTH;
+    } catch {
+      return SIDEBAR_WIDTH;
+    }
+  });
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem("bamlead_sidebar_width", sidebarWidth);
+    } catch {
+      // ignore
+    }
+  }, [sidebarWidth]);
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
@@ -101,8 +123,10 @@ const SidebarProvider = React.forwardRef<
       openMobile,
       setOpenMobile,
       toggleSidebar,
+      sidebarWidth,
+      setSidebarWidth,
     }),
-    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar],
+    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar, sidebarWidth],
   );
 
   return (
@@ -111,7 +135,7 @@ const SidebarProvider = React.forwardRef<
         <div
           style={
             {
-              "--sidebar-width": SIDEBAR_WIDTH,
+              "--sidebar-width": sidebarWidth,
               "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
               ...style,
             } as React.CSSProperties
@@ -243,7 +267,73 @@ SidebarTrigger.displayName = "SidebarTrigger";
 
 const SidebarRail = React.forwardRef<HTMLButtonElement, React.ComponentProps<"button">>(
   ({ className, ...props }, ref) => {
-    const { toggleSidebar } = useSidebar();
+    const { toggleSidebar, sidebarWidth, setSidebarWidth, isMobile } = useSidebar();
+
+    const dragRef = React.useRef<{
+      startX: number;
+      startW: number;
+      dragged: boolean;
+      isRight: boolean;
+      pointerId: number;
+    } | null>(null);
+
+    const widthToPx = (value: string) => {
+      const v = value.trim();
+      if (v.endsWith("px")) return parseFloat(v) || 0;
+      if (v.endsWith("rem")) {
+        const rem = parseFloat(v) || 0;
+        const root = typeof window !== "undefined" ? parseFloat(getComputedStyle(document.documentElement).fontSize) : 16;
+        return rem * root;
+      }
+      const asNum = parseFloat(v);
+      return Number.isFinite(asNum) ? asNum : 0;
+    };
+
+    const clampPx = (px: number) => Math.max(220, Math.min(560, px));
+
+    const onPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
+      if (isMobile) return;
+      event.preventDefault();
+      event.stopPropagation();
+
+      const el = event.currentTarget;
+      const isRight = !!el.closest('[data-side="right"]');
+
+      dragRef.current = {
+        startX: event.clientX,
+        startW: widthToPx(sidebarWidth),
+        dragged: false,
+        isRight,
+        pointerId: event.pointerId,
+      };
+
+      el.setPointerCapture(event.pointerId);
+    };
+
+    const onPointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
+      const drag = dragRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      const dx = event.clientX - drag.startX;
+      const delta = drag.isRight ? -dx : dx;
+      if (Math.abs(delta) > 2) drag.dragged = true;
+
+      const next = clampPx(drag.startW + delta);
+      setSidebarWidth(`${Math.round(next)}px`);
+    };
+
+    const onPointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
+      const drag = dragRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      dragRef.current = null;
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {
+        // ignore
+      }
+
+      // Click (no drag) still toggles the sidebar.
+      if (!drag.dragged) toggleSidebar();
+    };
 
     return (
       <button
@@ -251,7 +341,9 @@ const SidebarRail = React.forwardRef<HTMLButtonElement, React.ComponentProps<"bu
         data-sidebar="rail"
         aria-label="Toggle Sidebar"
         tabIndex={-1}
-        onClick={toggleSidebar}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
         title="Toggle Sidebar"
         className={cn(
           "absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] group-data-[side=left]:-right-4 group-data-[side=right]:left-0 hover:after:bg-sidebar-border sm:flex",
