@@ -1,9 +1,11 @@
 /**
  * AI Autopilot Trial Hook
  * Manages the 14-day free trial state, warnings, and subscription status
+ * Owner accounts get free unlimited access
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
   checkAutopilotSubscription, 
   startAutopilotTrial,
@@ -28,8 +30,28 @@ const TRIAL_DURATION_DAYS = 14;
 const STORAGE_KEY = 'bamlead_autopilot_trial';
 
 export function useAutopilotTrial() {
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [status, setStatus] = useState<TrialStatus>(() => getInitialStatus());
+
+  // Owner accounts get free unlimited access
+  const isOwnerAccount = useMemo(() => {
+    return user?.is_owner === true || user?.role === 'admin';
+  }, [user]);
+
+  // Create owner status with unlimited access
+  const ownerStatus: TrialStatus = useMemo(() => ({
+    isTrialActive: false,
+    trialDaysRemaining: 0,
+    trialStartDate: null,
+    isPaid: true, // Treated as paid for access purposes
+    isExpired: false,
+    hasStartedTrial: false,
+    subscriptionId: 'owner_complimentary',
+    canUseAutopilot: true,
+    warningLevel: 'none',
+    warningMessage: '',
+  }), []);
 
   // Calculate status from localStorage
   function getInitialStatus(): TrialStatus {
@@ -241,14 +263,15 @@ export function useAutopilotTrial() {
   }, [status.warningLevel]);
 
   return {
-    status,
-    isLoading,
-    badgeColor,
+    status: isOwnerAccount ? ownerStatus : status,
+    isLoading: isOwnerAccount ? false : isLoading,
+    badgeColor: isOwnerAccount ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : badgeColor,
     startTrial,
     upgradeToPaid,
     refreshStatus,
     TRIAL_DURATION_DAYS,
     MONTHLY_PRICE: 39,
+    isOwnerAccount,
   };
 }
 
