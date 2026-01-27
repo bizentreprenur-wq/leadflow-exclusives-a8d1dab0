@@ -27,6 +27,8 @@ import ScheduledQueuePanel from './ScheduledQueuePanel';
 import LeadQueueIndicator from './LeadQueueIndicator';
 import CampaignPerformanceDashboard from './CampaignPerformanceDashboard';
 import ComposeEmailModal from './ComposeEmailModal';
+import EmailABTestingSystem from './EmailABTestingSystem';
+import LeadResponseDetection from './LeadResponseDetection';
 
 // Tab types for main navigation
 type MainTab = 'inbox' | 'campaigns' | 'automation' | 'documents' | 'settings';
@@ -613,6 +615,26 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                     />
                   </div>
                 </div>
+
+                <Separator />
+
+                {/* Lead Response Detection System */}
+                <LeadResponseDetection 
+                  onFollowUp={(response) => {
+                    setShowComposeModal(true);
+                    toast.success(`Preparing reply to ${response.leadName}`);
+                  }}
+                />
+
+                <Separator />
+
+                {/* Email A/B Testing System */}
+                <EmailABTestingSystem 
+                  leads={campaignLeads}
+                  onApplyWinner={(variant) => {
+                    toast.success(`Applied winning template: ${variant.name}`);
+                  }}
+                />
               </div>
             </div>
           )}
