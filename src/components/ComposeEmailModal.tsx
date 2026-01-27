@@ -17,7 +17,7 @@ import {
   CheckCircle2, ArrowRight, Flame, ThermometerSun, Snowflake, FileText,
   Settings2, Users, TrendingUp, Rocket, Search, Globe, Store,
   CreditCard, Wand2, Layers, MailPlus, Briefcase, Crown,
-  X, Maximize2, Minimize2, Eye, AlertCircle, Lightbulb
+  X, Maximize2, Minimize2, Eye, AlertCircle, Lightbulb, Brain
 } from 'lucide-react';
 import AutopilotTrialWarning from './AutopilotTrialWarning';
 import { useAutopilotTrial } from '@/hooks/useAutopilotTrial';
@@ -27,6 +27,7 @@ import EmailScheduleCalendar from './EmailScheduleCalendar';
 import PriorityTemplateSelector from './PriorityTemplateSelector';
 import EmailSequenceSelector from './EmailSequenceSelector';
 import AISequenceRecommendationEngine from './AISequenceRecommendationEngine';
+import AIIntelligenceDecisionPanel from './AIIntelligenceDecisionPanel';
 import { isSMTPConfigured, sendSingleEmail, personalizeContent } from '@/lib/emailService';
 import { sendEmail as apiSendEmail } from '@/lib/api/email';
 import { EmailSequence, EmailStep } from '@/lib/emailSequences';
@@ -1315,6 +1316,16 @@ export default function ComposeEmailModal({
                         />
                       </div>
                     </div>
+
+                    {/* AI Intelligence Decision Panel - Shows AI's self-questioning logic */}
+                    <AIIntelligenceDecisionPanel
+                      searchType={detectedSearchType}
+                      leads={safeLeads}
+                      selectedLeadIndex={currentLeadIndex}
+                      onApplySequence={(sequenceIds, decision) => {
+                        toast.success(`AI recommends: ${decision.approachType} approach with ${sequenceIds.length} sequence(s)`);
+                      }}
+                    />
 
                     {/* Step 2 Analysis Context for AI */}
                     {(() => {
