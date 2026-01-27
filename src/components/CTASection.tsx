@@ -10,7 +10,7 @@ const benefits = [
 
 const CTASection = () => {
   return (
-    <section className="py-20 md:py-28 bg-foreground text-primary-foreground">
+    <section className="py-12 md:py-16 bg-foreground text-primary-foreground">
       <div className="container px-4">
         <div className="max-w-4xl mx-auto text-center">
           {/* Headline */}

@@ -187,7 +187,7 @@ const RevolutionaryFeaturesSection = () => {
   ];
 
   return (
-    <section data-tour="revolutionary" className="py-20 bg-gradient-to-b from-muted/50 via-background to-muted/30">
+    <section data-tour="revolutionary" className="py-12 md:py-16 bg-gradient-to-b from-muted/50 via-background to-muted/30">
       <div className="container px-4">
         {/* Header */}
         <div className="text-center max-w-4xl mx-auto mb-16">

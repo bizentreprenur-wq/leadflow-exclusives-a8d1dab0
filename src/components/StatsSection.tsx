@@ -9,7 +9,7 @@ const stats = [
 
 const StatsSection = forwardRef<HTMLElement>((props, ref) => {
   return (
-    <section ref={ref} className="py-16 bg-background border-y border-border" {...props}>
+    <section ref={ref} className="py-10 bg-background border-y border-border" {...props}>
       <div className="container px-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
           {stats.map((stat) => (
