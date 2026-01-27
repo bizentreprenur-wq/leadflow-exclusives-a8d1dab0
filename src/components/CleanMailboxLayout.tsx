@@ -26,7 +26,7 @@ import AIAutopilotSubscription from './AIAutopilotSubscription';
 import ScheduledQueuePanel from './ScheduledQueuePanel';
 import LeadQueueIndicator from './LeadQueueIndicator';
 import CampaignPerformanceDashboard from './CampaignPerformanceDashboard';
-import EnhancedComposeModal from './EnhancedComposeModal';
+import ComposeEmailModal from './ComposeEmailModal';
 
 // Tab types for main navigation
 type MainTab = 'inbox' | 'campaigns' | 'automation' | 'documents' | 'settings';
@@ -853,8 +853,8 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
         </div>
       </div>
 
-      {/* Enhanced Compose Modal */}
-      <EnhancedComposeModal
+      {/* Compose Email Modal - 3 Modes: Regular, Campaign, Autopilot */}
+      <ComposeEmailModal
         isOpen={showComposeModal}
         onClose={() => setShowComposeModal(false)}
         leads={campaignLeads}
@@ -872,6 +872,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
         }}
         automationSettings={automation}
         onAutomationChange={setAutomation}
+        searchType={searchType}
       />
 
       {/* Campaign Wizard Modal */}
