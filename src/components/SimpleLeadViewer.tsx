@@ -97,6 +97,12 @@ const getSourceBadges = (sources?: string[]) => {
   );
 };
 
+interface RestoredSessionInfo {
+  source: 'localStorage' | 'database';
+  timestamp: string;
+  leadCount: number;
+}
+
 interface SimpleLeadViewerProps {
   leads: SearchResult[];
   onBack: () => void;
@@ -109,6 +115,8 @@ interface SimpleLeadViewerProps {
   isLoading?: boolean;
   loadingProgress?: number;
   onLoadHistorySearch?: (search: SearchHistoryItem) => void;
+  restoredFromSession?: RestoredSessionInfo | null;
+  onDismissRestored?: () => void;
 }
 
 interface SearchHistoryItem {
@@ -132,6 +140,8 @@ export default function SimpleLeadViewer({
   isLoading = false,
   loadingProgress = 0,
   onLoadHistorySearch,
+  restoredFromSession,
+  onDismissRestored,
 }: SimpleLeadViewerProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeFilter, setActiveFilter] = useState<'all' | 'hot' | 'warm' | 'cold' | 'ready' | 'nosite' | 'phoneOnly' | 'withEmail'>('all');
@@ -386,8 +396,70 @@ export default function SimpleLeadViewer({
     }
   };
 
+  // Format the restored timestamp for display
+  const formatRestoredTime = (timestamp: string) => {
+    try {
+      const date = new Date(timestamp);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMins / 60);
+      const diffDays = Math.floor(diffHours / 24);
+      
+      if (diffMins < 1) return 'just now';
+      if (diffMins < 60) return `${diffMins} min ago`;
+      if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+      if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+      
+      return date.toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return 'earlier';
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-4">
+      {/* Restored Session Banner */}
+      {restoredFromSession && (
+        <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-emerald-500/20 via-emerald-500/10 to-transparent border border-emerald-500/30 animate-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500/20">
+              <History className="w-4 h-4 text-emerald-400" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-emerald-400">
+                ✅ Leads Restored from {restoredFromSession.source === 'database' ? 'Cloud Backup' : 'Your Session'}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {restoredFromSession.leadCount} leads from your search {formatRestoredTime(restoredFromSession.timestamp)}
+                {restoredFromSession.source === 'database' && ' • Auto-saved to cloud'}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
+              <Database className="w-3 h-3 mr-1" />
+              Auto-save ON
+            </Badge>
+            {onDismissRestored && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                onClick={onDismissRestored}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* AI Verify Banner */}
       <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/30">
         <div className="flex items-center gap-3">
