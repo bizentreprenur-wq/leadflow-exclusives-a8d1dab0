@@ -13,10 +13,10 @@ const DualSearchShowcase = () => {
   const [activeDemo, setActiveDemo] = useState<"gmb" | "platform">("gmb");
 
   const gmbFeatures = [
-    { icon: MapPin, text: "Find any business with comprehensive AI analysis" },
-    { icon: Database, text: "Get complete contact info, phone, email, address" },
-    { icon: Filter, text: "100+ data points: website health, reviews, social, tracking" },
-    { icon: Zap, text: "AI scoring with personalized sales intelligence" },
+    { icon: MapPin, text: "Deep AI research on any business, niche, or competitor" },
+    { icon: Database, text: "Website health, CMS, page speed, mobile responsiveness, SEO gaps" },
+    { icon: Filter, text: "Competitor intelligence, market signals, and opportunity analysis" },
+    { icon: Zap, text: "AI-powered lead scoring with buying intent signals" },
   ];
 
   const platformFeatures = [
@@ -50,8 +50,8 @@ const DualSearchShowcase = () => {
             Find Leads <span className="text-primary">Your Way</span>
           </h2>
           <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-            Use our Super AI Business Search for comprehensive intelligence on any business, or the Agency Lead Finder 
-            to discover clients who need your digital expertise — BamLead helps you close your next deal.
+            Use our Super AI Business Search for deep research and competitive intelligence, or the Agency Lead Finder 
+            to discover clients who need your digital expertise — Bamlead doesn't just find businesses, it explains who to target, why now, and how to win.
           </p>
         </div>
 
@@ -80,8 +80,8 @@ const DualSearchShowcase = () => {
                 <Building2 className="w-8 h-8 text-primary" />
               </div>
               <div>
-                <h3 className="text-2xl font-display font-bold text-foreground">🤖 Super AI Business Search</h3>
-                <p className="text-sm text-muted-foreground">Advanced business intelligence for any lead</p>
+                <h3 className="text-2xl font-display font-bold text-foreground">🧠 Super AI Business Search</h3>
+                <p className="text-sm text-muted-foreground">Deep Research & Competitive Intelligence</p>
               </div>
             </div>
 
@@ -99,8 +99,7 @@ const DualSearchShowcase = () => {
             <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
               <p className="text-sm font-semibold text-primary mb-2">Perfect For:</p>
               <p className="text-sm text-muted-foreground">
-                Sales teams, SDRs, agencies, SaaS companies, investors, and anyone who needs 
-                comprehensive intelligence on businesses to call or email
+                SaaS companies, B2B sales teams, investors, market researchers, agencies doing competitive intelligence and client research
               </p>
             </div>
           </div>

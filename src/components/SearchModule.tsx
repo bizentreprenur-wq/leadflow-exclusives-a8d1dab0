@@ -166,12 +166,12 @@ const SearchModule = () => {
 
       {/* Two Search Options Side by Side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Super AI Business Intelligence Search Card */}
+        {/* Super AI Business Intelligence Search Card - RESEARCH FOCUSED */}
         <div className="rounded-2xl border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-emerald-500/5 to-transparent p-6 hover:border-primary/40 transition-all relative overflow-hidden">
           {/* Premium badge */}
           <div className="absolute top-3 right-3">
             <span className="px-2 py-1 text-[10px] font-bold bg-gradient-to-r from-primary to-emerald-500 text-white rounded-full">
-              🤖 SUPER AI
+              🧠 RESEARCH AI
             </span>
           </div>
           
@@ -184,63 +184,124 @@ const SearchModule = () => {
                 Super AI Business Search
               </h3>
               <p className="text-sm text-muted-foreground">
-                Advanced Business Intelligence
+                Deep Research & Competitive Intelligence
               </p>
             </div>
           </div>
 
           <p className="text-sm text-muted-foreground mb-4">
-            <span className="font-semibold text-primary">Find businesses to call or email.</span> Get comprehensive AI-powered insights on every lead — perfect for sales teams, agencies & digital professionals.
+            <span className="font-semibold text-primary">AI-Powered Business Intelligence.</span> Go beyond simple search — get deep analysis, competitor insights, market signals, and actionable intelligence on any business or niche.
           </p>
 
-          <ul className="text-sm text-muted-foreground space-y-1 mb-4">
-            <li className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-              100+ verified data points per business
-            </li>
-            <li className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              Website health & conversion readiness
-            </li>
-            <li className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-              Google reviews, ratings & reputation
-            </li>
-            <li className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-violet-500" />
-              AI scoring & lead prioritization
-            </li>
-            <li className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-              Social media presence analysis
-            </li>
-            <li className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-              Contact info, phone & email
-            </li>
-            <li className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
-              AI-powered outreach scripts
-            </li>
-          </ul>
-
-          {/* What You Get Section */}
-          <div className="p-3 rounded-lg bg-gradient-to-r from-primary/5 to-emerald-500/5 border border-primary/10 mb-4">
-            <p className="text-xs font-semibold text-primary mb-2">✨ What You Get:</p>
-            <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
-              <span>📍 Business Address</span>
-              <span>📞 Phone Numbers</span>
-              <span>🌐 Website URL</span>
-              <span>📧 Email Address</span>
-              <span>⭐ Google Reviews</span>
-              <span>📊 AI Lead Score</span>
-              <span>📱 Mobile Readiness</span>
-              <span>🎯 Tracking Pixels</span>
-              <span>💬 Social Profiles</span>
-              <span>🔧 Tech Stack</span>
-              <span>💰 Revenue Signals</span>
-              <span>🗣️ What to Say Scripts</span>
+          {/* Research Categories - Scrollable */}
+          <div className="max-h-[280px] overflow-y-auto pr-2 space-y-2 mb-4 scrollbar-thin">
+            {/* Website & Digital Health */}
+            <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/10">
+              <p className="text-xs font-bold text-primary flex items-center gap-1.5 mb-1">
+                🌐 WEBSITE & DIGITAL HEALTH
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                CMS detection, SSL status, mobile responsiveness, page speed, Core Web Vitals, broken links, UX issues, accessibility, conversion elements, tracking pixels
+              </p>
             </div>
+
+            {/* Online Presence & Visibility */}
+            <div className="p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+              <p className="text-xs font-bold text-emerald-500 flex items-center gap-1.5 mb-1">
+                📈 ONLINE PRESENCE & VISIBILITY
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Google Business Profile status, search ranking, local SEO strength, directory listings, brand mentions, backlink profile, indexed pages
+              </p>
+            </div>
+
+            {/* Reviews & Reputation */}
+            <div className="p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/10">
+              <p className="text-xs font-bold text-amber-500 flex items-center gap-1.5 mb-1">
+                ⭐ REVIEWS & REPUTATION INTELLIGENCE
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Total reviews by platform, rating trends, review velocity, sentiment analysis, complaint themes, response rate, competitor comparison
+              </p>
+            </div>
+
+            {/* AI Opportunity Analysis */}
+            <div className="p-2.5 rounded-lg bg-violet-500/5 border border-violet-500/10">
+              <p className="text-xs font-bold text-violet-500 flex items-center gap-1.5 mb-1">
+                🧠 AI OPPORTUNITY & GAP ANALYSIS
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Missed conversion opportunities, SEO gaps, paid ads readiness, automation potential, AI-recommended services, revenue lift potential
+              </p>
+            </div>
+
+            {/* Technology Stack */}
+            <div className="p-2.5 rounded-lg bg-blue-500/5 border border-blue-500/10">
+              <p className="text-xs font-bold text-blue-500 flex items-center gap-1.5 mb-1">
+                🛠 TECHNOLOGY & TRACKING STACK
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Analytics tools (GA4, GTM), ad platforms, CRM detection, email marketing, chatbots, booking software, payment gateways, hosting
+              </p>
+            </div>
+
+            {/* Lead Intent & Buying Signals */}
+            <div className="p-2.5 rounded-lg bg-rose-500/5 border border-rose-500/10">
+              <p className="text-xs font-bold text-rose-500 flex items-center gap-1.5 mb-1">
+                🎯 LEAD INTENT & BUYING SIGNALS
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Hiring activity, funding events, website changes, ad spend signals, marketing spikes, traffic growth, AI intent score
+              </p>
+            </div>
+
+            {/* Competitor Intelligence */}
+            <div className="p-2.5 rounded-lg bg-orange-500/5 border border-orange-500/10">
+              <p className="text-xs font-bold text-orange-500 flex items-center gap-1.5 mb-1">
+                🥊 COMPETITOR & MARKET INTELLIGENCE
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Direct competitors identified, market share, competitive gaps, pricing signals, ranking comparison, differentiation opportunities
+              </p>
+            </div>
+
+            {/* Sales Readiness */}
+            <div className="p-2.5 rounded-lg bg-cyan-500/5 border border-cyan-500/10">
+              <p className="text-xs font-bold text-cyan-500 flex items-center gap-1.5 mb-1">
+                📊 SALES & OUTREACH READINESS
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Decision-maker data, response likelihood, preferred outreach channel, personalization hooks, pitch angle, closing probability
+              </p>
+            </div>
+
+            {/* Compliance & Trust */}
+            <div className="p-2.5 rounded-lg bg-slate-500/5 border border-slate-500/10">
+              <p className="text-xs font-bold text-slate-400 flex items-center gap-1.5 mb-1">
+                🧩 COMPLIANCE, RISK & TRUST SIGNALS
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Privacy policy, cookie compliance, ADA risk, security headers, domain trust score, spam risk indicators
+              </p>
+            </div>
+
+            {/* AI Smart Actions */}
+            <div className="p-2.5 rounded-lg bg-gradient-to-r from-primary/10 to-emerald-500/10 border border-primary/20">
+              <p className="text-xs font-bold text-primary flex items-center gap-1.5 mb-1">
+                🧪 AI INSIGHTS & SMART ACTIONS
+              </p>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                AI summary, talking points, recommended first message, follow-up cadence, proposal ideas, "why now" insight
+              </p>
+            </div>
+          </div>
+
+          {/* Perfect For Section */}
+          <div className="p-3 rounded-lg bg-gradient-to-r from-primary/5 to-emerald-500/5 border border-primary/10 mb-4">
+            <p className="text-xs font-semibold text-primary mb-1">🎯 Perfect For:</p>
+            <p className="text-[11px] text-muted-foreground">
+              SaaS companies, B2B sales teams, investors, market researchers, competitive intelligence, agencies doing client research
+            </p>
           </div>
 
           <Button
@@ -252,12 +313,12 @@ const SearchModule = () => {
             {isLoading && selectedSearch === "gmb" ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                AI Analyzing...
+                AI Researching...
               </>
             ) : (
               <>
                 <Search className="w-5 h-5 mr-2" />
-                🚀 Run Super AI Search
+                🧠 Run Deep AI Research
               </>
             )}
           </Button>

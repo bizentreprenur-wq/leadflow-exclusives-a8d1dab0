@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -163,6 +164,8 @@ export default function WorkflowOnboardingTour({
   onStepChange,
   forceShow = false,
 }: WorkflowOnboardingTourProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [isVisible, setIsVisible] = useState(false);
   const [tourStep, setTourStep] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
@@ -236,16 +239,30 @@ export default function WorkflowOnboardingTour({
   const handleDismiss = useCallback(() => {
     localStorage.setItem(DISMISSED_KEY, "true");
     setIsVisible(false);
-  }, []);
+    // Always navigate back to dashboard when dismissing
+    if (location.pathname !== "/dashboard" && location.pathname !== "/dashboard-demo") {
+      navigate("/dashboard");
+    }
+  }, [location.pathname, navigate]);
 
   const handleGoToStep = useCallback(
     (stepId: number) => {
       setIsVisible(false);
       localStorage.setItem(STORAGE_KEY, "true");
+      // Navigate to dashboard first, then trigger step change
+      if (location.pathname !== "/dashboard" && location.pathname !== "/dashboard-demo") {
+        navigate("/dashboard");
+      }
       onStepChange?.(stepId);
     },
-    [onStepChange]
+    [onStepChange, location.pathname, navigate]
   );
+
+  const handleFinishAndGoToDashboard = useCallback(() => {
+    localStorage.setItem(STORAGE_KEY, "true");
+    setIsVisible(false);
+    navigate("/dashboard");
+  }, [navigate]);
 
   const currentWorkflowStep = WORKFLOW_STEPS[tourStep];
   const progress = ((tourStep + 1) / WORKFLOW_STEPS.length) * 100;
@@ -307,11 +324,11 @@ export default function WorkflowOnboardingTour({
               </div>
 
               <div className="flex gap-3 justify-center">
-                <Button variant="outline" onClick={() => setIsVisible(false)}>
-                  Close
+                <Button variant="outline" onClick={handleFinishAndGoToDashboard}>
+                  Go to Dashboard
                 </Button>
                 <Button
-                  onClick={() => handleGoToStep(1)}
+                  onClick={handleFinishAndGoToDashboard}
                   className="gap-2 bg-gradient-to-r from-primary to-accent"
                 >
                   <Rocket className="w-4 h-4" />
