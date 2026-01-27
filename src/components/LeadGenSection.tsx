@@ -5,7 +5,7 @@ const LeadGenSection = () => {
     {
       icon: Search,
       title: "Super AI Business Search",
-      description: "Find any business with 100+ AI-analyzed data points for comprehensive intelligence",
+      description: "10 AI research categories with 100+ data points and real-time website analysis",
       color: "primary"
     },
     {
@@ -15,26 +15,26 @@ const LeadGenSection = () => {
       color: "accent"
     },
     {
-      icon: AlertTriangle,
-      title: "Problem Detection",
-      description: "AI detects website issues, missing tracking, weak reviews & social gaps",
+      icon: Zap,
+      title: "Real-Time Analysis",
+      description: "Live website scraping for CMS, speed, SEO, tech stack & conversion elements",
       color: "warning"
     },
     {
       icon: Filter,
-      title: "Sales Intelligence",
-      description: "AI scoring, personalized talking points & recommended outreach actions",
+      title: "Export Intelligence Reports",
+      description: "Download full research as PDF, Excel, or send directly to Google Drive",
       color: "success"
     }
   ];
 
   const capabilities = [
-    "Complete business identity & validation",
-    "Website health, speed & conversion analysis",
-    "Google reviews, ratings & reputation signals",
-    "Social media presence & activity tracking",
-    "Tracking pixels & analytics detection",
-    "AI scoring with sales intelligence"
+    "10 AI research categories with deep intelligence",
+    "Real-time website analysis (CMS, speed, SEO, tech stack)",
+    "Competitor intel, market signals & buying intent",
+    "Full research report export (PDF, Excel, Google Drive)",
+    "AI scoring with personalized outreach recommendations",
+    "100+ data points per lead for comprehensive insights"
   ];
 
   return (

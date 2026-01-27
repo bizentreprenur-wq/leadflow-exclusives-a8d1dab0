@@ -23,22 +23,49 @@ import {
 
 const features = [
   {
-    icon: Sparkles,
-    title: "AI Template Suggestions",
-    description: "Smart AI analyzes your leads' industry and recommends the highest-converting email templates automatically",
+    icon: Zap,
+    title: "Real-Time Website Analysis",
+    description: "Live website scraping analyzes CMS, page speed, mobile score, SSL, SEO gaps, and tech stack in real-time",
     badge: "NEW",
+    badgeColor: "bg-gradient-to-r from-amber-500 to-orange-500 text-white",
+    color: "text-amber-500",
+    bgColor: "bg-amber-500/10",
+  },
+  {
+    icon: Target,
+    title: "Full Research Report Export",
+    description: "Export complete AI intelligence reports as PDF, Excel, or directly to Google Drive for client presentations",
+    badge: "NEW",
+    badgeColor: "bg-gradient-to-r from-emerald-500 to-teal-500 text-white",
+    color: "text-emerald-500",
+    bgColor: "bg-emerald-500/10",
+  },
+  {
+    icon: Brain,
+    title: "10 AI Research Categories",
+    description: "Website health, online presence, reputation, AI opportunities, tech stack, buying signals, competitors, sales readiness, compliance, and smart actions",
+    badge: "EXCLUSIVE",
     badgeColor: "bg-gradient-to-r from-primary to-accent text-white",
     color: "text-primary",
     bgColor: "bg-primary/10",
   },
   {
+    icon: Sparkles,
+    title: "AI Template Suggestions",
+    description: "Smart AI analyzes your leads' industry and recommends the highest-converting email templates automatically",
+    badge: "AI Powered",
+    badgeColor: "bg-warning text-warning-foreground",
+    color: "text-warning",
+    bgColor: "bg-warning/10",
+  },
+  {
     icon: Wand2,
     title: "AI Email Assistant",
     description: "Get AI-powered subject lines, opening hooks, and CTAs personalized for each lead with one click",
-    badge: "NEW",
-    badgeColor: "bg-gradient-to-r from-primary to-accent text-white",
-    color: "text-accent",
-    bgColor: "bg-accent/10",
+    badge: "Smart",
+    badgeColor: "bg-violet-500 text-white",
+    color: "text-violet-500",
+    bgColor: "bg-violet-500/10",
   },
   {
     icon: Bot,
@@ -48,15 +75,6 @@ const features = [
     badgeColor: "bg-primary text-primary-foreground",
     color: "text-primary",
     bgColor: "bg-primary/10",
-  },
-  {
-    icon: Brain,
-    title: "Sentiment Analyzer",
-    description: "AI analyzes your email tone and suggests improvements before sending",
-    badge: "AI Powered",
-    badgeColor: "bg-warning text-warning-foreground",
-    color: "text-warning",
-    bgColor: "bg-warning/10",
   },
   {
     icon: Trophy,
@@ -81,33 +99,24 @@ const features = [
     title: "Voice Search",
     description: "Find leads using just your voice - speak and we'll search",
     badge: "Hands-free",
-    badgeColor: "bg-violet-500 text-white",
-    color: "text-violet-500",
-    bgColor: "bg-violet-500/10",
+    badgeColor: "bg-blue-500 text-white",
+    color: "text-blue-500",
+    bgColor: "bg-blue-500/10",
   },
   {
     icon: Mail,
     title: "Smart Email Builder",
     description: "Build and customize email campaigns with real-time preview and personalization tokens",
     badge: "Pro",
-    badgeColor: "bg-blue-500 text-white",
-    color: "text-blue-500",
-    bgColor: "bg-blue-500/10",
+    badgeColor: "bg-cyan-500 text-white",
+    color: "text-cyan-500",
+    bgColor: "bg-cyan-500/10",
   },
   {
     icon: BarChart3,
     title: "Interactive Analytics",
     description: "Beautiful charts and real-time stats to track your outreach performance",
     badge: "Visual",
-    badgeColor: "bg-cyan-500 text-white",
-    color: "text-cyan-500",
-    bgColor: "bg-cyan-500/10",
-  },
-  {
-    icon: Palette,
-    title: "Background Remover",
-    description: "Remove image backgrounds instantly for professional email graphics",
-    badge: "Browser AI",
     badgeColor: "bg-pink-500 text-white",
     color: "text-pink-500",
     bgColor: "bg-pink-500/10",
@@ -115,17 +124,8 @@ const features = [
   {
     icon: Shield,
     title: "AI Lead Verification",
-    description: "Verify emails, validate phones, and score leads automatically",
+    description: "Verify emails, validate phones, and score leads automatically with 95% accuracy",
     badge: "Accurate",
-    badgeColor: "bg-emerald-500 text-white",
-    color: "text-emerald-500",
-    bgColor: "bg-emerald-500/10",
-  },
-  {
-    icon: Target,
-    title: "Industry Detection",
-    description: "AI automatically detects lead industries and tailors your outreach strategy",
-    badge: "Smart",
     badgeColor: "bg-orange-500 text-white",
     color: "text-orange-500",
     bgColor: "bg-orange-500/10",
@@ -147,7 +147,7 @@ export default function NewFeaturesShowcase() {
               Packed with Powerful Features
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Everything you need to find leads, verify contacts, and close deals - all in one platform
+              Real-time website analysis, full research report exports, 10 AI categories, and 100+ data points — everything you need to find, analyze, and close deals
             </p>
           </div>
 

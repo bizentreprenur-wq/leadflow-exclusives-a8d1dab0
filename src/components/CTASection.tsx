@@ -3,9 +3,9 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, CheckCircle } from "lucide-react";
 
 const benefits = [
-  "No credit card required",
-  "5 free searches included",
-  "Cancel anytime",
+  "10 AI research categories",
+  "Real-time website analysis",
+  "Export PDF/Excel/Drive",
 ];
 
 const CTASection = () => {
@@ -21,7 +21,7 @@ const CTASection = () => {
           
           {/* Subheadline */}
           <p className="text-lg md:text-xl text-primary-foreground/80 max-w-2xl mx-auto mb-8">
-            Join thousands of website designers, social media marketers & agencies who are closing more deals with BamLead's AI-powered lead discovery.
+            Join thousands of agencies and sales teams who are closing more deals with BamLead's real-time AI analysis, 100+ data points, and professional export reports.
           </p>
 
           {/* Benefits */}

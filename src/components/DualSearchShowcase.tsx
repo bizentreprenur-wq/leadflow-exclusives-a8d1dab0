@@ -13,17 +13,17 @@ const DualSearchShowcase = () => {
   const [activeDemo, setActiveDemo] = useState<"gmb" | "platform">("gmb");
 
   const gmbFeatures = [
-    { icon: MapPin, text: "Deep AI research on any business, niche, or competitor" },
-    { icon: Database, text: "Website health, CMS, page speed, mobile responsiveness, SEO gaps" },
-    { icon: Filter, text: "Competitor intelligence, market signals, and opportunity analysis" },
+    { icon: MapPin, text: "10 AI research categories with 100+ data points per lead" },
+    { icon: Database, text: "Real-time website analysis: CMS, speed, SEO, tech stack, conversions" },
+    { icon: Filter, text: "Full research report export: PDF, Excel, or Google Drive" },
     { icon: Zap, text: "AI-powered lead scoring with buying intent signals" },
   ];
 
   const platformFeatures = [
     { icon: Code, text: "Find businesses with broken or outdated websites" },
     { icon: Globe, text: "Detect weak social media presence & missing reviews" },
-    { icon: TrendingUp, text: "Identify missing tracking pixels & retargeting" },
-    { icon: Users, text: "Perfect for web designers, social media marketers & agencies" },
+    { icon: TrendingUp, text: "Real-time analysis of tracking pixels & retargeting gaps" },
+    { icon: Users, text: "Export client-ready reports for web designers & agencies" },
   ];
 
   const platforms = [
@@ -210,13 +210,12 @@ const DualSearchShowcase = () => {
           </div>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12">
           {[
-            { value: "100+", label: "Data points analyzed", icon: Database },
-            { value: "AI", label: "Powered scoring", icon: Sparkles },
-            { value: "2", label: "Search engines", icon: Globe },
-            { value: "24/7", label: "Always available", icon: Zap },
+            { value: "10", label: "AI Research Categories", icon: Database },
+            { value: "100+", label: "Data Points Analyzed", icon: Sparkles },
+            { value: "Real-Time", label: "Website Analysis", icon: Globe },
+            { value: "3", label: "Export Formats", icon: Zap },
           ].map((stat, i) => (
             <div key={i} className="text-center p-4 rounded-xl bg-card border border-border">
               <stat.icon className="w-6 h-6 mx-auto mb-2 text-primary" />
