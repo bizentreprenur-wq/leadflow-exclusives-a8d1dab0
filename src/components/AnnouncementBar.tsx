@@ -12,10 +12,11 @@ const AnnouncementBar = () => {
   return (
     <div className="bg-black py-2.5 px-4 border-b border-white/10">
       <div className="container flex items-center justify-center gap-3 text-sm flex-wrap">
-        <div className="flex items-center gap-2">
+        {/* Text visible only on mobile */}
+        <div className="flex items-center gap-2 sm:hidden">
           <Brain className="w-4 h-4 text-primary drop-shadow-[0_0_8px_rgba(45,212,191,0.6)]" />
           <span className="font-semibold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
-            🧠 Super AI Business Search — Advanced Business Insights Beyond Basic Lead Lists
+            🧠 Super AI Business Search
           </span>
         </div>
         
