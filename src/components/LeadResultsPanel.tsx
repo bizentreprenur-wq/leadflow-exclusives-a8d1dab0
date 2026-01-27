@@ -21,7 +21,7 @@ import {
   Star, TrendingUp, Download, Filter, ArrowRight, Sparkles,
   Brain, Target, BarChart3, Mail, Building2, Zap, Clock,
   ChevronLeft, ChevronRight, FileSpreadsheet, AlertTriangle,
-  Loader2, Eye, MousePointer, Flame, Snowflake
+  Loader2, Eye, MousePointer, Flame, Snowflake, Smartphone
 } from 'lucide-react';
 import { LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } from '@/lib/api/leadAnalysis';
 import LeadClassificationPanel from '@/components/LeadClassificationPanel';
@@ -79,6 +79,8 @@ export default function LeadResultsPanel({
   const [activeTab, setActiveTab] = useState<'all' | 'ai-grouped' | 'no-website' | 'classified'>('all');
   const [sortBy, setSortBy] = useState<'name' | 'rating' | 'issues'>('rating');
   const [filterHasWebsite, setFilterHasWebsite] = useState<'all' | 'yes' | 'no'>('all');
+  const [filterNotMobile, setFilterNotMobile] = useState(false);
+  const [filterOutdated, setFilterOutdated] = useState(false);
   const [showClassification, setShowClassification] = useState(false);
 
   // Reset selection when results change
@@ -108,6 +110,28 @@ export default function LeadResultsPanel({
       filtered = filtered.filter(r => !r.website || r.websiteAnalysis?.hasWebsite === false);
     }
 
+    // Not mobile compliant filter
+    if (filterNotMobile) {
+      filtered = filtered.filter(r => 
+        r.websiteAnalysis?.mobileScore !== null && 
+        (r.websiteAnalysis?.mobileScore || 0) < 50
+      );
+    }
+
+    // Outdated website standards filter
+    if (filterOutdated) {
+      filtered = filtered.filter(r => 
+        r.websiteAnalysis?.needsUpgrade === true ||
+        r.websiteAnalysis?.issues?.some((issue: string) => 
+          issue.toLowerCase().includes('outdated') ||
+          issue.toLowerCase().includes('old') ||
+          issue.toLowerCase().includes('slow') ||
+          issue.toLowerCase().includes('ssl') ||
+          issue.toLowerCase().includes('security')
+        )
+      );
+    }
+
     // Sort
     filtered.sort((a, b) => {
       if (sortBy === 'rating') {
@@ -121,7 +145,7 @@ export default function LeadResultsPanel({
     });
 
     return filtered;
-  }, [results, searchQuery, filterHasWebsite, sortBy]);
+  }, [results, searchQuery, filterHasWebsite, filterNotMobile, filterOutdated, sortBy]);
 
   // Leads without websites (high-value for web designers)
   const noWebsiteLeads = useMemo(() => 
@@ -204,6 +228,20 @@ export default function LeadResultsPanel({
     withPhone: results.filter(r => r.phone).length,
     avgRating: results.reduce((sum, r) => sum + (r.rating || 0), 0) / results.filter(r => r.rating).length || 0,
     needsUpgrade: results.filter(r => r.websiteAnalysis?.needsUpgrade).length,
+    notMobileCompliant: results.filter(r => 
+      r.websiteAnalysis?.mobileScore !== null && 
+      (r.websiteAnalysis?.mobileScore || 0) < 50
+    ).length,
+    outdatedStandards: results.filter(r => 
+      r.websiteAnalysis?.needsUpgrade === true ||
+      r.websiteAnalysis?.issues?.some((issue: string) => 
+        issue.toLowerCase().includes('outdated') ||
+        issue.toLowerCase().includes('old') ||
+        issue.toLowerCase().includes('slow') ||
+        issue.toLowerCase().includes('ssl') ||
+        issue.toLowerCase().includes('security')
+      )
+    ).length,
   }), [results, noWebsiteLeads]);
 
   return (
@@ -393,30 +431,85 @@ export default function LeadResultsPanel({
         )}
 
         {/* Filters & Search */}
-        <div className="p-4 border-b flex flex-wrap gap-3 items-center">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search leads..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+        <div className="p-4 border-b space-y-3">
+          <div className="flex flex-wrap gap-3 items-center">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search leads..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
+              <SelectTrigger className="w-[140px]">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="rating">Highest Rating</SelectItem>
+                <SelectItem value="issues">Most Issues</SelectItem>
+                <SelectItem value="name">Name A-Z</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-2">
+              <Download className="w-4 h-4" />
+              Export CSV
+            </Button>
           </div>
-          <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="rating">Highest Rating</SelectItem>
-              <SelectItem value="issues">Most Issues</SelectItem>
-              <SelectItem value="name">Name A-Z</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-2">
-            <Download className="w-4 h-4" />
-            Export CSV
-          </Button>
+          
+          {/* Website Quality Filters */}
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-xs font-medium text-muted-foreground">Quick Filters:</span>
+            <button
+              onClick={() => {
+                setFilterHasWebsite(filterHasWebsite === 'no' ? 'all' : 'no');
+                setActiveTab('no-website');
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${
+                filterHasWebsite === 'no'
+                  ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400'
+                  : 'border-border hover:border-emerald-500/50 text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <XCircle className="w-3 h-3" />
+              No Website ({stats.withoutWebsite})
+            </button>
+            <button
+              onClick={() => setFilterNotMobile(!filterNotMobile)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${
+                filterNotMobile
+                  ? 'bg-orange-500/20 border-orange-500 text-orange-400'
+                  : 'border-border hover:border-orange-500/50 text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Smartphone className="w-3 h-3" />
+              Not Mobile Friendly ({stats.notMobileCompliant})
+            </button>
+            <button
+              onClick={() => setFilterOutdated(!filterOutdated)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${
+                filterOutdated
+                  ? 'bg-red-500/20 border-red-500 text-red-400'
+                  : 'border-border hover:border-red-500/50 text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <AlertTriangle className="w-3 h-3" />
+              Outdated Standards ({stats.outdatedStandards})
+            </button>
+            {(filterHasWebsite !== 'all' || filterNotMobile || filterOutdated) && (
+              <button
+                onClick={() => {
+                  setFilterHasWebsite('all');
+                  setFilterNotMobile(false);
+                  setFilterOutdated(false);
+                }}
+                className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Tabs for different views */}
