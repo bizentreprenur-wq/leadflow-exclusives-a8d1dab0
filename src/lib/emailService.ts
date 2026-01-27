@@ -442,7 +442,7 @@ export const cancelScheduledEmail = async (emailId: string): Promise<boolean> =>
 };
 
 /**
- * Personalize email content with lead data
+ * Personalize email content with lead data including Step 2 analysis context
  */
 export const personalizeContent = (
   content: string,
@@ -450,7 +450,9 @@ export const personalizeContent = (
 ): string => {
   let result = content;
   
+  // Core placeholders
   const placeholders: Record<string, string> = {
+    // Basic info
     '{{business_name}}': data.business_name || data.businessName || '',
     '{{first_name}}': data.first_name || data.firstName || extractFirstName(data.business_name || data.contact_name || '') || 'there',
     '{{website}}': data.website || '',
@@ -461,6 +463,24 @@ export const personalizeContent = (
     '{{sender_name}}': data.sender_name || data.senderName || 'The BamLead Team',
     '{{location}}': data.location || data.city || 'your area',
     '{{industry}}': data.industry || 'your industry',
+    
+    // Step 2 Analysis Context - Website Analysis
+    '{{website_status}}': data.website_status || (data.website ? 'has website' : 'no website'),
+    '{{website_platform}}': data.website_platform || data.platform || '',
+    '{{website_issues}}': data.website_issues || data.issues || '',
+    '{{mobile_score}}': data.mobile_score || '',
+    '{{needs_upgrade}}': data.needs_upgrade || '',
+    
+    // Step 2 Analysis Context - AI Insights
+    '{{main_pain_point}}': data.main_pain_point || '',
+    '{{pain_points}}': data.pain_points || '',
+    '{{lead_priority}}': data.lead_priority || data.aiClassification || '',
+    '{{recommended_approach}}': data.recommended_approach || '',
+    '{{talking_points}}': data.talking_points || '',
+    
+    // Dynamic contextual openers based on analysis
+    '{{personalized_opener}}': generatePersonalizedOpener(data),
+    '{{value_proposition}}': generateValueProposition(data),
   };
   
   for (const [placeholder, value] of Object.entries(placeholders)) {
@@ -468,6 +488,63 @@ export const personalizeContent = (
   }
   
   return result;
+};
+
+/**
+ * Generate a personalized opener based on lead analysis
+ */
+const generatePersonalizedOpener = (data: Record<string, string>): string => {
+  const businessName = data.business_name || data.businessName || 'your business';
+  
+  // No website leads
+  if (data.website_status === 'no website' || !data.website) {
+    return `I noticed ${businessName} doesn't have a website yet, and I wanted to reach out because many of your competitors are attracting customers online`;
+  }
+  
+  // Website needs upgrade
+  if (data.needs_upgrade === 'yes' || data.website_issues) {
+    const issues = data.website_issues || 'some areas that could be improved';
+    return `I took a look at your website and noticed ${issues}. I've helped businesses like yours fix these issues`;
+  }
+  
+  // Hot leads
+  if (data.lead_priority === 'hot') {
+    return `I came across ${businessName} and was impressed - I think there's a great opportunity for us to work together`;
+  }
+  
+  // Use pain point if available
+  if (data.main_pain_point) {
+    return `I noticed ${businessName} might be dealing with ${data.main_pain_point}, and I wanted to share some insights`;
+  }
+  
+  // Default
+  return `I came across ${businessName} and thought of some ways we might be able to help`;
+};
+
+/**
+ * Generate a value proposition based on lead context
+ */
+const generateValueProposition = (data: Record<string, string>): string => {
+  // No website
+  if (data.website_status === 'no website' || !data.website) {
+    return 'help you establish a professional online presence that attracts more customers';
+  }
+  
+  // Website issues
+  if (data.needs_upgrade === 'yes') {
+    if (data.mobile_score && parseInt(data.mobile_score) < 50) {
+      return 'make your website mobile-friendly so you don\'t lose customers on phones';
+    }
+    return 'optimize your website to convert more visitors into paying customers';
+  }
+  
+  // Hot lead
+  if (data.lead_priority === 'hot') {
+    return 'help you capitalize on your strong position and accelerate growth';
+  }
+  
+  // Default
+  return 'help you grow your business and reach more customers';
 };
 
 /**

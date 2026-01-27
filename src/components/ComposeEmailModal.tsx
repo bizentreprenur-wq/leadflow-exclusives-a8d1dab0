@@ -17,17 +17,26 @@ import {
   CheckCircle2, ArrowRight, Flame, ThermometerSun, Snowflake, FileText,
   Settings2, Users, TrendingUp, Rocket, Search, Globe, Store,
   CreditCard, Wand2, Layers, MailPlus, Briefcase, Crown,
-  X, Maximize2, Minimize2, Eye
+  X, Maximize2, Minimize2, Eye, AlertCircle, Lightbulb
 } from 'lucide-react';
 import LeadQueueIndicator from './LeadQueueIndicator';
 import AISubjectLineGenerator from './AISubjectLineGenerator';
 import EmailScheduleCalendar from './EmailScheduleCalendar';
 import PriorityTemplateSelector from './PriorityTemplateSelector';
 import EmailSequenceSelector from './EmailSequenceSelector';
-import { isSMTPConfigured, sendSingleEmail } from '@/lib/emailService';
+import { isSMTPConfigured, sendSingleEmail, personalizeContent } from '@/lib/emailService';
 import { sendEmail as apiSendEmail } from '@/lib/api/email';
 import { EmailSequence, EmailStep } from '@/lib/emailSequences';
+import { 
+  getLeadContextByEmail, 
+  generatePersonalizationFromContext,
+  generateEmailSuggestionsFromContext,
+  LeadAnalysisContext,
+  saveCampaignLeadsWithContext,
+  getStoredLeadContext
+} from '@/lib/leadContext';
 
+// Enhanced Lead interface with Step 2 analysis data
 interface Lead {
   id?: string | number;
   email?: string;
@@ -42,6 +51,22 @@ interface Lead {
   leadScore?: number;
   hasWebsite?: boolean;
   websiteIssues?: string[];
+  // Step 2 Analysis fields
+  websiteAnalysis?: {
+    hasWebsite: boolean;
+    platform?: string;
+    needsUpgrade: boolean;
+    mobileScore?: number;
+    loadTime?: number;
+    issues: string[];
+    opportunities: string[];
+  };
+  painPoints?: string[];
+  talkingPoints?: string[];
+  aiInsights?: string[];
+  recommendedApproach?: string;
+  urgency?: 'immediate' | 'this_week' | 'nurture';
+  successProbability?: number;
 }
 
 interface ComposeEmailModalProps {
@@ -259,11 +284,23 @@ export default function ComposeEmailModal({
 
     setIsSending(true);
     try {
+      // Get lead analysis context for personalization
+      const leadContext = currentLead?.email ? getLeadContextByEmail(currentLead.email) : null;
+      const personalization = leadContext ? generatePersonalizationFromContext(leadContext) : {};
+      
+      // Personalize the email body with Step 2 analysis data
+      const personalizedBody = personalizeContent(email.body, {
+        ...personalization,
+        business_name: currentLead?.business_name || currentLead?.name || '',
+        website: currentLead?.website || '',
+      });
+      
       await sendSingleEmail({
         to: email.to,
-        subject: email.subject,
-        bodyHtml: `<p>${email.body.replace(/\n/g, '<br/>')}</p>`,
+        subject: personalizeContent(email.subject, personalization),
+        bodyHtml: `<p>${personalizedBody.replace(/\n/g, '<br/>')}</p>`,
         leadId: String(currentLead?.id || 'manual'),
+        personalization,
       });
       toast.success('Email sent successfully!');
       onEmailSent(currentLeadIndex);
@@ -321,17 +358,34 @@ export default function ComposeEmailModal({
       return;
     }
     
+    // Get full lead context from Step 2 analysis for AI Autopilot
+    const leadsWithContext = getStoredLeadContext();
+    
+    // Save leads with their full analysis context for AI to use
+    saveCampaignLeadsWithContext(leadsWithContext);
+    
+    // Store campaign configuration with analysis data
     localStorage.setItem('bamlead_drip_active', JSON.stringify({
       active: true,
       leads: safeLeads.map(l => l?.id ?? ''),
+      leadsWithAnalysis: leadsWithContext.length,
       currentIndex: currentLeadIndex,
       interval: dripInterval,
       searchType: detectedSearchType,
       startedAt: new Date().toISOString(),
+      // Include summary of lead analysis for AI reference
+      analysisContext: {
+        totalLeads: leadsWithContext.length,
+        noWebsiteCount: leadsWithContext.filter(l => !l.websiteAnalysis?.hasWebsite).length,
+        needsUpgradeCount: leadsWithContext.filter(l => l.websiteAnalysis?.needsUpgrade).length,
+        hotLeadsCount: leadsWithContext.filter(l => l.aiClassification === 'hot').length,
+        warmLeadsCount: leadsWithContext.filter(l => l.aiClassification === 'warm').length,
+        coldLeadsCount: leadsWithContext.filter(l => l.aiClassification === 'cold').length,
+      },
     }));
     
     onAutomationChange({ ...automationSettings, doneForYouMode: true });
-    toast.success('🤖 AI Autopilot activated! AI will manage your outreach automatically.');
+    toast.success('🤖 AI Autopilot activated! AI will use Step 2 analysis to personalize your outreach.');
     onClose();
   };
 
@@ -697,6 +751,53 @@ export default function ComposeEmailModal({
                         </button>
                       </div>
                     </div>
+
+                    {/* Step 2 Analysis Context Indicator */}
+                    {(() => {
+                      const analysisContext = getStoredLeadContext();
+                      const noWebsiteCount = analysisContext.filter(l => !l.websiteAnalysis?.hasWebsite).length;
+                      const needsUpgradeCount = analysisContext.filter(l => l.websiteAnalysis?.needsUpgrade).length;
+                      const hasPainPoints = analysisContext.filter(l => l.painPoints && l.painPoints.length > 0).length;
+                      
+                      if (analysisContext.length === 0) return null;
+                      
+                      return (
+                        <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
+                              <Lightbulb className="w-4 h-4 text-primary" />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-foreground text-sm">Step 2 Analysis Active</h4>
+                              <p className="text-[10px] text-muted-foreground">
+                                AI will use this data to personalize your emails
+                              </p>
+                            </div>
+                            <Badge className="ml-auto bg-primary/20 text-primary border-primary/30 text-[10px]">
+                              <Sparkles className="w-3 h-3 mr-1" />
+                              Smart Context
+                            </Badge>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-center">
+                            <div className="p-2 rounded-lg bg-background/50">
+                              <div className="text-lg font-bold text-foreground">{noWebsiteCount}</div>
+                              <div className="text-[10px] text-muted-foreground">No Website</div>
+                            </div>
+                            <div className="p-2 rounded-lg bg-background/50">
+                              <div className="text-lg font-bold text-foreground">{needsUpgradeCount}</div>
+                              <div className="text-[10px] text-muted-foreground">Needs Upgrade</div>
+                            </div>
+                            <div className="p-2 rounded-lg bg-background/50">
+                              <div className="text-lg font-bold text-foreground">{hasPainPoints}</div>
+                              <div className="text-[10px] text-muted-foreground">Pain Points</div>
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground mt-2 text-center">
+                            📧 Emails will include personalized openers based on website status & AI insights
+                          </p>
+                        </div>
+                      );
+                    })()}
 
                     <div className="p-4 rounded-xl bg-muted/30 border border-border">
                       <div className="flex items-center justify-between mb-3">
@@ -1169,6 +1270,61 @@ export default function ComposeEmailModal({
                         />
                       </div>
                     </div>
+
+                    {/* Step 2 Analysis Context for AI */}
+                    {(() => {
+                      const analysisContext = getStoredLeadContext();
+                      if (analysisContext.length === 0) return null;
+                      
+                      const noWebsiteCount = analysisContext.filter(l => !l.websiteAnalysis?.hasWebsite).length;
+                      const needsUpgradeCount = analysisContext.filter(l => l.websiteAnalysis?.needsUpgrade).length;
+                      const withPainPoints = analysisContext.filter(l => l.painPoints && l.painPoints.length > 0).length;
+                      const hotLeads = analysisContext.filter(l => l.aiClassification === 'hot').length;
+                      
+                      return (
+                        <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 to-emerald-500/10 border border-primary/30">
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+                              <Sparkles className="w-5 h-5 text-primary" />
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-foreground text-sm">AI Using Step 2 Analysis</h4>
+                              <p className="text-[10px] text-muted-foreground">
+                                AI will personalize emails based on your lead research data
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-4 gap-2 text-center mb-3">
+                            <div className="p-2 rounded-lg bg-background/50 border border-border">
+                              <div className="text-lg font-bold text-foreground">{analysisContext.length}</div>
+                              <div className="text-[9px] text-muted-foreground">Total Leads</div>
+                            </div>
+                            <div className="p-2 rounded-lg bg-background/50 border border-border">
+                              <div className="text-lg font-bold text-red-400">{hotLeads}</div>
+                              <div className="text-[9px] text-muted-foreground">Hot Leads</div>
+                            </div>
+                            <div className="p-2 rounded-lg bg-background/50 border border-border">
+                              <div className="text-lg font-bold text-amber-400">{noWebsiteCount}</div>
+                              <div className="text-[9px] text-muted-foreground">No Website</div>
+                            </div>
+                            <div className="p-2 rounded-lg bg-background/50 border border-border">
+                              <div className="text-lg font-bold text-blue-400">{withPainPoints}</div>
+                              <div className="text-[9px] text-muted-foreground">Pain Points</div>
+                            </div>
+                          </div>
+                          
+                          <div className="p-3 rounded-lg bg-background/50 border border-border">
+                            <p className="text-xs text-muted-foreground">
+                              <span className="font-medium text-foreground">🧠 AI Strategy:</span> The AI will analyze each lead's website status, 
+                              pain points, and classification to craft personalized emails. 
+                              {noWebsiteCount > 0 && ` ${noWebsiteCount} leads without websites will get "build online presence" pitches.`}
+                              {needsUpgradeCount > 0 && ` ${needsUpgradeCount} leads with outdated sites will get "upgrade" focused emails.`}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     {/* Sequence Preview - Using Real Sequences */}
                     <div className="p-4 rounded-xl bg-muted/30 border border-border">
