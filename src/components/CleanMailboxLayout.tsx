@@ -139,6 +139,14 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
             leadScore: lead.leadScore,
             websiteIssues: lead.websiteIssues,
             phone: lead.phone,
+            // Step 2 Analysis fields - passed to email campaigns
+            websiteAnalysis: lead.websiteAnalysis || lead.website_analysis,
+            painPoints: lead.painPoints || lead.pain_points,
+            talkingPoints: lead.talkingPoints || lead.talking_points,
+            aiInsights: lead.aiInsights || lead.ai_insights,
+            recommendedApproach: lead.recommendedApproach || lead.recommended_approach,
+            urgency: lead.urgency,
+            successProbability: lead.successProbability || lead.success_probability,
           }));
         }
         const raw = storage.getItem('bamlead_email_leads');

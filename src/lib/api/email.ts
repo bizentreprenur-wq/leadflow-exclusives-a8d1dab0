@@ -410,10 +410,11 @@ export async function syncLocalScheduledToServer(): Promise<{ synced: number; fa
   }
 }
 
-// Helper to personalize template preview
+// Helper to personalize template preview with Step 2 analysis context
 export function personalizeTemplate(content: string, data: Record<string, string>): string {
   let result = content;
   const tokens: Record<string, string> = {
+    // Basic info
     '{{business_name}}': data.business_name || '[Business Name]',
     '{{first_name}}': data.first_name || '[First Name]',
     '{{website}}': data.website || '[Website]',
@@ -421,6 +422,20 @@ export function personalizeTemplate(content: string, data: Record<string, string
     '{{issues}}': data.issues || '[Issues]',
     '{{phone}}': data.phone || '[Phone]',
     '{{email}}': data.email || '[Email]',
+    
+    // Step 2 Analysis tokens
+    '{{website_status}}': data.website_status || (data.website ? 'has website' : 'no website'),
+    '{{website_platform}}': data.website_platform || data.platform || '',
+    '{{website_issues}}': data.website_issues || data.issues || '',
+    '{{mobile_score}}': data.mobile_score || '',
+    '{{needs_upgrade}}': data.needs_upgrade || '',
+    '{{main_pain_point}}': data.main_pain_point || '',
+    '{{pain_points}}': data.pain_points || '',
+    '{{lead_priority}}': data.lead_priority || '',
+    '{{recommended_approach}}': data.recommended_approach || '',
+    '{{talking_points}}': data.talking_points || '',
+    '{{personalized_opener}}': data.personalized_opener || '',
+    '{{value_proposition}}': data.value_proposition || '',
   };
   
   for (const [token, value] of Object.entries(tokens)) {
