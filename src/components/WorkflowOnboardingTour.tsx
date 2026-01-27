@@ -263,13 +263,13 @@ export default function WorkflowOnboardingTour({
         onClick={handleDismiss}
       />
 
-      {/* Tour Card */}
+      {/* Tour Card - Fully visible with proper spacing */}
       <motion.div
         initial={{ opacity: 0, scale: 0.9, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.9, y: 20 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="fixed inset-x-4 top-1/2 -translate-y-1/2 md:inset-auto md:left-1/2 md:top-1/2 md:-translate-x-1/2 md:-translate-y-1/2 z-[201] max-w-2xl w-full"
+        className="fixed inset-4 md:inset-auto md:right-6 md:bottom-6 md:top-auto md:left-auto z-[201] max-w-xl w-full md:w-[500px] max-h-[calc(100vh-2rem)] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {showCompletionCard ? (
