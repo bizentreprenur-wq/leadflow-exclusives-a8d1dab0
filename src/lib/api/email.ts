@@ -210,9 +210,26 @@ export async function sendEmail(params: {
   track_opens?: boolean;
 }): Promise<{ success: boolean; send_id?: number; tracking_id?: string; error?: string }> {
   try {
+    const smtpOverride = (() => {
+      try {
+        const stored = localStorage.getItem('smtp_config');
+        return stored ? JSON.parse(stored) : null;
+      } catch {
+        return null;
+      }
+    })();
     return await apiRequest(EMAIL_ENDPOINTS.send, {
       method: 'POST',
-      body: JSON.stringify(params),
+      body: JSON.stringify({
+        ...params,
+        smtp_override: smtpOverride ? {
+          host: smtpOverride.host,
+          port: smtpOverride.port,
+          username: smtpOverride.username,
+          password: smtpOverride.password,
+          secure: smtpOverride.secure,
+        } : undefined,
+      }),
     });
   } catch (error: any) {
     return { success: false, error: error.message };
@@ -221,9 +238,26 @@ export async function sendEmail(params: {
 
 export async function sendBulkEmails(params: BulkSendParams): Promise<{ success: boolean; results?: BulkSendResult; error?: string }> {
   try {
+    const smtpOverride = (() => {
+      try {
+        const stored = localStorage.getItem('smtp_config');
+        return stored ? JSON.parse(stored) : null;
+      } catch {
+        return null;
+      }
+    })();
     return await apiRequest(EMAIL_ENDPOINTS.sendBulk, {
       method: 'POST',
-      body: JSON.stringify(params),
+      body: JSON.stringify({
+        ...params,
+        smtp_override: smtpOverride ? {
+          host: smtpOverride.host,
+          port: smtpOverride.port,
+          username: smtpOverride.username,
+          password: smtpOverride.password,
+          secure: smtpOverride.secure,
+        } : undefined,
+      }),
     });
   } catch (error: any) {
     return { success: false, error: error.message };

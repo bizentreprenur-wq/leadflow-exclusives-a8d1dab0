@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { sendSingleEmail, isSMTPConfigured, getSentEmails } from '@/lib/emailService';
 import { getUserLogoFromStorage } from '@/hooks/useUserBranding';
+import { loadDripSettings } from '@/lib/dripSettings';
 
 // Real sent email from backend
 interface SentEmail {
@@ -95,7 +96,7 @@ export default function LiveDripMailbox({ onSwitchToFullMailbox, leads = [], ver
   const [isLiveMode, setIsLiveMode] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [emailQueue, setEmailQueue] = useState<QueuedEmail[]>(DEMO_LEADS);
-  const [sendingSpeed, setSendingSpeed] = useState(50); // emails per hour
+  const [sendingSpeed, setSendingSpeed] = useState(() => loadDripSettings().emailsPerHour); // emails per hour
   const [showPreviewMode, setShowPreviewMode] = useState(true);
   const sendIntervalRef = useRef<NodeJS.Timeout | null>(null);
   

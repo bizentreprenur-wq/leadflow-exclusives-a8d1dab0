@@ -337,9 +337,12 @@ function handleSendEmail($db, $user) {
         ]
     );
     
-    // Send the email
+    // Send the email (prefer per-request SMTP settings if provided)
     $textBody = $data['body_text'] ?? strip_tags($bodyHtml);
-    $sent = sendEmail($data['to'], $subject, $bodyHtml, $textBody);
+    $smtpOverride = isset($data['smtp_override']) && is_array($data['smtp_override']) ? $data['smtp_override'] : null;
+    $sent = $smtpOverride
+        ? sendEmailWithCustomSMTP($data['to'], $subject, $bodyHtml, $textBody, $smtpOverride)
+        : sendEmail($data['to'], $subject, $bodyHtml, $textBody);
     
     if ($sent) {
         $db->update(
@@ -502,7 +505,10 @@ function handleSendBulk($db, $user) {
         // For instant mode, send immediately
         if ($sendMode === 'instant') {
             $textBody = personalizeContent($emailBodyText, $personalization);
-            $sent = sendEmail($lead['email'], $subject, $bodyHtml, $textBody);
+            $smtpOverride = isset($data['smtp_override']) && is_array($data['smtp_override']) ? $data['smtp_override'] : null;
+            $sent = $smtpOverride
+                ? sendEmailWithCustomSMTP($lead['email'], $subject, $bodyHtml, $textBody, $smtpOverride)
+                : sendEmail($lead['email'], $subject, $bodyHtml, $textBody);
             
             if ($sent) {
                 $db->update(
@@ -1074,8 +1080,11 @@ function handleSendTestEmail($db, $user) {
     
     $textBody = "BamLead SMTP Test - SUCCESS!\n\nYour email configuration is working properly.\n\nSent to: $toEmail\nTime: " . date('Y-m-d H:i:s T') . "\n\nYou can now send emails to your leads!";
     
-    // Send the test email
-    $sent = sendEmail($toEmail, $subject, $htmlBody, $textBody);
+    // Send the test email (prefer per-request SMTP settings if provided)
+    $smtpOverride = isset($data['smtp_override']) && is_array($data['smtp_override']) ? $data['smtp_override'] : null;
+    $sent = $smtpOverride
+        ? sendEmailWithCustomSMTP($toEmail, $subject, $htmlBody, $textBody, $smtpOverride)
+        : sendEmail($toEmail, $subject, $htmlBody, $textBody);
     
     if ($sent) {
         // Log the successful test

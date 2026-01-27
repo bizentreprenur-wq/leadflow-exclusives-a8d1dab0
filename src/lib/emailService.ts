@@ -218,12 +218,22 @@ export const sendTestEmail = async (toEmail: string): Promise<TestResult> => {
   if (!toEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail)) {
     return { success: false, error: 'Please enter a valid email address' };
   }
-  
+
   try {
+    const smtpOverride = getSMTPConfig();
     const response = await fetch(`${API_BASE}/email-outreach.php?action=send_test`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ to_email: toEmail }),
+      body: JSON.stringify({
+        to_email: toEmail,
+        smtp_override: smtpOverride ? {
+          host: smtpOverride.host,
+          port: smtpOverride.port,
+          username: smtpOverride.username,
+          password: smtpOverride.password,
+          secure: smtpOverride.secure,
+        } : undefined,
+      }),
     });
     
     const data = await response.json();
@@ -257,6 +267,7 @@ export const sendSingleEmail = async (params: SendEmailParams): Promise<SendResu
       }
     }
     
+    const smtpOverride = getSMTPConfig();
     const response = await fetch(`${API_BASE}/email-outreach.php?action=send`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -270,6 +281,13 @@ export const sendSingleEmail = async (params: SendEmailParams): Promise<SendResu
         campaign_id: params.campaignId,
         personalization: params.personalization,
         track_opens: true,
+        smtp_override: smtpOverride ? {
+          host: smtpOverride.host,
+          port: smtpOverride.port,
+          username: smtpOverride.username,
+          password: smtpOverride.password,
+          secure: smtpOverride.secure,
+        } : undefined,
       }),
     });
     

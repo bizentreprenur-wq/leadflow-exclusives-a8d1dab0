@@ -252,6 +252,101 @@ function sendEmailSMTP($to, $subject, $htmlBody, $textBody = '') {
 }
 
 /**
+ * Send email via SMTP using per-request credentials (from UI settings).
+ * This keeps server config untouched and allows local UI settings to be used.
+ */
+function sendEmailWithCustomSMTP($to, $subject, $htmlBody, $textBody = '', $smtpConfig = []) {
+    $autoloadPath = __DIR__ . '/../vendor/autoload.php';
+    if (!class_exists('PHPMailer\\PHPMailer\\PHPMailer') && file_exists($autoloadPath)) {
+        require_once $autoloadPath;
+    }
+
+    if (!class_exists('PHPMailer\\PHPMailer\\PHPMailer')) {
+        logEmail('ERROR', 'PHPMailer not installed for custom SMTP send', ['to' => $to]);
+        return false;
+    }
+
+    $smtpHost = trim((string)($smtpConfig['host'] ?? ''));
+    $smtpPort = (int)($smtpConfig['port'] ?? 587);
+    $smtpUser = strtolower(trim((string)($smtpConfig['username'] ?? '')));
+    $smtpPass = (string)($smtpConfig['password'] ?? '');
+    $smtpSecureRaw = $smtpConfig['secure'] ?? '';
+    if (is_string($smtpSecureRaw)) {
+        $smtpSecure = strtolower(trim($smtpSecureRaw));
+    } elseif ($smtpSecureRaw) {
+        $smtpSecure = ($smtpPort === 465) ? 'ssl' : 'tls';
+    } else {
+        $smtpSecure = '';
+    }
+
+    if (!$smtpHost || !$smtpUser || !$smtpPass) {
+        logEmail('ERROR', 'Custom SMTP configuration incomplete', [
+            'to' => $to,
+            'host_set' => $smtpHost ? 'yes' : 'no',
+            'user_set' => $smtpUser ? 'yes' : 'no',
+            'pass_set' => $smtpPass ? 'yes' : 'no',
+            'port' => $smtpPort,
+            'secure' => $smtpSecure ?: 'not set',
+        ]);
+        return false;
+    }
+
+    logEmail('INFO', 'Using custom SMTP settings', [
+        'to' => $to,
+        'host' => $smtpHost,
+        'port' => $smtpPort,
+        'user' => $smtpUser,
+        'secure' => $smtpSecure ?: 'not set'
+    ]);
+
+    $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
+
+    try {
+        $mail->isSMTP();
+        $mail->Host = $smtpHost;
+        $mail->SMTPAuth = true;
+        $mail->Username = $smtpUser;
+        $mail->Password = $smtpPass;
+
+        if ($smtpSecure === 'ssl' || $smtpSecure === 'smtps' || ($smtpSecure === '' && $smtpPort === 465)) {
+            $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+        } elseif ($smtpSecure === 'tls' || $smtpSecure === 'starttls' || $smtpSecure === '') {
+            $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        } else {
+            $mail->SMTPSecure = '';
+        }
+
+        $mail->Port = $smtpPort;
+        $mail->SMTPAutoTLS = !($smtpPort === 465 || $mail->SMTPSecure === \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS);
+        $mail->Timeout = 10;
+        $mail->CharSet = 'UTF-8';
+
+        $mail->setFrom(MAIL_FROM_ADDRESS, MAIL_FROM_NAME);
+        $mail->addAddress($to);
+
+        $mail->isHTML(true);
+        $mail->Subject = $subject;
+        $mail->Body = $htmlBody;
+        $mail->AltBody = $textBody ?: strip_tags($htmlBody);
+
+        $mail->send();
+        logEmail('SUCCESS', 'Custom SMTP email sent successfully', ['to' => $to, 'subject' => $subject]);
+        return true;
+    } catch (Exception $e) {
+        logEmail('ERROR', 'Custom SMTP email failed', [
+            'to' => $to,
+            'error' => $mail->ErrorInfo,
+            'exception' => $e->getMessage(),
+            'host' => $smtpHost,
+            'port' => $smtpPort,
+            'secure' => $smtpSecure ?: 'not set'
+        ]);
+        error_log("Email error (custom SMTP): " . ($mail->ErrorInfo ?: 'unknown') . " | exception: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
  * Generate a verification token
  */
 function generateVerificationToken($userId, $type, $expiresInHours = 24) {

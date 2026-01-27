@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { loadDripSettings, saveDripSettings } from '@/lib/dripSettings';
 import {
   PenTool, Send, Calendar, Bot, Sparkles, ChevronDown, ChevronUp,
   Building2, Mail, Clock, Zap, Target, Play, Pause, RefreshCw,
@@ -94,11 +95,18 @@ export default function ComposeEmailModal({
   const [showAISubjects, setShowAISubjects] = useState(true);
   const [showSequenceSelector, setShowSequenceSelector] = useState(false);
   const [selectedSequence, setSelectedSequence] = useState<EmailSequence | null>(null);
+  const [selectedCampaignTemplate, setSelectedCampaignTemplate] = useState<{
+    name: string;
+    subject?: string;
+    body?: string;
+  } | null>(null);
 
   // Drip settings
   const [dripMode, setDripMode] = useState(false);
   const [dripInterval, setDripInterval] = useState(60); // seconds
   const [dripRate, setDripRate] = useState(30); // emails per hour
+  const [workflowEmailLeadCount, setWorkflowEmailLeadCount] = useState(0);
+  const [dripSettingsReady, setDripSettingsReady] = useState(false);
 
   // Auto wizard subscription
   const [hasAutopilotSubscription, setHasAutopilotSubscription] = useState(() => {
@@ -118,6 +126,70 @@ export default function ComposeEmailModal({
     } catch { return false; }
   });
 
+  useEffect(() => {
+    if (!isOpen) {
+      setDripSettingsReady(false);
+      return;
+    }
+    const settings = loadDripSettings();
+    setDripMode(settings.enabled);
+    setDripRate(settings.emailsPerHour);
+    setDripInterval(settings.intervalSeconds);
+    setDripSettingsReady(true);
+    try {
+      const storedTemplate = localStorage.getItem('bamlead_selected_template');
+      if (!storedTemplate) return;
+      const template = JSON.parse(storedTemplate);
+      const customized = JSON.parse(localStorage.getItem('bamlead_template_customizations') || 'null');
+      const subject = customized?.subject || template.subject || '';
+      const rawBody = customized?.body || template.body || template.body_html || '';
+      const body = typeof rawBody === 'string' ? rawBody.replace(/<[^>]*>/g, '') : '';
+
+      setSelectedCampaignTemplate({
+        name: template.name || 'Selected Template',
+        subject,
+        body,
+      });
+
+      setEmail(prev => ({
+        ...prev,
+        subject: prev.subject || subject,
+        body: prev.body || body,
+      }));
+    } catch {
+      // ignore malformed template cache
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    try {
+      const stored = sessionStorage.getItem('bamlead_email_leads');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        setWorkflowEmailLeadCount(Array.isArray(parsed) ? parsed.length : 0);
+      } else {
+        setWorkflowEmailLeadCount(0);
+      }
+    } catch {
+      setWorkflowEmailLeadCount(0);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !dripSettingsReady) return;
+    saveDripSettings({
+      enabled: dripMode,
+      emailsPerHour: dripRate,
+      intervalSeconds: dripInterval,
+      source: 'compose',
+    });
+  }, [dripMode, dripRate, dripInterval, isOpen, dripSettingsReady]);
+
+  useEffect(() => {
+    setDripInterval(Math.round(3600 / Math.max(1, dripRate)));
+  }, [dripRate]);
+
   // Determine search context
   const detectedSearchType = useMemo(() => {
     if (searchType) return searchType;
@@ -131,6 +203,11 @@ export default function ComposeEmailModal({
 
   const currentLead = useMemo(() => leads[currentLeadIndex] || null, [leads, currentLeadIndex]);
   const safeLeads = useMemo(() => leads?.filter((l): l is Lead => l != null) ?? [], [leads]);
+  const dripLeadCount = useMemo(() => {
+    if (workflowEmailLeadCount > 0) return workflowEmailLeadCount;
+    const emailCount = safeLeads.filter(l => l.email).length;
+    return emailCount > 0 ? emailCount : safeLeads.length;
+  }, [workflowEmailLeadCount, safeLeads]);
 
   // Check if user came through workflow (Step 1 → 2 → 3)
   const workflowContext = useMemo(() => {
@@ -304,10 +381,10 @@ export default function ComposeEmailModal({
       <DialogContent 
         elevated 
         className={cn(
-          "bg-card border-border overflow-hidden flex flex-col p-0",
+          "bg-card border-border overflow-hidden flex flex-col p-0 min-h-0",
           isFullscreen 
             ? "max-w-[100vw] w-[100vw] h-[100vh] max-h-[100vh] rounded-none" 
-            : "max-w-3xl max-h-[90vh]"
+            : "max-w-3xl max-h-[90vh] h-[90vh]"
         )}
       >
         {/* HEADER */}
@@ -440,8 +517,8 @@ export default function ComposeEmailModal({
         </div>
 
         {/* MAIN CONTENT */}
-        <ScrollArea className="flex-1">
-          <div className="p-4">
+        <ScrollArea className="flex-1 min-h-0 h-full">
+          <div className="p-4 pb-10">
             {/* ===================== REGULAR EMAIL MODE ===================== */}
             {composeMode === 'regular' && (
               <div className="space-y-4">
@@ -712,7 +789,18 @@ export default function ComposeEmailModal({
                   </TabsContent>
 
                   {/* Step 2: Template */}
-                  <TabsContent value="template" className="mt-4 space-y-4">
+                  <TabsContent value="template" className="mt-4 space-y-4 pb-6">
+                    {selectedCampaignTemplate && (
+                      <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/30">
+                        <p className="text-xs text-muted-foreground">Selected template from Step 3</p>
+                        <p className="text-sm font-medium text-foreground">{selectedCampaignTemplate.name}</p>
+                        {selectedCampaignTemplate.subject && (
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            Subject: {selectedCampaignTemplate.subject}
+                          </p>
+                        )}
+                      </div>
+                    )}
                     {showAISubjects && (
                       <AISubjectLineGenerator
                         currentLead={currentLead ? {
@@ -891,7 +979,7 @@ export default function ComposeEmailModal({
                             />
                             <p className="text-xs text-muted-foreground mt-2">
                               Estimated completion: <strong className="text-foreground">
-                                {Math.ceil(safeLeads.length / dripRate)} hours
+                                {Math.ceil(dripLeadCount / dripRate)} hours
                               </strong>
                             </p>
                           </div>
@@ -936,7 +1024,7 @@ export default function ComposeEmailModal({
                       <div className="space-y-3 text-sm">
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Total Leads:</span>
-                          <span className="font-medium text-foreground">{safeLeads.length}</span>
+                          <span className="font-medium text-foreground">{dripLeadCount}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Subject:</span>

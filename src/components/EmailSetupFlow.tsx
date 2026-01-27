@@ -46,6 +46,7 @@ import EmailDeliveryNotifications from './EmailDeliveryNotifications';
 import { useAuth } from '@/contexts/AuthContext';
 import { loadBrandingFromBackend, saveUserBranding, deleteUserLogo } from '@/lib/api/branding';
 import MailboxDock from '@/components/MailboxDock';
+import { DRIP_SETTINGS_KEY, loadDripSettings, saveDripSettings } from '@/lib/dripSettings';
 
 interface SearchResult {
   id: string;
@@ -96,6 +97,7 @@ export default function EmailSetupFlow({
     emailSubject: string;
     emailBody: string;
   } | null>(null);
+  const [dripSettings, setDripSettings] = useState(() => loadDripSettings());
   
   // Auth context for persistent branding
   const { isAuthenticated } = useAuth();
@@ -282,6 +284,22 @@ export default function EmailSetupFlow({
 
   const leadsWithEmail = emailLeads.filter(l => l.email);
   const leadsWithPhone = leads.filter(l => l.phone);
+
+  useEffect(() => {
+    if (currentPhase !== 'send') return;
+    const stored = sessionStorage.getItem(DRIP_SETTINGS_KEY) || localStorage.getItem(DRIP_SETTINGS_KEY);
+    if (!stored) {
+      const next = saveDripSettings({
+        enabled: true,
+        emailsPerHour: 50,
+        intervalSeconds: Math.round(3600 / 50),
+        source: 'step3',
+      });
+      setDripSettings(next);
+      return;
+    }
+    setDripSettings(loadDripSettings());
+  }, [currentPhase, leadsWithEmail.length]);
 
   // Persist email leads to both sessionStorage and CRM when leads prop changes
   useEffect(() => {
@@ -755,10 +773,10 @@ export default function EmailSetupFlow({
 
                         {/* The Mailbox Animation - THE STAR OF THE SHOW */}
                         <MailboxDripAnimation
-                          totalEmails={emailLeads.length}
+                          totalEmails={leadsWithEmail.length}
                           sentCount={demoSentCount}
                           isActive={demoIsActive || realSendingMode}
-                          emailsPerHour={50}
+                          emailsPerHour={dripSettings.emailsPerHour}
                           leads={leads.map(l => ({ id: l.id, name: l.name, email: l.email, business: l.name, category: l.aiClassification, verified: l.verified ?? (l.successProbability !== undefined && l.successProbability >= 60) }))}
                           realSendingMode={realSendingMode}
                           campaignId={campaignId || undefined}
@@ -881,7 +899,7 @@ export default function EmailSetupFlow({
                                         custom_subject: emailSubject,
                                         custom_body: emailBody,
                                         send_mode: 'drip',
-                                        drip_config: { emailsPerHour: 50, delayMinutes: 1 },
+                                        drip_config: { emailsPerHour: dripSettings.emailsPerHour, delayMinutes: Math.max(1, Math.floor(60 / dripSettings.emailsPerHour)) },
                                       });
                                       
                                       if (result.success) {

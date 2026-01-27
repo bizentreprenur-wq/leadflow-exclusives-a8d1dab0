@@ -123,6 +123,24 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
     if (typeof window === 'undefined') return [] as any[];
     const read = (storage: Storage) => {
       try {
+        const searchRaw = storage.getItem('bamlead_search_results');
+        const searchParsed = searchRaw ? JSON.parse(searchRaw) : [];
+        if (Array.isArray(searchParsed) && searchParsed.length) {
+          return searchParsed.map((lead: any) => ({
+            id: lead.id ?? lead.lead_id,
+            email: lead.email || '',
+            business_name: lead.business_name || lead.name || 'Unknown',
+            name: lead.name || lead.business_name || 'Unknown',
+            contact_name: lead.contact_name,
+            first_name: lead.first_name,
+            industry: lead.industry,
+            website: lead.website,
+            aiClassification: lead.aiClassification,
+            leadScore: lead.leadScore,
+            websiteIssues: lead.websiteIssues,
+            phone: lead.phone,
+          }));
+        }
         const raw = storage.getItem('bamlead_email_leads');
         const parsed = raw ? JSON.parse(raw) : [];
         return Array.isArray(parsed) ? parsed : [];
