@@ -119,6 +119,13 @@ const otherTools = [
 
 const resourceTools = [
   {
+    id: 'search-guide',
+    title: 'Search Options Guide',
+    icon: HelpCircle,
+    description: 'Compare search methods',
+    badge: 'Guide',
+  },
+  {
     id: 'video-tutorials',
     title: 'Video Tutorials',
     icon: Video,

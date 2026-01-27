@@ -108,14 +108,14 @@ const DualSearchShowcase = () => {
           <div 
             className={`relative bg-card rounded-3xl border-2 p-8 transition-all duration-300 cursor-pointer ${
               activeDemo === "platform" 
-                ? "border-accent shadow-lg shadow-accent/20" 
-                : "border-border hover:border-accent/50"
+                ? "border-violet-500 shadow-lg shadow-violet-500/20" 
+                : "border-border hover:border-violet-500/50"
             }`}
             onClick={() => setActiveDemo("platform")}
           >
             {activeDemo === "platform" && (
               <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <Badge className="bg-accent text-accent-foreground">
+                <Badge className="bg-violet-500 text-white">
                   <Star className="h-3 w-3 mr-1" />
                   ACTIVE
                 </Badge>
@@ -123,30 +123,30 @@ const DualSearchShowcase = () => {
             )}
             
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent/20 to-accent/5 flex items-center justify-center">
-                <Globe className="w-8 h-8 text-accent" />
+              <div className="w-16 h-16 rounded-2xl bg-violet-500/20 flex items-center justify-center">
+                <Globe className="w-8 h-8 text-violet-400" />
               </div>
               <div>
-                <h3 className="text-2xl font-display font-bold text-foreground">Agency Lead Finder</h3>
-                <p className="text-sm text-muted-foreground">Built for digital professionals</p>
+                <h3 className="text-2xl font-display font-bold text-foreground">🎯 Agency Lead Finder</h3>
+                <p className="text-sm text-violet-400">Find Clients Who Need Your Services</p>
               </div>
             </div>
 
             <div className="space-y-3 mb-6">
               {platformFeatures.map((feature, i) => (
                 <div key={i} className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
-                    <feature.icon className="w-4 h-4 text-accent" />
+                  <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center flex-shrink-0">
+                    <feature.icon className="w-4 h-4 text-violet-400" />
                   </div>
                   <span className="text-sm text-foreground">{feature.text}</span>
                 </div>
               ))}
             </div>
 
-            <div className="p-4 rounded-xl bg-accent/5 border border-accent/20">
-              <p className="text-sm font-semibold text-accent mb-2">Perfect For:</p>
+            <div className="p-4 rounded-xl bg-violet-500/5 border border-violet-500/20">
+              <p className="text-sm font-semibold text-violet-400 mb-2">Perfect For:</p>
               <p className="text-sm text-muted-foreground">
-                Website designers, social media marketers & digital agencies looking for 
+                Website designers, SMMA owners, SEO professionals & digital agencies looking for 
                 clients who need professional help with their online presence
               </p>
             </div>

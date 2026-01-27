@@ -75,6 +75,7 @@ import { VideoTutorialSection } from '@/components/VideoTutorialSection';
 import AIProcessingPipeline from '@/components/AIProcessingPipeline';
 import StreamingLeadsIndicator from '@/components/StreamingLeadsIndicator';
 import WorkflowOnboardingTour, { startWorkflowTour } from '@/components/WorkflowOnboardingTour';
+import SearchTypeOnboarding, { shouldShowSearchOnboarding } from '@/components/SearchTypeOnboarding';
 
 interface SearchResult {
   id: string;
@@ -236,6 +237,9 @@ export default function Dashboard() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [pendingSearchType, setPendingSearchType] = useState<'gmb' | 'platform' | null>(null);
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
+
+  // Search Type Onboarding modal - shows first 2 logins
+  const [showSearchOnboarding, setShowSearchOnboarding] = useState(() => shouldShowSearchOnboarding());
 
   // Persist workflow state to localStorage (not sessionStorage) so leads survive logout/login cycles
   // Users must explicitly click "Clear All Data" to remove their leads
@@ -2629,6 +2633,11 @@ export default function Dashboard() {
         currentStep={currentStep}
         onStepChange={(step) => setCurrentStep(step)}
       />
+
+      {/* Search Type Onboarding Modal - Shows first 2 logins */}
+      {showSearchOnboarding && (
+        <SearchTypeOnboarding onClose={() => setShowSearchOnboarding(false)} />
+      )}
 
     </SidebarProvider>
   );
