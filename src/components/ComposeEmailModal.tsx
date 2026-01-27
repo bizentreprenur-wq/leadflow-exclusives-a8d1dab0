@@ -24,6 +24,7 @@ import AISubjectLineGenerator from './AISubjectLineGenerator';
 import EmailScheduleCalendar from './EmailScheduleCalendar';
 import PriorityTemplateSelector from './PriorityTemplateSelector';
 import EmailSequenceSelector from './EmailSequenceSelector';
+import AISequenceRecommendationEngine from './AISequenceRecommendationEngine';
 import { isSMTPConfigured, sendSingleEmail, personalizeContent } from '@/lib/emailService';
 import { sendEmail as apiSendEmail } from '@/lib/api/email';
 import { EmailSequence, EmailStep } from '@/lib/emailSequences';
@@ -1012,35 +1013,26 @@ export default function ComposeEmailModal({
                       )}
                     </div>
 
-                    {/* Sequence Selector Panel */}
+                    {/* AI Sequence Recommendation Engine */}
                     {showSequenceSelector && (
                       <div className="border border-border rounded-xl p-4 bg-muted/20">
-                        <EmailSequenceSelector
+                        <AISequenceRecommendationEngine
                           searchType={detectedSearchType}
-                          currentLead={currentLead ? {
-                            business_name: currentLead.business_name || currentLead.name,
-                            first_name: currentLead.first_name || currentLead.contact_name,
-                            email: currentLead.email,
-                            website: currentLead.website,
-                            industry: currentLead.industry,
-                            aiClassification: currentLead.aiClassification,
-                            leadScore: currentLead.leadScore,
-                            websiteIssues: currentLead.websiteIssues,
-                          } : undefined}
+                          mode="campaign"
                           onSelectSequence={(sequence) => {
                             setSelectedSequence(sequence);
-                            toast.success(`Selected: ${sequence.name}`);
+                            // Auto-apply first step to email
+                            if (sequence.steps.length > 0) {
+                              const firstStep = sequence.steps[0];
+                              setEmail(prev => ({
+                                ...prev,
+                                subject: firstStep.subject,
+                                body: firstStep.body,
+                              }));
+                            }
+                            toast.success(`Selected: ${sequence.name} - First email applied`);
                           }}
-                          onApplyStep={(step, personalized) => {
-                            setEmail(prev => ({
-                              ...prev,
-                              subject: personalized.subject,
-                              body: personalized.body,
-                            }));
-                            setShowSequenceSelector(false);
-                            toast.success(`Applied Day ${step.day} email from sequence`);
-                          }}
-                          senderName="Your Name"
+                          compact
                         />
                       </div>
                     )}
@@ -1347,18 +1339,18 @@ export default function ComposeEmailModal({
 
                       {showSequenceSelector && (
                         <div className="mb-4 border border-border rounded-lg p-3 bg-background">
-                          <EmailSequenceSelector
+                          <AISequenceRecommendationEngine
                             searchType={detectedSearchType}
-                            currentLead={currentLead ? {
-                              business_name: currentLead.business_name || currentLead.name,
-                              first_name: currentLead.first_name || currentLead.contact_name,
-                              aiClassification: currentLead.aiClassification,
-                            } : undefined}
+                            mode="autopilot"
                             onSelectSequence={(seq) => {
                               setSelectedSequence(seq);
-                              setShowSequenceSelector(false);
+                              toast.success(`AI Autopilot will use "${seq.name}" sequence`);
                             }}
-                            onApplyStep={() => {}}
+                            onStartAutopilot={(seq, leads) => {
+                              setSelectedSequence(seq);
+                              saveCampaignLeadsWithContext(leads);
+                              toast.success(`🚀 AI Autopilot launched with "${seq.name}" for ${leads.length} leads!`);
+                            }}
                             compact
                           />
                         </div>
