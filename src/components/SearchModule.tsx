@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Building2, Globe, Briefcase, MapPin, Search, Loader2, 
-  ChevronDown, ChevronUp 
+  ChevronDown, ChevronUp, Smartphone, AlertTriangle, XCircle
 } from "lucide-react";
 import { searchGMB } from "@/lib/api/gmb";
 import { searchPlatforms } from "@/lib/api/platforms";
@@ -43,6 +43,11 @@ const SearchModule = () => {
   // Platform-specific state
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["gmb", "wordpress", "wix", "weebly", "squarespace"]);
   const [showAllPlatforms, setShowAllPlatforms] = useState(false);
+  
+  // Website quality filters
+  const [filterNoWebsite, setFilterNoWebsite] = useState(false);
+  const [filterNotMobile, setFilterNotMobile] = useState(false);
+  const [filterOutdated, setFilterOutdated] = useState(false);
   
   // Results
   const [results, setResults] = useState<any[]>([]);
@@ -314,11 +319,45 @@ const SearchModule = () => {
           </div>
 
           {/* Perfect For Section */}
-          <div className="p-3 rounded-lg bg-gradient-to-r from-primary/5 to-emerald-500/5 border border-primary/10 mb-4">
+          <div className="p-3 rounded-lg bg-gradient-to-r from-primary/5 to-emerald-500/5 border border-primary/10 mb-3">
             <p className="text-xs font-semibold text-primary mb-1">🎯 Perfect For:</p>
             <p className="text-[11px] text-muted-foreground">
               SaaS companies, B2B sales teams, investors, market researchers, competitive intelligence, agencies doing client research
             </p>
+          </div>
+
+          {/* Website Quality Filters */}
+          <div className="p-3 rounded-lg bg-secondary/30 border border-border mb-4">
+            <p className="text-xs font-semibold text-foreground mb-2">🔍 Filter Results:</p>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <Checkbox 
+                  checked={filterNoWebsite} 
+                  onCheckedChange={(checked) => setFilterNoWebsite(!!checked)}
+                  className="border-emerald-500 data-[state=checked]:bg-emerald-500"
+                />
+                <XCircle className="w-3.5 h-3.5 text-emerald-500" />
+                <span className="text-xs text-muted-foreground group-hover:text-foreground">No website (High opportunity)</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <Checkbox 
+                  checked={filterNotMobile} 
+                  onCheckedChange={(checked) => setFilterNotMobile(!!checked)}
+                  className="border-orange-500 data-[state=checked]:bg-orange-500"
+                />
+                <Smartphone className="w-3.5 h-3.5 text-orange-500" />
+                <span className="text-xs text-muted-foreground group-hover:text-foreground">Not mobile compliant</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <Checkbox 
+                  checked={filterOutdated} 
+                  onCheckedChange={(checked) => setFilterOutdated(!!checked)}
+                  className="border-red-500 data-[state=checked]:bg-red-500"
+                />
+                <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+                <span className="text-xs text-muted-foreground group-hover:text-foreground">Outdated website standards</span>
+              </label>
+            </div>
           </div>
 
           <Button
@@ -441,6 +480,40 @@ const SearchModule = () => {
             <p className="text-xs text-muted-foreground mt-2">
               {selectedPlatforms.length} platform{selectedPlatforms.length !== 1 ? "s" : ""} selected
             </p>
+          </div>
+
+          {/* Website Quality Filters */}
+          <div className="p-3 rounded-lg bg-secondary/30 border border-border mb-4">
+            <p className="text-xs font-semibold text-foreground mb-2">🔍 Filter Results:</p>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <Checkbox 
+                  checked={filterNoWebsite} 
+                  onCheckedChange={(checked) => setFilterNoWebsite(!!checked)}
+                  className="border-emerald-500 data-[state=checked]:bg-emerald-500"
+                />
+                <XCircle className="w-3.5 h-3.5 text-emerald-500" />
+                <span className="text-xs text-muted-foreground group-hover:text-foreground">No website (High opportunity)</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <Checkbox 
+                  checked={filterNotMobile} 
+                  onCheckedChange={(checked) => setFilterNotMobile(!!checked)}
+                  className="border-orange-500 data-[state=checked]:bg-orange-500"
+                />
+                <Smartphone className="w-3.5 h-3.5 text-orange-500" />
+                <span className="text-xs text-muted-foreground group-hover:text-foreground">Not mobile compliant</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer group">
+                <Checkbox 
+                  checked={filterOutdated} 
+                  onCheckedChange={(checked) => setFilterOutdated(!!checked)}
+                  className="border-red-500 data-[state=checked]:bg-red-500"
+                />
+                <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+                <span className="text-xs text-muted-foreground group-hover:text-foreground">Outdated website standards</span>
+              </label>
+            </div>
           </div>
 
           <Button
