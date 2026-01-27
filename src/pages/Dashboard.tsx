@@ -755,24 +755,8 @@ export default function Dashboard() {
           
           console.log(`[BamLead] Agency Lead Finder filtered: ${response.data.length} → ${platformFiltered.length} leads with platform opportunities`);
           
-          // For Agency Lead Finder, prioritize leads with BOTH email and phone
-          // First, get leads with both contact methods
-          const withBothContacts = platformFiltered.filter((r: GMBResult) => 
-            r.phone && r.phone.trim() !== '' && r.email && r.email.trim() !== ''
-          );
-          
-          // Then get leads with at least phone (agencies need to be able to call)
-          const withPhone = platformFiltered.filter((r: GMBResult) => 
-            r.phone && r.phone.trim() !== '' && !(r.email && r.email.trim() !== '')
-          );
-          
-          // Combine: prioritize both contacts, then phone-only
-          const prioritizedResults = [...withBothContacts, ...withPhone];
-          
-          console.log(`[BamLead] Agency Lead Finder contact filtering: ${withBothContacts.length} with both, ${withPhone.length} with phone only`);
-          
-          // Use prioritized results if we have enough, otherwise fall back to all platform filtered
-          const resultsToUse = prioritizedResults.length >= 5 ? prioritizedResults : platformFiltered;
+          // Use filtered results - backend already extracts emails/phones when available
+          const resultsToUse = platformFiltered.length > 0 ? platformFiltered : response.data;
           
           finalResults = resultsToUse.map((r: GMBResult, index: number) => ({
             id: r.id || `agency-${index}`,
@@ -787,27 +771,8 @@ export default function Dashboard() {
             websiteAnalysis: r.websiteAnalysis,
           }));
           
-          // Show info about contact data availability
-          if (withBothContacts.length > 0) {
-            toast.success(`Found ${withBothContacts.length} leads with email & phone!`);
-          } else if (withPhone.length > 0) {
-            toast.info(`Found ${withPhone.length} leads with phone numbers. Email enrichment recommended.`);
-          }
-          
-          if (resultsToUse.length === 0 && response.data.length > 0) {
-            toast.info(`Found ${response.data.length} businesses but none match platform criteria. Showing all results.`);
-            finalResults = response.data.map((r: GMBResult, index: number) => ({
-              id: r.id || `agency-${index}`,
-              name: r.name || 'Unknown Business',
-              email: r.email,
-              address: r.address,
-              phone: r.phone,
-              website: r.url,
-              rating: r.rating,
-              source: 'platform' as const,
-              platform: r.websiteAnalysis?.platform || undefined,
-              websiteAnalysis: r.websiteAnalysis,
-            }));
+          if (platformFiltered.length === 0 && response.data.length > 0) {
+            toast.info(`Found ${response.data.length} businesses. Showing all results.`);
           }
         } else if (response.error) {
           throw new Error(response.error);
