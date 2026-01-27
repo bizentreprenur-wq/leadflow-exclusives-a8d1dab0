@@ -153,10 +153,33 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50) {
     }
     
     // Use QUICK website analysis (URL-based only) to avoid timeouts
-    return array_map(function($result) {
+    // Also extract contact info from snippet text
+    $enriched = array_map(function($result) {
         $result['websiteAnalysis'] = quickWebsiteCheck($result['url']);
+        // Extract email from snippet if not already present
+        if (empty($result['email'])) {
+            $result['email'] = extractEmailFromSnippet($result['snippet'] ?? '');
+        }
+        // Extract phone from snippet if not already present
+        if (empty($result['phone'])) {
+            $result['phone'] = extractPhoneFromSnippet($result['snippet'] ?? '');
+        }
         return $result;
     }, array_slice($unique, 0, $limit));
+    
+    // For Agency Lead Finder, filter to only leads with email AND phone
+    $filtered = array_filter($enriched, function($result) {
+        return !empty($result['email']) && !empty($result['phone']);
+    });
+    
+    // If filtering removes too many, return enriched results with a note
+    // But prioritize filtered results
+    if (count($filtered) < 5 && count($enriched) > 0) {
+        // Add a flag to indicate partial contact info
+        return array_values($enriched);
+    }
+    
+    return array_values($filtered);
 }
 
 /**
@@ -300,6 +323,25 @@ function searchSerpApi($service, $location, $platformQueries, $limit = 100) {
 function extractPhoneFromSnippet($text) {
     if (preg_match('/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/', $text, $matches)) {
         return $matches[0];
+    }
+    return null;
+}
+
+/**
+ * Extract email address from text if present
+ */
+function extractEmailFromSnippet($text) {
+    // Common email pattern
+    if (preg_match('/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/', $text, $matches)) {
+        $email = strtolower($matches[0]);
+        // Filter out common non-business emails
+        $excludePatterns = ['example.com', 'test.com', 'domain.com', 'email.com', 'sample.'];
+        foreach ($excludePatterns as $pattern) {
+            if (strpos($email, $pattern) !== false) {
+                return null;
+            }
+        }
+        return $email;
     }
     return null;
 }
