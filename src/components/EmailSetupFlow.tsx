@@ -39,6 +39,7 @@ import CRMSelectionPanel from './CRMSelectionPanel';
 import AITemplateSuggestions from './AITemplateSuggestions';
 import AIEmailAssistant from './AIEmailAssistant';
 import EmailConfigurationPanel from './EmailConfigurationPanel';
+import LeadIntelligenceReviewPanel from './LeadIntelligenceReviewPanel';
 import { LeadForEmail, sendBulkEmails } from '@/lib/api/email';
 import { isSMTPConfigured, personalizeContent, sendTestEmail } from '@/lib/emailService';
 import { addLeadsToCRM, queueLeadsForEmail } from '@/lib/customTemplates';
@@ -47,6 +48,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { loadBrandingFromBackend, saveUserBranding, deleteUserLogo } from '@/lib/api/branding';
 import MailboxDock from '@/components/MailboxDock';
 import { DRIP_SETTINGS_KEY, loadDripSettings, saveDripSettings } from '@/lib/dripSettings';
+import { saveCampaignLeadsWithContext, getStoredLeadContext } from '@/lib/leadContext';
 
 interface SearchResult {
   id: string;
@@ -98,6 +100,14 @@ export default function EmailSetupFlow({
     emailBody: string;
   } | null>(null);
   const [dripSettings, setDripSettings] = useState(() => loadDripSettings());
+  const [showIntelligencePanel, setShowIntelligencePanel] = useState(true);
+  const [appliedStrategy, setAppliedStrategy] = useState<{
+    id: string;
+    name: string;
+    subjectTemplate: string;
+    openerTemplate: string;
+    ctaTemplate: string;
+  } | null>(null);
   
   // Auth context for persistent branding
   const { isAuthenticated } = useAuth();
@@ -462,12 +472,73 @@ export default function EmailSetupFlow({
                 <ArrowLeft className="w-4 h-4" />
                 Back to SMTP
               </Button>
-              <Badge variant="outline" className="gap-2 text-lg px-4 py-2 bg-primary/10 border-primary/30">
-                <Mail className="w-5 h-5 text-primary" />
-                <span className="font-bold text-primary">{leadsWithEmail.length}</span> leads ready to email
-              </Badge>
+              <div className="flex items-center gap-3">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setShowIntelligencePanel(!showIntelligencePanel)}
+                  className="gap-2"
+                >
+                  <Brain className="w-4 h-4 text-primary" />
+                  {showIntelligencePanel ? 'Hide' : 'Show'} Lead Intelligence
+                </Button>
+                <Badge variant="outline" className="gap-2 text-lg px-4 py-2 bg-primary/10 border-primary/30">
+                  <Mail className="w-5 h-5 text-primary" />
+                  <span className="font-bold text-primary">{leadsWithEmail.length}</span> leads ready to email
+                </Badge>
+              </div>
             </div>
 
+            {/* Lead Intelligence Review Panel - Shows Step 1 findings */}
+            {showIntelligencePanel && (
+              <LeadIntelligenceReviewPanel
+                searchType={searchType}
+                onApplyStrategy={(strategy) => {
+                  setAppliedStrategy({
+                    id: strategy.id,
+                    name: strategy.name,
+                    subjectTemplate: strategy.subjectTemplate,
+                    openerTemplate: strategy.openerTemplate,
+                    ctaTemplate: strategy.ctaTemplate,
+                  });
+                  // Auto-apply strategy to template if no template selected
+                  if (!selectedTemplate) {
+                    setCustomizedContent({
+                      subject: strategy.subjectTemplate,
+                      body: `${strategy.openerTemplate}\n\n${strategy.ctaTemplate}`,
+                    });
+                    localStorage.setItem('bamlead_template_customizations', JSON.stringify({
+                      subject: strategy.subjectTemplate,
+                      body: `${strategy.openerTemplate}\n\n${strategy.ctaTemplate}`,
+                    }));
+                  }
+                  toast.success(`Applied "${strategy.name}" strategy to your campaign`);
+                }}
+              />
+            )}
+
+            {/* Applied Strategy Indicator */}
+            {appliedStrategy && (
+              <div className="p-4 rounded-xl bg-primary/10 border border-primary/30 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                  <CheckCircle2 className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-foreground text-sm">Strategy Applied: {appliedStrategy.name}</h4>
+                  <p className="text-xs text-muted-foreground">
+                    AI will use this approach for personalized outreach based on lead analysis
+                  </p>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setAppliedStrategy(null)}
+                  className="text-muted-foreground"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
 
             {showTemplateEditor && selectedTemplate && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -694,6 +765,7 @@ export default function EmailSetupFlow({
                   <TooltipProvider delayDuration={200}>
                     {[
                       { tab: 'mailbox', icon: Mail, label: 'Mailbox', color: 'blue', tooltip: 'View live email queue, sending progress & campaign stats' },
+                      { tab: 'intelligence', icon: Brain, label: 'Intelligence', color: 'emerald', tooltip: 'Review lead analysis & AI-recommended email strategies' },
                       { tab: 'preview', icon: Eye, label: 'Preview', color: 'cyan', tooltip: 'Preview how your email looks in Gmail, Outlook & Apple Mail' },
                       { tab: 'crm', icon: Database, label: 'CRM', color: 'violet', tooltip: 'Connect HubSpot, Salesforce, or use BamLead CRM to manage leads' },
                       { tab: 'ab-testing', icon: FlaskConical, label: 'A/B', color: 'pink', tooltip: 'Create email variants & test which performs best' },
@@ -940,6 +1012,56 @@ export default function EmailSetupFlow({
 
                         {/* Campaign Analytics (only appears when real campaign data exists) */}
                         <CampaignAnalyticsDashboard />
+                      </div>
+                    )}
+
+                    {/* INTELLIGENCE VIEW - Lead Analysis Review */}
+                    {activeTab === 'intelligence' && (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Brain className="w-5 h-5 text-emerald-400" />
+                          <h3 className="font-bold text-lg">Lead Intelligence Report</h3>
+                          <Badge variant="outline" className="ml-2 text-xs">From Step 1 Analysis</Badge>
+                        </div>
+                        <LeadIntelligenceReviewPanel
+                          searchType={searchType}
+                          onApplyStrategy={(strategy) => {
+                            setAppliedStrategy({
+                              id: strategy.id,
+                              name: strategy.name,
+                              subjectTemplate: strategy.subjectTemplate,
+                              openerTemplate: strategy.openerTemplate,
+                              ctaTemplate: strategy.ctaTemplate,
+                            });
+                            // Apply to template
+                            setCustomizedContent({
+                              subject: strategy.subjectTemplate,
+                              body: `${strategy.openerTemplate}\n\n${strategy.ctaTemplate}`,
+                            });
+                            localStorage.setItem('bamlead_template_customizations', JSON.stringify({
+                              subject: strategy.subjectTemplate,
+                              body: `${strategy.openerTemplate}\n\n${strategy.ctaTemplate}`,
+                            }));
+                            // Save to campaign context for AI Autopilot
+                            const leadContext = getStoredLeadContext();
+                            saveCampaignLeadsWithContext(leadContext);
+                            toast.success(`Applied "${strategy.name}" - AI will use this for personalized outreach`);
+                          }}
+                        />
+                        
+                        {appliedStrategy && (
+                          <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                            </div>
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-foreground text-sm">Active Strategy: {appliedStrategy.name}</h4>
+                              <p className="text-xs text-muted-foreground">
+                                Both manual campaigns and AI Autopilot will use this approach
+                              </p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
 
