@@ -25,6 +25,7 @@ import ClickHeatmapChart from './ClickHeatmapChart';
 import ABTestingChart from './ABTestingChart';
 import AIAutopilotSubscription from './AIAutopilotSubscription';
 import ScheduledQueuePanel from './ScheduledQueuePanel';
+import EmailPerformanceReport from './EmailPerformanceReport';
 import LeadQueueIndicator from './LeadQueueIndicator';
 import CampaignPerformanceDashboard from './CampaignPerformanceDashboard';
 import ComposeEmailModal from './ComposeEmailModal';
@@ -669,8 +670,18 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
           {/* ANALYTICS VIEW */}
           {mainTab === 'analytics' && (
             <div className="h-full overflow-auto p-6">
-              <div className="max-w-6xl mx-auto">
+              <div className="max-w-6xl mx-auto space-y-6">
                 <ConversionFunnelDashboard searchType={searchType} />
+                
+                {/* Email Performance Report with PDF Export */}
+                <EmailPerformanceReport 
+                  campaignName="Current Campaign"
+                  leadsByPriority={{
+                    hot: campaignLeads.filter(l => l?.aiClassification === 'hot').length,
+                    warm: campaignLeads.filter(l => l?.aiClassification === 'warm').length,
+                    cold: campaignLeads.filter(l => l?.aiClassification === 'cold' || !l?.aiClassification).length,
+                  }}
+                />
               </div>
             </div>
           )}
