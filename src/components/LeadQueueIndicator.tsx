@@ -27,17 +27,20 @@ export default function LeadQueueIndicator({
   variant = 'horizontal',
   className,
 }: LeadQueueIndicatorProps) {
-  const prevLead = lastSentIndex >= 0 && lastSentIndex < leads.length ? leads[lastSentIndex] : null;
-  const currentLead = currentIndex >= 0 && currentIndex < leads.length ? leads[currentIndex] : null;
+  // Filter out null/undefined leads to prevent crashes
+  const safeLeads = useMemo(() => leads?.filter((l): l is Lead => l != null) ?? [], [leads]);
+  
+  const prevLead = lastSentIndex >= 0 && lastSentIndex < safeLeads.length ? safeLeads[lastSentIndex] : null;
+  const currentLead = currentIndex >= 0 && currentIndex < safeLeads.length ? safeLeads[currentIndex] : null;
   const nextIndex = currentIndex + 1;
-  const nextLead = nextIndex < leads.length ? leads[nextIndex] : null;
+  const nextLead = nextIndex < safeLeads.length ? safeLeads[nextIndex] : null;
 
-  const getName = (lead: Lead | null) => {
+  const getName = (lead: Lead | null | undefined) => {
     if (!lead) return '—';
     return lead.business_name || lead.name || lead.contact_name || lead.email?.split('@')[0] || 'Lead';
   };
 
-  const getEmail = (lead: Lead | null) => {
+  const getEmail = (lead: Lead | null | undefined) => {
     return lead?.email || '—';
   };
 

@@ -173,9 +173,10 @@ export default function EnhancedComposeModal({
     }
     
     // Save drip campaign state
+    const safeLeads = (leads ?? []).filter(Boolean);
     localStorage.setItem('bamlead_drip_active', JSON.stringify({
       active: true,
-      leads: leads.map(l => l.id),
+      leads: safeLeads.map(l => l?.id ?? ''),
       currentIndex: currentLeadIndex,
       interval: dripInterval,
       startedAt: new Date().toISOString(),
@@ -407,9 +408,9 @@ export default function EnhancedComposeModal({
                 />
 
                 <div className="space-y-2 max-h-[300px] overflow-auto">
-                  {leads.map((lead, idx) => (
+                  {(leads ?? []).filter(Boolean).map((lead, idx) => (
                     <button
-                      key={lead.id || idx}
+                      key={lead?.id ?? idx}
                       onClick={() => {
                         onLeadIndexChange(idx);
                         setEmail(prev => ({ ...prev, to: lead.email || '' }));
