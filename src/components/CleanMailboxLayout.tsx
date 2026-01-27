@@ -5,19 +5,15 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import {
-  Mail, Bot, User, Send, Flame, Clock, Settings, Play, Pause,
-  Inbox, MessageSquare, Zap, Users, FileText, ChevronRight,
-  Search, MailOpen, PenTool, Sparkles, Target, Rocket,
-  Calendar, Phone, BellRing, Shield, CheckCircle2, X, FolderOpen,
-  Building2, Globe, MapPin, Megaphone, Palette, Link2, Cloud,
-  BarChart3, MousePointer, Eye, Reply, TrendingUp, CalendarIcon
+  Mail, Bot, Send, Flame, Clock, Settings, Play, Pause,
+  Inbox, PenTool, Sparkles, Target, Rocket,
+  Calendar, Shield, CheckCircle2, X, FolderOpen,
+  Palette, Link2, Cloud, BarChart3, MousePointer, Eye, Reply, TrendingUp,
+  PanelLeftClose, PanelLeft, MailOpen, Zap
 } from 'lucide-react';
 import SMTPConfigPanel from './SMTPConfigPanel';
 import BrandingSettingsPanel from './BrandingSettingsPanel';
@@ -27,17 +23,14 @@ import AutoCampaignWizard from './AutoCampaignWizard';
 import ClickHeatmapChart from './ClickHeatmapChart';
 import ABTestingChart from './ABTestingChart';
 import AIAutopilotSubscription from './AIAutopilotSubscription';
-import EmailScheduleCalendar from './EmailScheduleCalendar';
 import ScheduledQueuePanel from './ScheduledQueuePanel';
 import LeadQueueIndicator from './LeadQueueIndicator';
-import PriorityTemplateSelector from './PriorityTemplateSelector';
-import { isSMTPConfigured, sendSingleEmail } from '@/lib/emailService';
-import { sendEmail as apiSendEmail } from '@/lib/api/email';
+import CampaignPerformanceDashboard from './CampaignPerformanceDashboard';
+import EnhancedComposeModal from './EnhancedComposeModal';
 
 // Tab types for main navigation
 type MainTab = 'inbox' | 'campaigns' | 'automation' | 'documents' | 'settings';
 type InboxFilter = 'all' | 'hot' | 'unread';
-type DocumentsTab = 'proposals' | 'contracts';
 
 // Demo sequence types
 interface OutreachSequence {
@@ -99,6 +92,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   const [selectedReply, setSelectedReply] = useState<EmailReply | null>(null);
   const [showComposeModal, setShowComposeModal] = useState(false);
   const [sequences, setSequences] = useState<OutreachSequence[]>(DEMO_SEQUENCES);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   
   // AI Automation settings
   const [automation, setAutomation] = useState<AutomationSettings>(() => {
@@ -108,11 +102,6 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
     } catch { return { doneForYouMode: false, autoFollowUps: true, responseMode: 'manual' }; }
   });
 
-  // Compose email state
-  const [composeEmail, setComposeEmail] = useState({ to: '', subject: '', body: '', scheduledFor: null as Date | null });
-  const [isSending, setIsSending] = useState(false);
-  const [showScheduler, setShowScheduler] = useState(false);
-  
   // Lead queue tracking for Compose modal display
   const [currentLeadIndex, setCurrentLeadIndex] = useState(0);
   const [lastSentLeadIndex, setLastSentLeadIndex] = useState(-1);
@@ -120,7 +109,6 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   // Campaign Wizard state
   const [showCampaignWizard, setShowCampaignWizard] = useState(false);
   const [leadPriority, setLeadPriority] = useState<'all' | 'hot' | 'warm' | 'cold'>('all');
-  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   
   const readStoredEmailLeads = () => {
     if (typeof window === 'undefined') return [] as any[];
@@ -200,69 +188,10 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
 
   // Handler to open compose with document content
   const handleUseDocumentInEmail = (doc: any) => {
-    setComposeEmail({
-      to: activeLeadEmail || '',
-      subject: doc.name,
-      body: doc.fullContent,
-      scheduledFor: null,
-    });
     setShowComposeModal(true);
-    setShowScheduler(true);
-    setMainTab('inbox'); // Switch to inbox to show compose modal
+    setMainTab('inbox');
   };
 
-  const queueScheduledEmail = async (payload: { to: string; subject: string; body: string; scheduledFor: Date }) => {
-    if (!payload.to || !payload.subject) {
-      toast.error('Please fill in recipient and subject before scheduling');
-      return;
-    }
-
-    // Also attempt to push to backend for server-side scheduling
-    try {
-      const res = await apiSendEmail({
-        to: payload.to,
-        subject: payload.subject,
-        body_html: `<p>${payload.body.replace(/\n/g, '<br/>')}</p>`,
-        track_opens: true,
-      });
-      // Even if server fails, we still store locally
-      if (!res.success) {
-        console.warn('Server scheduling failed, falling back to local queue:', res.error);
-      }
-    } catch {
-      console.warn('Server scheduling failed, falling back to local queue');
-    }
-
-    try {
-      const key = 'bamlead_scheduled_manual_emails';
-      const existingRaw = localStorage.getItem(key);
-      const existing = existingRaw ? JSON.parse(existingRaw) : [];
-      const list = Array.isArray(existing) ? existing : [];
-
-      const id = (typeof crypto !== 'undefined' && 'randomUUID' in crypto)
-        ? (crypto as any).randomUUID()
-        : String(Date.now());
-
-      list.unshift({
-        id,
-        type: 'manual_compose',
-        to: payload.to,
-        subject: payload.subject,
-        body: payload.body,
-        scheduledFor: payload.scheduledFor.toISOString(),
-        createdAt: new Date().toISOString(),
-      });
-
-      localStorage.setItem(key, JSON.stringify(list));
-      toast.success(`Queued for ${payload.scheduledFor.toLocaleString()}`);
-
-      setShowComposeModal(false);
-      setShowScheduler(false);
-      setComposeEmail({ to: '', subject: '', body: '', scheduledFor: null });
-    } catch {
-      toast.error('Failed to queue scheduled email');
-    }
-  };
   useEffect(() => {
     localStorage.setItem('bamlead_automation_settings', JSON.stringify(automation));
   }, [automation]);
@@ -273,51 +202,6 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
     if (inboxFilter === 'unread') return !r.isRead;
     return true;
   });
-
-  // Send email handler
-  const handleSendEmail = async () => {
-    if (!composeEmail.to || !composeEmail.subject) {
-      toast.error('Please fill in recipient and subject');
-      return;
-    }
-
-    if (!isSMTPConfigured()) {
-      toast.error('Please configure SMTP settings first');
-      setMainTab('settings');
-      return;
-    }
-
-    setIsSending(true);
-    try {
-      await sendSingleEmail({
-        to: composeEmail.to,
-        subject: composeEmail.subject,
-        bodyHtml: `<p>${composeEmail.body.replace(/\n/g, '<br/>')}</p>`,
-        leadId: 'manual',
-      });
-      toast.success('Email sent successfully!');
-      
-      // Update lead queue: mark current as sent, advance to next
-      setLastSentLeadIndex(currentLeadIndex);
-      if (currentLeadIndex < campaignLeads.length - 1) {
-        setCurrentLeadIndex(prev => prev + 1);
-        // Pre-fill next lead email
-        const nextLead = campaignLeads[currentLeadIndex + 1];
-        if (nextLead?.email) {
-          setComposeEmail(prev => ({ ...prev, to: nextLead.email, subject: '', body: '', scheduledFor: null }));
-        } else {
-          setComposeEmail({ to: '', subject: '', body: '', scheduledFor: null });
-        }
-      } else {
-        setComposeEmail({ to: '', subject: '', body: '', scheduledFor: null });
-      }
-      
-      setShowComposeModal(false);
-    } catch (error) {
-      toast.error('Failed to send email');
-    }
-    setIsSending(false);
-  };
 
   // Start/pause campaign
   const toggleCampaign = (sequenceId: string) => {
@@ -339,47 +223,144 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   ];
 
   return (
-    <div className="relative w-full h-full flex flex-col bg-background">
-      <div className="relative flex h-full flex-col">
-        {/* TOP HEADER */}
-        <header className="bg-card border-b border-border/60 px-6 py-3 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            {/* Logo */}
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
-                <Mail className="w-4 h-4 text-white" />
+    <div className="relative w-full h-full flex bg-background">
+      {/* COLLAPSIBLE LEFT SIDEBAR */}
+      <AnimatePresence mode="wait">
+        {!sidebarCollapsed && (
+          <motion.aside
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 280, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="h-full border-r border-border bg-card flex flex-col overflow-hidden"
+          >
+            {/* Sidebar Header */}
+            <div className="p-4 border-b border-border flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center">
+                  <Mail className="w-4 h-4 text-white" />
+                </div>
+                <span className="font-bold text-foreground">BamLead</span>
               </div>
-              <span className="font-bold text-white">BamLead</span>
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => setSidebarCollapsed(true)}
+                className="h-8 w-8"
+              >
+                <PanelLeftClose className="w-4 h-4" />
+              </Button>
             </div>
 
-            {/* Main Navigation */}
-            <nav className="flex items-center gap-1">
+            {/* Compose Button */}
+            <div className="p-4">
+              <Button
+                onClick={() => setShowComposeModal(true)}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white gap-2"
+              >
+                <PenTool className="w-4 h-4" />
+                Compose
+              </Button>
+            </div>
+
+            {/* Navigation */}
+            <nav className="flex-1 px-3 space-y-1">
               {navTabs.map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setMainTab(tab.id)}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
+                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
                     mainTab === tab.id
                       ? "bg-emerald-600 text-white"
-                      : "text-slate-400 hover:text-white hover:bg-muted/40"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                   )}
                 >
                   <tab.icon className="w-4 h-4" />
                   {tab.label}
+                  {tab.id === 'inbox' && (
+                    <Badge className="ml-auto bg-red-500 text-white text-[10px] px-1.5">
+                      {DEMO_REPLIES.filter(r => !r.isRead).length}
+                    </Badge>
+                  )}
                 </button>
               ))}
             </nav>
 
-            {/* Mode indicator */}
+            {/* Mode Indicator */}
+            <div className="p-4 border-t border-border">
+              <div className={cn(
+                "p-3 rounded-lg border",
+                automation.doneForYouMode 
+                  ? "bg-emerald-500/10 border-emerald-500/30" 
+                  : "bg-muted/30 border-border"
+              )}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-foreground">
+                    {automation.doneForYouMode ? '🤖 AI Autopilot' : '👤 Manual Mode'}
+                  </span>
+                  <Switch
+                    checked={automation.doneForYouMode}
+                    onCheckedChange={(v) => setAutomation(prev => ({ ...prev, doneForYouMode: v }))}
+                    className="data-[state=checked]:bg-emerald-500 scale-75"
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {automation.doneForYouMode 
+                    ? 'AI is nurturing leads automatically' 
+                    : 'You control all outreach'}
+                </p>
+              </div>
+            </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
+
+      {/* MAIN CONTENT AREA */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
+        {/* TOP HEADER */}
+        <header className="bg-card border-b border-border px-4 py-3 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            {/* Collapse toggle + current tab */}
+            <div className="flex items-center gap-3">
+              {sidebarCollapsed && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => setSidebarCollapsed(false)}
+                  className="h-8 w-8"
+                >
+                  <PanelLeft className="w-4 h-4" />
+                </Button>
+              )}
+              <h1 className="text-lg font-semibold text-foreground capitalize flex items-center gap-2">
+                {navTabs.find(t => t.id === mainTab)?.icon && (
+                  <span className="w-6 h-6 rounded-lg bg-primary/10 flex items-center justify-center">
+                    {(() => {
+                      const Icon = navTabs.find(t => t.id === mainTab)?.icon || Inbox;
+                      return <Icon className="w-3.5 h-3.5 text-primary" />;
+                    })()}
+                  </span>
+                )}
+                {mainTab}
+              </h1>
+            </div>
+
+            {/* Quick Actions */}
             <div className="flex items-center gap-2">
+              {campaignContext?.isActive && (
+                <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 animate-pulse gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                  Campaign Active
+                </Badge>
+              )}
               <Badge 
                 variant="outline" 
                 className={cn(
                   "text-xs px-3 py-1",
                   automation.doneForYouMode 
-                    ? "border-emerald-500 text-emerald-400" 
-                    : "border-border/70 text-muted-foreground"
+                    ? "border-emerald-500/50 text-emerald-400" 
+                    : "border-border text-muted-foreground"
                 )}
               >
                 {automation.doneForYouMode ? '🤖 Auto' : '👤 Manual'}
@@ -390,676 +371,507 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
 
         {/* MAIN CONTENT */}
         <div className="flex-1 overflow-hidden">
-        {/* INBOX VIEW */}
-        {mainTab === 'inbox' && (
-          <div className="h-full flex">
-            {/* Email List Panel */}
-            <div className="w-96 border-r border-border/60 flex flex-col bg-card">
-              {/* Inbox Banner */}
-              <div className="p-3 bg-muted/30 border-b border-border/50">
-                <div className="flex items-center gap-2 text-xs text-slate-300">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>This inbox shows replies only.</span>
+          {/* INBOX VIEW */}
+          {mainTab === 'inbox' && (
+            <div className="h-full flex">
+              {/* Email List Panel */}
+              <div className={cn(
+                "border-r border-border flex flex-col bg-card transition-all",
+                sidebarCollapsed ? "w-80" : "w-72"
+              )}>
+                {/* Inbox Banner */}
+                <div className="p-3 bg-muted/30 border-b border-border/50">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>This inbox shows replies only.</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground/70 mt-0.5">Campaigns run in the background.</p>
                 </div>
-                <p className="text-[10px] text-slate-500 mt-0.5">Campaigns run in the background.</p>
-              </div>
 
-              {/* Filters */}
-              <div className="p-3 border-b border-border/50 flex gap-2">
-                {(['all', 'hot', 'unread'] as InboxFilter[]).map(filter => (
-                  <button
-                    key={filter}
-                    onClick={() => setInboxFilter(filter)}
-                    className={cn(
-                      "px-3 py-1.5 text-xs font-medium rounded-full transition-all capitalize",
-                      inboxFilter === filter
-                        ? "bg-emerald-500 text-white"
-                        : "bg-slate-800 text-slate-400 hover:text-white"
-                    )}
-                  >
-                    {filter === 'all' ? 'All Replies' : filter}
-                  </button>
-                ))}
-              </div>
+                {/* Filters */}
+                <div className="p-3 border-b border-border/50 flex gap-2">
+                  {(['all', 'hot', 'unread'] as InboxFilter[]).map(filter => (
+                    <button
+                      key={filter}
+                      onClick={() => setInboxFilter(filter)}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-medium rounded-full transition-all capitalize",
+                        inboxFilter === filter
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      {filter === 'all' ? 'All Replies' : filter}
+                    </button>
+                  ))}
+                </div>
 
-              {/* Compose Button */}
-              <div className="p-3">
-                <Button
-                  onClick={() => {
-                    setComposeEmail((prev) => ({
-                      ...prev,
-                      to: prev.to || activeLeadEmail || '',
-                    }));
-                    setShowComposeModal(true);
-                  }}
-                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white gap-2"
-                >
-                  <PenTool className="w-4 h-4" />
-                  Compose
-                </Button>
-              </div>
-
-              {/* Email List */}
-              <ScrollArea className="flex-1">
-                <div className="divide-y divide-slate-800">
+                {/* Email List */}
+                <ScrollArea className="flex-1">
                   {filteredReplies.map(reply => (
                     <button
                       key={reply.id}
                       onClick={() => setSelectedReply(reply)}
                       className={cn(
-                        "w-full p-3 text-left transition-all hover:bg-slate-800",
-                        selectedReply?.id === reply.id && "bg-slate-800 border-l-2 border-l-emerald-500",
-                        !reply.isRead && "bg-slate-800/50"
+                        "w-full text-left p-4 border-b border-border/40 hover:bg-muted/30 transition-colors",
+                        selectedReply?.id === reply.id && "bg-muted/50",
+                        !reply.isRead && "bg-primary/5"
                       )}
                     >
                       <div className="flex items-start gap-3">
-                        {/* Avatar */}
                         <div className={cn(
-                          "w-9 h-9 rounded-full flex items-center justify-center text-white font-semibold text-xs",
-                          reply.urgencyLevel === 'hot' ? 'bg-red-500' :
-                          reply.urgencyLevel === 'warm' ? 'bg-amber-500' : 'bg-slate-600'
-                        )}>
-                          {reply.from_name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                        </div>
-                        
+                          "w-2 h-2 rounded-full mt-2 flex-shrink-0",
+                          reply.urgencyLevel === 'hot' ? "bg-red-500" :
+                          reply.urgencyLevel === 'warm' ? "bg-amber-500" : "bg-blue-500"
+                        )} />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-0.5">
-                            <span className={cn("text-sm truncate", !reply.isRead ? "font-bold text-white" : "text-slate-300")}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className={cn(
+                              "text-sm truncate",
+                              !reply.isRead ? "font-semibold text-foreground" : "text-muted-foreground"
+                            )}>
                               {reply.from_name}
                             </span>
-                            <span className="text-[10px] text-slate-500">{reply.time}</span>
+                            <span className="text-[10px] text-muted-foreground flex-shrink-0 ml-2">
+                              {reply.time.split(' ')[0]}
+                            </span>
                           </div>
-                          <p className="text-xs text-slate-400 truncate">{reply.subject}</p>
-                          
-                          {/* Badges */}
-                          <div className="flex items-center gap-1.5 mt-1.5">
-                            {reply.urgencyLevel === 'hot' && (
-                              <Badge className="bg-red-900/50 text-red-300 border border-red-700 text-[10px] px-1.5">
-                                <Flame className="w-2.5 h-2.5 mr-0.5" /> Hot
-                              </Badge>
+                          <p className="text-xs text-foreground truncate mb-0.5">{reply.subject}</p>
+                          <p className="text-[11px] text-muted-foreground truncate">{reply.preview}</p>
+                          <Badge 
+                            className={cn(
+                              "mt-2 text-[9px] px-1.5 py-0",
+                              reply.urgencyLevel === 'hot' 
+                                ? "bg-red-500/20 text-red-400 border-red-500/30" 
+                                : reply.urgencyLevel === 'warm'
+                                ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                                : "bg-blue-500/20 text-blue-400 border-blue-500/30"
                             )}
-                            {reply.hasDocument && (
-                              <Badge className="bg-violet-900/50 text-violet-300 border border-violet-700 text-[10px] px-1.5">
-                                <FileText className="w-2.5 h-2.5 mr-0.5" /> Doc
-                              </Badge>
-                            )}
-                          </div>
+                          >
+                            {reply.urgencyLevel}
+                          </Badge>
                         </div>
                       </div>
                     </button>
                   ))}
-                </div>
-              </ScrollArea>
-            </div>
+                </ScrollArea>
+              </div>
 
-            {/* Email Detail Panel */}
-            <div className="flex-1 flex items-center justify-center bg-card">
-              {selectedReply ? (
-                <div className="w-full h-full p-6">
-                  <div className="max-w-2xl mx-auto">
-                    <h2 className="text-xl font-bold text-white mb-2">{selectedReply.subject}</h2>
-                    <p className="text-sm text-slate-400">From: {selectedReply.from_name} &lt;{selectedReply.from_email}&gt;</p>
-                    <Separator className="my-4 bg-slate-800" />
-                    <p className="text-slate-300">{selectedReply.preview || 'No preview available.'}</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="w-full max-w-md px-6">
-                  <div className="rounded-2xl border border-border/40 bg-card p-10 text-center">
-                    <MailOpen className="w-16 h-16 text-muted-foreground/60 mx-auto mb-3" />
-                    <p className="text-sm text-muted-foreground">Select an email to view</p>
-                    <p className="text-xs text-muted-foreground/70 mt-1">
-                      Replies show here. Campaigns and AI send messages in the background.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* AI AUTOMATION VIEW */}
-        {mainTab === 'automation' && (
-          <div className="h-full overflow-auto p-6">
-            <div className="max-w-2xl mx-auto space-y-6">
-              {/* AI Autopilot Subscription Component */}
-              <AIAutopilotSubscription
-                isActive={automation.doneForYouMode}
-                onToggle={(active) => {
-                  setAutomation(prev => ({ ...prev, doneForYouMode: active }));
-                }}
-              />
-
-              {/* AI-Managed Sequences (only visible when DFY is ON) */}
-              <AnimatePresence>
-                {automation.doneForYouMode && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="space-y-4"
-                  >
-                    <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
-                      <Bot className="w-4 h-4 text-primary" />
-                      AI-Managed Outreach Sequences
-                    </h4>
-                    
-                    {/* Sequence A - GMB Search */}
-                    <div className="p-4 rounded-xl bg-muted/30 border border-border">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs">A</Badge>
-                          <h5 className="font-medium text-foreground">GMB Search Sequence</h5>
+              {/* Email Preview / Empty State */}
+              <div className="flex-1 flex items-center justify-center bg-background">
+                {selectedReply ? (
+                  <div className="w-full max-w-2xl p-8">
+                    <div className="rounded-2xl border border-border bg-card p-8">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className={cn(
+                          "w-10 h-10 rounded-full flex items-center justify-center text-white font-bold",
+                          selectedReply.urgencyLevel === 'hot' ? "bg-red-500" :
+                          selectedReply.urgencyLevel === 'warm' ? "bg-amber-500" : "bg-blue-500"
+                        )}>
+                          {selectedReply.from_name[0]}
                         </div>
-                        <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400">
-                          Active
+                        <div>
+                          <p className="font-semibold text-foreground">{selectedReply.from_name}</p>
+                          <p className="text-xs text-muted-foreground">{selectedReply.from_email}</p>
+                        </div>
+                        <Badge className="ml-auto" variant="outline">
+                          {selectedReply.time}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="px-2 py-0.5 rounded bg-muted border border-border">Email</span>
-                        <span className="px-2 py-0.5 rounded bg-muted border border-border">Follow-up x3</span>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-2">
-                        Steps: 4 • Duration: 10 days • For Google Maps leads
+                      <h2 className="text-xl font-bold text-foreground mb-4">{selectedReply.subject}</h2>
+                      <Separator className="my-4" />
+                      <p className="text-muted-foreground leading-relaxed">
+                        {selectedReply.preview || 'No preview available.'}
                       </p>
-                      <p className="text-[10px] text-emerald-400 mt-1">
-                        AI sends initial outreach + 3 follow-ups based on engagement
+                      <div className="mt-6 flex gap-2">
+                        <Button onClick={() => setShowComposeModal(true)} className="gap-2">
+                          <Reply className="w-4 h-4" />
+                          Reply
+                        </Button>
+                        <Button variant="outline">Forward</Button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-full max-w-md px-6 text-center">
+                    <div className="rounded-2xl border border-border bg-card p-10">
+                      <MailOpen className="w-16 h-16 text-muted-foreground/60 mx-auto mb-3" />
+                      <p className="text-sm text-muted-foreground">Select an email to view</p>
+                      <p className="text-xs text-muted-foreground/70 mt-1">
+                        Replies show here. Campaigns and AI send messages in the background.
                       </p>
                     </div>
-
-                    {/* Sequence B - Platform Search */}
-                    <div className="p-4 rounded-xl bg-muted/30 border border-border">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-xs">B</Badge>
-                          <h5 className="font-medium text-foreground">Platform Search Sequence</h5>
-                        </div>
-                        <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400">
-                          Active
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="px-2 py-0.5 rounded bg-muted border border-border">Email</span>
-                        <span className="px-2 py-0.5 rounded bg-muted border border-border">LinkedIn</span>
-                        <span className="px-2 py-0.5 rounded bg-muted border border-border">SMS</span>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground mt-2">
-                        Steps: 5 • Duration: 14 days • For Yelp, Yellow Pages, etc.
-                      </p>
-                      <p className="text-[10px] text-emerald-400 mt-1">
-                        Multi-channel nurturing with smart channel switching
-                      </p>
-                    </div>
-
-                    {/* CRM Sync Notice */}
-                    <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 flex items-center gap-2">
-                      <Shield className="w-4 h-4 text-primary" />
-                      <span className="text-xs text-foreground">
-                        All AI interactions sync to your connected CRM in real-time
-                      </span>
-                    </div>
-                  </motion.div>
+                  </div>
                 )}
-              </AnimatePresence>
-
-              <Separator className="bg-border" />
-
-              {/* AI Follow-Ups */}
-              <div className="p-5 rounded-xl bg-card border border-border">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
-                      <Clock className="w-5 h-5 text-amber-400" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-foreground">AI Follow-Ups</h3>
-                      <p className="text-xs text-muted-foreground">AI sends follow-ups automatically</p>
-                      <p className="text-xs text-muted-foreground/70">based on engagement and response timing.</p>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={automation.autoFollowUps}
-                    onCheckedChange={(v) => setAutomation(prev => ({ ...prev, autoFollowUps: v }))}
-                    className="data-[state=checked]:bg-primary"
-                  />
-                </div>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* CAMPAIGNS VIEW (Manual) */}
-        {mainTab === 'campaigns' && (
-          <div className="h-full overflow-auto p-6">
-            <div className="max-w-2xl mx-auto space-y-6">
-              {/* Header with Create Campaign Button */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-xl font-bold text-foreground">Campaigns</h2>
-                    <Badge variant="outline" className="text-xs border-border text-muted-foreground">Manual</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">You control these campaigns.</p>
-                  <p className="text-xs text-muted-foreground/70">Messages send only when you start them.</p>
-                </div>
-                <Button 
-                  onClick={() => setShowCampaignWizard(true)}
-                  className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white gap-2 shadow-lg"
-                >
-                  <Zap className="w-4 h-4" />
-                  Create Campaign
-                </Button>
-              </div>
-
-              {/* Lead Queue Indicator - Last Sent / Current / Up Next */}
-              {campaignLeads.length > 0 && (
-                <LeadQueueIndicator
-                  leads={campaignLeads}
-                  currentIndex={currentLeadIndex}
-                  lastSentIndex={lastSentLeadIndex}
-                  variant="horizontal"
-                />
-              )}
-
-              {/* Lead Priority Filter */}
-              <div className="p-4 rounded-xl bg-muted/30 border border-border">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <Target className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium text-foreground">Filter by Lead Priority</span>
-                  </div>
-                  <Badge variant="secondary" className="text-xs">
-                    {campaignLeads.filter(l => 
-                      leadPriority === 'all' ? true : 
-                      (l.aiClassification || 'cold') === leadPriority
-                    ).length} leads
-                  </Badge>
-                </div>
-                <div className="flex gap-2">
-                  {[
-                    { value: 'all', label: 'All Leads', color: 'bg-primary/20 text-primary border-primary/30' },
-                    { value: 'hot', label: '🔥 Hot', color: 'bg-red-500/20 text-red-400 border-red-500/30' },
-                    { value: 'warm', label: '🌡️ Warm', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
-                    { value: 'cold', label: '❄️ Cold', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
-                  ].map(opt => (
-                    <Button
-                      key={opt.value}
-                      size="sm"
-                      variant={leadPriority === opt.value ? "default" : "outline"}
-                      onClick={() => setLeadPriority(opt.value as any)}
-                      className={cn(
-                        "text-xs",
-                        leadPriority === opt.value 
-                          ? opt.color
-                          : "border-border text-muted-foreground"
-                      )}
-                    >
-                      {opt.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Email Tracking Analytics */}
-              <div className="p-5 rounded-xl bg-gradient-to-br from-card to-muted/30 border border-border">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <BarChart3 className="w-5 h-5 text-primary" />
-                    <h3 className="font-semibold text-foreground">Campaign Analytics</h3>
-                  </div>
-                  {campaignContext?.isActive && (
-                    <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 animate-pulse">
-                      <div className="w-2 h-2 rounded-full bg-emerald-400 mr-2" />
-                      Live Sync
-                    </Badge>
-                  )}
-                </div>
-
-                {/* Stats Grid */}
-                <div className="grid grid-cols-5 gap-3 mb-4">
-                  {[
-                    { label: 'Sent', value: campaignAnalytics.sent, icon: Send, color: 'text-blue-400', bg: 'bg-blue-500/10' },
-                    { label: 'Delivered', value: campaignAnalytics.delivered, icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-                    { label: 'Opened', value: campaignAnalytics.opened, icon: Eye, color: 'text-amber-400', bg: 'bg-amber-500/10' },
-                    { label: 'Clicked', value: campaignAnalytics.clicked, icon: MousePointer, color: 'text-purple-400', bg: 'bg-purple-500/10' },
-                    { label: 'Replied', value: campaignAnalytics.replied, icon: Reply, color: 'text-pink-400', bg: 'bg-pink-500/10' },
-                  ].map(stat => (
-                    <div key={stat.label} className={cn("p-3 rounded-lg border border-border text-center", stat.bg)}>
-                      <stat.icon className={cn("w-4 h-4 mx-auto mb-1", stat.color)} />
-                      <p className="text-lg font-bold text-foreground">{stat.value}</p>
-                      <p className="text-[10px] text-muted-foreground">{stat.label}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Visual Bar Chart */}
-                <div className="space-y-2">
-                  {[
-                    { label: 'Open Rate', value: campaignAnalytics.sent > 0 ? Math.round((campaignAnalytics.opened / campaignAnalytics.sent) * 100) : 0, color: 'bg-amber-500' },
-                    { label: 'Click Rate', value: campaignAnalytics.sent > 0 ? Math.round((campaignAnalytics.clicked / campaignAnalytics.sent) * 100) : 0, color: 'bg-purple-500' },
-                    { label: 'Reply Rate', value: campaignAnalytics.sent > 0 ? Math.round((campaignAnalytics.replied / campaignAnalytics.sent) * 100) : 0, color: 'bg-pink-500' },
-                  ].map(bar => (
-                    <div key={bar.label} className="flex items-center gap-3">
-                      <span className="text-xs text-muted-foreground w-20">{bar.label}</span>
-                      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
-                        <div 
-                          className={cn("h-full rounded-full transition-all duration-500", bar.color)}
-                          style={{ width: `${bar.value}%` }}
-                        />
-                      </div>
-                      <span className="text-xs font-medium text-foreground w-10 text-right">{bar.value}%</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Trend Indicator */}
-                <div className="mt-4 pt-3 border-t border-border flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">vs. last campaign</span>
-                  <div className="flex items-center gap-1 text-emerald-400">
-                    <TrendingUp className="w-3.5 h-3.5" />
-                    <span className="text-xs font-medium">+12% engagement</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Click Heatmap Visualization */}
-              <ClickHeatmapChart />
-
-              {/* A/B Testing Chart */}
-              <ABTestingChart />
-
-              {/* Campaign Cards */}
-              <div className="space-y-3">
-                {sequences.map(seq => (
-                  <div key={seq.id} className="p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-all">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h4 className="font-medium text-foreground">{seq.name}</h4>
-                          {seq.status === 'active' && (
-                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          {seq.channels.map(ch => (
-                            <span key={ch} className="px-2 py-0.5 rounded bg-muted border border-border capitalize">{ch}</span>
-                          ))}
-                          <span>•</span>
-                          <span>Steps: {seq.steps}</span>
-                          <span>•</span>
-                          <span>Duration: {seq.duration}</span>
-                        </div>
-                      </div>
-                      <Button
-                        onClick={() => toggleCampaign(seq.id)}
-                        size="sm"
-                        className={cn(
-                          "gap-2",
-                          seq.status === 'active'
-                            ? "bg-amber-600 hover:bg-amber-500 text-white"
-                            : "bg-emerald-600 hover:bg-emerald-500 text-white"
-                        )}
-                      >
-                        {seq.status === 'active' ? (
-                          <><Pause className="w-3.5 h-3.5" /> Pause</>
-                        ) : (
-                          <><Play className="w-3.5 h-3.5" /> Start Campaign</>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Scheduled Queue Panel */}
-              <ScheduledQueuePanel />
-            </div>
-          </div>
-        )}
-
-        {/* DOCUMENTS VIEW */}
-        {mainTab === 'documents' && (
-          <DocumentsPanel 
-            searchType={searchType} 
-            onUseInEmail={handleUseDocumentInEmail}
-          />
-        )}
-
-        {/* SETTINGS VIEW */}
-        {mainTab === 'settings' && (
-          <div className="h-full overflow-auto p-6">
-            <div className="max-w-3xl mx-auto space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-foreground">Mailbox Settings</h2>
-                <Badge variant="outline" className="text-xs">
-                  Configure your outreach setup
-                </Badge>
-              </div>
-              
-              <Tabs defaultValue="smtp" className="w-full">
-                <TabsList className="bg-muted/50 border border-border p-1 mb-6">
-                  <TabsTrigger value="smtp" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
-                    <Mail className="w-4 h-4" />
-                    Email / SMTP
-                  </TabsTrigger>
-                  <TabsTrigger value="branding" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
-                    <Palette className="w-4 h-4" />
-                    Branding
-                  </TabsTrigger>
-                  <TabsTrigger value="crm" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
-                    <Cloud className="w-4 h-4" />
-                    CRM & Integrations
-                  </TabsTrigger>
-                </TabsList>
-
-                {/* SMTP Tab */}
-                <TabsContent value="smtp">
-                  <div className="rounded-xl bg-card border border-border overflow-hidden">
-                    <div className="p-4 border-b border-border">
-                      <h3 className="font-semibold text-foreground flex items-center gap-2">
-                        <Mail className="w-4 h-4 text-primary" />
-                        Email / SMTP Configuration
-                      </h3>
-                      <p className="text-xs text-muted-foreground">Configure your email server to send campaigns</p>
-                    </div>
-                    <div className="p-4">
-                      <SMTPConfigPanel />
-                    </div>
-                  </div>
-                </TabsContent>
-
-                {/* Branding Tab */}
-                <TabsContent value="branding">
-                  <div className="rounded-xl bg-card border border-border overflow-hidden">
-                    <div className="p-4 border-b border-border">
-                      <h3 className="font-semibold text-foreground flex items-center gap-2">
-                        <Palette className="w-4 h-4 text-primary" />
-                        Email Branding
-                      </h3>
-                      <p className="text-xs text-muted-foreground">Customize your logo, colors, and signature for outgoing emails</p>
-                    </div>
-                    <div className="p-4">
-                      <BrandingSettingsPanel />
-                    </div>
-                  </div>
-                </TabsContent>
-
-                {/* CRM & Integrations Tab */}
-                <TabsContent value="crm">
-                  <div className="space-y-4">
-                    <CloudCRMIntegrationsPanel />
-                    
-                    {/* Additional Integration Info */}
-                    <div className="rounded-xl bg-card border border-border p-4">
-                      <h4 className="font-medium text-foreground flex items-center gap-2 mb-3">
-                        <Link2 className="w-4 h-4 text-primary" />
-                        Export Options
-                      </h4>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="p-3 rounded-lg bg-muted/30 border border-border">
-                          <p className="text-sm font-medium text-foreground">Google Sheets</p>
-                          <p className="text-xs text-muted-foreground">Auto-sync leads to spreadsheets</p>
-                        </div>
-                        <div className="p-3 rounded-lg bg-muted/30 border border-border">
-                          <p className="text-sm font-medium text-foreground">CSV Export</p>
-                          <p className="text-xs text-muted-foreground">Download leads anytime</p>
-                        </div>
-                        <div className="p-3 rounded-lg bg-muted/30 border border-border">
-                          <p className="text-sm font-medium text-foreground">Zapier</p>
-                          <p className="text-xs text-muted-foreground">Connect 5000+ apps</p>
-                        </div>
-                        <div className="p-3 rounded-lg bg-muted/30 border border-border">
-                          <p className="text-sm font-medium text-foreground">Webhooks</p>
-                          <p className="text-xs text-muted-foreground">Real-time lead notifications</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </div>
-          </div>
-        )}
-        </div>
-      </div>
-
-      {/* Compose Email Modal */}
-      <Dialog open={showComposeModal} onOpenChange={setShowComposeModal}>
-        <DialogContent elevated className="max-w-xl bg-card border-border">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <PenTool className="w-5 h-5 text-primary" />
-              Compose Email
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground">Write and send an email manually or schedule for later</DialogDescription>
-          </DialogHeader>
-
-          {/* Lead Queue Indicator - compact version in Compose */}
-          {campaignLeads.length > 0 && (
-            <div className="mb-4">
-              <LeadQueueIndicator
-                leads={campaignLeads}
-                currentIndex={currentLeadIndex}
-                lastSentIndex={lastSentLeadIndex}
-                variant="compact"
-              />
             </div>
           )}
 
-          <div className="space-y-4 py-4">
-            <div>
-              <label className="text-sm font-medium text-foreground block mb-1.5">To</label>
-              <Input
-                value={composeEmail.to}
-                onChange={(e) => setComposeEmail(prev => ({ ...prev, to: e.target.value }))}
-                placeholder="recipient@email.com"
-                className="bg-muted/30 border-border"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-foreground block mb-1.5">Subject</label>
-              <Input
-                value={composeEmail.subject}
-                onChange={(e) => setComposeEmail(prev => ({ ...prev, subject: e.target.value }))}
-                placeholder="Email subject..."
-                className="bg-muted/30 border-border"
-              />
-            </div>
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-sm font-medium text-foreground">Message</label>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowTemplateSelector(true)}
-                  className="text-xs h-7 gap-1.5"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-primary" />
-                  Priority Templates
-                </Button>
-              </div>
-              <Textarea
-                value={composeEmail.body}
-                onChange={(e) => setComposeEmail(prev => ({ ...prev, body: e.target.value }))}
-                placeholder="Write your message..."
-                rows={6}
-                className="bg-muted/30 border-border"
-              />
-            </div>
-
-            {/* Email Scheduling */}
-            <div className="pt-2 border-t border-border">
-              <div className="flex items-center justify-between mb-3">
-                <label className="text-sm font-medium text-foreground flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-primary" />
-                  Schedule Send
-                </label>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setShowScheduler(!showScheduler)}
-                  className="text-xs"
-                >
-                  {showScheduler ? 'Hide' : 'Show Options'}
-                </Button>
-              </div>
-              {showScheduler && (
-                <EmailScheduleCalendar
-                  onSchedule={(date) => {
-                    setComposeEmail(prev => ({ ...prev, scheduledFor: date }));
-                    queueScheduledEmail({
-                      to: composeEmail.to,
-                      subject: composeEmail.subject,
-                      body: composeEmail.body,
-                      scheduledFor: date,
-                    });
+          {/* AI AUTOMATION VIEW */}
+          {mainTab === 'automation' && (
+            <div className="h-full overflow-auto p-6">
+              <div className="max-w-2xl mx-auto space-y-6">
+                {/* AI Autopilot Subscription Component */}
+                <AIAutopilotSubscription
+                  isActive={automation.doneForYouMode}
+                  onToggle={(active) => {
+                    setAutomation(prev => ({ ...prev, doneForYouMode: active }));
                   }}
-                  onSendNow={handleSendEmail}
                 />
-              )}
+
+                {/* AI-Managed Sequences (only visible when DFY is ON) */}
+                <AnimatePresence>
+                  {automation.doneForYouMode && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="space-y-4"
+                    >
+                      <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
+                        <Bot className="w-4 h-4 text-primary" />
+                        AI-Managed Outreach Sequences
+                      </h4>
+                      
+                      {/* Sequence A - GMB Search */}
+                      <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs">A</Badge>
+                            <h5 className="font-medium text-foreground">GMB Search Sequence</h5>
+                          </div>
+                          <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400">
+                            Active
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="px-2 py-0.5 rounded bg-muted border border-border">Email</span>
+                          <span className="px-2 py-0.5 rounded bg-muted border border-border">Follow-up x3</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-2">
+                          Steps: 4 • Duration: 10 days • For Google Maps leads
+                        </p>
+                        <p className="text-[10px] text-emerald-400 mt-1">
+                          AI sends initial outreach + 3 follow-ups based on engagement
+                        </p>
+                      </div>
+
+                      {/* Sequence B - Platform Search */}
+                      <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-xs">B</Badge>
+                            <h5 className="font-medium text-foreground">Platform Search Sequence</h5>
+                          </div>
+                          <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400">
+                            Active
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span className="px-2 py-0.5 rounded bg-muted border border-border">Email</span>
+                          <span className="px-2 py-0.5 rounded bg-muted border border-border">LinkedIn</span>
+                          <span className="px-2 py-0.5 rounded bg-muted border border-border">SMS</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-2">
+                          Steps: 5 • Duration: 14 days • For Yelp, Yellow Pages, etc.
+                        </p>
+                        <p className="text-[10px] text-emerald-400 mt-1">
+                          Multi-channel nurturing with smart channel switching
+                        </p>
+                      </div>
+
+                      {/* CRM Sync Notice */}
+                      <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-primary" />
+                        <span className="text-xs text-foreground">
+                          All AI interactions sync to your connected CRM in real-time
+                        </span>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                <Separator />
+
+                {/* AI Follow-Ups */}
+                <div className="p-5 rounded-xl bg-card border border-border">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                        <Clock className="w-5 h-5 text-amber-400" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-foreground">AI Follow-Ups</h3>
+                        <p className="text-xs text-muted-foreground">AI sends follow-ups automatically</p>
+                        <p className="text-xs text-muted-foreground/70">based on engagement and response timing.</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={automation.autoFollowUps}
+                      onCheckedChange={(v) => setAutomation(prev => ({ ...prev, autoFollowUps: v }))}
+                      className="data-[state=checked]:bg-primary"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
-          </div>
+          )}
 
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setShowComposeModal(false)}>
-              Cancel
-            </Button>
-            {!showScheduler && (
-              <Button 
-                onClick={handleSendEmail} 
-                disabled={isSending}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2"
-              >
-                {isSending ? 'Sending...' : <><Send className="w-4 h-4" /> Send Now</>}
-              </Button>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+          {/* CAMPAIGNS VIEW (Manual) */}
+          {mainTab === 'campaigns' && (
+            <div className="h-full overflow-auto p-6">
+              <div className="max-w-4xl mx-auto space-y-6">
+                {/* Header with Create Campaign Button */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xl font-bold text-foreground">Campaigns</h2>
+                      <Badge variant="outline" className="text-xs border-border text-muted-foreground">Manual</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">You control these campaigns.</p>
+                  </div>
+                  <Button 
+                    onClick={() => setShowCampaignWizard(true)}
+                    className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white gap-2 shadow-lg"
+                  >
+                    <Zap className="w-4 h-4" />
+                    Create Campaign
+                  </Button>
+                </div>
 
-      {/* Priority Template Selector */}
-      <PriorityTemplateSelector
-        isOpen={showTemplateSelector}
-        onClose={() => setShowTemplateSelector(false)}
-        onSelectTemplate={(template) => {
-          setComposeEmail(prev => ({
+                {/* Lead Queue Indicator - Last Sent / Current / Up Next */}
+                {campaignLeads.length > 0 && (
+                  <LeadQueueIndicator
+                    leads={campaignLeads}
+                    currentIndex={currentLeadIndex}
+                    lastSentIndex={lastSentLeadIndex}
+                    variant="horizontal"
+                  />
+                )}
+
+                {/* Lead Priority Filter */}
+                <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Target className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-medium text-foreground">Filter by Lead Priority</span>
+                    </div>
+                    <Badge variant="secondary" className="text-xs">
+                      {campaignLeads.filter(l => 
+                        leadPriority === 'all' ? true : 
+                        (l.aiClassification || 'cold') === leadPriority
+                      ).length} leads
+                    </Badge>
+                  </div>
+                  <div className="flex gap-2">
+                    {[
+                      { value: 'all', label: 'All Leads', color: 'bg-primary/20 text-primary border-primary/30' },
+                      { value: 'hot', label: '🔥 Hot', color: 'bg-red-500/20 text-red-400 border-red-500/30' },
+                      { value: 'warm', label: '🌡️ Warm', color: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+                      { value: 'cold', label: '❄️ Cold', color: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+                    ].map(opt => (
+                      <Button
+                        key={opt.value}
+                        size="sm"
+                        variant={leadPriority === opt.value ? "default" : "outline"}
+                        onClick={() => setLeadPriority(opt.value as any)}
+                        className={cn(
+                          "text-xs",
+                          leadPriority === opt.value 
+                            ? opt.color
+                            : "border-border text-muted-foreground"
+                        )}
+                      >
+                        {opt.label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Campaign Performance Dashboard */}
+                <CampaignPerformanceDashboard />
+
+                {/* Click Heatmap Visualization */}
+                <ClickHeatmapChart />
+
+                {/* A/B Testing Chart */}
+                <ABTestingChart />
+
+                {/* Campaign Cards */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-foreground">Active Sequences</h3>
+                  {sequences.map(seq => (
+                    <div key={seq.id} className="p-4 rounded-xl bg-card border border-border hover:border-primary/30 transition-all">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium text-foreground">{seq.name}</h4>
+                            {seq.status === 'active' && (
+                              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            {seq.channels.map(ch => (
+                              <span key={ch} className="px-2 py-0.5 rounded bg-muted border border-border capitalize">{ch}</span>
+                            ))}
+                            <span>•</span>
+                            <span>Steps: {seq.steps}</span>
+                            <span>•</span>
+                            <span>Duration: {seq.duration}</span>
+                          </div>
+                        </div>
+                        <Button
+                          onClick={() => toggleCampaign(seq.id)}
+                          size="sm"
+                          className={cn(
+                            "gap-2",
+                            seq.status === 'active'
+                              ? "bg-amber-600 hover:bg-amber-500 text-white"
+                              : "bg-emerald-600 hover:bg-emerald-500 text-white"
+                          )}
+                        >
+                          {seq.status === 'active' ? (
+                            <><Pause className="w-3.5 h-3.5" /> Pause</>
+                          ) : (
+                            <><Play className="w-3.5 h-3.5" /> Start</>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Scheduled Queue Panel */}
+                <ScheduledQueuePanel />
+              </div>
+            </div>
+          )}
+
+          {/* DOCUMENTS VIEW */}
+          {mainTab === 'documents' && (
+            <DocumentsPanel 
+              searchType={searchType} 
+              onUseInEmail={handleUseDocumentInEmail}
+            />
+          )}
+
+          {/* SETTINGS VIEW */}
+          {mainTab === 'settings' && (
+            <div className="h-full overflow-auto p-6">
+              <div className="max-w-3xl mx-auto space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold text-foreground">Mailbox Settings</h2>
+                  <Badge variant="outline" className="text-xs">
+                    Configure your outreach setup
+                  </Badge>
+                </div>
+                
+                <Tabs defaultValue="smtp" className="w-full">
+                  <TabsList className="bg-muted/50 border border-border p-1 mb-6">
+                    <TabsTrigger value="smtp" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
+                      <Mail className="w-4 h-4" />
+                      Email / SMTP
+                    </TabsTrigger>
+                    <TabsTrigger value="branding" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
+                      <Palette className="w-4 h-4" />
+                      Branding
+                    </TabsTrigger>
+                    <TabsTrigger value="crm" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
+                      <Cloud className="w-4 h-4" />
+                      CRM & Integrations
+                    </TabsTrigger>
+                  </TabsList>
+
+                  {/* SMTP Tab */}
+                  <TabsContent value="smtp">
+                    <div className="rounded-xl bg-card border border-border overflow-hidden">
+                      <div className="p-4 border-b border-border">
+                        <h3 className="font-semibold text-foreground flex items-center gap-2">
+                          <Mail className="w-4 h-4 text-primary" />
+                          Email / SMTP Configuration
+                        </h3>
+                        <p className="text-xs text-muted-foreground">Configure your email server to send campaigns</p>
+                      </div>
+                      <div className="p-4">
+                        <SMTPConfigPanel />
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  {/* Branding Tab */}
+                  <TabsContent value="branding">
+                    <div className="rounded-xl bg-card border border-border overflow-hidden">
+                      <div className="p-4 border-b border-border">
+                        <h3 className="font-semibold text-foreground flex items-center gap-2">
+                          <Palette className="w-4 h-4 text-primary" />
+                          Email Branding
+                        </h3>
+                        <p className="text-xs text-muted-foreground">Customize your logo, colors, and signature for outgoing emails</p>
+                      </div>
+                      <div className="p-4">
+                        <BrandingSettingsPanel />
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  {/* CRM & Integrations Tab */}
+                  <TabsContent value="crm">
+                    <div className="space-y-4">
+                      <CloudCRMIntegrationsPanel />
+                      
+                      {/* Additional Integration Info */}
+                      <div className="rounded-xl bg-card border border-border p-4">
+                        <h4 className="font-medium text-foreground flex items-center gap-2 mb-3">
+                          <Link2 className="w-4 h-4 text-primary" />
+                          Export Options
+                        </h4>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                            <p className="text-sm font-medium text-foreground">Google Sheets</p>
+                            <p className="text-xs text-muted-foreground">Auto-sync leads to spreadsheets</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                            <p className="text-sm font-medium text-foreground">CSV Export</p>
+                            <p className="text-xs text-muted-foreground">Download leads anytime</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                            <p className="text-sm font-medium text-foreground">Zapier</p>
+                            <p className="text-xs text-muted-foreground">Connect 5000+ apps</p>
+                          </div>
+                          <div className="p-3 rounded-lg bg-muted/30 border border-border">
+                            <p className="text-sm font-medium text-foreground">Webhooks</p>
+                            <p className="text-xs text-muted-foreground">Real-time lead notifications</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Enhanced Compose Modal */}
+      <EnhancedComposeModal
+        isOpen={showComposeModal}
+        onClose={() => setShowComposeModal(false)}
+        leads={campaignLeads}
+        currentLeadIndex={currentLeadIndex}
+        lastSentIndex={lastSentLeadIndex}
+        onLeadIndexChange={setCurrentLeadIndex}
+        onEmailSent={(idx) => {
+          setLastSentLeadIndex(idx);
+          // Update analytics
+          setCampaignAnalytics(prev => ({
             ...prev,
-            subject: template.subject,
-            body: template.body,
+            sent: prev.sent + 1,
+            delivered: prev.delivered + 1,
           }));
         }}
-        currentLead={campaignLeads[currentLeadIndex] ? {
-          business_name: campaignLeads[currentLeadIndex]?.business_name || campaignLeads[currentLeadIndex]?.name,
-          first_name: campaignLeads[currentLeadIndex]?.first_name,
-          email: campaignLeads[currentLeadIndex]?.email,
-          website: campaignLeads[currentLeadIndex]?.website,
-          industry: campaignLeads[currentLeadIndex]?.industry,
-          aiClassification: campaignLeads[currentLeadIndex]?.aiClassification,
-          priority: campaignLeads[currentLeadIndex]?.priority,
-          leadScore: campaignLeads[currentLeadIndex]?.leadScore,
-          hasWebsite: !!campaignLeads[currentLeadIndex]?.website,
-          websiteIssues: campaignLeads[currentLeadIndex]?.websiteIssues,
-        } : undefined}
+        automationSettings={automation}
+        onAutomationChange={setAutomation}
       />
 
       {/* Campaign Wizard Modal */}
@@ -1071,7 +883,6 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
           (l.aiClassification || 'cold') === leadPriority
         )}
         onLaunch={(campaignData) => {
-          // Save campaign to localStorage
           const campaigns = JSON.parse(localStorage.getItem('bamlead_campaigns') || '[]');
           campaigns.push({
             ...campaignData,
