@@ -189,12 +189,29 @@ const SearchModule = () => {
             </div>
           </div>
 
-          <p className="text-sm text-muted-foreground mb-4">
-            <span className="font-semibold text-primary">AI-Powered Business Intelligence.</span> Go beyond simple search — get deep analysis, competitor insights, market signals, and actionable intelligence on any business or niche.
+          <p className="text-sm text-muted-foreground mb-3">
+            <span className="font-semibold text-primary">Complete Business Data + AI Research.</span> Every search includes full contact info (name, address, phone, email, website) PLUS deep AI-powered analysis.
           </p>
 
+          {/* Basic Data Included */}
+          <div className="p-2.5 rounded-lg bg-slate-500/5 border border-slate-500/20 mb-3">
+            <p className="text-xs font-bold text-slate-300 flex items-center gap-1.5 mb-1.5">
+              📋 BASIC BUSINESS DATA INCLUDED
+            </p>
+            <div className="grid grid-cols-3 gap-1 text-[10px] text-muted-foreground">
+              <span>✓ Business Name</span>
+              <span>✓ Full Address</span>
+              <span>✓ Phone Number</span>
+              <span>✓ Email Address</span>
+              <span>✓ Website URL</span>
+              <span>✓ Google Rating</span>
+            </div>
+          </div>
+
+          <p className="text-xs font-semibold text-primary mb-2">🧠 AI Research Categories (populated in report):</p>
+          
           {/* Research Categories - Scrollable */}
-          <div className="max-h-[280px] overflow-y-auto pr-2 space-y-2 mb-4 scrollbar-thin">
+          <div className="max-h-[200px] overflow-y-auto pr-2 space-y-2 mb-4 scrollbar-thin">
             {/* Website & Digital Health */}
             <div className="p-2.5 rounded-lg bg-primary/5 border border-primary/10">
               <p className="text-xs font-bold text-primary flex items-center gap-1.5 mb-1">
