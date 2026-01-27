@@ -1,9 +1,9 @@
 import { forwardRef } from 'react';
 
 const stats = [
+  { value: "10", label: "AI Research Categories" },
+  { value: "100+", label: "Data Points" },
   { value: "50K+", label: "Leads Found" },
-  { value: "2K+", label: "Digital Professionals" },
-  { value: "6", label: "Issue Types Detected" },
   { value: "95%", label: "AI Accuracy" },
 ];
 
