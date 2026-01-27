@@ -186,15 +186,15 @@ const tutorials: Tutorial[] = [
     ]
   },
   {
-    id: 'auto-campaign-wizard',
-    title: 'Auto Campaign Wizard',
+    id: 'ai-autopilot-campaign',
+    title: 'AI Autopilot Campaign',
     description: 'Let AI create and optimize your entire outreach campaign',
     duration: '5 min',
     icon: <Bot className="h-5 w-5" />,
     category: 'advanced',
-    videoPlaceholder: 'Auto Campaign Wizard Tutorial',
+    videoPlaceholder: 'AI Autopilot Campaign Tutorial',
     steps: [
-      'Open the Auto Campaign Wizard from dashboard',
+      'Open the AI Autopilot Campaign from dashboard',
       'Select your target industry and audience',
       'Let AI analyze your lead data',
       'Review AI-suggested email sequences',

@@ -492,7 +492,7 @@ export default function LiveDripMailbox({ onSwitchToFullMailbox, leads = [], ver
         </div>
       )}
 
-      {/* Auto Campaign Wizard Button */}
+      {/* AI Autopilot Campaign Button */}
       <div className="flex justify-center mt-6">
         <Button
           onClick={startCampaign}
@@ -500,7 +500,7 @@ export default function LiveDripMailbox({ onSwitchToFullMailbox, leads = [], ver
           className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white px-8 py-6 text-lg gap-3 shadow-lg shadow-emerald-500/20"
         >
           <Rocket className="w-5 h-5" />
-          Auto Campaign Wizard
+          AI Autopilot Campaign
         </Button>
       </div>
 

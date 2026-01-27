@@ -232,7 +232,7 @@ export default function ComposeEmailModal({
 
   const handleStartAutopilot = () => {
     if (!hasAutopilotSubscription) {
-      toast.error('Please subscribe to Auto Campaign Wizard first ($39/mo or start 14-day trial)');
+      toast.error('Please subscribe to AI Autopilot Campaign first ($39/mo or start 14-day trial)');
       return;
     }
     
@@ -402,7 +402,7 @@ export default function ComposeEmailModal({
               )}
             </button>
 
-            {/* Mode 3: Auto Campaign Wizard */}
+            {/* Mode 3: AI Autopilot Campaign */}
             <button
               onClick={() => setComposeMode('autopilot')}
               className={cn(
@@ -414,7 +414,7 @@ export default function ComposeEmailModal({
             >
               <div className="flex items-center gap-2 mb-2">
                 <Crown className="w-5 h-5 text-amber-400" />
-                <span className="font-semibold text-foreground text-sm">Auto Wizard</span>
+                <span className="font-semibold text-foreground text-sm">AI Autopilot</span>
                 <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[8px] px-1.5">
                   PRO
                 </Badge>
@@ -840,7 +840,7 @@ export default function ComposeEmailModal({
                 {!hasAutopilotSubscription ? (
                   <div className="p-6 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/30 text-center">
                     <Crown className="w-12 h-12 text-amber-400 mx-auto mb-3" />
-                    <h3 className="text-xl font-bold text-foreground mb-2">Auto Campaign Wizard</h3>
+                    <h3 className="text-xl font-bold text-foreground mb-2">AI Autopilot Campaign</h3>
                     <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
                       Let AI handle everything: Drip sequences, follow-ups, lead responses, and smart nurturing based on 
                       {isSearchA ? ' your niche selling strategy (Option A)' : isSearchB ? ' your agency services (Option B)' : ' your lead data'}.
@@ -870,7 +870,7 @@ export default function ComposeEmailModal({
                         <CheckCircle2 className="w-6 h-6 text-emerald-400" />
                       </div>
                       <div>
-                        <h4 className="font-bold text-foreground">Auto Campaign Wizard Active</h4>
+                        <h4 className="font-bold text-foreground">AI Autopilot Campaign Active</h4>
                         <p className="text-xs text-muted-foreground">
                           AI will manage drip sequences and responses for {isSearchA ? 'Option A' : 'Option B'} leads
                         </p>

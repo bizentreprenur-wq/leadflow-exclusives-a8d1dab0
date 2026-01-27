@@ -159,7 +159,7 @@ export default function AutoCampaignWizardPro({
                 </div>
                 <div>
                   <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-                    Auto Campaign Wizard
+                    AI Autopilot Campaign
                     <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-sm">
                       PRO
                     </Badge>
@@ -308,7 +308,7 @@ export default function AutoCampaignWizardPro({
                   <CardContent className="p-6">
                     <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
                       <Sparkles className="w-5 h-5 text-amber-400" />
-                      How Auto Campaign Wizard Works
+                      How AI Autopilot Campaign Works
                     </h3>
                     
                     <div className="grid grid-cols-4 gap-4">

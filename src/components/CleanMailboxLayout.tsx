@@ -520,7 +520,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
             </div>
           )}
 
-          {/* AI AUTOMATION VIEW - BOLD AUTO CAMPAIGN WIZARD PRO */}
+          {/* AI AUTOMATION VIEW - BOLD AI AUTOPILOT CAMPAIGN PRO */}
           {mainTab === 'automation' && (
             <div className="h-full overflow-auto">
               <AutoCampaignWizardPro
@@ -529,7 +529,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                 isEmbedded={true}
                 onActivate={() => {
                   setAutomation(prev => ({ ...prev, doneForYouMode: true }));
-                  toast.success('🤖 AI Autopilot activated!');
+                  toast.success('🤖 AI Autopilot Campaign activated!');
                 }}
                 onClose={() => setMainTab('inbox')}
               />
