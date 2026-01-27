@@ -19,6 +19,8 @@ import {
   CreditCard, Wand2, Layers, MailPlus, Briefcase, Crown,
   X, Maximize2, Minimize2, Eye, AlertCircle, Lightbulb
 } from 'lucide-react';
+import AutopilotTrialWarning from './AutopilotTrialWarning';
+import { useAutopilotTrial } from '@/hooks/useAutopilotTrial';
 import LeadQueueIndicator from './LeadQueueIndicator';
 import AISubjectLineGenerator from './AISubjectLineGenerator';
 import EmailScheduleCalendar from './EmailScheduleCalendar';
@@ -134,23 +136,9 @@ export default function ComposeEmailModal({
   const [workflowEmailLeadCount, setWorkflowEmailLeadCount] = useState(0);
   const [dripSettingsReady, setDripSettingsReady] = useState(false);
 
-  // Auto wizard subscription
-  const [hasAutopilotSubscription, setHasAutopilotSubscription] = useState(() => {
-    try {
-      const stored = localStorage.getItem('bamlead_autopilot_trial');
-      if (stored) {
-        const data = JSON.parse(stored);
-        if (data.isPaid) return true;
-        if (data.trialStartDate) {
-          const startDate = new Date(data.trialStartDate);
-          const now = new Date();
-          const diffDays = Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-          return diffDays <= 14;
-        }
-      }
-      return false;
-    } catch { return false; }
-  });
+  // Use the trial hook for autopilot subscription status
+  const { status: trialStatus, startTrial, upgradeToPaid, MONTHLY_PRICE } = useAutopilotTrial();
+  const hasAutopilotSubscription = trialStatus.canUseAutopilot;
 
   useEffect(() => {
     if (!isOpen) {
@@ -390,17 +378,11 @@ export default function ComposeEmailModal({
     onClose();
   };
 
-  const startFreeTrial = () => {
-    const trialData = {
-      isTrialActive: true,
-      trialDaysRemaining: 14,
-      trialStartDate: new Date().toISOString(),
-      isPaid: false,
-      subscriptionId: null,
-    };
-    localStorage.setItem('bamlead_autopilot_trial', JSON.stringify(trialData));
-    setHasAutopilotSubscription(true);
-    toast.success('🎉 14-day free trial started! AI Autopilot is now available.');
+  const handleStartFreeTrial = () => {
+    const success = startTrial();
+    if (success) {
+      toast.success('🎉 14-day free trial started! AI Autopilot is now available.');
+    }
   };
 
   const getPriorityIcon = (priority?: 'hot' | 'warm' | 'cold') => {
@@ -1190,45 +1172,116 @@ export default function ComposeEmailModal({
             {/* ===================== AUTOPILOT MODE ===================== */}
             {composeMode === 'autopilot' && (
               <div className="space-y-4">
-                {/* Subscription Status */}
-                {!hasAutopilotSubscription ? (
-                  <div className="p-6 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/30 text-center">
-                    <Crown className="w-12 h-12 text-amber-400 mx-auto mb-3" />
-                    <h3 className="text-xl font-bold text-foreground mb-2">AI Autopilot Campaign</h3>
+                {/* Trial/Expired Warning Banner */}
+                {trialStatus.hasStartedTrial && !trialStatus.isPaid && (
+                  <AutopilotTrialWarning 
+                    variant="banner" 
+                    showUpgradeButton={true}
+                    onUpgrade={upgradeToPaid}
+                  />
+                )}
+
+                {/* Subscription Status - Show signup if no trial started or expired */}
+                {(!trialStatus.hasStartedTrial || trialStatus.isExpired) && (
+                  <div className={cn(
+                    "p-6 rounded-xl text-center",
+                    trialStatus.isExpired 
+                      ? "bg-muted/50 border-2 border-red-500/30" 
+                      : "bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/30"
+                  )}>
+                    <Crown className={cn(
+                      "w-12 h-12 mx-auto mb-3",
+                      trialStatus.isExpired ? "text-muted-foreground" : "text-amber-400"
+                    )} />
+                    <h3 className="text-xl font-bold text-foreground mb-2">
+                      {trialStatus.isExpired ? 'AI Autopilot Trial Expired' : 'AI Autopilot Campaign'}
+                    </h3>
                     <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
-                      Let AI handle everything: Drip sequences, follow-ups, lead responses, and smart nurturing based on 
-                      {isSearchA ? ' your niche selling strategy (Option A)' : isSearchB ? ' your agency services (Option B)' : ' your lead data'}.
+                      {trialStatus.isExpired 
+                        ? 'Your 14-day free trial has ended. Subscribe to continue using AI-powered automated outreach.'
+                        : `Let AI handle everything: Drip sequences, follow-ups, lead responses, and smart nurturing based on ${isSearchA ? ' your niche selling strategy (Option A)' : isSearchB ? ' your agency services (Option B)' : ' your lead data'}.`
+                      }
                     </p>
                     <div className="flex items-center justify-center gap-3 mb-4">
-                      <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-                        14-day free trial
-                      </Badge>
-                      <span className="text-muted-foreground">then</span>
+                      {!trialStatus.isExpired && (
+                        <>
+                          <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                            14-day free trial
+                          </Badge>
+                          <span className="text-muted-foreground">then</span>
+                        </>
+                      )}
                       <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
-                        $39/month
+                        ${MONTHLY_PRICE}/month
                       </Badge>
                     </div>
-                    <Button 
-                      onClick={startFreeTrial}
-                      className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white gap-2"
-                    >
-                      <Zap className="w-4 h-4" />
-                      Start Free Trial
-                    </Button>
+                    {trialStatus.isExpired ? (
+                      <Button 
+                        onClick={upgradeToPaid}
+                        className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white gap-2"
+                      >
+                        <CreditCard className="w-4 h-4" />
+                        Subscribe Now - ${MONTHLY_PRICE}/month
+                      </Button>
+                    ) : (
+                      <Button 
+                        onClick={handleStartFreeTrial}
+                        className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white gap-2"
+                      >
+                        <Zap className="w-4 h-4" />
+                        Start Free Trial
+                      </Button>
+                    )}
                   </div>
-                ) : (
+                )}
+                
+                {/* Active subscription/trial banner - only show when access granted */}
+                {hasAutopilotSubscription && !trialStatus.isExpired && (
                   <div className="space-y-4">
-                    {/* Active subscription banner */}
-                    <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                        <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                    {/* Status banner */}
+                    <div className={cn(
+                      "p-4 rounded-xl flex items-center gap-4",
+                      trialStatus.isPaid 
+                        ? "bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30"
+                        : "bg-emerald-500/10 border border-emerald-500/30"
+                    )}>
+                      <div className={cn(
+                        "w-12 h-12 rounded-xl flex items-center justify-center",
+                        trialStatus.isPaid ? "bg-amber-500/20" : "bg-emerald-500/20"
+                      )}>
+                        {trialStatus.isPaid ? (
+                          <Crown className="w-6 h-6 text-amber-400" />
+                        ) : (
+                          <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                        )}
                       </div>
-                      <div>
-                        <h4 className="font-bold text-foreground">AI Autopilot Campaign Active</h4>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold text-foreground">
+                            {trialStatus.isPaid ? 'AI Autopilot Pro Active' : 'AI Autopilot Trial Active'}
+                          </h4>
+                          {trialStatus.isPaid && (
+                            <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]">
+                              <Crown className="w-2.5 h-2.5 mr-1" />
+                              PRO
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground">
-                          AI will manage drip sequences and responses for {isSearchA ? 'Option A' : 'Option B'} leads
+                          AI will manage drip sequences and responses for {isSearchA ? 'Option A (Super AI Business Search)' : isSearchB ? 'Option B (Agency Lead Finder)' : 'your'} leads
                         </p>
                       </div>
+                      {trialStatus.isTrialActive && (
+                        <Badge className={cn(
+                          "text-xs",
+                          trialStatus.trialDaysRemaining <= 3 
+                            ? "bg-red-500/20 text-red-400 border-red-500/30 animate-pulse" 
+                            : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                        )}>
+                          <Clock className="w-3 h-3 mr-1" />
+                          {trialStatus.trialDaysRemaining} day{trialStatus.trialDaysRemaining !== 1 ? 's' : ''} left
+                        </Badge>
+                      )}
                     </div>
 
                     {/* AI Controls */}

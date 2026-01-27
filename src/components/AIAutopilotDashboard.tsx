@@ -11,11 +11,13 @@ import {
   Bot, Flame, ThermometerSun, Snowflake, Mail, Clock, CheckCircle2,
   AlertTriangle, MessageSquare, FileText, Send, Pause, Play, RefreshCw,
   TrendingUp, Zap, Eye, Target, Users, Calendar, ArrowRight,
-  Sparkles, Phone, Globe, XCircle, MailOpen, Reply, Crown
+  Sparkles, Phone, Globe, XCircle, MailOpen, Reply, Crown, CreditCard, Lock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getStoredLeadContext, LeadAnalysisContext } from '@/lib/leadContext';
 import { EmailSequence } from '@/lib/emailSequences';
+import { useAutopilotTrial } from '@/hooks/useAutopilotTrial';
+import AutopilotTrialWarning from './AutopilotTrialWarning';
 
 interface AutopilotLead {
   id: string;
@@ -58,6 +60,11 @@ export default function AIAutopilotDashboard({
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'responded' | 'proposal_ready'>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [autopilotEnabled, setAutopilotEnabled] = useState(true);
+  
+  // Trial status
+  const { status: trialStatus, upgradeToPaid, MONTHLY_PRICE } = useAutopilotTrial();
+  const isExpired = trialStatus.isExpired;
+  const canUseAutopilot = trialStatus.canUseAutopilot;
 
   // Generate demo autopilot leads from stored context
   const autopilotLeads = useMemo<AutopilotLead[]>(() => {
@@ -262,9 +269,40 @@ export default function AIAutopilotDashboard({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {/* Expired Overlay */}
+      {isExpired && (
+        <div className="absolute inset-0 z-50 bg-background/80 backdrop-blur-sm rounded-xl flex items-center justify-center">
+          <div className="text-center max-w-md p-8">
+            <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
+              <Lock className="w-10 h-10 text-red-400" />
+            </div>
+            <h3 className="text-2xl font-bold text-foreground mb-2">Trial Expired</h3>
+            <p className="text-muted-foreground mb-6">
+              Your 14-day AI Autopilot trial has ended. Subscribe to continue using AI-powered automated outreach and nurturing.
+            </p>
+            <div className="space-y-3">
+              <Button 
+                onClick={upgradeToPaid}
+                size="lg"
+                className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white gap-2"
+              >
+                <Crown className="w-5 h-5" />
+                Upgrade for ${MONTHLY_PRICE}/month
+              </Button>
+              <p className="text-xs text-muted-foreground">Cancel anytime • Secure payment</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Trial Warning Banner (when active but not expired) */}
+      {trialStatus.isTrialActive && !isExpired && (
+        <AutopilotTrialWarning variant="compact" showUpgradeButton={true} />
+      )}
+
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className={cn("flex items-center justify-between", isExpired && "opacity-30 pointer-events-none")}>
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center">
             <Bot className="w-6 h-6 text-amber-400" />
@@ -272,9 +310,20 @@ export default function AIAutopilotDashboard({
           <div>
             <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
               AI Autopilot Dashboard
-              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs">
-                {stats.active} Active
-              </Badge>
+              {!isExpired && (
+                <Badge className={cn(
+                  "text-xs",
+                  trialStatus.isPaid 
+                    ? "bg-amber-500/20 text-amber-400 border-amber-500/30" 
+                    : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                )}>
+                  {trialStatus.isPaid ? (
+                    <><Crown className="w-3 h-3 mr-1" />PRO</>
+                  ) : (
+                    <>{stats.active} Active</>
+                  )}
+                </Badge>
+              )}
             </h2>
             <p className="text-sm text-muted-foreground">
               Real-time monitoring of automated conversations
@@ -282,11 +331,23 @@ export default function AIAutopilotDashboard({
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {trialStatus.isTrialActive && (
+            <Badge className={cn(
+              "text-xs",
+              trialStatus.trialDaysRemaining <= 3 
+                ? "bg-red-500/20 text-red-400 border-red-500/30 animate-pulse" 
+                : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+            )}>
+              <Clock className="w-3 h-3 mr-1" />
+              {trialStatus.trialDaysRemaining} days left
+            </Badge>
+          )}
           <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 border border-border">
             <span className="text-xs text-muted-foreground">Autopilot</span>
             <Switch
-              checked={autopilotEnabled}
+              checked={autopilotEnabled && canUseAutopilot}
               onCheckedChange={setAutopilotEnabled}
+              disabled={!canUseAutopilot}
               className="data-[state=checked]:bg-emerald-500"
             />
           </div>
@@ -294,7 +355,7 @@ export default function AIAutopilotDashboard({
             variant="outline"
             size="sm"
             onClick={handleRefresh}
-            disabled={isRefreshing}
+            disabled={isRefreshing || !canUseAutopilot}
             className="gap-2"
           >
             <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
@@ -304,7 +365,7 @@ export default function AIAutopilotDashboard({
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+      <div className={cn("grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3", isExpired && "opacity-30 pointer-events-none")}>
         <Card className="bg-muted/20 border-border">
           <CardContent className="pt-4 text-center">
             <div className="text-2xl font-bold text-foreground">{stats.total}</div>
@@ -356,7 +417,7 @@ export default function AIAutopilotDashboard({
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2">
+      <div className={cn("flex gap-2", isExpired && "opacity-30 pointer-events-none")}>
         {[
           { id: 'all', label: 'All Leads', count: stats.total },
           { id: 'active', label: 'Active', count: stats.active, color: 'text-emerald-400' },
@@ -368,6 +429,7 @@ export default function AIAutopilotDashboard({
             size="sm"
             variant={activeFilter === filter.id ? "default" : "outline"}
             onClick={() => setActiveFilter(filter.id as any)}
+            disabled={!canUseAutopilot}
             className={cn(
               "text-xs gap-1",
               activeFilter === filter.id && filter.color
@@ -380,7 +442,7 @@ export default function AIAutopilotDashboard({
       </div>
 
       {/* Lead Cards */}
-      <ScrollArea className="h-[500px]">
+      <ScrollArea className={cn("h-[500px]", isExpired && "opacity-30 pointer-events-none")}>
         <div className="space-y-3 pr-4">
           <AnimatePresence>
             {filteredLeads.map((lead, idx) => (
