@@ -12,8 +12,8 @@ const HeroSection = () => {
   const secretFeatures = [
     { icon: Brain, label: "10 AI Research Categories", color: "text-primary" },
     { icon: Eye, label: "100+ Data Points", color: "text-accent" },
-    { icon: Heart, label: "Competitor Intel", color: "text-blue-400" },
-    { icon: Target, label: "Buying Signals", color: "text-purple-400" },
+    { icon: Zap, label: "Real-Time Analysis", color: "text-amber-400" },
+    { icon: Target, label: "Export PDF/Excel/Drive", color: "text-emerald-400" },
   ];
 
   const containerVariants = {
@@ -78,7 +78,7 @@ const HeroSection = () => {
               variants={itemVariants}
               className="text-lg md:text-xl text-muted-foreground max-w-xl leading-relaxed"
             >
-              The most advanced AI-powered business search with <span className="text-primary font-medium">10 research categories</span> and <span className="text-accent font-medium">100+ data points</span> — website health, competitor intel, buying signals, tech stack, reputation analysis & AI-powered actions. Built for <span className="text-violet-400 font-medium">agencies</span>, <span className="text-emerald-400 font-medium">sales teams</span>, and <span className="text-blue-400 font-medium">serious professionals</span>.
+              The most advanced AI-powered business search with <span className="text-primary font-medium">10 research categories</span>, <span className="text-accent font-medium">100+ data points</span>, and <span className="text-amber-400 font-medium">real-time website analysis</span>. Export full intelligence reports as <span className="text-emerald-400 font-medium">PDF, Excel, or Google Drive</span>. Built for <span className="text-violet-400 font-medium">agencies</span>, <span className="text-emerald-400 font-medium">sales teams</span>, and <span className="text-blue-400 font-medium">serious professionals</span>.
             </motion.p>
 
             {/* Secret Features Pills */}

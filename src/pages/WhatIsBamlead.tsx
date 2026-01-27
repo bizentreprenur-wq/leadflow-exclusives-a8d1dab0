@@ -14,31 +14,41 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 const coreFeatures = [
-  { icon: Search, text: "AI-powered lead discovery" },
+  { icon: Search, text: "10 AI research categories with 100+ data points" },
+  { icon: Zap, text: "Real-time website analysis (CMS, speed, SEO, tech stack)" },
+  { icon: Download, text: "Full report export (PDF, Excel, Google Drive)" },
   { icon: Users, text: "Decision-maker identification" },
   { icon: Shield, text: "Contact data verification and enrichment" },
   { icon: Mail, text: "Multi-channel outreach (Email, SMS, Calls)" },
   { icon: BarChart3, text: "Built-in CRM and sales pipeline management" },
   { icon: Workflow, text: "Automated sequences and workflow management" },
-  { icon: Download, text: "Export and integration options" },
-  { icon: Lightbulb, text: "Real-time prospect insights" },
 ];
 
 const whyUseSearch = [
   {
+    icon: Zap,
+    title: "Real-Time Website Analysis",
+    description: "Live website scraping analyzes CMS detection, page speed, mobile responsiveness, SSL status, SEO gaps, tech stack, and conversion elements — not cached data from weeks ago."
+  },
+  {
     icon: Brain,
-    title: "Deep, AI-Driven Lead Insights",
-    description: "Automatically gather rich profiles of companies and contacts — including website health, online visibility, reviews, engagement metrics, and other signals that matter for conversion. AI enrichment saves manual research time and gives contextual intelligence, not just raw lists of names or email addresses."
+    title: "10 AI Research Categories",
+    description: "Website health, online presence, reputation, AI opportunities, technology stack, buying signals, competitor intel, sales readiness, compliance & trust, and smart actions — comprehensive intelligence on every lead."
+  },
+  {
+    icon: Download,
+    title: "Full Report Export",
+    description: "Download complete AI intelligence reports as PDF for client presentations, Excel for data analysis, or send directly to Google Drive for team collaboration."
   },
   {
     icon: Target,
-    title: "Competitive Intelligence & Market Signals",
-    description: "Understand not just the target lead, but how they compare with competitors — tech stack, funding events, hiring trends, partnerships, etc. This helps craft smarter outreach and offers that resonate with prospects."
+    title: "100+ Data Points Per Lead",
+    description: "From basic contact info to advanced technographics, funding events, hiring activity, ad spend signals, review velocity, and AI-recommended outreach strategies."
   },
   {
     icon: TrendingUp,
     title: "Prioritization with Lead Scoring",
-    description: "AI can score leads automatically based on likelihood to convert — so your team focuses first on the most promising opportunities. Hot, Warm, and Cold classifications guide your sales strategy."
+    description: "AI scores leads automatically based on likelihood to convert — so your team focuses first on the most promising opportunities. Hot, Warm, and Cold classifications guide your sales strategy."
   },
   {
     icon: Clock,
@@ -51,16 +61,6 @@ const whyUseSearch = [
     description: "Beyond just lead lists, you get: Predictive insights and growth signals, review & reputation trends, website health and UX indicators, market activity and news, intent signals (e.g., funding or hiring spikes)."
   },
   {
-    icon: Database,
-    title: "Accurate & Up-to-Date Data",
-    description: "AI tools pull real-time or frequently updated info — better than static databases that quickly go stale. Always work with the freshest business intelligence."
-  },
-  {
-    icon: AlertTriangle,
-    title: "Reduced Manual Errors",
-    description: "Automation decreases the risk of outdated/out-of-scope data and improves the quality of outreach. No more embarrassing emails to closed businesses."
-  },
-  {
     icon: Globe,
     title: "Integration with Your Sales Stack",
     description: "Systems plug into CRMs, marketing tools, email platforms, etc., streamlining workflows and enabling one-click actions from insight to engagement."
@@ -68,11 +68,11 @@ const whyUseSearch = [
 ];
 
 const additionalValueProps = [
-  { icon: Activity, text: "Behavioral & Intent Signals — find prospects actively looking for solutions" },
-  { icon: Cpu, text: "Technographic Insights — know what tech tools a lead already uses" },
-  { icon: MessageSquare, text: "Natural Language Search — 'Find SaaS startups raised Series B in last 6 months'" },
-  { icon: Bell, text: "Automated Alerts & Trends — get notified when a target's situation changes" },
-  { icon: Sparkles, text: "Actionable Outreach Suggestions — personalized, higher-converting messaging" },
+  { icon: Activity, text: "Real-time website scraping with live CMS, speed & SEO analysis" },
+  { icon: Cpu, text: "Technographic insights — know what tech tools a lead already uses" },
+  { icon: MessageSquare, text: "Export full reports as PDF, Excel, or Google Drive" },
+  { icon: Bell, text: "10 AI research categories covering all aspects of lead intelligence" },
+  { icon: Sparkles, text: "100+ data points per lead for maximum conversion insights" },
 ];
 
 const industries = [

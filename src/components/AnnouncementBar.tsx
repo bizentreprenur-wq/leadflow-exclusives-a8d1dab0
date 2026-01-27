@@ -14,7 +14,7 @@ const AnnouncementBar = () => {
       <div className="container flex items-center justify-center gap-3 text-sm flex-wrap">
         <div className="flex items-center gap-2">
           <Brain className="w-4 h-4 text-primary drop-shadow-[0_0_8px_rgba(45,212,191,0.6)]" />
-          <span className="font-semibold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">🤖 Super AI Business Intelligence — 10 Categories • 100+ Data Points</span>
+          <span className="font-semibold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">🤖 Super AI Business Intelligence — 10 Categories • 100+ Data Points • Real-Time Analysis • PDF/Excel Export</span>
         </div>
         
         <div className="hidden sm:flex items-center gap-1.5">

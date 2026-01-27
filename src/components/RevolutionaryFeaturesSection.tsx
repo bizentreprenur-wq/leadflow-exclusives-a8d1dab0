@@ -135,54 +135,54 @@ const RevolutionaryFeaturesSection = () => {
 
   const coreFeatures = [
     {
+      icon: <Zap className="h-5 w-5" />,
+      name: "Real-Time Website Analysis",
+      description: "Live scraping for CMS, speed, SEO, tech stack, and conversion elements"
+    },
+    {
+      icon: <Target className="h-5 w-5" />,
+      name: "Full Report Export",
+      description: "Export complete intelligence as PDF, Excel, or Google Drive"
+    },
+    {
       icon: <Search className="h-5 w-5" />,
-      name: "GMB & Agency Lead Finder",
-      description: "Find local businesses via GMB, plus discover clients who need website design, social media marketing & digital services"
+      name: "10 AI Research Categories",
+      description: "Website health, reputation, tech stack, competitors, buying signals & more"
     },
     {
       icon: <Sparkles className="h-5 w-5" />,
-      name: "AI Lead Verification",
-      description: "Automatically verify, score, and sort leads with AI — filter out junk before you waste time"
+      name: "100+ Data Points",
+      description: "Comprehensive intelligence on every lead for maximum conversion"
     },
     {
       icon: <Mail className="h-5 w-5" />,
       name: "Email Outreach System",
-      description: "12+ templates, drag-and-drop sequence builder, automated follow-ups, and performance tracking"
+      description: "12+ templates, drag-and-drop sequence builder, automated follow-ups"
     },
     {
       icon: <MessageSquare className="h-5 w-5" />,
       name: "AI Email Writer",
-      description: "Generate personalized cold emails in seconds based on lead data and industry"
+      description: "Generate personalized cold emails in seconds based on lead data"
     },
     {
       icon: <BarChart3 className="h-5 w-5" />,
       name: "Sentiment Analyzer",
-      description: "Analyze email tone, formality, and urgency before sending — with AI suggestions"
+      description: "Analyze email tone, formality, and urgency before sending"
     },
     {
       icon: <Mic className="h-5 w-5" />,
       name: "Voice Search",
-      description: "Speak your search query instead of typing — hands-free lead discovery"
-    },
-    {
-      icon: <Command className="h-5 w-5" />,
-      name: "Command Palette (⌘K)",
-      description: "Navigate anywhere instantly with keyboard shortcuts like a power user"
-    },
-    {
-      icon: <Image className="h-5 w-5" />,
-      name: "Background Remover",
-      description: "Remove image backgrounds in-browser with AI — no external tools needed"
+      description: "Speak your search query instead of typing — hands-free discovery"
     },
     {
       icon: <Award className="h-5 w-5" />,
       name: "AI Sales Mentor",
-      description: "Practice your pitch with AI, get feedback scores, and improve your sales skills"
+      description: "Practice your pitch with AI, get feedback scores, improve skills"
     },
     {
       icon: <Users className="h-5 w-5" />,
       name: "Referral & Affiliate Program",
-      description: "Earn 20-35% commission with gamified leaderboards and tier rewards"
+      description: "Earn 20-35% commission with gamified leaderboards and rewards"
     }
   ];
 
@@ -202,7 +202,7 @@ const RevolutionaryFeaturesSection = () => {
             </span>
           </h2>
           <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
-            We built 8 AI agents that do things competitors cannot even imagine. 
+            We built 8 AI agents plus real-time website analysis, 10 research categories, 100+ data points, and full report exports. 
             These are not just features — they are unfair advantages that make you unstoppable.
           </p>
         </div>

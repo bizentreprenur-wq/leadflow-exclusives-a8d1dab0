@@ -3,23 +3,23 @@ import { Zap, Eye, Filter, Target } from "lucide-react";
 const reasons = [
   {
     icon: Zap,
-    title: "Live Data",
-    description: "Real-time data from search engines",
+    title: "Real-Time Analysis",
+    description: "Live website scraping, not cached data from weeks ago",
   },
   {
     icon: Eye,
-    title: "Already Visible",
-    description: "Businesses already spending effort to be visible",
+    title: "10 AI Categories",
+    description: "Comprehensive research covering all aspects of a business",
   },
   {
     icon: Filter,
-    title: "Pre-Qualified",
-    description: "Website detection removes unqualified prospects",
+    title: "100+ Data Points",
+    description: "Deep intelligence for maximum conversion insights",
   },
   {
     icon: Target,
-    title: "Conversion Ready",
-    description: "Built for conversion-ready outreach",
+    title: "Export Ready",
+    description: "PDF, Excel, or Google Drive for client presentations",
   },
 ];
 
