@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { VisuallyHidden } from '@/components/ui/visually-hidden';
@@ -11,9 +11,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import {
   Zap, Settings, FileText, Calendar, CheckCircle2, Send,
-  Users, ChevronRight, Clock, Mail, ArrowRight, Sparkles
+  Users, ChevronRight, Clock, Mail, ArrowRight, Sparkles,
+  Brain, Globe, AlertTriangle, Flame, ThermometerSun, Snowflake
 } from 'lucide-react';
 import { HIGH_CONVERTING_TEMPLATES } from '@/lib/highConvertingTemplates';
+import { getStoredLeadContext, saveCampaignLeadsWithContext, LeadAnalysisContext } from '@/lib/leadContext';
 
 interface Lead {
   id: string;
@@ -54,6 +56,21 @@ export default function AutoCampaignWizard({
 
   const currentStepIndex = STEPS.findIndex(s => s.id === currentStep);
   const leadsWithEmail = leads.filter(l => l.email);
+  
+  // Get lead analysis context from Step 1/2
+  const leadAnalysis = useMemo(() => getStoredLeadContext(), []);
+  const analysisInsights = useMemo(() => {
+    const total = leadAnalysis.length;
+    if (total === 0) return null;
+    return {
+      total,
+      noWebsite: leadAnalysis.filter(l => !l.websiteAnalysis?.hasWebsite).length,
+      needsUpgrade: leadAnalysis.filter(l => l.websiteAnalysis?.needsUpgrade).length,
+      hotLeads: leadAnalysis.filter(l => l.aiClassification === 'hot').length,
+      warmLeads: leadAnalysis.filter(l => l.aiClassification === 'warm').length,
+      coldLeads: leadAnalysis.filter(l => l.aiClassification === 'cold').length,
+    };
+  }, [leadAnalysis]);
 
   const canProceed = () => {
     switch (currentStep) {
@@ -85,6 +102,9 @@ export default function AutoCampaignWizard({
   const handleLaunch = async () => {
     setIsLaunching(true);
     
+    // Save lead analysis context for AI Autopilot
+    saveCampaignLeadsWithContext(leadAnalysis);
+    
     // Simulate campaign launch
     await new Promise(resolve => setTimeout(resolve, 2000));
     
@@ -95,12 +115,21 @@ export default function AutoCampaignWizard({
       sendMode,
       dripRate,
       scheduledDate,
+      // Include analysis context for AI-powered personalization
+      analysisContext: {
+        totalAnalyzed: leadAnalysis.length,
+        noWebsiteCount: analysisInsights?.noWebsite || 0,
+        needsUpgradeCount: analysisInsights?.needsUpgrade || 0,
+        hotLeadsCount: analysisInsights?.hotLeads || 0,
+        warmLeadsCount: analysisInsights?.warmLeads || 0,
+        coldLeadsCount: analysisInsights?.coldLeads || 0,
+      },
     };
     
     onLaunch(campaignData);
     setCurrentStep('complete');
     setIsLaunching(false);
-    toast.success(`Campaign "${campaignName}" launched successfully!`);
+    toast.success(`Campaign "${campaignName}" launched with AI personalization from lead analysis!`);
   };
 
   const resetWizard = () => {
