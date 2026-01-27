@@ -40,6 +40,7 @@ import AITemplateSuggestions from './AITemplateSuggestions';
 import AIEmailAssistant from './AIEmailAssistant';
 import EmailConfigurationPanel from './EmailConfigurationPanel';
 import LeadIntelligenceReviewPanel from './LeadIntelligenceReviewPanel';
+import PersonalizedLeadPreview from './PersonalizedLeadPreview';
 import { LeadForEmail, sendBulkEmails } from '@/lib/api/email';
 import { isSMTPConfigured, personalizeContent, sendTestEmail } from '@/lib/emailService';
 import { addLeadsToCRM, queueLeadsForEmail } from '@/lib/customTemplates';
@@ -1065,29 +1066,40 @@ export default function EmailSetupFlow({
                       </div>
                     )}
 
-                    {/* PREVIEW VIEW - WITH EDITABLE TEMPLATE */}
+                    {/* PREVIEW VIEW - WITH EDITABLE TEMPLATE & PERSONALIZED LEAD PREVIEW */}
                     {activeTab === 'preview' && (
                       <div className="space-y-4">
                         <div className="flex items-center gap-2 mb-4">
                           <Eye className="w-5 h-5 text-cyan-400" />
                           <h3 className="font-bold text-lg">Email Preview</h3>
-                          <Badge variant="outline" className="ml-2 text-xs">Click "Edit Template" to customize</Badge>
+                          <Badge variant="outline" className="ml-2 text-xs">Real-time personalization</Badge>
                         </div>
-                        {selectedTemplate ? (
-                          <EmailClientPreviewPanel 
-                            subject={customizedContent?.subject || selectedTemplate.subject} 
-                            body={customizedContent?.body || selectedTemplate.body_html || selectedTemplate.body}
-                            templateName={selectedTemplate.name}
-                            editable={true}
-                            onSaveEdit={(subject, body) => {
-                              handleSaveCustomization(subject, body);
-                            }}
-                          />
-                        ) : (
-                          <div className="text-center py-12 bg-muted/20 rounded-xl border border-dashed border-border">
-                            <FileText className="w-12 h-12 mx-auto mb-3 text-muted-foreground opacity-30" />
-                            <h3 className="font-semibold mb-2">No Template Selected</h3>
-                            <p className="text-muted-foreground text-sm mb-4">Go back and select a template first</p>
+                        
+                        {/* Personalized Lead Preview - shows how email looks for each lead */}
+                        <PersonalizedLeadPreview
+                          subject={customizedContent?.subject || selectedTemplate?.subject || ''}
+                          body={customizedContent?.body || selectedTemplate?.body_html || selectedTemplate?.body || ''}
+                        />
+                        
+                        {selectedTemplate && (
+                          <div className="mt-4">
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => setShowTemplateEditor(true)}
+                              className="gap-2"
+                            >
+                              <FileText className="w-4 h-4" />
+                              Edit Template
+                            </Button>
+                          </div>
+                        )}
+                        
+                        {!selectedTemplate && (
+                          <div className="text-center py-8 bg-muted/20 rounded-xl border border-dashed border-border">
+                            <FileText className="w-10 h-10 mx-auto mb-2 text-muted-foreground opacity-30" />
+                            <h3 className="font-semibold mb-2 text-sm">No Template Selected</h3>
+                            <p className="text-muted-foreground text-xs mb-3">Select a template to see personalized previews</p>
                             <Button size="sm" onClick={() => setCurrentPhase('template')}>Choose Template</Button>
                           </div>
                         )}
