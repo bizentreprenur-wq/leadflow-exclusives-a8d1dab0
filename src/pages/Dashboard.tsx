@@ -280,6 +280,13 @@ export default function Dashboard() {
     }
   }, [searchParams, refreshUser, celebrate]);
 
+  // Track when leads were restored from a previous session
+  const [restoredFromSession, setRestoredFromSession] = useState<{
+    source: 'localStorage' | 'database';
+    timestamp: string;
+    leadCount: number;
+  } | null>(null);
+
   // Load persisted leads on dashboard init (runs once on mount)
   // Priority: 1) localStorage (survives logout), 2) Database (remote backup)
   // Leads only clear when user explicitly clicks "Clear All Data"
@@ -287,12 +294,21 @@ export default function Dashboard() {
     const loadPersistedLeads = async () => {
       // Check localStorage first for existing results (survives logout/login)
       const localResults = localStorage.getItem('bamlead_search_results');
+      const searchTimestamp = localStorage.getItem('bamlead_search_timestamp');
+      
       if (localResults) {
         try {
           const parsed = JSON.parse(localResults);
           if (Array.isArray(parsed) && parsed.length > 0) {
             console.log('[BamLead] Using localStorage leads:', parsed.length);
             setSearchResults(parsed);
+            
+            // Mark as restored from localStorage
+            setRestoredFromSession({
+              source: 'localStorage',
+              timestamp: searchTimestamp || new Date().toISOString(),
+              leadCount: parsed.length
+            });
             
             // Restore search context from localStorage
             const savedStep = localStorage.getItem('bamlead_current_step');
@@ -348,8 +364,17 @@ export default function Dashboard() {
           
           setSearchResults(mappedLeads);
           
+          // Mark as restored from database
+          const dbTimestamp = response.data.latestSearch?.createdAt || new Date().toISOString();
+          setRestoredFromSession({
+            source: 'database',
+            timestamp: dbTimestamp,
+            leadCount: mappedLeads.length
+          });
+          
           // Cache in localStorage so leads survive logout/login
           localStorage.setItem('bamlead_search_results', JSON.stringify(mappedLeads));
+          localStorage.setItem('bamlead_search_timestamp', dbTimestamp);
           
           // Restore search context if available
           if (response.data.latestSearch) {
@@ -371,7 +396,7 @@ export default function Dashboard() {
             localStorage.setItem('bamlead_current_step', '2');
           }
           
-          toast.info(`Loaded ${mappedLeads.length} leads from your last search`);
+          toast.info(`Restored ${mappedLeads.length} leads from your last search`);
         } else {
           console.log('[BamLead] No persisted leads found in database');
         }
@@ -382,6 +407,63 @@ export default function Dashboard() {
     
     loadPersistedLeads();
   }, []);
+
+  // Auto-save leads to database every 60 seconds (when leads exist and user is authenticated)
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    if (!token || searchResults.length === 0 || !searchType) return;
+    
+    // Don't auto-save mock data
+    const hasRealData = searchResults.some(r => !r.id.startsWith('mock_'));
+    if (!hasRealData) return;
+
+    const autoSaveInterval = setInterval(async () => {
+      console.log('[BamLead] Auto-saving leads to database...');
+      try {
+        const response = await saveSearchLeads(
+          searchResults.map(r => ({
+            id: r.id,
+            name: r.name,
+            address: r.address,
+            phone: r.phone,
+            website: r.website,
+            email: r.email,
+            rating: r.rating,
+            source: r.source,
+            platform: r.platform,
+            aiClassification: r.aiClassification,
+            leadScore: r.leadScore,
+            successProbability: r.successProbability,
+            recommendedAction: r.recommendedAction,
+            callScore: r.callScore,
+            emailScore: r.emailScore,
+            urgency: r.urgency,
+            painPoints: r.painPoints,
+            readyToCall: r.readyToCall,
+            websiteAnalysis: r.websiteAnalysis,
+          })),
+          {
+            searchQuery: query,
+            searchLocation: location,
+            sourceType: searchType,
+            clearPrevious: true
+          }
+        );
+        
+        if (response.success) {
+          console.log('[BamLead] Auto-save successful:', response.data?.saved, 'leads');
+          // Update timestamp
+          localStorage.setItem('bamlead_search_timestamp', new Date().toISOString());
+        } else {
+          console.warn('[BamLead] Auto-save failed:', response.error);
+        }
+      } catch (error) {
+        console.error('[BamLead] Auto-save error:', error);
+      }
+    }, 60000); // Every 60 seconds
+
+    return () => clearInterval(autoSaveInterval);
+  }, [searchResults, searchType, query, location]);
 
   const handleLogout = async () => {
     // Clear all session/localStorage state so user sees default view on next login
@@ -695,6 +777,12 @@ export default function Dashboard() {
       setSearchResults(scoredResults);
       setSearchProgress(100);
       
+      // Clear restored indicator since this is a fresh search
+      setRestoredFromSession(null);
+      
+      // Save the search timestamp for restoration tracking
+      localStorage.setItem('bamlead_search_timestamp', new Date().toISOString());
+      
       // Detect if we got real data (live SerpAPI) or mock data
       // Mock results have IDs starting with "mock_"
       const hasRealData = scoredResults.some(r => !r.id.startsWith('mock_'));
@@ -951,6 +1039,9 @@ export default function Dashboard() {
     setFilterOutdated(false);
     setPhoneLeadsOnly(false);
     
+    // Clear restored indicator
+    setRestoredFromSession(null);
+    
     // Clear ALL stored lead data (only happens when user explicitly clicks "Clear All Data")
     localStorage.removeItem('bamlead_current_step');
     localStorage.removeItem('bamlead_search_type');
@@ -960,6 +1051,7 @@ export default function Dashboard() {
     localStorage.removeItem('bamlead_email_leads');
     localStorage.removeItem('bamlead_selected_leads');
     localStorage.removeItem('bamlead_step2_visited');
+    localStorage.removeItem('bamlead_search_timestamp');
     // Clear filter settings
     localStorage.removeItem('bamlead_filter_no_website');
     localStorage.removeItem('bamlead_filter_not_mobile');
@@ -1777,6 +1869,8 @@ export default function Dashboard() {
               setCurrentStep(4);
             }}
             onOpenAIScoring={() => setShowAIScoringDashboard(true)}
+            restoredFromSession={restoredFromSession}
+            onDismissRestored={() => setRestoredFromSession(null)}
           />
         );
 
