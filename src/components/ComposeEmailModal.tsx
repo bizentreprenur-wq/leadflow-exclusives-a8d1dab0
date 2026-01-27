@@ -16,14 +16,16 @@ import {
   CheckCircle2, ArrowRight, Flame, ThermometerSun, Snowflake, FileText,
   Settings2, Users, TrendingUp, Rocket, Search, Globe, Store,
   CreditCard, Wand2, Layers, MailPlus, Briefcase, Crown,
-  X, Maximize2, Minimize2
+  X, Maximize2, Minimize2, Eye
 } from 'lucide-react';
 import LeadQueueIndicator from './LeadQueueIndicator';
 import AISubjectLineGenerator from './AISubjectLineGenerator';
 import EmailScheduleCalendar from './EmailScheduleCalendar';
 import PriorityTemplateSelector from './PriorityTemplateSelector';
+import EmailSequenceSelector from './EmailSequenceSelector';
 import { isSMTPConfigured, sendSingleEmail } from '@/lib/emailService';
 import { sendEmail as apiSendEmail } from '@/lib/api/email';
+import { EmailSequence, EmailStep } from '@/lib/emailSequences';
 
 interface Lead {
   id?: string | number;
@@ -90,6 +92,8 @@ export default function ComposeEmailModal({
   const [showScheduler, setShowScheduler] = useState(false);
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [showAISubjects, setShowAISubjects] = useState(true);
+  const [showSequenceSelector, setShowSequenceSelector] = useState(false);
+  const [selectedSequence, setSelectedSequence] = useState<EmailSequence | null>(null);
 
   // Drip settings
   const [dripMode, setDripMode] = useState(false);
@@ -773,9 +777,88 @@ export default function ComposeEmailModal({
 
                   {/* Step 3: Sequence Settings */}
                   <TabsContent value="sequence" className="mt-4 space-y-4">
+                    {/* Sequence Selector Toggle */}
+                    <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 to-emerald-500/10 border border-primary/30">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Layers className="w-5 h-5 text-primary" />
+                          <div>
+                            <h4 className="font-semibold text-foreground">Email Sequences</h4>
+                            <p className="text-xs text-muted-foreground">
+                              {isSearchA ? 'Option A sequences for B2B & local businesses' : 'Option B sequences for agency client acquisition'}
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant={showSequenceSelector ? "default" : "outline"}
+                          onClick={() => setShowSequenceSelector(!showSequenceSelector)}
+                          className="gap-1"
+                        >
+                          <Eye className="w-3 h-3" />
+                          {showSequenceSelector ? 'Hide' : 'Browse'} Sequences
+                        </Button>
+                      </div>
+
+                      {selectedSequence && (
+                        <div className="p-3 rounded-lg bg-background border border-border">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <span className="text-sm font-medium text-foreground flex items-center gap-2">
+                                <span>{selectedSequence.emoji}</span>
+                                {selectedSequence.name}
+                              </span>
+                              <p className="text-xs text-muted-foreground">{selectedSequence.steps.length} emails in sequence</p>
+                            </div>
+                            <Badge className={cn(
+                              "text-[10px]",
+                              selectedSequence.priority === 'hot' && "bg-red-500/20 text-red-400 border-red-500/30",
+                              selectedSequence.priority === 'warm' && "bg-amber-500/20 text-amber-400 border-amber-500/30",
+                              selectedSequence.priority === 'cold' && "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                            )}>
+                              {selectedSequence.priority.toUpperCase()}
+                            </Badge>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Sequence Selector Panel */}
+                    {showSequenceSelector && (
+                      <div className="border border-border rounded-xl p-4 bg-muted/20">
+                        <EmailSequenceSelector
+                          searchType={detectedSearchType}
+                          currentLead={currentLead ? {
+                            business_name: currentLead.business_name || currentLead.name,
+                            first_name: currentLead.first_name || currentLead.contact_name,
+                            email: currentLead.email,
+                            website: currentLead.website,
+                            industry: currentLead.industry,
+                            aiClassification: currentLead.aiClassification,
+                            leadScore: currentLead.leadScore,
+                            websiteIssues: currentLead.websiteIssues,
+                          } : undefined}
+                          onSelectSequence={(sequence) => {
+                            setSelectedSequence(sequence);
+                            toast.success(`Selected: ${sequence.name}`);
+                          }}
+                          onApplyStep={(step, personalized) => {
+                            setEmail(prev => ({
+                              ...prev,
+                              subject: personalized.subject,
+                              body: personalized.body,
+                            }));
+                            setShowSequenceSelector(false);
+                            toast.success(`Applied Day ${step.day} email from sequence`);
+                          }}
+                          senderName="Your Name"
+                        />
+                      </div>
+                    )}
+
                     <div className="p-4 rounded-xl bg-muted/30 border border-border">
                       <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-                        <Layers className="w-4 h-4 text-orange-400" />
+                        <Settings2 className="w-4 h-4 text-orange-400" />
                         Sending Options
                       </h4>
 
@@ -999,33 +1082,83 @@ export default function ComposeEmailModal({
                       </div>
                     </div>
 
-                    {/* Sequence Preview */}
+                    {/* Sequence Preview - Using Real Sequences */}
                     <div className="p-4 rounded-xl bg-muted/30 border border-border">
-                      <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                        <Layers className="w-4 h-4 text-orange-400" />
-                        AI Recommended Sequence
-                        {getSearchBadge()}
-                      </h4>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-foreground flex items-center gap-2">
+                          <Layers className="w-4 h-4 text-orange-400" />
+                          AI Recommended Sequence
+                          {getSearchBadge()}
+                        </h4>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setShowSequenceSelector(!showSequenceSelector)}
+                          className="text-xs gap-1"
+                        >
+                          <Eye className="w-3 h-3" />
+                          Browse All
+                        </Button>
+                      </div>
+
+                      {showSequenceSelector && (
+                        <div className="mb-4 border border-border rounded-lg p-3 bg-background">
+                          <EmailSequenceSelector
+                            searchType={detectedSearchType}
+                            currentLead={currentLead ? {
+                              business_name: currentLead.business_name || currentLead.name,
+                              first_name: currentLead.first_name || currentLead.contact_name,
+                              aiClassification: currentLead.aiClassification,
+                            } : undefined}
+                            onSelectSequence={(seq) => {
+                              setSelectedSequence(seq);
+                              setShowSequenceSelector(false);
+                            }}
+                            onApplyStep={() => {}}
+                            compact
+                          />
+                        </div>
+                      )}
 
                       <div className="space-y-2">
-                        {(isSearchB ? [
-                          { day: 1, action: 'Initial outreach: Website/SEO audit offer' },
-                          { day: 3, action: 'Follow-up: Social proof + case study' },
-                          { day: 5, action: 'Value-add: Free mini audit report' },
-                          { day: 7, action: 'Final: Limited time offer' },
-                        ] : [
-                          { day: 1, action: 'Initial outreach: Industry insights' },
-                          { day: 3, action: 'Follow-up: Product/service introduction' },
-                          { day: 5, action: 'Value-add: Competitor analysis' },
-                          { day: 7, action: 'Final: Call-to-action' },
-                        ]).map((step, idx) => (
-                          <div key={idx} className="flex items-center gap-3 p-2 rounded-lg bg-background">
-                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-                              D{step.day}
+                        {selectedSequence ? (
+                          <>
+                            <div className="p-3 rounded-lg bg-primary/10 border border-primary/30 mb-3">
+                              <span className="text-sm font-medium text-foreground flex items-center gap-2">
+                                <span>{selectedSequence.emoji}</span>
+                                {selectedSequence.name}
+                              </span>
+                              <p className="text-xs text-muted-foreground mt-1">{selectedSequence.description}</p>
                             </div>
-                            <span className="text-sm text-muted-foreground">{step.action}</span>
-                          </div>
-                        ))}
+                            {selectedSequence.steps.map((step, idx) => (
+                              <div key={idx} className="flex items-center gap-3 p-2 rounded-lg bg-background">
+                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                                  D{step.day}
+                                </div>
+                                <span className="text-sm text-muted-foreground">{step.action}</span>
+                              </div>
+                            ))}
+                          </>
+                        ) : (
+                          (isSearchB ? [
+                            { day: 1, action: 'Initial outreach: Website/SEO audit offer' },
+                            { day: 3, action: 'Follow-up: Social proof + case study' },
+                            { day: 5, action: 'Value-add: Free mini audit report' },
+                            { day: 7, action: 'Final: Limited time offer' },
+                          ] : [
+                            { day: 1, action: 'Initial outreach: Industry insights' },
+                            { day: 3, action: 'Follow-up: Product/service introduction' },
+                            { day: 5, action: 'Value-add: Competitor analysis' },
+                            { day: 7, action: 'Final: Call-to-action' },
+                          ]).map((step, idx) => (
+                            <div key={idx} className="flex items-center gap-3 p-2 rounded-lg bg-background">
+                              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                                D{step.day}
+                              </div>
+                              <span className="text-sm text-muted-foreground">{step.action}</span>
+                            </div>
+                          ))
+                        )}
                       </div>
                     </div>
 

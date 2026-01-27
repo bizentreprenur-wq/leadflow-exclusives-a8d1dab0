@@ -6,6 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import {
@@ -13,7 +14,7 @@ import {
   Inbox, PenTool, Sparkles, Target, Rocket,
   Calendar, Shield, CheckCircle2, X, FolderOpen,
   Palette, Link2, Cloud, BarChart3, MousePointer, Eye, Reply, TrendingUp,
-  PanelLeftClose, PanelLeft, MailOpen, Zap, Crown
+  PanelLeftClose, PanelLeft, MailOpen, Zap, Crown, Layers
 } from 'lucide-react';
 import SMTPConfigPanel from './SMTPConfigPanel';
 import BrandingSettingsPanel from './BrandingSettingsPanel';
@@ -31,6 +32,7 @@ import CampaignPerformanceDashboard from './CampaignPerformanceDashboard';
 import ComposeEmailModal from './ComposeEmailModal';
 import EmailABTestingSystem from './EmailABTestingSystem';
 import LeadResponseDetection from './LeadResponseDetection';
+import EmailSequenceSelector from './EmailSequenceSelector';
 
 import ConversionFunnelDashboard from './ConversionFunnelDashboard';
 
@@ -115,6 +117,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   // Campaign Wizard state
   const [showCampaignWizard, setShowCampaignWizard] = useState(false);
   const [leadPriority, setLeadPriority] = useState<'all' | 'hot' | 'warm' | 'cold'>('all');
+  const [showSequenceBrowser, setShowSequenceBrowser] = useState(false);
   
   const readStoredEmailLeads = () => {
     if (typeof window === 'undefined') return [] as any[];
@@ -260,13 +263,21 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
             </div>
 
             {/* Compose Button */}
-            <div className="p-4">
+            <div className="p-4 space-y-2">
               <Button
                 onClick={() => setShowComposeModal(true)}
                 className="w-full bg-emerald-600 hover:bg-emerald-500 text-white gap-2"
               >
                 <PenTool className="w-4 h-4" />
                 Compose
+              </Button>
+              <Button
+                onClick={() => setShowSequenceBrowser(true)}
+                variant="outline"
+                className="w-full gap-2 text-xs"
+              >
+                <Layers className="w-4 h-4" />
+                Browse Sequences
               </Button>
             </div>
 
@@ -835,6 +846,43 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
           setShowCampaignWizard(false);
         }}
       />
+
+      {/* Sequence Browser Modal */}
+      <Dialog open={showSequenceBrowser} onOpenChange={setShowSequenceBrowser}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogTitle className="flex items-center gap-2 text-lg font-bold">
+            <Layers className="w-5 h-5 text-primary" />
+            Email Sequences Library
+            <Badge className={cn(
+              "ml-2 text-xs",
+              searchType === 'gmb' 
+                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                : "bg-violet-500/20 text-violet-400 border-violet-500/30"
+            )}>
+              {searchType === 'gmb' ? 'Option A' : 'Option B'}
+            </Badge>
+          </DialogTitle>
+          <ScrollArea className="flex-1 mt-4">
+            <EmailSequenceSelector
+              searchType={searchType || 'gmb'}
+              currentLead={campaignLeads[0] ? {
+                business_name: campaignLeads[0].business_name || campaignLeads[0].name,
+                first_name: campaignLeads[0].first_name || campaignLeads[0].contact_name,
+                aiClassification: campaignLeads[0].aiClassification,
+              } : undefined}
+              onSelectSequence={(sequence) => {
+                toast.success(`Selected sequence: ${sequence.name}`);
+              }}
+              onApplyStep={(step, personalized) => {
+                // Open compose modal with this content
+                setShowSequenceBrowser(false);
+                setShowComposeModal(true);
+                toast.success(`Applied Day ${step.day} email template`);
+              }}
+            />
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
