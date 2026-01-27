@@ -32,6 +32,7 @@ import HighConvertingTemplateGallery from "@/components/HighConvertingTemplateGa
 import LeadSpreadsheetViewer from "@/components/LeadSpreadsheetViewer";
 import AIResponseInbox from "@/components/AIResponseInbox";
 import LiveDripMailbox from "@/components/LiveDripMailbox";
+import WebsitePreviewIcon from "@/components/WebsitePreviewIcon";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import WorkflowOnboardingTour, { startWorkflowTour } from "@/components/WorkflowOnboardingTour";
@@ -447,7 +448,7 @@ Best regards,
                     checked={selectedLeads.includes(lead.id)}
                     onCheckedChange={() => toggleLeadSelection(lead.id)}
                   />
-                  <div className="flex-1 grid grid-cols-5 gap-4 items-center">
+                  <div className="flex-1 grid grid-cols-6 gap-4 items-center">
                     <div>
                       <p className="font-semibold">{lead.name}</p>
                       <p className="text-sm text-muted-foreground">{lead.category}</p>
@@ -460,6 +461,11 @@ Best regards,
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                       <MapPin className="w-4 h-4" />
                       {lead.address}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Globe className="w-4 h-4 text-muted-foreground" />
+                      <span className="truncate">{lead.website}</span>
+                      <WebsitePreviewIcon website={lead.website} businessName={lead.name} />
                     </div>
                     <div className="flex items-center gap-1 text-sm">
                       <Phone className="w-4 h-4 text-muted-foreground" />

@@ -20,7 +20,7 @@ import {
   ArrowLeft, Users, ChevronRight, HelpCircle,
   Smartphone, AlertTriangle, XCircle,
 } from 'lucide-react';
-import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
+import { SidebarProvider, SidebarTrigger, SidebarInset, SidebarRail } from '@/components/ui/sidebar';
 import DashboardSidebar from '@/components/DashboardSidebar';
 import LeadVerificationModule, { VerifiedLead } from '@/components/LeadVerificationModule';
 import EmailOutreachModule from '@/components/EmailOutreachModule';
@@ -2244,6 +2244,9 @@ export default function Dashboard() {
           }}
           onLogout={handleLogout}
         />
+
+        {/* Drag (or click) the rail to resize / collapse the sidebar */}
+        <SidebarRail />
 
         <SidebarInset>
           {/* Top Header Bar */}

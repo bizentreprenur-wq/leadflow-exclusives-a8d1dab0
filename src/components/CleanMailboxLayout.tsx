@@ -104,7 +104,58 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   const [showComposeModal, setShowComposeModal] = useState(false);
   const [sequences, setSequences] = useState<OutreachSequence[]>(DEMO_SEQUENCES);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mailboxSidebarWidth, setMailboxSidebarWidth] = useState(() => {
+    try {
+      const saved = localStorage.getItem('bamlead_mailbox_sidebar_width');
+      const parsed = saved ? parseFloat(saved) : NaN;
+      if (!Number.isNaN(parsed)) return parsed;
+    } catch {
+      // ignore
+    }
+    return 280;
+  });
+  const [isMailboxSidebarResizing, setIsMailboxSidebarResizing] = useState(false);
   const [selectedEmailSequence, setSelectedEmailSequence] = useState<EmailSequence | null>(null);
+
+  const clampMailboxSidebarWidth = (w: number) => Math.max(220, Math.min(520, w));
+
+  const handleMailboxSidebarResizeStart = (e: React.PointerEvent) => {
+    if (sidebarCollapsed) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const startX = e.clientX;
+    const startW = mailboxSidebarWidth;
+    let latestW = mailboxSidebarWidth;
+    setIsMailboxSidebarResizing(true);
+
+    const target = e.currentTarget as HTMLElement;
+    target.setPointerCapture(e.pointerId);
+
+    const onMove = (ev: PointerEvent) => {
+      latestW = clampMailboxSidebarWidth(startW + (ev.clientX - startX));
+      setMailboxSidebarWidth(latestW);
+    };
+
+    const onUp = (ev: PointerEvent) => {
+      try {
+        localStorage.setItem('bamlead_mailbox_sidebar_width', String(latestW));
+      } catch {
+        // ignore
+      }
+      setIsMailboxSidebarResizing(false);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      try {
+        target.releasePointerCapture(e.pointerId);
+      } catch {
+        // ignore
+      }
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
   
   // AI Automation settings
   const [automation, setAutomation] = useState<AutomationSettings>(() => {
@@ -272,10 +323,11 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
         {!sidebarCollapsed && (
           <motion.aside
             initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 280, opacity: 1 }}
+            animate={{ width: mailboxSidebarWidth, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={isMailboxSidebarResizing ? { duration: 0 } : { duration: 0.2 }}
             className="h-full border-r border-border bg-card flex flex-col overflow-hidden"
+            style={{ width: mailboxSidebarWidth }}
           >
             {/* Sidebar Header */}
             <div className="p-4 border-b border-border flex items-center justify-between">
@@ -378,6 +430,19 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
           </motion.aside>
         )}
       </AnimatePresence>
+
+      {/* Sidebar resize handle (desktop) */}
+      {!sidebarCollapsed && (
+        <div
+          onPointerDown={handleMailboxSidebarResizeStart}
+          className="relative hidden md:flex w-2 items-stretch justify-center cursor-col-resize select-none"
+          aria-label="Resize mailbox sidebar"
+          role="separator"
+        >
+          <div className="w-px bg-border" />
+          <div className="absolute inset-y-0 left-1/2 w-3 -translate-x-1/2" />
+        </div>
+      )}
 
       {/* MAIN CONTENT AREA */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
