@@ -208,7 +208,7 @@ export default function UserManualDownload({ isPaidUser, planName, onUpgrade }: 
       addText('• Drip: Stagger delivery (recommended: 20-50/hour)');
       addText('• Scheduled: Set specific send date/time');
       addText('');
-      addText('Auto Campaign Wizard:', 12, true);
+      addText('AI Autopilot Campaign:', 12, true);
       addText('Let AI create optimized campaigns automatically:');
       addText('1. Select target industry and audience');
       addText('2. AI analyzes lead data and patterns');

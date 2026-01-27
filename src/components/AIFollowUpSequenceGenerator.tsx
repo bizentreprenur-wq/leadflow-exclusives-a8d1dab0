@@ -179,7 +179,7 @@ export default function AIFollowUpSequenceGenerator({
 
   const handleGenerateCustomSequence = async () => {
     if (!hasSubscription) {
-      toast.error('Please subscribe to Auto Campaign Wizard to use AI generation');
+      toast.error('Please subscribe to AI Autopilot Campaign to use AI generation');
       return;
     }
 
@@ -214,7 +214,7 @@ export default function AIFollowUpSequenceGenerator({
       return;
     }
     if (!hasSubscription) {
-      toast.error('Please subscribe to Auto Campaign Wizard to apply sequences');
+      toast.error('Please subscribe to AI Autopilot Campaign to apply sequences');
       return;
     }
     onApplySequence(selectedSequence, leads);

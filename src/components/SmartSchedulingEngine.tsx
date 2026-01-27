@@ -96,7 +96,7 @@ export default function SmartSchedulingEngine({
   // Generate AI recommendation
   const analyzeAndRecommend = async () => {
     if (!hasSubscription) {
-      toast.error('Smart Scheduling requires Auto Campaign Wizard subscription');
+      toast.error('Smart Scheduling requires AI Autopilot Campaign subscription');
       return;
     }
 
@@ -171,7 +171,7 @@ export default function SmartSchedulingEngine({
             checked={autoScheduleEnabled}
             onCheckedChange={(v) => {
               if (!hasSubscription) {
-                toast.error('Requires Auto Campaign Wizard subscription');
+                toast.error('Requires AI Autopilot Campaign subscription');
                 return;
               }
               setAutoScheduleEnabled(v);
