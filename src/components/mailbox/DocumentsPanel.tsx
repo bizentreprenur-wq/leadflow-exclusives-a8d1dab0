@@ -1840,8 +1840,16 @@ export default function DocumentsPanel({ searchType, onUseInEmail }: DocumentsPa
             <p className="text-sm text-muted-foreground mt-1">Proposals + Contracts — click “Use” to insert into Compose</p>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="px-3 py-1.5 text-xs bg-primary/10 text-primary border-primary/30">
-              {leadTypeLabel}
+            <Badge 
+              variant="outline" 
+              className={cn(
+                "px-3 py-1.5 text-xs",
+                activeOption === 'B' 
+                  ? "bg-violet-500/10 text-violet-400 border-violet-500/30" 
+                  : "bg-primary/10 text-primary border-primary/30"
+              )}
+            >
+              {activeOption === 'B' ? '🎯 Option B — Agency Lead Finder' : leadTypeLabel}
             </Badge>
           </div>
         </div>
@@ -1864,7 +1872,10 @@ export default function DocumentsPanel({ searchType, onUseInEmail }: DocumentsPa
                 size="sm"
                 variant={activeOption === 'B' ? 'default' : 'outline'}
                 onClick={() => setActiveOption('B')}
-                className="rounded-full"
+                className={cn(
+                  "rounded-full",
+                  activeOption === 'B' && "bg-violet-600 hover:bg-violet-700 text-white border-violet-600"
+                )}
               >
                 Option B
               </Button>
