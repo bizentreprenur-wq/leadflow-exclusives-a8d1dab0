@@ -130,6 +130,11 @@ export default function ComposeEmailModal({
     body?: string;
   } | null>(null);
 
+  // Autopilot launch state
+  const [isLaunchingAutopilot, setIsLaunchingAutopilot] = useState(false);
+  const [autopilotLaunchProgress, setAutopilotLaunchProgress] = useState(0);
+  const [showLeadsPreview, setShowLeadsPreview] = useState(false);
+
   // Drip settings
   const [dripMode, setDripMode] = useState(false);
   const [dripInterval, setDripInterval] = useState(60); // seconds
@@ -342,10 +347,29 @@ export default function ComposeEmailModal({
     }
   };
 
-  const handleStartAutopilot = () => {
+  const handleStartAutopilot = async () => {
     if (!hasAutopilotSubscription) {
       toast.error('Please subscribe to AI Autopilot Campaign first ($39/mo or start 14-day trial)');
       return;
+    }
+
+    // Start launch animation
+    setIsLaunchingAutopilot(true);
+    setAutopilotLaunchProgress(0);
+
+    // Simulate progressive loading for visual feedback
+    const progressSteps = [
+      { progress: 15, delay: 200, message: 'Analyzing lead profiles...' },
+      { progress: 35, delay: 400, message: 'Preparing personalized sequences...' },
+      { progress: 55, delay: 300, message: 'Configuring AI decision engine...' },
+      { progress: 75, delay: 350, message: 'Setting up response detection...' },
+      { progress: 90, delay: 250, message: 'Activating autopilot...' },
+      { progress: 100, delay: 200, message: 'Launch complete!' },
+    ];
+
+    for (const step of progressSteps) {
+      await new Promise(resolve => setTimeout(resolve, step.delay));
+      setAutopilotLaunchProgress(step.progress);
     }
     
     // Get full lead context from Step 2 analysis for AI Autopilot
@@ -375,6 +399,12 @@ export default function ComposeEmailModal({
     }));
     
     onAutomationChange({ ...automationSettings, doneForYouMode: true });
+    
+    // Small delay to show 100% completion
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    setIsLaunchingAutopilot(false);
+    setAutopilotLaunchProgress(0);
     toast.success('🤖 AI Autopilot activated! AI will use Step 2 analysis to personalize your outreach.');
     onClose();
   };
@@ -1462,6 +1492,85 @@ export default function ComposeEmailModal({
                       </div>
                     </div>
 
+                    {/* Leads Preview Panel */}
+                    <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-foreground flex items-center gap-2">
+                          <Users className="w-4 h-4 text-emerald-400" />
+                          Queued Leads Preview
+                        </h4>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setShowLeadsPreview(!showLeadsPreview)}
+                          className="text-xs gap-1"
+                        >
+                          {showLeadsPreview ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                          {showLeadsPreview ? 'Hide' : 'Show'} {safeLeads.length} leads
+                        </Button>
+                      </div>
+                      
+                      {showLeadsPreview && (
+                        <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                          {safeLeads.slice(0, 20).map((lead, idx) => (
+                            <div 
+                              key={lead.id || idx} 
+                              className="flex items-center gap-3 p-2 rounded-lg bg-background border border-border"
+                            >
+                              <div className={cn(
+                                "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
+                                lead.aiClassification === 'hot' ? "bg-red-500/20 text-red-400" :
+                                lead.aiClassification === 'warm' ? "bg-amber-500/20 text-amber-400" :
+                                "bg-blue-500/20 text-blue-400"
+                              )}>
+                                {idx + 1}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-foreground truncate">
+                                  {lead.business_name || lead.name || 'Unknown Business'}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {lead.email || 'No email'}
+                                </p>
+                              </div>
+                              {lead.aiClassification && (
+                                <Badge className={cn(
+                                  "text-[10px]",
+                                  lead.aiClassification === 'hot' ? "bg-red-500/20 text-red-400 border-red-500/30" :
+                                  lead.aiClassification === 'warm' ? "bg-amber-500/20 text-amber-400 border-amber-500/30" :
+                                  "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                                )}>
+                                  {lead.aiClassification}
+                                </Badge>
+                              )}
+                            </div>
+                          ))}
+                          {safeLeads.length > 20 && (
+                            <p className="text-xs text-muted-foreground text-center py-2">
+                              +{safeLeads.length - 20} more leads...
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      
+                      {!showLeadsPreview && (
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Flame className="w-3 h-3 text-red-400" />
+                            {safeLeads.filter(l => l.aiClassification === 'hot').length} Hot
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <ThermometerSun className="w-3 h-3 text-amber-400" />
+                            {safeLeads.filter(l => l.aiClassification === 'warm').length} Warm
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Snowflake className="w-3 h-3 text-blue-400" />
+                            {safeLeads.filter(l => l.aiClassification === 'cold').length} Cold
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Lead count & launch */}
                     <div className="p-4 rounded-xl bg-primary/10 border border-primary/30">
                       <div className="flex items-center justify-between mb-4">
@@ -1476,11 +1585,20 @@ export default function ComposeEmailModal({
 
                       <Button 
                         onClick={handleStartAutopilot}
-                        disabled={safeLeads.length === 0}
+                        disabled={safeLeads.length === 0 || isLaunchingAutopilot}
                         className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white gap-2"
                       >
-                        <Wand2 className="w-4 h-4" />
-                        Activate AI Autopilot
+                        {isLaunchingAutopilot ? (
+                          <>
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                            Launching...
+                          </>
+                        ) : (
+                          <>
+                            <Wand2 className="w-4 h-4" />
+                            Activate AI Autopilot
+                          </>
+                        )}
                       </Button>
                     </div>
                   </div>
@@ -1545,22 +1663,57 @@ export default function ComposeEmailModal({
         )}
         {/* FOOTER for AI Autopilot Mode */}
         {composeMode === 'autopilot' && hasAutopilotSubscription && (
-          <div className="p-4 border-t border-border bg-muted/30 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Bot className="w-4 h-4 text-primary" />
-              <span>{safeLeads.length} verified leads ready for AI outreach</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button variant="outline" onClick={onClose}>Cancel</Button>
-              <Button
-                onClick={handleStartAutopilot}
-                disabled={safeLeads.length === 0}
-                className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white gap-2"
-              >
-                <Send className="w-4 h-4" />
-                Launch AI Campaign
-              </Button>
-            </div>
+          <div className="p-4 border-t border-border bg-muted/30">
+            {/* Launch Progress Animation */}
+            {isLaunchingAutopilot ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center animate-pulse">
+                    <Rocket className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-foreground">
+                      {autopilotLaunchProgress < 30 ? 'Analyzing lead profiles...' :
+                       autopilotLaunchProgress < 50 ? 'Preparing personalized sequences...' :
+                       autopilotLaunchProgress < 70 ? 'Configuring AI decision engine...' :
+                       autopilotLaunchProgress < 90 ? 'Setting up response detection...' :
+                       autopilotLaunchProgress < 100 ? 'Activating autopilot...' :
+                       '🚀 Launch complete!'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {safeLeads.length} leads being prepared for AI outreach
+                    </p>
+                  </div>
+                  <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 animate-pulse">
+                    {autopilotLaunchProgress}%
+                  </Badge>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-300 ease-out"
+                    style={{ width: `${autopilotLaunchProgress}%` }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Bot className="w-4 h-4 text-primary" />
+                  <span>{safeLeads.length} verified leads ready for AI outreach</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button variant="outline" onClick={onClose}>Cancel</Button>
+                  <Button
+                    onClick={handleStartAutopilot}
+                    disabled={safeLeads.length === 0 || isLaunchingAutopilot}
+                    className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white gap-2"
+                  >
+                    <Send className="w-4 h-4" />
+                    Launch AI Campaign
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </DialogContent>
