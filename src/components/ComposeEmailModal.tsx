@@ -1513,6 +1513,56 @@ export default function ComposeEmailModal({
             </Button>
           </div>
         )}
+
+        {/* FOOTER for Campaign Mode */}
+        {composeMode === 'campaign' && campaignTab === 'review' && (
+          <div className="p-4 border-t border-border bg-muted/30 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Target className="w-4 h-4 text-orange-400" />
+              <span>Campaign: {dripLeadCount} leads | {email.subject ? `"${email.subject.substring(0, 30)}..."` : 'No subject'}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" onClick={() => setCampaignTab('sequence')}>Back</Button>
+              <Button
+                onClick={handleSend}
+                disabled={isSending || !email.subject}
+                className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white gap-2"
+              >
+                {isSending ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    Send Campaign Now
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        )}
+        {/* FOOTER for AI Autopilot Mode */}
+        {composeMode === 'autopilot' && hasAutopilotSubscription && (
+          <div className="p-4 border-t border-border bg-muted/30 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Bot className="w-4 h-4 text-primary" />
+              <span>{safeLeads.length} verified leads ready for AI outreach</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" onClick={onClose}>Cancel</Button>
+              <Button
+                onClick={handleStartAutopilot}
+                disabled={safeLeads.length === 0}
+                className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white gap-2"
+              >
+                <Send className="w-4 h-4" />
+                Launch AI Campaign
+              </Button>
+            </div>
+          </div>
+        )}
       </DialogContent>
 
       {/* Priority Template Selector Modal */}
