@@ -31,8 +31,10 @@ import ComposeEmailModal from './ComposeEmailModal';
 import EmailABTestingSystem from './EmailABTestingSystem';
 import LeadResponseDetection from './LeadResponseDetection';
 
+import ConversionFunnelDashboard from './ConversionFunnelDashboard';
+
 // Tab types for main navigation
-type MainTab = 'inbox' | 'campaigns' | 'automation' | 'documents' | 'settings';
+type MainTab = 'inbox' | 'campaigns' | 'automation' | 'analytics' | 'documents' | 'settings';
 type InboxFilter = 'all' | 'hot' | 'unread';
 
 // Demo sequence types
@@ -221,6 +223,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
     { id: 'inbox' as MainTab, label: 'Inbox', icon: Inbox },
     { id: 'campaigns' as MainTab, label: 'Campaigns', icon: Send },
     { id: 'automation' as MainTab, label: 'AI Autopilot', icon: Crown, isPro: true },
+    { id: 'analytics' as MainTab, label: 'Analytics', icon: BarChart3 },
     { id: 'documents' as MainTab, label: 'PreDone Docs', icon: FolderOpen },
     { id: 'settings' as MainTab, label: 'Settings', icon: Settings },
   ];
@@ -659,6 +662,15 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
 
                 {/* Scheduled Queue Panel */}
                 <ScheduledQueuePanel />
+              </div>
+            </div>
+          )}
+
+          {/* ANALYTICS VIEW */}
+          {mainTab === 'analytics' && (
+            <div className="h-full overflow-auto p-6">
+              <div className="max-w-6xl mx-auto">
+                <ConversionFunnelDashboard searchType={searchType} />
               </div>
             </div>
           )}
