@@ -224,10 +224,11 @@ async function searchGMBStreaming(
     const initialTimeoutId = setTimeout(() => {
       controller.abort();
       fail(new Error('Search timed out before streaming started.'));
-    }, 30000); // 30s to receive headers / first bytes
+    }, 60000); // 60s to receive headers / first bytes (increased from 30s)
 
-    // Scale timeout based on limit - 2min for small, 60min for massive searches (50000 leads)
-    const totalTimeoutMs = limit <= 100 ? 120000 : limit <= 500 ? 300000 : limit <= 2000 ? 600000 : limit <= 10000 ? 1800000 : 3600000;
+    // Scale timeout based on limit - generous timeouts to prevent premature failures
+    // Small (≤100): 3min, Medium (≤500): 8min, Large (≤2000): 15min, XL (≤10000): 45min, Massive: 90min
+    const totalTimeoutMs = limit <= 100 ? 180000 : limit <= 500 ? 480000 : limit <= 2000 ? 900000 : limit <= 10000 ? 2700000 : 5400000;
     const timeoutId = setTimeout(() => {
       controller.abort();
       fail(new Error(`Stream timeout after ${Math.round(totalTimeoutMs / 60000)} minutes`));
