@@ -1,83 +1,28 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Bot, Sparkles, Crown, CreditCard, Clock, CheckCircle2, ArrowRight, Zap, Shield } from 'lucide-react';
+import { Bot, Sparkles, Crown, CreditCard, Clock, CheckCircle2, ArrowRight, Zap, Shield, AlertTriangle, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { useAutopilotTrial } from '@/hooks/useAutopilotTrial';
 
 interface AIAutopilotSubscriptionProps {
   isActive: boolean;
   onToggle: (active: boolean) => void;
 }
 
-interface TrialStatus {
-  isTrialActive: boolean;
-  trialDaysRemaining: number;
-  trialStartDate: string | null;
-  isPaid: boolean;
-  subscriptionId: string | null;
-}
-
-const TRIAL_DURATION_DAYS = 14;
-const MONTHLY_PRICE = 39;
-
 export default function AIAutopilotSubscription({ isActive, onToggle }: AIAutopilotSubscriptionProps) {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [trialStatus, setTrialStatus] = useState<TrialStatus>(() => {
-    try {
-      const stored = localStorage.getItem('bamlead_autopilot_trial');
-      if (stored) {
-        const data = JSON.parse(stored);
-        // Calculate days remaining
-        if (data.trialStartDate) {
-          const startDate = new Date(data.trialStartDate);
-          const now = new Date();
-          const diffDays = Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-          const daysRemaining = Math.max(0, TRIAL_DURATION_DAYS - diffDays);
-          return {
-            ...data,
-            trialDaysRemaining: daysRemaining,
-            isTrialActive: daysRemaining > 0 && !data.isPaid,
-          };
-        }
-        return data;
-      }
-      return {
-        isTrialActive: false,
-        trialDaysRemaining: TRIAL_DURATION_DAYS,
-        trialStartDate: null,
-        isPaid: false,
-        subscriptionId: null,
-      };
-    } catch {
-      return {
-        isTrialActive: false,
-        trialDaysRemaining: TRIAL_DURATION_DAYS,
-        trialStartDate: null,
-        isPaid: false,
-        subscriptionId: null,
-      };
-    }
-  });
-
-  // Save trial status to localStorage
-  useEffect(() => {
-    localStorage.setItem('bamlead_autopilot_trial', JSON.stringify(trialStatus));
-  }, [trialStatus]);
-
-  const handleStartTrial = () => {
-    const now = new Date().toISOString();
-    setTrialStatus(prev => ({
-      ...prev,
-      isTrialActive: true,
-      trialStartDate: now,
-      trialDaysRemaining: TRIAL_DURATION_DAYS,
-    }));
-    onToggle(true);
-    toast.success('🚀 14-day AI Autopilot trial started! AI will handle your outreach.');
-  };
+  const { 
+    status: trialStatus, 
+    startTrial, 
+    upgradeToPaid, 
+    TRIAL_DURATION_DAYS, 
+    MONTHLY_PRICE 
+  } = useAutopilotTrial();
 
   const handleToggleAutopilot = () => {
     if (!isActive) {
@@ -86,16 +31,20 @@ export default function AIAutopilotSubscription({ isActive, onToggle }: AIAutopi
         // Already paid, just enable
         onToggle(true);
         toast.success('🤖 AI Autopilot activated!');
-      } else if (trialStatus.trialStartDate && trialStatus.trialDaysRemaining <= 0) {
+      } else if (trialStatus.isExpired) {
         // Trial expired, show payment modal
         setShowPaymentModal(true);
-      } else if (trialStatus.trialStartDate) {
+      } else if (trialStatus.hasStartedTrial) {
         // Trial still active
         onToggle(true);
         toast.success(`🤖 AI Autopilot resumed! ${trialStatus.trialDaysRemaining} days left in trial.`);
       } else {
         // No trial started yet
-        handleStartTrial();
+        const success = startTrial();
+        if (success) {
+          onToggle(true);
+          toast.success('🚀 14-day AI Autopilot trial started! AI will handle your outreach.');
+        }
       }
     } else {
       // User wants to switch to manual
@@ -104,39 +53,67 @@ export default function AIAutopilotSubscription({ isActive, onToggle }: AIAutopi
     }
   };
 
-  const handleSubscribe = () => {
-    // In production, this would redirect to Stripe checkout
-    setTrialStatus(prev => ({
-      ...prev,
-      isPaid: true,
-      subscriptionId: `sub_${Date.now()}`,
-      isTrialActive: false,
-    }));
-    setShowPaymentModal(false);
-    onToggle(true);
-    toast.success('🎉 AI Autopilot subscription activated! $39/month');
+  const handleSubscribe = async () => {
+    const success = await upgradeToPaid();
+    if (success) {
+      setShowPaymentModal(false);
+      onToggle(true);
+      toast.success('🎉 AI Autopilot subscription activated! $' + MONTHLY_PRICE + '/month');
+    }
   };
 
-  const canUseAutopilot = trialStatus.isPaid || (trialStatus.isTrialActive && trialStatus.trialDaysRemaining > 0);
+  const canUseAutopilot = trialStatus.canUseAutopilot;
+  const progressPercentage = trialStatus.hasStartedTrial 
+    ? ((TRIAL_DURATION_DAYS - trialStatus.trialDaysRemaining) / TRIAL_DURATION_DAYS) * 100 
+    : 0;
 
   return (
     <>
       {/* Main Toggle Card */}
       <div className={cn(
-        "p-5 rounded-xl border transition-all",
-        isActive 
-          ? "bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border-emerald-500/30" 
-          : "bg-card border-border"
+        "p-5 rounded-xl border transition-all relative overflow-hidden",
+        trialStatus.isExpired 
+          ? "bg-muted/30 border-red-500/30"
+          : isActive 
+            ? "bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border-emerald-500/30" 
+            : "bg-card border-border"
       )}>
+        {/* Expired Overlay */}
+        {trialStatus.isExpired && (
+          <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] z-10 flex items-center justify-center">
+            <div className="text-center p-4">
+              <Lock className="w-8 h-8 text-red-400 mx-auto mb-2" />
+              <p className="text-sm font-medium text-foreground mb-2">Trial Expired</p>
+              <Button 
+                onClick={() => setShowPaymentModal(true)}
+                size="sm"
+                className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white gap-1"
+              >
+                <Crown className="w-3.5 h-3.5" />
+                Subscribe ${MONTHLY_PRICE}/mo
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className={cn(
               "w-12 h-12 rounded-xl flex items-center justify-center",
-              isActive 
-                ? "bg-gradient-to-br from-emerald-500 to-teal-500" 
-                : "bg-muted"
+              trialStatus.isExpired
+                ? "bg-red-500/10"
+                : isActive 
+                  ? "bg-gradient-to-br from-emerald-500 to-teal-500" 
+                  : "bg-muted"
             )}>
-              <Bot className={cn("w-6 h-6", isActive ? "text-white" : "text-muted-foreground")} />
+              <Bot className={cn(
+                "w-6 h-6", 
+                trialStatus.isExpired
+                  ? "text-red-400"
+                  : isActive 
+                    ? "text-white" 
+                    : "text-muted-foreground"
+              )} />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -144,6 +121,17 @@ export default function AIAutopilotSubscription({ isActive, onToggle }: AIAutopi
                 {trialStatus.isPaid && (
                   <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]">
                     <Crown className="w-2.5 h-2.5 mr-1" /> PRO
+                  </Badge>
+                )}
+                {trialStatus.isTrialActive && !trialStatus.isPaid && (
+                  <Badge className={cn(
+                    "text-[10px]",
+                    trialStatus.trialDaysRemaining <= 3 
+                      ? "bg-red-500/20 text-red-400 border-red-500/30 animate-pulse" 
+                      : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                  )}>
+                    <Clock className="w-2.5 h-2.5 mr-1" />
+                    {trialStatus.trialDaysRemaining} days left
                   </Badge>
                 )}
               </div>
@@ -156,52 +144,68 @@ export default function AIAutopilotSubscription({ isActive, onToggle }: AIAutopi
           <Button
             onClick={handleToggleAutopilot}
             size="lg"
+            disabled={trialStatus.isExpired}
             className={cn(
               "gap-2 min-w-[140px]",
-              isActive 
-                ? "bg-amber-500 hover:bg-amber-600 text-white" 
-                : "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white"
+              trialStatus.isExpired
+                ? "bg-muted text-muted-foreground cursor-not-allowed"
+                : isActive 
+                  ? "bg-amber-500 hover:bg-amber-600 text-white" 
+                  : "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white"
             )}
           >
-            {isActive ? (
+            {trialStatus.isExpired ? (
+              <><Lock className="w-4 h-4" /> Locked</>
+            ) : isActive ? (
               <>👤 Switch to Manual</>
+            ) : trialStatus.hasStartedTrial ? (
+              <><Sparkles className="w-4 h-4" /> Resume AI</>
             ) : (
-              <><Sparkles className="w-4 h-4" /> Enable AI</>
+              <><Zap className="w-4 h-4" /> Start Free Trial</>
             )}
           </Button>
         </div>
 
-        {/* Trial/Subscription Status */}
-        {!trialStatus.isPaid && trialStatus.trialStartDate && (
-          <div className={cn(
-            "mt-3 p-3 rounded-lg flex items-center justify-between",
-            trialStatus.trialDaysRemaining > 3 
-              ? "bg-emerald-500/10 border border-emerald-500/20" 
-              : "bg-amber-500/10 border border-amber-500/20"
-          )}>
-            <div className="flex items-center gap-2">
-              <Clock className={cn(
-                "w-4 h-4",
-                trialStatus.trialDaysRemaining > 3 ? "text-emerald-400" : "text-amber-400"
-              )} />
-              <span className="text-sm text-foreground">
-                <span className="font-bold">{trialStatus.trialDaysRemaining} days</span> left in free trial
+        {/* Trial Progress Bar - only show during active trial */}
+        {trialStatus.isTrialActive && !trialStatus.isPaid && (
+          <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-muted-foreground">Trial Progress</span>
+              <span className={cn(
+                "text-xs font-medium",
+                trialStatus.trialDaysRemaining <= 3 ? "text-red-400" : "text-emerald-400"
+              )}>
+                {trialStatus.trialDaysRemaining} of {TRIAL_DURATION_DAYS} days remaining
               </span>
             </div>
-            <Button 
-              size="sm" 
-              variant="outline"
-              onClick={() => setShowPaymentModal(true)}
-              className="gap-1 text-xs"
-            >
-              <CreditCard className="w-3.5 h-3.5" />
-              Upgrade Now
-            </Button>
+            <Progress 
+              value={progressPercentage} 
+              className={cn(
+                "h-2",
+                trialStatus.trialDaysRemaining <= 3 
+                  ? "[&>div]:bg-red-500" 
+                  : "[&>div]:bg-emerald-500"
+              )}
+            />
+            <div className="flex items-center justify-between mt-2">
+              <p className="text-[10px] text-muted-foreground">
+                {trialStatus.warningMessage}
+              </p>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => setShowPaymentModal(true)}
+                className="gap-1 text-xs h-7"
+              >
+                <CreditCard className="w-3 h-3" />
+                Upgrade Now
+              </Button>
+            </div>
           </div>
         )}
 
         {/* Features when active */}
-        {isActive && (
+        {isActive && !trialStatus.isExpired && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -230,10 +234,12 @@ export default function AIAutopilotSubscription({ isActive, onToggle }: AIAutopi
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Crown className="w-5 h-5 text-amber-500" />
-              Upgrade to AI Autopilot Pro
+              {trialStatus.isExpired ? 'Reactivate AI Autopilot' : 'Upgrade to AI Autopilot Pro'}
             </DialogTitle>
             <DialogDescription>
-              Your 14-day trial has ended. Subscribe to continue using AI Autopilot.
+              {trialStatus.isExpired 
+                ? 'Your 14-day trial has ended. Subscribe to continue using AI Autopilot.'
+                : 'Get unlimited AI-powered outreach and never miss a lead.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -251,10 +257,10 @@ export default function AIAutopilotSubscription({ isActive, onToggle }: AIAutopi
               <h4 className="font-semibold text-foreground">What's included:</h4>
               {[
                 'AI handles all outreach until lead responds',
-                'Auto-sequences for GMB & Platform searches',
-                'Smart follow-ups based on engagement',
+                'Intelligent sequences for GMB & Platform searches',
+                'Smart follow-ups based on engagement signals',
                 'Full CRM integration for AI interactions',
-                'Take over manually at any point',
+                'Proposal/contract recommendations when ready',
                 'Priority support',
               ].map((feature, idx) => (
                 <div key={idx} className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -276,6 +282,11 @@ export default function AIAutopilotSubscription({ isActive, onToggle }: AIAutopi
               <CreditCard className="w-4 h-4" />
               Subscribe Now
             </Button>
+          </div>
+          
+          <div className="flex items-center justify-center gap-2 text-[10px] text-muted-foreground mt-2">
+            <Shield className="w-3 h-3" />
+            <span>Secure payment • Cancel anytime • 30-day money-back guarantee</span>
           </div>
         </DialogContent>
       </Dialog>
