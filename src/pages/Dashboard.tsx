@@ -287,6 +287,92 @@ export default function Dashboard() {
     leadCount: number;
   } | null>(null);
 
+  // Track manual save state
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(() => {
+    try { return localStorage.getItem('bamlead_search_timestamp'); } catch { return null; }
+  });
+
+  // Manual save function
+  const handleManualSave = async (): Promise<boolean> => {
+    const token = localStorage.getItem('auth_token');
+    if (!token || searchResults.length === 0 || !searchType) {
+      toast.error('Cannot save: No leads or not authenticated');
+      return false;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await saveSearchLeads(
+        searchResults.map(r => ({
+          id: r.id,
+          name: r.name,
+          address: r.address,
+          phone: r.phone,
+          website: r.website,
+          email: r.email,
+          rating: r.rating,
+          source: r.source,
+          platform: r.platform,
+          aiClassification: r.aiClassification,
+          leadScore: r.leadScore,
+          successProbability: r.successProbability,
+          recommendedAction: r.recommendedAction,
+          callScore: r.callScore,
+          emailScore: r.emailScore,
+          urgency: r.urgency,
+          painPoints: r.painPoints,
+          readyToCall: r.readyToCall,
+          websiteAnalysis: r.websiteAnalysis,
+        })),
+        {
+          searchQuery: query,
+          searchLocation: location,
+          sourceType: searchType,
+          clearPrevious: true
+        }
+      );
+
+      if (response.success) {
+        const timestamp = new Date().toISOString();
+        localStorage.setItem('bamlead_search_timestamp', timestamp);
+        setLastSavedAt(timestamp);
+        toast.success(`Saved ${searchResults.length} leads to cloud backup`);
+        return true;
+      } else {
+        toast.error('Failed to save: ' + (response.error || 'Unknown error'));
+        return false;
+      }
+    } catch (error) {
+      console.error('[BamLead] Manual save error:', error);
+      toast.error('Save failed. Please try again.');
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Restore from version snapshot
+  const handleRestoreVersion = (version: { leads: SearchResult[]; timestamp: string; query?: string; location?: string }) => {
+    setSearchResults(version.leads);
+    localStorage.setItem('bamlead_search_results', JSON.stringify(version.leads));
+    
+    if (version.query) {
+      setQuery(version.query);
+      localStorage.setItem('bamlead_query', version.query);
+    }
+    if (version.location) {
+      setLocation(version.location);
+      localStorage.setItem('bamlead_location', version.location);
+    }
+    
+    setRestoredFromSession({
+      source: 'localStorage',
+      timestamp: version.timestamp,
+      leadCount: version.leads.length
+    });
+  };
+
   // Load persisted leads on dashboard init (runs once on mount)
   // Priority: 1) localStorage (survives logout), 2) Database (remote backup)
   // Leads only clear when user explicitly clicks "Clear All Data"
@@ -453,7 +539,9 @@ export default function Dashboard() {
         if (response.success) {
           console.log('[BamLead] Auto-save successful:', response.data?.saved, 'leads');
           // Update timestamp
-          localStorage.setItem('bamlead_search_timestamp', new Date().toISOString());
+          const timestamp = new Date().toISOString();
+          localStorage.setItem('bamlead_search_timestamp', timestamp);
+          setLastSavedAt(timestamp);
         } else {
           console.warn('[BamLead] Auto-save failed:', response.error);
         }
@@ -1052,11 +1140,14 @@ export default function Dashboard() {
     localStorage.removeItem('bamlead_selected_leads');
     localStorage.removeItem('bamlead_step2_visited');
     localStorage.removeItem('bamlead_search_timestamp');
+    localStorage.removeItem('bamlead_lead_versions');
     // Clear filter settings
     localStorage.removeItem('bamlead_filter_no_website');
     localStorage.removeItem('bamlead_filter_not_mobile');
     localStorage.removeItem('bamlead_filter_outdated');
     localStorage.removeItem('bamlead_filter_phone_only');
+    // Reset state
+    setLastSavedAt(null);
     // Also clear any legacy sessionStorage entries
     sessionStorage.removeItem('bamlead_current_step');
     sessionStorage.removeItem('bamlead_search_type');
@@ -1871,6 +1962,10 @@ export default function Dashboard() {
             onOpenAIScoring={() => setShowAIScoringDashboard(true)}
             restoredFromSession={restoredFromSession}
             onDismissRestored={() => setRestoredFromSession(null)}
+            onManualSave={handleManualSave}
+            onRestoreVersion={handleRestoreVersion}
+            isSaving={isSaving}
+            lastSavedAt={lastSavedAt}
           />
         );
 

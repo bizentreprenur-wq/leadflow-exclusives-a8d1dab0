@@ -21,7 +21,8 @@ import {
   Users, Mail, Search, X,
   FileSpreadsheet, Printer, Star,
   Sparkles, Database, Clock, FileText,
-  Send, Calendar, ChevronRight, History
+  Send, Calendar, ChevronRight, History,
+  Save, RotateCcw, Loader2, Check
 } from 'lucide-react';
 import WebsitePreviewIcon from './WebsitePreviewIcon';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -103,6 +104,15 @@ interface RestoredSessionInfo {
   leadCount: number;
 }
 
+interface LeadVersionSnapshot {
+  id: string;
+  timestamp: string;
+  leadCount: number;
+  leads: SearchResult[];
+  query?: string;
+  location?: string;
+}
+
 interface SimpleLeadViewerProps {
   leads: SearchResult[];
   onBack: () => void;
@@ -117,6 +127,10 @@ interface SimpleLeadViewerProps {
   onLoadHistorySearch?: (search: SearchHistoryItem) => void;
   restoredFromSession?: RestoredSessionInfo | null;
   onDismissRestored?: () => void;
+  onManualSave?: () => Promise<boolean>;
+  onRestoreVersion?: (version: LeadVersionSnapshot) => void;
+  isSaving?: boolean;
+  lastSavedAt?: string | null;
 }
 
 interface SearchHistoryItem {
@@ -142,12 +156,31 @@ export default function SimpleLeadViewer({
   onLoadHistorySearch,
   restoredFromSession,
   onDismissRestored,
+  onManualSave,
+  onRestoreVersion,
+  isSaving = false,
+  lastSavedAt,
 }: SimpleLeadViewerProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeFilter, setActiveFilter] = useState<'all' | 'hot' | 'warm' | 'cold' | 'ready' | 'nosite' | 'phoneOnly' | 'withEmail'>('all');
   const [showSaved, setShowSaved] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchHistory, setSearchHistory] = useState<SearchHistoryItem[]>([]);
+  const [versionHistory, setVersionHistory] = useState<LeadVersionSnapshot[]>([]);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  // Load version history from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('bamlead_lead_versions');
+      if (saved) {
+        setVersionHistory(JSON.parse(saved));
+      }
+    } catch (e) {
+      console.error('Failed to load version history:', e);
+    }
+  }, []);
 
   // Load search history from localStorage (separate from Clear All Data)
   useEffect(() => {
@@ -422,8 +455,141 @@ export default function SimpleLeadViewer({
     }
   };
 
+  // Handle manual save with visual feedback
+  const handleManualSave = async () => {
+    if (!onManualSave) return;
+    
+    const success = await onManualSave();
+    if (success) {
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+      
+      // Add to version history
+      const newVersion: LeadVersionSnapshot = {
+        id: `v_${Date.now()}`,
+        timestamp: new Date().toISOString(),
+        leadCount: leads.length,
+        leads: [...leads],
+        query: localStorage.getItem('bamlead_query') || undefined,
+        location: localStorage.getItem('bamlead_location') || undefined,
+      };
+      
+      const updated = [newVersion, ...versionHistory].slice(0, 5);
+      setVersionHistory(updated);
+      localStorage.setItem('bamlead_lead_versions', JSON.stringify(updated));
+    }
+  };
+
+  // Handle restore from version
+  const handleRestoreVersion = (version: LeadVersionSnapshot) => {
+    if (onRestoreVersion) {
+      onRestoreVersion(version);
+      setShowVersionHistory(false);
+      toast.success(`Restored ${version.leadCount} leads from ${formatRestoredTime(version.timestamp)}`);
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-4">
+      {/* Data Backup Bar - Always visible when leads exist */}
+      {leads.length > 0 && (
+        <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-slate-500/10 via-slate-500/5 to-transparent border border-border">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10">
+              <Database className="w-4 h-4 text-primary" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-medium">
+                {leads.length} leads in workspace
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {lastSavedAt 
+                  ? `Last saved ${formatRestoredTime(lastSavedAt)}`
+                  : 'Auto-saves every 60 seconds'
+                }
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {/* Manual Save Button */}
+            {onManualSave && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleManualSave}
+                disabled={isSaving}
+                className={`gap-2 transition-all ${saveSuccess ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400' : ''}`}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : saveSuccess ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    Saved!
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Save Now
+                  </>
+                )}
+              </Button>
+            )}
+            
+            {/* Version History Dropdown */}
+            {versionHistory.length > 0 && (
+              <DropdownMenu open={showVersionHistory} onOpenChange={setShowVersionHistory}>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <RotateCcw className="w-4 h-4" />
+                    History
+                    <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-xs">
+                      {versionHistory.length}
+                    </Badge>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-72">
+                  <div className="px-2 py-1.5 text-xs font-medium text-muted-foreground border-b mb-1">
+                    Lead Snapshots (last 5 saves)
+                  </div>
+                  {versionHistory.map((version) => (
+                    <DropdownMenuItem
+                      key={version.id}
+                      onClick={() => handleRestoreVersion(version)}
+                      className="flex flex-col items-start gap-1 cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2 w-full">
+                        <Clock className="w-3 h-3 text-muted-foreground" />
+                        <span className="font-medium">{version.leadCount} leads</span>
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          {formatRestoredTime(version.timestamp)}
+                        </span>
+                      </div>
+                      {version.query && (
+                        <span className="text-xs text-muted-foreground pl-5 truncate max-w-full">
+                          "{version.query}" in {version.location}
+                        </span>
+                      )}
+                    </DropdownMenuItem>
+                  ))}
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground border-t mt-1">
+                    Click to restore a previous snapshot
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+            
+            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+              <Database className="w-3 h-3 mr-1" />
+              Auto-save ON
+            </Badge>
+          </div>
+        </div>
+      )}
+
       {/* Restored Session Banner */}
       {restoredFromSession && (
         <div className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-emerald-500/20 via-emerald-500/10 to-transparent border border-emerald-500/30 animate-in slide-in-from-top-2 duration-300">
@@ -437,26 +603,19 @@ export default function SimpleLeadViewer({
               </span>
               <span className="text-xs text-muted-foreground">
                 {restoredFromSession.leadCount} leads from your search {formatRestoredTime(restoredFromSession.timestamp)}
-                {restoredFromSession.source === 'database' && ' • Auto-saved to cloud'}
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
-              <Database className="w-3 h-3 mr-1" />
-              Auto-save ON
-            </Badge>
-            {onDismissRestored && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-                onClick={onDismissRestored}
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            )}
-          </div>
+          {onDismissRestored && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+              onClick={onDismissRestored}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       )}
 
