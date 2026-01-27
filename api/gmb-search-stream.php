@@ -352,6 +352,14 @@ function normalizeBusinessResult($item, $engine, $sourceName) {
         return null;
     }
     
+    // Extract email from snippet if available
+    $email = extractEmailFromText($snippet);
+    
+    // Also try to extract phone from snippet if not found directly
+    if (empty($phone) && !empty($snippet)) {
+        $phone = extractPhoneFromText($snippet);
+    }
+    
     return [
         'id' => generateId(strtolower(substr($engine, 0, 3)) . '_'),
         'name' => $name,
@@ -360,12 +368,42 @@ function normalizeBusinessResult($item, $engine, $sourceName) {
         'displayLink' => parse_url($websiteUrl, PHP_URL_HOST) ?? '',
         'address' => $address,
         'phone' => $phone,
+        'email' => $email,
         'rating' => $rating,
         'reviews' => $reviews,
         'source' => $sourceName,
         'websiteAnalysis' => quickWebsiteCheck($websiteUrl)
     ];
 }
+
+/**
+ * Extract email from text
+ */
+function extractEmailFromText($text) {
+    if (empty($text)) return null;
+    if (preg_match('/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/', $text, $matches)) {
+        $email = strtolower($matches[0]);
+        // Filter out common non-business emails
+        $excludePatterns = ['example.com', 'test.com', 'domain.com', 'email.com', 'sample.', 'noreply', 'no-reply'];
+        foreach ($excludePatterns as $pattern) {
+            if (strpos($email, $pattern) !== false) {
+                return null;
+            }
+        }
+        return $email;
+    }
+    return null;
+}
+
+/**
+ * Extract phone from text
+ */
+function extractPhoneFromText($text) {
+    if (empty($text)) return null;
+    if (preg_match('/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/', $text, $matches)) {
+        return $matches[0];
+    }
+    return null;
 
 /**
  * Quick website check - URL-based only
