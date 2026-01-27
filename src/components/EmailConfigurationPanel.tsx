@@ -212,17 +212,9 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
         });
       }
     } catch (error) {
-      // Fallback to simulated test if API unavailable
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      if (smtpConfig.username && smtpConfig.password) {
-        toast.success('SMTP configuration looks good!', {
-          description: `Will connect to ${smtpConfig.host}:${smtpConfig.port}`,
-        });
-        setIsConnected(true);
-      } else {
-        toast.error('Please enter SMTP credentials');
-      }
+      toast.error('SMTP test failed', {
+        description: 'Unable to reach the test endpoint. Please try again or check your API.',
+      });
     } finally {
       setIsTesting(false);
     }
@@ -873,6 +865,28 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
                   checked={smtpConfig.secure}
                   onCheckedChange={(checked) => setSMTPConfig(prev => ({ ...prev, secure: checked }))}
                 />
+              </div>
+
+              {/* Quick SMTP Test */}
+              <div className="flex items-center justify-center gap-3">
+                <Button
+                  onClick={handleTestConnection}
+                  disabled={isTesting || !smtpConfig.username || !smtpConfig.password}
+                  className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/30"
+                >
+                  {isTesting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="w-4 h-4" />
+                  )}
+                  {isTesting ? 'Testing...' : 'Test SMTP'}
+                </Button>
+                {isConnected && (
+                  <Badge className="bg-emerald-500/20 text-emerald-600 border-emerald-500/30 gap-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Verified
+                  </Badge>
+                )}
               </div>
 
               <Separator />

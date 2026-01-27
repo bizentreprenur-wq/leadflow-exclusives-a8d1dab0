@@ -906,36 +906,84 @@ function handleTestSMTP($db, $user) {
         return;
     }
     
-    // Test connection
+    // Prefer a real SMTP auth test via PHPMailer (ensures credentials are valid)
+    $autoloadPath = __DIR__ . '/vendor/autoload.php';
+    if (!class_exists('PHPMailer\\PHPMailer\\PHPMailer') && file_exists($autoloadPath)) {
+        require_once $autoloadPath;
+    }
+
+    if (class_exists('PHPMailer\\PHPMailer\\PHPMailer')) {
+        try {
+            $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
+            $mail->isSMTP();
+            $mail->Host = $host;
+            $mail->Port = (int)$port;
+            $mail->SMTPAuth = true;
+            $mail->Username = $username;
+            $mail->Password = $password;
+
+            $secureLower = strtolower((string)$secure);
+            if ($secureLower === 'ssl' || $secureLower === 'smtps' || (int)$port === 465) {
+                $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+            } elseif ($secureLower === 'tls' || $secureLower === 'starttls') {
+                $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+            } else {
+                $mail->SMTPSecure = '';
+            }
+
+            $mail->SMTPAutoTLS = !($mail->SMTPSecure === \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS || (int)$port === 465);
+            $mail->Timeout = 10;
+            $mail->SMTPDebug = 0;
+
+            if ($mail->smtpConnect()) {
+                $mail->smtpClose();
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'SMTP authentication successful',
+                ]);
+                return;
+            }
+
+            echo json_encode([
+                'success' => false,
+                'error' => $mail->ErrorInfo ?: 'SMTP authentication failed',
+            ]);
+            return;
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'error' => 'SMTP test failed: ' . $e->getMessage()]);
+            return;
+        }
+    }
+
+    // Fallback: raw socket connectivity check (no auth)
     try {
         $errno = 0;
         $errstr = '';
         $timeout = 10;
-        
-        // Try to connect to the SMTP server
+
         $protocol = ($secure === 'ssl' || $port == 465) ? 'ssl://' : '';
         $connection = @fsockopen($protocol . $host, (int)$port, $errno, $errstr, $timeout);
-        
+
         if ($connection) {
             $response = fgets($connection, 512);
             fclose($connection);
-            
+
             if (strpos($response, '220') === 0) {
                 echo json_encode([
                     'success' => true,
-                    'message' => 'SMTP connection successful',
+                    'message' => 'SMTP connection successful (auth not tested)',
                     'server_response' => trim($response)
                 ]);
                 return;
             }
         }
-        
+
         echo json_encode([
             'success' => false,
             'error' => $errstr ?: 'Could not connect to SMTP server',
             'errno' => $errno
         ]);
-        
     } catch (Exception $e) {
         http_response_code(500);
         echo json_encode(['success' => false, 'error' => 'Connection test failed: ' . $e->getMessage()]);
