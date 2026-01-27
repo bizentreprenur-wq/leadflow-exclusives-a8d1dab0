@@ -524,20 +524,20 @@ export default function ComposeEmailModal({
               )}
             </button>
 
-            {/* Mode 3: AI Autopilot Campaign */}
+            {/* Mode 3: AI Autopilot Campaign - YELLOW THEME */}
             <button
               onClick={() => setComposeMode('autopilot')}
               className={cn(
                 "p-4 rounded-xl border-2 transition-all text-left relative",
                 composeMode === 'autopilot'
-                  ? "border-emerald-500 bg-emerald-500/10"
-                  : "border-border hover:border-emerald-500/50 bg-muted/30"
+                  ? "border-amber-500 bg-gradient-to-br from-amber-500/20 to-orange-500/10 shadow-lg shadow-amber-500/10"
+                  : "border-amber-500/30 hover:border-amber-500/60 bg-amber-500/5"
               )}
             >
               <div className="flex items-center gap-2 mb-2">
                 <Crown className="w-5 h-5 text-amber-400" />
-                <span className="font-semibold text-foreground text-sm">AI Autopilot</span>
-                <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[8px] px-1.5">
+                <span className="font-semibold text-amber-400 text-sm">AI Autopilot</span>
+                <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[8px] px-1.5 border-0">
                   PRO
                 </Badge>
               </div>
@@ -545,7 +545,7 @@ export default function ComposeEmailModal({
                 AI handles everything: Drip → Follow-ups → Responses ($39/mo)
               </p>
               {hasAutopilotSubscription && (
-                <Badge className="absolute top-2 right-2 bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[9px]">
+                <Badge className="absolute top-2 right-2 bg-amber-500/20 text-amber-400 border-amber-500/30 text-[9px]">
                   Active
                 </Badge>
               )}

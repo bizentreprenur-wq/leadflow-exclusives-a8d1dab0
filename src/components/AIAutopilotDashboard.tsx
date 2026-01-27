@@ -254,15 +254,15 @@ export default function AIAutopilotDashboard({
   const getStatusBadge = (status: AutopilotLead['status']) => {
     switch (status) {
       case 'active':
-        return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[9px] gap-1"><Play className="w-3 h-3" />Active</Badge>;
+        return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[9px] gap-1"><Play className="w-3 h-3" />AI Active</Badge>;
       case 'paused':
         return <Badge className="bg-gray-500/20 text-gray-400 border-gray-500/30 text-[9px] gap-1"><Pause className="w-3 h-3" />Paused</Badge>;
       case 'completed':
         return <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-[9px] gap-1"><CheckCircle2 className="w-3 h-3" />Completed</Badge>;
       case 'responded':
-        return <Badge className="bg-primary/20 text-primary border-primary/30 text-[9px] gap-1 animate-pulse"><Reply className="w-3 h-3" />Responded</Badge>;
+        return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[9px] gap-1 animate-pulse"><Reply className="w-3 h-3" />Responded</Badge>;
       case 'proposal_ready':
-        return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[9px] gap-1 animate-pulse"><FileText className="w-3 h-3" />Proposal Ready</Badge>;
+        return <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-[9px] gap-1 animate-pulse"><FileText className="w-3 h-3" />Proposal Ready</Badge>;
       default:
         return null;
     }
@@ -301,32 +301,26 @@ export default function AIAutopilotDashboard({
         <AutopilotTrialWarning variant="compact" showUpgradeButton={true} />
       )}
 
-      {/* Header */}
+      {/* Header - Yellow/Amber AI Autopilot Branding */}
       <div className={cn("flex items-center justify-between", isExpired && "opacity-30 pointer-events-none")}>
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center">
-            <Bot className="w-6 h-6 text-amber-400" />
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20">
+            <Crown className="w-6 h-6 text-white" />
           </div>
           <div>
             <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-              AI Autopilot Dashboard
+              AI Autopilot
+              <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] px-2 border-0">
+                PRO
+              </Badge>
               {!isExpired && (
-                <Badge className={cn(
-                  "text-xs",
-                  trialStatus.isPaid 
-                    ? "bg-amber-500/20 text-amber-400 border-amber-500/30" 
-                    : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                )}>
-                  {trialStatus.isPaid ? (
-                    <><Crown className="w-3 h-3 mr-1" />PRO</>
-                  ) : (
-                    <>{stats.active} Active</>
-                  )}
+                <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs">
+                  {trialStatus.isPaid ? 'Active' : `${stats.active} Running`}
                 </Badge>
               )}
             </h2>
             <p className="text-sm text-muted-foreground">
-              Real-time monitoring of automated conversations
+              AI handles everything: Drip → Follow-ups → Responses ($39/mo)
             </p>
           </div>
         </div>
@@ -342,13 +336,13 @@ export default function AIAutopilotDashboard({
               {trialStatus.trialDaysRemaining} days left
             </Badge>
           )}
-          <div className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 border border-border">
-            <span className="text-xs text-muted-foreground">Autopilot</span>
+          <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
+            <span className="text-xs text-amber-400 font-medium">Autopilot</span>
             <Switch
               checked={autopilotEnabled && canUseAutopilot}
               onCheckedChange={setAutopilotEnabled}
               disabled={!canUseAutopilot}
-              className="data-[state=checked]:bg-emerald-500"
+              className="data-[state=checked]:bg-amber-500"
             />
           </div>
           <Button
@@ -374,11 +368,11 @@ export default function AIAutopilotDashboard({
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-emerald-500/10 border-emerald-500/30">
+        <Card className="bg-amber-500/10 border-amber-500/30">
           <CardContent className="pt-4 text-center">
-            <div className="text-2xl font-bold text-emerald-400">{stats.active}</div>
+            <div className="text-2xl font-bold text-amber-400">{stats.active}</div>
             <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-              <Play className="w-3 h-3 text-emerald-400" /> Active
+              <Play className="w-3 h-3 text-amber-400" /> AI Active
             </div>
           </CardContent>
         </Card>

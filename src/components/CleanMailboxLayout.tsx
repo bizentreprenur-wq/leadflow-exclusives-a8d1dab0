@@ -324,12 +324,14 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
                     mainTab === tab.id
                       ? tab.id === 'automation' 
-                        ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white"
+                        ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/20"
                         : "bg-emerald-600 text-white"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                      : tab.id === 'automation'
+                        ? "text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 border border-transparent hover:border-amber-500/30"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                   )}
                 >
-                  <tab.icon className="w-4 h-4" />
+                  <tab.icon className={cn("w-4 h-4", tab.id === 'automation' && mainTab !== 'automation' && "text-amber-400")} />
                   {tab.label}
                   {tab.id === 'inbox' && (
                     <Badge className="ml-auto bg-red-500 text-white text-[10px] px-1.5">
@@ -337,7 +339,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                     </Badge>
                   )}
                   {(tab as any).isPro && (
-                    <Badge className="ml-auto bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[8px] px-1.5">
+                    <Badge className="ml-auto bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[8px] px-1.5 border-0">
                       PRO
                     </Badge>
                   )}
@@ -345,27 +347,30 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
               ))}
             </nav>
 
-            {/* Mode Indicator */}
+            {/* AI Autopilot Mode Indicator - Yellow Theme */}
             <div className="p-4 border-t border-border">
               <div className={cn(
-                "p-3 rounded-lg border",
+                "p-3 rounded-lg border-2 transition-all",
                 automation.doneForYouMode 
-                  ? "bg-emerald-500/10 border-emerald-500/30" 
+                  ? "bg-gradient-to-br from-amber-500/20 to-orange-500/10 border-amber-500/40 shadow-lg shadow-amber-500/10" 
                   : "bg-muted/30 border-border"
               )}>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-medium text-foreground">
-                    {automation.doneForYouMode ? '🤖 AI Autopilot' : '👤 Manual Mode'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <Crown className={cn("w-4 h-4", automation.doneForYouMode ? "text-amber-400" : "text-muted-foreground")} />
+                    <span className={cn("text-xs font-semibold", automation.doneForYouMode ? "text-amber-400" : "text-foreground")}>
+                      {automation.doneForYouMode ? 'AI Autopilot' : 'Manual Mode'}
+                    </span>
+                  </div>
                   <Switch
                     checked={automation.doneForYouMode}
                     onCheckedChange={(v) => setAutomation(prev => ({ ...prev, doneForYouMode: v }))}
-                    className="data-[state=checked]:bg-emerald-500 scale-75"
+                    className="data-[state=checked]:bg-amber-500 scale-75"
                   />
                 </div>
                 <p className="text-[10px] text-muted-foreground">
                   {automation.doneForYouMode 
-                    ? 'AI is nurturing leads automatically' 
+                    ? 'AI handles Drip → Follow-ups → Responses' 
                     : 'You control all outreach'}
                 </p>
               </div>
