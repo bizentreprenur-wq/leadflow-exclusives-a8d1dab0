@@ -64,6 +64,9 @@ type ComposeMode = 'regular' | 'campaign' | 'autopilot';
 // Sub-tabs within campaign mode
 type CampaignTab = 'leads' | 'template' | 'sequence' | 'review';
 
+// Campaign target type
+type CampaignTarget = 'all' | 'hot' | 'warm' | 'cold';
+
 export default function ComposeEmailModal({
   isOpen,
   onClose,
@@ -80,6 +83,7 @@ export default function ComposeEmailModal({
   // Core state
   const [composeMode, setComposeMode] = useState<ComposeMode>('regular');
   const [campaignTab, setCampaignTab] = useState<CampaignTab>('leads');
+  const [campaignTarget, setCampaignTarget] = useState<CampaignTarget>('all');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [email, setEmail] = useState({ to: '', subject: '', body: '', scheduledFor: null as Date | null });
   const [isSending, setIsSending] = useState(false);
@@ -545,9 +549,79 @@ export default function ComposeEmailModal({
 
                   {/* Step 1: Leads */}
                   <TabsContent value="leads" className="mt-4 space-y-4">
+                    {/* Campaign Target Selection */}
+                    <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                      <h4 className="font-semibold text-foreground text-sm mb-3 flex items-center gap-2">
+                        <Target className="w-4 h-4 text-primary" />
+                        Campaign Type
+                      </h4>
+                      <div className="grid grid-cols-4 gap-2">
+                        <button
+                          onClick={() => setCampaignTarget('all')}
+                          className={cn(
+                            "p-3 rounded-lg border-2 transition-all text-center",
+                            campaignTarget === 'all'
+                              ? "border-primary bg-primary/10"
+                              : "border-border hover:border-primary/50"
+                          )}
+                        >
+                          <Users className="w-5 h-5 mx-auto mb-1 text-primary" />
+                          <span className="text-xs font-medium">All Leads</span>
+                          <p className="text-[10px] text-muted-foreground">{safeLeads.length}</p>
+                        </button>
+                        <button
+                          onClick={() => setCampaignTarget('hot')}
+                          className={cn(
+                            "p-3 rounded-lg border-2 transition-all text-center",
+                            campaignTarget === 'hot'
+                              ? "border-red-500 bg-red-500/10"
+                              : "border-border hover:border-red-500/50"
+                          )}
+                        >
+                          <Flame className="w-5 h-5 mx-auto mb-1 text-red-400" />
+                          <span className="text-xs font-medium">Hot</span>
+                          <p className="text-[10px] text-muted-foreground">
+                            {safeLeads.filter(l => l.aiClassification === 'hot').length}
+                          </p>
+                        </button>
+                        <button
+                          onClick={() => setCampaignTarget('warm')}
+                          className={cn(
+                            "p-3 rounded-lg border-2 transition-all text-center",
+                            campaignTarget === 'warm'
+                              ? "border-amber-500 bg-amber-500/10"
+                              : "border-border hover:border-amber-500/50"
+                          )}
+                        >
+                          <ThermometerSun className="w-5 h-5 mx-auto mb-1 text-amber-400" />
+                          <span className="text-xs font-medium">Warm</span>
+                          <p className="text-[10px] text-muted-foreground">
+                            {safeLeads.filter(l => l.aiClassification === 'warm').length}
+                          </p>
+                        </button>
+                        <button
+                          onClick={() => setCampaignTarget('cold')}
+                          className={cn(
+                            "p-3 rounded-lg border-2 transition-all text-center",
+                            campaignTarget === 'cold'
+                              ? "border-blue-500 bg-blue-500/10"
+                              : "border-border hover:border-blue-500/50"
+                          )}
+                        >
+                          <Snowflake className="w-5 h-5 mx-auto mb-1 text-blue-400" />
+                          <span className="text-xs font-medium">Cold</span>
+                          <p className="text-[10px] text-muted-foreground">
+                            {safeLeads.filter(l => l.aiClassification === 'cold' || !l.aiClassification).length}
+                          </p>
+                        </button>
+                      </div>
+                    </div>
+
                     <div className="p-4 rounded-xl bg-muted/30 border border-border">
                       <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-semibold text-foreground text-sm">Lead Queue</h4>
+                        <h4 className="font-semibold text-foreground text-sm">
+                          Lead Queue {campaignTarget !== 'all' && `(${campaignTarget.toUpperCase()})`}
+                        </h4>
                         {getSearchBadge()}
                       </div>
                       
@@ -560,14 +634,28 @@ export default function ComposeEmailModal({
                       ) : (
                         <>
                           <LeadQueueIndicator
-                            leads={safeLeads}
+                            leads={campaignTarget === 'all' 
+                              ? safeLeads 
+                              : safeLeads.filter(l => 
+                                  campaignTarget === 'cold' 
+                                    ? (l.aiClassification === 'cold' || !l.aiClassification)
+                                    : l.aiClassification === campaignTarget
+                                )
+                            }
                             currentIndex={currentLeadIndex}
                             lastSentIndex={lastSentIndex}
                             variant="horizontal"
                           />
                           <ScrollArea className="h-[200px] mt-4">
                             <div className="space-y-2">
-                              {safeLeads.map((lead, idx) => (
+                              {(campaignTarget === 'all' 
+                                ? safeLeads 
+                                : safeLeads.filter(l => 
+                                    campaignTarget === 'cold' 
+                                      ? (l.aiClassification === 'cold' || !l.aiClassification)
+                                      : l.aiClassification === campaignTarget
+                                  )
+                              ).map((lead, idx) => (
                                 <button
                                   key={lead?.id ?? idx}
                                   onClick={() => {
@@ -621,17 +709,19 @@ export default function ComposeEmailModal({
 
                   {/* Step 2: Template */}
                   <TabsContent value="template" className="mt-4 space-y-4">
-                    {showAISubjects && currentLead && (
+                    {showAISubjects && (
                       <AISubjectLineGenerator
-                        currentLead={{
+                        currentLead={currentLead ? {
                           business_name: currentLead.business_name || currentLead.name,
                           first_name: currentLead.first_name || currentLead.contact_name,
                           industry: currentLead.industry,
                           aiClassification: currentLead.aiClassification,
                           hasWebsite: !!currentLead.website,
                           websiteIssues: currentLead.websiteIssues,
-                        }}
+                        } : undefined}
                         onSelect={(subject) => setEmail(prev => ({ ...prev, subject }))}
+                        campaignType={campaignTarget === 'all' ? undefined : campaignTarget}
+                        searchType={detectedSearchType}
                       />
                     )}
 
