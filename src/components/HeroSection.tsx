@@ -10,10 +10,10 @@ const HeroSection = () => {
   const { t } = useLanguage();
 
   const secretFeatures = [
-    { icon: Brain, label: "AI Business Intelligence", color: "text-primary" },
-    { icon: Heart, label: "Sales Intelligence", color: "text-accent" },
-    { icon: Eye, label: "Growth Signals", color: "text-blue-400" },
-    { icon: Target, label: "Lead Scoring", color: "text-purple-400" },
+    { icon: Brain, label: "10 AI Research Categories", color: "text-primary" },
+    { icon: Eye, label: "100+ Data Points", color: "text-accent" },
+    { icon: Heart, label: "Competitor Intel", color: "text-blue-400" },
+    { icon: Target, label: "Buying Signals", color: "text-purple-400" },
   ];
 
   const containerVariants = {
@@ -78,7 +78,7 @@ const HeroSection = () => {
               variants={itemVariants}
               className="text-lg md:text-xl text-muted-foreground max-w-xl leading-relaxed"
             >
-              The most advanced AI-powered business search. Get <span className="text-primary font-medium">complete intelligence</span> on any business — website health, reviews, social presence, growth signals & more. Built for <span className="text-accent font-medium">sales teams</span>, <span className="text-violet-400 font-medium">agencies</span>, and <span className="text-emerald-400 font-medium">digital professionals</span>.
+              The most advanced AI-powered business search with <span className="text-primary font-medium">10 research categories</span> and <span className="text-accent font-medium">100+ data points</span> — website health, competitor intel, buying signals, tech stack, reputation analysis & AI-powered actions. Built for <span className="text-violet-400 font-medium">agencies</span>, <span className="text-emerald-400 font-medium">sales teams</span>, and <span className="text-blue-400 font-medium">serious professionals</span>.
             </motion.p>
 
             {/* Secret Features Pills */}
@@ -157,8 +157,8 @@ const HeroSection = () => {
                   </span>
                   🤖 SUPER AI ACTIVE
                 </Badge>
-                <p className="text-sm text-foreground font-semibold">Business Intelligence Engine</p>
-                <p className="text-xs text-muted-foreground mt-1">Analyzing 100+ data points per business</p>
+                <p className="text-sm text-foreground font-semibold">10 AI Research Categories</p>
+                <p className="text-xs text-muted-foreground mt-1">Website • Reputation • Tech Stack • Competitors • Buying Signals</p>
               </div>
 
               {/* Mascot Ring with Enhanced Animation */}

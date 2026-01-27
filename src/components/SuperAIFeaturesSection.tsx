@@ -1,84 +1,175 @@
 import { 
   Building2, Globe, Phone, MapPin, Star, TrendingUp, Shield, Users,
   Search, BarChart3, Target, Zap, CheckCircle2, Brain, Eye, 
-  FileText, Share2, DollarSign, Settings, Briefcase, Award
+  FileText, Share2, DollarSign, Settings, Briefcase, Award,
+  Cpu, Lock, MessageSquare, Activity, AlertTriangle, Lightbulb,
+  ShoppingCart, Heart, Factory, LineChart
 } from "lucide-react";
 import { motion } from "framer-motion";
 
 const SuperAIFeaturesSection = () => {
-  const featureCategories = [
+  // 10 AI Research Categories matching the Super AI Business Search
+  const aiResearchCategories = [
     {
-      title: "Business Identity & Validation",
-      icon: Building2,
-      color: "primary",
-      features: [
-        "Business Name & Industry",
-        "Operating Status & Years",
-        "Physical Address & Service Area",
-        "Phone & Email Validation",
-        "Business Hours"
-      ]
-    },
-    {
-      title: "Website Health & Conversion",
+      emoji: "🌐",
+      title: "Website & Digital Health",
       icon: Globe,
       color: "emerald",
       features: [
-        "SSL Status & Mobile Friendly",
+        "CMS Detection (WordPress, Webflow, Wix)",
+        "SSL Status & Domain Age",
+        "Mobile Responsiveness Score",
         "Page Speed & Core Web Vitals",
-        "CTA & Contact Form Detection",
-        "Booking System & Live Chat",
-        "Trust Badges & Testimonials"
+        "Broken Links & UX Issues",
+        "Conversion Elements (Forms, CTAs, Chat)",
+        "Analytics & Tracking Pixels"
       ]
     },
     {
+      emoji: "📈",
+      title: "Online Presence & Visibility",
+      icon: Eye,
+      color: "blue",
+      features: [
+        "Google Business Profile Status",
+        "Listing Completeness Score",
+        "Local SEO Strength",
+        "Citation Consistency",
+        "Backlink Profile Indicators",
+        "Brand Mentions & PR",
+        "Knowledge Panel Presence"
+      ]
+    },
+    {
+      emoji: "⭐",
       title: "Reviews & Reputation",
       icon: Star,
       color: "amber",
       features: [
-        "Google Review Count & Rating",
-        "Review Velocity & Recency",
-        "Owner Response Rate",
-        "Negative Review Flags",
-        "BBB & Consumer Protection"
+        "Multi-Platform Review Aggregation",
+        "Average Rating Trends",
+        "Review Velocity (New/Month)",
+        "Sentiment Analysis",
+        "Recurring Complaint Themes",
+        "Response Rate to Reviews",
+        "Competitor Rating Comparison"
       ]
     },
     {
-      title: "Social Media Presence",
-      icon: Share2,
-      color: "blue",
+      emoji: "🧠",
+      title: "AI Opportunity & Gap Analysis",
+      icon: Lightbulb,
+      color: "primary",
       features: [
-        "Facebook, Instagram, LinkedIn",
-        "TikTok & YouTube Detection",
-        "Posting Frequency",
-        "Last Activity Date",
-        "Engagement Signals"
+        "Missed Conversion Opportunities",
+        "Website Improvement Suggestions",
+        "SEO Gap Identification",
+        "Paid Ads Readiness Score",
+        "Automation Potential",
+        "AI-Recommended Services to Pitch",
+        "Estimated Monthly Revenue Lift"
       ]
     },
     {
-      title: "Tracking & Analytics",
-      icon: BarChart3,
+      emoji: "🛠",
+      title: "Technology Stack",
+      icon: Cpu,
       color: "violet",
       features: [
-        "Google Analytics (GA4)",
-        "Google Tag Manager",
-        "Facebook & TikTok Pixels",
-        "LinkedIn Insight Tag",
-        "Call Tracking Detection"
+        "Analytics Tools (GA4, GTM)",
+        "Ad Platforms (Google, Meta, TikTok)",
+        "CRM Detection",
+        "Email Marketing Platforms",
+        "Chatbots & Live Chat Tools",
+        "Booking & Payment Gateways",
+        "Hosting Provider & CDN"
       ]
     },
     {
-      title: "AI Scoring & Intelligence",
-      icon: Brain,
+      emoji: "🎯",
+      title: "Lead Intent & Buying Signals",
+      icon: Target,
       color: "accent",
       features: [
-        "Overall Business Health Score",
-        "Website & Visibility Score",
-        "Conversion & Reputation Score",
-        "Growth Opportunity Score",
-        "Recommended Next Action"
+        "Hiring Activity Signals",
+        "Funding Events Detection",
+        "Recent Website Changes",
+        "Ad Spend Signals",
+        "Marketing Activity Spikes",
+        "Traffic Growth Indicators",
+        "AI Intent Score"
+      ]
+    },
+    {
+      emoji: "🥊",
+      title: "Competitor & Market Intel",
+      icon: BarChart3,
+      color: "orange",
+      features: [
+        "Direct Competitors Identified",
+        "Market Share Indicators",
+        "Competitive Gap Analysis",
+        "Pricing Signal Detection",
+        "Competitor Tech Comparison",
+        "Ranking Comparison",
+        "Differentiation Opportunities"
+      ]
+    },
+    {
+      emoji: "📊",
+      title: "Sales & Outreach Readiness",
+      icon: MessageSquare,
+      color: "pink",
+      features: [
+        "Decision-Maker Estimation",
+        "Contact Channels Available",
+        "Response Likelihood Score",
+        "Preferred Outreach Channel",
+        "Personalization Hooks",
+        "Suggested Pitch Angle",
+        "Closing Probability Score"
+      ]
+    },
+    {
+      emoji: "🧩",
+      title: "Compliance & Trust Signals",
+      icon: Shield,
+      color: "slate",
+      features: [
+        "Privacy Policy Status",
+        "Cookie Compliance Check",
+        "ADA Risk Indicators",
+        "Security Headers Analysis",
+        "Data Handling Indicators",
+        "Domain Trust Score",
+        "Spam Risk Assessment"
+      ]
+    },
+    {
+      emoji: "🧪",
+      title: "AI Smart Actions",
+      icon: Brain,
+      color: "teal",
+      features: [
+        "AI Business Health Summary",
+        "AI-Generated Talking Points",
+        "Recommended First Message",
+        "Suggested Follow-up Cadence",
+        "Auto-Generated Proposal Ideas",
+        "'Why Now' Insight",
+        "Competitor-Aware Messaging"
       ]
     }
+  ];
+
+  // Industry-specific data layers
+  const industryLayers = [
+    { icon: Cpu, name: "SaaS", features: "ARR signals, churn risk, API presence, product-led growth" },
+    { icon: MapPin, name: "Local Services", features: "Service radius, booking friction, seasonal demand" },
+    { icon: ShoppingCart, name: "E-commerce", features: "Cart tech, checkout friction, ad pixel usage" },
+    { icon: Heart, name: "Healthcare", features: "Compliance readiness, patient review signals" },
+    { icon: Building2, name: "Real Estate", features: "Listing velocity, site freshness, IDX usage" },
+    { icon: Briefcase, name: "Agencies", features: "Client acquisition strength, portfolio signals" },
   ];
 
   const targetAudiences = [
@@ -94,13 +185,29 @@ const SuperAIFeaturesSection = () => {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      transition: { staggerChildren: 0.1, delayChildren: 0.2 }
+      transition: { staggerChildren: 0.05, delayChildren: 0.1 }
     }
   };
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+    visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
+  };
+
+  const getColorClass = (color: string) => {
+    const colorMap: Record<string, { bg: string; text: string; border: string }> = {
+      primary: { bg: "bg-primary/10", text: "text-primary", border: "border-primary/30" },
+      emerald: { bg: "bg-emerald-500/10", text: "text-emerald-500", border: "border-emerald-500/30" },
+      amber: { bg: "bg-amber-500/10", text: "text-amber-500", border: "border-amber-500/30" },
+      blue: { bg: "bg-blue-500/10", text: "text-blue-500", border: "border-blue-500/30" },
+      violet: { bg: "bg-violet-500/10", text: "text-violet-500", border: "border-violet-500/30" },
+      accent: { bg: "bg-accent/10", text: "text-accent", border: "border-accent/30" },
+      orange: { bg: "bg-orange-500/10", text: "text-orange-500", border: "border-orange-500/30" },
+      pink: { bg: "bg-pink-500/10", text: "text-pink-500", border: "border-pink-500/30" },
+      slate: { bg: "bg-slate-500/10", text: "text-slate-400", border: "border-slate-500/30" },
+      teal: { bg: "bg-teal-500/10", text: "text-teal-500", border: "border-teal-500/30" },
+    };
+    return colorMap[color] || colorMap.primary;
   };
 
   return (
@@ -114,7 +221,7 @@ const SuperAIFeaturesSection = () => {
       <div className="container px-4 relative">
         {/* Section Header */}
         <motion.div 
-          className="text-center mb-16"
+          className="text-center mb-12"
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
@@ -126,46 +233,100 @@ const SuperAIFeaturesSection = () => {
           </motion.div>
           
           <motion.h2 variants={itemVariants} className="text-3xl md:text-4xl lg:text-5xl font-display font-bold text-foreground mb-4">
-            100+ Data Points on
+            10 AI Research Categories
             <br />
-            <span className="text-primary">Every Business</span>
+            <span className="text-primary">100+ Data Points</span>
           </motion.h2>
           
-          <motion.p variants={itemVariants} className="text-lg text-muted-foreground max-w-3xl mx-auto">
-            If your job involves <span className="text-primary font-semibold">finding, fixing, funding, selling to, or scaling businesses</span> — this is the search you need.
+          <motion.p variants={itemVariants} className="text-lg text-muted-foreground max-w-3xl mx-auto mb-4">
+            Bamlead doesn't just find businesses — it explains <span className="text-primary font-semibold">who to target, why now, what to say, and how to win</span> using AI-driven intelligence.
+          </motion.p>
+
+          <motion.p variants={itemVariants} className="text-base text-foreground/80 max-w-2xl mx-auto">
+            If your job involves <span className="text-accent font-semibold">finding, fixing, funding, selling to, or scaling businesses</span> — this is the search you need.
           </motion.p>
         </motion.div>
 
-        {/* Feature Categories Grid */}
+        {/* 10 AI Research Categories Grid */}
         <motion.div 
-          className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-16"
+          className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-16"
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true }}
         >
-          {featureCategories.map((category, index) => (
-            <motion.div 
-              key={index}
-              variants={itemVariants}
-              className="bg-card rounded-2xl border border-border p-6 hover:border-primary/50 transition-all duration-300 group"
-            >
-              <div className={`w-12 h-12 rounded-xl bg-${category.color}-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                <category.icon className={`w-6 h-6 text-${category.color}-500`} />
+          {aiResearchCategories.map((category, index) => {
+            const colors = getColorClass(category.color);
+            return (
+              <motion.div 
+                key={index}
+                variants={itemVariants}
+                className={`bg-card rounded-2xl border ${colors.border} p-5 hover:border-primary/50 transition-all duration-300 group`}
+              >
+                <div className={`w-10 h-10 rounded-xl ${colors.bg} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
+                  <category.icon className={`w-5 h-5 ${colors.text}`} />
+                </div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-lg">{category.emoji}</span>
+                  <h3 className="text-sm font-display font-bold text-foreground leading-tight">
+                    {category.title}
+                  </h3>
+                </div>
+                <ul className="space-y-1.5">
+                  {category.features.slice(0, 5).map((feature, fIndex) => (
+                    <li key={fIndex} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                      <CheckCircle2 className="w-3 h-3 text-success flex-shrink-0 mt-0.5" />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                  {category.features.length > 5 && (
+                    <li className="text-xs text-primary font-medium pl-4">
+                      +{category.features.length - 5} more...
+                    </li>
+                  )}
+                </ul>
+              </motion.div>
+            );
+          })}
+        </motion.div>
+
+        {/* Industry-Specific Data Layers */}
+        <motion.div 
+          className="bg-gradient-to-br from-amber-500/5 via-card to-orange-500/5 rounded-3xl border border-amber-500/20 p-6 md:p-8 mb-12"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+        >
+          <motion.div variants={itemVariants} className="text-center mb-6">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 text-amber-500 text-xs font-semibold mb-3">
+              <Factory className="w-3 h-3" />
+              INDUSTRY-SPECIFIC INTELLIGENCE
+            </div>
+            <h3 className="text-xl md:text-2xl font-display font-bold text-foreground mb-2">
+              🏭 Dynamic Industry Data Layers
+            </h3>
+            <p className="text-sm text-muted-foreground max-w-xl mx-auto">
+              Bamlead adapts per niche with specialized metrics for each industry
+            </p>
+          </motion.div>
+
+          <motion.div variants={itemVariants} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {industryLayers.map((industry, index) => (
+              <div 
+                key={index}
+                className="flex items-start gap-3 p-3 rounded-xl bg-card/50 border border-border/50 hover:border-amber-500/30 transition-colors"
+              >
+                <div className="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                  <industry.icon className="w-4 h-4 text-amber-500" />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground text-sm">{industry.name}</p>
+                  <p className="text-xs text-muted-foreground">{industry.features}</p>
+                </div>
               </div>
-              <h3 className="text-lg font-display font-bold text-foreground mb-3">
-                {category.title}
-              </h3>
-              <ul className="space-y-2">
-                {category.features.map((feature, fIndex) => (
-                  <li key={fIndex} className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <CheckCircle2 className="w-4 h-4 text-success flex-shrink-0" />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-            </motion.div>
-          ))}
+            ))}
+          </motion.div>
         </motion.div>
 
         {/* Who This Is For */}
