@@ -32,11 +32,6 @@ const AnnouncementBar = () => {
           ))}
         </div>
         
-        {/* AI Autopilot Badge */}
-        <span className="hidden md:flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold shadow-md">
-          <Crown className="w-3 h-3" />
-          AI Autopilot $39/mo
-        </span>
         
         <Link 
           to="/pricing" 
