@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -40,73 +40,100 @@ import Comparisons from "./pages/Comparisons";
 
 const queryClient = new QueryClient();
 
-const App = () => {
+function AppInner() {
+  const location = useLocation();
+  const splashAllowed =
+    !location.pathname.startsWith('/mailbox-demo') &&
+    !location.pathname.startsWith('/dashboard-demo');
+
   const [showSplash, setShowSplash] = useState(() => {
-    // Only show splash once per session
-    const hasSeenSplash = sessionStorage.getItem('bamlead_splash_shown');
-    return !hasSeenSplash;
+    if (!splashAllowed) return false;
+    try {
+      const hasSeenSplash = sessionStorage.getItem('bamlead_splash_shown');
+      return !hasSeenSplash;
+    } catch {
+      return false;
+    }
   });
 
+  useEffect(() => {
+    if (!splashAllowed) setShowSplash(false);
+  }, [splashAllowed]);
+
   const handleSplashComplete = () => {
-    sessionStorage.setItem('bamlead_splash_shown', 'true');
+    try {
+      sessionStorage.setItem('bamlead_splash_shown', 'true');
+    } catch {
+      // ignore
+    }
     setShowSplash(false);
   };
 
   return (
+    <>
+      {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
+
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/features" element={<Features />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/reviews" element={<Reviews />} />
+        <Route path="/dashboard-demo" element={<DashboardDemo />} />
+        <Route path="/mailbox-demo" element={<MailboxDemo />} />
+        <Route path="/template-gallery" element={<TemplateGallery />} />
+        <Route path="/closeloop" element={<CloseLoop />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
+        <Route path="/sign-contract" element={<SignContract />} />
+        {/* AI-optimized pages */}
+        <Route path="/what-is-bamlead" element={<WhatIsBamlead />} />
+        <Route path="/capabilities" element={<Capabilities />} />
+        <Route path="/data-types" element={<DataTypes />} />
+        <Route path="/use-cases" element={<UseCases />} />
+        <Route path="/example-searches" element={<ExampleSearches />} />
+        <Route path="/comparisons" element={<Comparisons />} />
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute requireAdmin>
+              <Admin />
+            </ProtectedRoute>
+          }
+        />
+        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+
+      <SupportWidget />
+      <AITourGuide />
+    </>
+  );
+}
+
+const App = () => {
+  return (
     <QueryClientProvider client={queryClient}>
       <LanguageProvider>
         <TooltipProvider>
-          {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
           <Toaster />
           <Sonner />
           <BrowserRouter>
             <AuthProvider>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/pricing" element={<Pricing />} />
-                <Route path="/features" element={<Features />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/forgot-password" element={<ForgotPassword />} />
-                <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/verify-email" element={<VerifyEmail />} />
-                <Route path="/reviews" element={<Reviews />} />
-                <Route path="/dashboard-demo" element={<DashboardDemo />} />
-                <Route path="/mailbox-demo" element={<MailboxDemo />} />
-                <Route path="/template-gallery" element={<TemplateGallery />} />
-                <Route path="/closeloop" element={<CloseLoop />} />
-                <Route path="/privacy" element={<Privacy />} />
-                <Route path="/terms" element={<Terms />} />
-                <Route path="/sign-contract" element={<SignContract />} />
-                {/* AI-optimized pages */}
-                <Route path="/what-is-bamlead" element={<WhatIsBamlead />} />
-                <Route path="/capabilities" element={<Capabilities />} />
-                <Route path="/data-types" element={<DataTypes />} />
-                <Route path="/use-cases" element={<UseCases />} />
-                <Route path="/example-searches" element={<ExampleSearches />} />
-                <Route path="/comparisons" element={<Comparisons />} />
-                <Route
-                  path="/dashboard" 
-                  element={
-                    <ProtectedRoute>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  } 
-                />
-                <Route 
-                  path="/admin" 
-                  element={
-                    <ProtectedRoute requireAdmin>
-                      <Admin />
-                    </ProtectedRoute>
-                  } 
-                />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-              <SupportWidget />
-              <AITourGuide />
+              <AppInner />
             </AuthProvider>
           </BrowserRouter>
         </TooltipProvider>

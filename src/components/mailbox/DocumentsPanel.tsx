@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -1687,17 +1688,47 @@ export default function DocumentsPanel({ searchType, onUseInEmail }: DocumentsPa
   const [editMode, setEditMode] = useState(false);
   const [editedContent, setEditedContent] = useState('');
 
-  // Get the effective search type from session if not provided
-  const effectiveSearchType = searchType || 
-    (typeof window !== 'undefined' ? sessionStorage.getItem('bamlead_search_type') as 'gmb' | 'platform' | null : null);
+  // OPTION selector (A/B) + search. Always show both options even if searchType is missing.
+  const [activeOption, setActiveOption] = useState<'A' | 'B'>(() => {
+    if (searchType === 'platform') return 'B';
+    if (searchType === 'gmb') return 'A';
+    try {
+      const fromSession = typeof window !== 'undefined'
+        ? (sessionStorage.getItem('bamlead_search_type') as 'gmb' | 'platform' | null)
+        : null;
+      return fromSession === 'platform' ? 'B' : 'A';
+    } catch {
+      return 'A';
+    }
+  });
+  const [query, setQuery] = useState('');
+
+  // Determine which set to show
+  const effectiveSearchType: 'gmb' | 'platform' = activeOption === 'B' ? 'platform' : 'gmb';
 
   // Select templates based on lead type - full 10 each
   const proposals = effectiveSearchType === 'platform' ? AGENCY_PROPOSALS : GMB_PROPOSALS;
   const contracts = effectiveSearchType === 'platform' ? AGENCY_CONTRACTS : GMB_CONTRACTS;
 
-  const leadTypeLabel = effectiveSearchType === 'platform' 
-    ? '🎯 Agency Lead Finder' 
-    : '🤖 Super AI Business Search';
+  const leadTypeLabel = effectiveSearchType === 'platform'
+    ? '🎯 Option B — Agency Lead Finder'
+    : '🤖 Option A — Super AI Business Search';
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredProposals = useMemo(() => {
+    if (!normalizedQuery) return proposals;
+    return proposals.filter((d) => {
+      const haystack = `${d.name} ${d.description} ${d.category}`.toLowerCase();
+      return haystack.includes(normalizedQuery);
+    });
+  }, [proposals, normalizedQuery]);
+  const filteredContracts = useMemo(() => {
+    if (!normalizedQuery) return contracts;
+    return contracts.filter((d) => {
+      const haystack = `${d.name} ${d.description} ${d.category}`.toLowerCase();
+      return haystack.includes(normalizedQuery);
+    });
+  }, [contracts, normalizedQuery]);
 
   const handlePreview = (doc: DocumentTemplate) => {
     setSelectedDoc(doc);
@@ -1808,14 +1839,48 @@ export default function DocumentsPanel({ searchType, onUseInEmail }: DocumentsPa
             <h2 className="text-xl font-bold text-foreground">PreDone Documents</h2>
             <p className="text-sm text-muted-foreground mt-1">Proposals + Contracts — click “Use” to insert into Compose</p>
           </div>
-          <Badge 
-            variant="outline" 
-            className={cn(
-              "px-3 py-1.5 text-xs bg-primary/10 text-primary border-primary/30"
-            )}
-          >
-            {leadTypeLabel}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="px-3 py-1.5 text-xs bg-primary/10 text-primary border-primary/30">
+              {leadTypeLabel}
+            </Badge>
+          </div>
+        </div>
+
+        {/* Option selector + search */}
+        <div className="rounded-2xl border border-border bg-card p-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={activeOption === 'A' ? 'default' : 'outline'}
+                onClick={() => setActiveOption('A')}
+                className="rounded-full"
+              >
+                Option A
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={activeOption === 'B' ? 'default' : 'outline'}
+                onClick={() => setActiveOption('B')}
+                className="rounded-full"
+              >
+                Option B
+              </Button>
+              <Badge variant="secondary" className="text-xs">
+                {proposals.length} proposals • {contracts.length} contracts
+              </Badge>
+            </div>
+            <div className="w-full md:w-80">
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search documents…"
+                className="bg-background border-border"
+              />
+            </div>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -1826,31 +1891,43 @@ export default function DocumentsPanel({ searchType, onUseInEmail }: DocumentsPa
               className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               <Sparkles className="w-4 h-4 mr-2" />
-              Proposals ({proposals.length})
+              Proposals ({filteredProposals.length})
             </TabsTrigger>
             <TabsTrigger 
               value="contracts"
               className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
             >
               <FileText className="w-4 h-4 mr-2" />
-              Contracts ({contracts.length})
+              Contracts ({filteredContracts.length})
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="proposals" className="mt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {proposals.map(doc => (
-                <TemplateCard key={doc.id} doc={doc} />
-              ))}
-            </div>
+            {filteredProposals.length === 0 ? (
+              <div className="rounded-xl border border-border bg-card p-8 text-center">
+                <p className="text-sm text-muted-foreground">No proposals match your search.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredProposals.map(doc => (
+                  <TemplateCard key={doc.id} doc={doc} />
+                ))}
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="contracts" className="mt-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {contracts.map(doc => (
-                <TemplateCard key={doc.id} doc={doc} />
-              ))}
-            </div>
+            {filteredContracts.length === 0 ? (
+              <div className="rounded-xl border border-border bg-card p-8 text-center">
+                <p className="text-sm text-muted-foreground">No contracts match your search.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredContracts.map(doc => (
+                  <TemplateCard key={doc.id} doc={doc} />
+                ))}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
