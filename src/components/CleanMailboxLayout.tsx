@@ -13,13 +13,14 @@ import {
   Inbox, PenTool, Sparkles, Target, Rocket,
   Calendar, Shield, CheckCircle2, X, FolderOpen,
   Palette, Link2, Cloud, BarChart3, MousePointer, Eye, Reply, TrendingUp,
-  PanelLeftClose, PanelLeft, MailOpen, Zap
+  PanelLeftClose, PanelLeft, MailOpen, Zap, Crown
 } from 'lucide-react';
 import SMTPConfigPanel from './SMTPConfigPanel';
 import BrandingSettingsPanel from './BrandingSettingsPanel';
 import CloudCRMIntegrationsPanel from './CloudCRMIntegrationsPanel';
 import DocumentsPanel from './mailbox/DocumentsPanel';
 import AutoCampaignWizard from './AutoCampaignWizard';
+import AutoCampaignWizardPro from './AutoCampaignWizardPro';
 import ClickHeatmapChart from './ClickHeatmapChart';
 import ABTestingChart from './ABTestingChart';
 import AIAutopilotSubscription from './AIAutopilotSubscription';
@@ -219,8 +220,8 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   const navTabs = [
     { id: 'inbox' as MainTab, label: 'Inbox', icon: Inbox },
     { id: 'campaigns' as MainTab, label: 'Campaigns', icon: Send },
-    { id: 'automation' as MainTab, label: 'AI Automation', icon: Bot },
-    { id: 'documents' as MainTab, label: 'PreDone Documents', icon: FolderOpen },
+    { id: 'automation' as MainTab, label: 'AI Autopilot', icon: Crown, isPro: true },
+    { id: 'documents' as MainTab, label: 'PreDone Docs', icon: FolderOpen },
     { id: 'settings' as MainTab, label: 'Settings', icon: Settings },
   ];
 
@@ -274,7 +275,9 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                   className={cn(
                     "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
                     mainTab === tab.id
-                      ? "bg-emerald-600 text-white"
+                      ? tab.id === 'automation' 
+                        ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white"
+                        : "bg-emerald-600 text-white"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                   )}
                 >
@@ -283,6 +286,11 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                   {tab.id === 'inbox' && (
                     <Badge className="ml-auto bg-red-500 text-white text-[10px] px-1.5">
                       {DEMO_REPLIES.filter(r => !r.isRead).length}
+                    </Badge>
+                  )}
+                  {(tab as any).isPro && (
+                    <Badge className="ml-auto bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[8px] px-1.5">
+                      PRO
                     </Badge>
                   )}
                 </button>
@@ -509,133 +517,19 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
             </div>
           )}
 
-          {/* AI AUTOMATION VIEW */}
+          {/* AI AUTOMATION VIEW - BOLD AUTO CAMPAIGN WIZARD PRO */}
           {mainTab === 'automation' && (
-            <div className="h-full overflow-auto p-6">
-              <div className="max-w-2xl mx-auto space-y-6">
-                {/* AI Autopilot Subscription Component */}
-                <AIAutopilotSubscription
-                  isActive={automation.doneForYouMode}
-                  onToggle={(active) => {
-                    setAutomation(prev => ({ ...prev, doneForYouMode: active }));
-                  }}
-                />
-
-                {/* AI-Managed Sequences (only visible when DFY is ON) */}
-                <AnimatePresence>
-                  {automation.doneForYouMode && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="space-y-4"
-                    >
-                      <h4 className="text-sm font-semibold text-muted-foreground flex items-center gap-2">
-                        <Bot className="w-4 h-4 text-primary" />
-                        AI-Managed Outreach Sequences
-                      </h4>
-                      
-                      {/* Sequence A - GMB Search */}
-                      <div className="p-4 rounded-xl bg-muted/30 border border-border">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs">A</Badge>
-                            <h5 className="font-medium text-foreground">GMB Search Sequence</h5>
-                          </div>
-                          <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400">
-                            Active
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span className="px-2 py-0.5 rounded bg-muted border border-border">Email</span>
-                          <span className="px-2 py-0.5 rounded bg-muted border border-border">Follow-up x3</span>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground mt-2">
-                          Steps: 4 • Duration: 10 days • For Google Maps leads
-                        </p>
-                        <p className="text-[10px] text-emerald-400 mt-1">
-                          AI sends initial outreach + 3 follow-ups based on engagement
-                        </p>
-                      </div>
-
-                      {/* Sequence B - Platform Search */}
-                      <div className="p-4 rounded-xl bg-muted/30 border border-border">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-xs">B</Badge>
-                            <h5 className="font-medium text-foreground">Platform Search Sequence</h5>
-                          </div>
-                          <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400">
-                            Active
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span className="px-2 py-0.5 rounded bg-muted border border-border">Email</span>
-                          <span className="px-2 py-0.5 rounded bg-muted border border-border">LinkedIn</span>
-                          <span className="px-2 py-0.5 rounded bg-muted border border-border">SMS</span>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground mt-2">
-                          Steps: 5 • Duration: 14 days • For Yelp, Yellow Pages, etc.
-                        </p>
-                        <p className="text-[10px] text-emerald-400 mt-1">
-                          Multi-channel nurturing with smart channel switching
-                        </p>
-                      </div>
-
-                      {/* CRM Sync Notice */}
-                      <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 flex items-center gap-2">
-                        <Shield className="w-4 h-4 text-primary" />
-                        <span className="text-xs text-foreground">
-                          All AI interactions sync to your connected CRM in real-time
-                        </span>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                <Separator />
-
-                {/* AI Follow-Ups */}
-                <div className="p-5 rounded-xl bg-card border border-border">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
-                        <Clock className="w-5 h-5 text-amber-400" />
-                      </div>
-                      <div>
-                        <h3 className="font-bold text-foreground">AI Follow-Ups</h3>
-                        <p className="text-xs text-muted-foreground">AI sends follow-ups automatically</p>
-                        <p className="text-xs text-muted-foreground/70">based on engagement and response timing.</p>
-                      </div>
-                    </div>
-                    <Switch
-                      checked={automation.autoFollowUps}
-                      onCheckedChange={(v) => setAutomation(prev => ({ ...prev, autoFollowUps: v }))}
-                      className="data-[state=checked]:bg-primary"
-                    />
-                  </div>
-                </div>
-
-                <Separator />
-
-                {/* Lead Response Detection System */}
-                <LeadResponseDetection 
-                  onFollowUp={(response) => {
-                    setShowComposeModal(true);
-                    toast.success(`Preparing reply to ${response.leadName}`);
-                  }}
-                />
-
-                <Separator />
-
-                {/* Email A/B Testing System */}
-                <EmailABTestingSystem 
-                  leads={campaignLeads}
-                  onApplyWinner={(variant) => {
-                    toast.success(`Applied winning template: ${variant.name}`);
-                  }}
-                />
-              </div>
+            <div className="h-full overflow-auto">
+              <AutoCampaignWizardPro
+                leads={campaignLeads}
+                searchType={searchType || null}
+                isEmbedded={true}
+                onActivate={() => {
+                  setAutomation(prev => ({ ...prev, doneForYouMode: true }));
+                  toast.success('🤖 AI Autopilot activated!');
+                }}
+                onClose={() => setMainTab('inbox')}
+              />
             </div>
           )}
 
