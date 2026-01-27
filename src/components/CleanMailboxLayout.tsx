@@ -34,6 +34,8 @@ import EmailABTestingSystem from './EmailABTestingSystem';
 import LeadResponseDetection from './LeadResponseDetection';
 import EmailSequenceSelector from './EmailSequenceSelector';
 import AISequenceRecommendationEngine from './AISequenceRecommendationEngine';
+import AIAutopilotDashboard from './AIAutopilotDashboard';
+import SequencePreviewModal from './SequencePreviewModal';
 import ConversionFunnelDashboard from './ConversionFunnelDashboard';
 import { EmailSequence } from '@/lib/emailSequences';
 
@@ -120,6 +122,8 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   const [showCampaignWizard, setShowCampaignWizard] = useState(false);
   const [leadPriority, setLeadPriority] = useState<'all' | 'hot' | 'warm' | 'cold'>('all');
   const [showSequenceBrowser, setShowSequenceBrowser] = useState(false);
+  const [showSequencePreview, setShowSequencePreview] = useState(false);
+  const [previewSequence, setPreviewSequence] = useState<EmailSequence | null>(null);
   
   const readStoredEmailLeads = () => {
     if (typeof window === 'undefined') return [] as any[];
@@ -563,17 +567,53 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
 
           {/* AI AUTOMATION VIEW - BOLD AI AUTOPILOT CAMPAIGN PRO */}
           {mainTab === 'automation' && (
-            <div className="h-full overflow-auto">
-              <AutoCampaignWizardPro
-                leads={campaignLeads}
-                searchType={searchType || null}
-                isEmbedded={true}
-                onActivate={() => {
-                  setAutomation(prev => ({ ...prev, doneForYouMode: true }));
-                  toast.success('🤖 AI Autopilot Campaign activated!');
-                }}
-                onClose={() => setMainTab('inbox')}
-              />
+            <div className="h-full overflow-auto p-6">
+              <div className="max-w-5xl mx-auto">
+                <Tabs defaultValue="dashboard" className="w-full">
+                  <TabsList className="mb-6">
+                    <TabsTrigger value="dashboard" className="gap-2">
+                      <Bot className="w-4 h-4" />
+                      Autopilot Dashboard
+                    </TabsTrigger>
+                    <TabsTrigger value="wizard" className="gap-2">
+                      <Zap className="w-4 h-4" />
+                      Launch Campaign
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="dashboard">
+                    <AIAutopilotDashboard
+                      searchType={searchType}
+                      onViewLead={(lead) => {
+                        toast.info(`Viewing ${lead.businessName}`);
+                      }}
+                      onPauseLead={(leadId) => {
+                        toast.success('Lead paused');
+                      }}
+                      onResumeLead={(leadId) => {
+                        toast.success('Lead resumed');
+                      }}
+                      onSendProposal={(leadId) => {
+                        setMainTab('documents');
+                        toast.success('Opening PreDone Documents to send proposal');
+                      }}
+                    />
+                  </TabsContent>
+                  
+                  <TabsContent value="wizard">
+                    <AutoCampaignWizardPro
+                      leads={campaignLeads}
+                      searchType={searchType || null}
+                      isEmbedded={true}
+                      onActivate={() => {
+                        setAutomation(prev => ({ ...prev, doneForYouMode: true }));
+                        toast.success('🤖 AI Autopilot Campaign activated!');
+                      }}
+                      onClose={() => setMainTab('inbox')}
+                    />
+                  </TabsContent>
+                </Tabs>
+              </div>
             </div>
           )}
 
@@ -738,16 +778,33 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
 
                 {/* AI Sequence Recommendation Engine - Campaign Mode */}
                 <div>
-                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <Send className="w-4 h-4 text-emerald-400" />
-                    For Manual Campaigns
-                  </h3>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                      <Send className="w-4 h-4 text-emerald-400" />
+                      For Manual Campaigns
+                    </h3>
+                    {selectedEmailSequence && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setPreviewSequence(selectedEmailSequence);
+                          setShowSequencePreview(true);
+                        }}
+                        className="gap-1 text-xs"
+                      >
+                        <Eye className="w-3 h-3" />
+                        Preview Sequence
+                      </Button>
+                    )}
+                  </div>
                   <AISequenceRecommendationEngine
                     searchType={searchType}
                     mode="campaign"
                     onSelectSequence={(seq) => {
                       setSelectedEmailSequence(seq);
-                      toast.success(`Selected "${seq.name}" for manual campaigns`);
+                      setPreviewSequence(seq);
+                      setShowSequencePreview(true);
                     }}
                   />
                 </div>
@@ -765,7 +822,8 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                     mode="autopilot"
                     onSelectSequence={(seq) => {
                       setSelectedEmailSequence(seq);
-                      toast.success(`Selected "${seq.name}" for AI Autopilot`);
+                      setPreviewSequence(seq);
+                      setShowSequencePreview(true);
                     }}
                     onStartAutopilot={(seq, leads) => {
                       toast.success(`AI Autopilot started with "${seq.name}" for ${leads.length} leads`);
@@ -982,6 +1040,22 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      {/* Sequence Preview Modal with Personalization */}
+      <SequencePreviewModal
+        isOpen={showSequencePreview}
+        onClose={() => setShowSequencePreview(false)}
+        sequence={previewSequence}
+        onSelectSequence={(seq) => {
+          setSelectedEmailSequence(seq);
+          toast.success(`Sequence "${seq.name}" applied to campaign`);
+        }}
+        onApplyStep={(step, personalized) => {
+          setShowSequencePreview(false);
+          setShowComposeModal(true);
+          toast.success(`Applied Day ${step.day} email`);
+        }}
+      />
     </div>
   );
 }
