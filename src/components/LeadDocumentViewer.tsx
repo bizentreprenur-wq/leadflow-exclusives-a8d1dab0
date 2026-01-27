@@ -1264,6 +1264,92 @@ export default function LeadDocumentViewer({
                   </div>
                 </div>
 
+                {/* AI Research Intelligence Sections */}
+                <div className="border-b pb-6 mb-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Brain className="w-5 h-5 text-primary" />
+                    <h2 className="text-lg font-bold text-gray-900">🧠 AI Research Intelligence</h2>
+                    <Badge className="bg-primary/10 text-primary border-primary/30 ml-2">
+                      10 Categories Analyzed
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Bamlead doesn't just find businesses — it explains who to target, why now, what to say, and how to win.
+                  </p>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    {/* Website & Digital Health */}
+                    <div className="p-3 bg-teal-50 border border-teal-200 rounded-lg">
+                      <div className="text-lg mb-1">🌐</div>
+                      <div className="text-xs font-bold text-teal-700 mb-1">Website Health</div>
+                      <div className="text-[10px] text-teal-600">CMS, SSL, Speed, Mobile, UX</div>
+                    </div>
+                    
+                    {/* Online Presence */}
+                    <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                      <div className="text-lg mb-1">📈</div>
+                      <div className="text-xs font-bold text-emerald-700 mb-1">Online Visibility</div>
+                      <div className="text-[10px] text-emerald-600">GMB, SEO, Backlinks, Rankings</div>
+                    </div>
+                    
+                    {/* Reviews & Reputation */}
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                      <div className="text-lg mb-1">⭐</div>
+                      <div className="text-xs font-bold text-amber-700 mb-1">Reputation</div>
+                      <div className="text-[10px] text-amber-600">Reviews, Ratings, Sentiment</div>
+                    </div>
+                    
+                    {/* AI Opportunity */}
+                    <div className="p-3 bg-violet-50 border border-violet-200 rounded-lg">
+                      <div className="text-lg mb-1">🧠</div>
+                      <div className="text-xs font-bold text-violet-700 mb-1">Opportunity</div>
+                      <div className="text-[10px] text-violet-600">Gaps, Upsells, Revenue Lift</div>
+                    </div>
+                    
+                    {/* Technology Stack */}
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="text-lg mb-1">🛠</div>
+                      <div className="text-xs font-bold text-blue-700 mb-1">Tech Stack</div>
+                      <div className="text-[10px] text-blue-600">Analytics, Pixels, CRM, Tools</div>
+                    </div>
+                    
+                    {/* Lead Intent */}
+                    <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg">
+                      <div className="text-lg mb-1">🎯</div>
+                      <div className="text-xs font-bold text-rose-700 mb-1">Buying Signals</div>
+                      <div className="text-[10px] text-rose-600">Hiring, Funding, Ad Spend</div>
+                    </div>
+                    
+                    {/* Competitor Intel */}
+                    <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                      <div className="text-lg mb-1">🥊</div>
+                      <div className="text-xs font-bold text-orange-700 mb-1">Competitors</div>
+                      <div className="text-[10px] text-orange-600">Market, Gaps, Pricing</div>
+                    </div>
+                    
+                    {/* Sales Readiness */}
+                    <div className="p-3 bg-cyan-50 border border-cyan-200 rounded-lg">
+                      <div className="text-lg mb-1">📊</div>
+                      <div className="text-xs font-bold text-cyan-700 mb-1">Sales Readiness</div>
+                      <div className="text-[10px] text-cyan-600">Decision Makers, Pitch Angle</div>
+                    </div>
+                    
+                    {/* Compliance & Trust */}
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                      <div className="text-lg mb-1">🧩</div>
+                      <div className="text-xs font-bold text-slate-700 mb-1">Trust Signals</div>
+                      <div className="text-[10px] text-slate-600">Privacy, Security, Compliance</div>
+                    </div>
+                    
+                    {/* AI Smart Actions */}
+                    <div className="p-3 bg-gradient-to-br from-primary/10 to-emerald-50 border border-primary/30 rounded-lg">
+                      <div className="text-lg mb-1">🧪</div>
+                      <div className="text-xs font-bold text-primary mb-1">AI Actions</div>
+                      <div className="text-[10px] text-gray-600">Scripts, Messages, Timing</div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Issue Summary Dashboard */}
                 {issueSummary.totalIssueCount > 0 && (
                   <div className="border-b pb-6 mb-6">
