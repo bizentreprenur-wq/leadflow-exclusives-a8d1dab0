@@ -17,7 +17,7 @@ import {
   CheckCircle2, Send, FileText, Chrome, Download,
   Trophy, Bot, Gift, Brain, Server, Building2,
   MapPin, Phone, ExternalLink, Star, Loader2,
-  ArrowLeft, Users, ChevronRight,
+  ArrowLeft, Users, ChevronRight, HelpCircle,
 } from 'lucide-react';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import DashboardSidebar from '@/components/DashboardSidebar';
@@ -73,6 +73,7 @@ import UserManualDownload from '@/components/UserManualDownload';
 import { VideoTutorialSection } from '@/components/VideoTutorialSection';
 import AIProcessingPipeline from '@/components/AIProcessingPipeline';
 import StreamingLeadsIndicator from '@/components/StreamingLeadsIndicator';
+import WorkflowOnboardingTour, { startWorkflowTour } from '@/components/WorkflowOnboardingTour';
 
 interface SearchResult {
   id: string;
@@ -1990,6 +1991,17 @@ export default function Dashboard() {
 
             <div className="flex-1" />
 
+            {/* Workflow Tour Button */}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={startWorkflowTour}
+              className="gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <HelpCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">Workflow Tour</span>
+            </Button>
+
             <div className="flex items-center gap-3 text-sm text-muted-foreground">
               {/* Intelligence Report Button - only show when we have leads */}
               {searchResults.length > 0 && (
@@ -2275,6 +2287,12 @@ export default function Dashboard() {
         onOpenChange={setShowPaymentModal}
         onSuccess={handlePaymentMethodSuccess}
         plan="pro"
+      />
+
+      {/* Workflow Onboarding Tour */}
+      <WorkflowOnboardingTour 
+        currentStep={currentStep}
+        onStepChange={(step) => setCurrentStep(step)}
       />
 
     </SidebarProvider>

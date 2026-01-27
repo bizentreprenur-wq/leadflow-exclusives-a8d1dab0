@@ -22,7 +22,9 @@ import {
   ArrowLeft,
   Home,
   Server,
-  ExternalLink
+  ExternalLink,
+  HelpCircle,
+  Inbox
 } from "lucide-react";
 import { SocialFinderButton } from "@/components/SocialProfileFinder";
 import EmailHelpOverlay from "@/components/EmailHelpOverlay";
@@ -32,7 +34,7 @@ import AIResponseInbox from "@/components/AIResponseInbox";
 import LiveDripMailbox from "@/components/LiveDripMailbox";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
-import { Inbox } from "lucide-react";
+import WorkflowOnboardingTour, { startWorkflowTour } from "@/components/WorkflowOnboardingTour";
 
 // Generate 100 sample leads
 const businessTypes = ["Auto Repair", "Dental Clinic", "Law Firm", "Restaurant", "Plumber", "Electrician", "Real Estate", "Accounting", "Marketing Agency", "Fitness Studio"];
@@ -248,6 +250,15 @@ Best regards,
             <h1 className="text-2xl font-bold text-foreground">🎯 BamLead Dashboard</h1>
           </div>
           <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={startWorkflowTour}
+              className="gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <HelpCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">Workflow Tour</span>
+            </Button>
             <Badge variant="outline" className="text-xs bg-amber-500/20 text-amber-600 border-amber-500">DEMO MODE</Badge>
             <Link to="/auth">
               <Button size="sm" className="gap-2">
@@ -1020,6 +1031,12 @@ Best regards,
           setOutreachMode('email');
           toast.success(`${selectedLeadsFromViewer.length} leads selected for email outreach`);
         }}
+      />
+
+      {/* Workflow Onboarding Tour */}
+      <WorkflowOnboardingTour 
+        currentStep={currentStep}
+        onStepChange={(step) => setCurrentStep(step)}
       />
     </div>
   );
