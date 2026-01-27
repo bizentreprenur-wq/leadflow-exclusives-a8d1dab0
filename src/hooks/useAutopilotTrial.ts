@@ -229,14 +229,14 @@ export function useAutopilotTrial() {
     return () => clearInterval(interval);
   }, [refreshStatus]);
 
-  // Badge color based on warning level
+  // Badge color based on warning level - Yellow/Amber theme
   const badgeColor = useMemo(() => {
     switch (status.warningLevel) {
       case 'expired': return 'bg-red-500/20 text-red-400 border-red-500/30';
       case 'high': return 'bg-red-500/20 text-red-400 border-red-500/30 animate-pulse';
       case 'medium': return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
-      case 'low': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30';
-      default: return 'bg-primary/20 text-primary border-primary/30';
+      case 'low': return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
+      default: return 'bg-amber-500/20 text-amber-400 border-amber-500/30';
     }
   }, [status.warningLevel]);
 

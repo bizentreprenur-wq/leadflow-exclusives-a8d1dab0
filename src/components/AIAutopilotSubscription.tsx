@@ -69,14 +69,14 @@ export default function AIAutopilotSubscription({ isActive, onToggle }: AIAutopi
 
   return (
     <>
-      {/* Main Toggle Card */}
+      {/* Main Toggle Card - Yellow/Amber AI Autopilot Theme */}
       <div className={cn(
-        "p-5 rounded-xl border transition-all relative overflow-hidden",
+        "p-5 rounded-xl border-2 transition-all relative overflow-hidden",
         trialStatus.isExpired 
-          ? "bg-muted/30 border-red-500/30"
+          ? "bg-red-500/5 border-red-500/30"
           : isActive 
-            ? "bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border-emerald-500/30" 
-            : "bg-card border-border"
+            ? "bg-gradient-to-br from-amber-500/20 via-orange-500/10 to-amber-500/5 border-amber-500/40 shadow-lg shadow-amber-500/10" 
+            : "bg-card border-amber-500/30"
       )}>
         {/* Expired Overlay */}
         {trialStatus.isExpired && (
@@ -103,23 +103,23 @@ export default function AIAutopilotSubscription({ isActive, onToggle }: AIAutopi
               trialStatus.isExpired
                 ? "bg-red-500/10"
                 : isActive 
-                  ? "bg-gradient-to-br from-emerald-500 to-teal-500" 
-                  : "bg-muted"
+                  ? "bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg shadow-amber-500/30" 
+                  : "bg-amber-500/20"
             )}>
-              <Bot className={cn(
+              <Crown className={cn(
                 "w-6 h-6", 
                 trialStatus.isExpired
                   ? "text-red-400"
                   : isActive 
                     ? "text-white" 
-                    : "text-muted-foreground"
+                    : "text-amber-400"
               )} />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-bold text-foreground">AI Autopilot Mode</h3>
+                <h3 className="font-bold text-foreground">AI Autopilot</h3>
                 {trialStatus.isPaid && (
-                  <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]">
+                  <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] border-0">
                     <Crown className="w-2.5 h-2.5 mr-1" /> PRO
                   </Badge>
                 )}
@@ -128,7 +128,7 @@ export default function AIAutopilotSubscription({ isActive, onToggle }: AIAutopi
                     "text-[10px]",
                     trialStatus.trialDaysRemaining <= 3 
                       ? "bg-red-500/20 text-red-400 border-red-500/30 animate-pulse" 
-                      : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                      : "bg-amber-500/20 text-amber-400 border-amber-500/30"
                   )}>
                     <Clock className="w-2.5 h-2.5 mr-1" />
                     {trialStatus.trialDaysRemaining} days left
@@ -136,7 +136,7 @@ export default function AIAutopilotSubscription({ isActive, onToggle }: AIAutopi
                 )}
               </div>
               <p className="text-xs text-muted-foreground">
-                AI handles all lead interactions until they respond
+                AI handles everything: Drip → Follow-ups → Responses
               </p>
             </div>
           </div>
@@ -150,8 +150,8 @@ export default function AIAutopilotSubscription({ isActive, onToggle }: AIAutopi
               trialStatus.isExpired
                 ? "bg-muted text-muted-foreground cursor-not-allowed"
                 : isActive 
-                  ? "bg-amber-500 hover:bg-amber-600 text-white" 
-                  : "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white"
+                  ? "bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-500/20" 
+                  : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
             )}
           >
             {trialStatus.isExpired ? (
@@ -166,14 +166,14 @@ export default function AIAutopilotSubscription({ isActive, onToggle }: AIAutopi
           </Button>
         </div>
 
-        {/* Trial Progress Bar - only show during active trial */}
+        {/* Trial Progress Bar - Yellow Theme */}
         {trialStatus.isTrialActive && !trialStatus.isPaid && (
-          <div className="mt-3 p-3 rounded-lg bg-muted/30 border border-border">
+          <div className="mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted-foreground">Trial Progress</span>
+              <span className="text-xs text-amber-400 font-medium">Trial Progress</span>
               <span className={cn(
                 "text-xs font-medium",
-                trialStatus.trialDaysRemaining <= 3 ? "text-red-400" : "text-emerald-400"
+                trialStatus.trialDaysRemaining <= 3 ? "text-red-400" : "text-amber-400"
               )}>
                 {trialStatus.trialDaysRemaining} of {TRIAL_DURATION_DAYS} days remaining
               </span>
@@ -184,7 +184,7 @@ export default function AIAutopilotSubscription({ isActive, onToggle }: AIAutopi
                 "h-2",
                 trialStatus.trialDaysRemaining <= 3 
                   ? "[&>div]:bg-red-500" 
-                  : "[&>div]:bg-emerald-500"
+                  : "[&>div]:bg-amber-500"
               )}
             />
             <div className="flex items-center justify-between mt-2">
@@ -204,12 +204,12 @@ export default function AIAutopilotSubscription({ isActive, onToggle }: AIAutopi
           </div>
         )}
 
-        {/* Features when active */}
+        {/* Features when active - Yellow accents */}
         {isActive && !trialStatus.isExpired && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
-            className="mt-4 pt-4 border-t border-border"
+            className="mt-4 pt-4 border-t border-amber-500/20"
           >
             <div className="grid grid-cols-2 gap-3">
               {[
@@ -219,7 +219,7 @@ export default function AIAutopilotSubscription({ isActive, onToggle }: AIAutopi
                 { icon: CheckCircle2, label: 'You can take over anytime' },
               ].map((feature, idx) => (
                 <div key={idx} className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <feature.icon className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />
+                  <feature.icon className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
                   <span>{feature.label}</span>
                 </div>
               ))}
@@ -244,8 +244,11 @@ export default function AIAutopilotSubscription({ isActive, onToggle }: AIAutopi
           </DialogHeader>
 
           <div className="py-4 space-y-4">
-            {/* Price */}
-            <div className="text-center p-6 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
+            {/* Price - Yellow/Amber Theme */}
+            <div className="text-center p-6 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/10 border-2 border-amber-500/30">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Crown className="w-8 h-8 text-amber-400" />
+              </div>
               <div className="text-4xl font-bold text-foreground mb-1">
                 ${MONTHLY_PRICE}<span className="text-lg text-muted-foreground">/month</span>
               </div>
@@ -264,7 +267,7 @@ export default function AIAutopilotSubscription({ isActive, onToggle }: AIAutopi
                 'Priority support',
               ].map((feature, idx) => (
                 <div key={idx} className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+                  <CheckCircle2 className="w-4 h-4 text-amber-500 flex-shrink-0" />
                   <span>{feature}</span>
                 </div>
               ))}
