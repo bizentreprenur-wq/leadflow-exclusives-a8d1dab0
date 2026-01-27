@@ -33,11 +33,12 @@ import ComposeEmailModal from './ComposeEmailModal';
 import EmailABTestingSystem from './EmailABTestingSystem';
 import LeadResponseDetection from './LeadResponseDetection';
 import EmailSequenceSelector from './EmailSequenceSelector';
-
+import AISequenceRecommendationEngine from './AISequenceRecommendationEngine';
 import ConversionFunnelDashboard from './ConversionFunnelDashboard';
+import { EmailSequence } from '@/lib/emailSequences';
 
 // Tab types for main navigation
-type MainTab = 'inbox' | 'campaigns' | 'automation' | 'analytics' | 'documents' | 'settings';
+type MainTab = 'inbox' | 'campaigns' | 'sequences' | 'automation' | 'analytics' | 'documents' | 'settings';
 type InboxFilter = 'all' | 'hot' | 'unread';
 
 // Demo sequence types
@@ -101,6 +102,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   const [showComposeModal, setShowComposeModal] = useState(false);
   const [sequences, setSequences] = useState<OutreachSequence[]>(DEMO_SEQUENCES);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [selectedEmailSequence, setSelectedEmailSequence] = useState<EmailSequence | null>(null);
   
   // AI Automation settings
   const [automation, setAutomation] = useState<AutomationSettings>(() => {
@@ -252,6 +254,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   const navTabs = [
     { id: 'inbox' as MainTab, label: 'Inbox', icon: Inbox },
     { id: 'campaigns' as MainTab, label: 'Campaigns', icon: Send },
+    { id: 'sequences' as MainTab, label: 'Sequences', icon: Layers },
     { id: 'automation' as MainTab, label: 'AI Autopilot', icon: Crown, isPro: true },
     { id: 'analytics' as MainTab, label: 'Analytics', icon: BarChart3 },
     { id: 'documents' as MainTab, label: 'PreDone Docs', icon: FolderOpen },
@@ -700,6 +703,76 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
 
                 {/* Scheduled Queue Panel */}
                 <ScheduledQueuePanel />
+              </div>
+            </div>
+          )}
+
+          {/* SEQUENCES VIEW - AI Recommendation Engine */}
+          {mainTab === 'sequences' && (
+            <div className="h-full overflow-auto p-6">
+              <div className="max-w-4xl mx-auto space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-xl font-bold text-foreground">Email Sequences</h2>
+                      <Badge variant="outline" className={cn(
+                        "text-xs",
+                        searchType === 'gmb' 
+                          ? "border-emerald-500/30 text-emerald-400" 
+                          : "border-violet-500/30 text-violet-400"
+                      )}>
+                        {searchType === 'gmb' ? 'Search A' : 'Search B'}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      AI recommends sequences based on your lead batch analysis
+                    </p>
+                  </div>
+                  {selectedEmailSequence && (
+                    <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 gap-2">
+                      <CheckCircle2 className="w-3 h-3" />
+                      {selectedEmailSequence.name} Selected
+                    </Badge>
+                  )}
+                </div>
+
+                {/* AI Sequence Recommendation Engine - Campaign Mode */}
+                <div>
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Send className="w-4 h-4 text-emerald-400" />
+                    For Manual Campaigns
+                  </h3>
+                  <AISequenceRecommendationEngine
+                    searchType={searchType}
+                    mode="campaign"
+                    onSelectSequence={(seq) => {
+                      setSelectedEmailSequence(seq);
+                      toast.success(`Selected "${seq.name}" for manual campaigns`);
+                    }}
+                  />
+                </div>
+
+                <Separator className="my-6" />
+
+                {/* AI Sequence Recommendation Engine - Autopilot Mode */}
+                <div>
+                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                    <Crown className="w-4 h-4 text-amber-400" />
+                    For AI Autopilot
+                  </h3>
+                  <AISequenceRecommendationEngine
+                    searchType={searchType}
+                    mode="autopilot"
+                    onSelectSequence={(seq) => {
+                      setSelectedEmailSequence(seq);
+                      toast.success(`Selected "${seq.name}" for AI Autopilot`);
+                    }}
+                    onStartAutopilot={(seq, leads) => {
+                      toast.success(`AI Autopilot started with "${seq.name}" for ${leads.length} leads`);
+                      setMainTab('automation');
+                    }}
+                  />
+                </div>
               </div>
             </div>
           )}
