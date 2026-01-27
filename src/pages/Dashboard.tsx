@@ -215,34 +215,35 @@ export default function Dashboard() {
   const [pendingSearchType, setPendingSearchType] = useState<'gmb' | 'platform' | null>(null);
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
 
-  // Persist workflow state to sessionStorage for seamless step transitions
+  // Persist workflow state to localStorage (not sessionStorage) so leads survive logout/login cycles
+  // Users must explicitly click "Clear All Data" to remove their leads
   useEffect(() => {
-    sessionStorage.setItem('bamlead_current_step', currentStep.toString());
+    localStorage.setItem('bamlead_current_step', currentStep.toString());
   }, [currentStep]);
 
   useEffect(() => {
     if (searchType) {
-      sessionStorage.setItem('bamlead_search_type', searchType);
+      localStorage.setItem('bamlead_search_type', searchType);
     }
   }, [searchType]);
 
   useEffect(() => {
-    sessionStorage.setItem('bamlead_query', query);
+    localStorage.setItem('bamlead_query', query);
   }, [query]);
 
   useEffect(() => {
-    sessionStorage.setItem('bamlead_location', location);
+    localStorage.setItem('bamlead_location', location);
   }, [location]);
 
   useEffect(() => {
     if (searchResults.length > 0) {
-      sessionStorage.setItem('bamlead_search_results', JSON.stringify(searchResults));
+      localStorage.setItem('bamlead_search_results', JSON.stringify(searchResults));
     }
   }, [searchResults]);
 
   useEffect(() => {
     if (emailLeads.length > 0) {
-      sessionStorage.setItem('bamlead_email_leads', JSON.stringify(emailLeads));
+      localStorage.setItem('bamlead_email_leads', JSON.stringify(emailLeads));
     }
   }, [emailLeads]);
 
@@ -257,26 +258,39 @@ export default function Dashboard() {
     }
   }, [searchParams, refreshUser, celebrate]);
 
-  // Load persisted leads from database on dashboard init (runs once on mount)
-  // This ensures leads are restored after re-login since DB is the source of truth
+  // Load persisted leads on dashboard init (runs once on mount)
+  // Priority: 1) localStorage (survives logout), 2) Database (remote backup)
+  // Leads only clear when user explicitly clicks "Clear All Data"
   useEffect(() => {
     const loadPersistedLeads = async () => {
-      // Check sessionStorage for existing results first
-      // This handles in-session navigation between steps
-      const sessionResults = sessionStorage.getItem('bamlead_search_results');
-      if (sessionResults) {
+      // Check localStorage first for existing results (survives logout/login)
+      const localResults = localStorage.getItem('bamlead_search_results');
+      if (localResults) {
         try {
-          const parsed = JSON.parse(sessionResults);
+          const parsed = JSON.parse(localResults);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            console.log('[BamLead] Using session-cached leads:', parsed.length);
-            return; // Already have results in session, skip DB fetch
+            console.log('[BamLead] Using localStorage leads:', parsed.length);
+            setSearchResults(parsed);
+            
+            // Restore search context from localStorage
+            const savedStep = localStorage.getItem('bamlead_current_step');
+            const savedQuery = localStorage.getItem('bamlead_query');
+            const savedLocation = localStorage.getItem('bamlead_location');
+            const savedType = localStorage.getItem('bamlead_search_type');
+            
+            if (savedQuery) setQuery(savedQuery);
+            if (savedLocation) setLocation(savedLocation);
+            if (savedType) setSearchType(savedType as 'gmb' | 'platform');
+            if (savedStep) setCurrentStep(parseInt(savedStep, 10) || 2);
+            
+            return; // Already have results in localStorage, skip DB fetch
           }
         } catch {
-          // Invalid session data, will fetch from DB
+          // Invalid localStorage data, will fetch from DB
         }
       }
       
-      // Skip for non-authenticated users (use canonical 'auth_token' key)
+      // Skip DB fetch for non-authenticated users (use canonical 'auth_token' key)
       const token = localStorage.getItem('auth_token');
       if (!token) return;
       
@@ -312,27 +326,27 @@ export default function Dashboard() {
           
           setSearchResults(mappedLeads);
           
-          // Cache in sessionStorage for step navigation
-          sessionStorage.setItem('bamlead_search_results', JSON.stringify(mappedLeads));
+          // Cache in localStorage so leads survive logout/login
+          localStorage.setItem('bamlead_search_results', JSON.stringify(mappedLeads));
           
           // Restore search context if available
           if (response.data.latestSearch) {
             const { query: savedQuery, location: savedLocation, sourceType } = response.data.latestSearch;
             if (savedQuery) {
               setQuery(savedQuery);
-              sessionStorage.setItem('bamlead_query', savedQuery);
+              localStorage.setItem('bamlead_query', savedQuery);
             }
             if (savedLocation) {
               setLocation(savedLocation);
-              sessionStorage.setItem('bamlead_location', savedLocation);
+              localStorage.setItem('bamlead_location', savedLocation);
             }
             if (sourceType) {
               setSearchType(sourceType);
-              sessionStorage.setItem('bamlead_search_type', sourceType);
+              localStorage.setItem('bamlead_search_type', sourceType);
             }
             // Move to step 2 if user has existing leads (returning user)
             setCurrentStep(2);
-            sessionStorage.setItem('bamlead_current_step', '2');
+            localStorage.setItem('bamlead_current_step', '2');
           }
           
           toast.info(`Loaded ${mappedLeads.length} leads from your last search`);
@@ -463,9 +477,9 @@ export default function Dashboard() {
     // Ensure the Intelligence Report is closed while running a new search
     setShowReportModal(false);
     
-    // Clear sessionStorage for previous search data
-    sessionStorage.removeItem('bamlead_search_results');
-    sessionStorage.removeItem('bamlead_email_leads');
+    // Clear localStorage for previous search data (new search replaces old)
+    localStorage.removeItem('bamlead_search_results');
+    localStorage.removeItem('bamlead_email_leads');
     localStorage.removeItem('bamlead_selected_leads');
 
     const requestedLimit = searchLimit;
@@ -875,7 +889,16 @@ export default function Dashboard() {
     setAiStrategies(null);
     setShowAiGrouping(false);
     
-    // Clear ALL stored data for fresh testing
+    // Clear ALL stored lead data (only happens when user explicitly clicks "Clear All Data")
+    localStorage.removeItem('bamlead_current_step');
+    localStorage.removeItem('bamlead_search_type');
+    localStorage.removeItem('bamlead_query');
+    localStorage.removeItem('bamlead_location');
+    localStorage.removeItem('bamlead_search_results');
+    localStorage.removeItem('bamlead_email_leads');
+    localStorage.removeItem('bamlead_selected_leads');
+    localStorage.removeItem('bamlead_step2_visited');
+    // Also clear any legacy sessionStorage entries
     sessionStorage.removeItem('bamlead_current_step');
     sessionStorage.removeItem('bamlead_search_type');
     sessionStorage.removeItem('bamlead_query');
@@ -884,9 +907,6 @@ export default function Dashboard() {
     sessionStorage.removeItem('bamlead_email_leads');
     sessionStorage.removeItem('leadsToVerify');
     sessionStorage.removeItem('savedLeads');
-    localStorage.removeItem('bamlead_selected_leads');
-    localStorage.removeItem('bamlead_step2_visited');
-    localStorage.removeItem('bamlead_user_cache');
 
     try {
       const token = localStorage.getItem('auth_token');
