@@ -227,10 +227,14 @@ const SuperAIFeaturesSection = () => {
           whileInView="visible"
           viewport={{ once: true }}
         >
-          <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
+          <motion.div variants={itemVariants} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-4">
             <Brain className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-primary">🤖 SUPER AI BUSINESS INTELLIGENCE</span>
+            <span className="text-sm font-semibold text-primary">🧠 SUPER AI BUSINESS SEARCH</span>
           </motion.div>
+          
+          <motion.p variants={itemVariants} className="text-primary font-semibold text-lg mb-3">
+            Advanced Business Insights Beyond Basic Lead Lists
+          </motion.p>
           
           <motion.h2 variants={itemVariants} className="text-3xl md:text-4xl lg:text-5xl font-display font-bold text-foreground mb-4">
             10 AI Research Categories
@@ -239,7 +243,7 @@ const SuperAIFeaturesSection = () => {
           </motion.h2>
           
           <motion.p variants={itemVariants} className="text-lg text-muted-foreground max-w-3xl mx-auto mb-4">
-            Bamlead doesn't just find businesses — it explains <span className="text-primary font-semibold">who to target, why now, what to say, and how to win</span> using AI-driven intelligence.
+            Bamlead doesn't just find businesses — it explains <span className="text-primary font-semibold">who to target, why now, what to say, and how to win</span> using AI-driven intelligence. Get unique business offerings, improvement areas, and competitive gaps that basic searches can't provide.
           </motion.p>
 
           <motion.p variants={itemVariants} className="text-base text-foreground/80 max-w-2xl mx-auto">

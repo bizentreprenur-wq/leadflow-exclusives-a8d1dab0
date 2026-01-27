@@ -53,6 +53,9 @@ const HeroSection = () => {
                 <Sparkles className="h-3.5 w-3.5 mr-2 animate-pulse" />
                 <span className="font-semibold tracking-wide">🤖 SUPER AI BUSINESS INTELLIGENCE</span>
               </Badge>
+              <p className="text-sm text-muted-foreground mt-2 font-medium">
+                Advanced Business Insights Beyond Basic Lead Lists
+              </p>
             </motion.div>
 
             {/* Headline with gradient text */}

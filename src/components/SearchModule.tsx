@@ -188,14 +188,17 @@ const SearchModule = () => {
               <h3 className="font-display font-bold text-lg text-foreground">
                 Super AI Business Search
               </h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm font-semibold text-primary">
+                Advanced Business Insights Beyond Basic Lead Lists
+              </p>
+              <p className="text-xs text-muted-foreground">
                 Deep Research & Competitive Intelligence
               </p>
             </div>
           </div>
 
           <p className="text-sm text-muted-foreground mb-3">
-            <span className="font-semibold text-primary">Complete Business Data + AI Research.</span> Every search includes full contact info (name, address, phone, email, website) PLUS deep AI-powered analysis.
+            <span className="font-semibold text-primary">Top-Class AI Analysis.</span> Get unique business offerings, improvement recommendations, competitive gaps, and actionable intelligence that basic searches can't provide.
           </p>
 
           {/* Basic Data Included */}
