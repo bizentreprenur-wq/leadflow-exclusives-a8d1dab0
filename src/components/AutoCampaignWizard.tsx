@@ -360,7 +360,7 @@ export default function AutoCampaignWizard({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl p-0 gap-0 overflow-hidden bg-background" aria-describedby={undefined}>
+      <DialogContent elevated className="max-w-4xl p-0 gap-0 overflow-hidden bg-background border-border">
         <VisuallyHidden>
           <DialogTitle>Auto Campaign Wizard</DialogTitle>
         </VisuallyHidden>
