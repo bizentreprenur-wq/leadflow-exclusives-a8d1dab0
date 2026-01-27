@@ -69,13 +69,24 @@ export async function searchPlatforms(
     const endpoint = `${API_BASE_URL}/platform-search.php`;
     let response: Response;
 
+    // Scale timeout based on limit - generous timeouts to prevent premature failures
+    const timeoutMs = limit <= 100 ? 180000 : limit <= 500 ? 480000 : 900000;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
     try {
       response = await fetch(endpoint, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({ service, location, platforms, limit }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
     } catch (error) {
+      clearTimeout(timeoutId);
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error(`Platform search timed out after ${Math.round(timeoutMs / 60000)} minutes. Try reducing the lead count.`);
+      }
       const message =
         error instanceof Error && error.message
           ? error.message

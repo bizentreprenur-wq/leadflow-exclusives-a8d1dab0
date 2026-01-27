@@ -180,11 +180,33 @@ export default function Dashboard() {
   // Outreach mode toggle (email or verify)
   const [outreachMode, setOutreachMode] = useState<'email' | 'verify'>('email');
   
-  // Search filter options
-  const [filterNoWebsite, setFilterNoWebsite] = useState(false);
-  const [filterNotMobile, setFilterNotMobile] = useState(false);
-  const [filterOutdated, setFilterOutdated] = useState(false);
-  const [phoneLeadsOnly, setPhoneLeadsOnly] = useState(false);
+  // Search filter options - persist in localStorage
+  const [filterNoWebsite, setFilterNoWebsite] = useState(() => {
+    try { return localStorage.getItem('bamlead_filter_no_website') === 'true'; } catch { return false; }
+  });
+  const [filterNotMobile, setFilterNotMobile] = useState(() => {
+    try { return localStorage.getItem('bamlead_filter_not_mobile') === 'true'; } catch { return false; }
+  });
+  const [filterOutdated, setFilterOutdated] = useState(() => {
+    try { return localStorage.getItem('bamlead_filter_outdated') === 'true'; } catch { return false; }
+  });
+  const [phoneLeadsOnly, setPhoneLeadsOnly] = useState(() => {
+    try { return localStorage.getItem('bamlead_filter_phone_only') === 'true'; } catch { return false; }
+  });
+
+  // Persist filter settings to localStorage
+  useEffect(() => {
+    localStorage.setItem('bamlead_filter_no_website', filterNoWebsite.toString());
+  }, [filterNoWebsite]);
+  useEffect(() => {
+    localStorage.setItem('bamlead_filter_not_mobile', filterNotMobile.toString());
+  }, [filterNotMobile]);
+  useEffect(() => {
+    localStorage.setItem('bamlead_filter_outdated', filterOutdated.toString());
+  }, [filterOutdated]);
+  useEffect(() => {
+    localStorage.setItem('bamlead_filter_phone_only', phoneLeadsOnly.toString());
+  }, [phoneLeadsOnly]);
   
   // Settings tab to open (for deep-linking)
   const [settingsInitialTab, setSettingsInitialTab] = useState<string>('integrations');
@@ -483,8 +505,10 @@ export default function Dashboard() {
     localStorage.removeItem('bamlead_selected_leads');
 
     const requestedLimit = searchLimit;
-    const needsFilteredLeads = phoneLeadsOnly || filterNoWebsite;
-    const effectiveLimit = Math.min(2000, needsFilteredLeads ? requestedLimit * 3 : requestedLimit);
+    // Check if any filters are active - if so, over-fetch to compensate for filtering
+    const needsFilteredLeads = phoneLeadsOnly || filterNoWebsite || filterNotMobile || filterOutdated;
+    // Over-fetch by 3x when filters are active (max 5000 for performance)
+    const effectiveLimit = Math.min(5000, needsFilteredLeads ? requestedLimit * 3 : requestedLimit);
 
     console.log('[BamLead] Starting search:', {
       searchType,
@@ -601,7 +625,7 @@ export default function Dashboard() {
         }
       }
 
-      // Apply "No Website" filter if enabled (GMB only)
+      // Apply "No Website" filter if enabled
       if (filterNoWebsite) {
         const beforeCount = finalResults.length;
         finalResults = finalResults.filter(r => {
@@ -609,23 +633,55 @@ export default function Dashboard() {
           return !website || r.websiteAnalysis?.hasWebsite === false;
         });
         console.log(`[BamLead] No-website filter applied: ${beforeCount} → ${finalResults.length}`);
-        if (finalResults.length === 0) {
-          toast.warning('No businesses without websites found. Try a broader search.');
-        } else {
-          toast.info(`Filtered to ${finalResults.length} businesses without websites`);
-        }
       }
 
-      // If we over-fetched to satisfy filters, cap to the user-requested limit.
+      // Apply "Not Mobile Compliant" filter if enabled
+      if (filterNotMobile) {
+        const beforeCount = finalResults.length;
+        finalResults = finalResults.filter(r => {
+          const mobileScore = r.websiteAnalysis?.mobileScore;
+          // Include if no mobile score (unknown) or score < 50
+          return mobileScore === null || mobileScore === undefined || mobileScore < 50;
+        });
+        console.log(`[BamLead] Not-mobile filter applied: ${beforeCount} → ${finalResults.length}`);
+      }
+
+      // Apply "Outdated Standards" filter if enabled
+      if (filterOutdated) {
+        const beforeCount = finalResults.length;
+        finalResults = finalResults.filter(r => {
+          // Check for outdated indicators
+          const issues = r.websiteAnalysis?.issues || [];
+          const needsUpgrade = r.websiteAnalysis?.needsUpgrade === true;
+          const hasIssues = issues.length > 0;
+          return needsUpgrade || hasIssues;
+        });
+        console.log(`[BamLead] Outdated filter applied: ${beforeCount} → ${finalResults.length}`);
+      }
+
+      // If we over-fetched to satisfy filters, cap to the user-requested limit
       if (finalResults.length > requestedLimit) {
         finalResults = finalResults.slice(0, requestedLimit);
       }
 
-      if (needsFilteredLeads && finalResults.length < requestedLimit) {
-        toast.warning(
-          `Only ${finalResults.length} of ${requestedLimit} matched your filters. ` +
-          'Try a broader query or disable filters for more results.'
+      // Calculate filter summary for user feedback
+      const activeFilters: string[] = [];
+      if (filterNoWebsite) activeFilters.push('No Website');
+      if (filterNotMobile) activeFilters.push('Mobile Issues');
+      if (filterOutdated) activeFilters.push('Outdated');
+      if (phoneLeadsOnly) activeFilters.push('Phone Required');
+
+      // Show result summary with context about what was found vs requested
+      if (finalResults.length < requestedLimit) {
+        const filterInfo = activeFilters.length > 0 ? ` matching [${activeFilters.join(', ')}]` : '';
+        toast.info(
+          `Found ${finalResults.length} leads${filterInfo}. ` +
+          (activeFilters.length > 0 
+            ? 'Try disabling some filters or broadening your search for more results.'
+            : 'This may be all available businesses in this area. Try a different location.')
         );
+      } else if (activeFilters.length > 0) {
+        toast.success(`Found ${finalResults.length} leads matching: ${activeFilters.join(', ')}`);
       }
       
       // Apply AI scoring to all leads immediately (sorts by Hot/Warm/Cold)
@@ -889,6 +945,12 @@ export default function Dashboard() {
     setAiStrategies(null);
     setShowAiGrouping(false);
     
+    // Reset filters to default (off)
+    setFilterNoWebsite(false);
+    setFilterNotMobile(false);
+    setFilterOutdated(false);
+    setPhoneLeadsOnly(false);
+    
     // Clear ALL stored lead data (only happens when user explicitly clicks "Clear All Data")
     localStorage.removeItem('bamlead_current_step');
     localStorage.removeItem('bamlead_search_type');
@@ -898,6 +960,11 @@ export default function Dashboard() {
     localStorage.removeItem('bamlead_email_leads');
     localStorage.removeItem('bamlead_selected_leads');
     localStorage.removeItem('bamlead_step2_visited');
+    // Clear filter settings
+    localStorage.removeItem('bamlead_filter_no_website');
+    localStorage.removeItem('bamlead_filter_not_mobile');
+    localStorage.removeItem('bamlead_filter_outdated');
+    localStorage.removeItem('bamlead_filter_phone_only');
     // Also clear any legacy sessionStorage entries
     sessionStorage.removeItem('bamlead_current_step');
     sessionStorage.removeItem('bamlead_search_type');
