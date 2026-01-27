@@ -124,6 +124,33 @@ export default function ComposeEmailModal({
   const currentLead = useMemo(() => leads[currentLeadIndex] || null, [leads, currentLeadIndex]);
   const safeLeads = useMemo(() => leads?.filter((l): l is Lead => l != null) ?? [], [leads]);
 
+  // Check if user came through workflow (Step 1 → 2 → 3)
+  const workflowContext = useMemo(() => {
+    try {
+      const currentStep = sessionStorage.getItem('bamlead_current_step') || '1';
+      const hasCompletedStep1 = sessionStorage.getItem('bamlead_search_completed') === 'true';
+      const hasCompletedStep2 = sessionStorage.getItem('bamlead_leads_reviewed') === 'true';
+      const workflowLeadCount = parseInt(sessionStorage.getItem('bamlead_workflow_lead_count') || '0', 10);
+      
+      return {
+        currentStep: parseInt(currentStep, 10),
+        hasCompletedWorkflow: hasCompletedStep1 && hasCompletedStep2,
+        isFromWorkflow: safeLeads.length > 0 && (hasCompletedStep1 || hasCompletedStep2),
+        leadCount: workflowLeadCount || safeLeads.length,
+      };
+    } catch {
+      return { currentStep: 1, hasCompletedWorkflow: false, isFromWorkflow: false, leadCount: 0 };
+    }
+  }, [safeLeads.length]);
+
+  // Auto-switch to campaign mode when leads are available from workflow
+  useEffect(() => {
+    if (workflowContext.isFromWorkflow && safeLeads.length > 0 && composeMode === 'regular') {
+      // Auto-suggest campaign mode when coming from workflow
+      setComposeMode('campaign');
+    }
+  }, [workflowContext.isFromWorkflow, safeLeads.length, composeMode]);
+
   // Initialize email
   useEffect(() => {
     if (initialEmail) {
@@ -298,6 +325,13 @@ export default function ComposeEmailModal({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Workflow Status Indicator */}
+            {workflowContext.isFromWorkflow && (
+              <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs gap-1.5">
+                <CheckCircle2 className="w-3 h-3" />
+                {safeLeads.length} leads imported
+              </Badge>
+            )}
             <Button
               size="icon"
               variant="ghost"
@@ -334,22 +368,32 @@ export default function ComposeEmailModal({
               </p>
             </button>
 
-            {/* Mode 2: Campaign Send */}
+            {/* Mode 2: Campaign Send - Highlighted when leads available */}
             <button
               onClick={() => setComposeMode('campaign')}
               className={cn(
                 "p-4 rounded-xl border-2 transition-all text-left relative",
                 composeMode === 'campaign'
                   ? "border-orange-500 bg-orange-500/10"
-                  : "border-border hover:border-orange-500/50 bg-muted/30"
+                  : workflowContext.isFromWorkflow 
+                    ? "border-orange-500/50 bg-orange-500/5 animate-pulse"
+                    : "border-border hover:border-orange-500/50 bg-muted/30"
               )}
             >
+              {workflowContext.isFromWorkflow && composeMode !== 'campaign' && (
+                <div className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center">
+                  <span className="text-[10px] text-white font-bold">!</span>
+                </div>
+              )}
               <div className="flex items-center gap-2 mb-2">
                 <Rocket className="w-5 h-5 text-orange-400" />
                 <span className="font-semibold text-foreground text-sm">Campaign Send</span>
               </div>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                Follow steps: Select leads → Template → Send (Manual control)
+                {workflowContext.isFromWorkflow 
+                  ? `${safeLeads.length} leads ready from Step 1-3. Start campaign now!`
+                  : 'Follow steps: Select leads → Template → Send (Manual control)'
+                }
               </p>
               {safeLeads.length > 0 && (
                 <Badge className="absolute top-2 right-2 bg-orange-500/20 text-orange-400 border-orange-500/30 text-[9px]">
