@@ -18,6 +18,7 @@ import {
   Trophy, Bot, Gift, Brain, Server, Building2,
   MapPin, Phone, ExternalLink, Star, Loader2,
   ArrowLeft, Users, ChevronRight, HelpCircle,
+  Smartphone, AlertTriangle, XCircle,
 } from 'lucide-react';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import DashboardSidebar from '@/components/DashboardSidebar';
@@ -181,6 +182,8 @@ export default function Dashboard() {
   
   // Search filter options
   const [filterNoWebsite, setFilterNoWebsite] = useState(false);
+  const [filterNotMobile, setFilterNotMobile] = useState(false);
+  const [filterOutdated, setFilterOutdated] = useState(false);
   const [phoneLeadsOnly, setPhoneLeadsOnly] = useState(false);
   
   // Settings tab to open (for deep-linking)
@@ -1367,6 +1370,59 @@ export default function Dashboard() {
                         )}
                       </div>
                     )}
+
+                    {/* Website Quality Filters - for both search types */}
+                    <div className="p-4 rounded-lg border-2 border-violet-500/30 bg-violet-500/5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Globe className="w-4 h-4 text-violet-400" />
+                        <span className="font-medium text-violet-400">Website Quality Filters</span>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="flex items-center gap-3 cursor-pointer group">
+                          <Checkbox
+                            checked={filterNoWebsite}
+                            onCheckedChange={(checked) => setFilterNoWebsite(checked === true)}
+                            className="border-emerald-500 data-[state=checked]:bg-emerald-500"
+                          />
+                          <XCircle className="w-4 h-4 text-emerald-500" />
+                          <div>
+                            <span className="text-sm text-foreground group-hover:text-primary">No Website</span>
+                            <p className="text-xs text-muted-foreground">High opportunity — businesses without any website</p>
+                          </div>
+                        </label>
+                        <label className="flex items-center gap-3 cursor-pointer group">
+                          <Checkbox
+                            checked={filterNotMobile}
+                            onCheckedChange={(checked) => setFilterNotMobile(checked === true)}
+                            className="border-orange-500 data-[state=checked]:bg-orange-500"
+                          />
+                          <Smartphone className="w-4 h-4 text-orange-500" />
+                          <div>
+                            <span className="text-sm text-foreground group-hover:text-primary">Not Mobile Compliant</span>
+                            <p className="text-xs text-muted-foreground">Websites with mobile score below 50%</p>
+                          </div>
+                        </label>
+                        <label className="flex items-center gap-3 cursor-pointer group">
+                          <Checkbox
+                            checked={filterOutdated}
+                            onCheckedChange={(checked) => setFilterOutdated(checked === true)}
+                            className="border-red-500 data-[state=checked]:bg-red-500"
+                          />
+                          <AlertTriangle className="w-4 h-4 text-red-500" />
+                          <div>
+                            <span className="text-sm text-foreground group-hover:text-primary">Outdated Standards</span>
+                            <p className="text-xs text-muted-foreground">Slow load times, missing SSL, or UX issues</p>
+                          </div>
+                        </label>
+                      </div>
+                      {(filterNoWebsite || filterNotMobile || filterOutdated) && (
+                        <div className="mt-3 p-2 rounded-lg bg-violet-500/10 border border-violet-500/20">
+                          <p className="text-xs text-violet-400">
+                            ✓ {[filterNoWebsite && 'No Website', filterNotMobile && 'Mobile Issues', filterOutdated && 'Outdated'].filter(Boolean).join(' + ')} filter active
+                          </p>
+                        </div>
+                      )}
+                    </div>
 
                     {/* Results Limit Selector */}
                     <div>
