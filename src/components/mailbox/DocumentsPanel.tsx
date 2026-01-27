@@ -1967,7 +1967,7 @@ export default function DocumentsPanel({ searchType, onUseInEmail }: DocumentsPa
               <ScrollArea className="h-full">
                 <div className="p-6 rounded-lg bg-muted/50 border border-border">
                   <pre className="whitespace-pre-wrap text-sm text-foreground/90 font-sans leading-relaxed">
-                    {getDocContent(selectedDoc!)}
+                    {selectedDoc ? getDocContent(selectedDoc) : 'No document selected'}
                   </pre>
                 </div>
               </ScrollArea>
