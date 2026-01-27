@@ -479,8 +479,9 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
           <Building2 className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h3 className="font-display font-semibold text-foreground">🤖 Super AI Business Intelligence Search</h3>
-          <p className="text-sm text-muted-foreground">Find businesses to contact — get comprehensive AI-powered insights on every lead</p>
+          <h3 className="font-display font-semibold text-foreground">🤖 Super AI Business Search</h3>
+          <p className="text-sm text-primary font-medium">Advanced Business Insights Beyond Basic Lead Lists</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Find businesses to contact — get comprehensive AI-powered insights on every lead</p>
         </div>
       </div>
 
