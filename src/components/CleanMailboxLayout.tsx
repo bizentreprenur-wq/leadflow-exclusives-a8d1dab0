@@ -756,16 +756,18 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                     <div className="flex items-center gap-2">
                       <h2 className="text-xl font-bold text-foreground">Email Sequences</h2>
                       <Badge variant="outline" className={cn(
-                        "text-xs",
+                        "text-xs gap-1.5",
                         searchType === 'gmb' 
                           ? "border-emerald-500/30 text-emerald-400" 
                           : "border-violet-500/30 text-violet-400"
                       )}>
-                        {searchType === 'gmb' ? 'Search A' : 'Search B'}
+                        {searchType === 'gmb' ? '🤖 Super AI Business Search' : '🎯 Agency Lead Finder'}
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">
-                      AI recommends sequences based on your lead batch analysis
+                      {searchType === 'gmb' 
+                        ? 'AI-powered sequences for insight-driven niche selling' 
+                        : 'Revenue-focused sequences for agency services'}
                     </p>
                   </div>
                   {selectedEmailSequence && (

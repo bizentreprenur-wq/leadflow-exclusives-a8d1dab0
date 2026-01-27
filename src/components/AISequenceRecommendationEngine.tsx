@@ -279,7 +279,7 @@ export default function AISequenceRecommendationEngine({
           </div>
           <div>
             <h3 className="font-bold text-lg">
-              {isSearchA ? 'Search A Sequences' : 'Search B Sequences'}
+              {isSearchA ? 'Super AI Business Sequences' : 'Agency Lead Finder Sequences'}
             </h3>
             <p className="text-xs text-muted-foreground">
               {isSearchA 

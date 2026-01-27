@@ -1688,31 +1688,32 @@ export default function DocumentsPanel({ searchType, onUseInEmail }: DocumentsPa
   const [editMode, setEditMode] = useState(false);
   const [editedContent, setEditedContent] = useState('');
 
-  // OPTION selector (A/B) + search. Always show both options even if searchType is missing.
-  const [activeOption, setActiveOption] = useState<'A' | 'B'>(() => {
-    if (searchType === 'platform') return 'B';
-    if (searchType === 'gmb') return 'A';
+// Auto-determine search type from prop or sessionStorage - no toggle
+  const [query, setQuery] = useState('');
+
+  // Determine which set to show based on actual search type (no manual toggle)
+  const effectiveSearchType: 'gmb' | 'platform' = useMemo(() => {
+    if (searchType === 'platform') return 'platform';
+    if (searchType === 'gmb') return 'gmb';
     try {
       const fromSession = typeof window !== 'undefined'
         ? (sessionStorage.getItem('bamlead_search_type') as 'gmb' | 'platform' | null)
         : null;
-      return fromSession === 'platform' ? 'B' : 'A';
+      return fromSession === 'platform' ? 'platform' : 'gmb';
     } catch {
-      return 'A';
+      return 'gmb';
     }
-  });
-  const [query, setQuery] = useState('');
-
-  // Determine which set to show
-  const effectiveSearchType: 'gmb' | 'platform' = activeOption === 'B' ? 'platform' : 'gmb';
+  }, [searchType]);
+  
+  const isAgencySearch = effectiveSearchType === 'platform';
 
   // Select templates based on lead type - full 10 each
   const proposals = effectiveSearchType === 'platform' ? AGENCY_PROPOSALS : GMB_PROPOSALS;
   const contracts = effectiveSearchType === 'platform' ? AGENCY_CONTRACTS : GMB_CONTRACTS;
 
-  const leadTypeLabel = effectiveSearchType === 'platform'
-    ? '🎯 Option B — Agency Lead Finder'
-    : '🤖 Option A — Super AI Business Search';
+  const leadTypeLabel = isAgencySearch
+    ? '🎯 Agency Lead Finder Documents'
+    : '🤖 Super AI Business Search Documents';
 
   const normalizedQuery = query.trim().toLowerCase();
   const filteredProposals = useMemo(() => {
@@ -1821,7 +1822,12 @@ export default function DocumentsPanel({ searchType, onUseInEmail }: DocumentsPa
         <Button
           size="sm"
           onClick={() => handleSendTemplate(doc)}
-          className="flex-1 text-xs bg-primary hover:bg-primary/90 text-primary-foreground"
+          className={cn(
+            "flex-1 text-xs text-white",
+            isAgencySearch
+              ? "bg-violet-600 hover:bg-violet-500"
+              : "bg-primary hover:bg-primary/90"
+          )}
         >
           <Send className="w-3.5 h-3.5 mr-1" />
           Use
@@ -1843,44 +1849,35 @@ export default function DocumentsPanel({ searchType, onUseInEmail }: DocumentsPa
             <Badge 
               variant="outline" 
               className={cn(
-                "px-3 py-1.5 text-xs",
-                activeOption === 'B' 
+                "px-3 py-1.5 text-xs gap-1.5",
+                isAgencySearch 
                   ? "bg-violet-500/10 text-violet-400 border-violet-500/30" 
-                  : "bg-primary/10 text-primary border-primary/30"
+                  : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
               )}
             >
-              {activeOption === 'B' ? '🎯 Option B — Agency Lead Finder' : leadTypeLabel}
+              {isAgencySearch ? <Globe className="w-3 h-3" /> : <MapPin className="w-3 h-3" />}
+              {leadTypeLabel}
             </Badge>
           </div>
         </div>
 
-        {/* Option selector + search */}
+        {/* Search only - no option toggle */}
         <div className="rounded-2xl border border-border bg-card p-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant={activeOption === 'A' ? 'default' : 'outline'}
-                onClick={() => setActiveOption('A')}
-                className="rounded-full"
-              >
-                Option A
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={activeOption === 'B' ? 'default' : 'outline'}
-                onClick={() => setActiveOption('B')}
-                className={cn(
-                  "rounded-full",
-                  activeOption === 'B' && "bg-violet-600 hover:bg-violet-700 text-white border-violet-600"
-                )}
-              >
-                Option B
-              </Button>
               <Badge variant="secondary" className="text-xs">
                 {proposals.length} proposals • {contracts.length} contracts
+              </Badge>
+              <Badge 
+                variant="outline" 
+                className={cn(
+                  "text-[10px]",
+                  isAgencySearch 
+                    ? "border-violet-500/30 text-violet-400" 
+                    : "border-emerald-500/30 text-emerald-400"
+                )}
+              >
+                Auto-selected based on your search
               </Badge>
             </div>
             <div className="w-full md:w-80">
@@ -2039,7 +2036,12 @@ export default function DocumentsPanel({ searchType, onUseInEmail }: DocumentsPa
                 </Button>
                 <Button
                   onClick={() => selectedDoc && handleSendTemplate(selectedDoc)}
-                  className="bg-primary hover:bg-primary/90"
+                  className={cn(
+                    "text-white",
+                    isAgencySearch
+                      ? "bg-violet-600 hover:bg-violet-500"
+                      : "bg-primary hover:bg-primary/90"
+                  )}
                 >
                   <Send className="w-4 h-4 mr-2" />
                   Use in Email
