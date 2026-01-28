@@ -1981,21 +1981,40 @@ export default function Dashboard() {
                       </div>
                     )}
 
-                    {/* Network Status during search */}
+                    {/* Network Status during search - HIGHLY VISIBLE */}
                     {isSearching && (networkStatus === 'verifying' || networkStatus === 'retrying') && (
-                      <div className="mt-4 p-4 rounded-lg border border-amber-500/50 bg-amber-500/10">
-                        <div className="flex items-start gap-3">
-                          <Loader2 className="w-5 h-5 text-amber-500 animate-spin mt-0.5" />
+                      <motion.div 
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-4 p-5 rounded-xl border-2 border-amber-500/70 bg-gradient-to-r from-amber-500/20 to-orange-500/10 shadow-lg shadow-amber-500/20"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="relative">
+                            <div className="w-12 h-12 rounded-full bg-amber-500/30 flex items-center justify-center">
+                              <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
+                            </div>
+                            <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-amber-500 animate-pulse" />
+                          </div>
                           <div className="flex-1">
-                            <p className="font-medium text-amber-500">
-                              {networkStatus === 'verifying' ? 'Verifying network connection...' : `Retrying connection (attempt ${networkRetryAttempt})...`}
+                            <p className="font-semibold text-amber-400 text-lg">
+                              {networkStatus === 'verifying' 
+                                ? '🔄 Verifying Network Connection...' 
+                                : `🔄 Reconnecting (Attempt ${networkRetryAttempt}/3)...`}
                             </p>
                             <p className="text-sm text-muted-foreground mt-1">
-                              Please wait while we establish a stable connection to the server.
+                              {networkStatus === 'verifying' 
+                                ? 'Establishing secure connection to lead generation servers...'
+                                : 'Temporary network issue detected. Auto-retrying...'}
                             </p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <div className="h-1.5 flex-1 bg-amber-500/20 rounded-full overflow-hidden">
+                                <div className="h-full bg-amber-500 rounded-full animate-pulse" style={{ width: `${networkRetryAttempt * 33}%` }} />
+                              </div>
+                              <span className="text-xs text-amber-400 font-medium">Please wait...</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      </motion.div>
                     )}
 
                     {/* Error display with retry button */}

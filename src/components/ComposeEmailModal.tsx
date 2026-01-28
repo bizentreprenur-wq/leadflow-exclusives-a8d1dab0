@@ -326,7 +326,7 @@ export default function ComposeEmailModal({
     }
 
     if (!isSMTPConfigured()) {
-      toast.error('Please configure SMTP settings first');
+      toast.error('Please configure SMTP settings first. Go to Settings > SMTP Configuration.');
       return;
     }
 
@@ -343,13 +343,21 @@ export default function ComposeEmailModal({
         website: currentLead?.website || '',
       });
       
-      await sendSingleEmail({
+      const result = await sendSingleEmail({
         to: email.to,
         subject: personalizeContent(email.subject, personalization),
         bodyHtml: `<p>${personalizedBody.replace(/\n/g, '<br/>')}</p>`,
         leadId: String(currentLead?.id || 'manual'),
         personalization,
       });
+      
+      if (!result.success) {
+        // Show specific error from the email service
+        toast.error(result.error || 'Failed to send email. Please check your SMTP settings.');
+        setIsSending(false);
+        return;
+      }
+      
       toast.success('Email sent successfully!');
       onEmailSent(currentLeadIndex);
 
@@ -364,8 +372,10 @@ export default function ComposeEmailModal({
           toast.info('All leads processed!');
         }
       }
-    } catch {
-      toast.error('Failed to send email');
+    } catch (error) {
+      console.error('Email send error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Failed to send: ${errorMessage}`);
     }
     setIsSending(false);
   };
