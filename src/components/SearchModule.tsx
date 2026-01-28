@@ -5,9 +5,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { 
   Building2, Globe, Briefcase, MapPin, Search, Loader2, 
-  ChevronDown, ChevronUp, Brain, Zap
+  ChevronDown, ChevronUp, Brain, Zap, Wifi, WifiOff
 } from "lucide-react";
-import { searchGMB } from "@/lib/api/gmb";
+import { searchGMB, NetworkStatusCallback } from "@/lib/api/gmb";
 import { searchPlatforms } from "@/lib/api/platforms";
 import { enrichLeadsWithIntelligence } from "@/lib/api/businessIntelligence";
 import { toast } from "sonner";
@@ -50,6 +50,11 @@ const SearchModule = () => {
   // Results
   const [results, setResults] = useState<any[]>([]);
   const [showLeadActionModal, setShowLeadActionModal] = useState(false);
+  const [networkStatus, setNetworkStatus] = useState<'idle' | 'verifying' | 'retrying' | 'connected' | 'failed'>('idle');
+  const [retryAttempt, setRetryAttempt] = useState(0);
+  
+  // Network status toast ID for updating
+  const [networkToastId, setNetworkToastId] = useState<string | number | undefined>(undefined);
 
   const togglePlatform = (platformId: string) => {
     setSelectedPlatforms((prev) =>
@@ -82,12 +87,52 @@ const SearchModule = () => {
 
     setIsLoading(true);
     setSelectedSearch(searchType);
+    setNetworkStatus('idle');
+    setRetryAttempt(0);
+
+    // Network status callback for retry handling
+    const handleNetworkStatus: NetworkStatusCallback = (status, attempt) => {
+      setNetworkStatus(status);
+      setRetryAttempt(attempt || 0);
+      
+      if (status === 'verifying') {
+        const toastId = toast.loading(
+          <div className="flex items-center gap-2">
+            <Wifi className="w-4 h-4 animate-pulse text-amber-400" />
+            <span>Verifying network connection...</span>
+          </div>,
+          { duration: Infinity }
+        );
+        setNetworkToastId(toastId);
+      } else if (status === 'retrying' && attempt) {
+        toast.loading(
+          <div className="flex items-center gap-2">
+            <Wifi className="w-4 h-4 animate-pulse text-amber-400" />
+            <span>Reconnecting... Attempt {attempt}/3</span>
+          </div>,
+          { id: networkToastId, duration: Infinity }
+        );
+      } else if (status === 'connected' && networkToastId) {
+        toast.success(
+          <div className="flex items-center gap-2">
+            <Wifi className="w-4 h-4 text-emerald-400" />
+            <span>Network connected!</span>
+          </div>,
+          { id: networkToastId }
+        );
+        setNetworkToastId(undefined);
+      } else if (status === 'failed' && networkToastId) {
+        // Don't show failure toast - let the search continue or show a gentler message
+        toast.dismiss(networkToastId);
+        setNetworkToastId(undefined);
+      }
+    };
 
     try {
       if (searchType === "gmb") {
         // Step 1: Get basic lead data
         toast.info("🔍 Finding businesses...");
-        const response = await searchGMB(service.trim(), location.trim());
+        const response = await searchGMB(service.trim(), location.trim(), 100, undefined, undefined, handleNetworkStatus);
         
         if (response.success && response.data && response.data.length > 0) {
           // Step 2: Enrich with comprehensive business intelligence
@@ -141,9 +186,32 @@ const SearchModule = () => {
       }
     } catch (error) {
       console.error('[Search] Error:', error);
-      toast.error("Failed to perform search");
+      // Don't show error toast for network errors - just show a gentle retry message
+      const errorMessage = error instanceof Error ? error.message.toLowerCase() : '';
+      const isNetworkError = ['network', 'timeout', 'connection', 'offline', 'failed to fetch'].some(
+        pattern => errorMessage.includes(pattern)
+      );
+      
+      if (isNetworkError) {
+        toast.info(
+          <div className="flex items-center gap-2">
+            <WifiOff className="w-4 h-4 text-amber-400" />
+            <div>
+              <p className="font-medium">Connection interrupted</p>
+              <p className="text-xs text-muted-foreground">Please check your network and try again</p>
+            </div>
+          </div>
+        );
+      } else {
+        toast.error("Failed to perform search");
+      }
     } finally {
       setIsLoading(false);
+      setNetworkStatus('idle');
+      if (networkToastId) {
+        toast.dismiss(networkToastId);
+        setNetworkToastId(undefined);
+      }
     }
   };
 

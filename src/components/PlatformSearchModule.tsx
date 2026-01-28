@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, MapPin, Briefcase, Globe, ChevronDown, ChevronUp, Loader2, ExternalLink, AlertTriangle, CheckCircle } from "lucide-react";
+import { Search, MapPin, Briefcase, Globe, ChevronDown, ChevronUp, Loader2, ExternalLink, AlertTriangle, CheckCircle, Wifi, WifiOff } from "lucide-react";
 import { searchPlatforms, PlatformResult } from "@/lib/api/platforms";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { toast as sonnerToast } from "sonner";
 
 // Platform options for Agency Lead Finder - includes Google Maps and website platforms
 const platforms = [
@@ -72,18 +73,29 @@ const PlatformSearchModule = () => {
           description: `Found ${response.data.length} results`,
         });
       } else {
-        toast({
-          title: "Search failed",
-          description: response.error || "An error occurred",
-          variant: "destructive",
-        });
+        // Don't show error for empty results
+        setResults([]);
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to perform search",
-        variant: "destructive",
-      });
+      console.error('[Platform Search] Error:', error);
+      const errorMessage = error instanceof Error ? error.message.toLowerCase() : '';
+      const isNetworkError = ['network', 'timeout', 'connection', 'offline', 'failed to fetch'].some(
+        pattern => errorMessage.includes(pattern)
+      );
+      
+      if (isNetworkError) {
+        sonnerToast.info(
+          <div className="flex items-center gap-2">
+            <WifiOff className="w-4 h-4 text-amber-400" />
+            <div>
+              <p className="font-medium">Connection interrupted</p>
+              <p className="text-xs text-muted-foreground">Please check your network and try again</p>
+            </div>
+          </div>
+        );
+      }
+      // Don't show generic error toasts
+      setResults([]);
     } finally {
       setIsLoading(false);
     }

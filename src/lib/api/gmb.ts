@@ -184,6 +184,32 @@ export interface GMBSearchFilters {
   platformMode?: boolean;
 }
 
+// Retry configuration
+const NETWORK_RETRY_CONFIG = {
+  maxRetries: 3,
+  retryDelayMs: 2000,
+  networkErrorPatterns: [
+    'network',
+    'failed to fetch',
+    'timeout',
+    'aborted',
+    'connection',
+    'offline',
+    'net::err',
+    'econnrefused',
+    'enotfound',
+    'etimedout',
+  ],
+};
+
+function isNetworkError(error: unknown): boolean {
+  const message = String(error instanceof Error ? error.message : error).toLowerCase();
+  return NETWORK_RETRY_CONFIG.networkErrorPatterns.some(pattern => message.includes(pattern));
+}
+
+// Callback for network status updates during retries
+export type NetworkStatusCallback = (status: 'verifying' | 'retrying' | 'connected' | 'failed', attempt?: number) => void;
+
 /**
  * Search GMB using Server-Sent Events for true streaming
  */
@@ -192,34 +218,70 @@ export async function searchGMB(
   location: string, 
   limit: number = 100,
   onProgress?: ProgressCallback,
-  filters?: GMBSearchFilters
+  filters?: GMBSearchFilters,
+  onNetworkStatus?: NetworkStatusCallback
 ): Promise<GMBSearchResponse> {
   // If there's no backend configured, do not fabricate dummy leads.
   if (USE_MOCK_DATA) {
     throw new Error('GMB search backend is not configured. Set VITE_API_URL or deploy /api.');
   }
 
-  // Prefer streaming endpoint to avoid server timeouts.
-  // We only fall back to the regular endpoint in a very narrow case
-  // (streaming endpoint missing + small limits).
-  try {
-    return await searchGMBStreaming(service, location, limit, onProgress, filters);
-  } catch (streamError) {
-    const err = streamError instanceof Error ? streamError : new Error(String(streamError));
-    console.warn('[GMB API] Streaming failed:', err);
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= NETWORK_RETRY_CONFIG.maxRetries; attempt++) {
+    try {
+      // Prefer streaming endpoint to avoid server timeouts.
+      // We only fall back to the regular endpoint in a very narrow case
+      // (streaming endpoint missing + small limits).
+      try {
+        return await searchGMBStreaming(service, location, limit, onProgress, filters);
+      } catch (streamError) {
+        const err = streamError instanceof Error ? streamError : new Error(String(streamError));
+        console.warn('[GMB API] Streaming failed:', err);
 
-    const message = (err.message || '').toLowerCase();
-    const streamMissing = message.includes('404') || message.includes('not found');
+        const message = (err.message || '').toLowerCase();
+        const streamMissing = message.includes('404') || message.includes('not found');
 
-    // Only fall back if streaming endpoint is missing AND the requested lead count is small.
-    // Otherwise, fail explicitly (no fake results, and no slow fallback that times out).
-    if (streamMissing && limit <= 50) {
-      console.warn('[GMB API] Streaming endpoint appears missing; falling back to regular endpoint for small limit');
-      return await searchGMBRegular(service, location, limit, onProgress, filters);
+        // Only fall back if streaming endpoint is missing AND the requested lead count is small.
+        // Otherwise, fail explicitly (no fake results, and no slow fallback that times out).
+        if (streamMissing && limit <= 50) {
+          console.warn('[GMB API] Streaming endpoint appears missing; falling back to regular endpoint for small limit');
+          return await searchGMBRegular(service, location, limit, onProgress, filters);
+        }
+
+        throw err;
+      }
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      lastError = err;
+      
+      // Check if this is a network-related error that we should retry
+      if (isNetworkError(err) && attempt < NETWORK_RETRY_CONFIG.maxRetries) {
+        console.warn(`[GMB API] Network error on attempt ${attempt}, retrying...`, err.message);
+        
+        // Notify about network verification status
+        if (onNetworkStatus) {
+          onNetworkStatus(attempt === 1 ? 'verifying' : 'retrying', attempt);
+        }
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, NETWORK_RETRY_CONFIG.retryDelayMs * attempt));
+        continue;
+      }
+      
+      // Not a network error or max retries reached - throw
+      if (onNetworkStatus) {
+        onNetworkStatus('failed', attempt);
+      }
+      throw err;
     }
-
-    throw err;
   }
+  
+  // Should not reach here, but just in case
+  if (onNetworkStatus) {
+    onNetworkStatus('failed', NETWORK_RETRY_CONFIG.maxRetries);
+  }
+  throw lastError || new Error('Search failed after maximum retries');
 }
 
 /**
