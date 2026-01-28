@@ -5,9 +5,9 @@ import {
   Search, MapPin, Briefcase, Building2, Loader2, AlertCircle, 
   Globe, CheckCircle, XCircle, ChevronLeft, ChevronRight, Filter,
   ArrowUpDown, ArrowUp, ArrowDown, Download, Copy, FileSpreadsheet, FileText,
-  ShieldCheck, ShieldQuestion, PartyPopper
+  ShieldCheck, ShieldQuestion, PartyPopper, Wifi, WifiOff
 } from "lucide-react";
-import { searchGMB, GMBResult } from "@/lib/api/gmb";
+import { searchGMB, GMBResult, NetworkStatusCallback } from "@/lib/api/gmb";
 import { toast } from "sonner";
 import {
   Select,
@@ -64,6 +64,9 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
   
   // Lead action modal (wizard)
   const [showLeadActionModal, setShowLeadActionModal] = useState(false);
+  
+  // Network status for retry handling
+  const [networkToastId, setNetworkToastId] = useState<string | number | undefined>(undefined);
 
   // Get unique platforms from results
   const platforms = useMemo(() => {
@@ -430,23 +433,83 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
     setStatusFilter("all");
     setPlatformFilter("all");
 
-    const response = await searchGMB(service.trim(), location.trim());
-
-    if (response.success && response.data) {
-      setResults(response.data);
-      const upgradeCount = response.data.filter(r => r.websiteAnalysis.needsUpgrade).length;
-      toast.success(`Found ${response.data.length} businesses, ${upgradeCount} need upgrades`);
-      
-      // Show lead action modal after search completes
-      if (response.data.length > 0) {
-        setShowLeadActionModal(true);
+    // Network status callback for retry handling
+    const handleNetworkStatus: NetworkStatusCallback = (status, attempt) => {
+      if (status === 'verifying') {
+        const toastId = toast.loading(
+          <div className="flex items-center gap-2">
+            <Wifi className="w-4 h-4 animate-pulse text-amber-400" />
+            <span>Verifying network connection...</span>
+          </div>,
+          { duration: Infinity }
+        );
+        setNetworkToastId(toastId);
+      } else if (status === 'retrying' && attempt) {
+        toast.loading(
+          <div className="flex items-center gap-2">
+            <Wifi className="w-4 h-4 animate-pulse text-amber-400" />
+            <span>Reconnecting... Attempt {attempt}/3</span>
+          </div>,
+          { id: networkToastId, duration: Infinity }
+        );
+      } else if (status === 'connected' && networkToastId) {
+        toast.success(
+          <div className="flex items-center gap-2">
+            <Wifi className="w-4 h-4 text-emerald-400" />
+            <span>Network connected!</span>
+          </div>,
+          { id: networkToastId }
+        );
+        setNetworkToastId(undefined);
+      } else if (status === 'failed' && networkToastId) {
+        toast.dismiss(networkToastId);
+        setNetworkToastId(undefined);
       }
-    } else {
-      toast.error(response.error || "Search failed");
-      setResults([]);
-    }
+    };
 
-    setIsLoading(false);
+    try {
+      const response = await searchGMB(service.trim(), location.trim(), 100, undefined, undefined, handleNetworkStatus);
+
+      if (response.success && response.data) {
+        setResults(response.data);
+        const upgradeCount = response.data.filter(r => r.websiteAnalysis.needsUpgrade).length;
+        toast.success(`Found ${response.data.length} businesses, ${upgradeCount} need upgrades`);
+        
+        // Show lead action modal after search completes
+        if (response.data.length > 0) {
+          setShowLeadActionModal(true);
+        }
+      } else {
+        // Don't show error for empty results
+        setResults([]);
+      }
+    } catch (error) {
+      console.error('[GMB Search] Error:', error);
+      const errorMessage = error instanceof Error ? error.message.toLowerCase() : '';
+      const isNetworkError = ['network', 'timeout', 'connection', 'offline', 'failed to fetch'].some(
+        pattern => errorMessage.includes(pattern)
+      );
+      
+      if (isNetworkError) {
+        toast.info(
+          <div className="flex items-center gap-2">
+            <WifiOff className="w-4 h-4 text-amber-400" />
+            <div>
+              <p className="font-medium">Connection interrupted</p>
+              <p className="text-xs text-muted-foreground">Please check your network and try again</p>
+            </div>
+          </div>
+        );
+      }
+      // Don't show generic error toasts
+      setResults([]);
+    } finally {
+      setIsLoading(false);
+      if (networkToastId) {
+        toast.dismiss(networkToastId);
+        setNetworkToastId(undefined);
+      }
+    }
   };
 
   // Handle verify with AI action from modal
