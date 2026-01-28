@@ -38,6 +38,20 @@ export interface LoginData {
 // Mock user for testing when backend is not available
 const MOCK_STORAGE_KEY = 'mock_user';
 
+function isBackendUnreachableError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const msg = (error.message || '').toLowerCase();
+  // apiRequest() uses a very specific message for network/CORS failures.
+  if (msg.includes('cannot reach the backend api')) return true;
+  // Additional common browser/network hints.
+  if (msg.includes('failed to fetch')) return true;
+  if (msg.includes('networkerror')) return true;
+  if (msg.includes('load failed')) return true;
+  if (msg.includes('cors')) return true;
+  if (msg.includes('preflight')) return true;
+  return false;
+}
+
 function getMockUser(): User | null {
   const stored = localStorage.getItem(MOCK_STORAGE_KEY);
   if (stored) {
@@ -178,7 +192,13 @@ export async function getCurrentUser(): Promise<User | null> {
     // Preview-only escape hatch:
     // If the production backend is unreachable from the preview origin (CORS/network),
     // keep the preview bypass session so the dashboard remains usable.
-    if (isPreviewEnv && isPreviewBypassToken) {
+    // IMPORTANT: Do NOT keep bypass sessions on real auth failures (401/403).
+    const keepPreviewBypass =
+      isPreviewEnv &&
+      isPreviewBypassToken &&
+      isBackendUnreachableError(error);
+
+    if (keepPreviewBypass) {
       try {
         const cached = localStorage.getItem('bamlead_user_cache');
         if (cached) {
