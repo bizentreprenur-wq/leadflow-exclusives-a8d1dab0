@@ -142,6 +142,11 @@ export default function ComposeEmailModal({
   const [isLaunchingAutopilot, setIsLaunchingAutopilot] = useState(false);
   const [autopilotLaunchProgress, setAutopilotLaunchProgress] = useState(0);
   const [showLeadsPreview, setShowLeadsPreview] = useState(false);
+  
+  // Campaign selection state
+  const [showCampaignSelection, setShowCampaignSelection] = useState(false);
+  const [selectedCampaignType, setSelectedCampaignType] = useState<'manual' | 'autopilot' | null>(null);
+  const [showPaymentRequired, setShowPaymentRequired] = useState(false);
 
   // Drip settings
   const [dripMode, setDripMode] = useState(false);
@@ -569,63 +574,48 @@ export default function ComposeEmailModal({
               </p>
             </button>
 
-            {/* Mode 2: Campaign Send - Highlighted when leads available */}
+            {/* Mode 2: Campaign - Click opens selection */}
             <button
-              onClick={() => setComposeMode('campaign')}
+              onClick={() => setShowCampaignSelection(true)}
               className={cn(
                 "p-4 rounded-xl border-2 transition-all text-left relative",
-                composeMode === 'campaign'
+                (composeMode === 'campaign' || composeMode === 'autopilot')
                   ? "border-orange-500 bg-orange-500/10"
                   : workflowContext.isFromWorkflow 
                     ? "border-orange-500/50 bg-orange-500/5 animate-pulse"
                     : "border-border hover:border-orange-500/50 bg-muted/30"
               )}
             >
-              {workflowContext.isFromWorkflow && composeMode !== 'campaign' && (
+              {workflowContext.isFromWorkflow && composeMode !== 'campaign' && composeMode !== 'autopilot' && (
                 <div className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center">
                   <span className="text-[10px] text-white font-bold">!</span>
                 </div>
               )}
               <div className="flex items-center gap-2 mb-2">
                 <Rocket className="w-5 h-5 text-orange-400" />
-                <span className="font-semibold text-foreground text-sm">Campaign Send</span>
+                <span className="font-semibold text-foreground text-sm">Campaign</span>
+                {selectedCampaignType && (
+                  <Badge className={cn(
+                    "text-[8px] px-1.5",
+                    selectedCampaignType === 'autopilot' 
+                      ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0"
+                      : "bg-orange-500/20 text-orange-400 border-orange-500/30"
+                  )}>
+                    {selectedCampaignType === 'autopilot' ? 'AI Autopilot' : 'Manual'}
+                  </Badge>
+                )}
               </div>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                {workflowContext.isFromWorkflow 
-                  ? `${safeLeads.length} leads ready from Step 1-3. Start campaign now!`
-                  : 'Follow steps: Select leads → Template → Send (Manual control)'
+                {selectedCampaignType === 'autopilot' 
+                  ? 'AI handles: Drip → Follow-ups → Responses'
+                  : selectedCampaignType === 'manual'
+                  ? 'Follow up with your customers manually'
+                  : 'Choose a campaign type to follow up with leads'
                 }
               </p>
               {safeLeads.length > 0 && (
                 <Badge className="absolute top-2 right-2 bg-orange-500/20 text-orange-400 border-orange-500/30 text-[9px]">
                   {safeLeads.length} leads
-                </Badge>
-              )}
-            </button>
-
-            {/* Mode 3: AI Autopilot Campaign - YELLOW THEME */}
-            <button
-              onClick={() => setComposeMode('autopilot')}
-              className={cn(
-                "p-4 rounded-xl border-2 transition-all text-left relative",
-                composeMode === 'autopilot'
-                  ? "border-amber-500 bg-gradient-to-br from-amber-500/20 to-orange-500/10 shadow-lg shadow-amber-500/10"
-                  : "border-amber-500/30 hover:border-amber-500/60 bg-amber-500/5"
-              )}
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <Crown className="w-5 h-5 text-amber-400" />
-                <span className="font-semibold text-amber-400 text-sm">AI Autopilot</span>
-                <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[8px] px-1.5 border-0">
-                  PRO
-                </Badge>
-              </div>
-              <p className="text-[10px] text-muted-foreground leading-relaxed">
-                AI handles everything: Drip → Follow-ups → Responses ($39/mo)
-              </p>
-              {hasAutopilotSubscription && (
-                <Badge className="absolute top-2 right-2 bg-amber-500/20 text-amber-400 border-amber-500/30 text-[9px]">
-                  Active
                 </Badge>
               )}
             </button>
@@ -1912,6 +1902,213 @@ export default function ComposeEmailModal({
             >
               <ExternalLink className="w-4 h-4 mr-2" />
               Go to Step 3
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Campaign Selection Dialog */}
+      <AlertDialog open={showCampaignSelection} onOpenChange={setShowCampaignSelection}>
+        <AlertDialogContent className="bg-card border-border max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Rocket className="w-5 h-5 text-orange-400" />
+              Choose Campaign Type
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Select how you want to reach out to your leads
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="grid grid-cols-2 gap-4 my-4">
+            {/* Manual Campaign */}
+            <button
+              onClick={() => {
+                setSelectedCampaignType('manual');
+                setComposeMode('campaign');
+                setShowCampaignSelection(false);
+                
+                // Audit log
+                const auditLog = {
+                  type: 'campaign_selection',
+                  campaignType: 'manual',
+                  timestamp: new Date().toISOString(),
+                  userId: localStorage.getItem('bamlead_user_id') || 'unknown',
+                };
+                const logs = JSON.parse(localStorage.getItem('bamlead_campaign_audit') || '[]');
+                logs.push(auditLog);
+                localStorage.setItem('bamlead_campaign_audit', JSON.stringify(logs));
+                
+                toast.success('Manual Campaign selected');
+              }}
+              className={cn(
+                "p-4 rounded-xl border-2 transition-all text-left",
+                selectedCampaignType === 'manual'
+                  ? "border-orange-500 bg-orange-500/10"
+                  : "border-border hover:border-orange-500/50"
+              )}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Send className="w-5 h-5 text-orange-400" />
+                <span className="font-semibold text-foreground text-sm">Manual Campaign Send</span>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                Follow up with your customers manually
+              </p>
+              <div className="space-y-1 text-[10px] text-muted-foreground">
+                <p>• Select leads → Template → Send</p>
+                <p>• Full control over each email</p>
+                <p>• No automation</p>
+              </div>
+            </button>
+            
+            {/* AI Autopilot */}
+            <button
+              onClick={() => {
+                // Check if user has subscription or is on trial
+                if (hasAutopilotSubscription || trialStatus.canUseAutopilot) {
+                  setSelectedCampaignType('autopilot');
+                  setComposeMode('autopilot');
+                  setShowCampaignSelection(false);
+                  
+                  // Audit log - critical for tracking selection
+                  const auditLog = {
+                    type: 'campaign_selection',
+                    campaignType: 'autopilot',
+                    timestamp: new Date().toISOString(),
+                    userId: localStorage.getItem('bamlead_user_id') || 'unknown',
+                    hasSubscription: hasAutopilotSubscription,
+                    isOnTrial: trialStatus.isTrialActive,
+                    trialDaysRemaining: trialStatus.trialDaysRemaining,
+                  };
+                  const logs = JSON.parse(localStorage.getItem('bamlead_campaign_audit') || '[]');
+                  logs.push(auditLog);
+                  localStorage.setItem('bamlead_campaign_audit', JSON.stringify(logs));
+                  
+                  toast.success('AI Autopilot Campaign selected');
+                } else {
+                  // Show payment required modal
+                  setShowCampaignSelection(false);
+                  setShowPaymentRequired(true);
+                }
+              }}
+              className={cn(
+                "p-4 rounded-xl border-2 transition-all text-left relative",
+                selectedCampaignType === 'autopilot'
+                  ? "border-amber-500 bg-gradient-to-br from-amber-500/20 to-orange-500/10"
+                  : "border-amber-500/30 hover:border-amber-500/60 bg-amber-500/5"
+              )}
+            >
+              {hasAutopilotSubscription && (
+                <Badge className="absolute top-2 right-2 bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[9px]">
+                  Active
+                </Badge>
+              )}
+              {trialStatus.isTrialActive && !hasAutopilotSubscription && (
+                <Badge className="absolute top-2 right-2 bg-amber-500/20 text-amber-400 border-amber-500/30 text-[9px]">
+                  {trialStatus.trialDaysRemaining}d trial
+                </Badge>
+              )}
+              <div className="flex items-center gap-2 mb-2">
+                <Crown className="w-5 h-5 text-amber-400" />
+                <span className="font-semibold text-amber-400 text-sm">AI Autopilot</span>
+                <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[8px] px-1.5 border-0">
+                  PRO
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                AI handles everything automatically
+              </p>
+              <div className="space-y-1 text-[10px] text-muted-foreground">
+                <p>• Automated drip sequences</p>
+                <p>• Intelligent follow-ups</p>
+                <p>• AI response detection</p>
+                <p className="text-amber-400">$39/month or 14-day free trial</p>
+              </div>
+            </button>
+          </div>
+          
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      
+      {/* Payment Required Dialog */}
+      <AlertDialog open={showPaymentRequired} onOpenChange={setShowPaymentRequired}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Crown className="w-5 h-5 text-amber-400" />
+              AI Autopilot Subscription Required
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              AI Autopilot Campaign is a premium feature that requires an active subscription or free trial.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="p-4 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-500/5 border border-amber-500/30 my-4">
+            <h4 className="font-semibold text-foreground mb-2">What's included:</h4>
+            <ul className="space-y-1 text-sm text-muted-foreground">
+              <li>✓ Automated drip email sequences</li>
+              <li>✓ Intelligent follow-up timing</li>
+              <li>✓ AI response detection & pausing</li>
+              <li>✓ Lead prioritization (Hot/Warm/Cold)</li>
+              <li>✓ Real-time campaign monitoring</li>
+            </ul>
+            <div className="mt-4 pt-3 border-t border-amber-500/20">
+              <p className="text-lg font-bold text-amber-400">$39/month</p>
+              <p className="text-xs text-muted-foreground">or start with a 14-day free trial</p>
+            </div>
+          </div>
+          
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                // Start trial
+                startTrial();
+                setSelectedCampaignType('autopilot');
+                setComposeMode('autopilot');
+                setShowPaymentRequired(false);
+                
+                // Audit log
+                const auditLog = {
+                  type: 'trial_started',
+                  campaignType: 'autopilot',
+                  timestamp: new Date().toISOString(),
+                  userId: localStorage.getItem('bamlead_user_id') || 'unknown',
+                };
+                const logs = JSON.parse(localStorage.getItem('bamlead_campaign_audit') || '[]');
+                logs.push(auditLog);
+                localStorage.setItem('bamlead_campaign_audit', JSON.stringify(logs));
+                
+                toast.success('14-day free trial started!');
+              }}
+              className="bg-amber-500 hover:bg-amber-600 gap-2"
+            >
+              <Sparkles className="w-4 h-4" />
+              Start Free Trial
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => {
+                upgradeToPaid();
+                
+                // Audit log
+                const auditLog = {
+                  type: 'payment_initiated',
+                  campaignType: 'autopilot',
+                  timestamp: new Date().toISOString(),
+                  userId: localStorage.getItem('bamlead_user_id') || 'unknown',
+                };
+                const logs = JSON.parse(localStorage.getItem('bamlead_campaign_audit') || '[]');
+                logs.push(auditLog);
+                localStorage.setItem('bamlead_campaign_audit', JSON.stringify(logs));
+              }}
+              className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 gap-2"
+            >
+              <CreditCard className="w-4 h-4" />
+              Subscribe $39/mo
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
