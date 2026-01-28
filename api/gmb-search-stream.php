@@ -404,6 +404,7 @@ function extractPhoneFromText($text) {
         return $matches[0];
     }
     return null;
+}
 
 /**
  * Quick website check - URL-based only
