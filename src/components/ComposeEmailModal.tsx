@@ -574,47 +574,91 @@ export default function ComposeEmailModal({
               </p>
             </button>
 
-            {/* Mode 2: Campaign - Click opens selection */}
+            {/* Mode 2: Manual Campaign Send */}
             <button
-              onClick={() => setShowCampaignSelection(true)}
+              onClick={() => {
+                setSelectedCampaignType('manual');
+                setComposeMode('campaign');
+                // Log for accountability
+                try {
+                  const auditLog = JSON.parse(localStorage.getItem('bamlead_campaign_audit') || '[]');
+                  auditLog.push({
+                    type: 'manual',
+                    timestamp: new Date().toISOString(),
+                    leadCount: safeLeads.length,
+                  });
+                  localStorage.setItem('bamlead_campaign_audit', JSON.stringify(auditLog));
+                } catch {}
+              }}
               className={cn(
                 "p-4 rounded-xl border-2 transition-all text-left relative",
-                (composeMode === 'campaign' || composeMode === 'autopilot')
+                composeMode === 'campaign' && selectedCampaignType === 'manual'
                   ? "border-orange-500 bg-orange-500/10"
-                  : workflowContext.isFromWorkflow 
-                    ? "border-orange-500/50 bg-orange-500/5 animate-pulse"
-                    : "border-border hover:border-orange-500/50 bg-muted/30"
+                  : "border-border hover:border-orange-500/50 bg-muted/30"
               )}
             >
-              {workflowContext.isFromWorkflow && composeMode !== 'campaign' && composeMode !== 'autopilot' && (
-                <div className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center">
-                  <span className="text-[10px] text-white font-bold">!</span>
-                </div>
-              )}
               <div className="flex items-center gap-2 mb-2">
                 <Rocket className="w-5 h-5 text-orange-400" />
                 <span className="font-semibold text-foreground text-sm">Campaign</span>
-                {selectedCampaignType && (
-                  <Badge className={cn(
-                    "text-[8px] px-1.5",
-                    selectedCampaignType === 'autopilot' 
-                      ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0"
-                      : "bg-orange-500/20 text-orange-400 border-orange-500/30"
-                  )}>
-                    {selectedCampaignType === 'autopilot' ? 'AI Autopilot' : 'Manual'}
-                  </Badge>
-                )}
               </div>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                {selectedCampaignType === 'autopilot' 
-                  ? 'AI handles: Drip → Follow-ups → Responses'
-                  : selectedCampaignType === 'manual'
-                  ? 'Follow up with your customers manually'
-                  : 'Choose a campaign type to follow up with leads'
-                }
+                Follow up with your customers manually
               </p>
               {safeLeads.length > 0 && (
                 <Badge className="absolute top-2 right-2 bg-orange-500/20 text-orange-400 border-orange-500/30 text-[9px]">
+                  {safeLeads.length} leads
+                </Badge>
+              )}
+            </button>
+
+            {/* Mode 3: AI Autopilot Campaign */}
+            <button
+              onClick={() => {
+                // Check payment/trial first
+                if (!hasAutopilotSubscription) {
+                  setShowPaymentRequired(true);
+                  return;
+                }
+                setSelectedCampaignType('autopilot');
+                setComposeMode('autopilot');
+                // Log for accountability
+                try {
+                  const auditLog = JSON.parse(localStorage.getItem('bamlead_campaign_audit') || '[]');
+                  auditLog.push({
+                    type: 'autopilot',
+                    timestamp: new Date().toISOString(),
+                    leadCount: safeLeads.length,
+                    subscriptionStatus: hasAutopilotSubscription ? 'active' : 'none',
+                  });
+                  localStorage.setItem('bamlead_campaign_audit', JSON.stringify(auditLog));
+                } catch {}
+              }}
+              className={cn(
+                "p-4 rounded-xl border-2 transition-all text-left relative",
+                composeMode === 'autopilot'
+                  ? "border-amber-500 bg-gradient-to-br from-amber-500/10 to-orange-500/10"
+                  : workflowContext.isFromWorkflow 
+                    ? "border-amber-500/50 bg-amber-500/5 animate-pulse"
+                    : "border-border hover:border-amber-500/50 bg-muted/30"
+              )}
+            >
+              {workflowContext.isFromWorkflow && composeMode !== 'autopilot' && (
+                <div className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-center">
+                  <Crown className="w-3 h-3 text-white" />
+                </div>
+              )}
+              <div className="flex items-center gap-2 mb-2">
+                <Crown className="w-5 h-5 text-amber-400" />
+                <span className="font-semibold text-foreground text-sm">AI Autopilot</span>
+                <Badge className="text-[8px] px-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">
+                  $39/mo
+                </Badge>
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                AI handles: Drip → Follow-ups → Responses
+              </p>
+              {safeLeads.length > 0 && (
+                <Badge className="absolute top-2 right-2 bg-amber-500/20 text-amber-400 border-amber-500/30 text-[9px]">
                   {safeLeads.length} leads
                 </Badge>
               )}
