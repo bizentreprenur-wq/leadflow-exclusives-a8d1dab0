@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Building2, Globe, Briefcase, MapPin, Search, Loader2, 
-  ChevronDown, ChevronUp, Smartphone, AlertTriangle, XCircle
+  ChevronDown, ChevronUp
 } from "lucide-react";
 import { searchGMB } from "@/lib/api/gmb";
 import { searchPlatforms } from "@/lib/api/platforms";
@@ -44,10 +44,6 @@ const SearchModule = () => {
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["gmb", "wordpress", "wix", "weebly", "squarespace"]);
   const [showAllPlatforms, setShowAllPlatforms] = useState(false);
   
-  // Website quality filters
-  const [filterNoWebsite, setFilterNoWebsite] = useState(false);
-  const [filterNotMobile, setFilterNotMobile] = useState(false);
-  const [filterOutdated, setFilterOutdated] = useState(false);
   
   // Results
   const [results, setResults] = useState<any[]>([]);
@@ -329,39 +325,6 @@ const SearchModule = () => {
             </p>
           </div>
 
-          {/* Website Quality Filters */}
-          <div className="p-3 rounded-lg bg-secondary/30 border border-border mb-4">
-            <p className="text-xs font-semibold text-foreground mb-2">🔍 Filter Results:</p>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox 
-                  checked={filterNoWebsite} 
-                  onCheckedChange={(checked) => setFilterNoWebsite(!!checked)}
-                  className="border-emerald-500 data-[state=checked]:bg-emerald-500"
-                />
-                <XCircle className="w-3.5 h-3.5 text-emerald-500" />
-                <span className="text-xs text-muted-foreground group-hover:text-foreground">No website (High opportunity)</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox 
-                  checked={filterNotMobile} 
-                  onCheckedChange={(checked) => setFilterNotMobile(!!checked)}
-                  className="border-orange-500 data-[state=checked]:bg-orange-500"
-                />
-                <Smartphone className="w-3.5 h-3.5 text-orange-500" />
-                <span className="text-xs text-muted-foreground group-hover:text-foreground">Not mobile compliant</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox 
-                  checked={filterOutdated} 
-                  onCheckedChange={(checked) => setFilterOutdated(!!checked)}
-                  className="border-red-500 data-[state=checked]:bg-red-500"
-                />
-                <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
-                <span className="text-xs text-muted-foreground group-hover:text-foreground">Outdated website standards</span>
-              </label>
-            </div>
-          </div>
 
           <Button
             onClick={() => handleSearch("gmb")}
@@ -485,39 +448,6 @@ const SearchModule = () => {
             </p>
           </div>
 
-          {/* Website Quality Filters */}
-          <div className="p-3 rounded-lg bg-secondary/30 border border-border mb-4">
-            <p className="text-xs font-semibold text-foreground mb-2">🔍 Filter Results:</p>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox 
-                  checked={filterNoWebsite} 
-                  onCheckedChange={(checked) => setFilterNoWebsite(!!checked)}
-                  className="border-emerald-500 data-[state=checked]:bg-emerald-500"
-                />
-                <XCircle className="w-3.5 h-3.5 text-emerald-500" />
-                <span className="text-xs text-muted-foreground group-hover:text-foreground">No website (High opportunity)</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox 
-                  checked={filterNotMobile} 
-                  onCheckedChange={(checked) => setFilterNotMobile(!!checked)}
-                  className="border-orange-500 data-[state=checked]:bg-orange-500"
-                />
-                <Smartphone className="w-3.5 h-3.5 text-orange-500" />
-                <span className="text-xs text-muted-foreground group-hover:text-foreground">Not mobile compliant</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox 
-                  checked={filterOutdated} 
-                  onCheckedChange={(checked) => setFilterOutdated(!!checked)}
-                  className="border-red-500 data-[state=checked]:bg-red-500"
-                />
-                <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
-                <span className="text-xs text-muted-foreground group-hover:text-foreground">Outdated website standards</span>
-              </label>
-            </div>
-          </div>
 
           <Button
             onClick={() => handleSearch("platform")}
