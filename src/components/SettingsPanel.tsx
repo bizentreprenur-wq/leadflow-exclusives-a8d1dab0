@@ -26,9 +26,10 @@ import BrandingSettingsPanel from './BrandingSettingsPanel';
 interface SettingsPanelProps {
   initialTab?: string;
   onBackToStep4?: () => void;
+  hideWebhooks?: boolean;
 }
 
-export default function SettingsPanel({ initialTab = 'integrations', onBackToStep4 }: SettingsPanelProps) {
+export default function SettingsPanel({ initialTab = 'integrations', onBackToStep4, hideWebhooks = false }: SettingsPanelProps) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState(initialTab);
   const [driveConnected, setDriveConnected] = useState(false);
@@ -320,7 +321,7 @@ export default function SettingsPanel({ initialTab = 'integrations', onBackToSte
 
         {/* Email & SMTP Tab */}
         <TabsContent value="email">
-          <EmailConfigurationPanel />
+          <EmailConfigurationPanel hideWebhooks={hideWebhooks} />
         </TabsContent>
 
         {/* Notifications Tab */}
