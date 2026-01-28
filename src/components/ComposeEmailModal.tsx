@@ -578,9 +578,12 @@ export default function ComposeEmailModal({
               <div className="flex items-center gap-2 mb-2">
                 <Mail className="w-5 h-5 text-primary" />
                 <span className="font-semibold text-foreground text-sm">Regular Email</span>
+                <Badge className="text-[8px] px-1.5 bg-emerald-500/20 text-emerald-500 border-emerald-500/30">
+                  FREE
+                </Badge>
               </div>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                Send a single email without campaigns. No leads required.
+                Send emails to any recipient. No leads required.
               </p>
             </button>
 
@@ -609,10 +612,13 @@ export default function ComposeEmailModal({
             >
               <div className="flex items-center gap-2 mb-2">
                 <Rocket className="w-5 h-5 text-orange-400" />
-                <span className="font-semibold text-foreground text-sm">Campaign</span>
+                <span className="font-semibold text-foreground text-sm">Manual Campaign</span>
+                <Badge className="text-[8px] px-1.5 bg-emerald-500/20 text-emerald-500 border-emerald-500/30">
+                  FREE
+                </Badge>
               </div>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                Follow up with your customers manually
+                Send emails to multiple leads. You control follow-ups.
               </p>
               {safeLeads.length > 0 && (
                 <Badge className="absolute top-2 right-2 bg-orange-500/20 text-orange-400 border-orange-500/30 text-[9px]">
@@ -661,11 +667,11 @@ export default function ComposeEmailModal({
                 <Crown className="w-5 h-5 text-amber-400" />
                 <span className="font-semibold text-foreground text-sm">AI Autopilot</span>
                 <Badge className="text-[8px] px-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">
-                  $39/mo
+                  PREMIUM
                 </Badge>
               </div>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                AI handles: Drip → Follow-ups → Responses
+                AI sends emails, manages follow-ups, responds to customers on your behalf. Full automation.
               </p>
               {safeLeads.length > 0 && (
                 <Badge className="absolute top-2 right-2 bg-amber-500/20 text-amber-400 border-amber-500/30 text-[9px]">

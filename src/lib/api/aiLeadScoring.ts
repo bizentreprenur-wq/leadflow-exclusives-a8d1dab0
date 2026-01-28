@@ -174,19 +174,30 @@ function scoreLeadLocally(lead: any): ScoredLead {
   }
   
   // === CONTACT DATA SCORING ===
+  // PRIORITIZE EMAIL - customers want to send emails first
   
-  // Has phone = can call
+  // Has email = HIGH priority for outreach
+  if (lead.email) {
+    emailScore += 35; // Boosted - email is the primary outreach channel
+    score += 15; // Email availability makes lead more valuable
+  } else {
+    emailScore -= 25; // Can't email without email address
+  }
+  
+  // Has phone = can call as backup
   if (lead.phone) {
     callScore += 15;
+    // If no email but has phone, boost phone
+    if (!lead.email) {
+      callScore += 10;
+    }
   } else {
     callScore -= 30; // Can't call without phone
   }
   
-  // Has email = can email
-  if (lead.email) {
-    emailScore += 20;
-  } else {
-    emailScore -= 20; // Email less effective without direct contact
+  // Has BOTH email AND phone = premium lead
+  if (lead.email && lead.phone) {
+    score += 10; // Premium lead with multiple contact options
   }
   
   // Rating indicates business health

@@ -964,11 +964,19 @@ export default function Dashboard() {
       setIsLiveDataMode(hasRealData);
 
       if (scoredResults.length > 0) {
-        // Show AI Pipeline processing the leads
+        // AUTO-NAVIGATE to Step 2 immediately so customer sees leads
+        setCurrentStep(2);
+        
+        // Show AI Pipeline notification (non-blocking popup)
+        toast.info(
+          '🤖 AI Lead Intelligence Report is generating in the background. You can preview your leads now!',
+          { duration: 6000 }
+        );
+        
         setShowAIPipeline(true);
         
         const hotCount = scoredResults.filter(r => r.aiClassification === 'hot').length;
-        toast.success(`Found ${scoredResults.length} ${hasRealData ? 'LIVE' : 'demo'} businesses! Now running 8 AI agents...`);
+        toast.success(`Found ${scoredResults.length} ${hasRealData ? 'LIVE' : 'demo'} businesses! 🔥 ${hotCount} Hot leads ready for outreach.`);
         
         // Save leads to database for persistence (non-blocking)
         // This ensures leads are available across all areas of the system
@@ -1037,13 +1045,21 @@ export default function Dashboard() {
               setAiSummary(analysisResponse.summary);
               setAiStrategies(analysisResponse.emailStrategies);
               setShowAiGrouping(true);
+              
+              // Notify customer that AI report is ready
+              toast.success(
+                '✅ AI Lead Intelligence Report is ready! Click "View Report" to see detailed analysis.',
+                { duration: 8000 }
+              );
             }
           })
           .catch((analysisError) => {
             console.error('[BamLead] AI analysis error:', analysisError);
+            toast.info('Lead report generation encountered an issue. You can still proceed with your leads.');
           })
           .finally(() => {
             setIsAnalyzing(false);
+            setShowAIPipeline(false);
           });
       }
     } catch (error) {

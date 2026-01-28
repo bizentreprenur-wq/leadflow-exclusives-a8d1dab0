@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
   Collapsible,
   CollapsibleContent,
@@ -41,6 +42,7 @@ import {
   Thermometer,
   Snowflake,
   RotateCcw,
+  X,
 } from 'lucide-react';
 import * as XLSX from 'xlsx-js-style';
 
@@ -100,6 +102,17 @@ export default function SearchHistoryFolder({
   const [openFolders, setOpenFolders] = useState<Set<string>>(new Set());
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [folderToDelete, setFolderToDelete] = useState<string | null>(null);
+  const [searchFilter, setSearchFilter] = useState('');
+
+  // Filter folders by search query (keyword or location)
+  const filteredFolders = useMemo(() => {
+    if (!searchFilter.trim()) return folders;
+    const q = searchFilter.toLowerCase();
+    return folders.filter(f => 
+      f.query.toLowerCase().includes(q) || 
+      f.location.toLowerCase().includes(q)
+    );
+  }, [folders, searchFilter]);
 
   const toggleFolder = (id: string) => {
     setOpenFolders(prev => {
@@ -214,8 +227,43 @@ export default function SearchHistoryFolder({
   }
 
   return (
-    <div className="space-y-2">
-      {folders.map((folder) => {
+    <div className="space-y-3">
+      {/* Search Filter */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by keyword or location..."
+          value={searchFilter}
+          onChange={(e) => setSearchFilter(e.target.value)}
+          className="pl-9 pr-9"
+        />
+        {searchFilter && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+            onClick={() => setSearchFilter('')}
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
+      
+      {/* Filtered results count */}
+      {searchFilter && (
+        <p className="text-xs text-muted-foreground">
+          Showing {filteredFolders.length} of {folders.length} searches
+        </p>
+      )}
+      
+      {filteredFolders.length === 0 && searchFilter && (
+        <div className="text-center py-6 text-muted-foreground">
+          <Search className="w-8 h-8 mx-auto mb-2 opacity-40" />
+          <p className="text-sm">No searches match "{searchFilter}"</p>
+        </div>
+      )}
+      
+      {filteredFolders.map((folder) => {
         const isOpen = openFolders.has(folder.id);
 
         return (
