@@ -2,12 +2,14 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { 
   Building2, Globe, Briefcase, MapPin, Search, Loader2, 
-  ChevronDown, ChevronUp, Smartphone, AlertTriangle, XCircle
+  ChevronDown, ChevronUp, Brain, Zap
 } from "lucide-react";
 import { searchGMB } from "@/lib/api/gmb";
 import { searchPlatforms } from "@/lib/api/platforms";
+import { enrichLeadsWithIntelligence } from "@/lib/api/businessIntelligence";
 import { toast } from "sonner";
 import LeadActionModal from "./LeadActionModal";
 
@@ -44,10 +46,6 @@ const SearchModule = () => {
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(["gmb", "wordpress", "wix", "weebly", "squarespace"]);
   const [showAllPlatforms, setShowAllPlatforms] = useState(false);
   
-  // Website quality filters
-  const [filterNoWebsite, setFilterNoWebsite] = useState(false);
-  const [filterNotMobile, setFilterNotMobile] = useState(false);
-  const [filterOutdated, setFilterOutdated] = useState(false);
   
   // Results
   const [results, setResults] = useState<any[]>([]);
@@ -87,12 +85,41 @@ const SearchModule = () => {
 
     try {
       if (searchType === "gmb") {
+        // Step 1: Get basic lead data
+        toast.info("🔍 Finding businesses...");
         const response = await searchGMB(service.trim(), location.trim());
-        if (response.success && response.data) {
-          setResults(response.data);
-          const upgradeCount = response.data.filter((r: any) => r.websiteAnalysis?.needsUpgrade).length;
-          toast.success(`Found ${response.data.length} businesses, ${upgradeCount} need upgrades`);
-          if (response.data.length > 0) {
+        
+        if (response.success && response.data && response.data.length > 0) {
+          // Step 2: Enrich with comprehensive business intelligence
+          toast.info("🧠 Running AI intelligence analysis on " + response.data.length + " leads...");
+          
+          try {
+            const enrichedResponse = await enrichLeadsWithIntelligence(
+              response.data,
+              { usePageSpeed: false, enrichContacts: true },
+              (progress, message) => {
+                console.log(`[BI] ${progress}% - ${message}`);
+              }
+            );
+            
+            if (enrichedResponse.success && enrichedResponse.data) {
+              setResults(enrichedResponse.data);
+              const hotLeads = enrichedResponse.data.filter((r: any) => r.aiSummary?.classificationLabel === 'hot').length;
+              const warmLeads = enrichedResponse.data.filter((r: any) => r.aiSummary?.classificationLabel === 'warm').length;
+              toast.success(`Found ${enrichedResponse.data.length} businesses with full intelligence! 🔥 ${hotLeads} hot, ⚡ ${warmLeads} warm`);
+              setShowLeadActionModal(true);
+            } else {
+              // Fall back to basic data if enrichment fails
+              setResults(response.data);
+              toast.success(`Found ${response.data.length} businesses (basic data)`);
+              setShowLeadActionModal(true);
+            }
+          } catch (enrichError) {
+            console.error('[BI] Enrichment error:', enrichError);
+            // Fall back to basic data
+            setResults(response.data);
+            const upgradeCount = response.data.filter((r: any) => r.websiteAnalysis?.needsUpgrade).length;
+            toast.success(`Found ${response.data.length} businesses, ${upgradeCount} need upgrades`);
             setShowLeadActionModal(true);
           }
         } else {
@@ -113,6 +140,7 @@ const SearchModule = () => {
         }
       }
     } catch (error) {
+      console.error('[Search] Error:', error);
       toast.error("Failed to perform search");
     } finally {
       setIsLoading(false);
@@ -329,39 +357,6 @@ const SearchModule = () => {
             </p>
           </div>
 
-          {/* Website Quality Filters */}
-          <div className="p-3 rounded-lg bg-secondary/30 border border-border mb-4">
-            <p className="text-xs font-semibold text-foreground mb-2">🔍 Filter Results:</p>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox 
-                  checked={filterNoWebsite} 
-                  onCheckedChange={(checked) => setFilterNoWebsite(!!checked)}
-                  className="border-emerald-500 data-[state=checked]:bg-emerald-500"
-                />
-                <XCircle className="w-3.5 h-3.5 text-emerald-500" />
-                <span className="text-xs text-muted-foreground group-hover:text-foreground">No website (High opportunity)</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox 
-                  checked={filterNotMobile} 
-                  onCheckedChange={(checked) => setFilterNotMobile(!!checked)}
-                  className="border-orange-500 data-[state=checked]:bg-orange-500"
-                />
-                <Smartphone className="w-3.5 h-3.5 text-orange-500" />
-                <span className="text-xs text-muted-foreground group-hover:text-foreground">Not mobile compliant</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox 
-                  checked={filterOutdated} 
-                  onCheckedChange={(checked) => setFilterOutdated(!!checked)}
-                  className="border-red-500 data-[state=checked]:bg-red-500"
-                />
-                <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
-                <span className="text-xs text-muted-foreground group-hover:text-foreground">Outdated website standards</span>
-              </label>
-            </div>
-          </div>
 
           <Button
             onClick={() => handleSearch("gmb")}
@@ -485,39 +480,6 @@ const SearchModule = () => {
             </p>
           </div>
 
-          {/* Website Quality Filters */}
-          <div className="p-3 rounded-lg bg-secondary/30 border border-border mb-4">
-            <p className="text-xs font-semibold text-foreground mb-2">🔍 Filter Results:</p>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox 
-                  checked={filterNoWebsite} 
-                  onCheckedChange={(checked) => setFilterNoWebsite(!!checked)}
-                  className="border-emerald-500 data-[state=checked]:bg-emerald-500"
-                />
-                <XCircle className="w-3.5 h-3.5 text-emerald-500" />
-                <span className="text-xs text-muted-foreground group-hover:text-foreground">No website (High opportunity)</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox 
-                  checked={filterNotMobile} 
-                  onCheckedChange={(checked) => setFilterNotMobile(!!checked)}
-                  className="border-orange-500 data-[state=checked]:bg-orange-500"
-                />
-                <Smartphone className="w-3.5 h-3.5 text-orange-500" />
-                <span className="text-xs text-muted-foreground group-hover:text-foreground">Not mobile compliant</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox 
-                  checked={filterOutdated} 
-                  onCheckedChange={(checked) => setFilterOutdated(!!checked)}
-                  className="border-red-500 data-[state=checked]:bg-red-500"
-                />
-                <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
-                <span className="text-xs text-muted-foreground group-hover:text-foreground">Outdated website standards</span>
-              </label>
-            </div>
-          </div>
 
           <Button
             onClick={() => handleSearch("platform")}
