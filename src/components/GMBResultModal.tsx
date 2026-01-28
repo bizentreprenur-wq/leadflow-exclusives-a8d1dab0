@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { GMBResult } from "@/lib/api/gmb";
 import {
   Dialog,
@@ -9,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { 
   Globe, Phone, MapPin, Star, CheckCircle, XCircle, 
-  ExternalLink, Smartphone, AlertTriangle 
+  ExternalLink, Smartphone, AlertTriangle, X
 } from "lucide-react";
 
 interface GMBResultModalProps {
@@ -19,11 +20,29 @@ interface GMBResultModalProps {
 }
 
 const GMBResultModal = ({ result, open, onOpenChange }: GMBResultModalProps) => {
+  const [websitePreviewOpen, setWebsitePreviewOpen] = useState(false);
+  
   if (!result) return null;
 
   const { websiteAnalysis } = result;
 
+  // Normalize the URL for iframe
+  const getNormalizedUrl = (url: string | undefined): string => {
+    if (!url) return '';
+    try {
+      const withProtocol = url.startsWith('http') ? url : `https://${url}`;
+      const urlObj = new URL(withProtocol);
+      return urlObj.origin;
+    } catch {
+      const cleaned = url.replace(/^https?:\/\//, '').split('/')[0];
+      return `https://${cleaned}`;
+    }
+  };
+
+  const normalizedUrl = getNormalizedUrl(result.url);
+
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -110,11 +129,15 @@ const GMBResultModal = ({ result, open, onOpenChange }: GMBResultModalProps) => 
                       <span className="text-sm font-medium">{result.displayLink}</span>
                     </div>
                     {result.url && (
-                      <a href={result.url} target="_blank" rel="noopener noreferrer">
-                        <Button variant="outline" size="sm" className="gap-1.5">
-                          Visit Site <ExternalLink className="w-3 h-3" />
-                        </Button>
-                      </a>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="gap-1.5"
+                        onClick={() => setWebsitePreviewOpen(true)}
+                      >
+                        <Globe className="w-3 h-3" />
+                        Preview Site
+                      </Button>
                     )}
                   </div>
 
@@ -192,17 +215,55 @@ const GMBResultModal = ({ result, open, onOpenChange }: GMBResultModalProps) => 
               </a>
             )}
             {result.url && (
-              <a href={result.url} target="_blank" rel="noopener noreferrer" className="flex-1">
-                <Button variant="outline" className="w-full gap-2">
-                  <ExternalLink className="w-4 h-4" />
-                  View Website
-                </Button>
-              </a>
+              <Button 
+                variant="outline" 
+                className="flex-1 gap-2"
+                onClick={() => setWebsitePreviewOpen(true)}
+              >
+                <Globe className="w-4 h-4" />
+                View Website
+              </Button>
             )}
           </div>
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Website Preview Dialog */}
+    <Dialog open={websitePreviewOpen} onOpenChange={setWebsitePreviewOpen}>
+      <DialogContent className="w-[min(96vw,72rem)] h-[85vh] p-0 overflow-hidden">
+        <DialogHeader className="p-4 pb-2">
+          <DialogTitle className="flex items-center gap-2">
+            <Globe className="h-4 w-4 text-primary" />
+            {result.name}
+          </DialogTitle>
+          <DialogDescription className="flex items-center justify-between gap-3">
+            <span className="truncate text-muted-foreground">{normalizedUrl}</span>
+            <Button asChild size="sm" variant="outline" className="shrink-0 gap-2">
+              <a href={normalizedUrl} target="_blank" rel="noopener noreferrer">
+                <ExternalLink className="h-4 w-4" />
+                Open in New Tab
+              </a>
+            </Button>
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex-1 h-[calc(100%-120px)] w-full border-t border-border bg-muted/20">
+          <iframe
+            title={`${result.name} website preview`}
+            src={normalizedUrl}
+            className="h-full w-full"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+          />
+        </div>
+
+        <div className="p-3 border-t border-border text-xs text-muted-foreground bg-card">
+          💡 If the preview is blank, the site blocks in-app previews — use "Open in New Tab" above.
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 };
 
