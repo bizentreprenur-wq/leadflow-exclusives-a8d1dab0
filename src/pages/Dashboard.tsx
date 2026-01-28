@@ -211,6 +211,7 @@ export default function Dashboard() {
   
   // Settings tab to open (for deep-linking)
   const [settingsInitialTab, setSettingsInitialTab] = useState<string>('integrations');
+  const [hideWebhooksInSettings, setHideWebhooksInSettings] = useState(false);
   
   // CRM Modal state
   const [showCRMModal, setShowCRMModal] = useState(false);
@@ -1981,6 +1982,7 @@ export default function Dashboard() {
             }}
             onOpenSettings={() => {
               setSettingsInitialTab('email');
+              setHideWebhooksInSettings(true);
               setActiveTab('settings');
             }}
             searchType={searchType}
@@ -2178,9 +2180,11 @@ export default function Dashboard() {
           iconBg: 'bg-slate-500/10',
           component: <SettingsPanel 
             initialTab={settingsInitialTab} 
+            hideWebhooks={hideWebhooksInSettings}
             onBackToStep4={() => {
               setActiveTab('workflow');
               setCurrentStep(4);
+              setHideWebhooksInSettings(false);
             }}
           />,
         };
@@ -2269,7 +2273,11 @@ export default function Dashboard() {
               const isSmtpConfigured = smtpConfig.username && smtpConfig.password;
               return (
                 <button
-                  onClick={() => setCurrentStep(3)}
+                  onClick={() => {
+                    setSettingsInitialTab('email');
+                    setHideWebhooksInSettings(true);
+                    setActiveTab('settings');
+                  }}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
                     isSmtpConfigured
                       ? 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/30'

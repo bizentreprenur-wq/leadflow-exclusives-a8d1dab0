@@ -65,9 +65,10 @@ interface EmailConfigurationPanelProps {
   leads?: Lead[];
   hideTabBar?: boolean;
   initialTab?: string;
+  hideWebhooks?: boolean;
 }
 
-export default function EmailConfigurationPanel({ leads = [], hideTabBar = false, initialTab }: EmailConfigurationPanelProps) {
+export default function EmailConfigurationPanel({ leads = [], hideTabBar = false, initialTab, hideWebhooks = false }: EmailConfigurationPanelProps) {
   const [activeTab, setActiveTab] = useState(initialTab || 'smtp');
   const [showPassword, setShowPassword] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
@@ -891,8 +892,8 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
 
               <Separator />
 
-              {/* Webhook URL Configuration */}
-              <WebhookURLConfiguration />
+              {/* Webhook URL Configuration - Hidden when navigating from SMTP config button */}
+              {!hideWebhooks && <WebhookURLConfiguration />}
 
               {/* Action Buttons */}
               <div className="space-y-4">
