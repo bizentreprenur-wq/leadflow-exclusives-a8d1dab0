@@ -55,6 +55,9 @@ $service = sanitizeInput($input['service'] ?? '');
 $location = sanitizeInput($input['location'] ?? '');
 $limit = intval($input['limit'] ?? 100);
 $limit = max(20, min(50000, $limit));
+$filters = normalizeSearchFilters($input['filters'] ?? null);
+$filtersActive = hasAnySearchFilter($filters);
+$filterMultiplier = $filtersActive ? (defined('FILTER_OVERFETCH_MULTIPLIER') ? max(1, (int)FILTER_OVERFETCH_MULTIPLIER) : 3) : 1;
 
 if (empty($service)) {
     sendSSEError('Service type is required');
@@ -75,6 +78,9 @@ streamGMBSearch($service, $location, $limit);
 function sendSSE($event, $data) {
     echo "event: {$event}\n";
     echo "data: " . json_encode($data) . "\n\n";
+    if (function_exists('ob_flush')) {
+        @ob_flush();
+    }
     flush();
 }
 
@@ -97,9 +103,8 @@ function streamGMBSearch($service, $location, $limit) {
         return;
     }
     
-    $query = "$service in $location";
     $allResults = [];
-    $seenBusinesses = []; // Track by name+address for deduplication
+    $seenBusinesses = []; // Track by dedupe key to index for deduplication
     $totalResults = 0;
     
     // Define search engines to query (all supported by SerpAPI)
@@ -109,77 +114,131 @@ function streamGMBSearch($service, $location, $limit) {
         ['engine' => 'bing_local', 'name' => 'Bing Places', 'resultsKey' => 'local_results'],
     ];
     
+    $enableExpansion = defined('ENABLE_LOCATION_EXPANSION') ? ENABLE_LOCATION_EXPANSION : true;
+    $expansionMax = defined('LOCATION_EXPANSION_MAX') ? max(0, (int)LOCATION_EXPANSION_MAX) : 5;
+    $expandedLocations = $enableExpansion ? buildLocationExpansions($location) : [];
+    if ($expansionMax > 0) {
+        $expandedLocations = array_slice($expandedLocations, 0, $expansionMax);
+    } else {
+        $expandedLocations = [];
+    }
+    $locationsToSearch = array_merge([$location], $expandedLocations);
+    $searchedLocations = [];
+    
     // Send initial status
     sendSSE('start', [
-        'query' => $query,
+        'query' => "$service in $location",
         'limit' => $limit,
         'sources' => array_column($searchEngines, 'name'),
-        'estimatedSources' => count($searchEngines)
+        'estimatedSources' => count($searchEngines),
+        'expandedLocations' => $expandedLocations,
+        'filtersActive' => $filtersActive
     ]);
     
-    $resultsPerEngine = ceil($limit / count($searchEngines));
-    
-    foreach ($searchEngines as $engineConfig) {
+    foreach ($locationsToSearch as $locationIndex => $searchLocation) {
         if ($totalResults >= $limit) {
             break;
         }
         
-        $engineName = $engineConfig['engine'];
-        $sourceName = $engineConfig['name'];
-        $resultsKey = $engineConfig['resultsKey'];
+        $query = "$service in $searchLocation";
+        $searchedLocations[] = $searchLocation;
         
-        sendSSE('source_start', [
-            'source' => $sourceName,
-            'engine' => $engineName
-        ]);
-        
-        $engineResults = searchSingleEngine($apiKey, $engineName, $query, $resultsKey, $resultsPerEngine, $sourceName);
-        
-        // Deduplicate and add results
-        $newResults = [];
-        foreach ($engineResults as $business) {
-            $dedupeKey = strtolower(trim($business['name'])) . '|' . strtolower(trim($business['address'] ?? ''));
-            
-            if (!isset($seenBusinesses[$dedupeKey])) {
-                $seenBusinesses[$dedupeKey] = true;
-                $business['sources'] = [$sourceName];
-                $newResults[] = $business;
-                $allResults[] = $business;
-                $totalResults++;
-                
-                if ($totalResults >= $limit) {
-                    break;
-                }
-            } else {
-                // Business already exists, track that we found it in multiple sources
-                foreach ($allResults as &$existing) {
-                    $existingKey = strtolower(trim($existing['name'])) . '|' . strtolower(trim($existing['address'] ?? ''));
-                    if ($existingKey === $dedupeKey && !in_array($sourceName, $existing['sources'] ?? [])) {
-                        $existing['sources'][] = $sourceName;
-                        break;
-                    }
-                }
-            }
-        }
-        
-        if (!empty($newResults)) {
-            $progress = min(100, round(($totalResults / $limit) * 100));
-            sendSSE('results', [
-                'leads' => $newResults,
-                'total' => $totalResults,
-                'progress' => $progress,
-                'source' => $sourceName
+        if ($locationIndex > 0) {
+            sendSSE('expansion_start', [
+                'location' => $searchLocation,
+                'remaining' => $limit - $totalResults
             ]);
         }
         
-        sendSSE('source_complete', [
-            'source' => $sourceName,
-            'found' => count($engineResults),
-            'added' => count($newResults)
-        ]);
+        $engineCount = count($searchEngines);
+        $engineIndex = 0;
         
-        // Small delay between engines
-        usleep(200000); // 200ms
+        foreach ($searchEngines as $engineConfig) {
+            if ($totalResults >= $limit) {
+                break;
+            }
+            
+            $engineIndex++;
+            $remaining = $limit - $totalResults;
+            $remainingEngines = max(1, $engineCount - $engineIndex + 1);
+            $resultsPerEngine = (int)ceil($remaining / $remainingEngines);
+            if ($filtersActive && $filterMultiplier > 1) {
+                $resultsPerEngine = (int)ceil($resultsPerEngine * $filterMultiplier);
+            }
+            
+            $engineName = $engineConfig['engine'];
+            $sourceName = $engineConfig['name'];
+            $resultsKey = $engineConfig['resultsKey'];
+            
+            sendSSE('source_start', [
+                'source' => $sourceName,
+                'engine' => $engineName,
+                'location' => $searchLocation
+            ]);
+            
+            $engineFound = 0;
+            $engineAdded = 0;
+            
+            searchSingleEngine(
+                $apiKey,
+                $engineName,
+                $query,
+                $resultsKey,
+                $resultsPerEngine,
+                $sourceName,
+                function ($pageResults) use (&$allResults, &$seenBusinesses, &$totalResults, &$engineFound, &$engineAdded, $limit, $sourceName, $searchLocation, $filters) {
+                    $engineFound += count($pageResults);
+                    
+                    $newResults = [];
+                    foreach ($pageResults as $business) {
+                        if (!matchesSearchFilters($business, $filters)) {
+                            continue;
+                        }
+                        $dedupeKey = buildBusinessDedupeKey($business, $searchLocation);
+                        
+                        if (!isset($seenBusinesses[$dedupeKey])) {
+                            $seenBusinesses[$dedupeKey] = count($allResults);
+                            $business['sources'] = [$sourceName];
+                            $newResults[] = $business;
+                            $allResults[] = $business;
+                            $totalResults++;
+                            $engineAdded++;
+                            
+                            if ($totalResults >= $limit) {
+                                break;
+                            }
+                        } else {
+                            // Business already exists, track that we found it in multiple sources
+                            $existingIndex = $seenBusinesses[$dedupeKey];
+                            if (isset($allResults[$existingIndex]) && !in_array($sourceName, $allResults[$existingIndex]['sources'] ?? [])) {
+                                $allResults[$existingIndex]['sources'][] = $sourceName;
+                            }
+                        }
+                    }
+                    
+                    if (!empty($newResults)) {
+                        $progress = min(100, round(($totalResults / $limit) * 100));
+                        sendSSE('results', [
+                            'leads' => $newResults,
+                            'total' => $totalResults,
+                            'progress' => $progress,
+                            'source' => $sourceName
+                        ]);
+                    }
+                    
+                    return $totalResults < $limit;
+                }
+            );
+            
+            sendSSE('source_complete', [
+                'source' => $sourceName,
+                'found' => $engineFound,
+                'added' => $engineAdded
+            ]);
+            
+            // Small delay between engines
+            usleep(200000); // 200ms
+        }
     }
     
     // Send completion
@@ -190,7 +249,8 @@ function streamGMBSearch($service, $location, $limit) {
             'service' => $service,
             'location' => $location,
             'limit' => $limit
-        ]
+        ],
+        'searchedLocations' => $searchedLocations
     ]);
 }
 
@@ -198,7 +258,7 @@ function streamGMBSearch($service, $location, $limit) {
  * Search a single SerpAPI engine
  * Supports up to 50000 total leads by increasing page limits per engine
  */
-function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sourceName) {
+function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sourceName, $onPageResults = null) {
     $results = [];
     
     // Yelp returns 10 per page, others return 20
@@ -227,6 +287,8 @@ function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sour
     $maxPages = min($maxPages, $pageCap);
     
     $emptyPageStreak = 0; // Track consecutive empty pages to exit early
+    
+    $throttleUs = defined('SERPAPI_THROTTLE_US') ? max(0, (int)SERPAPI_THROTTLE_US) : 150000;
     
     for ($page = 0; $page < $maxPages; $page++) {
         if (count($results) >= $limit) {
@@ -281,6 +343,7 @@ function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sour
         
         $emptyPageStreak = 0; // Reset on successful results
         
+        $pageResults = [];
         foreach ($items as $item) {
             if (count($results) >= $limit) {
                 break;
@@ -289,6 +352,14 @@ function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sour
             $business = normalizeBusinessResult($item, $engine, $sourceName);
             if ($business) {
                 $results[] = $business;
+                $pageResults[] = $business;
+            }
+        }
+        
+        if (!empty($pageResults) && is_callable($onPageResults)) {
+            $continue = $onPageResults($pageResults);
+            if ($continue === false) {
+                break;
             }
         }
         
@@ -301,7 +372,9 @@ function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sour
             break;
         }
         
-        usleep(150000); // 150ms between pages for stability
+        if ($throttleUs > 0) {
+            usleep($throttleUs);
+        }
     }
     
     return $results;

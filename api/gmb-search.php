@@ -38,6 +38,9 @@ if (!$input) {
 $service = sanitizeInput($input['service'] ?? '');
 $location = sanitizeInput($input['location'] ?? '');
 $limit = intval($input['limit'] ?? 100); // Default 100, max 50000
+$filters = normalizeSearchFilters($input['filters'] ?? null);
+$filtersActive = hasAnySearchFilter($filters);
+$filterMultiplier = $filtersActive ? (defined('FILTER_OVERFETCH_MULTIPLIER') ? max(1, (int)FILTER_OVERFETCH_MULTIPLIER) : 3) : 1;
 
 // Validate limit (min 20, max 50000)
 $limit = max(20, min(50000, $limit));
@@ -51,7 +54,8 @@ if (empty($location)) {
 }
 
 try {
-    $cacheKey = "gmb_search_{$service}_{$location}_{$limit}";
+    $filtersKey = $filtersActive ? md5(json_encode($filters)) : 'none';
+    $cacheKey = "gmb_search_{$service}_{$location}_{$limit}_{$filtersKey}";
     
     // Check cache
     $cached = getCache($cacheKey);
@@ -68,7 +72,7 @@ try {
         ]);
     }
     
-    $results = searchGMBListings($service, $location, $limit);
+    $results = searchGMBListings($service, $location, $limit, $filters, $filtersActive, $filterMultiplier);
     
     // Cache results
     setCache($cacheKey, $results);
@@ -95,7 +99,7 @@ try {
  * Search for business listings using multiple SerpAPI engines
  * Queries Google Maps, Yelp, and Bing Local for comprehensive results
  */
-function searchGMBListings($service, $location, $limit = 100) {
+function searchGMBListings($service, $location, $limit = 100, $filters = [], $filtersActive = false, $filterMultiplier = 1) {
     $apiKey = defined('SERPAPI_KEY') ? SERPAPI_KEY : '';
     
     if (empty($apiKey)) {
@@ -104,7 +108,6 @@ function searchGMBListings($service, $location, $limit = 100) {
     
     set_time_limit(3600); // 60 min for massive searches
     
-    $query = "$service in $location";
     $allResults = [];
     $seenBusinesses = [];
     
@@ -115,46 +118,73 @@ function searchGMBListings($service, $location, $limit = 100) {
         ['engine' => 'bing_local', 'name' => 'Bing Places', 'resultsKey' => 'local_results'],
     ];
     
-    $resultsPerEngine = ceil($limit / count($searchEngines));
+    $enableExpansion = defined('ENABLE_LOCATION_EXPANSION') ? ENABLE_LOCATION_EXPANSION : true;
+    $expansionMax = defined('LOCATION_EXPANSION_MAX') ? max(0, (int)LOCATION_EXPANSION_MAX) : 5;
+    $expandedLocations = $enableExpansion ? buildLocationExpansions($location) : [];
+    if ($expansionMax > 0) {
+        $expandedLocations = array_slice($expandedLocations, 0, $expansionMax);
+    } else {
+        $expandedLocations = [];
+    }
+    $locationsToSearch = array_merge([$location], $expandedLocations);
     
-    foreach ($searchEngines as $engineConfig) {
+    foreach ($locationsToSearch as $searchLocation) {
         if (count($allResults) >= $limit) {
             break;
         }
         
-        $engineResults = searchSingleEngineNonStream(
-            $apiKey,
-            $engineConfig['engine'],
-            $query,
-            $engineConfig['resultsKey'],
-            $resultsPerEngine,
-            $engineConfig['name']
-        );
+        $query = "$service in $searchLocation";
+        $engineCount = count($searchEngines);
+        $engineIndex = 0;
         
-        foreach ($engineResults as $business) {
+        foreach ($searchEngines as $engineConfig) {
             if (count($allResults) >= $limit) {
                 break;
             }
             
-            $dedupeKey = strtolower(trim($business['name'])) . '|' . strtolower(trim($business['address'] ?? ''));
+            $engineIndex++;
+            $remaining = $limit - count($allResults);
+            $remainingEngines = max(1, $engineCount - $engineIndex + 1);
+            $resultsPerEngine = (int)ceil($remaining / $remainingEngines);
+            if ($filtersActive && $filterMultiplier > 1) {
+                $resultsPerEngine = (int)ceil($resultsPerEngine * $filterMultiplier);
+            }
             
-            if (!isset($seenBusinesses[$dedupeKey])) {
-                $seenBusinesses[$dedupeKey] = true;
-                $business['sources'] = [$engineConfig['name']];
-                $allResults[] = $business;
-            } else {
-                // Update existing with additional source
-                foreach ($allResults as &$existing) {
-                    $existingKey = strtolower(trim($existing['name'])) . '|' . strtolower(trim($existing['address'] ?? ''));
-                    if ($existingKey === $dedupeKey && !in_array($engineConfig['name'], $existing['sources'] ?? [])) {
-                        $existing['sources'][] = $engineConfig['name'];
-                        break;
+            $engineResults = searchSingleEngineNonStream(
+                $apiKey,
+                $engineConfig['engine'],
+                $query,
+                $engineConfig['resultsKey'],
+                $resultsPerEngine,
+                $engineConfig['name']
+            );
+            
+            foreach ($engineResults as $business) {
+                if (count($allResults) >= $limit) {
+                    break;
+                }
+                
+                if (!matchesSearchFilters($business, $filters)) {
+                    continue;
+                }
+                
+                $dedupeKey = buildBusinessDedupeKey($business, $searchLocation);
+                
+                if (!isset($seenBusinesses[$dedupeKey])) {
+                    $seenBusinesses[$dedupeKey] = count($allResults);
+                    $business['sources'] = [$engineConfig['name']];
+                    $allResults[] = $business;
+                } else {
+                    // Update existing with additional source
+                    $existingIndex = $seenBusinesses[$dedupeKey];
+                    if (isset($allResults[$existingIndex]) && !in_array($engineConfig['name'], $allResults[$existingIndex]['sources'] ?? [])) {
+                        $allResults[$existingIndex]['sources'][] = $engineConfig['name'];
                     }
                 }
             }
+            
+            usleep(200000); // 200ms between engines
         }
-        
-        usleep(200000); // 200ms between engines
     }
     
     return $allResults;
@@ -168,6 +198,7 @@ function searchSingleEngineNonStream($apiKey, $engine, $query, $resultsKey, $lim
     $resultsPerPage = 20;
     $maxPages = ceil($limit / $resultsPerPage);
     $maxPages = min($maxPages, 10);
+    $throttleUs = defined('SERPAPI_THROTTLE_US') ? max(0, (int)SERPAPI_THROTTLE_US) : 100000;
     
     for ($page = 0; $page < $maxPages; $page++) {
         if (count($results) >= $limit) {
@@ -227,7 +258,9 @@ function searchSingleEngineNonStream($apiKey, $engine, $query, $resultsKey, $lim
             break;
         }
         
-        usleep(100000);
+        if ($throttleUs > 0) {
+            usleep($throttleUs);
+        }
     }
     
     return $results;

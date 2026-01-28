@@ -166,7 +166,20 @@ define('MAX_PAGE_SIZE', 2 * 1024 * 1024); // 2MB
 // SEARCH SETTINGS
 // =====================================
 // Number of results per search (max 10 for Google, 50 for Bing)
-define('RESULTS_PER_PAGE', 10);
+define('RESULTS_PER_PAGE', 200);
+// Throttle between SerpAPI page requests (microseconds)
+// Lower = faster, higher = safer vs rate limits. 150000 = 150ms.
+define('SERPAPI_THROTTLE_US', 80000);
+// Over-fetch multiplier when filters are active (helps hit target counts)
+define('FILTER_OVERFETCH_MULTIPLIER', 3);
+// Auto-expand locations when results are below the requested limit
+define('ENABLE_LOCATION_EXPANSION', true);
+// Maximum number of extra location variants to try
+define('LOCATION_EXPANSION_MAX', 5);
+// Allow widening to state-level searches (broader, less targeted)
+define('LOCATION_EXPANSION_INCLUDE_STATE', false);
+// Allow widening to country-level searches (very broad)
+define('LOCATION_EXPANSION_INCLUDE_COUNTRY', false);
 
 // =====================================
 // DEBUG MODE

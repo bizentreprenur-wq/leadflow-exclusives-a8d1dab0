@@ -5,12 +5,14 @@ interface StreamingLeadsIndicatorProps {
   currentCount: number;
   isStreaming: boolean;
   progress: number;
+  requestedCount?: number;
 }
 
 export default function StreamingLeadsIndicator({
   currentCount,
   isStreaming,
   progress,
+  requestedCount,
 }: StreamingLeadsIndicatorProps) {
   const [displayCount, setDisplayCount] = useState(0);
   const [prevCount, setPrevCount] = useState(0);
@@ -91,6 +93,8 @@ export default function StreamingLeadsIndicator({
             <p className="text-sm text-muted-foreground">
               {isStreaming ? (
                 'Streaming results from Google Maps API'
+              ) : requestedCount && currentCount !== requestedCount ? (
+                `Found ${currentCount} of ${requestedCount} requested businesses`
               ) : (
                 `Found ${currentCount} businesses ready for outreach`
               )}
@@ -109,8 +113,15 @@ export default function StreamingLeadsIndicator({
                 <span className="text-lg text-emerald-400 animate-pulse font-bold">+</span>
               )}
             </div>
-            <span className="text-xs text-muted-foreground uppercase tracking-wide">Leads Found</span>
+            <span className="text-xs text-muted-foreground uppercase tracking-wide">
+              {requestedCount ? `Leads Found / ${requestedCount}` : 'Leads Found'}
+            </span>
           </div>
+          {requestedCount && (
+            <div className="text-xs text-muted-foreground">
+              Target: {requestedCount}
+            </div>
+          )}
 
           {/* Progress circle */}
           {isStreaming && (

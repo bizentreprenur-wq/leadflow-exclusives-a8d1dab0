@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -51,6 +51,7 @@ import { searchGMB, GMBResult } from '@/lib/api/gmb';
 import { searchPlatforms, PlatformResult } from '@/lib/api/platforms';
 import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } from '@/lib/api/leadAnalysis';
 import { quickScoreLeads } from '@/lib/api/aiLeadScoring';
+import { verifyLead } from '@/lib/api/verification';
 import { HIGH_CONVERTING_TEMPLATES } from '@/lib/highConvertingTemplates';
 import { generateMechanicLeads, injectTestLeads } from '@/lib/testMechanicLeads';
 import { fetchSearchLeads, saveSearchLeads, deleteSearchLeads, SearchLead } from '@/lib/api/searchLeads';
@@ -157,6 +158,7 @@ export default function Dashboard() {
   // Platform selection for scanner
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['gmb', 'wordpress', 'wix', 'squarespace', 'joomla']);
   const [searchLimit, setSearchLimit] = useState<number>(100); // Default 100 results
+  const [lastRequestedLimit, setLastRequestedLimit] = useState<number | null>(null);
   const [selectedLeads, setSelectedLeads] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('bamlead_selected_leads');
@@ -175,6 +177,12 @@ export default function Dashboard() {
   const [showVerifierWidget, setShowVerifierWidget] = useState(false);
   const [showResultsPanel, setShowResultsPanel] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [advanceToStep2AfterReport, setAdvanceToStep2AfterReport] = useState(false);
+  const [isEmailEnriching, setIsEmailEnriching] = useState(false);
+  const [emailEnrichTotal, setEmailEnrichTotal] = useState(0);
+  const [emailEnrichCompleted, setEmailEnrichCompleted] = useState(0);
+  const emailEnrichRunId = useRef(0);
+  const [autoSelectAllForAIScoring, setAutoSelectAllForAIScoring] = useState(false);
   const [widgetLeads, setWidgetLeads] = useState<SearchResult[]>([]);
   const [verifiedWidgetLeads, setVerifiedWidgetLeads] = useState<any[]>([]);
   
@@ -297,6 +305,69 @@ export default function Dashboard() {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(() => {
     try { return localStorage.getItem('bamlead_search_timestamp'); } catch { return null; }
   });
+
+  const startEmailEnrichment = async (leads: SearchResult[]) => {
+    const runId = ++emailEnrichRunId.current;
+    const candidates = leads.filter((lead) => {
+      if (lead.email) return false;
+      const website = (lead.website || '').trim();
+      return website.length > 0;
+    });
+
+    if (candidates.length === 0) {
+      setIsEmailEnriching(false);
+      setEmailEnrichTotal(0);
+      setEmailEnrichCompleted(0);
+      return;
+    }
+
+    setIsEmailEnriching(true);
+    setEmailEnrichTotal(candidates.length);
+    setEmailEnrichCompleted(0);
+    toast.info(`Enriching emails for ${candidates.length} leads...`);
+
+    const queue = [...candidates];
+    const concurrency = 4;
+
+    const worker = async () => {
+      while (queue.length > 0 && emailEnrichRunId.current === runId) {
+        const lead = queue.shift();
+        if (!lead) {
+          continue;
+        }
+
+        const rawUrl = (lead.website || '').trim();
+        if (!rawUrl) {
+          setEmailEnrichCompleted((prev) => prev + 1);
+          continue;
+        }
+
+        const url = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+
+        try {
+          const result = await verifyLead(url, lead.id);
+          const emails = result.data?.contactInfo?.emails || [];
+          const email = emails.find((value) => (value || '').trim().length > 0);
+          if (email) {
+            setSearchResults((prev) =>
+              prev.map((item) => (item.id === lead.id ? { ...item, email } : item))
+            );
+          }
+        } catch (error) {
+          console.warn('[BamLead] Email enrichment failed for lead:', lead.id, error);
+        } finally {
+          setEmailEnrichCompleted((prev) => prev + 1);
+        }
+      }
+    };
+
+    await Promise.all(Array.from({ length: concurrency }, () => worker()));
+
+    if (emailEnrichRunId.current === runId) {
+      setIsEmailEnriching(false);
+      toast.success('Email enrichment complete.');
+    }
+  };
 
   // Manual save function
   const handleManualSave = async (): Promise<boolean> => {
@@ -670,9 +741,14 @@ export default function Dashboard() {
     setShowAIPipeline(false); // Reset AI pipeline for new search
     setAIPipelineProgress(0);
     setCurrentAIAgent('');
+    emailEnrichRunId.current += 1;
+    setIsEmailEnriching(false);
+    setEmailEnrichTotal(0);
+    setEmailEnrichCompleted(0);
 
     // Ensure the Intelligence Report is closed while running a new search
     setShowReportModal(false);
+    setAdvanceToStep2AfterReport(false);
     
     // Clear localStorage for previous search data (new search replaces old)
     localStorage.removeItem('bamlead_search_results');
@@ -680,10 +756,27 @@ export default function Dashboard() {
     localStorage.removeItem('bamlead_selected_leads');
 
     const requestedLimit = searchLimit;
+    const backendFilters = {
+      phoneOnly: phoneLeadsOnly,
+      noWebsite: filterNoWebsite,
+      notMobile: filterNotMobile,
+      outdated: filterOutdated,
+      platforms: searchType === 'platform' ? selectedPlatforms : [],
+      platformMode: searchType === 'platform',
+    };
+    const backendFiltersActive =
+      backendFilters.phoneOnly ||
+      backendFilters.noWebsite ||
+      backendFilters.notMobile ||
+      backendFilters.outdated ||
+      (backendFilters.platforms && backendFilters.platforms.length > 0);
+    setLastRequestedLimit(requestedLimit);
     // Check if any filters are active - if so, over-fetch to compensate for filtering
-    const needsFilteredLeads = phoneLeadsOnly || filterNoWebsite || filterNotMobile || filterOutdated;
+    const needsFilteredLeads = phoneLeadsOnly || filterNoWebsite || filterNotMobile || filterOutdated || (searchType === 'platform' && selectedPlatforms.length > 0);
     // Over-fetch by 3x when filters are active (max 5000 for performance)
-    const effectiveLimit = Math.min(5000, needsFilteredLeads ? requestedLimit * 3 : requestedLimit);
+    const effectiveLimit = backendFiltersActive
+      ? requestedLimit
+      : Math.min(5000, needsFilteredLeads ? requestedLimit * 3 : requestedLimit);
 
     console.log('[BamLead] Starting search:', {
       searchType,
@@ -717,7 +810,7 @@ export default function Dashboard() {
       
       if (searchType === 'gmb') {
         console.log('[BamLead] Calling searchGMB API...');
-        const response = await searchGMB(query, location, effectiveLimit, handleProgress);
+        const response = await searchGMB(query, location, effectiveLimit, handleProgress, backendFilters);
         console.log('[BamLead] GMB response:', response);
         if (response.success && response.data) {
           finalResults = response.data.map((r: GMBResult, index: number) => ({
@@ -738,26 +831,10 @@ export default function Dashboard() {
         // Agency Lead Finder now uses GMB search as primary (Google Maps + Yelp + Bing)
         // then filters for platform-specific opportunities
         console.log('[BamLead] Agency Lead Finder: Using GMB search with platform filtering, limit:', effectiveLimit);
-        const response = await searchGMB(query, location, effectiveLimit, handleProgress);
+        const response = await searchGMB(query, location, effectiveLimit, handleProgress, backendFilters);
         console.log('[BamLead] Agency Lead Finder GMB response:', response);
         if (response.success && response.data) {
-          // Filter results to show businesses with platform issues or no website
-          const platformFiltered = response.data.filter((r: GMBResult) => {
-            const analysis = r.websiteAnalysis;
-            // Include if: no website, needs upgrade, has issues, or matches selected platforms
-            if (!analysis?.hasWebsite) return true;
-            if (analysis?.needsUpgrade) return true;
-            if (analysis?.issues && analysis.issues.length > 0) return true;
-            if (analysis?.platform && selectedPlatforms.includes(analysis.platform.toLowerCase())) return true;
-            // Also include businesses without a proper website
-            if (!r.url || r.url.trim() === '') return true;
-            return false;
-          });
-          
-          console.log(`[BamLead] Agency Lead Finder filtered: ${response.data.length} → ${platformFiltered.length} leads with platform opportunities`);
-          
-          // Use filtered results - backend already extracts emails/phones when available
-          const resultsToUse = platformFiltered.length > 0 ? platformFiltered : response.data;
+          const resultsToUse = backendFiltersActive ? response.data : response.data;
           
           finalResults = resultsToUse.map((r: GMBResult, index: number) => ({
             id: r.id || `agency-${index}`,
@@ -771,10 +848,6 @@ export default function Dashboard() {
             platform: r.websiteAnalysis?.platform || undefined,
             websiteAnalysis: r.websiteAnalysis,
           }));
-          
-          if (platformFiltered.length === 0 && response.data.length > 0) {
-            toast.info(`Found ${response.data.length} businesses. Showing all results.`);
-          }
         } else if (response.error) {
           throw new Error(response.error);
         }
@@ -783,7 +856,7 @@ export default function Dashboard() {
       console.log('[BamLead] Search complete, finalResults:', finalResults.length);
       
       // Apply Phone Leads Only filter if enabled
-      if (phoneLeadsOnly) {
+      if (phoneLeadsOnly && !backendFiltersActive) {
         const beforeCount = finalResults.length;
         finalResults = finalResults.filter(r => r.phone && r.phone.trim() !== '');
         console.log(`[BamLead] Phone filter applied: ${beforeCount} → ${finalResults.length} leads with phone numbers`);
@@ -795,7 +868,7 @@ export default function Dashboard() {
       }
 
       // Apply "No Website" filter if enabled
-      if (filterNoWebsite) {
+      if (filterNoWebsite && !backendFiltersActive) {
         const beforeCount = finalResults.length;
         finalResults = finalResults.filter(r => {
           const website = r.website?.trim();
@@ -805,7 +878,7 @@ export default function Dashboard() {
       }
 
       // Apply "Not Mobile Compliant" filter if enabled
-      if (filterNotMobile) {
+      if (filterNotMobile && !backendFiltersActive) {
         const beforeCount = finalResults.length;
         finalResults = finalResults.filter(r => {
           const mobileScore = r.websiteAnalysis?.mobileScore;
@@ -816,7 +889,7 @@ export default function Dashboard() {
       }
 
       // Apply "Outdated Standards" filter if enabled
-      if (filterOutdated) {
+      if (filterOutdated && !backendFiltersActive) {
         const beforeCount = finalResults.length;
         finalResults = finalResults.filter(r => {
           // Check for outdated indicators
@@ -1640,58 +1713,60 @@ export default function Dashboard() {
                       </div>
                     )}
 
-                    {/* Website Quality Filters - for both search types */}
-                    <div className="p-4 rounded-lg border-2 border-violet-500/30 bg-violet-500/5">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Globe className="w-4 h-4 text-violet-400" />
-                        <span className="font-medium text-violet-400">Website Quality Filters</span>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="flex items-center gap-3 cursor-pointer group">
-                          <Checkbox
-                            checked={filterNoWebsite}
-                            onCheckedChange={(checked) => setFilterNoWebsite(checked === true)}
-                            className="border-emerald-500 data-[state=checked]:bg-emerald-500"
-                          />
-                          <XCircle className="w-4 h-4 text-emerald-500" />
-                          <div>
-                            <span className="text-sm text-foreground group-hover:text-primary">No Website</span>
-                            <p className="text-xs text-muted-foreground">High opportunity — businesses without any website</p>
-                          </div>
-                        </label>
-                        <label className="flex items-center gap-3 cursor-pointer group">
-                          <Checkbox
-                            checked={filterNotMobile}
-                            onCheckedChange={(checked) => setFilterNotMobile(checked === true)}
-                            className="border-orange-500 data-[state=checked]:bg-orange-500"
-                          />
-                          <Smartphone className="w-4 h-4 text-orange-500" />
-                          <div>
-                            <span className="text-sm text-foreground group-hover:text-primary">Not Mobile Compliant</span>
-                            <p className="text-xs text-muted-foreground">Websites with mobile score below 50%</p>
-                          </div>
-                        </label>
-                        <label className="flex items-center gap-3 cursor-pointer group">
-                          <Checkbox
-                            checked={filterOutdated}
-                            onCheckedChange={(checked) => setFilterOutdated(checked === true)}
-                            className="border-red-500 data-[state=checked]:bg-red-500"
-                          />
-                          <AlertTriangle className="w-4 h-4 text-red-500" />
-                          <div>
-                            <span className="text-sm text-foreground group-hover:text-primary">Outdated Standards</span>
-                            <p className="text-xs text-muted-foreground">Slow load times, missing SSL, or UX issues</p>
-                          </div>
-                        </label>
-                      </div>
-                      {(filterNoWebsite || filterNotMobile || filterOutdated) && (
-                        <div className="mt-3 p-2 rounded-lg bg-violet-500/10 border border-violet-500/20">
-                          <p className="text-xs text-violet-400">
-                            ✓ {[filterNoWebsite && 'No Website', filterNotMobile && 'Mobile Issues', filterOutdated && 'Outdated'].filter(Boolean).join(' + ')} filter active
-                          </p>
+                    {/* Website Quality Filters - only for platform search */}
+                    {searchType === 'platform' && (
+                      <div className="p-4 rounded-lg border-2 border-violet-500/30 bg-violet-500/5">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Globe className="w-4 h-4 text-violet-400" />
+                          <span className="font-medium text-violet-400">Website Quality Filters</span>
                         </div>
-                      )}
-                    </div>
+                        <div className="space-y-2">
+                          <label className="flex items-center gap-3 cursor-pointer group">
+                            <Checkbox
+                              checked={filterNoWebsite}
+                              onCheckedChange={(checked) => setFilterNoWebsite(checked === true)}
+                              className="border-emerald-500 data-[state=checked]:bg-emerald-500"
+                            />
+                            <XCircle className="w-4 h-4 text-emerald-500" />
+                            <div>
+                              <span className="text-sm text-foreground group-hover:text-primary">No Website</span>
+                              <p className="text-xs text-muted-foreground">High opportunity — businesses without any website</p>
+                            </div>
+                          </label>
+                          <label className="flex items-center gap-3 cursor-pointer group">
+                            <Checkbox
+                              checked={filterNotMobile}
+                              onCheckedChange={(checked) => setFilterNotMobile(checked === true)}
+                              className="border-orange-500 data-[state=checked]:bg-orange-500"
+                            />
+                            <Smartphone className="w-4 h-4 text-orange-500" />
+                            <div>
+                              <span className="text-sm text-foreground group-hover:text-primary">Not Mobile Compliant</span>
+                              <p className="text-xs text-muted-foreground">Websites with mobile score below 50%</p>
+                            </div>
+                          </label>
+                          <label className="flex items-center gap-3 cursor-pointer group">
+                            <Checkbox
+                              checked={filterOutdated}
+                              onCheckedChange={(checked) => setFilterOutdated(checked === true)}
+                              className="border-red-500 data-[state=checked]:bg-red-500"
+                            />
+                            <AlertTriangle className="w-4 h-4 text-red-500" />
+                            <div>
+                              <span className="text-sm text-foreground group-hover:text-primary">Outdated Standards</span>
+                              <p className="text-xs text-muted-foreground">Slow load times, missing SSL, or UX issues</p>
+                            </div>
+                          </label>
+                        </div>
+                        {(filterNoWebsite || filterNotMobile || filterOutdated) && (
+                          <div className="mt-3 p-2 rounded-lg bg-violet-500/10 border border-violet-500/20">
+                            <p className="text-xs text-violet-400">
+                              ✓ {[filterNoWebsite && 'No Website', filterNotMobile && 'Mobile Issues', filterOutdated && 'Outdated'].filter(Boolean).join(' + ')} filter active
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Results Limit Selector */}
                     <div>
@@ -1806,10 +1881,10 @@ export default function Dashboard() {
                       </div>
                       <div>
                         <p className="text-sm text-amber-200/90 font-medium">
-                          Results may vary slightly from your selection
+                          Targeting your exact lead count
                         </p>
                         <p className="text-xs text-amber-200/70 mt-0.5">
-                          We scan multiple sources to bring you the best leads — sometimes fewer, sometimes more. Quality over quantity, always!
+                          We auto-expand the search area to reach your selected total. If the market is small, we’ll show the closest matches available.
                         </p>
                       </div>
                     </div>
@@ -1860,6 +1935,7 @@ export default function Dashboard() {
                               currentCount={searchResults.length}
                               isStreaming={isSearching}
                               progress={searchProgress}
+                              requestedCount={lastRequestedLimit ?? searchLimit}
                             />
                           </div>
                         )}
@@ -1876,8 +1952,10 @@ export default function Dashboard() {
                             // Update leads with AI enhancements
                             setSearchResults(enhancedLeads as SearchResult[]);
                             setShowAIPipeline(false);
-                            // Now show the Intelligence Report
+                            // Show the Intelligence Report first, then move to Step 2 after close
+                            setAdvanceToStep2AfterReport(true);
                             setShowReportModal(true);
+                            startEmailEnrichment(enhancedLeads as SearchResult[]);
                             toast.success('🎉 All 8 AI agents complete! Your leads are supercharged.');
                           }}
                           onProgressUpdate={(progress, agentName) => {
@@ -1958,7 +2036,10 @@ export default function Dashboard() {
             onOpenSchedule={() => {
               setCurrentStep(4);
             }}
-            onOpenAIScoring={() => setShowAIScoringDashboard(true)}
+            onOpenAIScoring={() => {
+              setAutoSelectAllForAIScoring(true);
+              setShowAIScoringDashboard(true);
+            }}
             restoredFromSession={restoredFromSession}
             onDismissRestored={() => setRestoredFromSession(null)}
             onManualSave={handleManualSave}
@@ -2548,7 +2629,13 @@ export default function Dashboard() {
       {/* Full-screen Lead Document Viewer */}
       <LeadDocumentViewer
         open={showReportModal}
-        onOpenChange={setShowReportModal}
+        onOpenChange={(open) => {
+          setShowReportModal(open);
+          if (!open && advanceToStep2AfterReport && searchResults.length > 0) {
+            setAdvanceToStep2AfterReport(false);
+            setCurrentStep(2);
+          }
+        }}
         leads={searchResults}
         searchQuery={query}
         location={location}
@@ -2556,7 +2643,15 @@ export default function Dashboard() {
       />
 
       {/* AI Lead Scoring Dashboard Modal */}
-      <Dialog open={showAIScoringDashboard} onOpenChange={setShowAIScoringDashboard}>
+      <Dialog
+        open={showAIScoringDashboard}
+        onOpenChange={(open) => {
+          setShowAIScoringDashboard(open);
+          if (!open) {
+            setAutoSelectAllForAIScoring(false);
+          }
+        }}
+      >
         <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden p-0">
           <ScrollArea className="h-[90vh]">
             <div className="p-6">
@@ -2601,6 +2696,7 @@ export default function Dashboard() {
                   setShowReportModal(true);
                 }}
                 onBack={() => setShowAIScoringDashboard(false)}
+                autoSelectAll={autoSelectAllForAIScoring}
               />
             </div>
           </ScrollArea>

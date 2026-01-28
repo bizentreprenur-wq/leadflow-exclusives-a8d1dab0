@@ -158,6 +158,15 @@ function generateMockResults(service: string, location: string, count: number = 
 // Callback for progressive loading
 export type ProgressCallback = (results: GMBResult[], progress: number) => void;
 
+export interface GMBSearchFilters {
+  phoneOnly?: boolean;
+  noWebsite?: boolean;
+  notMobile?: boolean;
+  outdated?: boolean;
+  platforms?: string[];
+  platformMode?: boolean;
+}
+
 /**
  * Search GMB using Server-Sent Events for true streaming
  */
@@ -165,7 +174,8 @@ export async function searchGMB(
   service: string, 
   location: string, 
   limit: number = 100,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  filters?: GMBSearchFilters
 ): Promise<GMBSearchResponse> {
   // If there's no backend configured, do not fabricate dummy leads.
   if (USE_MOCK_DATA) {
@@ -176,7 +186,7 @@ export async function searchGMB(
   // We only fall back to the regular endpoint in a very narrow case
   // (streaming endpoint missing + small limits).
   try {
-    return await searchGMBStreaming(service, location, limit, onProgress);
+    return await searchGMBStreaming(service, location, limit, onProgress, filters);
   } catch (streamError) {
     const err = streamError instanceof Error ? streamError : new Error(String(streamError));
     console.warn('[GMB API] Streaming failed:', err);
@@ -188,7 +198,7 @@ export async function searchGMB(
     // Otherwise, fail explicitly (no fake results, and no slow fallback that times out).
     if (streamMissing && limit <= 50) {
       console.warn('[GMB API] Streaming endpoint appears missing; falling back to regular endpoint for small limit');
-      return await searchGMBRegular(service, location, limit, onProgress);
+      return await searchGMBRegular(service, location, limit, onProgress, filters);
     }
 
     throw err;
@@ -202,7 +212,8 @@ async function searchGMBStreaming(
   service: string,
   location: string,
   limit: number,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  filters?: GMBSearchFilters
 ): Promise<GMBSearchResponse> {
   console.log('[GMB API] Starting SSE streaming search');
   
@@ -237,7 +248,7 @@ async function searchGMBStreaming(
     fetch(`${API_BASE_URL}/gmb-search-stream.php`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ service, location, limit }),
+      body: JSON.stringify({ service, location, limit, filters }),
       signal: controller.signal,
     })
       .then(async (response) => {
@@ -256,6 +267,8 @@ async function searchGMBStreaming(
         const decoder = new TextDecoder();
         let buffer = '';
         let currentEvent: string | null = null;
+        let receivedAnyEvent = false;
+        let receivedComplete = false;
         
         while (true) {
           const { done, value } = await reader.read();
@@ -288,6 +301,7 @@ async function searchGMBStreaming(
                   continue;
                 }
                 const data = JSON.parse(payload);
+                receivedAnyEvent = true;
                 const eventType = currentEvent || (data.leads ? 'results' : data.error ? 'error' : '');
                 
                 // Handle different event types
@@ -326,11 +340,9 @@ async function searchGMBStreaming(
                   
                   console.log(`[GMB API] Stream: ${allResults.length} leads, ${data.progress}%`);
                 } else if (eventType === 'complete') {
+                  receivedComplete = true;
                   if (onProgress) {
                     onProgress([...allResults], 100);
-                  }
-                  if (allResults.length === 0) {
-                    throw new Error('No results received from stream');
                   }
                   try {
                     await reader.cancel();
@@ -362,8 +374,12 @@ async function searchGMBStreaming(
         clearTimeout(timeoutId);
         clearTimeout(initialTimeoutId);
         
-        if (allResults.length === 0) {
-          throw new Error('No results received from stream');
+        if (allResults.length === 0 && !receivedComplete) {
+          throw new Error(
+            receivedAnyEvent
+              ? 'Stream ended before completion.'
+              : 'No stream events received from server'
+          );
         }
         
         finish({
@@ -393,14 +409,15 @@ async function searchGMBRegular(
   service: string,
   location: string,
   limit: number,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  filters?: GMBSearchFilters
 ): Promise<GMBSearchResponse> {
   console.log('[GMB API] Using regular (non-streaming) search');
   
   const response = await fetch(`${API_BASE_URL}/gmb-search.php`, {
     method: 'POST',
     headers: getAuthHeaders(),
-    body: JSON.stringify({ service, location, limit }),
+    body: JSON.stringify({ service, location, limit, filters }),
   });
 
   if (!response.ok) {

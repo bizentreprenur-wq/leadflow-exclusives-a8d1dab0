@@ -19,6 +19,7 @@ import {
   getAILeadScores, 
   getAILeadPrioritization, 
   getAILeadInsights,
+  quickScoreLeads,
   ScoredLead, 
   LeadPrioritization, 
   LeadInsights 
@@ -50,6 +51,7 @@ interface AILeadScoringDashboardProps {
   onExportCRM: () => void;
   onViewReport: () => void;
   onBack?: () => void;
+  autoSelectAll?: boolean;
 }
 
 export default function AILeadScoringDashboard({
@@ -60,6 +62,7 @@ export default function AILeadScoringDashboard({
   onExportCRM,
   onViewReport,
   onBack,
+  autoSelectAll = false,
 }: AILeadScoringDashboardProps) {
   const [scoredLeads, setScoredLeads] = useState<ScoredLead[]>([]);
   const [prioritization, setPrioritization] = useState<LeadPrioritization | null>(null);
@@ -68,6 +71,7 @@ export default function AILeadScoringDashboard({
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState('all');
   const [aiMethod, setAiMethod] = useState<string>('');
+  const [autoSelectedAll, setAutoSelectedAll] = useState(false);
   
   // AI Email Writer modal state
   const [showEmailWriter, setShowEmailWriter] = useState(false);
@@ -90,21 +94,56 @@ export default function AILeadScoringDashboard({
         getAILeadInsights(leads),
       ]);
 
-      if (scoresResult.success && scoresResult.results) {
-        setScoredLeads(scoresResult.results);
+      let scored = scoresResult.success ? scoresResult.results || [] : [];
+      if (!Array.isArray(scored) || scored.length === 0) {
+        const fallback = quickScoreLeads(leads).map((lead: any) => ({
+          id: lead.id,
+          name: lead.name || lead.business_name || 'Unknown',
+          score: lead.leadScore ?? 50,
+          priority: lead.aiClassification === 'hot' ? 'high' : lead.aiClassification === 'warm' ? 'medium' : 'low',
+          reasoning: (lead.painPoints && lead.painPoints.length > 0 ? lead.painPoints[0] : 'Rule-based scoring') as string,
+          successProbability: lead.successProbability ?? 50,
+          recommendedAction: lead.recommendedAction ?? (lead.email && lead.phone ? 'both' : lead.phone ? 'call' : 'email'),
+          callScore: lead.callScore ?? (lead.phone ? 70 : 30),
+          emailScore: lead.emailScore ?? (lead.email ? 70 : 30),
+          urgency: lead.urgency ?? 'nurture',
+          painPoints: lead.painPoints ?? [],
+          bestTimeToContact: lead.bestTimeToContact,
+        })) as ScoredLead[];
+        scored = fallback;
+        setAiMethod('rule_based');
+      } else {
         setAiMethod(scoresResult.method || 'ai_powered');
       }
+      setScoredLeads(scored);
 
       if (priorityResult.success && priorityResult.results) {
         setPrioritization(priorityResult.results);
+      } else if (scored.length > 0) {
+        setPrioritization({
+          hot: scored.filter(l => l.priority === 'high').map(l => l.id),
+          warm: scored.filter(l => l.priority === 'medium').map(l => l.id),
+          nurture: scored.filter(l => l.priority === 'low').map(l => l.id),
+          insights: `Found ${scored.filter(l => l.priority === 'high').length} hot leads ready for immediate outreach.`,
+          scored,
+        });
       }
 
       if (insightsResult.success && insightsResult.results) {
         setInsights(insightsResult.results);
+      } else if (scored.length > 0) {
+        const painPoints = scored.flatMap(l => l.painPoints || []);
+        setInsights({
+          patterns: [],
+          recommendations: [],
+          painPoints: [...new Set(painPoints)],
+          talkingPoints: [],
+        });
       }
 
+      const methodLabel = scoresResult.method === 'ai_powered' && scored.length > 0 ? 'AI' : 'rule-based';
       toast.success('AI analysis complete!', {
-        description: `Scored ${leads.length} leads with ${scoresResult.method === 'ai_powered' ? 'AI' : 'rule-based'} analysis`
+        description: `Scored ${leads.length} leads with ${methodLabel} analysis`
       });
     } catch (error) {
       console.error('AI analysis error:', error);
@@ -199,6 +238,17 @@ export default function AILeadScoringDashboard({
   };
 
   const filteredLeads = getFilteredLeads();
+
+  useEffect(() => {
+    if (!autoSelectAll) {
+      setAutoSelectedAll(false);
+      return;
+    }
+    if (isLoading || autoSelectedAll) return;
+    if (filteredLeads.length === 0) return;
+    setSelectedLeads(new Set(filteredLeads.map((lead) => lead.id)));
+    setAutoSelectedAll(true);
+  }, [autoSelectAll, isLoading, filteredLeads, autoSelectedAll]);
 
   if (isLoading) {
     return (

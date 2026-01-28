@@ -25,7 +25,33 @@ export const USE_MOCK_AUTH = false;
 
 // API Base URL
 // If you want to point dev/staging somewhere else, set VITE_API_URL.
-const rawApiBaseUrl = import.meta.env.VITE_API_URL || 'https://bamlead.com/api';
+const rawApiBaseUrl = import.meta.env.VITE_API_URL;
+const getDefaultApiBaseUrl = (): string => {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return `${window.location.origin}/api`;
+    }
+  }
+  return 'https://bamlead.com/api';
+};
+const resolvedApiBaseUrl = rawApiBaseUrl && rawApiBaseUrl.trim() ? rawApiBaseUrl : getDefaultApiBaseUrl();
+const getProxyFriendlyBaseUrl = (value: string): string => {
+  if (typeof window === 'undefined') return value;
+  try {
+    const parsed = new URL(value, window.location.origin);
+    const isLocalApi =
+      (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') &&
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    const isDifferentPort = parsed.port && parsed.port !== window.location.port;
+    if (isLocalApi && isDifferentPort) {
+      return `${window.location.origin}/api`;
+    }
+  } catch {
+    // If URL parsing fails, keep the provided value
+  }
+  return value;
+};
 const normalizeApiBaseUrl = (value: string): string => {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -41,7 +67,7 @@ const normalizeApiBaseUrl = (value: string): string => {
   return `${protocol}//${trimmed}`.replace(/\/$/, '');
 };
 
-export const API_BASE_URL = normalizeApiBaseUrl(rawApiBaseUrl);
+export const API_BASE_URL = normalizeApiBaseUrl(getProxyFriendlyBaseUrl(resolvedApiBaseUrl));
 
 // Auth endpoints
 export const AUTH_ENDPOINTS = {

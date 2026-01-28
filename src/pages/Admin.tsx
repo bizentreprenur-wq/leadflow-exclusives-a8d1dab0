@@ -7,10 +7,29 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { 
   Users, Search, TrendingUp, Crown, 
-  Gift, RefreshCw, AlertCircle, Home
+  Gift, RefreshCw, AlertCircle, Home,
+  Trash2, Pencil
 } from 'lucide-react';
 import { ADMIN_ENDPOINTS, getAuthHeaders, USE_MOCK_AUTH } from '@/lib/api/config';
 import SystemStatus from '@/components/SystemStatus';
@@ -85,6 +104,14 @@ export default function Admin() {
   const [searchQuery, setSearchQuery] = useState('');
   const [grantEmail, setGrantEmail] = useState('');
   const [isGranting, setIsGranting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [editTarget, setEditTarget] = useState<AdminUser | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editRole, setEditRole] = useState<'admin' | 'user'>('user');
+  const [editStatus, setEditStatus] = useState('');
+  const [editPlan, setEditPlan] = useState<string | null>(null);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -183,6 +210,86 @@ export default function Admin() {
       }
     } catch (error) {
       toast.error('Failed to update user');
+    }
+  };
+
+  const openEditUser = (target: AdminUser) => {
+    setEditTarget(target);
+    setEditName(target.name || '');
+    setEditRole(target.role);
+    setEditStatus(target.subscription_status || '');
+    setEditPlan(target.subscription_plan || null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editTarget) return;
+
+    const updates: Partial<AdminUser> = {};
+    const trimmedName = editName.trim();
+    if ((editTarget.name || '') !== trimmedName) {
+      updates.name = trimmedName || null;
+    }
+    if (!editTarget.is_owner && editTarget.role !== editRole) {
+      updates.role = editRole;
+    }
+    if ((editTarget.subscription_status || '') !== (editStatus || '')) {
+      updates.subscription_status = editStatus;
+    }
+    if ((editTarget.subscription_plan || '') !== (editPlan || '')) {
+      updates.subscription_plan = editPlan || null;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      toast.info('No changes to save');
+      return;
+    }
+
+    setIsUpdating(true);
+    if (USE_MOCK_AUTH) {
+      setUsers(prev => prev.map(u => u.id === editTarget.id ? { ...u, ...updates } : u));
+      toast.success('User updated (mock mode)');
+      setIsUpdating(false);
+      setEditTarget(null);
+      return;
+    }
+
+    try {
+      await handleUpdateUser(editTarget.id, updates);
+      setEditTarget(null);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteTarget) return;
+    setIsDeleting(true);
+
+    if (USE_MOCK_AUTH) {
+      setUsers(prev => prev.filter(u => u.id !== deleteTarget.id));
+      toast.success('User deleted (mock mode)');
+      setDeleteTarget(null);
+      setIsDeleting(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(ADMIN_ENDPOINTS.user(deleteTarget.id), {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast.success('User deleted');
+        setDeleteTarget(null);
+        fetchData();
+      } else {
+        toast.error(data.error || 'Failed to delete user');
+      }
+    } catch (error) {
+      toast.error('Failed to delete user');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -402,6 +509,22 @@ export default function Admin() {
                                 <Gift className="w-4 h-4" />
                               </Button>
                             )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openEditUser(u)}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-red-500 border-red-500/50 hover:bg-red-500/10"
+                              onClick={() => setDeleteTarget(u)}
+                              disabled={u.is_owner}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -413,6 +536,97 @@ export default function Admin() {
           </CardContent>
         </Card>
       </main>
+
+      {/* Edit User Dialog */}
+      <Dialog open={!!editTarget} onOpenChange={(open) => !open && setEditTarget(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>
+              Update user details and access level.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Email</label>
+              <div className="mt-1 text-sm">{editTarget?.email}</div>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Name</label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Full name"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Role</label>
+                <Select
+                  value={editRole}
+                  onValueChange={(value) => setEditRole(value as 'admin' | 'user')}
+                  disabled={editTarget?.is_owner}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">User</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Status</label>
+                <Select value={editStatus} onValueChange={setEditStatus}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">active</SelectItem>
+                    <SelectItem value="trial">trial</SelectItem>
+                    <SelectItem value="inactive">inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Plan</label>
+              <Input
+                value={editPlan || ''}
+                onChange={(e) => setEditPlan(e.target.value || null)}
+                placeholder="free_granted, pro, agency, etc."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTarget(null)} disabled={isUpdating}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={isUpdating}>
+              {isUpdating ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete user?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes <strong>{deleteTarget?.email}</strong>. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteUser} disabled={isDeleting}>
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

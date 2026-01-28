@@ -114,6 +114,174 @@ function sanitizeInput($input, $maxLength = 100) {
 }
 
 /**
+ * Build a list of expanded location variants to increase result volume.
+ * Keeps the original location out of the list and preserves order.
+ */
+function buildLocationExpansions($location) {
+    $clean = preg_replace('/\s+/', ' ', trim((string)$location));
+    if ($clean === '') {
+        return [];
+    }
+
+    $expansions = [];
+    $variants = ['area', 'metro', 'suburbs'];
+    foreach ($variants as $variant) {
+        $expansions[] = "{$clean} {$variant}";
+    }
+
+    $city = '';
+    $state = '';
+    if (strpos($clean, ',') !== false) {
+        $parts = array_map('trim', explode(',', $clean, 2));
+        $city = $parts[0] ?? '';
+        $state = $parts[1] ?? '';
+    }
+
+    if ($city && $state) {
+        $expansions[] = "{$city} {$state}";
+        $expansions[] = "{$city} {$state} metro";
+        $expansions[] = "{$city} {$state} suburbs";
+    }
+
+    $includeState = defined('LOCATION_EXPANSION_INCLUDE_STATE') ? LOCATION_EXPANSION_INCLUDE_STATE : false;
+    if ($includeState && $state) {
+        $expansions[] = $state;
+    }
+
+    $includeCountry = defined('LOCATION_EXPANSION_INCLUDE_COUNTRY') ? LOCATION_EXPANSION_INCLUDE_COUNTRY : false;
+    if ($includeCountry) {
+        $expansions[] = 'United States';
+    }
+
+    $unique = [];
+    foreach ($expansions as $loc) {
+        $loc = preg_replace('/\s+/', ' ', trim($loc));
+        if ($loc === '' || strcasecmp($loc, $clean) === 0) {
+            continue;
+        }
+        if (!in_array($loc, $unique, true)) {
+            $unique[] = $loc;
+        }
+    }
+
+    return $unique;
+}
+
+/**
+ * Build a stable dedupe key for a business result.
+ */
+function buildBusinessDedupeKey($business, $context = '') {
+    $name = strtolower(trim($business['name'] ?? ''));
+    $address = strtolower(trim($business['address'] ?? ''));
+    if ($address !== '') {
+        return "{$name}|{$address}";
+    }
+    $phone = strtolower(trim($business['phone'] ?? ''));
+    if ($phone !== '') {
+        return "{$name}|phone:{$phone}";
+    }
+    $host = '';
+    if (!empty($business['url'])) {
+        $host = strtolower(trim(parse_url($business['url'], PHP_URL_HOST) ?? ''));
+    }
+    if ($host !== '') {
+        return "{$name}|host:{$host}";
+    }
+    $ctx = strtolower(trim((string)$context));
+    if ($ctx !== '') {
+        return "{$name}|{$ctx}";
+    }
+    return $name;
+}
+
+/**
+ * Normalize search filters from request input.
+ */
+function normalizeSearchFilters($input) {
+    $filters = is_array($input) ? $input : [];
+    $platforms = [];
+    if (!empty($filters['platforms']) && is_array($filters['platforms'])) {
+        foreach ($filters['platforms'] as $platform) {
+            if (!is_string($platform)) continue;
+            $platform = strtolower(trim($platform));
+            if ($platform !== '') {
+                $platforms[] = $platform;
+            }
+        }
+    }
+
+    return [
+        'phoneOnly' => !empty($filters['phoneOnly']),
+        'noWebsite' => !empty($filters['noWebsite']),
+        'notMobile' => !empty($filters['notMobile']),
+        'outdated' => !empty($filters['outdated']),
+        'platforms' => array_values(array_unique($platforms)),
+        'platformMode' => !empty($filters['platformMode']),
+    ];
+}
+
+/**
+ * Determine if any search filters are active.
+ */
+function hasAnySearchFilter($filters) {
+    if (!is_array($filters)) return false;
+    return !empty($filters['phoneOnly']) ||
+        !empty($filters['noWebsite']) ||
+        !empty($filters['notMobile']) ||
+        !empty($filters['outdated']) ||
+        (!empty($filters['platforms']) && count($filters['platforms']) > 0);
+}
+
+/**
+ * Apply normalized search filters to a business result.
+ */
+function matchesSearchFilters($business, $filters) {
+    if (!is_array($filters) || !hasAnySearchFilter($filters)) {
+        return true;
+    }
+
+    $analysis = is_array($business['websiteAnalysis'] ?? null) ? $business['websiteAnalysis'] : [];
+    $hasWebsite = array_key_exists('hasWebsite', $analysis) ? (bool)$analysis['hasWebsite'] : true;
+    $needsUpgrade = array_key_exists('needsUpgrade', $analysis) ? (bool)$analysis['needsUpgrade'] : false;
+    $issues = isset($analysis['issues']) && is_array($analysis['issues']) ? $analysis['issues'] : [];
+    $platform = strtolower(trim((string)($analysis['platform'] ?? '')));
+    $mobileScore = $analysis['mobileScore'] ?? null;
+
+    if (!empty($filters['phoneOnly'])) {
+        $phone = trim((string)($business['phone'] ?? ''));
+        if ($phone === '') return false;
+    }
+
+    if (!empty($filters['noWebsite'])) {
+        if ($hasWebsite) return false;
+    }
+
+    if (!empty($filters['notMobile'])) {
+        if ($mobileScore !== null && $mobileScore !== '' && $mobileScore >= 50) {
+            return false;
+        }
+    }
+
+    if (!empty($filters['outdated'])) {
+        if (!$needsUpgrade && empty($issues)) return false;
+    }
+
+    $platforms = $filters['platforms'] ?? [];
+    if (!empty($platforms)) {
+        $matchesPlatform = $platform !== '' && in_array($platform, $platforms, true);
+        if (!empty($filters['platformMode'])) {
+            $url = trim((string)($business['url'] ?? ''));
+            $include = !$hasWebsite || $needsUpgrade || !empty($issues) || $matchesPlatform || $url === '';
+            if (!$include) return false;
+        } else {
+            if (!$matchesPlatform) return false;
+        }
+    }
+
+    return true;
+}
+
+/**
  * Make a cURL request
  * @param string $url The URL to request
  * @param array $options Additional cURL options
