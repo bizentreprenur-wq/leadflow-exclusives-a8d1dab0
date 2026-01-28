@@ -302,47 +302,76 @@ export default function SimpleLeadViewer({
     }
   };
 
-  const handleDownloadCSV = () => {
-    const dataToExport = selectedIds.size > 0 ? selectedLeads : leads;
-    const headers = ['Name', 'Phone', 'Email', 'Address', 'Website', 'Rating', 'Classification'];
-    const rows = dataToExport.map(r => [
-      `"${r.name || ''}"`,
-      `"${r.phone || ''}"`,
-      `"${r.email || ''}"`,
-      `"${r.address || ''}"`,
-      `"${r.website || ''}"`,
-      r.rating || '',
-      r.aiClassification || '',
-    ].join(','));
+  // Helper to generate download for a specific category
+  const downloadLeadsByCategory = (category: 'hot' | 'warm' | 'cold' | 'all', format: 'csv' | 'excel') => {
+    let dataToExport: SearchResult[];
+    let categoryLabel: string;
     
-    const csv = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `leads-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success(`Downloaded ${dataToExport.length} leads`);
+    if (category === 'all') {
+      dataToExport = selectedIds.size > 0 ? selectedLeads : leads;
+      categoryLabel = 'all';
+    } else {
+      dataToExport = leads.filter(l => l.aiClassification === category);
+      categoryLabel = category;
+    }
+    
+    if (dataToExport.length === 0) {
+      toast.error(`No ${categoryLabel} leads to download`);
+      return;
+    }
+    
+    const dateStr = new Date().toISOString().split('T')[0];
+    const filename = `${categoryLabel}-leads-${dateStr}`;
+    
+    if (format === 'csv') {
+      const headers = ['Name', 'Phone', 'Email', 'Address', 'Website', 'Rating', 'Classification', 'Score'];
+      const rows = dataToExport.map(r => [
+        `"${r.name || ''}"`,
+        `"${r.phone || ''}"`,
+        `"${r.email || ''}"`,
+        `"${r.address || ''}"`,
+        `"${r.website || ''}"`,
+        r.rating || '',
+        r.aiClassification?.toUpperCase() || '',
+        r.leadScore || '',
+      ].join(','));
+      
+      const csv = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${filename}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(`Downloaded ${dataToExport.length} ${categoryLabel} leads as CSV`);
+    } else {
+      const worksheetData = dataToExport.map(r => ({
+        'Business Name': r.name || '',
+        'Phone': r.phone || '',
+        'Email': r.email || '',
+        'Address': r.address || '',
+        'Website': r.website || '',
+        'Rating': r.rating || '',
+        'Classification': r.aiClassification?.toUpperCase() || '',
+        'Score': r.leadScore || '',
+        'Win Probability': r.successProbability ? `${r.successProbability}%` : '',
+      }));
+      
+      const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, `${categoryLabel.charAt(0).toUpperCase() + categoryLabel.slice(1)} Leads`);
+      XLSX.writeFile(workbook, `${filename}.xlsx`);
+      toast.success(`Downloaded ${dataToExport.length} ${categoryLabel} leads as Excel`);
+    }
+  };
+
+  const handleDownloadCSV = () => {
+    downloadLeadsByCategory('all', 'csv');
   };
 
   const handleDownloadExcel = () => {
-    const dataToExport = selectedIds.size > 0 ? selectedLeads : leads;
-    const worksheetData = dataToExport.map(r => ({
-      'Business Name': r.name || '',
-      'Phone': r.phone || '',
-      'Email': r.email || '',
-      'Address': r.address || '',
-      'Website': r.website || '',
-      'Rating': r.rating || '',
-      'Classification': r.aiClassification?.toUpperCase() || '',
-    }));
-    
-    const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Leads');
-    XLSX.writeFile(workbook, `leads-${new Date().toISOString().split('T')[0]}.xlsx`);
-    toast.success(`Downloaded ${dataToExport.length} leads as Excel`);
+    downloadLeadsByCategory('all', 'excel');
   };
 
   const [showVerifyPrompt, setShowVerifyPrompt] = useState<'email' | 'call' | 'crm' | 'schedule' | null>(null);
@@ -708,19 +737,75 @@ export default function SimpleLeadViewer({
                   <ChevronDown className="w-3 h-3" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent>
+              <DropdownMenuContent className="w-56">
+                {/* All Leads */}
+                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">All Leads</div>
                 <DropdownMenuItem onClick={handleDownloadCSV}>
                   <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  Download CSV
+                  Download All CSV
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleDownloadExcel}>
                   <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  Download Excel
+                  Download All Excel
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { window.print(); toast.success('Printing...'); }}>
-                  <Printer className="w-4 h-4 mr-2" />
-                  Print
-                </DropdownMenuItem>
+                
+                {/* Hot Leads */}
+                {groupedCounts.hot > 0 && (
+                  <>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-red-500 border-t mt-1 pt-2 flex items-center gap-1">
+                      <Flame className="w-3 h-3" /> Hot Leads ({groupedCounts.hot})
+                    </div>
+                    <DropdownMenuItem onClick={() => downloadLeadsByCategory('hot', 'csv')}>
+                      <FileSpreadsheet className="w-4 h-4 mr-2 text-red-500" />
+                      Download Hot CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => downloadLeadsByCategory('hot', 'excel')}>
+                      <FileSpreadsheet className="w-4 h-4 mr-2 text-red-500" />
+                      Download Hot Excel
+                    </DropdownMenuItem>
+                  </>
+                )}
+                
+                {/* Warm Leads */}
+                {groupedCounts.warm > 0 && (
+                  <>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-orange-500 border-t mt-1 pt-2 flex items-center gap-1">
+                      <Thermometer className="w-3 h-3" /> Warm Leads ({groupedCounts.warm})
+                    </div>
+                    <DropdownMenuItem onClick={() => downloadLeadsByCategory('warm', 'csv')}>
+                      <FileSpreadsheet className="w-4 h-4 mr-2 text-orange-500" />
+                      Download Warm CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => downloadLeadsByCategory('warm', 'excel')}>
+                      <FileSpreadsheet className="w-4 h-4 mr-2 text-orange-500" />
+                      Download Warm Excel
+                    </DropdownMenuItem>
+                  </>
+                )}
+                
+                {/* Cold Leads */}
+                {groupedCounts.cold > 0 && (
+                  <>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-blue-500 border-t mt-1 pt-2 flex items-center gap-1">
+                      <Snowflake className="w-3 h-3" /> Cold Leads ({groupedCounts.cold})
+                    </div>
+                    <DropdownMenuItem onClick={() => downloadLeadsByCategory('cold', 'csv')}>
+                      <FileSpreadsheet className="w-4 h-4 mr-2 text-blue-500" />
+                      Download Cold CSV
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => downloadLeadsByCategory('cold', 'excel')}>
+                      <FileSpreadsheet className="w-4 h-4 mr-2 text-blue-500" />
+                      Download Cold Excel
+                    </DropdownMenuItem>
+                  </>
+                )}
+                
+                <div className="border-t mt-1 pt-1">
+                  <DropdownMenuItem onClick={() => { window.print(); toast.success('Printing...'); }}>
+                    <Printer className="w-4 h-4 mr-2" />
+                    Print
+                  </DropdownMenuItem>
+                </div>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
