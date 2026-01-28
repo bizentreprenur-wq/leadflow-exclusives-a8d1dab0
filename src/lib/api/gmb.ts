@@ -60,8 +60,25 @@ export interface GMBResult {
   address?: string;
   rating?: number;
   reviewCount?: number;
+  sources?: string[];
   websiteAnalysis: WebsiteAnalysis;
   verification?: LeadVerification;
+  
+  // Business Intelligence fields (populated after enrichment)
+  businessIdentity?: any;
+  websiteHealth?: any;
+  onlineVisibility?: any;
+  reputation?: any;
+  opportunityAnalysis?: any;
+  techStack?: any;
+  intentSignals?: any;
+  competitorAnalysis?: any;
+  outreachIntelligence?: any;
+  compliance?: any;
+  aiSummary?: any;
+  scorecards?: any;
+  analyzedAt?: string;
+  dataQualityScore?: number;
 }
 
 export interface GMBSearchResponse {

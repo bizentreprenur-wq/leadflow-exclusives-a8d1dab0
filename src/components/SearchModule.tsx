@@ -2,12 +2,14 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { 
   Building2, Globe, Briefcase, MapPin, Search, Loader2, 
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, Brain, Zap
 } from "lucide-react";
 import { searchGMB } from "@/lib/api/gmb";
 import { searchPlatforms } from "@/lib/api/platforms";
+import { enrichLeadsWithIntelligence } from "@/lib/api/businessIntelligence";
 import { toast } from "sonner";
 import LeadActionModal from "./LeadActionModal";
 
@@ -83,12 +85,40 @@ const SearchModule = () => {
 
     try {
       if (searchType === "gmb") {
+        // Step 1: Get basic lead data
+        toast.info("🔍 Finding businesses...");
         const response = await searchGMB(service.trim(), location.trim());
-        if (response.success && response.data) {
-          setResults(response.data);
-          const upgradeCount = response.data.filter((r: any) => r.websiteAnalysis?.needsUpgrade).length;
-          toast.success(`Found ${response.data.length} businesses, ${upgradeCount} need upgrades`);
-          if (response.data.length > 0) {
+        
+        if (response.success && response.data && response.data.length > 0) {
+          // Step 2: Enrich with comprehensive business intelligence
+          toast.info("🧠 Running AI intelligence analysis on " + response.data.length + " leads...");
+          
+          try {
+            const enrichedResponse = await enrichLeadsWithIntelligence(
+              response.data,
+              (progress, message) => {
+                console.log(`[BI] ${progress}% - ${message}`);
+              }
+            );
+            
+            if (enrichedResponse.success && enrichedResponse.data) {
+              setResults(enrichedResponse.data);
+              const hotLeads = enrichedResponse.data.filter((r: any) => r.aiSummary?.classificationLabel === 'hot').length;
+              const warmLeads = enrichedResponse.data.filter((r: any) => r.aiSummary?.classificationLabel === 'warm').length;
+              toast.success(`Found ${enrichedResponse.data.length} businesses with full intelligence! 🔥 ${hotLeads} hot, ⚡ ${warmLeads} warm`);
+              setShowLeadActionModal(true);
+            } else {
+              // Fall back to basic data if enrichment fails
+              setResults(response.data);
+              toast.success(`Found ${response.data.length} businesses (basic data)`);
+              setShowLeadActionModal(true);
+            }
+          } catch (enrichError) {
+            console.error('[BI] Enrichment error:', enrichError);
+            // Fall back to basic data
+            setResults(response.data);
+            const upgradeCount = response.data.filter((r: any) => r.websiteAnalysis?.needsUpgrade).length;
+            toast.success(`Found ${response.data.length} businesses, ${upgradeCount} need upgrades`);
             setShowLeadActionModal(true);
           }
         } else {
@@ -109,6 +139,7 @@ const SearchModule = () => {
         }
       }
     } catch (error) {
+      console.error('[Search] Error:', error);
       toast.error("Failed to perform search");
     } finally {
       setIsLoading(false);
