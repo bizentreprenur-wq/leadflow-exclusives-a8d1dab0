@@ -73,10 +73,20 @@ export default function AutoCampaignWizardPro({
     }
   });
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'sequences' | 'scheduling'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'sequences' | 'scheduling' | 'review'>('overview');
   const [isActivating, setIsActivating] = useState(false);
   const [selectedSequence, setSelectedSequence] = useState<any>(null);
   const [smartSchedule, setSmartSchedule] = useState<{ hour: number; day: string }[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<{ name: string; subject?: string; body?: string } | null>(() => {
+    try {
+      const stored = localStorage.getItem('bamlead_selected_template');
+      if (stored) {
+        const template = JSON.parse(stored);
+        return { name: template.name || 'Selected Template', subject: template.subject, body: template.body };
+      }
+    } catch { /* ignore */ }
+    return null;
+  });
 
   const hasSubscription = subscriptionState.hasSubscription;
 
@@ -268,11 +278,12 @@ export default function AutoCampaignWizardPro({
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-6 flex-wrap">
           {[
             { id: 'overview', label: 'Overview', icon: Target },
             { id: 'sequences', label: 'AI Sequences', icon: Zap },
             { id: 'scheduling', label: 'Smart Scheduling', icon: Clock },
+            { id: 'review', label: 'Review & Launch', icon: CheckCircle2, highlight: hasSubscription },
           ].map((tab) => (
             <Button
               key={tab.id}
@@ -281,12 +292,19 @@ export default function AutoCampaignWizardPro({
               className={cn(
                 "gap-2",
                 activeTab === tab.id 
-                  ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0" 
-                  : ""
+                  ? tab.id === 'review'
+                    ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-0"
+                    : "bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0" 
+                  : tab.highlight && tab.id === 'review'
+                    ? "border-emerald-500/50 text-emerald-400 animate-pulse"
+                    : ""
               )}
             >
               <tab.icon className="w-4 h-4" />
               {tab.label}
+              {tab.id === 'review' && hasSubscription && (
+                <Badge className="bg-white/20 text-xs px-1.5">!</Badge>
+              )}
             </Button>
           ))}
         </div>
@@ -481,6 +499,231 @@ export default function AutoCampaignWizardPro({
                   toast.success('Smart schedule configured!');
                 }}
               />
+            )}
+
+            {/* Review & Launch Tab - Customer reviews everything before AI takes over */}
+            {activeTab === 'review' && (
+              <div className="space-y-6">
+                {/* Summary Header */}
+                <Card className="bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border-emerald-500/30">
+                  <CardContent className="p-6">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-14 h-14 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                        <CheckCircle2 className="w-7 h-7 text-emerald-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-foreground">Review Before AI Takes Over</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Confirm your leads, template, and sequence. Once you launch, AI handles everything.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Leads Summary */}
+                <Card className="border-border">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="font-semibold text-foreground flex items-center gap-2">
+                        <Users className="w-5 h-5 text-primary" />
+                        Leads ({leads.length})
+                      </h4>
+                      <div className="flex gap-2">
+                        <Badge className="bg-red-500/20 text-red-400 border-red-500/30">
+                          <Flame className="w-3 h-3 mr-1" />{leadStats.hot} Hot
+                        </Badge>
+                        <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                          <ThermometerSun className="w-3 h-3 mr-1" />{leadStats.warm} Warm
+                        </Badge>
+                        <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">
+                          <Snowflake className="w-3 h-3 mr-1" />{leadStats.cold} Cold
+                        </Badge>
+                      </div>
+                    </div>
+                    <ScrollArea className="h-32">
+                      <div className="space-y-2">
+                        {leads.slice(0, 10).map((lead, idx) => (
+                          <div key={lead.id || idx} className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
+                            <div className={cn(
+                              "w-2 h-2 rounded-full",
+                              lead.aiClassification === 'hot' ? "bg-red-500" :
+                              lead.aiClassification === 'warm' ? "bg-amber-500" : "bg-blue-500"
+                            )} />
+                            <span className="text-sm text-foreground">{lead.business_name || lead.name}</span>
+                            <span className="text-xs text-muted-foreground ml-auto">{lead.email}</span>
+                          </div>
+                        ))}
+                        {leads.length > 10 && (
+                          <p className="text-xs text-muted-foreground text-center py-2">
+                            +{leads.length - 10} more leads...
+                          </p>
+                        )}
+                      </div>
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+
+                {/* Template Summary */}
+                <Card className={cn(
+                  "border-border",
+                  !selectedTemplate && "border-amber-500/50 bg-amber-500/5"
+                )}>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="font-semibold text-foreground flex items-center gap-2">
+                        <FileText className="w-5 h-5 text-orange-400" />
+                        Email Template
+                      </h4>
+                      {selectedTemplate ? (
+                        <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                          <CheckCircle2 className="w-3 h-3 mr-1" />Selected
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                          Not Selected
+                        </Badge>
+                      )}
+                    </div>
+                    {selectedTemplate ? (
+                      <div className="p-4 rounded-lg bg-muted/30 border border-border">
+                        <p className="font-medium text-foreground mb-1">{selectedTemplate.name}</p>
+                        {selectedTemplate.subject && (
+                          <p className="text-xs text-muted-foreground">Subject: {selectedTemplate.subject}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-amber-400">
+                        ⚠️ No template selected. AI will generate contextual emails based on lead analysis.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Sequence Summary */}
+                <Card className={cn(
+                  "border-border",
+                  !selectedSequence && "border-amber-500/50 bg-amber-500/5"
+                )}>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="font-semibold text-foreground flex items-center gap-2">
+                        <Zap className="w-5 h-5 text-purple-400" />
+                        Email Sequence
+                      </h4>
+                      {selectedSequence ? (
+                        <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                          <CheckCircle2 className="w-3 h-3 mr-1" />{selectedSequence.name}
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                          AI will auto-select
+                        </Badge>
+                      )}
+                    </div>
+                    {selectedSequence ? (
+                      <div className="space-y-2">
+                        {selectedSequence.steps?.slice(0, 4).map((step: any, idx: number) => (
+                          <div key={idx} className="flex items-center gap-2 text-sm">
+                            <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
+                              {idx + 1}
+                            </div>
+                            <span className="text-muted-foreground">{step.action || `Day ${step.day}: ${step.subject?.substring(0, 40)}...`}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        AI will intelligently select the best sequence based on each lead's classification and analysis data.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* What AI Will Do */}
+                <Card className="bg-primary/5 border-primary/30">
+                  <CardContent className="p-6">
+                    <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                      <Bot className="w-5 h-5 text-primary" />
+                      What AI Will Do After Launch
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="flex items-start gap-3">
+                        <Send className="w-4 h-4 text-emerald-400 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Send Emails</p>
+                          <p className="text-xs text-muted-foreground">Automatically at optimal times</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Brain className="w-4 h-4 text-purple-400 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Respond Intelligently</p>
+                          <p className="text-xs text-muted-foreground">Context-aware follow-ups</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Zap className="w-4 h-4 text-amber-400 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Apply Sequences</p>
+                          <p className="text-xs text-muted-foreground">Adapt based on engagement</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Pause className="w-4 h-4 text-blue-400 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Pause on Response</p>
+                          <p className="text-xs text-muted-foreground">Stops when leads reply</p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Launch Button */}
+                <Card className={cn(
+                  "border-2",
+                  hasSubscription 
+                    ? "bg-emerald-500/10 border-emerald-500/50" 
+                    : "bg-muted/30 border-dashed border-muted-foreground/30"
+                )}>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-bold text-foreground text-lg">
+                          {hasSubscription ? '🚀 Ready to Launch!' : 'Subscribe to Launch'}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          {hasSubscription 
+                            ? `AI will manage ${leads.length} leads automatically. You can monitor and intervene anytime.`
+                            : 'Start your 14-day free trial to unlock AI automation'
+                          }
+                        </p>
+                      </div>
+                      
+                      <Button
+                        onClick={hasSubscription ? handleActivateAutopilot : startFreeTrial}
+                        disabled={isActivating || leads.length === 0}
+                        size="lg"
+                        className={cn(
+                          "gap-2 font-bold px-8",
+                          hasSubscription
+                            ? "bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600"
+                            : "bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                        )}
+                      >
+                        {isActivating ? (
+                          <>Launching AI...</>
+                        ) : hasSubscription ? (
+                          <><Rocket className="w-5 h-5" /> Launch AI Autopilot</>
+                        ) : (
+                          <><CreditCard className="w-5 h-5" /> Start Free Trial</>
+                        )}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             )}
           </motion.div>
         </AnimatePresence>
