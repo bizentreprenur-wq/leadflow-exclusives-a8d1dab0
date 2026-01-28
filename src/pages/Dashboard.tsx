@@ -702,10 +702,14 @@ export default function Dashboard() {
   };
 
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [networkStatus, setNetworkStatus] = useState<'idle' | 'verifying' | 'retrying' | 'failed'>('idle');
+  const [networkRetryAttempt, setNetworkRetryAttempt] = useState<number>(0);
 
   const handleSearch = async () => {
-    // Clear previous error
+    // Clear previous error and network status
     setSearchError(null);
+    setNetworkStatus('idle');
+    setNetworkRetryAttempt(0);
     
     // Validate fields and set error states
     const errors: { query?: boolean; location?: boolean; platforms?: boolean } = {};
@@ -810,7 +814,18 @@ export default function Dashboard() {
       
       if (searchType === 'gmb') {
         console.log('[BamLead] Calling searchGMB API...');
-        const response = await searchGMB(query, location, effectiveLimit, handleProgress, backendFilters);
+        const handleNetworkStatus = (status: 'verifying' | 'retrying' | 'connected' | 'failed', attempt?: number) => {
+          console.log('[BamLead] Network status:', status, 'attempt:', attempt);
+          if (status === 'verifying' || status === 'retrying') {
+            setNetworkStatus(status);
+            setNetworkRetryAttempt(attempt || 0);
+          } else if (status === 'connected') {
+            setNetworkStatus('idle');
+          } else if (status === 'failed') {
+            setNetworkStatus('failed');
+          }
+        };
+        const response = await searchGMB(query, location, effectiveLimit, handleProgress, backendFilters, handleNetworkStatus);
         console.log('[BamLead] GMB response:', response);
         if (response.success && response.data) {
           finalResults = response.data.map((r: GMBResult, index: number) => ({
@@ -1966,6 +1981,23 @@ export default function Dashboard() {
                       </div>
                     )}
 
+                    {/* Network Status during search */}
+                    {isSearching && (networkStatus === 'verifying' || networkStatus === 'retrying') && (
+                      <div className="mt-4 p-4 rounded-lg border border-amber-500/50 bg-amber-500/10">
+                        <div className="flex items-start gap-3">
+                          <Loader2 className="w-5 h-5 text-amber-500 animate-spin mt-0.5" />
+                          <div className="flex-1">
+                            <p className="font-medium text-amber-500">
+                              {networkStatus === 'verifying' ? 'Verifying network connection...' : `Retrying connection (attempt ${networkRetryAttempt})...`}
+                            </p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Please wait while we establish a stable connection to the server.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Error display with retry button */}
                     {searchError && !isSearching && (
                       <div className="mt-4 p-4 rounded-lg border border-destructive/50 bg-destructive/10">
@@ -1979,6 +2011,7 @@ export default function Dashboard() {
                               size="sm"
                               onClick={() => {
                                 setSearchError(null);
+                                setNetworkStatus('idle');
                                 handleSearch();
                               }}
                               className="mt-3"

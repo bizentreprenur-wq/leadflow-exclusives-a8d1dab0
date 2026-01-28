@@ -22,7 +22,7 @@ import {
   FileSpreadsheet, Printer, Star,
   Sparkles, Database, Clock, FileText,
   Send, Calendar, ChevronRight, History,
-  Save, RotateCcw, Loader2, Check
+  Save, RotateCcw, Loader2, Check, FolderOpen
 } from 'lucide-react';
 import WebsitePreviewIcon from './WebsitePreviewIcon';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -33,6 +33,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import SearchHistoryFolder, { SearchFolderItem } from './SearchHistoryFolder';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 
 interface SearchResult {
   id: string;
@@ -140,6 +142,9 @@ interface SearchHistoryItem {
   leadsCount: number;
   timestamp: string;
   leads: SearchResult[];
+  hotCount?: number;
+  warmCount?: number;
+  coldCount?: number;
 }
 
 export default function SimpleLeadViewer({
@@ -169,6 +174,7 @@ export default function SimpleLeadViewer({
   const [versionHistory, setVersionHistory] = useState<LeadVersionSnapshot[]>([]);
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [showHistoryPanel, setShowHistoryPanel] = useState(false);
 
   // Load version history from localStorage
   useEffect(() => {
@@ -200,22 +206,45 @@ export default function SimpleLeadViewer({
       const query = sessionStorage.getItem('bamlead_query') || 'Unknown';
       const location = sessionStorage.getItem('bamlead_location') || '';
       
-      // Check if this search already exists
+      // Count by classification
+      const hotCount = leads.filter(l => l.aiClassification === 'hot').length;
+      const warmCount = leads.filter(l => l.aiClassification === 'warm').length;
+      const coldCount = leads.filter(l => l.aiClassification === 'cold').length;
+      
+      // Check if this search already exists (same query AND location)
       const existingIndex = searchHistory.findIndex(
         s => s.query === query && s.location === location
       );
       
       if (existingIndex === -1) {
+        // New search - store ALL leads (not just 100)
         const newEntry: SearchHistoryItem = {
           id: `${Date.now()}`,
           query,
           location,
           leadsCount: leads.length,
           timestamp: new Date().toISOString(),
-          leads: leads.slice(0, 100), // Store first 100 leads for quick restore
+          leads: [...leads], // Store ALL leads for full restore
+          hotCount,
+          warmCount,
+          coldCount,
         };
         
-        const updated = [newEntry, ...searchHistory].slice(0, 10); // Keep last 10
+        const updated = [newEntry, ...searchHistory].slice(0, 20); // Keep last 20 searches
+        setSearchHistory(updated);
+        localStorage.setItem('bamlead_search_history_permanent', JSON.stringify(updated));
+      } else {
+        // Update existing search with new leads and counts
+        const updated = [...searchHistory];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          leadsCount: leads.length,
+          leads: [...leads],
+          hotCount,
+          warmCount,
+          coldCount,
+          timestamp: new Date().toISOString(),
+        };
         setSearchHistory(updated);
         localStorage.setItem('bamlead_search_history_permanent', JSON.stringify(updated));
       }
@@ -610,6 +639,81 @@ export default function SimpleLeadViewer({
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+            
+            {/* Search History Folders Button */}
+            <Sheet open={showHistoryPanel} onOpenChange={setShowHistoryPanel}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <FolderOpen className="w-4 h-4" />
+                  Search History
+                  {searchHistory.length > 0 && (
+                    <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-xs">
+                      {searchHistory.length}
+                    </Badge>
+                  )}
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[400px] sm:w-[540px] overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle className="flex items-center gap-2">
+                    <FolderOpen className="w-5 h-5 text-primary" />
+                    Search History
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="mt-4">
+                  <SearchHistoryFolder
+                    folders={searchHistory.map(h => ({
+                      id: h.id,
+                      query: h.query,
+                      location: h.location,
+                      timestamp: h.timestamp,
+                      leads: h.leads,
+                      leadsCount: h.leadsCount,
+                      hotCount: h.hotCount || 0,
+                      warmCount: h.warmCount || 0,
+                      coldCount: h.coldCount || 0,
+                    }))}
+                    onLoadSearch={(folder) => {
+                      if (onLoadHistorySearch) {
+                        onLoadHistorySearch({
+                          id: folder.id,
+                          query: folder.query,
+                          location: folder.location,
+                          leadsCount: folder.leadsCount,
+                          timestamp: folder.timestamp,
+                          leads: folder.leads,
+                        });
+                        setShowHistoryPanel(false);
+                        toast.success(`Loaded ${folder.leadsCount} leads from "${folder.query}"`);
+                      }
+                    }}
+                    onDeleteFolder={(folderId) => {
+                      const updated = searchHistory.filter(h => h.id !== folderId);
+                      setSearchHistory(updated);
+                      localStorage.setItem('bamlead_search_history_permanent', JSON.stringify(updated));
+                    }}
+                    onOpenReport={(folder) => {
+                      // First load the leads, then open report
+                      if (onLoadHistorySearch) {
+                        onLoadHistorySearch({
+                          id: folder.id,
+                          query: folder.query,
+                          location: folder.location,
+                          leadsCount: folder.leadsCount,
+                          timestamp: folder.timestamp,
+                          leads: folder.leads,
+                        });
+                        setShowHistoryPanel(false);
+                        // Small delay to let leads load, then open report
+                        setTimeout(() => {
+                          if (onOpenReport) onOpenReport();
+                        }, 100);
+                      }
+                    }}
+                  />
+                </div>
+              </SheetContent>
+            </Sheet>
             
             <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
               <Database className="w-3 h-3 mr-1" />
