@@ -362,6 +362,23 @@ export interface BusinessIntelligenceLead {
   email?: string;
   website?: string;
   
+  // Social profiles (from website scraping)
+  socialProfiles?: {
+    linkedin?: string;
+    facebook?: string;
+    twitter?: string;
+    instagram?: string;
+    youtube?: string;
+    tiktok?: string;
+  };
+  
+  // Additional contacts extracted from website
+  additionalContacts?: {
+    emails?: string[];
+    phones?: string[];
+    address?: string;
+  };
+  
   // Source information
   source: 'gmb' | 'platform';
   sources?: string[];
@@ -388,6 +405,14 @@ export interface BusinessIntelligenceLead {
   // Metadata
   analyzedAt: string;
   dataQualityScore: number;
+  
+  // Data sources used for this lead
+  dataSources?: {
+    directAnalysis: boolean;
+    pageSpeed: boolean;
+    domainAge: boolean;
+    contactEnrichment: boolean;
+  };
 }
 
 export interface BusinessScorecards {

@@ -2,11 +2,13 @@
 /**
  * Advanced Business Intelligence API Endpoint
  * Generates comprehensive 11-category intelligence for each business lead
+ * Uses FREE APIs: Google PageSpeed, BuiltWith Free, RDAP, Direct HTML Analysis
  */
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/includes/free-apis.php';
 
 header('Content-Type: application/json');
 setCorsHeaders();
@@ -26,6 +28,10 @@ if (!$input) {
 }
 
 $leads = $input['leads'] ?? [];
+$options = $input['options'] ?? [];
+$usePageSpeed = $options['usePageSpeed'] ?? false; // Optional: slower but more accurate
+$enrichContacts = $options['enrichContacts'] ?? true;
+
 if (empty($leads)) {
     sendError('No leads provided');
 }
@@ -41,7 +47,7 @@ try {
     $enrichedLeads = [];
     
     foreach ($leads as $lead) {
-        $enrichedLead = enrichLeadWithIntelligence($lead);
+        $enrichedLead = enrichLeadWithIntelligence($lead, $usePageSpeed, $enrichContacts);
         $enrichedLeads[] = $enrichedLead;
     }
     
@@ -49,7 +55,13 @@ try {
         'success' => true,
         'data' => $enrichedLeads,
         'count' => count($enrichedLeads),
-        'analyzedAt' => date('c')
+        'analyzedAt' => date('c'),
+        'apiUsed' => [
+            'pageSpeed' => $usePageSpeed,
+            'builtWith' => true,
+            'directAnalysis' => true,
+            'rdap' => true
+        ]
     ]);
 } catch (Exception $e) {
     if (defined('DEBUG_MODE') && DEBUG_MODE) {
@@ -61,8 +73,9 @@ try {
 
 /**
  * Enrich a lead with comprehensive business intelligence
+ * Now uses FREE APIs for enhanced data
  */
-function enrichLeadWithIntelligence($lead) {
+function enrichLeadWithIntelligence($lead, $usePageSpeed = false, $enrichContacts = true) {
     $websiteUrl = $lead['url'] ?? $lead['website'] ?? '';
     $name = $lead['name'] ?? '';
     $phone = $lead['phone'] ?? '';
@@ -72,12 +85,69 @@ function enrichLeadWithIntelligence($lead) {
     $reviews = $lead['reviews'] ?? $lead['reviewCount'] ?? 0;
     $snippet = $lead['snippet'] ?? '';
     
-    // Analyze website if available
+    // === FREE API DATA COLLECTION ===
+    
+    // 1. Direct HTML Analysis (Free - instant)
     $websiteData = [];
     $htmlContent = '';
+    $freeApiData = null;
+    
     if (!empty($websiteUrl)) {
+        // Basic website analysis
         $websiteData = analyzeWebsiteComprehensive($websiteUrl);
         $htmlContent = $websiteData['html'] ?? '';
+        
+        // Enhanced free API analysis
+        $freeApiData = analyzeWebsiteDirectly($websiteUrl);
+        
+        // Merge free API data into websiteData
+        if ($freeApiData) {
+            $websiteData['socialProfiles'] = $freeApiData['socialProfiles'] ?? [];
+            $websiteData['extractedContacts'] = $freeApiData['contactInfo'] ?? [];
+            $websiteData['detectedTech'] = $freeApiData['techSignals'] ?? [];
+            $websiteData['metaTags'] = $freeApiData['metaTags'] ?? [];
+            $websiteData['conversionElements'] = $freeApiData['conversionElements'] ?? [];
+            $websiteData['complianceSignals'] = $freeApiData['complianceSignals'] ?? [];
+        }
+    }
+    
+    // 2. Google PageSpeed Insights (Free - 25k/day, slower)
+    $pageSpeedData = null;
+    if ($usePageSpeed && !empty($websiteUrl)) {
+        $pageSpeedData = getPageSpeedInsights($websiteUrl);
+        if ($pageSpeedData) {
+            $websiteData['pageSpeedScores'] = $pageSpeedData['scores'] ?? [];
+            $websiteData['coreWebVitals'] = $pageSpeedData['coreWebVitals'] ?? [];
+            $websiteData['mobileData'] = $pageSpeedData['mobile'] ?? [];
+            $websiteData['pageSpeedIssues'] = $pageSpeedData['issues'] ?? [];
+        }
+    }
+    
+    // 3. Domain Age via RDAP (Free)
+    $domainAge = null;
+    if (!empty($websiteUrl)) {
+        $domainAge = getDomainAge($websiteUrl);
+        if ($domainAge) {
+            $websiteData['domainAge'] = $domainAge;
+        }
+    }
+    
+    // 4. Extract additional contact info from website
+    $extractedEmail = $email;
+    $extractedPhones = [];
+    if ($enrichContacts && $freeApiData) {
+        $contactInfo = $freeApiData['contactInfo'] ?? [];
+        if (empty($extractedEmail) && !empty($contactInfo['emails'])) {
+            $extractedEmail = $contactInfo['emails'][0];
+        }
+        if (!empty($contactInfo['phones'])) {
+            $extractedPhones = $contactInfo['phones'];
+        }
+    }
+    
+    // Fallback email extraction from HTML
+    if (empty($extractedEmail) && !empty($htmlContent)) {
+        $extractedEmail = extractEmailFromHtml($htmlContent, $name);
     }
     
     // Build the 11 intelligence categories
@@ -85,8 +155,8 @@ function enrichLeadWithIntelligence($lead) {
         'id' => $lead['id'] ?? generateId('bi_'),
         'name' => $name,
         'address' => $address,
-        'phone' => $phone,
-        'email' => $email ?? extractEmailFromHtml($htmlContent, $name),
+        'phone' => $phone ?: ($extractedPhones[0] ?? ''),
+        'email' => $extractedEmail,
         'website' => $websiteUrl,
         'source' => $lead['source'] ?? 'gmb',
         'sources' => $lead['sources'] ?? [],
@@ -94,11 +164,21 @@ function enrichLeadWithIntelligence($lead) {
         'reviewCount' => intval($reviews),
         'snippet' => $snippet,
         
+        // Social profiles from website
+        'socialProfiles' => $freeApiData['socialProfiles'] ?? [],
+        
+        // Additional contact info
+        'additionalContacts' => [
+            'emails' => $freeApiData['contactInfo']['emails'] ?? [],
+            'phones' => $freeApiData['contactInfo']['phones'] ?? [],
+            'address' => $freeApiData['contactInfo']['address'] ?? null,
+        ],
+        
         // 1. Business Identity
         'businessIdentity' => buildBusinessIdentity($lead, $websiteData, $snippet),
         
-        // 2. Website Health
-        'websiteHealth' => buildWebsiteHealth($websiteUrl, $websiteData),
+        // 2. Website Health (enhanced with PageSpeed if available)
+        'websiteHealth' => buildWebsiteHealthEnhanced($websiteUrl, $websiteData, $pageSpeedData, $domainAge),
         
         // 3. Online Visibility
         'onlineVisibility' => buildOnlineVisibility($lead, $websiteData),
@@ -109,8 +189,8 @@ function enrichLeadWithIntelligence($lead) {
         // 5. Opportunity Analysis
         'opportunityAnalysis' => buildOpportunityAnalysis($websiteData, $lead),
         
-        // 6. Tech Stack
-        'techStack' => buildTechStack($websiteData, $htmlContent),
+        // 6. Tech Stack (enhanced with detection)
+        'techStack' => buildTechStackEnhanced($websiteData, $htmlContent, $freeApiData),
         
         // 7. Intent Signals
         'intentSignals' => buildIntentSignals($lead, $websiteData),
@@ -121,8 +201,8 @@ function enrichLeadWithIntelligence($lead) {
         // 9. Outreach Intelligence
         'outreachIntelligence' => buildOutreachIntelligence($lead, $websiteData),
         
-        // 10. Compliance
-        'compliance' => buildComplianceData($websiteData, $htmlContent),
+        // 10. Compliance (enhanced)
+        'compliance' => buildComplianceEnhanced($websiteData, $htmlContent, $freeApiData),
         
         // 11. AI Summary
         'aiSummary' => buildAISummary($lead, $websiteData),
@@ -132,6 +212,14 @@ function enrichLeadWithIntelligence($lead) {
         
         'analyzedAt' => date('c'),
         'dataQualityScore' => calculateDataQuality($lead, $websiteData),
+        
+        // Data sources used
+        'dataSources' => [
+            'directAnalysis' => true,
+            'pageSpeed' => $pageSpeedData !== null,
+            'domainAge' => $domainAge !== null,
+            'contactEnrichment' => !empty($freeApiData['contactInfo']),
+        ],
     ];
     
     return $intelligence;
@@ -1084,4 +1172,203 @@ function extractEmailFromHtml($html, $businessName) {
     }
     
     return null;
+}
+
+/**
+ * Build Website Health Enhanced (with PageSpeed & Domain Age)
+ */
+function buildWebsiteHealthEnhanced($url, $websiteData, $pageSpeedData, $domainAge) {
+    $hasWebsite = $websiteData['hasWebsite'] ?? false;
+    
+    if (!$hasWebsite) {
+        return [
+            'hasWebsite' => false,
+            'url' => null,
+            'cms' => null,
+            'hostingProvider' => null,
+            'domainAge' => null,
+            'domainAuthority' => null,
+            'isMobileResponsive' => false,
+            'mobileScore' => 0,
+            'pageSpeedScore' => 0,
+            'loadTime' => null,
+            'seoQuality' => ['score' => 0, 'issues' => ['No website found']],
+            'technicalHealth' => ['score' => 0, 'issues' => ['No website found']],
+            'trackingInfrastructure' => ['hasGoogleAnalytics' => false],
+            'accessibility' => ['score' => 0],
+            'conversionReadiness' => ['conversionScore' => 0],
+        ];
+    }
+    
+    // Use PageSpeed data if available
+    $performanceScore = $pageSpeedData['scores']['performance'] ?? null;
+    $seoScore = $pageSpeedData['scores']['seo'] ?? null;
+    $accessibilityScore = $pageSpeedData['scores']['accessibility'] ?? null;
+    $bestPracticesScore = $pageSpeedData['scores']['bestPractices'] ?? null;
+    
+    // Calculate scores from basic analysis if PageSpeed not available
+    if ($seoScore === null) {
+        $seoScore = 0;
+        if ($websiteData['hasMeta'] ?? false) $seoScore += 20;
+        if ($websiteData['hasTitle'] ?? false) $seoScore += 20;
+        if ($websiteData['hasH1'] ?? false) $seoScore += 20;
+        if ($websiteData['hasStructuredData'] ?? false) $seoScore += 20;
+        if ($websiteData['hasCanonical'] ?? false) $seoScore += 20;
+    }
+    
+    $techScore = 0;
+    if ($websiteData['hasSsl'] ?? false) $techScore += 40;
+    if ($websiteData['hasViewport'] ?? false) $techScore += 30;
+    if (($websiteData['pageSize'] ?? 0) < 500000) $techScore += 30;
+    
+    $mobileScore = $websiteData['hasViewport'] ?? false ? 65 : 25;
+    if ($pageSpeedData && ($pageSpeedData['mobile']['responsive'] ?? false)) {
+        $mobileScore = 85;
+    }
+    
+    $conversionScore = 0;
+    $conversionElements = $websiteData['conversionElements'] ?? [];
+    if ($websiteData['hasForms'] ?? $conversionElements['hasForms'] ?? false) $conversionScore += 25;
+    if ($websiteData['hasCTA'] ?? $conversionElements['hasCTA'] ?? false) $conversionScore += 25;
+    if ($websiteData['hasChat'] ?? $conversionElements['hasChat'] ?? false) $conversionScore += 25;
+    if ($websiteData['hasBooking'] ?? $conversionElements['hasBooking'] ?? false) $conversionScore += 25;
+    
+    // Domain age info
+    $domainAgeYears = $domainAge['ageYears'] ?? null;
+    $isEstablished = $domainAge['isEstablished'] ?? false;
+    
+    return [
+        'hasWebsite' => true,
+        'url' => $url,
+        'cms' => $websiteData['platform'] ?? $websiteData['detectedTech']['cms'] ?? null,
+        'hostingProvider' => null,
+        'domainAge' => $domainAgeYears ? "{$domainAgeYears} years" : null,
+        'domainAgeYears' => $domainAgeYears,
+        'isEstablishedDomain' => $isEstablished,
+        'registrationDate' => $domainAge['registrationDate'] ?? null,
+        'domainAuthority' => null,
+        'isMobileResponsive' => $websiteData['hasViewport'] ?? false,
+        'mobileScore' => $mobileScore,
+        'pageSpeedScore' => $performanceScore,
+        'coreWebVitals' => $pageSpeedData['coreWebVitals'] ?? null,
+        'seoQuality' => [
+            'score' => $seoScore,
+            'hasMetaDescription' => $websiteData['hasMeta'] ?? false,
+            'hasTitleTag' => $websiteData['hasTitle'] ?? false,
+            'hasH1Tag' => $websiteData['hasH1'] ?? false,
+            'hasStructuredData' => $websiteData['hasStructuredData'] ?? false,
+            'hasCanonicalTag' => $websiteData['hasCanonical'] ?? false,
+            'issues' => $websiteData['metaTags']['seoIssues'] ?? [],
+        ],
+        'technicalHealth' => [
+            'score' => $techScore,
+            'hasSsl' => $websiteData['hasSsl'] ?? false,
+            'hasSitemap' => false,
+            'hasRobotsTxt' => false,
+            'pageSpeedIssues' => $pageSpeedData['issues'] ?? [],
+        ],
+        'trackingInfrastructure' => [
+            'hasGoogleAnalytics' => $websiteData['hasAnalytics'] ?? $websiteData['detectedTech']['hasGoogleAnalytics'] ?? false,
+            'hasGoogleTagManager' => $websiteData['hasGTM'] ?? $websiteData['detectedTech']['hasGTM'] ?? false,
+            'hasFacebookPixel' => $websiteData['hasFBPixel'] ?? $websiteData['detectedTech']['hasFacebookPixel'] ?? false,
+            'hasHotjar' => $websiteData['detectedTech']['hasHotjar'] ?? false,
+        ],
+        'accessibility' => [
+            'score' => $accessibilityScore,
+            'hasAltTags' => $websiteData['hasAltTags'] ?? false,
+        ],
+        'conversionReadiness' => [
+            'hasForms' => $websiteData['hasForms'] ?? $conversionElements['hasForms'] ?? false,
+            'hasContactForm' => $conversionElements['hasContactForm'] ?? false,
+            'hasCTAs' => $websiteData['hasCTA'] ?? $conversionElements['hasCTA'] ?? false,
+            'hasChat' => $websiteData['hasChat'] ?? $conversionElements['hasChat'] ?? false,
+            'hasBookingSystem' => $websiteData['hasBooking'] ?? $conversionElements['hasBooking'] ?? false,
+            'hasPhoneClick' => $conversionElements['hasPhoneClick'] ?? false,
+            'hasEmailClick' => $conversionElements['hasEmailClick'] ?? false,
+            'hasNewsletter' => $conversionElements['hasNewsletter'] ?? false,
+            'conversionScore' => $conversionScore,
+        ],
+    ];
+}
+
+/**
+ * Build Tech Stack Enhanced with detection
+ */
+function buildTechStackEnhanced($websiteData, $htmlContent, $freeApiData) {
+    $detectedTech = $websiteData['detectedTech'] ?? $freeApiData['techSignals'] ?? [];
+    
+    $cms = $websiteData['platform'] ?? $detectedTech['cms'] ?? 'Unknown';
+    
+    return [
+        'cms' => $cms,
+        'analytics' => [
+            'hasGoogleAnalytics' => $websiteData['hasAnalytics'] ?? $detectedTech['hasGoogleAnalytics'] ?? false,
+            'hasGTM' => $websiteData['hasGTM'] ?? $detectedTech['hasGTM'] ?? false,
+            'hasFacebookPixel' => $websiteData['hasFBPixel'] ?? $detectedTech['hasFacebookPixel'] ?? false,
+            'hasHotjar' => $detectedTech['hasHotjar'] ?? false,
+        ],
+        'marketing' => [
+            'hasLiveChat' => $websiteData['hasChat'] ?? $detectedTech['hasLiveChat'] ?? false,
+            'hasBookingSystem' => $websiteData['hasBooking'] ?? false,
+        ],
+        'ecommerce' => [
+            'hasShopify' => $detectedTech['hasShopify'] ?? false,
+            'hasStripe' => $detectedTech['hasStripe'] ?? false,
+            'hasWooCommerce' => ($cms === 'WordPress' && (strpos($htmlContent ?? '', 'woocommerce') !== false)),
+        ],
+        'frameworks' => [
+            'hasReact' => $detectedTech['hasReact'] ?? false,
+            'hasWordPress' => $detectedTech['hasWordPress'] ?? ($cms === 'WordPress'),
+            'hasWix' => $detectedTech['hasWix'] ?? ($cms === 'Wix'),
+            'hasSquarespace' => $detectedTech['hasSquarespace'] ?? ($cms === 'Squarespace'),
+        ],
+        'security' => [
+            'hasSSL' => $websiteData['hasSsl'] ?? true,
+        ],
+    ];
+}
+
+/**
+ * Build Compliance Enhanced
+ */
+function buildComplianceEnhanced($websiteData, $htmlContent, $freeApiData) {
+    $complianceSignals = $websiteData['complianceSignals'] ?? $freeApiData['complianceSignals'] ?? [];
+    
+    $hasPrivacy = $websiteData['hasPrivacyPolicy'] ?? $complianceSignals['hasPrivacyPolicy'] ?? false;
+    $hasCookies = $websiteData['hasCookieConsent'] ?? $complianceSignals['hasCookieNotice'] ?? false;
+    $hasTerms = $complianceSignals['hasTerms'] ?? false;
+    $hasAccessibility = $complianceSignals['hasAccessibility'] ?? false;
+    $hasTrustBadges = $complianceSignals['hasTrustBadges'] ?? false;
+    
+    // Calculate trust score
+    $trustScore = 0;
+    if ($websiteData['hasSsl'] ?? false) $trustScore += 30;
+    if ($hasPrivacy) $trustScore += 20;
+    if ($hasCookies) $trustScore += 15;
+    if ($hasTerms) $trustScore += 15;
+    if ($hasTrustBadges) $trustScore += 20;
+    
+    $issues = [];
+    if (!$hasPrivacy) $issues[] = 'Missing privacy policy';
+    if (!$hasCookies) $issues[] = 'No cookie consent notice';
+    if (!$hasTerms) $issues[] = 'No terms of service';
+    
+    return [
+        'privacyCompliance' => [
+            'hasPrivacyPolicy' => $hasPrivacy,
+            'hasCookieConsent' => $hasCookies,
+            'hasTermsOfService' => $hasTerms,
+            'complianceScore' => $trustScore,
+        ],
+        'adaAccessibility' => [
+            'hasAccessibilityStatement' => $hasAccessibility,
+            'riskLevel' => $hasAccessibility ? 'low' : 'medium',
+        ],
+        'securityIndicators' => [
+            'hasSsl' => $websiteData['hasSsl'] ?? true,
+            'hasTrustBadges' => $hasTrustBadges,
+        ],
+        'trustScore' => min(100, $trustScore),
+        'issues' => $issues,
+    ];
 }
