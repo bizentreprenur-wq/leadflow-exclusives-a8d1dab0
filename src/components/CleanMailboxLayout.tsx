@@ -116,6 +116,19 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   });
   const [isMailboxSidebarResizing, setIsMailboxSidebarResizing] = useState(false);
   const [selectedEmailSequence, setSelectedEmailSequence] = useState<EmailSequence | null>(null);
+  
+  // Email preview panel width (right side resizable)
+  const [emailPreviewWidth, setEmailPreviewWidth] = useState(() => {
+    try {
+      const saved = localStorage.getItem('bamlead_email_preview_width');
+      const parsed = saved ? parseFloat(saved) : NaN;
+      if (!Number.isNaN(parsed)) return parsed;
+    } catch {
+      // ignore
+    }
+    return 450;
+  });
+  const [isEmailPreviewResizing, setIsEmailPreviewResizing] = useState(false);
 
   const clampMailboxSidebarWidth = (w: number) => Math.max(220, Math.min(520, w));
 
@@ -585,10 +598,54 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                 </ScrollArea>
               </div>
 
-              {/* Email Preview / Empty State */}
-              <div className="flex-1 flex items-center justify-center bg-background">
+              {/* Resizable handle for email preview panel */}
+              <div
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const startX = e.clientX;
+                  const startW = emailPreviewWidth;
+                  let latestW = emailPreviewWidth;
+                  setIsEmailPreviewResizing(true);
+                  const target = e.currentTarget as HTMLElement;
+                  target.setPointerCapture(e.pointerId);
+                  
+                  const onMove = (ev: PointerEvent) => {
+                    // Moving left increases width, moving right decreases
+                    latestW = Math.max(300, Math.min(800, startW - (ev.clientX - startX)));
+                    setEmailPreviewWidth(latestW);
+                  };
+                  
+                  const onUp = () => {
+                    try {
+                      localStorage.setItem('bamlead_email_preview_width', String(latestW));
+                    } catch { /* ignore */ }
+                    setIsEmailPreviewResizing(false);
+                    window.removeEventListener('pointermove', onMove);
+                    window.removeEventListener('pointerup', onUp);
+                    try {
+                      target.releasePointerCapture(e.pointerId);
+                    } catch { /* ignore */ }
+                  };
+                  
+                  window.addEventListener('pointermove', onMove);
+                  window.addEventListener('pointerup', onUp);
+                }}
+                className="relative hidden md:flex w-2 items-stretch justify-center cursor-col-resize select-none hover:bg-primary/20 transition-colors"
+                aria-label="Resize email preview panel"
+                role="separator"
+              >
+                <div className="w-px bg-border" />
+                <div className="absolute inset-y-0 left-1/2 w-3 -translate-x-1/2" />
+              </div>
+
+              {/* Email Preview / Empty State - NOW RESIZABLE */}
+              <div 
+                className="flex items-center justify-center bg-background transition-all"
+                style={{ width: emailPreviewWidth }}
+              >
                 {selectedReply ? (
-                  <div className="w-full max-w-2xl p-8">
+                  <div className="w-full h-full p-8 overflow-auto">
                     <div className="rounded-2xl border border-border bg-card p-8">
                       <div className="flex items-center gap-3 mb-4">
                         <div className={cn(
