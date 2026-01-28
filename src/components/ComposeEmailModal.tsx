@@ -17,8 +17,11 @@ import {
   CheckCircle2, ArrowRight, Flame, ThermometerSun, Snowflake, FileText,
   Settings2, Users, TrendingUp, Rocket, Search, Globe, Store,
   CreditCard, Wand2, Layers, MailPlus, Briefcase, Crown,
-  X, Maximize2, Minimize2, Eye, AlertCircle, Lightbulb, Brain
+  X, Maximize2, Minimize2, Eye, AlertCircle, Lightbulb, Brain,
+  CheckSquare, Square, Edit3, ExternalLink
 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import AutopilotTrialWarning from './AutopilotTrialWarning';
 import { useAutopilotTrial } from '@/hooks/useAutopilotTrial';
 import LeadQueueIndicator from './LeadQueueIndicator';
@@ -129,6 +132,11 @@ export default function ComposeEmailModal({
     subject?: string;
     body?: string;
   } | null>(null);
+  
+  // Select All leads state
+  const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string | number>>(new Set());
+  const [selectAllLeads, setSelectAllLeads] = useState(false);
+  const [showTemplateRequiredModal, setShowTemplateRequiredModal] = useState(false);
 
   // Autopilot launch state
   const [isLaunchingAutopilot, setIsLaunchingAutopilot] = useState(false);
@@ -223,6 +231,46 @@ export default function ComposeEmailModal({
 
   const currentLead = useMemo(() => leads[currentLeadIndex] || null, [leads, currentLeadIndex]);
   const safeLeads = useMemo(() => leads?.filter((l): l is Lead => l != null) ?? [], [leads]);
+  
+  // Filtered leads based on campaign target
+  const filteredLeads = useMemo(() => {
+    if (campaignTarget === 'all') return safeLeads;
+    return safeLeads.filter(l => 
+      campaignTarget === 'cold' 
+        ? (l.aiClassification === 'cold' || !l.aiClassification)
+        : l.aiClassification === campaignTarget
+    );
+  }, [safeLeads, campaignTarget]);
+  
+  // Handle select all toggle
+  const handleSelectAllToggle = (checked: boolean) => {
+    setSelectAllLeads(checked);
+    if (checked) {
+      const allIds = new Set(filteredLeads.map(l => l.id ?? '').filter(Boolean));
+      setSelectedLeadIds(allIds);
+    } else {
+      setSelectedLeadIds(new Set());
+    }
+  };
+  
+  // Handle individual lead selection
+  const handleLeadSelection = (leadId: string | number, checked: boolean) => {
+    const newSelected = new Set(selectedLeadIds);
+    if (checked) {
+      newSelected.add(leadId);
+    } else {
+      newSelected.delete(leadId);
+    }
+    setSelectedLeadIds(newSelected);
+    setSelectAllLeads(newSelected.size === filteredLeads.length);
+  };
+  
+  // Get selected lead count for campaign
+  const selectedLeadCount = useMemo(() => {
+    if (selectAllLeads) return filteredLeads.length;
+    return selectedLeadIds.size > 0 ? selectedLeadIds.size : filteredLeads.length;
+  }, [selectAllLeads, selectedLeadIds.size, filteredLeads.length]);
+  
   const dripLeadCount = useMemo(() => {
     if (workflowEmailLeadCount > 0) return workflowEmailLeadCount;
     const emailCount = safeLeads.filter(l => l.email).length;
@@ -830,64 +878,78 @@ export default function ComposeEmailModal({
                       ) : (
                         <>
                           <LeadQueueIndicator
-                            leads={campaignTarget === 'all' 
-                              ? safeLeads 
-                              : safeLeads.filter(l => 
-                                  campaignTarget === 'cold' 
-                                    ? (l.aiClassification === 'cold' || !l.aiClassification)
-                                    : l.aiClassification === campaignTarget
-                                )
-                            }
+                            leads={filteredLeads}
                             currentIndex={currentLeadIndex}
                             lastSentIndex={lastSentIndex}
                             variant="horizontal"
                           />
+                          
+                          {/* Select All Toggle */}
+                          <div className="flex items-center justify-between p-3 mt-4 rounded-lg bg-orange-500/10 border border-orange-500/30">
+                            <div className="flex items-center gap-3">
+                              <Checkbox
+                                id="select-all"
+                                checked={selectAllLeads}
+                                onCheckedChange={(checked) => handleSelectAllToggle(checked === true)}
+                                className="data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
+                              />
+                              <label htmlFor="select-all" className="text-sm font-medium text-foreground cursor-pointer">
+                                Select All Leads
+                              </label>
+                            </div>
+                            <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-xs">
+                              {selectedLeadCount} / {filteredLeads.length} selected
+                            </Badge>
+                          </div>
+                          
                           <ScrollArea className="h-[200px] mt-4">
                             <div className="space-y-2">
-                              {(campaignTarget === 'all' 
-                                ? safeLeads 
-                                : safeLeads.filter(l => 
-                                    campaignTarget === 'cold' 
-                                      ? (l.aiClassification === 'cold' || !l.aiClassification)
-                                      : l.aiClassification === campaignTarget
-                                  )
-                              ).map((lead, idx) => (
-                                <button
+                              {filteredLeads.map((lead, idx) => (
+                                <div
                                   key={lead?.id ?? idx}
-                                  onClick={() => {
-                                    onLeadIndexChange(idx);
-                                    setEmail(prev => ({ ...prev, to: lead.email || '' }));
-                                  }}
                                   className={cn(
                                     "w-full text-left p-3 rounded-lg border transition-all flex items-center gap-3",
-                                    idx === currentLeadIndex
+                                    selectedLeadIds.has(lead.id ?? '') || selectAllLeads
                                       ? "border-orange-500 bg-orange-500/10"
                                       : idx <= lastSentIndex
                                       ? "border-emerald-500/30 bg-emerald-500/5"
                                       : "border-border hover:border-orange-500/50"
                                   )}
                                 >
-                                  <div className={cn(
-                                    "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
-                                    idx <= lastSentIndex
-                                      ? "bg-emerald-500/20 text-emerald-400"
-                                      : idx === currentLeadIndex
-                                      ? "bg-orange-500/20 text-orange-400"
-                                      : "bg-muted text-muted-foreground"
-                                  )}>
-                                    {idx <= lastSentIndex ? <CheckCircle2 className="w-4 h-4" /> : idx + 1}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-foreground truncate">
-                                      {lead.business_name || lead.name || 'Unknown'}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground truncate">{lead.email}</p>
-                                  </div>
-                                  <Badge variant="outline" className="text-[10px] gap-1">
-                                    {getPriorityIcon(lead.aiClassification)}
-                                    {lead.aiClassification || 'cold'}
-                                  </Badge>
-                                </button>
+                                  <Checkbox
+                                    checked={selectAllLeads || selectedLeadIds.has(lead.id ?? '')}
+                                    onCheckedChange={(checked) => handleLeadSelection(lead.id ?? idx, checked === true)}
+                                    className="data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
+                                  />
+                                  <button
+                                    onClick={() => {
+                                      onLeadIndexChange(idx);
+                                      setEmail(prev => ({ ...prev, to: lead.email || '' }));
+                                    }}
+                                    className="flex-1 flex items-center gap-3 min-w-0"
+                                  >
+                                    <div className={cn(
+                                      "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
+                                      idx <= lastSentIndex
+                                        ? "bg-emerald-500/20 text-emerald-400"
+                                        : idx === currentLeadIndex
+                                        ? "bg-orange-500/20 text-orange-400"
+                                        : "bg-muted text-muted-foreground"
+                                    )}>
+                                      {idx <= lastSentIndex ? <CheckCircle2 className="w-4 h-4" /> : idx + 1}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-foreground truncate text-left">
+                                        {lead.business_name || lead.name || 'Unknown'}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground truncate text-left">{lead.email}</p>
+                                    </div>
+                                    <Badge variant="outline" className="text-[10px] gap-1">
+                                      {getPriorityIcon(lead.aiClassification)}
+                                      {lead.aiClassification || 'cold'}
+                                    </Badge>
+                                  </button>
+                                </div>
                               ))}
                             </div>
                           </ScrollArea>
@@ -905,15 +967,77 @@ export default function ComposeEmailModal({
 
                   {/* Step 2: Template */}
                   <TabsContent value="template" className="mt-4 space-y-4 pb-6">
+                    {/* No Template Warning */}
+                    {!selectedCampaignTemplate && !email.subject && !email.body && (
+                      <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                        <div className="flex items-center gap-3">
+                          <AlertCircle className="w-5 h-5 text-amber-400" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-foreground">No Template Selected</p>
+                            <p className="text-xs text-muted-foreground">
+                              Choose an AI template below or go to Step 3 Email Outreach to configure your template.
+                            </p>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              onClose();
+                              sessionStorage.setItem('bamlead_current_step', '3');
+                              toast.info('Navigate to Step 3: Email Outreach in the dashboard to configure your template.');
+                            }}
+                            className="gap-1 text-xs"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            Go to Step 3
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    
                     {selectedCampaignTemplate && (
                       <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/30">
-                        <p className="text-xs text-muted-foreground">Selected template from Step 3</p>
-                        <p className="text-sm font-medium text-foreground">{selectedCampaignTemplate.name}</p>
-                        {selectedCampaignTemplate.subject && (
-                          <p className="text-[10px] text-muted-foreground truncate">
-                            Subject: {selectedCampaignTemplate.subject}
-                          </p>
-                        )}
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground">Selected template from Step 3</p>
+                            <p className="text-sm font-medium text-foreground">{selectedCampaignTemplate.name}</p>
+                            {selectedCampaignTemplate.subject && (
+                              <p className="text-[10px] text-muted-foreground truncate">
+                                Subject: {selectedCampaignTemplate.subject}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                // Apply template to editor for viewing/editing
+                                if (selectedCampaignTemplate.subject) {
+                                  setEmail(prev => ({
+                                    ...prev,
+                                    subject: selectedCampaignTemplate.subject || '',
+                                    body: selectedCampaignTemplate.body || '',
+                                  }));
+                                }
+                                toast.info('Template loaded into editor. You can now view and edit it.');
+                              }}
+                              className="text-xs gap-1 h-7"
+                            >
+                              <Eye className="w-3 h-3" />
+                              View
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setShowTemplateSelector(true)}
+                              className="text-xs gap-1 h-7"
+                            >
+                              <Edit3 className="w-3 h-3" />
+                              Change
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     )}
                     {showAISubjects && (
@@ -969,9 +1093,15 @@ export default function ComposeEmailModal({
                         Back
                       </Button>
                       <Button 
-                        onClick={() => setCampaignTab('sequence')} 
+                        onClick={() => {
+                          if (!email.subject && !email.body) {
+                            setShowTemplateRequiredModal(true);
+                          } else {
+                            setCampaignTab('sequence');
+                          }
+                        }} 
                         className="flex-1 bg-orange-500 hover:bg-orange-600 gap-2"
-                        disabled={!email.subject}
+                        disabled={!email.subject && !email.body}
                       >
                         Configure Sequence <ArrowRight className="w-4 h-4" />
                       </Button>
@@ -1742,6 +1872,50 @@ export default function ComposeEmailModal({
           websiteIssues: currentLead.websiteIssues,
         } : undefined}
       />
+      
+      {/* Template Required Modal */}
+      <AlertDialog open={showTemplateRequiredModal} onOpenChange={setShowTemplateRequiredModal}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-400" />
+              Template Required
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              You need to select or configure an email template before proceeding. You can either:
+              <ul className="list-disc ml-5 mt-2 space-y-1">
+                <li>Choose an AI template from the gallery above</li>
+                <li>Upload your own custom template</li>
+                <li>Go to Step 3: Email Outreach to configure your template</li>
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Stay Here</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowTemplateSelector(true);
+                setShowTemplateRequiredModal(false);
+              }}
+              className="bg-orange-500 hover:bg-orange-600"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              Browse Templates
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => {
+                onClose();
+                sessionStorage.setItem('bamlead_current_step', '3');
+                toast.info('Navigate to Step 3: Email Outreach in the dashboard to configure your template.');
+              }}
+              className="bg-primary hover:bg-primary/90"
+            >
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Go to Step 3
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
