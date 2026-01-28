@@ -201,6 +201,7 @@ export default function SimpleLeadViewer({
   }, []);
 
   // Save current search to history when leads change (and there are leads)
+  // OPTIMIZED: Store lean lead data to prevent localStorage overflow
   useEffect(() => {
     if (leads.length > 0 && !isLoading) {
       const query = sessionStorage.getItem('bamlead_query') || 'Unknown';
@@ -216,15 +217,35 @@ export default function SimpleLeadViewer({
         s => s.query === query && s.location === location
       );
       
+      // OPTIMIZATION: Store lean lead objects (only essential fields)
+      // This prevents localStorage from exceeding ~5MB limit with large searches
+      const leanLeads = leads.map(l => ({
+        id: l.id,
+        name: l.name,
+        phone: l.phone,
+        email: l.email,
+        website: l.website,
+        address: l.address,
+        rating: l.rating,
+        source: l.source,
+        aiClassification: l.aiClassification,
+        leadScore: l.leadScore,
+        successProbability: l.successProbability,
+        recommendedAction: l.recommendedAction,
+        urgency: l.urgency,
+        readyToCall: l.readyToCall,
+        // Exclude heavy websiteAnalysis.issues arrays and painPoints to save space
+      }));
+      
       if (existingIndex === -1) {
-        // New search - store ALL leads (not just 100)
+        // New search - store lean leads
         const newEntry: SearchHistoryItem = {
           id: `${Date.now()}`,
           query,
           location,
           leadsCount: leads.length,
           timestamp: new Date().toISOString(),
-          leads: [...leads], // Store ALL leads for full restore
+          leads: leanLeads as SearchResult[],
           hotCount,
           warmCount,
           coldCount,
@@ -232,21 +253,36 @@ export default function SimpleLeadViewer({
         
         const updated = [newEntry, ...searchHistory].slice(0, 20); // Keep last 20 searches
         setSearchHistory(updated);
-        localStorage.setItem('bamlead_search_history_permanent', JSON.stringify(updated));
+        
+        // Try to save, handle quota exceeded
+        try {
+          localStorage.setItem('bamlead_search_history_permanent', JSON.stringify(updated));
+        } catch (e) {
+          console.warn('localStorage quota exceeded, trimming history');
+          // Trim to last 10 if quota exceeded
+          const trimmed = updated.slice(0, 10);
+          localStorage.setItem('bamlead_search_history_permanent', JSON.stringify(trimmed));
+          setSearchHistory(trimmed);
+        }
       } else {
         // Update existing search with new leads and counts
         const updated = [...searchHistory];
         updated[existingIndex] = {
           ...updated[existingIndex],
           leadsCount: leads.length,
-          leads: [...leads],
+          leads: leanLeads as SearchResult[],
           hotCount,
           warmCount,
           coldCount,
           timestamp: new Date().toISOString(),
         };
         setSearchHistory(updated);
-        localStorage.setItem('bamlead_search_history_permanent', JSON.stringify(updated));
+        
+        try {
+          localStorage.setItem('bamlead_search_history_permanent', JSON.stringify(updated));
+        } catch (e) {
+          console.warn('localStorage quota exceeded on update');
+        }
       }
     }
   }, [leads, isLoading]);

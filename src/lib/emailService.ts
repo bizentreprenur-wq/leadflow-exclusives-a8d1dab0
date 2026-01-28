@@ -257,6 +257,25 @@ export const sendTestEmail = async (toEmail: string): Promise<TestResult> => {
  * Send a single email
  */
 export const sendSingleEmail = async (params: SendEmailParams): Promise<SendResult> => {
+  // Validate email format
+  if (!params.to || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(params.to)) {
+    return {
+      success: false,
+      failed: 1,
+      error: 'Invalid email address format',
+    };
+  }
+
+  // Check SMTP config first
+  const smtpConfig = getSMTPConfig();
+  if (!smtpConfig?.username || !smtpConfig?.password) {
+    return {
+      success: false,
+      failed: 1,
+      error: 'SMTP not configured. Please set up your email settings first.',
+    };
+  }
+
   try {
     // Apply branding if enabled
     let finalHtml = params.bodyHtml;
@@ -267,7 +286,6 @@ export const sendSingleEmail = async (params: SendEmailParams): Promise<SendResu
       }
     }
     
-    const smtpOverride = getSMTPConfig();
     const response = await fetch(`${API_BASE}/email-outreach.php?action=send`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -281,29 +299,58 @@ export const sendSingleEmail = async (params: SendEmailParams): Promise<SendResu
         campaign_id: params.campaignId,
         personalization: params.personalization,
         track_opens: true,
-        smtp_override: smtpOverride ? {
-          host: smtpOverride.host,
-          port: smtpOverride.port,
-          username: smtpOverride.username,
-          password: smtpOverride.password,
-          secure: smtpOverride.secure,
-        } : undefined,
+        smtp_override: {
+          host: smtpConfig.host,
+          port: smtpConfig.port,
+          username: smtpConfig.username,
+          password: smtpConfig.password,
+          secure: smtpConfig.secure,
+        },
       }),
     });
     
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Email API error:', response.status, errorText);
+      return {
+        success: false,
+        failed: 1,
+        error: `Server error (${response.status}). Please try again or check SMTP settings.`,
+      };
+    }
+    
     const data = await response.json();
+    
+    if (!data.success) {
+      return {
+        success: false,
+        failed: 1,
+        error: data.error || 'Email delivery failed. Please verify your SMTP credentials.',
+      };
+    }
+    
     return {
-      success: data.success,
-      sent: data.success ? 1 : 0,
-      failed: data.success ? 0 : 1,
-      error: data.error,
+      success: true,
+      sent: 1,
+      failed: 0,
     };
   } catch (error) {
     console.error('Send email error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Provide actionable error messages
+    if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
+      return {
+        success: false,
+        failed: 1,
+        error: 'Network error. Please check your internet connection and try again.',
+      };
+    }
+    
     return {
       success: false,
       failed: 1,
-      error: 'Failed to send email. Please check your connection.',
+      error: `Failed to send email: ${errorMessage}. Please check your SMTP configuration.`,
     };
   }
 };
