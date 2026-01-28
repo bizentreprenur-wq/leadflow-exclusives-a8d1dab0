@@ -96,6 +96,7 @@ const SearchModule = () => {
           try {
             const enrichedResponse = await enrichLeadsWithIntelligence(
               response.data,
+              { usePageSpeed: false, enrichContacts: true },
               (progress, message) => {
                 console.log(`[BI] ${progress}% - ${message}`);
               }
