@@ -26,10 +26,11 @@ import BrandingSettingsPanel from './BrandingSettingsPanel';
 interface SettingsPanelProps {
   initialTab?: string;
   onBackToStep4?: () => void;
+  onBackToSMTPSetup?: () => void;
   hideWebhooks?: boolean;
 }
 
-export default function SettingsPanel({ initialTab = 'integrations', onBackToStep4, hideWebhooks = false }: SettingsPanelProps) {
+export default function SettingsPanel({ initialTab = 'integrations', onBackToStep4, onBackToSMTPSetup, hideWebhooks = false }: SettingsPanelProps) {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState(initialTab);
   const [driveConnected, setDriveConnected] = useState(false);
@@ -97,7 +98,9 @@ export default function SettingsPanel({ initialTab = 'integrations', onBackToSte
         <Button
           variant="outline"
           onClick={() => {
-            if (onBackToStep4) {
+            if (onBackToSMTPSetup) {
+              onBackToSMTPSetup();
+            } else if (onBackToStep4) {
               onBackToStep4();
             } else {
               window.location.href = '/dashboard';

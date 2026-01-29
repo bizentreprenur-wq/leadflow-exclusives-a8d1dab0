@@ -2356,6 +2356,11 @@ export default function Dashboard() {
           component: <SettingsPanel 
             initialTab={settingsInitialTab} 
             hideWebhooks={hideWebhooksInSettings}
+            onBackToSMTPSetup={() => {
+              setActiveTab('workflow');
+              setCurrentStep(3);
+              setHideWebhooksInSettings(false);
+            }}
             onBackToStep4={() => {
               setActiveTab('workflow');
               setCurrentStep(4);
