@@ -16,15 +16,22 @@ header('Content-Type: application/json');
 setCorsHeaders();
 handlePreflight();
 
-// Authenticate user
-$user = authenticateRequest();
-if (!$user) {
-    http_response_code(401);
-    echo json_encode(['success' => false, 'error' => 'Unauthorized']);
-    exit();
+$action = $_GET['action'] ?? '';
+
+// Allow SMTP test endpoints without authentication (user provides their own credentials)
+$publicActions = ['test_smtp', 'send_test'];
+$user = null;
+
+if (!in_array($action, $publicActions)) {
+    // Authenticate user for protected endpoints
+    $user = authenticateRequest();
+    if (!$user) {
+        http_response_code(401);
+        echo json_encode(['success' => false, 'error' => 'Unauthorized']);
+        exit();
+    }
 }
 
-$action = $_GET['action'] ?? '';
 $db = getDB();
 
 try {
