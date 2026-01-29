@@ -1348,22 +1348,21 @@ export default function SimpleLeadViewer({
             </Table>
           </DualScrollbar>
 
-          {/* Bottom Action Bar */}
-          {!selectedIds.size && leads.length > 0 && (
+          {/* Bottom Action Bar - Next Step */}
+          {leads.length > 0 && (
             <div className="px-4 py-4 border-t border-border bg-muted/20 flex items-center justify-between">
               <p className="text-sm text-muted-foreground">
-                Select leads above or take action on all {leads.length}:
+                {selectedIds.size > 0 
+                  ? `${selectedIds.size} leads selected` 
+                  : `Ready to proceed with ${leads.length} leads`}
               </p>
-              <div className="flex items-center gap-3">
-                <Button onClick={handleProceedToEmail} className="gap-2 bg-blue-600 hover:bg-blue-700">
-                  <Mail className="w-4 h-4" />
-                  Email All
-                </Button>
-                <Button onClick={handleProceedToCall} variant="outline" className="gap-2 border-green-500 text-green-600">
-                  <Phone className="w-4 h-4" />
-                  Call All
-                </Button>
-              </div>
+              <Button 
+                onClick={handleProceedToEmail} 
+                className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6"
+              >
+                Next: Email Outreach
+                <ChevronRight className="w-4 h-4" />
+              </Button>
             </div>
           )}
         </CardContent>
