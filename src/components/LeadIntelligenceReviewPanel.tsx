@@ -578,17 +578,17 @@ export default function LeadIntelligenceReviewPanel({
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
           >
-            <Card className="border-2 border-violet-500/30 bg-gradient-to-br from-violet-500/5 to-purple-500/5">
+            <Card className="border-2 border-amber-500/40 bg-gradient-to-br from-amber-500/5 via-orange-500/5 to-yellow-500/5">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center">
-                      <Wand2 className="w-6 h-6 text-violet-400" />
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center">
+                      <Wand2 className="w-6 h-6 text-amber-400" />
                     </div>
                     <div>
                       <CardTitle className="text-xl flex items-center gap-2">
-                        Step B: AI-Recommended Follow-Up Strategies
-                        <Badge className="bg-violet-500/20 text-violet-400 border-violet-500/30">
+                        AI Follow-Up Strategies
+                        <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
                           {filteredStrategies.length} Available
                         </Badge>
                       </CardTitle>
@@ -597,11 +597,11 @@ export default function LeadIntelligenceReviewPanel({
                           "text-xs",
                           searchType === 'gmb' 
                             ? "border-emerald-500/30 text-emerald-400" 
-                            : "border-violet-500/30 text-violet-400"
+                            : "border-purple-500/30 text-purple-400"
                         )}>
                           {searchType === 'gmb' ? '🧠 Super AI Business Search' : '🎯 Agency Lead Finder'}
                         </Badge>
-                        <span className="text-xs">Optional: Enhance your campaign with AI</span>
+                        <span className="text-xs text-muted-foreground">Choose or let AI Autopilot select for you</span>
                       </CardDescription>
                     </div>
                   </div>
@@ -609,100 +609,114 @@ export default function LeadIntelligenceReviewPanel({
               </CardHeader>
               
               <CardContent className="space-y-4">
-                {/* Detailed Explanation Box */}
-                <div className="p-4 rounded-xl bg-gradient-to-r from-violet-500/10 to-purple-500/10 border border-violet-500/30">
+                {/* AI Autopilot Notice */}
+                <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-yellow-500/10 border border-amber-500/30">
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center flex-shrink-0">
-                      <Sparkles className="w-5 h-5 text-violet-400" />
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-amber-500/30 to-orange-500/30 flex items-center justify-center flex-shrink-0">
+                      <Sparkles className="w-5 h-5 text-amber-400" />
                     </div>
                     <div>
-                      <h4 className="font-semibold text-foreground">What are AI Follow-Up Strategies?</h4>
+                      <h4 className="font-semibold text-foreground flex items-center gap-2">
+                        How AI Strategies Work
+                        <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]">
+                          AI Autopilot
+                        </Badge>
+                      </h4>
                       <p className="text-sm text-muted-foreground mt-1">
-                        These are <strong>intelligent follow-up sequences</strong> that enhance your chosen template. When you select a strategy:
+                        With <strong className="text-amber-400">AI Autopilot Campaign</strong>, the AI automatically selects the best strategy for each lead based on their profile. You can still:
                       </p>
                       <ul className="text-sm text-muted-foreground mt-2 space-y-1.5">
                         <li className="flex items-start gap-2">
                           <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
-                          <span><strong>Your template + AI strategy</strong> = Complete email sequence in the mailbox</span>
+                          <span><strong>Review all strategies</strong> below to understand what the AI will use</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
-                          <span><strong>Automated follow-ups</strong> are pre-scheduled (Day 1, 3, 5, etc.) to keep leads engaged</span>
+                          <span><strong>Edit any strategy</strong> in the compose window before sending</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
-                          <span><strong>Each strategy targets a specific lead segment</strong> based on your Step 2 analysis</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
-                          <span><strong>The AI makes follow-ups clearer</strong> so leads understand your value proposition better</span>
+                          <span><strong>Choose manually</strong> if you prefer a specific approach</span>
                         </li>
                       </ul>
-                      <div className="mt-3 p-2 rounded-lg bg-background border border-border">
+                      <div className="mt-3 p-2 rounded-lg bg-background/80 border border-border">
                         <p className="text-xs text-muted-foreground">
-                          💡 <strong>Tip:</strong> You can edit any strategy after selecting it in the compose window. The AI provides the framework, you have full control!
+                          💡 <strong>Pro Tip:</strong> Click any strategy card to preview it, then edit the subject/body in the compose window. The AI provides smart defaults, but you have full control!
                         </p>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Strategy Grid */}
+                {/* Strategy Grid - Colorful Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {filteredStrategies.map((strategy) => (
-                    <motion.div
-                      key={strategy.id}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className={cn(
-                        "p-4 rounded-xl border-2 cursor-pointer transition-all group",
-                        selectedStrategy === strategy.id
-                          ? "border-violet-500 bg-violet-500/10 shadow-lg shadow-violet-500/20"
-                          : "border-border bg-background hover:border-violet-500/50 hover:bg-violet-500/5"
-                      )}
-                      onClick={() => handleApplyStrategy(strategy)}
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xl">{strategy.emoji || '📧'}</span>
-                          <h5 className="font-semibold text-sm">{strategy.name}</h5>
-                        </div>
-                        <Badge className={cn(
-                          "text-[10px]",
-                          strategy.priority === 'hot' && "bg-red-500/20 text-red-400 border-red-500/30",
-                          strategy.priority === 'warm' && "bg-amber-500/20 text-amber-400 border-amber-500/30",
-                          strategy.priority === 'cold' && "bg-blue-500/20 text-blue-400 border-blue-500/30"
-                        )}>
-                          {strategy.targetLeads} leads
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground mb-3">{strategy.description}</p>
-                      
-                      <div className="space-y-2">
-                        <div className="text-xs">
-                          <span className="text-muted-foreground">Subject: </span>
-                          <span className="text-foreground italic">"{strategy.subjectTemplate}"</span>
-                        </div>
-                        {strategy.followUpDays && (
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Clock className="w-3 h-3" />
-                            <span>Follow-ups: Day {strategy.followUpDays.join(', ')}</span>
-                          </div>
+                  {filteredStrategies.map((strategy, idx) => {
+                    // Alternate colors for variety
+                    const colorSchemes = [
+                      { border: 'border-rose-500/40', bg: 'bg-rose-500/5', hoverBorder: 'hover:border-rose-500/60', hoverBg: 'hover:bg-rose-500/10', accent: 'text-rose-400', btnBg: 'bg-rose-500 hover:bg-rose-600' },
+                      { border: 'border-amber-500/40', bg: 'bg-amber-500/5', hoverBorder: 'hover:border-amber-500/60', hoverBg: 'hover:bg-amber-500/10', accent: 'text-amber-400', btnBg: 'bg-amber-500 hover:bg-amber-600' },
+                      { border: 'border-emerald-500/40', bg: 'bg-emerald-500/5', hoverBorder: 'hover:border-emerald-500/60', hoverBg: 'hover:bg-emerald-500/10', accent: 'text-emerald-400', btnBg: 'bg-emerald-500 hover:bg-emerald-600' },
+                      { border: 'border-cyan-500/40', bg: 'bg-cyan-500/5', hoverBorder: 'hover:border-cyan-500/60', hoverBg: 'hover:bg-cyan-500/10', accent: 'text-cyan-400', btnBg: 'bg-cyan-500 hover:bg-cyan-600' },
+                      { border: 'border-purple-500/40', bg: 'bg-purple-500/5', hoverBorder: 'hover:border-purple-500/60', hoverBg: 'hover:bg-purple-500/10', accent: 'text-purple-400', btnBg: 'bg-purple-500 hover:bg-purple-600' },
+                      { border: 'border-pink-500/40', bg: 'bg-pink-500/5', hoverBorder: 'hover:border-pink-500/60', hoverBg: 'hover:bg-pink-500/10', accent: 'text-pink-400', btnBg: 'bg-pink-500 hover:bg-pink-600' },
+                    ];
+                    const colors = colorSchemes[idx % colorSchemes.length];
+                    
+                    return (
+                      <motion.div
+                        key={strategy.id}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className={cn(
+                          "p-4 rounded-xl border-2 cursor-pointer transition-all group",
+                          selectedStrategy === strategy.id
+                            ? `${colors.border} ${colors.bg} shadow-lg`
+                            : `border-border bg-card ${colors.hoverBorder} ${colors.hoverBg}`
                         )}
-                      </div>
-                      
-                      {/* Hover Action */}
-                      <div className={cn(
-                        "mt-3 pt-3 border-t border-border transition-all",
-                        selectedStrategy === strategy.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                      )}>
-                        <Button size="sm" className="w-full gap-2 bg-violet-500 hover:bg-violet-600 text-white">
-                          <Send className="w-3 h-3" />
-                          Use This Strategy
-                        </Button>
-                      </div>
-                    </motion.div>
-                  ))}
+                        onClick={() => handleApplyStrategy(strategy)}
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl">{strategy.emoji || '📧'}</span>
+                            <h5 className={cn("font-semibold text-sm", selectedStrategy === strategy.id && colors.accent)}>{strategy.name}</h5>
+                          </div>
+                          <Badge className={cn(
+                            "text-[10px]",
+                            strategy.priority === 'hot' && "bg-rose-500/20 text-rose-400 border-rose-500/30",
+                            strategy.priority === 'warm' && "bg-amber-500/20 text-amber-400 border-amber-500/30",
+                            strategy.priority === 'cold' && "bg-sky-500/20 text-sky-400 border-sky-500/30"
+                          )}>
+                            {strategy.targetLeads} leads
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground mb-3">{strategy.description}</p>
+                        
+                        <div className="space-y-2">
+                          <div className="text-xs">
+                            <span className="text-muted-foreground">Subject: </span>
+                            <span className="text-foreground italic">"{strategy.subjectTemplate}"</span>
+                          </div>
+                          {strategy.followUpDays && (
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Clock className="w-3 h-3" />
+                              <span>Follow-ups: Day {strategy.followUpDays.join(', ')}</span>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Hover Action */}
+                        <div className={cn(
+                          "mt-3 pt-3 border-t border-border/50 transition-all",
+                          selectedStrategy === strategy.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                        )}>
+                          <Button size="sm" className={cn("w-full gap-2 text-white", colors.btnBg)}>
+                            <Edit3 className="w-3 h-3" />
+                            Select & Edit in Composer
+                          </Button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
                 </div>
 
                 {/* Skip Strategy Option */}
