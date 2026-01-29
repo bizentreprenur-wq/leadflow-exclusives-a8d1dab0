@@ -5,20 +5,32 @@
 
 // Use production API for email services to avoid CORS issues from preview environments
 const getApiBaseUrl = (): string => {
+  // Check environment variable first (allows explicit override)
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl) {
+    return envUrl;
+  }
+  
   if (typeof window !== 'undefined') {
     const host = window.location.hostname;
-    // Always use production API for email/SMTP functions
+    // Always use production API for email/SMTP functions from Lovable preview
     if (host.endsWith('.lovable.app') || host.endsWith('.lovableproject.com')) {
       return 'https://bamlead.com/api';
     }
+    // For local development, use relative path
     if (host === 'localhost' || host === '127.0.0.1') {
       return '/api';
     }
+    // For production domain, use relative path
+    if (host === 'bamlead.com' || host.endsWith('.bamlead.com')) {
+      return '/api';
+    }
   }
+  // Default fallback to production API
   return 'https://bamlead.com/api';
 };
 
-const API_BASE = import.meta.env.VITE_API_URL || getApiBaseUrl();
+const API_BASE = getApiBaseUrl();
 
 interface SMTPConfig {
   host: string;
