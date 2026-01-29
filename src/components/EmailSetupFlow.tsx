@@ -81,7 +81,7 @@ export default function EmailSetupFlow({
   onOpenSettings,
   searchType,
 }: EmailSetupFlowProps) {
-  const [currentPhase, setCurrentPhase] = useState<'smtp' | 'template' | 'send'>('smtp');
+  const [currentPhase, setCurrentPhase] = useState<'smtp' | 'template' | 'send'>('template');
   const [selectedTemplate, setSelectedTemplate] = useState<any>(() => {
     const saved = localStorage.getItem('bamlead_selected_template');
     return saved ? JSON.parse(saved) : null;
@@ -355,8 +355,8 @@ export default function EmailSetupFlow({
   }, [currentPhase, emailLeads.length, realSendingMode]);
 
   const phases = [
-    { id: 'smtp', label: '1. SMTP Setup', icon: Server, description: 'Configure your email server' },
-    { id: 'template', label: '2. Choose Template', icon: FileText, description: 'Pick an email template' },
+    { id: 'template', label: '1. Choose Template', icon: FileText, description: 'Pick an email template' },
+    { id: 'smtp', label: '2. SMTP Setup', icon: Server, description: 'Configure your email server' },
     { id: 'send', label: '3. Send Emails', icon: Send, description: 'Review and send campaign' },
   ];
 
@@ -373,7 +373,8 @@ export default function EmailSetupFlow({
   const handleTemplateSelect = (template: any) => {
     setSelectedTemplate(template);
     localStorage.setItem('bamlead_selected_template', JSON.stringify(template));
-    setCurrentPhase('send');
+    // After template selection, check SMTP - if configured go to send, otherwise go to SMTP
+    setCurrentPhase(smtpConfigured ? 'send' : 'smtp');
     toast.success(`Template "${template.name}" selected!`);
   };
 
@@ -402,7 +403,7 @@ export default function EmailSetupFlow({
               <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
                 <Server className="w-10 h-10 text-primary" />
               </div>
-              <h2 className="text-2xl font-bold mb-2">Step 1: Configure Your Email Server</h2>
+              <h2 className="text-2xl font-bold mb-2">Step 2: Configure Your Email Server</h2>
               <p className="text-muted-foreground max-w-lg mx-auto">
                 Emails are sent through <strong>your own SMTP server</strong> (Gmail, Outlook, custom domain). 
                 This ensures better deliverability and keeps your brand consistent.
@@ -440,8 +441,8 @@ export default function EmailSetupFlow({
 
             {smtpConfigured && (
               <div className="flex justify-center">
-                <Button onClick={() => setCurrentPhase('template')} size="lg" className="gap-2">
-                  Continue to Template Selection
+                <Button onClick={() => setCurrentPhase('send')} size="lg" className="gap-2">
+                  Continue to Send Emails
                   <ArrowRight className="w-5 h-5" />
                 </Button>
               </div>
@@ -451,13 +452,13 @@ export default function EmailSetupFlow({
               <div className="space-y-4">
                 <div className="text-center p-6 bg-muted/30 rounded-xl border border-dashed border-border">
                   <p className="text-muted-foreground">
-                    Configure SMTP when you're ready — you can still preview templates and the drip campaign below.
+                    Configure SMTP when you're ready to send emails.
                   </p>
                 </div>
-                <div className="flex justify-center">
-                  <Button onClick={() => setCurrentPhase('template')} variant="secondary" size="lg" className="gap-2">
-                    Preview Templates (Demo)
-                    <ArrowRight className="w-5 h-5" />
+                <div className="flex gap-3 justify-center">
+                  <Button onClick={() => setCurrentPhase('template')} variant="outline" size="lg" className="gap-2">
+                    <ArrowLeft className="w-5 h-5" />
+                    Back to Templates
                   </Button>
                 </div>
               </div>
@@ -469,9 +470,9 @@ export default function EmailSetupFlow({
         return (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <Button variant="ghost" onClick={() => setCurrentPhase('smtp')} className="gap-2">
+              <Button variant="ghost" onClick={() => setCurrentPhase('template')} className="gap-2">
                 <ArrowLeft className="w-4 h-4" />
-                Back to SMTP
+                Back to Templates
               </Button>
               <div className="flex items-center gap-3">
                 <Button 
