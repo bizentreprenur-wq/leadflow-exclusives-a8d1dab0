@@ -220,7 +220,7 @@ export default function AutoCampaignWizardPro({
             <div className="mt-6 p-4 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-between">
               <div>
                 <p className="text-white/80 text-sm">Subscription</p>
-                <p className="text-2xl font-bold text-white">$39<span className="text-base font-normal text-white/70">/month</span></p>
+                <p className="text-2xl font-bold text-white">$19.99<span className="text-base font-normal text-white/70">/month</span></p>
               </div>
               <div className="text-right">
                 <p className="text-white/80 text-sm">Free Trial</p>

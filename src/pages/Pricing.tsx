@@ -475,7 +475,7 @@ const Pricing = () => {
                   <div>
                     <h4 className="font-semibold text-foreground mb-1">* AI Autopilot Campaign</h4>
                     <p className="text-muted-foreground text-sm">
-                      Available as an add-on for $39/month with a 14-day free trial. Includes automated lead discovery, 
+                      Available as an add-on for $19.99/month with a 14-day free trial. Includes automated lead discovery, 
                       AI-powered outreach sequences, and intelligent follow-ups. All paid plans have access to this premium feature.
                     </p>
                   </div>

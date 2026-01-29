@@ -99,6 +99,9 @@ type ComposeMode = 'regular' | 'campaign' | 'autopilot';
 // Sub-tabs within campaign mode
 type CampaignTab = 'leads' | 'template' | 'sequence' | 'review';
 
+// Sub-tabs within autopilot mode
+type AutopilotTab = 'leads' | 'template' | 'sequence' | 'launch';
+
 // Campaign target type
 type CampaignTarget = 'all' | 'hot' | 'warm' | 'cold';
 
@@ -142,6 +145,7 @@ export default function ComposeEmailModal({
   const [isLaunchingAutopilot, setIsLaunchingAutopilot] = useState(false);
   const [autopilotLaunchProgress, setAutopilotLaunchProgress] = useState(0);
   const [showLeadsPreview, setShowLeadsPreview] = useState(false);
+  const [autopilotTab, setAutopilotTab] = useState<AutopilotTab>('leads');
   
   // Campaign selection state
   const [showCampaignSelection, setShowCampaignSelection] = useState(false);
@@ -412,7 +416,7 @@ export default function ComposeEmailModal({
 
   const handleStartAutopilot = async () => {
     if (!hasAutopilotSubscription) {
-      toast.error('Please subscribe to AI Autopilot Campaign first ($39/mo or start 14-day trial)');
+      toast.error('Please subscribe to AI Autopilot Campaign first ($19.99/mo or start 14-day trial)');
       return;
     }
 
@@ -1301,6 +1305,7 @@ export default function ComposeEmailModal({
 
                   {/* Step 4: Review & Send */}
                   <TabsContent value="review" className="mt-4 space-y-4">
+                    {/* Campaign Summary Card */}
                     <div className="p-4 rounded-xl bg-gradient-to-br from-orange-500/10 to-amber-500/10 border border-orange-500/30">
                       <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4 text-emerald-400" />
@@ -1310,7 +1315,11 @@ export default function ComposeEmailModal({
                       <div className="space-y-3 text-sm">
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Total Leads:</span>
-                          <span className="font-medium text-foreground">{dripLeadCount}</span>
+                          <span className="font-medium text-foreground">{selectedLeadCount}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Template:</span>
+                          <span className="font-medium text-foreground truncate max-w-[200px]">{selectedCampaignTemplate?.name || 'Custom Email'}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Subject:</span>
@@ -1326,32 +1335,84 @@ export default function ComposeEmailModal({
                             <span className="font-medium text-foreground">{dripRate} emails/hour</span>
                           </div>
                         )}
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Search Type:</span>
-                          <span className="font-medium text-foreground">
-                            {isSearchA ? 'Option A (Super AI)' : isSearchB ? 'Option B (Agency)' : 'Manual'}
-                          </span>
-                        </div>
+                        {selectedSequence && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Sequence:</span>
+                            <span className="font-medium text-foreground">{selectedSequence.name} ({selectedSequence.steps.length} emails)</span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {/* Current lead preview */}
-                    {currentLead && (
-                      <div className="p-4 rounded-lg bg-muted/30 border border-border">
-                        <p className="text-xs text-muted-foreground mb-2">First email goes to:</p>
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <Building2 className="w-5 h-5 text-primary" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-foreground">
-                              {currentLead.business_name || currentLead.name}
-                            </p>
-                            <p className="text-xs text-muted-foreground">{currentLead.email}</p>
-                          </div>
-                        </div>
+                    {/* Email Preview Card */}
+                    <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-foreground text-sm flex items-center gap-2">
+                          <Mail className="w-4 h-4 text-primary" />
+                          Email Preview
+                        </h4>
+                        <Badge variant="outline" className="text-[10px]">
+                          {selectedCampaignTemplate?.name || 'Custom'}
+                        </Badge>
                       </div>
-                    )}
+                      <div className="p-3 rounded-lg bg-background border border-border space-y-2">
+                        <p className="text-xs text-muted-foreground">Subject:</p>
+                        <p className="text-sm font-medium text-foreground">{email.subject || 'No subject set'}</p>
+                        <Separator className="my-2" />
+                        <p className="text-xs text-muted-foreground">Preview:</p>
+                        <p className="text-sm text-muted-foreground line-clamp-3">{email.body?.substring(0, 200) || 'No body content'}...</p>
+                      </div>
+                    </div>
+
+                    {/* Recipients List */}
+                    <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-foreground text-sm flex items-center gap-2">
+                          <Users className="w-4 h-4 text-primary" />
+                          Recipients ({selectedLeadCount})
+                        </h4>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setShowLeadsPreview(!showLeadsPreview)}
+                          className="text-xs h-7 gap-1"
+                        >
+                          <Eye className="w-3 h-3" />
+                          {showLeadsPreview ? 'Hide' : 'View All'}
+                        </Button>
+                      </div>
+                      
+                      {/* First 3 recipients preview */}
+                      <div className="space-y-2">
+                        {filteredLeads.slice(0, showLeadsPreview ? filteredLeads.length : 3).map((lead, idx) => (
+                          <div key={lead?.id ?? idx} className="flex items-center gap-3 p-2 rounded-lg bg-background border border-border">
+                            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                              {idx + 1}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">
+                                {lead.business_name || lead.name || 'Unknown'}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">{lead.email}</p>
+                            </div>
+                            <Badge variant="outline" className={cn(
+                              "text-[10px] gap-1",
+                              lead.aiClassification === 'hot' && "border-red-500/30 text-red-400",
+                              lead.aiClassification === 'warm' && "border-amber-500/30 text-amber-400",
+                              (!lead.aiClassification || lead.aiClassification === 'cold') && "border-blue-500/30 text-blue-400"
+                            )}>
+                              {getPriorityIcon(lead.aiClassification)}
+                              {lead.aiClassification || 'cold'}
+                            </Badge>
+                          </div>
+                        ))}
+                        {!showLeadsPreview && filteredLeads.length > 3 && (
+                          <p className="text-xs text-center text-muted-foreground py-2">
+                            + {filteredLeads.length - 3} more recipients
+                          </p>
+                        )}
+                      </div>
+                    </div>
 
                     <div className="flex gap-3">
                       <Button variant="outline" onClick={() => setCampaignTab('sequence')} className="flex-1">
@@ -1370,7 +1431,7 @@ export default function ComposeEmailModal({
                         ) : (
                           <>
                             <Send className="w-4 h-4" />
-                            Launch Campaign
+                            Send Campaign ({selectedLeadCount} emails)
                           </>
                         )}
                       </Button>
@@ -1471,15 +1532,12 @@ export default function ComposeEmailModal({
                           <h4 className="font-bold text-foreground">
                             {trialStatus.isPaid ? 'AI Autopilot Pro Active' : 'AI Autopilot Trial Active'}
                           </h4>
-                          {trialStatus.isPaid && (
-                            <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]">
-                              <Crown className="w-2.5 h-2.5 mr-1" />
-                              PRO
-                            </Badge>
-                          )}
+                          <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]">
+                            ${MONTHLY_PRICE}/mo
+                          </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          AI will manage drip sequences and responses for {isSearchA ? 'Option A (Super AI Business Search)' : isSearchB ? 'Option B (Agency Lead Finder)' : 'your'} leads
+                          AI manages entire outreach: sequences, follow-ups, and responses
                         </p>
                       </div>
                       {trialStatus.isTrialActive && (
@@ -1495,292 +1553,396 @@ export default function ComposeEmailModal({
                       )}
                     </div>
 
-                    {/* AI Controls */}
-                    <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-4">
-                      <h4 className="font-semibold text-foreground flex items-center gap-2">
-                        <Bot className="w-4 h-4 text-primary" />
-                        AI Configuration
-                      </h4>
+                    {/* Autopilot Tabs - Similar to Manual Campaign */}
+                    <Tabs value={autopilotTab} onValueChange={(v) => setAutopilotTab(v as AutopilotTab)}>
+                      <TabsList className="bg-muted/50 border border-amber-500/30 p-1 w-full">
+                        <TabsTrigger value="leads" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-amber-500 data-[state=active]:text-white">
+                          <Users className="w-3.5 h-3.5" />
+                          1. Leads ({safeLeads.length})
+                        </TabsTrigger>
+                        <TabsTrigger value="template" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-amber-500 data-[state=active]:text-white">
+                          <FileText className="w-3.5 h-3.5" />
+                          2. Template
+                        </TabsTrigger>
+                        <TabsTrigger value="sequence" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-amber-500 data-[state=active]:text-white">
+                          <Layers className="w-3.5 h-3.5" />
+                          3. Sequence
+                        </TabsTrigger>
+                        <TabsTrigger value="launch" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-amber-500 data-[state=active]:text-white">
+                          <Rocket className="w-3.5 h-3.5" />
+                          4. Launch
+                        </TabsTrigger>
+                      </TabsList>
 
-                      <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">Done-For-You Mode</p>
-                          <p className="text-xs text-muted-foreground">AI handles entire outreach automatically</p>
-                        </div>
-                        <Switch
-                          checked={automationSettings.doneForYouMode}
-                          onCheckedChange={(v) => onAutomationChange({ ...automationSettings, doneForYouMode: v })}
-                          className="data-[state=checked]:bg-emerald-500"
-                        />
-                      </div>
-
-                      <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">Smart Follow-Ups</p>
-                          <p className="text-xs text-muted-foreground">AI sends follow-ups based on engagement</p>
-                        </div>
-                        <Switch
-                          checked={automationSettings.autoFollowUps}
-                          onCheckedChange={(v) => onAutomationChange({ ...automationSettings, autoFollowUps: v })}
-                          className="data-[state=checked]:bg-amber-500"
-                        />
-                      </div>
-                    </div>
-
-                    {/* AI Intelligence Decision Panel - Shows AI's self-questioning logic */}
-                    <AIIntelligenceDecisionPanel
-                      searchType={detectedSearchType}
-                      leads={safeLeads}
-                      selectedLeadIndex={currentLeadIndex}
-                      onApplySequence={(sequenceIds, decision) => {
-                        toast.success(`AI recommends: ${decision.approachType} approach with ${sequenceIds.length} sequence(s)`);
-                      }}
-                    />
-
-                    {/* Step 2 Analysis Context for AI */}
-                    {(() => {
-                      const analysisContext = getStoredLeadContext();
-                      if (analysisContext.length === 0) return null;
-                      
-                      const noWebsiteCount = analysisContext.filter(l => !l.websiteAnalysis?.hasWebsite).length;
-                      const needsUpgradeCount = analysisContext.filter(l => l.websiteAnalysis?.needsUpgrade).length;
-                      const withPainPoints = analysisContext.filter(l => l.painPoints && l.painPoints.length > 0).length;
-                      const hotLeads = analysisContext.filter(l => l.aiClassification === 'hot').length;
-                      
-                      return (
-                        <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 to-emerald-500/10 border border-primary/30">
+                      {/* Step 1: Leads */}
+                      <TabsContent value="leads" className="mt-4 space-y-4">
+                        <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
                           <div className="flex items-center gap-2 mb-3">
-                            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-                              <Sparkles className="w-5 h-5 text-primary" />
+                            <Bot className="w-5 h-5 text-amber-400" />
+                            <h4 className="font-semibold text-foreground">AI Autopilot Lead Queue</h4>
+                            {getSearchBadge()}
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-4">
+                            AI will automatically email all leads below based on their classification and website analysis.
+                          </p>
+                          
+                          {/* Lead Stats */}
+                          <div className="grid grid-cols-4 gap-2 mb-4">
+                            <div className="p-3 rounded-lg bg-background border border-border text-center">
+                              <div className="text-lg font-bold text-foreground">{safeLeads.length}</div>
+                              <div className="text-[10px] text-muted-foreground">Total</div>
+                            </div>
+                            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-center">
+                              <div className="text-lg font-bold text-red-400">{safeLeads.filter(l => l.aiClassification === 'hot').length}</div>
+                              <div className="text-[10px] text-muted-foreground">Hot</div>
+                            </div>
+                            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
+                              <div className="text-lg font-bold text-amber-400">{safeLeads.filter(l => l.aiClassification === 'warm').length}</div>
+                              <div className="text-[10px] text-muted-foreground">Warm</div>
+                            </div>
+                            <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-center">
+                              <div className="text-lg font-bold text-blue-400">{safeLeads.filter(l => l.aiClassification === 'cold' || !l.aiClassification).length}</div>
+                              <div className="text-[10px] text-muted-foreground">Cold</div>
+                            </div>
+                          </div>
+                          
+                          {/* Lead List */}
+                          <ScrollArea className="h-[250px]">
+                            <div className="space-y-2">
+                              {safeLeads.map((lead, idx) => (
+                                <div 
+                                  key={lead.id || idx}
+                                  className="flex items-center gap-3 p-3 rounded-lg bg-background border border-border"
+                                >
+                                  <div className={cn(
+                                    "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
+                                    lead.aiClassification === 'hot' ? "bg-red-500/20 text-red-400" :
+                                    lead.aiClassification === 'warm' ? "bg-amber-500/20 text-amber-400" :
+                                    "bg-blue-500/20 text-blue-400"
+                                  )}>
+                                    {idx + 1}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-foreground truncate">
+                                      {lead.business_name || lead.name || 'Unknown'}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground truncate">{lead.email}</p>
+                                  </div>
+                                  <Badge variant="outline" className={cn(
+                                    "text-[10px] gap-1",
+                                    lead.aiClassification === 'hot' && "border-red-500/30 text-red-400",
+                                    lead.aiClassification === 'warm' && "border-amber-500/30 text-amber-400",
+                                    (!lead.aiClassification || lead.aiClassification === 'cold') && "border-blue-500/30 text-blue-400"
+                                  )}>
+                                    {getPriorityIcon(lead.aiClassification)}
+                                    {lead.aiClassification || 'cold'}
+                                  </Badge>
+                                </div>
+                              ))}
+                            </div>
+                          </ScrollArea>
+                        </div>
+                        <Button 
+                          onClick={() => setAutopilotTab('template')} 
+                          disabled={safeLeads.length === 0}
+                          className="w-full bg-amber-500 hover:bg-amber-600 gap-2"
+                        >
+                          Continue to Templates <ArrowRight className="w-4 h-4" />
+                        </Button>
+                      </TabsContent>
+
+                      {/* Step 2: Template */}
+                      <TabsContent value="template" className="mt-4 space-y-4">
+                        <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <Sparkles className="w-5 h-5 text-amber-400" />
+                              <h4 className="font-semibold text-foreground">AI Template Selection</h4>
+                            </div>
+                            <Badge variant="outline" className="text-[10px] gap-1">
+                              <Brain className="w-3 h-3" />
+                              AI Auto-Personalizes
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-4">
+                            AI will automatically personalize emails based on each lead's website status, pain points, and business type.
+                          </p>
+                          
+                          {selectedCampaignTemplate ? (
+                            <div className="p-4 rounded-lg bg-background border border-amber-500/30 mb-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <p className="text-sm font-medium text-foreground">{selectedCampaignTemplate.name}</p>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => setShowTemplateSelector(true)}
+                                  className="text-xs h-7 gap-1"
+                                >
+                                  <Edit3 className="w-3 h-3" />
+                                  Change
+                                </Button>
+                              </div>
+                              {selectedCampaignTemplate.subject && (
+                                <p className="text-xs text-muted-foreground">Subject: {selectedCampaignTemplate.subject}</p>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="p-4 rounded-lg bg-background border-2 border-dashed border-amber-500/30 text-center mb-4">
+                              <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                              <p className="text-sm text-foreground font-medium">No template selected</p>
+                              <p className="text-xs text-muted-foreground mb-3">AI will use intelligent defaults based on lead type</p>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setShowTemplateSelector(true)}
+                                className="text-xs gap-1"
+                              >
+                                <FileText className="w-3 h-3" />
+                                Browse Templates
+                              </Button>
+                            </div>
+                          )}
+                          
+                          {/* AI Personalization Preview */}
+                          <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Sparkles className="w-3 h-3 text-primary" />
+                              <span className="font-medium text-foreground">AI Personalization:</span>
+                              Each email will include business name, website status, and tailored value propositions.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-3">
+                          <Button variant="outline" onClick={() => setAutopilotTab('leads')} className="flex-1">
+                            Back
+                          </Button>
+                          <Button 
+                            onClick={() => setAutopilotTab('sequence')} 
+                            className="flex-1 bg-amber-500 hover:bg-amber-600 gap-2"
+                          >
+                            Configure Sequence <ArrowRight className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TabsContent>
+
+                      {/* Step 3: Sequence */}
+                      <TabsContent value="sequence" className="mt-4 space-y-4">
+                        <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <Layers className="w-5 h-5 text-amber-400" />
+                              <h4 className="font-semibold text-foreground">AI Sequence Selection</h4>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setShowSequenceSelector(!showSequenceSelector)}
+                              className="text-xs gap-1"
+                            >
+                              <Eye className="w-3 h-3" />
+                              Browse All
+                            </Button>
+                          </div>
+                          
+                          {showSequenceSelector && (
+                            <div className="mb-4 border border-border rounded-lg p-3 bg-background">
+                              <AISequenceRecommendationEngine
+                                searchType={detectedSearchType}
+                                mode="autopilot"
+                                onSelectSequence={(seq) => {
+                                  setSelectedSequence(seq);
+                                  toast.success(`Selected: ${seq.name}`);
+                                }}
+                                compact
+                              />
+                            </div>
+                          )}
+
+                          {selectedSequence ? (
+                            <div className="p-4 rounded-lg bg-background border border-amber-500/30 mb-3">
+                              <div className="flex items-center gap-2 mb-3">
+                                <span>{selectedSequence.emoji}</span>
+                                <span className="font-medium text-foreground">{selectedSequence.name}</span>
+                                <Badge className={cn(
+                                  "text-[10px] ml-auto",
+                                  selectedSequence.priority === 'hot' && "bg-red-500/20 text-red-400 border-red-500/30",
+                                  selectedSequence.priority === 'warm' && "bg-amber-500/20 text-amber-400 border-amber-500/30",
+                                  selectedSequence.priority === 'cold' && "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                                )}>
+                                  {selectedSequence.steps.length} emails
+                                </Badge>
+                              </div>
+                              <div className="space-y-2">
+                                {selectedSequence.steps.map((step, idx) => (
+                                  <div key={idx} className="flex items-center gap-2 text-sm">
+                                    <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
+                                      D{step.day}
+                                    </div>
+                                    <span className="text-muted-foreground">{step.action}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="p-4 rounded-lg bg-background border-2 border-dashed border-amber-500/30 text-center mb-3">
+                              <Layers className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                              <p className="text-sm text-foreground font-medium">AI will select optimal sequence</p>
+                              <p className="text-xs text-muted-foreground">Based on lead classification and search type</p>
+                            </div>
+                          )}
+                          
+                          {/* AI Controls */}
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
+                              <div>
+                                <p className="text-sm font-medium text-foreground">Done-For-You Mode</p>
+                                <p className="text-xs text-muted-foreground">AI handles entire outreach automatically</p>
+                              </div>
+                              <Switch
+                                checked={automationSettings.doneForYouMode}
+                                onCheckedChange={(v) => onAutomationChange({ ...automationSettings, doneForYouMode: v })}
+                                className="data-[state=checked]:bg-emerald-500"
+                              />
+                            </div>
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
+                              <div>
+                                <p className="text-sm font-medium text-foreground">Smart Follow-Ups</p>
+                                <p className="text-xs text-muted-foreground">AI sends follow-ups based on engagement</p>
+                              </div>
+                              <Switch
+                                checked={automationSettings.autoFollowUps}
+                                onCheckedChange={(v) => onAutomationChange({ ...automationSettings, autoFollowUps: v })}
+                                className="data-[state=checked]:bg-amber-500"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex gap-3">
+                          <Button variant="outline" onClick={() => setAutopilotTab('template')} className="flex-1">
+                            Back
+                          </Button>
+                          <Button 
+                            onClick={() => setAutopilotTab('launch')} 
+                            className="flex-1 bg-amber-500 hover:bg-amber-600 gap-2"
+                          >
+                            Review & Launch <ArrowRight className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TabsContent>
+
+                      {/* Step 4: Launch */}
+                      <TabsContent value="launch" className="mt-4 space-y-4">
+                        {/* Summary Card */}
+                        <div className="p-4 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/30">
+                          <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                            AI Autopilot Summary
+                          </h4>
+
+                          <div className="space-y-3 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Total Leads:</span>
+                              <span className="font-medium text-foreground">{safeLeads.length}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Template:</span>
+                              <span className="font-medium text-foreground">{selectedCampaignTemplate?.name || 'AI Smart Selection'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Sequence:</span>
+                              <span className="font-medium text-foreground">{selectedSequence?.name || 'AI Optimized'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Mode:</span>
+                              <span className="font-medium text-foreground">
+                                {automationSettings.doneForYouMode ? 'Full Automation' : 'Semi-Automated'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Search Type:</span>
+                              <span className="font-medium text-foreground">
+                                {isSearchA ? 'Option A (Super AI)' : isSearchB ? 'Option B (Agency)' : 'Custom'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Recipients Preview */}
+                        <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-semibold text-foreground text-sm flex items-center gap-2">
+                              <Users className="w-4 h-4 text-amber-400" />
+                              Recipients ({safeLeads.length})
+                            </h4>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            {safeLeads.slice(0, 5).map((lead, idx) => (
+                              <div key={lead?.id ?? idx} className="flex items-center gap-3 p-2 rounded-lg bg-background border border-border">
+                                <div className={cn(
+                                  "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
+                                  lead.aiClassification === 'hot' ? "bg-red-500/20 text-red-400" :
+                                  lead.aiClassification === 'warm' ? "bg-amber-500/20 text-amber-400" :
+                                  "bg-blue-500/20 text-blue-400"
+                                )}>
+                                  {idx + 1}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-foreground truncate">
+                                    {lead.business_name || lead.name || 'Unknown'}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground truncate">{lead.email}</p>
+                                </div>
+                              </div>
+                            ))}
+                            {safeLeads.length > 5 && (
+                              <p className="text-xs text-center text-muted-foreground py-2">
+                                + {safeLeads.length - 5} more recipients
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* AI Info Banner */}
+                        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                              <Bot className="w-5 h-5 text-emerald-400" />
                             </div>
                             <div className="flex-1">
-                              <h4 className="font-semibold text-foreground text-sm">AI Using Step 2 Analysis</h4>
-                              <p className="text-[10px] text-muted-foreground">
-                                AI will personalize emails based on your lead research data
+                              <p className="font-medium text-foreground text-sm">AI Takes Over After Launch</p>
+                              <p className="text-xs text-muted-foreground">
+                                No further action needed. AI will send sequences, detect responses, and pause when leads reply.
                               </p>
                             </div>
                           </div>
-                          
-                          <div className="grid grid-cols-4 gap-2 text-center mb-3">
-                            <div className="p-2 rounded-lg bg-background/50 border border-border">
-                              <div className="text-lg font-bold text-foreground">{analysisContext.length}</div>
-                              <div className="text-[9px] text-muted-foreground">Total Leads</div>
-                            </div>
-                            <div className="p-2 rounded-lg bg-background/50 border border-border">
-                              <div className="text-lg font-bold text-red-400">{hotLeads}</div>
-                              <div className="text-[9px] text-muted-foreground">Hot Leads</div>
-                            </div>
-                            <div className="p-2 rounded-lg bg-background/50 border border-border">
-                              <div className="text-lg font-bold text-amber-400">{noWebsiteCount}</div>
-                              <div className="text-[9px] text-muted-foreground">No Website</div>
-                            </div>
-                            <div className="p-2 rounded-lg bg-background/50 border border-border">
-                              <div className="text-lg font-bold text-blue-400">{withPainPoints}</div>
-                              <div className="text-[9px] text-muted-foreground">Pain Points</div>
-                            </div>
-                          </div>
-                          
-                          <div className="p-3 rounded-lg bg-background/50 border border-border">
-                            <p className="text-xs text-muted-foreground">
-                              <span className="font-medium text-foreground">🧠 AI Strategy:</span> The AI will analyze each lead's website status, 
-                              pain points, and classification to craft personalized emails. 
-                              {noWebsiteCount > 0 && ` ${noWebsiteCount} leads without websites will get "build online presence" pitches.`}
-                              {needsUpgradeCount > 0 && ` ${needsUpgradeCount} leads with outdated sites will get "upgrade" focused emails.`}
-                            </p>
-                          </div>
                         </div>
-                      );
-                    })()}
 
-                    {/* Sequence Preview - Using Real Sequences */}
-                    <div className="p-4 rounded-xl bg-muted/30 border border-border">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-semibold text-foreground flex items-center gap-2">
-                          <Layers className="w-4 h-4 text-orange-400" />
-                          AI Recommended Sequence
-                          {getSearchBadge()}
-                        </h4>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setShowSequenceSelector(!showSequenceSelector)}
-                          className="text-xs gap-1"
-                        >
-                          <Eye className="w-3 h-3" />
-                          Browse All
-                        </Button>
-                      </div>
-
-                      {showSequenceSelector && (
-                        <div className="mb-4 border border-border rounded-lg p-3 bg-background">
-                          <AISequenceRecommendationEngine
-                            searchType={detectedSearchType}
-                            mode="autopilot"
-                            onSelectSequence={(seq) => {
-                              setSelectedSequence(seq);
-                              toast.success(`AI Autopilot will use "${seq.name}" sequence`);
-                            }}
-                            onStartAutopilot={(seq, leads) => {
-                              setSelectedSequence(seq);
-                              saveCampaignLeadsWithContext(leads);
-                              toast.success(`🚀 AI Autopilot launched with "${seq.name}" for ${leads.length} leads!`);
-                            }}
-                            compact
-                          />
+                        {/* Launch Buttons */}
+                        <div className="flex gap-3">
+                          <Button variant="outline" onClick={() => setAutopilotTab('sequence')} className="flex-1">
+                            Back
+                          </Button>
+                          <Button 
+                            onClick={handleStartAutopilot}
+                            disabled={safeLeads.length === 0 || isLaunchingAutopilot}
+                            className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white gap-2"
+                          >
+                            {isLaunchingAutopilot ? (
+                              <>
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                                Launching AI...
+                              </>
+                            ) : (
+                              <>
+                                <Wand2 className="w-4 h-4" />
+                                Launch AI Autopilot ({safeLeads.length} leads)
+                              </>
+                            )}
+                          </Button>
                         </div>
-                      )}
-
-                      <div className="space-y-2">
-                        {selectedSequence ? (
-                          <>
-                            <div className="p-3 rounded-lg bg-primary/10 border border-primary/30 mb-3">
-                              <span className="text-sm font-medium text-foreground flex items-center gap-2">
-                                <span>{selectedSequence.emoji}</span>
-                                {selectedSequence.name}
-                              </span>
-                              <p className="text-xs text-muted-foreground mt-1">{selectedSequence.description}</p>
-                            </div>
-                            {selectedSequence.steps.map((step, idx) => (
-                              <div key={idx} className="flex items-center gap-3 p-2 rounded-lg bg-background">
-                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-                                  D{step.day}
-                                </div>
-                                <span className="text-sm text-muted-foreground">{step.action}</span>
-                              </div>
-                            ))}
-                          </>
-                        ) : (
-                          (isSearchB ? [
-                            { day: 1, action: 'Initial outreach: Website/SEO audit offer' },
-                            { day: 3, action: 'Follow-up: Social proof + case study' },
-                            { day: 5, action: 'Value-add: Free mini audit report' },
-                            { day: 7, action: 'Final: Limited time offer' },
-                          ] : [
-                            { day: 1, action: 'Initial outreach: Industry insights' },
-                            { day: 3, action: 'Follow-up: Product/service introduction' },
-                            { day: 5, action: 'Value-add: Competitor analysis' },
-                            { day: 7, action: 'Final: Call-to-action' },
-                          ]).map((step, idx) => (
-                            <div key={idx} className="flex items-center gap-3 p-2 rounded-lg bg-background">
-                              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-                                D{step.day}
-                              </div>
-                              <span className="text-sm text-muted-foreground">{step.action}</span>
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Leads Preview Panel */}
-                    <div className="p-4 rounded-xl bg-muted/30 border border-border">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-semibold text-foreground flex items-center gap-2">
-                          <Users className="w-4 h-4 text-emerald-400" />
-                          Queued Leads Preview
-                        </h4>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setShowLeadsPreview(!showLeadsPreview)}
-                          className="text-xs gap-1"
-                        >
-                          {showLeadsPreview ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                          {showLeadsPreview ? 'Hide' : 'Show'} {safeLeads.length} leads
-                        </Button>
-                      </div>
-                      
-                      {showLeadsPreview && (
-                        <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                          {safeLeads.slice(0, 20).map((lead, idx) => (
-                            <div 
-                              key={lead.id || idx} 
-                              className="flex items-center gap-3 p-2 rounded-lg bg-background border border-border"
-                            >
-                              <div className={cn(
-                                "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
-                                lead.aiClassification === 'hot' ? "bg-red-500/20 text-red-400" :
-                                lead.aiClassification === 'warm' ? "bg-amber-500/20 text-amber-400" :
-                                "bg-blue-500/20 text-blue-400"
-                              )}>
-                                {idx + 1}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-foreground truncate">
-                                  {lead.business_name || lead.name || 'Unknown Business'}
-                                </p>
-                                <p className="text-xs text-muted-foreground truncate">
-                                  {lead.email || 'No email'}
-                                </p>
-                              </div>
-                              {lead.aiClassification && (
-                                <Badge className={cn(
-                                  "text-[10px]",
-                                  lead.aiClassification === 'hot' ? "bg-red-500/20 text-red-400 border-red-500/30" :
-                                  lead.aiClassification === 'warm' ? "bg-amber-500/20 text-amber-400 border-amber-500/30" :
-                                  "bg-blue-500/20 text-blue-400 border-blue-500/30"
-                                )}>
-                                  {lead.aiClassification}
-                                </Badge>
-                              )}
-                            </div>
-                          ))}
-                          {safeLeads.length > 20 && (
-                            <p className="text-xs text-muted-foreground text-center py-2">
-                              +{safeLeads.length - 20} more leads...
-                            </p>
-                          )}
-                        </div>
-                      )}
-                      
-                      {!showLeadsPreview && (
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Flame className="w-3 h-3 text-red-400" />
-                            {safeLeads.filter(l => l.aiClassification === 'hot').length} Hot
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <ThermometerSun className="w-3 h-3 text-amber-400" />
-                            {safeLeads.filter(l => l.aiClassification === 'warm').length} Warm
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Snowflake className="w-3 h-3 text-blue-400" />
-                            {safeLeads.filter(l => l.aiClassification === 'cold').length} Cold
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Lead count & launch */}
-                    <div className="p-4 rounded-xl bg-primary/10 border border-primary/30">
-                      <div className="flex items-center justify-between mb-4">
-                        <div>
-                          <p className="font-semibold text-foreground">{safeLeads.length} leads ready</p>
-                          <p className="text-xs text-muted-foreground">AI will nurture until response or contract</p>
-                        </div>
-                        <Badge className="bg-primary/20 text-primary border-primary/30">
-                          {isSearchA ? 'Niche Selling' : isSearchB ? 'Service Selling' : 'Custom'}
-                        </Badge>
-                      </div>
-
-                      <Button 
-                        onClick={handleStartAutopilot}
-                        disabled={safeLeads.length === 0 || isLaunchingAutopilot}
-                        className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white gap-2"
-                      >
-                        {isLaunchingAutopilot ? (
-                          <>
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                            Launching...
-                          </>
-                        ) : (
-                          <>
-                            <Wand2 className="w-4 h-4" />
-                            Activate AI Autopilot
-                          </>
-                        )}
-                      </Button>
-                    </div>
+                      </TabsContent>
+                    </Tabs>
                   </div>
                 )}
               </div>
@@ -2083,7 +2245,7 @@ export default function ComposeEmailModal({
                 <p>• Automated drip sequences</p>
                 <p>• Intelligent follow-ups</p>
                 <p>• AI response detection</p>
-                <p className="text-amber-400">$39/month or 14-day free trial</p>
+                <p className="text-amber-400">$19.99/month or 14-day free trial</p>
               </div>
             </button>
           </div>
@@ -2117,7 +2279,7 @@ export default function ComposeEmailModal({
               <li>✓ Real-time campaign monitoring</li>
             </ul>
             <div className="mt-4 pt-3 border-t border-amber-500/20">
-              <p className="text-lg font-bold text-amber-400">$39/month</p>
+              <p className="text-lg font-bold text-amber-400">$19.99/month</p>
               <p className="text-xs text-muted-foreground">or start with a 14-day free trial</p>
             </div>
           </div>
@@ -2168,7 +2330,7 @@ export default function ComposeEmailModal({
               className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 gap-2"
             >
               <CreditCard className="w-4 h-4" />
-              Subscribe $39/mo
+              Subscribe $19.99/mo
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

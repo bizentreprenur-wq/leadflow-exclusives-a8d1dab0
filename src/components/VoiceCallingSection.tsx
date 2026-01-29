@@ -36,7 +36,7 @@ const VoiceCallingSection = () => {
           </h2>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
             Don't just email leads - <span className="text-foreground font-semibold">CALL them</span>! 
-            Our AI makes phone calls that sound 100% human.
+            Our AI makes phone calls that sound 100% human. <span className="text-green-500 font-semibold">Just $19.99/mo</span>
           </p>
         </div>
 

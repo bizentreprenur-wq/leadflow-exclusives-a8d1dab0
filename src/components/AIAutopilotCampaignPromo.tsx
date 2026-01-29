@@ -102,7 +102,7 @@ export default function AIAutopilotCampaignPromo() {
                       <div>
                         <p className="text-sm text-muted-foreground">Subscription</p>
                         <p className="text-3xl font-bold text-foreground">
-                          $39<span className="text-lg font-normal text-muted-foreground">/month</span>
+                          $19.99<span className="text-lg font-normal text-muted-foreground">/month</span>
                         </p>
                       </div>
                       <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-sm py-1">

@@ -270,7 +270,7 @@ export function useAutopilotTrial() {
     upgradeToPaid,
     refreshStatus,
     TRIAL_DURATION_DAYS,
-    MONTHLY_PRICE: 39,
+    MONTHLY_PRICE: 19.99,
     isOwnerAccount,
   };
 }
