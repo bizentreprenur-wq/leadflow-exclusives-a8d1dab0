@@ -821,29 +821,8 @@ export default function SimpleLeadViewer({
           </div>
         </div>
 
-        {/* Center - Actions */}
+        {/* Center - Tools */}
         <div className="flex items-center gap-6">
-          {/* Primary Actions */}
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-muted-foreground mr-2">ACTIONS:</span>
-            <Button 
-              onClick={handleProceedToCall} 
-              size="sm" 
-              className="gap-2 bg-green-600 hover:bg-green-700"
-            >
-              <Phone className="w-4 h-4" />
-              Call
-            </Button>
-            <Button 
-              onClick={handleProceedToEmail} 
-              size="sm" 
-              className="gap-2 bg-blue-600 hover:bg-blue-700"
-            >
-              <Mail className="w-4 h-4" />
-              Email
-            </Button>
-          </div>
-
           {/* Tools */}
           <div className="flex items-center gap-1">
             <span className="text-xs text-muted-foreground mr-2">TOOLS:</span>
@@ -855,15 +834,6 @@ export default function SimpleLeadViewer({
             >
               <Database className="w-4 h-4" />
               CRM
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="gap-2"
-              onClick={handleOpenSchedule}
-            >
-              <Calendar className="w-4 h-4" />
-              Schedule
             </Button>
           </div>
 
