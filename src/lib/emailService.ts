@@ -3,7 +3,22 @@
  * Provides consistent email sending functionality across the entire application
  */
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api';
+// Use production API for email services to avoid CORS issues from preview environments
+const getApiBaseUrl = (): string => {
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    // Always use production API for email/SMTP functions
+    if (host.endsWith('.lovable.app') || host.endsWith('.lovableproject.com')) {
+      return 'https://bamlead.com/api';
+    }
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return '/api';
+    }
+  }
+  return 'https://bamlead.com/api';
+};
+
+const API_BASE = import.meta.env.VITE_API_URL || getApiBaseUrl();
 
 interface SMTPConfig {
   host: string;
@@ -218,26 +233,49 @@ export const testSMTPConnection = async (config?: Partial<SMTPConfig>): Promise<
   try {
     const smtpConfig = config || getSMTPConfig();
     
+    if (!smtpConfig?.host || !smtpConfig?.username || !smtpConfig?.password) {
+      return { success: false, error: 'Missing SMTP credentials' };
+    }
+    
     const response = await fetch(`${API_BASE}/email-outreach.php?action=test_smtp`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
-        host: smtpConfig?.host,
-        port: smtpConfig?.port,
-        username: smtpConfig?.username,
-        password: smtpConfig?.password,
-        secure: smtpConfig?.secure ?? true,
+        host: smtpConfig.host,
+        port: smtpConfig.port || '465',
+        username: smtpConfig.username,
+        password: smtpConfig.password,
+        secure: smtpConfig.secure ?? true,
       }),
     });
     
-    const data = await response.json();
-    return data;
+    // Check for non-OK response
+    if (!response.ok) {
+      console.warn('SMTP test returned non-OK status:', response.status);
+      return { 
+        success: false, 
+        error: `Server error (${response.status}). Please try again.` 
+      };
+    }
+    
+    const text = await response.text();
+    
+    // Try to parse JSON
+    try {
+      const data = JSON.parse(text);
+      return data;
+    } catch {
+      console.warn('SMTP test response not JSON:', text.substring(0, 100));
+      return { 
+        success: false, 
+        error: 'Invalid server response. Please check API configuration.' 
+      };
+    }
   } catch (error) {
-    // Simulate success for demo if API unavailable
-    console.warn('SMTP test API unavailable, simulating success');
+    console.error('SMTP test network error:', error);
     return {
-      success: true,
-      message: 'Connection appears valid (API unavailable for live test)',
+      success: false,
+      error: 'Unable to reach the test endpoint. Please try again or check your API.',
     };
   }
 };
@@ -252,34 +290,57 @@ export const sendTestEmail = async (toEmail: string): Promise<TestResult> => {
 
   try {
     const smtpOverride = getSMTPConfig();
+    
+    if (!smtpOverride?.username || !smtpOverride?.password) {
+      return { success: false, error: 'SMTP not configured. Please save your settings first.' };
+    }
+    
     const response = await fetch(`${API_BASE}/email-outreach.php?action=send_test`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
         to_email: toEmail,
-        smtp_override: smtpOverride ? {
+        smtp_override: {
           host: smtpOverride.host,
-          port: smtpOverride.port,
+          port: smtpOverride.port || '465',
           username: smtpOverride.username,
           password: smtpOverride.password,
-          secure: smtpOverride.secure,
-        } : undefined,
+          secure: smtpOverride.secure ?? true,
+        },
       }),
     });
     
-    const data = await response.json();
-    return {
-      success: data.success,
-      message: data.message,
-      error: data.error,
-      to: toEmail,
-      sentAt: data.sent_at,
-    };
+    if (!response.ok) {
+      console.warn('Send test email returned non-OK status:', response.status);
+      return { 
+        success: false, 
+        error: `Server error (${response.status}). Please try again.` 
+      };
+    }
+    
+    const text = await response.text();
+    
+    try {
+      const data = JSON.parse(text);
+      return {
+        success: data.success,
+        message: data.message,
+        error: data.error,
+        to: toEmail,
+        sentAt: data.sent_at,
+      };
+    } catch {
+      console.warn('Send test email response not JSON:', text.substring(0, 100));
+      return { 
+        success: false, 
+        error: 'Invalid server response. Please check API configuration.' 
+      };
+    }
   } catch (error) {
     console.error('Send test email error:', error);
     return {
       success: false,
-      error: 'Failed to send test email. Please check your connection.',
+      error: 'Failed to reach email server. Please check your connection.',
     };
   }
 };
