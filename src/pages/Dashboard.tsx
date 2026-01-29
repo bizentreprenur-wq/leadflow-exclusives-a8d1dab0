@@ -122,6 +122,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('workflow');
+  const isFreshLoginRef = useRef(false);
   // Initialize emailLeads from sessionStorage for persistence across steps
   const [emailLeads, setEmailLeads] = useState<LeadForEmail[]>(() => {
     try {
@@ -218,6 +219,39 @@ export default function Dashboard() {
   useEffect(() => {
     localStorage.setItem('bamlead_filter_phone_only', phoneLeadsOnly.toString());
   }, [phoneLeadsOnly]);
+
+  // Ensure search type picker shows after a new login (token change)
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        isFreshLoginRef.current = false;
+        return;
+      }
+
+      const lastToken = sessionStorage.getItem('bamlead_last_auth_token');
+      const isFreshLogin = token !== lastToken;
+      isFreshLoginRef.current = isFreshLogin;
+
+      if (isFreshLogin) {
+        sessionStorage.setItem('bamlead_last_auth_token', token);
+        setCurrentStep(1);
+        setSearchType(null);
+        setQuery('');
+        setLocation('');
+        sessionStorage.removeItem('bamlead_current_step');
+        sessionStorage.removeItem('bamlead_search_type');
+        sessionStorage.removeItem('bamlead_query');
+        sessionStorage.removeItem('bamlead_location');
+        sessionStorage.removeItem('bamlead_search_results');
+        sessionStorage.removeItem('bamlead_email_leads');
+        sessionStorage.removeItem('leadsToVerify');
+        sessionStorage.removeItem('savedLeads');
+      }
+    } catch {
+      isFreshLoginRef.current = false;
+    }
+  }, []);
   
   // Settings tab to open (for deep-linking)
   const [settingsInitialTab, setSettingsInitialTab] = useState<string>('integrations');
@@ -463,6 +497,8 @@ export default function Dashboard() {
   // Leads only clear when user explicitly clicks "Clear All Data"
   useEffect(() => {
     const loadPersistedLeads = async () => {
+      const shouldRestoreWorkflow = !isFreshLoginRef.current;
+
       // Check localStorage first for existing results (survives logout/login)
       const localResults = localStorage.getItem('bamlead_search_results');
       const searchTimestamp = localStorage.getItem('bamlead_search_timestamp');
@@ -482,15 +518,17 @@ export default function Dashboard() {
             });
             
             // Restore search context from localStorage
-            const savedStep = localStorage.getItem('bamlead_current_step');
-            const savedQuery = localStorage.getItem('bamlead_query');
-            const savedLocation = localStorage.getItem('bamlead_location');
-            const savedType = localStorage.getItem('bamlead_search_type');
-            
-            if (savedQuery) setQuery(savedQuery);
-            if (savedLocation) setLocation(savedLocation);
-            if (savedType) setSearchType(savedType as 'gmb' | 'platform');
-            if (savedStep) setCurrentStep(parseInt(savedStep, 10) || 2);
+            if (shouldRestoreWorkflow) {
+              const savedStep = localStorage.getItem('bamlead_current_step');
+              const savedQuery = localStorage.getItem('bamlead_query');
+              const savedLocation = localStorage.getItem('bamlead_location');
+              const savedType = localStorage.getItem('bamlead_search_type');
+              
+              if (savedQuery) setQuery(savedQuery);
+              if (savedLocation) setLocation(savedLocation);
+              if (savedType) setSearchType(savedType as 'gmb' | 'platform');
+              if (savedStep) setCurrentStep(parseInt(savedStep, 10) || 2);
+            }
             
             return; // Already have results in localStorage, skip DB fetch
           }
@@ -551,23 +589,26 @@ export default function Dashboard() {
           if (response.data.latestSearch) {
             const { query: savedQuery, location: savedLocation, sourceType } = response.data.latestSearch;
             if (savedQuery) {
-              setQuery(savedQuery);
               localStorage.setItem('bamlead_query', savedQuery);
             }
             if (savedLocation) {
-              setLocation(savedLocation);
               localStorage.setItem('bamlead_location', savedLocation);
             }
             if (sourceType) {
-              setSearchType(sourceType);
               localStorage.setItem('bamlead_search_type', sourceType);
             }
+          }
+
+          if (shouldRestoreWorkflow && response.data.latestSearch) {
+            const { query: savedQuery, location: savedLocation, sourceType } = response.data.latestSearch;
+            if (savedQuery) setQuery(savedQuery);
+            if (savedLocation) setLocation(savedLocation);
+            if (sourceType) setSearchType(sourceType);
             // Move to step 2 if user has existing leads (returning user)
             setCurrentStep(2);
             localStorage.setItem('bamlead_current_step', '2');
+            toast.info(`Restored ${mappedLeads.length} leads from your last search`);
           }
-          
-          toast.info(`Restored ${mappedLeads.length} leads from your last search`);
         } else {
           console.log('[BamLead] No persisted leads found in database');
         }
