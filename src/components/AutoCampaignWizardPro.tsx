@@ -58,7 +58,7 @@ export default function AutoCampaignWizardPro({
           const startDate = new Date(data.trialStartDate);
           const now = new Date();
           const diffDays = Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-          const remaining = Math.max(0, 14 - diffDays);
+          const remaining = Math.max(0, 7 - diffDays); // 7-day trial
           return { 
             hasSubscription: remaining > 0, 
             isTrialActive: remaining > 0, 
@@ -93,7 +93,7 @@ export default function AutoCampaignWizardPro({
   const startFreeTrial = () => {
     const trialData = {
       isTrialActive: true,
-      trialDaysRemaining: 14,
+      trialDaysRemaining: 7, // 7-day trial
       trialStartDate: new Date().toISOString(),
       isPaid: false,
     };
@@ -101,7 +101,7 @@ export default function AutoCampaignWizardPro({
     setSubscriptionState({
       hasSubscription: true,
       isTrialActive: true,
-      trialDaysRemaining: 7,
+      trialDaysRemaining: 7, // 7-day trial
       isPaid: false,
     });
     toast.success('🎉 7-day free trial started! AI Autopilot is now available.');
