@@ -106,7 +106,7 @@ export default function AIAutopilotCampaignPromo() {
                         </p>
                       </div>
                       <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-sm py-1">
-                        14-Day Free Trial
+                        7-Day Free Trial
                       </Badge>
                     </div>
                     
@@ -123,15 +123,15 @@ export default function AIAutopilotCampaignPromo() {
                       asChild
                       className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white gap-2 py-6 text-lg font-bold"
                     >
-                      <Link to="/mailbox-demo">
+                      <Link to="/pricing">
                         <Rocket className="w-5 h-5" />
-                        Try AI Autopilot Free
+                        Subscribe Now
                         <ArrowRight className="w-5 h-5" />
                       </Link>
                     </Button>
                     
                     <p className="text-xs text-muted-foreground text-center mt-3">
-                      No credit card required for trial
+                      7-day free trial • Then $19.99/mo
                     </p>
                   </div>
 

@@ -279,7 +279,7 @@ export default function AIAutopilotDashboard({
             </div>
             <h3 className="text-2xl font-bold text-foreground mb-2">Trial Expired</h3>
             <p className="text-muted-foreground mb-6">
-              Your 14-day AI Autopilot trial has ended. Subscribe to continue using AI-powered automated outreach and nurturing.
+              Your 7-day AI Autopilot trial has ended. Subscribe to continue using AI-powered automated outreach and nurturing.
             </p>
             <div className="space-y-3">
               <Button 

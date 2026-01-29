@@ -43,7 +43,7 @@ export default function AIAutopilotSubscription({ isActive, onToggle }: AIAutopi
         const success = startTrial();
         if (success) {
           onToggle(true);
-          toast.success('🚀 14-day AI Autopilot trial started! AI will handle your outreach.');
+          toast.success('🚀 7-day AI Autopilot trial started! AI will handle your outreach.');
         }
       }
     } else {
@@ -238,7 +238,7 @@ export default function AIAutopilotSubscription({ isActive, onToggle }: AIAutopi
             </DialogTitle>
             <DialogDescription>
               {trialStatus.isExpired 
-                ? 'Your 14-day trial has ended. Subscribe to continue using AI Autopilot.'
+                ? 'Your 7-day trial has ended. Subscribe to continue using AI Autopilot.'
                 : 'Get unlimited AI-powered outreach and never miss a lead.'}
             </DialogDescription>
           </DialogHeader>

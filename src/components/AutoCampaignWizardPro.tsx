@@ -101,10 +101,10 @@ export default function AutoCampaignWizardPro({
     setSubscriptionState({
       hasSubscription: true,
       isTrialActive: true,
-      trialDaysRemaining: 14,
+      trialDaysRemaining: 7,
       isPaid: false,
     });
-    toast.success('🎉 14-day free trial started! AI Autopilot is now available.');
+    toast.success('🎉 7-day free trial started! AI Autopilot is now available.');
   };
 
   const handleSubscribe = () => {
@@ -224,7 +224,7 @@ export default function AutoCampaignWizardPro({
               </div>
               <div className="text-right">
                 <p className="text-white/80 text-sm">Free Trial</p>
-                <p className="text-xl font-bold text-white">14 days</p>
+                <p className="text-xl font-bold text-white">7 days</p>
               </div>
               {!hasSubscription && (
                 <Button 
@@ -233,7 +233,7 @@ export default function AutoCampaignWizardPro({
                   className="bg-white text-orange-600 hover:bg-white/90 gap-2 font-bold"
                 >
                   <Rocket className="w-5 h-5" />
-                  Start 14-Day Trial
+                  Start 7-Day Trial
                 </Button>
               )}
             </div>
@@ -378,7 +378,7 @@ export default function AutoCampaignWizardPro({
                           <p className="text-sm text-muted-foreground">
                             {hasSubscription 
                               ? `AI will manage ${leads.length} leads with automated follow-ups`
-                              : 'Start your 14-day free trial to unlock AI automation'
+                              : 'Start your 7-day free trial to unlock AI automation'
                             }
                           </p>
                         </div>
@@ -696,7 +696,7 @@ export default function AutoCampaignWizardPro({
                         <p className="text-sm text-muted-foreground">
                           {hasSubscription 
                             ? `AI will manage ${leads.length} leads automatically. You can monitor and intervene anytime.`
-                            : 'Start your 14-day free trial to unlock AI automation'
+                            : 'Start your 7-day free trial to unlock AI automation'
                           }
                         </p>
                       </div>
