@@ -10,81 +10,39 @@ import {
   Server, Eye, EyeOff, CheckCircle2, XCircle, Loader2, 
   Send, Shield, Key, AlertCircle, Wifi, WifiOff
 } from 'lucide-react';
-
-interface SMTPConfig {
-  host: string;
-  port: string;
-  username: string;
-  password: string;
-  fromEmail: string;
-  fromName: string;
-  secure: boolean;
-}
+import { useSMTPConfig } from '@/hooks/useSMTPConfig';
 
 export default function SMTPConfigPanel() {
   const [showPassword, setShowPassword] = useState(false);
-  const [isTesting, setIsTesting] = useState(false);
-  const [isSendingTest, setIsSendingTest] = useState(false);
   const [testEmailAddress, setTestEmailAddress] = useState('');
   const [showTestEmailInput, setShowTestEmailInput] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
-  const [smtpConfig, setSMTPConfig] = useState<SMTPConfig>(() => {
-    // Load from localStorage
-    try {
-      const saved = localStorage.getItem('bamlead_smtp_config');
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return {
-      host: 'smtp.hostinger.com',
-      port: '465',
-      username: '',
-      password: '',
-      fromEmail: 'noreply@bamlead.com',
-      fromName: 'BamLead',
-      secure: true,
-    };
-  });
+  
+  const {
+    config,
+    status,
+    isTesting,
+    isSendingTest,
+    updateConfig,
+    saveConfig,
+    testConnection,
+    sendTestEmail,
+  } = useSMTPConfig();
 
-  const saveSMTPConfig = () => {
-    localStorage.setItem('bamlead_smtp_config', JSON.stringify(smtpConfig));
+  const handleSaveConfig = () => {
+    saveConfig();
     toast.success('SMTP configuration saved!');
-    setIsConnected(true);
   };
 
   const handleTestConnection = async () => {
-    if (!smtpConfig.host || !smtpConfig.port || !smtpConfig.username || !smtpConfig.password) {
-      toast.error('Please fill in all required SMTP fields');
-      return;
-    }
-    
-    setIsTesting(true);
-    
-    try {
-      // Save config first
-      localStorage.setItem('bamlead_smtp_config', JSON.stringify(smtpConfig));
-      
-      // Call real backend test
-      const { testSMTPConnection } = await import('@/lib/emailService');
-      const result = await testSMTPConnection(smtpConfig);
-      
-      if (result.success) {
-        setIsConnected(true);
-        toast.success('SMTP connection successful!', {
-          description: result.message || 'Your email server is ready to send.'
-        });
-      } else {
-        setIsConnected(false);
-        toast.error('SMTP connection failed', {
-          description: result.error || 'Please check your credentials and try again.',
-        });
-      }
-    } catch (error: any) {
-      setIsConnected(false);
-      toast.error('SMTP connection failed', {
-        description: error.message || 'Network error - check your connection.',
+    const result = await testConnection();
+    if (result.success) {
+      toast.success('SMTP connection successful!', {
+        description: 'Your email server is ready to send.'
       });
-    } finally {
-      setIsTesting(false);
+    } else {
+      toast.error('SMTP connection failed', {
+        description: result.error || 'Please check your credentials and try again.',
+      });
     }
   };
 
@@ -94,30 +52,17 @@ export default function SMTPConfigPanel() {
       return;
     }
     
-    setIsSendingTest(true);
-    
-    try {
-      // Use real backend
-      const { sendTestEmail } = await import('@/lib/emailService');
-      const result = await sendTestEmail(testEmailAddress);
-      
-      if (result.success) {
-        toast.success('Test email sent!', {
-          description: `Check ${testEmailAddress} for the test message.`,
-        });
-        setShowTestEmailInput(false);
-        setTestEmailAddress('');
-      } else {
-        toast.error('Failed to send test email', {
-          description: result.error || 'Please check your SMTP settings.',
-        });
-      }
-    } catch (error: any) {
-      toast.error('Failed to send test email', {
-        description: error.message || 'Network error occurred.',
+    const result = await sendTestEmail(testEmailAddress);
+    if (result.success) {
+      toast.success('Test email sent!', {
+        description: `Check ${testEmailAddress} for the test message.`,
       });
-    } finally {
-      setIsSendingTest(false);
+      setShowTestEmailInput(false);
+      setTestEmailAddress('');
+    } else {
+      toast.error('Failed to send test email', {
+        description: result.error || 'Please check your SMTP settings.',
+      });
     }
   };
 
@@ -128,26 +73,26 @@ export default function SMTPConfigPanel() {
         <CardContent className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isConnected ? 'bg-emerald-100' : 'bg-slate-100'}`}>
-                {isConnected ? (
-                  <Wifi className="w-6 h-6 text-emerald-600" />
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${status.isConnected ? 'bg-emerald-500/20' : 'bg-muted'}`}>
+                {status.isConnected ? (
+                  <Wifi className="w-6 h-6 text-emerald-500" />
                 ) : (
-                  <WifiOff className="w-6 h-6 text-slate-400" />
+                  <WifiOff className="w-6 h-6 text-muted-foreground" />
                 )}
               </div>
               <div>
                 <h3 className="font-semibold text-lg">
-                  {isConnected ? 'Connected' : 'Not Connected'}
+                  {status.isConnected ? 'Connected' : 'Not Connected'}
                 </h3>
-                <p className="text-sm text-slate-500">
-                  {isConnected 
+                <p className="text-sm text-muted-foreground">
+                  {status.isConnected 
                     ? 'Your SMTP server is configured and ready to send emails'
                     : 'Configure your SMTP settings to start sending emails'}
                 </p>
               </div>
             </div>
-            <Badge className={isConnected ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}>
-              {isConnected ? 'Active' : 'Inactive'}
+            <Badge className={status.isConnected ? 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30' : 'bg-muted text-muted-foreground'}>
+              {status.isVerified ? 'Verified' : status.isConnected ? 'Connected' : 'Inactive'}
             </Badge>
           </div>
         </CardContent>
@@ -174,8 +119,8 @@ export default function SMTPConfigPanel() {
               <Input
                 id="smtp-host"
                 placeholder="smtp.hostinger.com"
-                value={smtpConfig.host}
-                onChange={(e) => setSMTPConfig(prev => ({ ...prev, host: e.target.value }))}
+                value={config.host}
+                onChange={(e) => updateConfig({ host: e.target.value })}
               />
             </div>
             <div className="space-y-2">
@@ -183,8 +128,8 @@ export default function SMTPConfigPanel() {
               <Input
                 id="smtp-port"
                 placeholder="465"
-                value={smtpConfig.port}
-                onChange={(e) => setSMTPConfig(prev => ({ ...prev, port: e.target.value }))}
+                value={config.port}
+                onChange={(e) => updateConfig({ port: e.target.value })}
               />
             </div>
           </div>
@@ -197,8 +142,8 @@ export default function SMTPConfigPanel() {
                 id="smtp-username"
                 type="email"
                 placeholder="noreply@bamlead.com"
-                value={smtpConfig.username}
-                onChange={(e) => setSMTPConfig(prev => ({ ...prev, username: e.target.value }))}
+                value={config.username}
+                onChange={(e) => updateConfig({ username: e.target.value })}
               />
             </div>
             <div className="space-y-2">
@@ -208,8 +153,8 @@ export default function SMTPConfigPanel() {
                   id="smtp-password"
                   type={showPassword ? 'text' : 'password'}
                   placeholder="••••••••••••"
-                  value={smtpConfig.password}
-                  onChange={(e) => setSMTPConfig(prev => ({ ...prev, password: e.target.value }))}
+                  value={config.password}
+                  onChange={(e) => updateConfig({ password: e.target.value })}
                 />
                 <Button
                   type="button"
@@ -232,8 +177,8 @@ export default function SMTPConfigPanel() {
                 id="from-email"
                 type="email"
                 placeholder="noreply@bamlead.com"
-                value={smtpConfig.fromEmail}
-                onChange={(e) => setSMTPConfig(prev => ({ ...prev, fromEmail: e.target.value }))}
+                value={config.fromEmail}
+                onChange={(e) => updateConfig({ fromEmail: e.target.value })}
               />
             </div>
             <div className="space-y-2">
@@ -241,24 +186,24 @@ export default function SMTPConfigPanel() {
               <Input
                 id="from-name"
                 placeholder="BamLead"
-                value={smtpConfig.fromName}
-                onChange={(e) => setSMTPConfig(prev => ({ ...prev, fromName: e.target.value }))}
+                value={config.fromName}
+                onChange={(e) => updateConfig({ fromName: e.target.value })}
               />
             </div>
           </div>
 
           {/* Secure Connection */}
-          <div className="flex items-center justify-between p-4 rounded-lg bg-slate-800 border border-slate-700">
+          <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border border-border">
             <div className="flex items-center gap-3">
               <Shield className="w-5 h-5 text-emerald-500" />
               <div>
-                <Label className="text-sm font-medium text-white">Use SSL/TLS</Label>
-                <p className="text-xs text-slate-400">Encrypt email transmission (recommended)</p>
+                <Label className="text-sm font-medium">Use SSL/TLS</Label>
+                <p className="text-xs text-muted-foreground">Encrypt email transmission (recommended)</p>
               </div>
             </div>
             <Switch
-              checked={smtpConfig.secure}
-              onCheckedChange={(v) => setSMTPConfig(prev => ({ ...prev, secure: v }))}
+              checked={config.secure}
+              onCheckedChange={(v) => updateConfig({ secure: v })}
             />
           </div>
 
@@ -268,7 +213,7 @@ export default function SMTPConfigPanel() {
               <AlertCircle className="w-5 h-5 text-amber-500" />
               <span className="font-semibold text-amber-400">Test Your SMTP Before Sending</span>
             </div>
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-muted-foreground">
               Click below to verify your SMTP credentials work. If the test fails, double-check your host, port, username, and password.
             </p>
             
@@ -277,7 +222,7 @@ export default function SMTPConfigPanel() {
                 onClick={handleTestConnection}
                 disabled={isTesting}
                 className={`gap-2 ${
-                  isConnected 
+                  status.isVerified 
                     ? 'bg-emerald-600 hover:bg-emerald-700' 
                     : 'bg-amber-500 hover:bg-amber-600 text-black'
                 }`}
@@ -287,7 +232,7 @@ export default function SMTPConfigPanel() {
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Testing Connection...
                   </>
-                ) : isConnected ? (
+                ) : status.isVerified ? (
                   <>
                     <CheckCircle2 className="w-4 h-4" />
                     SMTP Verified ✓
@@ -300,7 +245,7 @@ export default function SMTPConfigPanel() {
                 )}
               </Button>
 
-              {isConnected && (
+              {status.isVerified && (
                 <Button
                   variant="outline"
                   onClick={() => setShowTestEmailInput(!showTestEmailInput)}
@@ -313,17 +258,17 @@ export default function SMTPConfigPanel() {
             </div>
 
             {/* Connection Result Feedback */}
-            {!isTesting && !isConnected && smtpConfig.username && smtpConfig.password && (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
-                <XCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+            {!isTesting && !status.isConnected && config.username && config.password && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                <XCircle className="w-5 h-5 text-destructive flex-shrink-0" />
                 <div className="text-sm">
-                  <p className="font-medium text-red-400">SMTP Not Verified</p>
-                  <p className="text-red-400/70">Click "Test SMTP Connection" to verify your credentials work.</p>
+                  <p className="font-medium text-destructive">SMTP Not Verified</p>
+                  <p className="text-destructive/70">Click "Test SMTP Connection" to verify your credentials work.</p>
                 </div>
               </div>
             )}
 
-            {isConnected && (
+            {status.isVerified && (
               <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
                 <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
                 <div className="text-sm">
@@ -342,7 +287,7 @@ export default function SMTPConfigPanel() {
                 placeholder="Enter your email to receive a test..."
                 value={testEmailAddress}
                 onChange={(e) => setTestEmailAddress(e.target.value)}
-                className="flex-1 bg-slate-800 border-slate-600"
+                className="flex-1"
               />
               <Button
                 onClick={handleSendTestEmail}
@@ -365,9 +310,9 @@ export default function SMTPConfigPanel() {
           )}
 
           {/* Save Button */}
-          <div className="flex items-center gap-3 pt-4 border-t border-slate-700">
+          <div className="flex items-center gap-3 pt-4 border-t border-border">
             <Button
-              onClick={saveSMTPConfig}
+              onClick={handleSaveConfig}
               className="gap-2 bg-primary hover:bg-primary/90"
             >
               Save Configuration
@@ -382,8 +327,8 @@ export default function SMTPConfigPanel() {
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
             <div className="text-sm">
-              <p className="font-medium text-slate-900 mb-1">Common SMTP Settings</p>
-              <ul className="text-slate-600 space-y-1">
+              <p className="font-medium mb-1">Common SMTP Settings</p>
+              <ul className="text-muted-foreground space-y-1">
                 <li><strong>Gmail:</strong> smtp.gmail.com, Port 587, TLS enabled</li>
                 <li><strong>Hostinger:</strong> smtp.hostinger.com, Port 465, SSL enabled</li>
                 <li><strong>Outlook:</strong> smtp.office365.com, Port 587, TLS enabled</li>

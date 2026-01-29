@@ -48,6 +48,7 @@ import EmailVerificationRequired from '@/components/EmailVerificationRequired';
 import bamMascot from '@/assets/bamlead-mascot.png';
 import { LeadForEmail } from '@/lib/api/email';
 import { searchGMB, GMBResult } from '@/lib/api/gmb';
+import { useSMTPConfig } from '@/hooks/useSMTPConfig';
 import { searchPlatforms, PlatformResult } from '@/lib/api/platforms';
 import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } from '@/lib/api/leadAnalysis';
 import { quickScoreLeads } from '@/lib/api/aiLeadScoring';
@@ -129,6 +130,7 @@ export default function Dashboard() {
     } catch { return []; }
   });
   const { celebrate } = useCelebration();
+  const { status: smtpStatus } = useSMTPConfig();
 
   // Workflow state - Initialize from sessionStorage for persistence
   const [currentStep, setCurrentStep] = useState(() => {
@@ -2418,38 +2420,32 @@ export default function Dashboard() {
             </div>
 
             {/* SMTP Status Indicator - Navigate to Step 3 */}
-            {(() => {
-              const smtpConfig = JSON.parse(localStorage.getItem('smtp_config') || '{}');
-              const isSmtpConfigured = smtpConfig.username && smtpConfig.password;
-              return (
-                <button
-                  onClick={() => {
-                    setSettingsInitialTab('email');
-                    setHideWebhooksInSettings(true);
-                    setActiveTab('settings');
-                  }}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
-                    isSmtpConfigured
-                      ? 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/30'
-                      : 'bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border border-amber-500/30'
-                  }`}
-                >
-                  {isSmtpConfigured ? (
-                    <>
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">SMTP Connected</span>
-                      <span className="sm:hidden">SMTP ✓</span>
-                    </>
-                  ) : (
-                    <>
-                      <Server className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Configure SMTP</span>
-                      <span className="sm:hidden">SMTP ⚠️</span>
-                    </>
-                  )}
-                </button>
-              );
-            })()}
+            <button
+              onClick={() => {
+                setSettingsInitialTab('email');
+                setHideWebhooksInSettings(true);
+                setActiveTab('settings');
+              }}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                smtpStatus.isConnected
+                  ? 'bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/30'
+                  : 'bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border border-amber-500/30'
+              }`}
+            >
+              {smtpStatus.isConnected ? (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">SMTP Connected</span>
+                  <span className="sm:hidden">SMTP ✓</span>
+                </>
+              ) : (
+                <>
+                  <Server className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Configure SMTP</span>
+                  <span className="sm:hidden">SMTP ⚠️</span>
+                </>
+              )}
+            </button>
             
             {/* Live Data Mode Badge */}
             {searchResults.length > 0 && (

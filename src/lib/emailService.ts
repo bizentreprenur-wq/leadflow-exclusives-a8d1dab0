@@ -140,10 +140,16 @@ export const applyBrandingToHtml = (html: string, branding?: EmailBranding | nul
 
 /**
  * Get saved SMTP configuration from localStorage
+ * Checks both new key (bamlead_smtp_config) and legacy key (smtp_config) for backwards compatibility
  */
 export const getSMTPConfig = (): SMTPConfig | null => {
   try {
-    const saved = localStorage.getItem('smtp_config');
+    // Try new key first
+    let saved = localStorage.getItem('bamlead_smtp_config');
+    if (!saved) {
+      // Fallback to legacy key
+      saved = localStorage.getItem('smtp_config');
+    }
     if (!saved) return null;
     return JSON.parse(saved);
   } catch {
@@ -153,18 +159,43 @@ export const getSMTPConfig = (): SMTPConfig | null => {
 
 /**
  * Save SMTP configuration to localStorage
+ * Saves to both keys for backwards compatibility
  */
 export const saveSMTPConfig = (config: SMTPConfig): void => {
-  localStorage.setItem('smtp_config', JSON.stringify({
+  const configData = JSON.stringify({
     ...config,
     configured: true,
-  }));
+  });
+  localStorage.setItem('bamlead_smtp_config', configData);
+  localStorage.setItem('smtp_config', configData); // Legacy support
+  
+  // Also update status
+  const statusData = JSON.stringify({
+    isConnected: Boolean(config.username && config.password),
+    isVerified: false,
+    lastTestDate: new Date().toISOString(),
+  });
+  localStorage.setItem('bamlead_smtp_status', statusData);
+  
+  // Broadcast change
+  window.dispatchEvent(new CustomEvent('bamlead_smtp_changed'));
 };
 
 /**
  * Check if SMTP is configured
+ * Checks both status key and config for backwards compatibility
  */
 export const isSMTPConfigured = (): boolean => {
+  try {
+    // Try status key first
+    const status = localStorage.getItem('bamlead_smtp_status');
+    if (status) {
+      const parsed = JSON.parse(status);
+      if (parsed.isConnected) return true;
+    }
+  } catch {}
+  
+  // Fallback to checking config directly
   const config = getSMTPConfig();
   return !!(config?.username && config?.password);
 };
