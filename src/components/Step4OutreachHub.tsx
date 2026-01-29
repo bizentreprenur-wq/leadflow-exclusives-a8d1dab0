@@ -15,9 +15,8 @@ import {
   PlayCircle, ListOrdered, Mail, User
 } from 'lucide-react';
 
-import AutoFollowUpBuilder from './AutoFollowUpBuilder';
 import CallQueueModal from './CallQueueModal';
-import type { CallOutcome } from '@/lib/api/callLogs';
+import { getCallStats, listCallLogs, type CallOutcome, type CallStats, type CallLog } from '@/lib/api/callLogs';
 import { 
   connectGoogleCalendar, 
   checkGoogleCalendarStatus, 
@@ -115,6 +114,11 @@ export default function Step4OutreachHub({
   const [showCRMInfoModal, setShowCRMInfoModal] = useState(false);
   const [callQueueLeads, setCallQueueLeads] = useState<any[]>([]);
   const [completedCalls, setCompletedCalls] = useState<string[]>([]);
+  
+  // AI Calling metrics state
+  const [callStats, setCallStats] = useState<CallStats | null>(null);
+  const [recentCalls, setRecentCalls] = useState<CallLog[]>([]);
+  const [isLoadingCallStats, setIsLoadingCallStats] = useState(false);
 
   // Get callable leads and also check for imported leads
   const importedLeads = (() => {
@@ -127,6 +131,34 @@ export default function Step4OutreachHub({
   const allCallableLeads = [...leads.filter(l => l.phone), ...importedLeads];
   const callableLeads = allCallableLeads.filter(l => !completedCalls.includes(l.id || l.business_name));
   const emailableLeads = leads.filter(l => l.email);
+
+  // Load AI calling metrics
+  const loadCallMetrics = async () => {
+    setIsLoadingCallStats(true);
+    try {
+      const [statsResult, logsResult] = await Promise.all([
+        getCallStats(),
+        listCallLogs({ limit: 10 })
+      ]);
+      
+      if (statsResult.success && statsResult.stats) {
+        setCallStats(statsResult.stats);
+      }
+      if (logsResult.success && logsResult.logs) {
+        setRecentCalls(logsResult.logs);
+      }
+    } catch (error) {
+      console.error('Failed to load call metrics:', error);
+    } finally {
+      setIsLoadingCallStats(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'followups' || activeTab === 'calls') {
+      loadCallMetrics();
+    }
+  }, [activeTab]);
 
   // Check Google Calendar connection on mount and URL params
   useEffect(() => {
@@ -517,12 +549,12 @@ export default function Step4OutreachHub({
           </TabsTrigger>
           <TabsTrigger 
             value="followups" 
-            className="gap-2 data-[state=active]:bg-pink-500 data-[state=active]:text-white transition-all relative"
+            className="gap-2 data-[state=active]:bg-green-500 data-[state=active]:text-white transition-all relative"
           >
-            <RefreshCw className="w-4 h-4" />Follow-ups
-            <Badge className="absolute -top-2 -right-2 text-[10px] px-1 py-0.5 bg-pink-500 text-white border-0">AI</Badge>
+            <Sparkles className="w-4 h-4" />Call Stats
+            <Badge className="absolute -top-2 -right-2 text-[10px] px-1 py-0.5 bg-green-500 text-white border-0">AI</Badge>
           </TabsTrigger>
-          <TabsTrigger 
+          <TabsTrigger
             value="calls" 
             className="gap-2 data-[state=active]:bg-green-500 data-[state=active]:text-white transition-all"
           >
@@ -639,51 +671,174 @@ export default function Step4OutreachHub({
         </TabsContent>
 
 
-        {/* Follow-ups - Auto AI Follow-up Builder */}
+        {/* Follow-ups - AI Calling Metrics Dashboard */}
         <TabsContent value="followups" className="space-y-6">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-gradient-to-r from-pink-500/10 via-rose-500/5 to-pink-500/10 border-2 border-pink-500/30 rounded-2xl p-6"
+            className="bg-gradient-to-r from-green-500/10 via-emerald-500/5 to-green-500/10 border-2 border-green-500/30 rounded-2xl p-6"
           >
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center">
-                <RefreshCw className="w-7 h-7 text-white" />
+            <div className="flex items-center justify-between gap-4 mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+                  <Phone className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold bg-gradient-to-r from-green-500 to-emerald-600 bg-clip-text text-transparent">
+                    📊 AI Calling Analytics
+                  </h2>
+                  <p className="text-muted-foreground">
+                    Track your AI voice agent performance and call outcomes
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-2xl font-bold bg-gradient-to-r from-pink-500 to-rose-600 bg-clip-text text-transparent">
-                  🤖 AI Auto Follow-ups
-                </h2>
-                <p className="text-muted-foreground">
-                  Let AI automatically follow up with leads who haven't responded - choose AI or Human response mode
-                </p>
-              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={loadCallMetrics}
+                disabled={isLoadingCallStats}
+                className="gap-2"
+              >
+                {isLoadingCallStats ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                Refresh
+              </Button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <Card className="bg-card/50 border-pink-500/20">
+
+            {/* Main Metrics Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <Card className="bg-card/80 border-green-500/30">
                 <CardContent className="pt-4 text-center">
-                  <div className="text-3xl mb-2">📭</div>
-                  <h4 className="font-semibold">No Opens</h4>
-                  <p className="text-xs text-muted-foreground">Re-engage cold leads</p>
+                  <div className="text-3xl mb-2">📞</div>
+                  <p className="text-3xl font-bold text-green-500">{callStats?.total_calls || 0}</p>
+                  <h4 className="font-semibold text-sm">Total Calls</h4>
+                  <p className="text-xs text-muted-foreground">All time</p>
                 </CardContent>
               </Card>
-              <Card className="bg-card/50 border-pink-500/20">
+              <Card className="bg-card/80 border-blue-500/30">
                 <CardContent className="pt-4 text-center">
-                  <div className="text-3xl mb-2">👀</div>
-                  <h4 className="font-semibold">Opened, No Reply</h4>
-                  <p className="text-xs text-muted-foreground">Gentle nudge sequences</p>
+                  <div className="text-3xl mb-2">⏱️</div>
+                  <p className="text-3xl font-bold text-blue-500">
+                    {callStats?.average_duration_seconds 
+                      ? `${Math.floor(callStats.average_duration_seconds / 60)}:${String(Math.floor(callStats.average_duration_seconds % 60)).padStart(2, '0')}`
+                      : '0:00'
+                    }
+                  </p>
+                  <h4 className="font-semibold text-sm">Avg Duration</h4>
+                  <p className="text-xs text-muted-foreground">Per call</p>
                 </CardContent>
               </Card>
-              <Card className="bg-card/50 border-pink-500/20">
+              <Card className="bg-card/80 border-amber-500/30">
                 <CardContent className="pt-4 text-center">
                   <div className="text-3xl mb-2">🔥</div>
-                  <h4 className="font-semibold">Clicked (Hot!)</h4>
-                  <p className="text-xs text-muted-foreground">Priority follow-up</p>
+                  <p className="text-3xl font-bold text-amber-500">{callStats?.calls_this_week || 0}</p>
+                  <h4 className="font-semibold text-sm">This Week</h4>
+                  <p className="text-xs text-muted-foreground">Last 7 days</p>
+                </CardContent>
+              </Card>
+              <Card className="bg-card/80 border-emerald-500/30">
+                <CardContent className="pt-4 text-center">
+                  <div className="text-3xl mb-2">🎯</div>
+                  <p className="text-3xl font-bold text-emerald-500">
+                    {callStats?.interested_rate ? `${Math.round(callStats.interested_rate * 100)}%` : '0%'}
+                  </p>
+                  <h4 className="font-semibold text-sm">Interest Rate</h4>
+                  <p className="text-xs text-muted-foreground">Leads interested</p>
                 </CardContent>
               </Card>
             </div>
+
+            {/* Call Outcomes Breakdown */}
+            <Card className="bg-card/80 border-green-500/20 mb-6">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-green-500" />
+                  Call Outcomes Breakdown
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                  {[
+                    { key: 'completed', label: 'Completed', icon: '✅', color: 'text-green-500 bg-green-500/10 border-green-500/30' },
+                    { key: 'interested', label: 'Interested', icon: '🎯', color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30' },
+                    { key: 'callback_requested', label: 'Callback', icon: '📲', color: 'text-blue-500 bg-blue-500/10 border-blue-500/30' },
+                    { key: 'no_answer', label: 'No Answer', icon: '📵', color: 'text-amber-500 bg-amber-500/10 border-amber-500/30' },
+                    { key: 'not_interested', label: 'Not Interested', icon: '❌', color: 'text-red-500 bg-red-500/10 border-red-500/30' },
+                    { key: 'wrong_number', label: 'Wrong Number', icon: '🚫', color: 'text-gray-500 bg-gray-500/10 border-gray-500/30' },
+                  ].map((outcome) => (
+                    <div key={outcome.key} className={`p-3 rounded-xl border ${outcome.color}`}>
+                      <div className="text-center">
+                        <span className="text-xl">{outcome.icon}</span>
+                        <p className="text-2xl font-bold mt-1">
+                          {callStats?.outcomes?.[outcome.key as CallOutcome] || 0}
+                        </p>
+                        <p className="text-xs font-medium">{outcome.label}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Recent Calls Table */}
+            <Card className="bg-card/80 border-green-500/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-green-500" />
+                  Recent AI Calls
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {recentCalls.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Phone className="w-10 h-10 mx-auto mb-3 text-muted-foreground/50" />
+                    <p className="text-muted-foreground">No calls yet</p>
+                    <p className="text-xs text-muted-foreground">Start calling leads to see your analytics here</p>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-[300px]">
+                    <div className="space-y-2">
+                      {recentCalls.map((call, idx) => (
+                        <div 
+                          key={call.id || idx} 
+                          className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
+                              <Phone className="w-4 h-4 text-green-500" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-sm">{call.lead_name || 'Unknown Lead'}</p>
+                              <p className="text-xs text-muted-foreground">{call.lead_phone || 'No phone'}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <Badge 
+                              variant="outline"
+                              className={`text-xs ${
+                                call.outcome === 'interested' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' :
+                                call.outcome === 'completed' ? 'bg-green-500/10 text-green-600 border-green-500/30' :
+                                call.outcome === 'callback_requested' ? 'bg-blue-500/10 text-blue-600 border-blue-500/30' :
+                                call.outcome === 'no_answer' ? 'bg-amber-500/10 text-amber-600 border-amber-500/30' :
+                                'bg-gray-500/10 text-gray-600 border-gray-500/30'
+                              }`}
+                            >
+                              {call.outcome?.replace('_', ' ') || 'pending'}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {call.duration_seconds ? `${Math.floor(call.duration_seconds / 60)}:${String(call.duration_seconds % 60).padStart(2, '0')}` : '0:00'}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {call.created_at ? new Date(call.created_at).toLocaleDateString() : ''}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
           </motion.div>
-          <AutoFollowUpBuilder />
         </TabsContent>
 
         {/* Calls */}
