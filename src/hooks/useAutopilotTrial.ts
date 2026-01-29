@@ -1,6 +1,6 @@
 /**
  * AI Autopilot Trial Hook
- * Manages the 14-day free trial state, warnings, and subscription status
+ * Manages the 7-day free trial state, warnings, and subscription status
  * Owner accounts get free unlimited access
  */
 
@@ -26,7 +26,7 @@ export interface TrialStatus {
   warningMessage: string;
 }
 
-const TRIAL_DURATION_DAYS = 14;
+const TRIAL_DURATION_DAYS = 7;
 const STORAGE_KEY = 'bamlead_autopilot_trial';
 
 export function useAutopilotTrial() {
@@ -130,16 +130,13 @@ export function useAutopilotTrial() {
 
   function getWarningMessage(daysRemaining: number, isExpired: boolean): string {
     if (isExpired) {
-      return 'Your 14-day trial has ended. Subscribe now to continue using AI Autopilot.';
+      return 'Your 7-day trial has ended. Subscribe now to continue using AI Autopilot.';
     }
     if (daysRemaining === 1) {
       return '⚠️ Last day of your trial! Subscribe to keep AI Autopilot active.';
     }
-    if (daysRemaining <= 3) {
+    if (daysRemaining <= 2) {
       return `⚠️ Only ${daysRemaining} days left in your trial! Don't lose your AI automation.`;
-    }
-    if (daysRemaining <= 7) {
-      return `${daysRemaining} days remaining in your free trial.`;
     }
     return `${daysRemaining} days remaining in your free trial.`;
   }
@@ -183,9 +180,9 @@ export function useAutopilotTrial() {
     if (result.success) {
       const newStatus: TrialStatus = {
         isTrialActive: true,
-        trialDaysRemaining: 14,
+        trialDaysRemaining: 7,
         trialStartDate: result.currentPeriodEnd 
-          ? new Date(new Date(result.currentPeriodEnd).getTime() - 14 * 24 * 60 * 60 * 1000).toISOString()
+          ? new Date(new Date(result.currentPeriodEnd).getTime() - 7 * 24 * 60 * 60 * 1000).toISOString()
           : new Date().toISOString(),
         isPaid: false,
         isExpired: false,
@@ -193,7 +190,7 @@ export function useAutopilotTrial() {
         subscriptionId: result.subscriptionId,
         canUseAutopilot: true,
         warningLevel: 'none',
-        warningMessage: '14 days remaining in your free trial.',
+        warningMessage: '7 days remaining in your free trial.',
       };
       setStatus(newStatus);
       return true;

@@ -100,7 +100,7 @@ export default function AutopilotTrialWarning({
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground">
-              Your 14-day free trial has ended. Subscribe now to continue using AI-powered automated outreach.
+              Your 7-day free trial has ended. Subscribe now to continue using AI-powered automated outreach.
             </p>
           </div>
           {showUpgradeButton && (

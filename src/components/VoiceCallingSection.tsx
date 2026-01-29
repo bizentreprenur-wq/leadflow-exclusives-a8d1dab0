@@ -134,10 +134,10 @@ const VoiceCallingSection = () => {
               </ol>
             </div>
 
-            <Link to="/dashboard">
+            <Link to="/pricing">
               <Button size="lg" className="w-full gap-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700">
                 <Phone className="w-5 h-5" />
-                Try AI Voice Calling
+                Subscribe to AI Calling - $19.99/mo
               </Button>
             </Link>
           </div>
