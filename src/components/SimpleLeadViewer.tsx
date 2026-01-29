@@ -1210,7 +1210,7 @@ export default function SimpleLeadViewer({
                     <TableHead className="w-20 text-center">Score</TableHead>
                     <TableHead className="w-24">Priority</TableHead>
                     <TableHead className="w-[160px]">Business Name</TableHead>
-                    <TableHead className="w-[160px] text-center">Web & Socials</TableHead>
+                    <TableHead className="w-[140px] text-center">Web & Socials</TableHead>
                     <TableHead className="w-[120px]">Email</TableHead>
                     <TableHead className="w-[120px]">Phone</TableHead>
                     <TableHead className="w-24 min-w-[80px]">Timing</TableHead>
@@ -1300,16 +1300,16 @@ export default function SimpleLeadViewer({
                           {getClassBadge(lead.aiClassification)}
                         </TableCell>
                         <TableCell className="w-[160px]">
-                          <div className="flex items-center gap-1 min-w-0">
-                            <div className="min-w-0">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="min-w-0 flex-1">
                               <p className="font-medium truncate">{lead.name}</p>
                               {getSourceBadges(lead.sources)}
                             </div>
                           </div>
                         </TableCell>
-                        {/* Web & Socials Column - centered icons */}
+                        {/* Web & Socials Column - right after Business Name */}
                         <TableCell onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-center gap-1">
+                          <div className="flex items-center justify-center gap-0.5">
                             {lead.website ? (
                               <WebsitePreviewIcon
                                 website={lead.website}
