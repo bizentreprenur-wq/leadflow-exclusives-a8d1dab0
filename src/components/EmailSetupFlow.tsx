@@ -1026,6 +1026,7 @@ export default function EmailSetupFlow({
                         </div>
                         <LeadIntelligenceReviewPanel
                           searchType={searchType}
+                          onOpenSettings={() => handleTabChange('settings')}
                           onApplyStrategy={(strategy) => {
                             setAppliedStrategy({
                               id: strategy.id,
