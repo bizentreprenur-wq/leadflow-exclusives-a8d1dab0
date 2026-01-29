@@ -471,6 +471,15 @@ export const sendBulkEmails = async (params: BulkSendParams): Promise<SendResult
     return { success: false, error: 'Template or custom content required' };
   }
   
+  // Check SMTP config first - customers must configure their own SMTP
+  const smtpConfig = getSMTPConfig();
+  if (!smtpConfig?.username || !smtpConfig?.password) {
+    return {
+      success: false,
+      error: 'SMTP not configured. Please set up your email settings first.',
+    };
+  }
+  
   try {
     // Apply branding to custom body if enabled
     let finalBody = params.customBody;
@@ -492,6 +501,13 @@ export const sendBulkEmails = async (params: BulkSendParams): Promise<SendResult
         send_mode: params.sendMode || 'instant',
         drip_config: params.dripConfig,
         scheduled_for: params.scheduledFor,
+        smtp_override: {
+          host: smtpConfig.host,
+          port: smtpConfig.port,
+          username: smtpConfig.username,
+          password: smtpConfig.password,
+          secure: smtpConfig.secure,
+        },
       }),
     });
     
