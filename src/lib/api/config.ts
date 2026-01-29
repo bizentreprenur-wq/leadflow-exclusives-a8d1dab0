@@ -92,6 +92,7 @@ export const SEARCH_ENDPOINTS = {
   platform: `${API_BASE_URL}/platform-search.php`,
   verify: `${API_BASE_URL}/verify-lead.php`,
   analyze: `${API_BASE_URL}/analyze-website.php`,
+  scrapeContacts: `${API_BASE_URL}/scrape-website-contacts.php`,
 };
 
 // Helper to get auth headers

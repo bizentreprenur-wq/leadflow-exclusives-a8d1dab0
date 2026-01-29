@@ -545,3 +545,172 @@ async function searchGMBRegular(
   
   return data;
 }
+
+/**
+ * Response from website contact scraping
+ */
+export interface WebsiteContactsResponse {
+  success: boolean;
+  emails: string[];
+  phones: string[];
+  hasWebsite: boolean;
+  pagesChecked?: string[];
+  cached?: boolean;
+  error?: string;
+}
+
+/**
+ * Scrape a website for contact information (email, phone)
+ * Checks homepage, footer, and common contact pages
+ */
+export async function scrapeWebsiteContacts(url: string): Promise<WebsiteContactsResponse> {
+  if (!url) {
+    return { success: false, emails: [], phones: [], hasWebsite: false, error: 'No URL provided' };
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/scrape-website-contacts.php`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ url }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      const error = summarizeHtmlError(text) || `HTTP ${response.status}`;
+      return { success: false, emails: [], phones: [], hasWebsite: false, error };
+    }
+
+    const data = await response.json();
+    return {
+      success: data.success ?? false,
+      emails: data.emails ?? [],
+      phones: data.phones ?? [],
+      hasWebsite: data.hasWebsite ?? false,
+      pagesChecked: data.pagesChecked,
+      cached: data.cached,
+      error: data.error,
+    };
+  } catch (error) {
+    console.error('[GMB API] Error scraping website contacts:', error);
+    return {
+      success: false,
+      emails: [],
+      phones: [],
+      hasWebsite: false,
+      error: error instanceof Error ? error.message : 'Failed to scrape website',
+    };
+  }
+}
+
+/**
+ * Batch scrape multiple websites for contact information
+ */
+export async function scrapeWebsiteContactsBatch(urls: string[]): Promise<Record<string, WebsiteContactsResponse>> {
+  if (!urls || urls.length === 0) {
+    return {};
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/scrape-website-contacts.php`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ urls }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      console.error('[GMB API] Batch scrape failed:', text);
+      return {};
+    }
+
+    const data = await response.json();
+    return data.results ?? {};
+  } catch (error) {
+    console.error('[GMB API] Error batch scraping website contacts:', error);
+    return {};
+  }
+}
+
+/**
+ * Enrich a single lead with website-scraped contact information
+ * Returns the lead with email/phone populated if found
+ */
+export async function enrichLeadWithWebsiteContacts(lead: GMBResult): Promise<GMBResult> {
+  // Skip if no website or already has email
+  if (!lead.url || lead.email) {
+    return lead;
+  }
+
+  const contacts = await scrapeWebsiteContacts(lead.url);
+  
+  if (contacts.success) {
+    return {
+      ...lead,
+      email: contacts.emails[0] || lead.email,
+      phone: contacts.phones[0] || lead.phone,
+      websiteAnalysis: {
+        ...lead.websiteAnalysis,
+        hasWebsite: contacts.hasWebsite,
+      },
+    };
+  }
+
+  return lead;
+}
+
+/**
+ * Enrich multiple leads with website-scraped contact information
+ * Uses batch endpoint for efficiency
+ */
+export async function enrichLeadsWithWebsiteContacts(
+  leads: GMBResult[],
+  onProgress?: (enriched: number, total: number) => void
+): Promise<GMBResult[]> {
+  // Filter leads that have a URL but no email
+  const leadsNeedingEnrichment = leads.filter(lead => lead.url && !lead.email);
+  
+  if (leadsNeedingEnrichment.length === 0) {
+    return leads;
+  }
+
+  // Process in batches of 10
+  const batchSize = 10;
+  const enrichedMap: Record<string, WebsiteContactsResponse> = {};
+  let processed = 0;
+
+  for (let i = 0; i < leadsNeedingEnrichment.length; i += batchSize) {
+    const batch = leadsNeedingEnrichment.slice(i, i + batchSize);
+    const urls = batch.map(lead => lead.url).filter(Boolean) as string[];
+    
+    const batchResults = await scrapeWebsiteContactsBatch(urls);
+    Object.assign(enrichedMap, batchResults);
+    
+    processed += batch.length;
+    if (onProgress) {
+      onProgress(processed, leadsNeedingEnrichment.length);
+    }
+  }
+
+  // Apply enrichment to leads
+  return leads.map(lead => {
+    if (!lead.url || lead.email) {
+      return lead;
+    }
+
+    const contacts = enrichedMap[lead.url];
+    if (contacts?.success) {
+      return {
+        ...lead,
+        email: contacts.emails[0] || lead.email,
+        phone: contacts.phones[0] || lead.phone,
+        websiteAnalysis: {
+          ...lead.websiteAnalysis,
+          hasWebsite: contacts.hasWebsite,
+        },
+      };
+    }
+
+    return lead;
+  });
+}

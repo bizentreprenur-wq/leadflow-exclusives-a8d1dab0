@@ -457,7 +457,7 @@ function extractEmailFromText($text) {
     if (preg_match('/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/', $text, $matches)) {
         $email = strtolower($matches[0]);
         // Filter out common non-business emails
-        $excludePatterns = ['example.com', 'test.com', 'domain.com', 'email.com', 'sample.', 'noreply', 'no-reply'];
+        $excludePatterns = ['example.com', 'test.com', 'domain.com', 'email.com', 'sample.', 'noreply', 'no-reply', 'wixpress', 'sentry.io'];
         foreach ($excludePatterns as $pattern) {
             if (strpos($email, $pattern) !== false) {
                 return null;
