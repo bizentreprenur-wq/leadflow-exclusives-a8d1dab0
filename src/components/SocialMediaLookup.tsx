@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Tooltip,
   TooltipContent,
@@ -13,13 +13,17 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { ExternalLink } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ExternalLink, Mail, Phone, Loader2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { scrapeSocialContacts, SocialContactsResult } from '@/lib/api/socialContacts';
+import { toast } from 'sonner';
 
 interface SocialMediaLookupProps {
   businessName: string;
   location?: string;
   size?: 'sm' | 'md';
+  onContactsFound?: (emails: string[], phones: string[]) => void;
 }
 
 const socialPlatforms = [
@@ -89,9 +93,13 @@ export default function SocialMediaLookup({
   businessName,
   location = '',
   size = 'sm',
+  onContactsFound,
 }: SocialMediaLookupProps) {
   const [openPlatform, setOpenPlatform] = useState<typeof socialPlatforms[0] | null>(null);
   const [searchUrl, setSearchUrl] = useState('');
+  const [isScrapingContacts, setIsScrapingContacts] = useState(false);
+  const [socialContacts, setSocialContacts] = useState<SocialContactsResult | null>(null);
+  const [showContactsPanel, setShowContactsPanel] = useState(false);
 
   const sizeClasses = {
     sm: 'w-6 h-6',
@@ -103,6 +111,56 @@ export default function SocialMediaLookup({
     md: 'w-3.5 h-3.5',
   };
 
+  // Auto-scrape for contacts on mount if not already scraped
+  useEffect(() => {
+    const cacheKey = `social_contacts_${businessName}_${location}`;
+    const cached = sessionStorage.getItem(cacheKey);
+    
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        setSocialContacts(parsed);
+        if (onContactsFound && (parsed.contacts?.emails?.length || parsed.contacts?.phones?.length)) {
+          onContactsFound(parsed.contacts.emails || [], parsed.contacts.phones || []);
+        }
+      } catch {
+        // Ignore parse errors
+      }
+    }
+  }, [businessName, location]);
+
+  const handleScrapeContacts = async () => {
+    if (isScrapingContacts) return;
+    
+    setIsScrapingContacts(true);
+    try {
+      const result = await scrapeSocialContacts(businessName, location);
+      setSocialContacts(result);
+      
+      // Cache in session storage
+      const cacheKey = `social_contacts_${businessName}_${location}`;
+      sessionStorage.setItem(cacheKey, JSON.stringify(result));
+      
+      if (result.success && (result.contacts.emails.length > 0 || result.contacts.phones.length > 0)) {
+        toast.success(`Found ${result.contacts.emails.length} emails, ${result.contacts.phones.length} phones from social profiles`, {
+          description: result.contacts.sources.join(', ')
+        });
+        if (onContactsFound) {
+          onContactsFound(result.contacts.emails, result.contacts.phones);
+        }
+        setShowContactsPanel(true);
+      } else {
+        toast.info('No contact info found in public social profiles', {
+          description: 'Try checking the website directly'
+        });
+      }
+    } catch (error) {
+      toast.error('Failed to scrape social contacts');
+    } finally {
+      setIsScrapingContacts(false);
+    }
+  };
+
   const handleClick = (platform: typeof socialPlatforms[0], e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -111,10 +169,57 @@ export default function SocialMediaLookup({
     setOpenPlatform(platform);
   };
 
+  const hasContacts = socialContacts?.contacts && 
+    (socialContacts.contacts.emails.length > 0 || socialContacts.contacts.phones.length > 0);
+
   return (
     <>
       <TooltipProvider delayDuration={300}>
         <div className="flex items-center gap-0.5">
+          {/* AI Scrape Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  if (hasContacts) {
+                    setShowContactsPanel(true);
+                  } else {
+                    handleScrapeContacts();
+                  }
+                }}
+                disabled={isScrapingContacts}
+                className={cn(
+                  'inline-flex items-center justify-center rounded-full transition-all duration-200 hover:scale-110 relative',
+                  sizeClasses[size],
+                  hasContacts 
+                    ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-500'
+                    : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-500',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background'
+                )}
+                aria-label="Find contacts from social profiles"
+              >
+                {isScrapingContacts ? (
+                  <Loader2 className={cn(iconSize[size], 'animate-spin')} />
+                ) : (
+                  <Sparkles className={iconSize[size]} />
+                )}
+                {hasContacts && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="bg-popover border-border">
+              <p className="text-sm font-medium">
+                {hasContacts 
+                  ? `View ${socialContacts?.contacts.emails.length || 0} emails, ${socialContacts?.contacts.phones.length || 0} phones`
+                  : 'AI Scrape Social Profiles for Contacts'
+                }
+              </p>
+            </TooltipContent>
+          </Tooltip>
+
           {socialPlatforms.map((platform) => (
             <Tooltip key={platform.name}>
               <TooltipTrigger asChild>
@@ -139,6 +244,123 @@ export default function SocialMediaLookup({
           ))}
         </div>
       </TooltipProvider>
+
+      {/* Contacts Found Panel */}
+      <Dialog open={showContactsPanel} onOpenChange={setShowContactsPanel}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-amber-500" />
+              Contacts Found for {businessName}
+            </DialogTitle>
+            <DialogDescription>
+              Extracted from public social profiles
+            </DialogDescription>
+          </DialogHeader>
+
+          {socialContacts?.contacts && (
+            <div className="space-y-4 mt-4">
+              {/* Emails */}
+              {socialContacts.contacts.emails.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <Mail className="w-4 h-4" />
+                    Emails ({socialContacts.contacts.emails.length})
+                  </div>
+                  <div className="space-y-1">
+                    {socialContacts.contacts.emails.map((email, i) => (
+                      <a
+                        key={i}
+                        href={`mailto:${email}`}
+                        className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-sm"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Mail className="w-4 h-4 text-primary" />
+                        {email}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Phones */}
+              {socialContacts.contacts.phones.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <Phone className="w-4 h-4" />
+                    Phones ({socialContacts.contacts.phones.length})
+                  </div>
+                  <div className="space-y-1">
+                    {socialContacts.contacts.phones.map((phone, i) => (
+                      <a
+                        key={i}
+                        href={`tel:${phone}`}
+                        className="flex items-center gap-2 p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-sm"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Phone className="w-4 h-4 text-green-500" />
+                        {phone}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Sources */}
+              {socialContacts.contacts.sources.length > 0 && (
+                <div className="pt-2 border-t border-border">
+                  <p className="text-xs text-muted-foreground mb-2">Sources:</p>
+                  <div className="flex flex-wrap gap-1">
+                    {socialContacts.contacts.sources.map((source, i) => (
+                      <Badge key={i} variant="secondary" className="text-xs">
+                        {source}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Social Profiles Found */}
+              {Object.keys(socialContacts.contacts.profiles).length > 0 && (
+                <div className="pt-2 border-t border-border">
+                  <p className="text-xs text-muted-foreground mb-2">Profiles Found:</p>
+                  <div className="space-y-1">
+                    {Object.entries(socialContacts.contacts.profiles).map(([platform, profile]) => (
+                      <a
+                        key={platform}
+                        href={profile.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors text-xs"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span className="font-medium capitalize">{platform}</span>
+                        {profile.username && <span className="text-muted-foreground">@{profile.username}</span>}
+                        <ExternalLink className="w-3 h-3 ml-auto" />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" size="sm" onClick={() => setShowContactsPanel(false)}>
+              Close
+            </Button>
+            <Button 
+              size="sm" 
+              onClick={handleScrapeContacts}
+              disabled={isScrapingContacts}
+              className="gap-2"
+            >
+              {isScrapingContacts ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+              Refresh
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* In-app social search dialog */}
       <Dialog open={!!openPlatform} onOpenChange={(open) => !open && setOpenPlatform(null)}>
