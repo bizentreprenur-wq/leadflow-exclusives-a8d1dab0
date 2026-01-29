@@ -142,7 +142,7 @@ export default function SocialMediaLookup({
 
       {/* In-app social search dialog */}
       <Dialog open={!!openPlatform} onOpenChange={(open) => !open && setOpenPlatform(null)}>
-        <DialogContent className="w-[min(96vw,72rem)] h-[80vh] p-0 overflow-hidden">
+        <DialogContent className="w-[min(98vw,90rem)] h-[90vh] max-w-none p-0 overflow-hidden">
           <DialogHeader className="p-4 pb-0">
             <DialogTitle className="flex items-center gap-2">
               {openPlatform && (
