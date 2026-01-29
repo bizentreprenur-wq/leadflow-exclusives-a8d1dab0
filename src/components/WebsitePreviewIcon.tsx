@@ -100,7 +100,7 @@ export default function WebsitePreviewIcon({
       </TooltipProvider>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="w-[min(96vw,72rem)] h-[80vh] p-0 overflow-hidden">
+        <DialogContent className="!max-w-[95vw] w-[95vw] h-[85vh] p-0 overflow-hidden">
           <DialogHeader className="p-4 pb-0">
             <DialogTitle className="flex items-center gap-2">
               <Globe className="h-4 w-4" />
