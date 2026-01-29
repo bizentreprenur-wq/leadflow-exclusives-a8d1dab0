@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import {
   Brain, Lightbulb, Target, Globe, AlertTriangle, CheckCircle2,
   ChevronDown, ChevronUp, Flame, ThermometerSun, Snowflake,
   Smartphone, Zap, MessageSquare, TrendingUp, FileText,
-  Mail, Sparkles, Eye, X, Phone
+  Mail, Sparkles, Eye, X, Phone, Server, Settings, ArrowRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { 
@@ -18,11 +18,13 @@ import {
   LeadAnalysisContext,
   generateEmailSuggestionsFromContext 
 } from '@/lib/leadContext';
+import { isSMTPConfigured } from '@/lib/emailService';
 
 interface LeadIntelligenceReviewPanelProps {
   onApplyStrategy?: (strategy: EmailStrategy) => void;
   onClose?: () => void;
   searchType?: 'gmb' | 'platform' | null;
+  onOpenSettings?: () => void;
 }
 
 interface EmailStrategy {
@@ -39,10 +41,21 @@ interface EmailStrategy {
 export default function LeadIntelligenceReviewPanel({ 
   onApplyStrategy, 
   onClose,
-  searchType 
+  searchType,
+  onOpenSettings
 }: LeadIntelligenceReviewPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [selectedStrategy, setSelectedStrategy] = useState<string | null>(null);
+  const [smtpConfigured, setSMTPConfigured] = useState(false);
+  
+  // Check SMTP configuration status
+  useEffect(() => {
+    const checkSMTP = async () => {
+      const configured = await isSMTPConfigured();
+      setSMTPConfigured(configured);
+    };
+    checkSMTP();
+  }, []);
   
   // Get lead analysis from Step 1/2
   const leadAnalysis = useMemo(() => getStoredLeadContext(), []);
@@ -391,6 +404,53 @@ export default function LeadIntelligenceReviewPanel({
                 </div>
               </div>
             </div>
+            
+            {/* Mail Server Setup Section - Shows when SMTP not configured */}
+            {!smtpConfigured && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 rounded-xl bg-amber-500/10 border-2 border-amber-500/30"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                    <Server className="w-6 h-6 text-amber-400" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-foreground flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-400" />
+                      Setup Your Mail Server
+                    </h4>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Connect your SMTP mail server to send emails to your {insights.total} leads. Without this, you won't be able to send outreach campaigns.
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={onOpenSettings}
+                    className="gap-2 bg-amber-500 hover:bg-amber-600 text-white flex-shrink-0"
+                  >
+                    <Settings className="w-4 h-4" />
+                    Configure SMTP
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+            
+            {/* SMTP Configured Success */}
+            {smtpConfigured && (
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-sm font-medium text-emerald-400">Mail Server Connected</span>
+                    <span className="text-xs text-muted-foreground ml-2">Ready to send emails</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </CollapsibleContent>
       </Collapsible>
