@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ExternalLink, Globe } from 'lucide-react';
+import { ExternalLink, Globe, Maximize2, Minimize2 } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -39,6 +39,7 @@ export default function WebsitePreviewIcon({
   tooltipTitle = 'Preview Website',
 }: WebsitePreviewIconProps) {
   const [open, setOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Extract homepage URL only (strip paths like /about, /contact, etc.)
   const getHomepageUrl = (url: string): string => {
@@ -99,8 +100,15 @@ export default function WebsitePreviewIcon({
         </Tooltip>
       </TooltipProvider>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="!max-w-[95vw] w-[95vw] h-[85vh] p-0 overflow-hidden">
+      <Dialog open={open} onOpenChange={(val) => { setOpen(val); if (!val) setIsFullscreen(false); }}>
+        <DialogContent 
+          className={cn(
+            "p-0 overflow-hidden transition-all duration-300",
+            isFullscreen 
+              ? "!max-w-[100vw] w-[100vw] h-[100vh] rounded-none" 
+              : "!max-w-[95vw] w-[95vw] h-[85vh]"
+          )}
+        >
           <DialogHeader className="p-4 pb-0">
             <DialogTitle className="flex items-center gap-2">
               <Globe className="h-4 w-4" />
@@ -108,12 +116,32 @@ export default function WebsitePreviewIcon({
             </DialogTitle>
             <DialogDescription className="flex items-center justify-between gap-3">
               <span className="truncate">{normalizedUrl}</span>
-              <Button asChild size="sm" variant="outline" className="shrink-0 gap-2">
-                <a href={normalizedUrl} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                  Open
-                </a>
-              </Button>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => setIsFullscreen(!isFullscreen)}
+                  className="gap-2"
+                >
+                  {isFullscreen ? (
+                    <>
+                      <Minimize2 className="h-4 w-4" />
+                      Exit Fullscreen
+                    </>
+                  ) : (
+                    <>
+                      <Maximize2 className="h-4 w-4" />
+                      Fullscreen
+                    </>
+                  )}
+                </Button>
+                <Button asChild size="sm" variant="outline" className="gap-2">
+                  <a href={normalizedUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-4 w-4" />
+                    Open
+                  </a>
+                </Button>
+              </div>
             </DialogDescription>
           </DialogHeader>
 
@@ -128,7 +156,7 @@ export default function WebsitePreviewIcon({
           </div>
 
           <div className="p-3 border-t border-border text-xs text-muted-foreground">
-            If the preview is blank, the site blocks in-app previews—use “Open” to view it in a new tab.
+            If the preview is blank, the site blocks in-app previews—use "Open" to view it in a new tab.
           </div>
         </DialogContent>
       </Dialog>
