@@ -671,174 +671,197 @@ export default function Step4OutreachHub({
         </TabsContent>
 
 
-        {/* Follow-ups - AI Calling Metrics Dashboard */}
+        {/* Follow-ups - AI Auto Follow-ups for Calls */}
         <TabsContent value="followups" className="space-y-6">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="bg-gradient-to-r from-green-500/10 via-emerald-500/5 to-green-500/10 border-2 border-green-500/30 rounded-2xl p-6"
           >
-            <div className="flex items-center justify-between gap-4 mb-6">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
-                  <Phone className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold bg-gradient-to-r from-green-500 to-emerald-600 bg-clip-text text-transparent">
-                    📊 AI Calling Analytics
-                  </h2>
-                  <p className="text-muted-foreground">
-                    Track your AI voice agent performance and call outcomes
-                  </p>
-                </div>
+            {/* Header */}
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+                <RefreshCw className="w-7 h-7 text-white" />
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={loadCallMetrics}
-                disabled={isLoadingCallStats}
-                className="gap-2"
+              <div>
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-green-500 to-emerald-600 bg-clip-text text-transparent flex items-center gap-2">
+                  📞 AI Auto Follow-ups
+                </h2>
+                <p className="text-muted-foreground">
+                  Let AI automatically follow up with leads who haven't answered - choose AI or Human response mode
+                </p>
+              </div>
+            </div>
+
+            {/* Call Category Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* No Answer Card */}
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className="cursor-pointer"
               >
-                {isLoadingCallStats ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                Refresh
-              </Button>
-            </div>
+                <Card className="border-2 border-amber-500/30 hover:border-amber-500/50 transition-all bg-card/80">
+                  <CardContent className="pt-6 text-center">
+                    <div className="text-4xl mb-3">📵</div>
+                    <h3 className="text-xl font-bold mb-1">No Answer</h3>
+                    <p className="text-sm text-muted-foreground">Re-dial missed calls</p>
+                    <Badge className="mt-3 bg-amber-500/20 text-amber-600 border-amber-500/30">
+                      {callStats?.outcomes?.no_answer || 0} leads
+                    </Badge>
+                  </CardContent>
+                </Card>
+              </motion.div>
 
-            {/* Main Metrics Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-              <Card className="bg-card/80 border-green-500/30">
-                <CardContent className="pt-4 text-center">
-                  <div className="text-3xl mb-2">📞</div>
-                  <p className="text-3xl font-bold text-green-500">{callStats?.total_calls || 0}</p>
-                  <h4 className="font-semibold text-sm">Total Calls</h4>
-                  <p className="text-xs text-muted-foreground">All time</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-card/80 border-blue-500/30">
-                <CardContent className="pt-4 text-center">
-                  <div className="text-3xl mb-2">⏱️</div>
-                  <p className="text-3xl font-bold text-blue-500">
-                    {callStats?.average_duration_seconds 
-                      ? `${Math.floor(callStats.average_duration_seconds / 60)}:${String(Math.floor(callStats.average_duration_seconds % 60)).padStart(2, '0')}`
-                      : '0:00'
-                    }
-                  </p>
-                  <h4 className="font-semibold text-sm">Avg Duration</h4>
-                  <p className="text-xs text-muted-foreground">Per call</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-card/80 border-amber-500/30">
-                <CardContent className="pt-4 text-center">
-                  <div className="text-3xl mb-2">🔥</div>
-                  <p className="text-3xl font-bold text-amber-500">{callStats?.calls_this_week || 0}</p>
-                  <h4 className="font-semibold text-sm">This Week</h4>
-                  <p className="text-xs text-muted-foreground">Last 7 days</p>
-                </CardContent>
-              </Card>
-              <Card className="bg-card/80 border-emerald-500/30">
-                <CardContent className="pt-4 text-center">
-                  <div className="text-3xl mb-2">🎯</div>
-                  <p className="text-3xl font-bold text-emerald-500">
-                    {callStats?.interested_rate ? `${Math.round(callStats.interested_rate * 100)}%` : '0%'}
-                  </p>
-                  <h4 className="font-semibold text-sm">Interest Rate</h4>
-                  <p className="text-xs text-muted-foreground">Leads interested</p>
-                </CardContent>
-              </Card>
-            </div>
+              {/* Callback Requested Card */}
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className="cursor-pointer"
+              >
+                <Card className="border-2 border-blue-500/30 hover:border-blue-500/50 transition-all bg-card/80">
+                  <CardContent className="pt-6 text-center">
+                    <div className="text-4xl mb-3">📲</div>
+                    <h3 className="text-xl font-bold mb-1">Callback Requested</h3>
+                    <p className="text-sm text-muted-foreground">Schedule follow-up calls</p>
+                    <Badge className="mt-3 bg-blue-500/20 text-blue-600 border-blue-500/30">
+                      {callStats?.outcomes?.callback_requested || 0} leads
+                    </Badge>
+                  </CardContent>
+                </Card>
+              </motion.div>
 
-            {/* Call Outcomes Breakdown */}
-            <Card className="bg-card/80 border-green-500/20 mb-6">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-green-500" />
-                  Call Outcomes Breakdown
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                  {[
-                    { key: 'completed', label: 'Completed', icon: '✅', color: 'text-green-500 bg-green-500/10 border-green-500/30' },
-                    { key: 'interested', label: 'Interested', icon: '🎯', color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30' },
-                    { key: 'callback_requested', label: 'Callback', icon: '📲', color: 'text-blue-500 bg-blue-500/10 border-blue-500/30' },
-                    { key: 'no_answer', label: 'No Answer', icon: '📵', color: 'text-amber-500 bg-amber-500/10 border-amber-500/30' },
-                    { key: 'not_interested', label: 'Not Interested', icon: '❌', color: 'text-red-500 bg-red-500/10 border-red-500/30' },
-                    { key: 'wrong_number', label: 'Wrong Number', icon: '🚫', color: 'text-gray-500 bg-gray-500/10 border-gray-500/30' },
-                  ].map((outcome) => (
-                    <div key={outcome.key} className={`p-3 rounded-xl border ${outcome.color}`}>
-                      <div className="text-center">
-                        <span className="text-xl">{outcome.icon}</span>
-                        <p className="text-2xl font-bold mt-1">
-                          {callStats?.outcomes?.[outcome.key as CallOutcome] || 0}
-                        </p>
-                        <p className="text-xs font-medium">{outcome.label}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              {/* Interested (Hot!) Card */}
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                className="cursor-pointer"
+              >
+                <Card className="border-2 border-emerald-500/30 hover:border-emerald-500/50 transition-all bg-card/80">
+                  <CardContent className="pt-6 text-center">
+                    <div className="text-4xl mb-3">🔥</div>
+                    <h3 className="text-xl font-bold text-emerald-500 mb-1">Interested (Hot!)</h3>
+                    <p className="text-sm text-muted-foreground">Priority follow-up</p>
+                    <Badge className="mt-3 bg-emerald-500/20 text-emerald-600 border-emerald-500/30">
+                      {callStats?.outcomes?.interested || 0} leads
+                    </Badge>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </div>
+          </motion.div>
+
+          {/* Call Metrics Summary */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card className="bg-card/80 border-green-500/30">
+              <CardContent className="pt-4 text-center">
+                <div className="text-3xl mb-2">📞</div>
+                <p className="text-3xl font-bold text-green-500">{callStats?.total_calls || 0}</p>
+                <h4 className="font-semibold text-sm">Total Calls</h4>
+                <p className="text-xs text-muted-foreground">All time</p>
               </CardContent>
             </Card>
+            <Card className="bg-card/80 border-blue-500/30">
+              <CardContent className="pt-4 text-center">
+                <div className="text-3xl mb-2">⏱️</div>
+                <p className="text-3xl font-bold text-blue-500">
+                  {callStats?.average_duration_seconds 
+                    ? `${Math.floor(callStats.average_duration_seconds / 60)}:${String(Math.floor(callStats.average_duration_seconds % 60)).padStart(2, '0')}`
+                    : '0:00'
+                  }
+                </p>
+                <h4 className="font-semibold text-sm">Avg Duration</h4>
+                <p className="text-xs text-muted-foreground">Per call</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-card/80 border-amber-500/30">
+              <CardContent className="pt-4 text-center">
+                <div className="text-3xl mb-2">📅</div>
+                <p className="text-3xl font-bold text-amber-500">{callStats?.calls_this_week || 0}</p>
+                <h4 className="font-semibold text-sm">This Week</h4>
+                <p className="text-xs text-muted-foreground">Last 7 days</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-card/80 border-emerald-500/30">
+              <CardContent className="pt-4 text-center">
+                <div className="text-3xl mb-2">🎯</div>
+                <p className="text-3xl font-bold text-emerald-500">
+                  {callStats?.interested_rate ? `${Math.round(callStats.interested_rate * 100)}%` : '0%'}
+                </p>
+                <h4 className="font-semibold text-sm">Interest Rate</h4>
+                <p className="text-xs text-muted-foreground">Leads interested</p>
+              </CardContent>
+            </Card>
+          </div>
 
-            {/* Recent Calls Table */}
-            <Card className="bg-card/80 border-green-500/20">
-              <CardHeader className="pb-2">
+          {/* Recent Calls Table */}
+          <Card className="bg-card/80 border-green-500/20">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Clock className="w-5 h-5 text-green-500" />
                   Recent AI Calls
                 </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {recentCalls.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Phone className="w-10 h-10 mx-auto mb-3 text-muted-foreground/50" />
-                    <p className="text-muted-foreground">No calls yet</p>
-                    <p className="text-xs text-muted-foreground">Start calling leads to see your analytics here</p>
-                  </div>
-                ) : (
-                  <ScrollArea className="h-[300px]">
-                    <div className="space-y-2">
-                      {recentCalls.map((call, idx) => (
-                        <div 
-                          key={call.id || idx} 
-                          className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
-                              <Phone className="w-4 h-4 text-green-500" />
-                            </div>
-                            <div>
-                              <p className="font-medium text-sm">{call.lead_name || 'Unknown Lead'}</p>
-                              <p className="text-xs text-muted-foreground">{call.lead_phone || 'No phone'}</p>
-                            </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={loadCallMetrics}
+                  disabled={isLoadingCallStats}
+                  className="gap-2"
+                >
+                  {isLoadingCallStats ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  Refresh
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {recentCalls.length === 0 ? (
+                <div className="text-center py-8">
+                  <Phone className="w-10 h-10 mx-auto mb-3 text-muted-foreground/50" />
+                  <p className="text-muted-foreground">No calls yet</p>
+                  <p className="text-xs text-muted-foreground">Start calling leads to see your analytics here</p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[300px]">
+                  <div className="space-y-2">
+                    {recentCalls.map((call, idx) => (
+                      <div 
+                        key={call.id || idx} 
+                        className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/50"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
+                            <Phone className="w-4 h-4 text-green-500" />
                           </div>
-                          <div className="flex items-center gap-4">
-                            <Badge 
-                              variant="outline"
-                              className={`text-xs ${
-                                call.outcome === 'interested' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' :
-                                call.outcome === 'completed' ? 'bg-green-500/10 text-green-600 border-green-500/30' :
-                                call.outcome === 'callback_requested' ? 'bg-blue-500/10 text-blue-600 border-blue-500/30' :
-                                call.outcome === 'no_answer' ? 'bg-amber-500/10 text-amber-600 border-amber-500/30' :
-                                'bg-gray-500/10 text-gray-600 border-gray-500/30'
-                              }`}
-                            >
-                              {call.outcome?.replace('_', ' ') || 'pending'}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground">
-                              {call.duration_seconds ? `${Math.floor(call.duration_seconds / 60)}:${String(call.duration_seconds % 60).padStart(2, '0')}` : '0:00'}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {call.created_at ? new Date(call.created_at).toLocaleDateString() : ''}
-                            </span>
+                          <div>
+                            <p className="font-medium text-sm">{call.lead_name || 'Unknown Lead'}</p>
+                            <p className="text-xs text-muted-foreground">{call.lead_phone || 'No phone'}</p>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
+                        <div className="flex items-center gap-4">
+                          <Badge 
+                            variant="outline"
+                            className={`text-xs ${
+                              call.outcome === 'interested' ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' :
+                              call.outcome === 'completed' ? 'bg-green-500/10 text-green-600 border-green-500/30' :
+                              call.outcome === 'callback_requested' ? 'bg-blue-500/10 text-blue-600 border-blue-500/30' :
+                              call.outcome === 'no_answer' ? 'bg-amber-500/10 text-amber-600 border-amber-500/30' :
+                              'bg-gray-500/10 text-gray-600 border-gray-500/30'
+                            }`}
+                          >
+                            {call.outcome?.replace('_', ' ') || 'pending'}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {call.duration_seconds ? `${Math.floor(call.duration_seconds / 60)}:${String(call.duration_seconds % 60).padStart(2, '0')}` : '0:00'}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {call.created_at ? new Date(call.created_at).toLocaleDateString() : ''}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         {/* Calls */}
