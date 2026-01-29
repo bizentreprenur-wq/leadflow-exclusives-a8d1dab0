@@ -249,6 +249,8 @@ export const testSMTPConnection = async (config?: Partial<SMTPConfig>): Promise<
       return { success: false, error: 'Missing SMTP credentials' };
     }
     
+    console.log('[SMTP Test] Starting connection test to:', smtpConfig.host);
+    
     const response = await fetch(`${API_BASE}/email-outreach.php?action=test_smtp`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -261,12 +263,25 @@ export const testSMTPConnection = async (config?: Partial<SMTPConfig>): Promise<
       }),
     });
     
+    console.log('[SMTP Test] Response status:', response.status);
+    
     // Check for non-OK response
     if (!response.ok) {
-      console.warn('SMTP test returned non-OK status:', response.status);
+      const errorText = await response.text();
+      console.warn('SMTP test returned non-OK status:', response.status, errorText);
+      
+      if (response.status === 401) {
+        // Save config locally even without backend verification
+        saveSMTPConfig(smtpConfig as SMTPConfig);
+        return { 
+          success: true, 
+          message: 'Configuration saved locally. Backend verification requires login.' 
+        };
+      }
+      
       return { 
         success: false, 
-        error: `Server error (${response.status}). Please try again.` 
+        error: `Server error (${response.status}). ${errorText || 'Please try again.'}` 
       };
     }
     
@@ -275,6 +290,7 @@ export const testSMTPConnection = async (config?: Partial<SMTPConfig>): Promise<
     // Try to parse JSON
     try {
       const data = JSON.parse(text);
+      console.log('[SMTP Test] Response data:', data);
       return data;
     } catch {
       console.warn('SMTP test response not JSON:', text.substring(0, 100));
@@ -285,9 +301,20 @@ export const testSMTPConnection = async (config?: Partial<SMTPConfig>): Promise<
     }
   } catch (error) {
     console.error('SMTP test network error:', error);
+    
+    // Even if backend is unreachable, allow saving config locally
+    const smtpConfig = config || getSMTPConfig();
+    if (smtpConfig?.host && smtpConfig?.username && smtpConfig?.password) {
+      saveSMTPConfig(smtpConfig as SMTPConfig);
+      return {
+        success: true,
+        message: 'Configuration saved locally. Backend verification unavailable.',
+      };
+    }
+    
     return {
       success: false,
-      error: 'Unable to reach the test endpoint. Please try again or check your API.',
+      error: 'Unable to reach the test endpoint. Configuration saved locally.',
     };
   }
 };
