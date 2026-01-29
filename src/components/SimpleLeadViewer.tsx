@@ -1309,19 +1309,18 @@ export default function SimpleLeadViewer({
                         </TableCell>
                         {/* Website Column with prominent icon + Social Media icons */}
                         <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-center gap-1">
+                          <div className="flex items-center justify-center gap-0.5">
                             {lead.website ? (
                               <WebsitePreviewIcon
                                 website={lead.website}
                                 businessName={lead.name}
                                 size="md"
                                 tooltipTitle="Preview Website"
-                                triggerClassName="inline-flex items-center justify-center w-7 h-7 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-500 hover:text-emerald-400 transition-all hover:scale-110"
+                                triggerClassName="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-500 hover:text-emerald-400 transition-all hover:scale-110"
                               />
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-400 text-[10px] font-medium">
-                                <Globe className="w-2.5 h-2.5" />
-                                No Site
+                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-500/10 text-red-400 text-[9px] font-medium">
+                                <Globe className="w-3 h-3" />
                               </span>
                             )}
                             <SocialMediaLookup
