@@ -267,7 +267,8 @@ SidebarTrigger.displayName = "SidebarTrigger";
 
 const SidebarRail = React.forwardRef<HTMLButtonElement, React.ComponentProps<"button">>(
   ({ className, ...props }, ref) => {
-    const { toggleSidebar, sidebarWidth, setSidebarWidth, isMobile } = useSidebar();
+    const { toggleSidebar, sidebarWidth, setSidebarWidth, isMobile, state } = useSidebar();
+    const [isDragging, setIsDragging] = React.useState(false);
 
     const dragRef = React.useRef<{
       startX: number;
@@ -289,7 +290,7 @@ const SidebarRail = React.forwardRef<HTMLButtonElement, React.ComponentProps<"bu
       return Number.isFinite(asNum) ? asNum : 0;
     };
 
-    const clampPx = (px: number) => Math.max(220, Math.min(560, px));
+    const clampPx = (px: number) => Math.max(180, Math.min(520, px));
 
     const onPointerDown = (event: React.PointerEvent<HTMLButtonElement>) => {
       if (isMobile) return;
@@ -307,6 +308,7 @@ const SidebarRail = React.forwardRef<HTMLButtonElement, React.ComponentProps<"bu
         pointerId: event.pointerId,
       };
 
+      setIsDragging(true);
       el.setPointerCapture(event.pointerId);
     };
 
@@ -325,6 +327,7 @@ const SidebarRail = React.forwardRef<HTMLButtonElement, React.ComponentProps<"bu
       const drag = dragRef.current;
       if (!drag || drag.pointerId !== event.pointerId) return;
       dragRef.current = null;
+      setIsDragging(false);
       try {
         event.currentTarget.releasePointerCapture(event.pointerId);
       } catch {
@@ -335,23 +338,30 @@ const SidebarRail = React.forwardRef<HTMLButtonElement, React.ComponentProps<"bu
       if (!drag.dragged) toggleSidebar();
     };
 
+    // Don't show rail when sidebar is collapsed (nothing to resize)
+    if (state === "collapsed") return null;
+
     return (
       <button
         ref={ref}
         data-sidebar="rail"
-        aria-label="Toggle Sidebar"
+        aria-label="Resize Sidebar - Drag to adjust width"
         tabIndex={-1}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        title="Toggle Sidebar"
+        title="Drag to resize sidebar"
         className={cn(
-          "absolute inset-y-0 z-20 hidden w-4 -translate-x-1/2 transition-all ease-linear after:absolute after:inset-y-0 after:left-1/2 after:w-[2px] group-data-[side=left]:-right-4 group-data-[side=right]:left-0 hover:after:bg-sidebar-border sm:flex",
-          "[[data-side=left]_&]:cursor-w-resize [[data-side=right]_&]:cursor-e-resize",
-          "[[data-side=left][data-state=collapsed]_&]:cursor-e-resize [[data-side=right][data-state=collapsed]_&]:cursor-w-resize",
-          "group-data-[collapsible=offcanvas]:translate-x-0 group-data-[collapsible=offcanvas]:after:left-full group-data-[collapsible=offcanvas]:hover:bg-sidebar",
-          "[[data-side=left][data-collapsible=offcanvas]_&]:-right-2",
-          "[[data-side=right][data-collapsible=offcanvas]_&]:-left-2",
+          // Fixed positioning relative to the sidebar edge
+          "fixed top-0 bottom-0 z-50 w-3 cursor-col-resize transition-colors duration-150",
+          // Left position = sidebar width
+          "left-[var(--sidebar-width)]",
+          // Visual indicator - thin line that becomes more visible on hover/drag
+          "before:absolute before:inset-y-0 before:left-1/2 before:w-[2px] before:-translate-x-1/2 before:bg-border/50 before:transition-all",
+          "hover:before:w-[4px] hover:before:bg-primary/40",
+          isDragging && "before:w-[4px] before:bg-primary",
+          // Hidden on mobile
+          "hidden md:block",
           className,
         )}
         {...props}
