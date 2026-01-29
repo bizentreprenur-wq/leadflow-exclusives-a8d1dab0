@@ -490,10 +490,18 @@ export default function EmailSetupFlow({
               </div>
             </div>
 
-            {/* Lead Intelligence Review Panel - Shows Step 1 findings */}
+            {/* Lead Intelligence Review Panel - Shows Step 1 findings + Template & Strategy Selection */}
             {showIntelligencePanel && (
               <LeadIntelligenceReviewPanel
                 searchType={searchType}
+                selectedTemplate={customizedContent || (selectedTemplate ? { subject: selectedTemplate.subject, body: selectedTemplate.body } : null)}
+                onOpenTemplates={() => {
+                  // Scroll to template gallery or open template modal
+                  const templateSection = document.querySelector('[data-template-gallery]');
+                  if (templateSection) {
+                    templateSection.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }}
                 onApplyStrategy={(strategy) => {
                   setAppliedStrategy({
                     id: strategy.id,
@@ -642,29 +650,29 @@ export default function EmailSetupFlow({
               />
             )}
 
-            <div className="space-y-4">
+            <div className="space-y-4" data-template-gallery>
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-bold text-lg">
-                    {selectedTemplate ? 'Or Choose a Different Template' : 'Browse All Templates'}
+                    {selectedTemplate ? 'Or Choose a Different Template' : '📧 Step A: Browse Email Templates'}
                   </h3>
                   <p className="text-sm text-muted-foreground">
                     {selectedTemplate
                       ? 'Browse our library of high-converting templates' 
-                      : 'Pick a template that matches your outreach style. You can customize it after selection.'}
+                      : 'Pick a template that matches your outreach style. This is your base message for the campaign.'}
                   </p>
                 </div>
               </div>
 
               {!selectedTemplate && (
-                <div className="bg-gradient-to-r from-success/20 to-success/10 border-2 border-success/50 rounded-xl p-4">
+                <div className="bg-gradient-to-r from-primary/20 to-emerald-500/10 border-2 border-primary/50 rounded-xl p-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-success/30 flex items-center justify-center">
-                      <ArrowRight className="w-6 h-6 text-success" />
+                    <div className="w-12 h-12 rounded-full bg-primary/30 flex items-center justify-center">
+                      <ArrowRight className="w-6 h-6 text-primary" />
                     </div>
                     <div>
-                      <h3 className="font-bold text-success text-lg">👆 Click "READY TO SEND" on any template below</h3>
-                      <p className="text-sm text-success/80">This will automatically take you to the next step to send your emails</p>
+                      <h3 className="font-bold text-primary text-lg">👆 Click "READY TO SEND" on any template below</h3>
+                      <p className="text-sm text-muted-foreground">After selecting, you can optionally enhance with an AI Follow-Up Strategy</p>
                     </div>
                   </div>
                 </div>
