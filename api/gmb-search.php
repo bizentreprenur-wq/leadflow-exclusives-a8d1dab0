@@ -96,18 +96,188 @@ try {
 }
 
 /**
- * Search for business listings using multiple SerpAPI engines
+ * Search for business listings using Serper.dev or SerpAPI
  * Queries Google Maps, Yelp, and Bing Local for comprehensive results
  */
 function searchGMBListings($service, $location, $limit = 100, $filters = [], $filtersActive = false, $filterMultiplier = 1) {
-    $apiKey = defined('SERPAPI_KEY') ? SERPAPI_KEY : '';
+    $hasSerper = defined('SERPER_API_KEY') && !empty(SERPER_API_KEY);
+    $hasSerpApi = defined('SERPAPI_KEY') && !empty(SERPAPI_KEY);
     
-    if (empty($apiKey)) {
-        throw new Exception('SERPAPI_KEY is not configured. Please add it to config.php for real search results.');
+    if (!$hasSerper && !$hasSerpApi) {
+        throw new Exception('No search API configured. Please add SERPER_API_KEY or SERPAPI_KEY to config.php for real search results.');
     }
     
     set_time_limit(3600); // 60 min for massive searches
     
+    $allResults = [];
+    $seenBusinesses = [];
+    
+    // Use Serper for Google Places if available (cheaper), otherwise SerpAPI
+    if ($hasSerper) {
+        $serperResults = searchSerperPlaces($service, $location, $limit, $filters, $filtersActive, $filterMultiplier);
+        foreach ($serperResults as $business) {
+            $dedupeKey = buildBusinessDedupeKey($business, $location);
+            if (!isset($seenBusinesses[$dedupeKey])) {
+                $seenBusinesses[$dedupeKey] = count($allResults);
+                $allResults[] = $business;
+            }
+            if (count($allResults) >= $limit) break;
+        }
+    }
+    
+    // If Serper didn't get enough results or isn't available, use SerpAPI
+    if (count($allResults) < $limit && $hasSerpApi) {
+        $remaining = $limit - count($allResults);
+        $serpApiResults = searchSerpApiEngines($service, $location, $remaining, $filters, $filtersActive, $filterMultiplier);
+        foreach ($serpApiResults as $business) {
+            $dedupeKey = buildBusinessDedupeKey($business, $location);
+            if (!isset($seenBusinesses[$dedupeKey])) {
+                $seenBusinesses[$dedupeKey] = count($allResults);
+                $allResults[] = $business;
+            }
+            if (count($allResults) >= $limit) break;
+        }
+    }
+    
+    return $allResults;
+}
+
+/**
+ * Search using Serper.dev Places API (Google Maps alternative)
+ */
+function searchSerperPlaces($service, $location, $limit, $filters, $filtersActive, $filterMultiplier) {
+    $results = [];
+    $query = "$service in $location";
+    
+    // Serper Places endpoint for local business search
+    $payload = [
+        'q' => $query,
+        'gl' => 'us',
+        'hl' => 'en'
+    ];
+    
+    $response = curlRequest('https://google.serper.dev/places', [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($payload),
+        CURLOPT_HTTPHEADER => [
+            'X-API-KEY: ' . SERPER_API_KEY,
+            'Content-Type: application/json'
+        ]
+    ]);
+    
+    if ($response['httpCode'] !== 200) {
+        // Fall back to regular search if places fails
+        return searchSerperOrganic($service, $location, $limit, $filters);
+    }
+    
+    $data = json_decode($response['response'], true);
+    $places = $data['places'] ?? [];
+    
+    foreach ($places as $item) {
+        if (count($results) >= $limit) break;
+        
+        $business = [
+            'id' => generateId('srpr_'),
+            'name' => $item['title'] ?? '',
+            'url' => $item['website'] ?? '',
+            'snippet' => $item['category'] ?? '',
+            'displayLink' => parse_url($item['website'] ?? '', PHP_URL_HOST) ?? '',
+            'address' => $item['address'] ?? '',
+            'phone' => $item['phoneNumber'] ?? '',
+            'rating' => $item['rating'] ?? null,
+            'reviews' => $item['ratingCount'] ?? null,
+            'source' => 'Serper Places',
+            'sources' => ['Serper Places']
+        ];
+        
+        if (empty($business['name'])) continue;
+        if (!matchesSearchFilters($business, $filters)) continue;
+        
+        $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
+        $results[] = $business;
+    }
+    
+    // If places didn't return enough, supplement with organic search
+    if (count($results) < $limit) {
+        $organicResults = searchSerperOrganic($service, $location, $limit - count($results), $filters);
+        $results = array_merge($results, $organicResults);
+    }
+    
+    return $results;
+}
+
+/**
+ * Search Serper organic results as fallback
+ */
+function searchSerperOrganic($service, $location, $limit, $filters) {
+    $results = [];
+    $query = "$service in $location";
+    
+    $payload = [
+        'q' => $query,
+        'num' => min(100, $limit),
+        'gl' => 'us',
+        'hl' => 'en'
+    ];
+    
+    $response = curlRequest('https://google.serper.dev/search', [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($payload),
+        CURLOPT_HTTPHEADER => [
+            'X-API-KEY: ' . SERPER_API_KEY,
+            'Content-Type: application/json'
+        ]
+    ]);
+    
+    if ($response['httpCode'] !== 200) {
+        return [];
+    }
+    
+    $data = json_decode($response['response'], true);
+    $organic = $data['organic'] ?? [];
+    
+    foreach ($organic as $item) {
+        if (count($results) >= $limit) break;
+        
+        $business = [
+            'id' => generateId('srpr_'),
+            'name' => $item['title'] ?? '',
+            'url' => $item['link'] ?? '',
+            'snippet' => $item['snippet'] ?? '',
+            'displayLink' => parse_url($item['link'] ?? '', PHP_URL_HOST) ?? '',
+            'address' => '',
+            'phone' => extractPhoneFromSnippet($item['snippet'] ?? ''),
+            'rating' => null,
+            'reviews' => null,
+            'source' => 'Serper',
+            'sources' => ['Serper']
+        ];
+        
+        if (empty($business['name'])) continue;
+        if (!matchesSearchFilters($business, $filters)) continue;
+        
+        $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
+        $results[] = $business;
+    }
+    
+    return $results;
+}
+
+/**
+ * Extract phone from snippet text
+ */
+function extractPhoneFromSnippet($text) {
+    if (preg_match('/\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/', $text, $matches)) {
+        return $matches[0];
+    }
+    return null;
+}
+
+/**
+ * Search using SerpAPI engines (fallback)
+ */
+function searchSerpApiEngines($service, $location, $limit, $filters, $filtersActive, $filterMultiplier) {
+    $apiKey = SERPAPI_KEY;
     $allResults = [];
     $seenBusinesses = [];
     
