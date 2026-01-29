@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import { DualScrollbar } from '@/components/ui/dual-scrollbar';
 import {
   Table,
   TableBody,
@@ -1162,8 +1163,8 @@ export default function SimpleLeadViewer({
       {/* Main Content Card */}
       <Card className="border-border">
         <CardContent className="p-0">
-          {/* Table */}
-          <div className="h-[450px] overflow-auto">
+          {/* Table with dual horizontal scrollbars (top and bottom) */}
+          <DualScrollbar className="h-[450px]">
             <Table
               className="w-max table-fixed [&_th]:px-3 [&_td]:px-3"
               style={{ minWidth: '1300px' }}
@@ -1345,7 +1346,7 @@ export default function SimpleLeadViewer({
                 )}
               </TableBody>
             </Table>
-          </div>
+          </DualScrollbar>
 
           {/* Bottom Action Bar */}
           {!selectedIds.size && leads.length > 0 && (
