@@ -20,6 +20,7 @@ const isPreviewEnv =
   hostname === 'localhost' ||
   hostname.includes('lovableproject.com') ||
   hostname.startsWith('id-preview--');
+const SIGNUP_ENABLED = false;
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
@@ -272,16 +273,22 @@ export default function Auth() {
             <CardTitle className="text-2xl font-bold">Welcome to BamLead</CardTitle>
             <CardDescription>
               {pendingPlan 
-                ? 'Create an account or sign in to complete your subscription'
-                : 'Find leads, analyze websites, and grow your business'}
+                ? (SIGNUP_ENABLED
+                  ? 'Create an account or sign in to complete your subscription'
+                  : 'Sign in to complete your subscription')
+                : (SIGNUP_ENABLED
+                  ? 'Find leads, analyze websites, and grow your business'
+                  : 'Sign in to access your account')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="login">Sign In</TabsTrigger>
-                <TabsTrigger value="register">Sign Up</TabsTrigger>
-              </TabsList>
+              {SIGNUP_ENABLED && (
+                <TabsList className="grid w-full grid-cols-2 mb-6">
+                  <TabsTrigger value="login">Sign In</TabsTrigger>
+                  <TabsTrigger value="register">Sign Up</TabsTrigger>
+                </TabsList>
+              )}
 
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4">
@@ -337,93 +344,94 @@ export default function Auth() {
                   </div>
                 </form>
               </TabsContent>
-
-              <TabsContent value="register">
-                <form onSubmit={handleRegister} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="register-name">Name (optional)</Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="register-name"
-                        type="text"
-                        placeholder="John Doe"
-                        value={registerName}
-                        onChange={(e) => setRegisterName(e.target.value)}
-                        className="pl-10"
-                        disabled={isLoading}
-                      />
+              {SIGNUP_ENABLED && (
+                <TabsContent value="register">
+                  <form onSubmit={handleRegister} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="register-name">Name (optional)</Label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="register-name"
+                          type="text"
+                          placeholder="John Doe"
+                          value={registerName}
+                          onChange={(e) => setRegisterName(e.target.value)}
+                          className="pl-10"
+                          disabled={isLoading}
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="register-email">Email *</Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="register-email"
-                        type="email"
-                        placeholder="you@example.com"
-                        value={registerEmail}
-                        onChange={(e) => setRegisterEmail(e.target.value)}
-                        className="pl-10"
-                        disabled={isLoading}
-                        required
-                      />
+                    <div className="space-y-2">
+                      <Label htmlFor="register-email">Email *</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="register-email"
+                          type="email"
+                          placeholder="you@example.com"
+                          value={registerEmail}
+                          onChange={(e) => setRegisterEmail(e.target.value)}
+                          className="pl-10"
+                          disabled={isLoading}
+                          required
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="register-password">Password *</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="register-password"
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="Min. 8 characters"
-                        value={registerPassword}
-                        onChange={(e) => setRegisterPassword(e.target.value)}
-                        className="pl-10 pr-10"
-                        disabled={isLoading}
-                        required
-                        minLength={8}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
+                    <div className="space-y-2">
+                      <Label htmlFor="register-password">Password *</Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="register-password"
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="Min. 8 characters"
+                          value={registerPassword}
+                          onChange={(e) => setRegisterPassword(e.target.value)}
+                          className="pl-10 pr-10"
+                          disabled={isLoading}
+                          required
+                          minLength={8}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="register-confirm">Confirm Password *</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="register-confirm"
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="••••••••"
-                        value={registerConfirmPassword}
-                        onChange={(e) => setRegisterConfirmPassword(e.target.value)}
-                        className="pl-10"
-                        disabled={isLoading}
-                        required
-                      />
+                    <div className="space-y-2">
+                      <Label htmlFor="register-confirm">Confirm Password *</Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          id="register-confirm"
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="••••••••"
+                          value={registerConfirmPassword}
+                          onChange={(e) => setRegisterConfirmPassword(e.target.value)}
+                          className="pl-10"
+                          disabled={isLoading}
+                          required
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? 'Creating account...' : 'Create Account'}
-                  </Button>
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? 'Creating account...' : 'Create Account'}
+                    </Button>
 
-                  <p className="text-xs text-muted-foreground text-center">
-                    By signing up, you agree to our Terms of Service and Privacy Policy.
-                  </p>
-                </form>
-              </TabsContent>
+                    <p className="text-xs text-muted-foreground text-center">
+                      By signing up, you agree to our Terms of Service and Privacy Policy.
+                    </p>
+                  </form>
+                </TabsContent>
+              )}
             </Tabs>
 
             {/* Preview-only: Enter Dashboard button */}
