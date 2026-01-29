@@ -72,8 +72,32 @@ export function useSMTPConfig() {
   const [isTesting, setIsTesting] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
 
-  // Listen for changes from other components
+  // Sync state from localStorage on mount and listen for changes
   useEffect(() => {
+    // Sync on mount - ensures component picks up latest state
+    const syncFromStorage = () => {
+      try {
+        const savedConfig = localStorage.getItem(SMTP_CONFIG_KEY);
+        if (savedConfig) {
+          const parsed = JSON.parse(savedConfig);
+          setConfig(parsed);
+        }
+        
+        const savedStatus = localStorage.getItem(SMTP_STATUS_KEY);
+        if (savedStatus) {
+          setStatus(JSON.parse(savedStatus));
+        } else if (savedConfig) {
+          // Derive status from config if no status saved
+          const cfg = JSON.parse(savedConfig);
+          const hasCredentials = Boolean(cfg.host && cfg.port && cfg.username && cfg.password);
+          setStatus(prev => ({ ...prev, isConnected: hasCredentials }));
+        }
+      } catch {}
+    };
+
+    // Initial sync
+    syncFromStorage();
+
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === SMTP_CONFIG_KEY && e.newValue) {
         try {
@@ -88,13 +112,7 @@ export function useSMTPConfig() {
     };
 
     const handleCustomEvent = () => {
-      try {
-        const savedConfig = localStorage.getItem(SMTP_CONFIG_KEY);
-        if (savedConfig) setConfig(JSON.parse(savedConfig));
-        
-        const savedStatus = localStorage.getItem(SMTP_STATUS_KEY);
-        if (savedStatus) setStatus(JSON.parse(savedStatus));
-      } catch {}
+      syncFromStorage();
     };
 
     window.addEventListener('storage', handleStorageChange);
