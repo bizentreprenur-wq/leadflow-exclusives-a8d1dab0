@@ -1,6 +1,6 @@
 /**
  * AI Autopilot Campaign Subscription API
- * Handles the $39/month subscription for AI automation features
+ * Handles the $19.99/month subscription for AI automation features
  */
 
 import { API_BASE_URL, apiRequest, USE_MOCK_AUTH } from './config';

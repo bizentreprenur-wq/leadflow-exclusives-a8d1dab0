@@ -445,11 +445,16 @@ export default function Step4OutreachHub({
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
                 <Phone className="w-8 h-8 text-white" />
               </div>
-              <h3 className="text-xl font-bold mb-2">📞 Make Calls</h3>
+              <h3 className="text-xl font-bold mb-2">📞 AI Calling</h3>
               <p className="text-sm text-muted-foreground">Call leads with AI voice agent</p>
-              <Badge className={`mt-3 ${agentId ? 'bg-green-500/20 text-green-600 border-green-500/30' : 'bg-amber-500/20 text-amber-600 border-amber-500/30 animate-pulse'}`}>
-                {agentId ? 'Ready to call' : 'Setup required'}
-              </Badge>
+              <div className="flex flex-wrap items-center justify-center gap-2 mt-3">
+                <Badge className={`${agentId ? 'bg-green-500/20 text-green-600 border-green-500/30' : 'bg-amber-500/20 text-amber-600 border-amber-500/30 animate-pulse'}`}>
+                  {agentId ? 'Ready to call' : 'Setup required'}
+                </Badge>
+                <Badge className="bg-green-500/20 text-green-600 border-green-500/30">
+                  $19.99/mo
+                </Badge>
+              </div>
             </CardContent>
           </Card>
         </motion.div>

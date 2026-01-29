@@ -320,7 +320,7 @@ export default function AIAutopilotDashboard({
               )}
             </h2>
             <p className="text-sm text-muted-foreground">
-              AI handles everything: Drip → Follow-ups → Responses ($39/mo)
+              AI handles everything: Drip → Follow-ups → Responses ($19.99/mo)
             </p>
           </div>
         </div>
