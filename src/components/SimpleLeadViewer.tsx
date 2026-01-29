@@ -25,6 +25,7 @@ import {
   Save, RotateCcw, Loader2, Check, FolderOpen
 } from 'lucide-react';
 import WebsitePreviewIcon from './WebsitePreviewIcon';
+import SocialMediaLookup from './SocialMediaLookup';
 import { Skeleton } from '@/components/ui/skeleton';
 import StreamingLeadsIndicator from '@/components/StreamingLeadsIndicator';
 import {
@@ -1209,7 +1210,7 @@ export default function SimpleLeadViewer({
                     <TableHead className="w-20 text-center">Score</TableHead>
                     <TableHead className="w-24">Priority</TableHead>
                     <TableHead className="w-[160px]">Business Name</TableHead>
-                    <TableHead className="w-16 text-center">Website</TableHead>
+                    <TableHead className="w-32 text-center">Website</TableHead>
                     <TableHead className="w-[120px]">Email</TableHead>
                     <TableHead className="w-[120px]">Phone</TableHead>
                     <TableHead className="w-24 min-w-[80px]">Timing</TableHead>
@@ -1306,22 +1307,29 @@ export default function SimpleLeadViewer({
                             </div>
                           </div>
                         </TableCell>
-                        {/* Website Column with prominent icon */}
+                        {/* Website Column with prominent icon + Social Media icons */}
                         <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                          {lead.website ? (
-                            <WebsitePreviewIcon
-                              website={lead.website}
+                          <div className="flex items-center justify-center gap-1">
+                            {lead.website ? (
+                              <WebsitePreviewIcon
+                                website={lead.website}
+                                businessName={lead.name}
+                                size="md"
+                                tooltipTitle="Preview Website"
+                                triggerClassName="inline-flex items-center justify-center w-7 h-7 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-500 hover:text-emerald-400 transition-all hover:scale-110"
+                              />
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-red-500/10 text-red-400 text-[10px] font-medium">
+                                <Globe className="w-2.5 h-2.5" />
+                                No Site
+                              </span>
+                            )}
+                            <SocialMediaLookup
                               businessName={lead.name}
-                              size="md"
-                              tooltipTitle="Preview Website"
-                              triggerClassName="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-500 hover:text-emerald-400 transition-all hover:scale-110"
+                              location={lead.address}
+                              size="sm"
                             />
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-red-500/10 text-red-400 text-xs font-medium">
-                              <Globe className="w-3 h-3" />
-                              No Site
-                            </span>
-                          )}
+                          </div>
                         </TableCell>
                         <TableCell>
                           {lead.email ? (
