@@ -109,6 +109,7 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50) {
 
     $unique = [];
     $seen = [];
+    $hasSerper = defined('SERPER_API_KEY') && !empty(SERPER_API_KEY);
     $hasSerpApi = defined('SERPAPI_KEY') && !empty(SERPAPI_KEY);
     $hasGoogleApi = !empty(GOOGLE_API_KEY) && !empty(GOOGLE_SEARCH_ENGINE_ID);
     $hasBingApi = !empty(BING_API_KEY);
@@ -130,8 +131,12 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50) {
         }
         $remaining = $limit - count($unique);
 
-        // Search using SerpAPI if key is available (preferred)
-        if ($hasSerpApi) {
+        // Search using Serper.dev if key is available (preferred - cheapest)
+        if ($hasSerper) {
+            $addResults(searchSerper($service, $location, $group, $remaining));
+        }
+        // Fallback: Search using SerpAPI if key is available
+        elseif ($hasSerpApi) {
             $addResults(searchSerpApi($service, $location, $group, $remaining));
         }
         // Fallback: Search Google if API key is available
@@ -146,8 +151,8 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50) {
     }
 
     if (empty($unique)) {
-        if (!$hasSerpApi && !$hasGoogleApi && !$hasBingApi) {
-            throw new Exception('No search API configured. Please set SERPAPI_KEY, GOOGLE_API_KEY, or BING_API_KEY in config.php');
+        if (!$hasSerper && !$hasSerpApi && !$hasGoogleApi && !$hasBingApi) {
+            throw new Exception('No search API configured. Please set SERPER_API_KEY, SERPAPI_KEY, GOOGLE_API_KEY, or BING_API_KEY in config.php');
         }
         throw new Exception('Search API returned 0 results. Verify your API keys or try a different query.');
     }
@@ -238,7 +243,90 @@ function quickWebsiteCheck($url) {
 }
 
 /**
- * Search using SerpAPI (Google Search)
+ * Search using Serper.dev (Google Search - Cheapest option)
+ */
+function searchSerper($service, $location, $platformQueries, $limit = 100) {
+    $results = [];
+    
+    // Build query
+    $baseQuery = "$service $location";
+    if (!empty($platformQueries)) {
+        $baseQuery .= ' (' . implode(' OR ', array_slice($platformQueries, 0, 3)) . ')';
+    }
+    
+    // Serper returns up to 100 results per request with num parameter
+    $resultsPerPage = min(100, $limit);
+    $maxPages = ceil($limit / $resultsPerPage);
+    $maxPages = min($maxPages, 10); // Serper supports pagination
+    
+    for ($page = 0; $page < $maxPages; $page++) {
+        if (count($results) >= $limit) {
+            break;
+        }
+        
+        $payload = [
+            'q' => $baseQuery,
+            'num' => min($resultsPerPage, $limit - count($results)),
+            'gl' => 'us',
+            'hl' => 'en'
+        ];
+        
+        if ($page > 0) {
+            $payload['page'] = $page + 1;
+        }
+        
+        $response = curlRequest('https://google.serper.dev/search', [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_HTTPHEADER => [
+                'X-API-KEY: ' . SERPER_API_KEY,
+                'Content-Type: application/json'
+            ]
+        ]);
+        
+        if ($response['httpCode'] !== 200) {
+            $message = 'Serper error: HTTP ' . $response['httpCode'];
+            $decoded = json_decode($response['response'], true);
+            if (is_array($decoded)) {
+                $message = $decoded['message'] ?? $decoded['error'] ?? $message;
+            }
+            if (DEBUG_MODE) {
+                error_log($message . ' - ' . $response['response']);
+            }
+            if ($page === 0) {
+                throw new Exception($message);
+            }
+            break;
+        }
+        
+        $data = json_decode($response['response'], true);
+        
+        if (!isset($data['organic']) || empty($data['organic'])) {
+            break; // No more results
+        }
+        
+        foreach ($data['organic'] as $item) {
+            if (count($results) >= $limit) {
+                break 2;
+            }
+            $results[] = [
+                'id' => generateId('srpr_'),
+                'name' => $item['title'] ?? 'Unknown Business',
+                'url' => $item['link'] ?? '',
+                'snippet' => $item['snippet'] ?? '',
+                'displayLink' => parse_url($item['link'] ?? '', PHP_URL_HOST) ?: '',
+                'source' => 'serper',
+                'phone' => extractPhoneFromSnippet($item['snippet'] ?? ''),
+                'address' => ''
+            ];
+        }
+    }
+    
+    return $results;
+}
+
+/**
+ * Search using SerpAPI (Google Search - Fallback)
  */
 function searchSerpApi($service, $location, $platformQueries, $limit = 100) {
     $results = [];
@@ -252,14 +340,13 @@ function searchSerpApi($service, $location, $platformQueries, $limit = 100) {
     // SerpAPI often caps results at 10 per page on lower plans, so paginate in 10s.
     $resultsPerPage = 10;
     $maxPages = ceil($limit / $resultsPerPage);
-    $maxPages = min($maxPages, 50); // Increased from 20 to 50 pages for better results
+    $maxPages = min($maxPages, 50);
     
     for ($page = 0; $page < $maxPages; $page++) {
         if (count($results) >= $limit) {
             break;
         }
         
-        // SerpAPI location expects a strict canonical string; rely on query text to avoid hard errors.
         $params = [
             'api_key' => SERPAPI_KEY,
             'engine' => 'google',
@@ -284,7 +371,6 @@ function searchSerpApi($service, $location, $platformQueries, $limit = 100) {
             if (DEBUG_MODE) {
                 error_log($message . ' - ' . $response['response']);
             }
-            // If first page fails, throw a clear error; otherwise return what we have.
             if ($page === 0) {
                 throw new Exception($message);
             }
@@ -294,12 +380,12 @@ function searchSerpApi($service, $location, $platformQueries, $limit = 100) {
         $data = json_decode($response['response'], true);
         
         if (!isset($data['organic_results']) || empty($data['organic_results'])) {
-            break; // No more results
+            break;
         }
         
         foreach ($data['organic_results'] as $item) {
             if (count($results) >= $limit) {
-                break 2; // Exit both loops
+                break 2;
             }
             $results[] = [
                 'id' => generateId('serp_'),

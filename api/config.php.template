@@ -17,7 +17,12 @@ define('DB_USER', 'u497238762_bamlead');
 define('DB_PASS', 'YOUR_DATABASE_PASSWORD_HERE');
 
 // =====================================
-// SERPAPI (Required for GMB Search)
+// SERPER.DEV (Preferred - Cheaper Google Search API)
+// =====================================
+define('SERPER_API_KEY', 'YOUR_SERPER_API_KEY_HERE');
+
+// =====================================
+// SERPAPI (Fallback if Serper not configured)
 // =====================================
 define('SERPAPI_KEY', 'YOUR_SERPAPI_KEY_HERE');
 
