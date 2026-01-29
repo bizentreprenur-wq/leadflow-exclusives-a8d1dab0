@@ -1342,53 +1342,16 @@ export default function EmailSetupFlow({
           </Button>
           <Button 
             onClick={() => {
-              // Validate SMTP
-              if (!smtpConfigured) {
-                toast.error('⚙️ Please configure SMTP settings first');
-                handleTabChange('settings');
-                return;
-              }
-              // Validate template
-              if (!selectedTemplate) {
-                toast.error('📧 Please select an email template first');
-                setCurrentPhase('template');
-                return;
-              }
-              // Validate leads with valid emails
-              const validLeads = leadsWithEmail.filter(l => l.email && l.email.includes('@'));
-              if (validLeads.length === 0) {
-                toast.error('❌ No leads with valid email addresses. Please go back and add leads first.');
-                return;
-              }
-              
-              // Ensure we have body content
-              const emailBody = customizedContent?.body || selectedTemplate.body || selectedTemplate.preview || '';
-              const emailSubject = customizedContent?.subject || selectedTemplate.subject || '';
-              
-              if (!emailSubject || !emailBody) {
-                toast.error('Email subject and body are required');
-                return;
-              }
-              
-              // Store pending data and show confirmation dialog
-              setPendingSendData({ validLeads, emailSubject, emailBody });
-              setShowSendConfirmation(true);
+              // Navigate to SMTP setup phase
+              setCurrentPhase('smtp');
+              toast.success('📧 Now configure your mail server');
             }} 
-            disabled={isSending}
             className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground px-8 py-3 text-lg font-bold shadow-elevated"
             size="lg"
           >
-            {isSending ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Sending...
-              </>
-            ) : (
-              <>
-                <Send className="w-5 h-5" />
-                Send Emails Now
-              </>
-            )}
+            <Server className="w-5 h-5" />
+            Next: SMTP Setup
+            <ArrowRight className="w-5 h-5" />
           </Button>
         </div>
       </div>
