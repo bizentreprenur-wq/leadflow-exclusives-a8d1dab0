@@ -56,7 +56,7 @@ export async function checkAutopilotSubscription(): Promise<AutopilotSubscriptio
           const startDate = new Date(data.trialStartDate);
           const now = new Date();
           const diffDays = Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-          const remaining = Math.max(0, 14 - diffDays);
+          const remaining = Math.max(0, 7 - diffDays); // 7-day trial
           return {
             success: true,
             hasSubscription: remaining > 0,
@@ -101,10 +101,10 @@ export async function checkAutopilotSubscription(): Promise<AutopilotSubscriptio
  */
 export async function createAutopilotCheckout(returnUrl?: string): Promise<CheckoutResponse> {
   if (USE_MOCK_AUTH) {
-    // Demo mode - start trial directly
+    // Demo mode - start trial directly (7-day trial)
     const trialData = {
       isTrialActive: true,
-      trialDaysRemaining: 14,
+      trialDaysRemaining: 7, // 7-day trial
       trialStartDate: new Date().toISOString(),
       isPaid: false,
     };
@@ -130,7 +130,7 @@ export async function createAutopilotCheckout(returnUrl?: string): Promise<Check
 export function startAutopilotTrial(): AutopilotSubscriptionStatus {
   const trialData = {
     isTrialActive: true,
-    trialDaysRemaining: 14,
+    trialDaysRemaining: 7, // 7-day trial
     trialStartDate: new Date().toISOString(),
     isPaid: false,
   };
@@ -140,10 +140,10 @@ export function startAutopilotTrial(): AutopilotSubscriptionStatus {
     success: true,
     hasSubscription: true,
     isTrialActive: true,
-    trialDaysRemaining: 14,
+    trialDaysRemaining: 7, // 7-day trial
     isPaid: false,
     subscriptionId: 'trial_local',
-    currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    currentPeriodEnd: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     cancelAtPeriodEnd: false,
   };
 }
