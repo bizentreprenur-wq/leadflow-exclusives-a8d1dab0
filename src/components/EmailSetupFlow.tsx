@@ -515,6 +515,26 @@ export default function EmailSetupFlow({
                   }
                   toast.success(`Applied "${strategy.name}" strategy to your campaign`);
                 }}
+                onOpenCompose={(strategy) => {
+                  // Apply strategy to template
+                  setCustomizedContent({
+                    subject: strategy.subjectTemplate,
+                    body: `${strategy.openerTemplate}\n\n${strategy.ctaTemplate}`,
+                  });
+                  localStorage.setItem('bamlead_template_customizations', JSON.stringify({
+                    subject: strategy.subjectTemplate,
+                    body: `${strategy.openerTemplate}\n\n${strategy.ctaTemplate}`,
+                  }));
+                  // Save follow-up days if provided
+                  if (strategy.followUpDays) {
+                    const updatedDrip = { ...dripSettings, followUpDays: strategy.followUpDays };
+                    saveDripSettings(updatedDrip);
+                    setDripSettings(updatedDrip);
+                  }
+                  // Open the mailbox dock
+                  setMailboxOpen(true);
+                  toast.success(`"${strategy.name}" loaded into composer with follow-up sequence`);
+                }}
               />
             )}
 
@@ -1048,6 +1068,29 @@ export default function EmailSetupFlow({
                             const leadContext = getStoredLeadContext();
                             saveCampaignLeadsWithContext(leadContext);
                             toast.success(`Applied "${strategy.name}" - AI will use this for personalized outreach`);
+                          }}
+                          onOpenCompose={(strategy) => {
+                            // Apply strategy to template
+                            setCustomizedContent({
+                              subject: strategy.subjectTemplate,
+                              body: `${strategy.openerTemplate}\n\n${strategy.ctaTemplate}`,
+                            });
+                            localStorage.setItem('bamlead_template_customizations', JSON.stringify({
+                              subject: strategy.subjectTemplate,
+                              body: `${strategy.openerTemplate}\n\n${strategy.ctaTemplate}`,
+                            }));
+                            // Save follow-up days if provided
+                            if (strategy.followUpDays) {
+                              const updatedDrip = { ...dripSettings, followUpDays: strategy.followUpDays };
+                              saveDripSettings(updatedDrip);
+                              setDripSettings(updatedDrip);
+                            }
+                            // Save to campaign context for AI Autopilot
+                            const leadContext = getStoredLeadContext();
+                            saveCampaignLeadsWithContext(leadContext);
+                            // Open the mailbox dock
+                            setMailboxOpen(true);
+                            toast.success(`"${strategy.name}" loaded into composer with follow-up sequence`);
                           }}
                         />
                         
