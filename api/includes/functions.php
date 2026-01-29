@@ -742,7 +742,157 @@ function extractEmails($text) {
         $emails = array_unique($matches[0]);
     }
     
-    return $emails;
+    // Filter out invalid/spam emails
+    $filtered = [];
+    $excludePatterns = ['example.com', 'test.com', 'domain.com', 'email.com', 'sample.', 'noreply', 'no-reply', 
+                        'wixpress', 'sentry.io', 'cloudflare', 'google.com', 'facebook.com', 'twitter.com', 
+                        'instagram.com', 'linkedin.com', 'youtube.com', 'placeholder', 'yoursite', 'yourdomain',
+                        'webpack', 'localhost', 'jquery', 'bootstrap', '.png', '.jpg', '.gif', '.svg', '.css', '.js'];
+    
+    foreach ($emails as $email) {
+        $emailLower = strtolower($email);
+        $isValid = true;
+        foreach ($excludePatterns as $pattern) {
+            if (strpos($emailLower, $pattern) !== false) {
+                $isValid = false;
+                break;
+            }
+        }
+        if ($isValid && strlen($email) < 100) {
+            $filtered[] = $emailLower;
+        }
+    }
+    
+    return array_values(array_unique($filtered));
+}
+
+/**
+ * Scrape website for contact information (email, phone)
+ * Checks homepage, footer, and common contact page URLs
+ * 
+ * @param string $url Website URL
+ * @param int $timeout Request timeout in seconds
+ * @return array Contact info with emails and phones found
+ */
+function scrapeWebsiteForContacts($url, $timeout = 8) {
+    if (empty($url)) {
+        return ['emails' => [], 'phones' => [], 'hasWebsite' => false, 'pagesChecked' => []];
+    }
+    
+    // Ensure URL has protocol
+    if (!preg_match('/^https?:\/\//', $url)) {
+        $url = 'https://' . $url;
+    }
+    
+    // Parse and get base URL
+    $parsed = parse_url($url);
+    if (!$parsed || empty($parsed['host'])) {
+        return ['emails' => [], 'phones' => [], 'hasWebsite' => false, 'pagesChecked' => []];
+    }
+    
+    $scheme = $parsed['scheme'] ?? 'https';
+    $host = $parsed['host'];
+    $baseUrl = "{$scheme}://{$host}";
+    
+    $allEmails = [];
+    $allPhones = [];
+    $pagesChecked = [];
+    $hasWebsite = false;
+    
+    // Common contact page paths to check
+    $contactPaths = [
+        '',                    // Homepage
+        '/contact',
+        '/contact-us',
+        '/contact-us/',
+        '/contactus',
+        '/about',
+        '/about-us',
+        '/about/',
+        '/get-in-touch',
+        '/reach-us',
+    ];
+    
+    // Check up to 3 pages to avoid too many requests
+    $pagesLimit = 3;
+    $pagesScraped = 0;
+    
+    foreach ($contactPaths as $path) {
+        if ($pagesScraped >= $pagesLimit) {
+            break;
+        }
+        
+        // Already have email? Stop early
+        if (!empty($allEmails)) {
+            break;
+        }
+        
+        $pageUrl = $baseUrl . $path;
+        
+        // Skip if already checked
+        if (in_array($pageUrl, $pagesChecked)) {
+            continue;
+        }
+        
+        $result = curlRequest($pageUrl, [
+            CURLOPT_TIMEOUT => $timeout,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 3,
+            CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        ], $timeout);
+        
+        $pagesChecked[] = $pageUrl;
+        
+        if ($result['httpCode'] !== 200 || empty($result['response'])) {
+            continue;
+        }
+        
+        $hasWebsite = true;
+        $pagesScraped++;
+        $html = $result['response'];
+        
+        // Extract emails from page
+        $pageEmails = extractEmails($html);
+        $allEmails = array_merge($allEmails, $pageEmails);
+        
+        // Extract phones from page
+        $pagePhones = extractPhoneNumbers($html);
+        $allPhones = array_merge($allPhones, $pagePhones);
+        
+        // Also check for mailto: links specifically
+        if (preg_match_all('/mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/', $html, $mailtoMatches)) {
+            $allEmails = array_merge($allEmails, array_map('strtolower', $mailtoMatches[1]));
+        }
+        
+        // Check for tel: links
+        if (preg_match_all('/tel:([+\d\-\(\)\s\.]+)/', $html, $telMatches)) {
+            $allPhones = array_merge($allPhones, $telMatches[1]);
+        }
+        
+        // Small delay between pages
+        usleep(100000); // 100ms
+    }
+    
+    // Dedupe and clean
+    $allEmails = array_values(array_unique($allEmails));
+    $allPhones = array_values(array_unique(array_map(function($p) {
+        return preg_replace('/[^\d+]/', '', $p);
+    }, $allPhones)));
+    
+    // Filter phones - only valid US format (10+ digits)
+    $allPhones = array_filter($allPhones, function($p) {
+        $digits = preg_replace('/\D/', '', $p);
+        return strlen($digits) >= 10;
+    });
+    
+    return [
+        'emails' => array_slice($allEmails, 0, 5), // Limit to 5 emails
+        'phones' => array_slice(array_values($allPhones), 0, 3), // Limit to 3 phones
+        'hasWebsite' => $hasWebsite,
+        'pagesChecked' => $pagesChecked
+    ];
 }
 
 /**
