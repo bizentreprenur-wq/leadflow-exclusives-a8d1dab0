@@ -13,7 +13,7 @@ import {
   Smartphone, Zap, MessageSquare, TrendingUp, FileText,
   Mail, Sparkles, Eye, X, Phone, Server, Settings, ArrowRight,
   Search, Users, Send, ChevronRight, Rocket, Star, RefreshCw,
-  Shield, Clock, Award
+  Shield, Clock, Award, Edit3, Wand2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { 
@@ -29,6 +29,8 @@ interface LeadIntelligenceReviewPanelProps {
   searchType?: 'gmb' | 'platform' | null;
   onOpenSettings?: () => void;
   onOpenCompose?: (strategy: EmailStrategy) => void;
+  selectedTemplate?: { subject: string; body: string } | null;
+  onOpenTemplates?: () => void;
 }
 
 export interface EmailStrategy {
@@ -45,12 +47,12 @@ export interface EmailStrategy {
   searchTypeFilter?: 'gmb' | 'platform' | 'both';
 }
 
-// Breadcrumb step definition
+// Breadcrumb step definition - Updated to show Template first, then Strategy
 const BREADCRUMB_STEPS = [
   { id: 1, label: 'Lead Acquisition', description: 'Search & Discovery', icon: Search },
   { id: 2, label: 'Lead Analysis', description: 'AI Intelligence', icon: Brain },
-  { id: 3, label: 'Email Outreach', description: 'Template Selection', icon: Mail },
-  { id: 4, label: 'Follow-Up Strategy', description: 'Current Step', icon: Rocket },
+  { id: 3, label: 'Choose Template', description: 'Email Template', icon: Mail },
+  { id: 4, label: 'Refine Strategy', description: 'AI Follow-Up', icon: Rocket },
 ];
 
 export default function LeadIntelligenceReviewPanel({ 
@@ -58,12 +60,15 @@ export default function LeadIntelligenceReviewPanel({
   onClose,
   searchType,
   onOpenSettings,
-  onOpenCompose
+  onOpenCompose,
+  selectedTemplate,
+  onOpenTemplates
 }: LeadIntelligenceReviewPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [selectedStrategy, setSelectedStrategy] = useState<string | null>(null);
   const [smtpConfigured, setSMTPConfigured] = useState(false);
   const [intelligenceExpanded, setIntelligenceExpanded] = useState(false);
+  const [showStrategies, setShowStrategies] = useState(false);
   
   // Check SMTP configuration status
   useEffect(() => {
@@ -73,6 +78,13 @@ export default function LeadIntelligenceReviewPanel({
     };
     checkSMTP();
   }, []);
+  
+  // Show strategies section when template is selected
+  useEffect(() => {
+    if (selectedTemplate) {
+      setShowStrategies(true);
+    }
+  }, [selectedTemplate]);
   
   // Get lead analysis from Step 1/2
   const leadAnalysis = useMemo(() => getStoredLeadContext(), []);
@@ -412,6 +424,9 @@ export default function LeadIntelligenceReviewPanel({
     onOpenCompose?.(strategy);
   };
   
+  // Get current step for breadcrumb based on template selection
+  const currentStep = selectedTemplate ? 4 : 3;
+  
   return (
     <div className="space-y-6">
       {/* Breadcrumb Trail */}
@@ -422,9 +437,9 @@ export default function LeadIntelligenceReviewPanel({
               <div key={step.id} className="flex items-center gap-2 flex-shrink-0">
                 <div className={cn(
                   "flex items-center gap-2 px-3 py-2 rounded-lg transition-all",
-                  idx === BREADCRUMB_STEPS.length - 1
+                  step.id === currentStep
                     ? "bg-primary/20 border-2 border-primary text-primary"
-                    : idx < BREADCRUMB_STEPS.length - 1
+                    : step.id < currentStep
                       ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
                       : "bg-muted text-muted-foreground border border-border"
                 )}>
@@ -434,7 +449,7 @@ export default function LeadIntelligenceReviewPanel({
                     <span className="text-xs opacity-70 ml-1">• {step.label}</span>
                   </div>
                   <span className="sm:hidden text-xs font-medium">{step.id}</span>
-                  {idx < BREADCRUMB_STEPS.length - 1 && (
+                  {step.id < currentStep && (
                     <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                   )}
                 </div>
@@ -445,131 +460,276 @@ export default function LeadIntelligenceReviewPanel({
             ))}
           </div>
           <p className="text-xs text-muted-foreground mt-2">
-            You've completed lead discovery and analysis. Now choose an Email Follow-Up Strategy to launch your campaign.
+            {selectedTemplate 
+              ? "✅ Template selected! Now choose an AI Follow-Up Strategy to enhance your outreach."
+              : "Choose an email template first to continue to the follow-up strategy step."}
           </p>
         </CardContent>
       </Card>
 
-      {/* Email Follow-Up Strategies Section - PRIMARY FOCUS */}
-      <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-emerald-500/5">
+      {/* STEP A: Choose Email Template - SHOWN FIRST */}
+      <Card className={cn(
+        "border-2 transition-all",
+        selectedTemplate 
+          ? "border-emerald-500/50 bg-gradient-to-br from-emerald-500/5 to-emerald-500/10"
+          : "border-primary/50 bg-gradient-to-br from-primary/5 to-primary/10"
+      )}>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-emerald-500/20 flex items-center justify-center">
-                <Sparkles className="w-6 h-6 text-primary" />
+              <div className={cn(
+                "w-12 h-12 rounded-xl flex items-center justify-center",
+                selectedTemplate 
+                  ? "bg-emerald-500/20" 
+                  : "bg-primary/20"
+              )}>
+                {selectedTemplate ? (
+                  <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                ) : (
+                  <Mail className="w-6 h-6 text-primary" />
+                )}
               </div>
               <div>
                 <CardTitle className="text-xl flex items-center gap-2">
-                  Email Follow-Up Strategies
-                  <Badge className="bg-primary/20 text-primary border-primary/30">
-                    {filteredStrategies.length} Available
-                  </Badge>
+                  Step A: Choose Email Template
+                  {selectedTemplate && (
+                    <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                      ✓ Selected
+                    </Badge>
+                  )}
                 </CardTitle>
-                <CardDescription className="flex items-center gap-2 mt-1">
-                  <Badge variant="outline" className={cn(
-                    "text-xs",
-                    searchType === 'gmb' 
-                      ? "border-emerald-500/30 text-emerald-400" 
-                      : "border-violet-500/30 text-violet-400"
-                  )}>
-                    {searchType === 'gmb' ? '🧠 Super AI Business Search' : '🎯 Agency Lead Finder'}
-                  </Badge>
-                  <span className="text-xs">Click any strategy to open the compose window</span>
+                <CardDescription>
+                  {selectedTemplate 
+                    ? "Your template is ready. You can change it or proceed to strategies below."
+                    : "Pick an email template that matches your outreach goals"}
                 </CardDescription>
               </div>
             </div>
           </div>
         </CardHeader>
         
-        <CardContent className="space-y-4">
-          {/* Explanation Box */}
-          <div className="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                <Lightbulb className="w-5 h-5 text-amber-400" />
-              </div>
-              <div>
-                <h4 className="font-semibold text-foreground">How Email Follow-Up Strategies Work</h4>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Each strategy is a pre-configured email campaign tailored to your lead analysis. Clicking a strategy will:
-                </p>
-                <ul className="text-sm text-muted-foreground mt-2 space-y-1">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                    Open the Compose window with the template pre-loaded
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                    Setup automated follow-up sequences
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                    Target the specific lead segment for this strategy
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-          {/* Strategy Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {filteredStrategies.map((strategy) => (
-              <motion.div
-                key={strategy.id}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className={cn(
-                  "p-4 rounded-xl border-2 cursor-pointer transition-all group",
-                  selectedStrategy === strategy.id
-                    ? "border-primary bg-primary/10 shadow-lg shadow-primary/20"
-                    : "border-border bg-background hover:border-primary/50 hover:bg-primary/5"
-                )}
-                onClick={() => handleApplyStrategy(strategy)}
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xl">{strategy.emoji || '📧'}</span>
-                    <h5 className="font-semibold text-sm">{strategy.name}</h5>
-                  </div>
-                  <Badge className={cn(
-                    "text-[10px]",
-                    strategy.priority === 'hot' && "bg-red-500/20 text-red-400 border-red-500/30",
-                    strategy.priority === 'warm' && "bg-amber-500/20 text-amber-400 border-amber-500/30",
-                    strategy.priority === 'cold' && "bg-blue-500/20 text-blue-400 border-blue-500/30"
-                  )}>
-                    {strategy.targetLeads} leads
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground mb-3">{strategy.description}</p>
-                
-                <div className="space-y-2">
-                  <div className="text-xs">
-                    <span className="text-muted-foreground">Subject: </span>
-                    <span className="text-foreground italic">"{strategy.subjectTemplate}"</span>
-                  </div>
-                  {strategy.followUpDays && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Clock className="w-3 h-3" />
-                      <span>Follow-ups: Day {strategy.followUpDays.join(', ')}</span>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Hover Action */}
-                <div className={cn(
-                  "mt-3 pt-3 border-t border-border transition-all",
-                  selectedStrategy === strategy.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                )}>
-                  <Button size="sm" className="w-full gap-2 bg-primary hover:bg-primary/90">
-                    <Send className="w-3 h-3" />
-                    Use This Strategy
+        <CardContent>
+          {selectedTemplate ? (
+            <div className="space-y-4">
+              {/* Show selected template preview */}
+              <div className="p-4 rounded-xl bg-background border border-border">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Selected Template</span>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={onOpenTemplates}
+                    className="gap-2"
+                  >
+                    <Edit3 className="w-3 h-3" />
+                    Change Template
                   </Button>
                 </div>
-              </motion.div>
-            ))}
-          </div>
+                <div className="space-y-2">
+                  <div>
+                    <span className="text-xs text-muted-foreground">Subject:</span>
+                    <p className="text-sm font-medium text-foreground">{selectedTemplate.subject}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Preview:</span>
+                    <p className="text-sm text-muted-foreground line-clamp-2">{selectedTemplate.body.slice(0, 150)}...</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Arrow indicating next step */}
+              <div className="flex items-center justify-center">
+                <div className="flex items-center gap-2 text-primary">
+                  <ArrowRight className="w-5 h-5" />
+                  <span className="text-sm font-medium">Now refine with an AI Strategy below</span>
+                  <ArrowRight className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-primary/10 flex items-center justify-center">
+                <FileText className="w-8 h-8 text-primary" />
+              </div>
+              <h4 className="text-lg font-semibold text-foreground mb-2">
+                Select Your Email Template First
+              </h4>
+              <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto">
+                Choose a proven email template from our library. This will be your base message that AI strategies can enhance with smart follow-ups.
+              </p>
+              <Button 
+                size="lg" 
+                onClick={onOpenTemplates}
+                className="gap-2"
+              >
+                <FileText className="w-5 h-5" />
+                Browse Email Templates
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* STEP B: AI Follow-Up Strategies - SHOWN AFTER TEMPLATE SELECTED */}
+      <AnimatePresence>
+        {showStrategies && selectedTemplate && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            <Card className="border-2 border-violet-500/30 bg-gradient-to-br from-violet-500/5 to-purple-500/5">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500/20 to-purple-500/20 flex items-center justify-center">
+                      <Wand2 className="w-6 h-6 text-violet-400" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-xl flex items-center gap-2">
+                        Step B: AI-Recommended Follow-Up Strategies
+                        <Badge className="bg-violet-500/20 text-violet-400 border-violet-500/30">
+                          {filteredStrategies.length} Available
+                        </Badge>
+                      </CardTitle>
+                      <CardDescription className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className={cn(
+                          "text-xs",
+                          searchType === 'gmb' 
+                            ? "border-emerald-500/30 text-emerald-400" 
+                            : "border-violet-500/30 text-violet-400"
+                        )}>
+                          {searchType === 'gmb' ? '🧠 Super AI Business Search' : '🎯 Agency Lead Finder'}
+                        </Badge>
+                        <span className="text-xs">Optional: Enhance your campaign with AI</span>
+                      </CardDescription>
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              
+              <CardContent className="space-y-4">
+                {/* Detailed Explanation Box */}
+                <div className="p-4 rounded-xl bg-gradient-to-r from-violet-500/10 to-purple-500/10 border border-violet-500/30">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center flex-shrink-0">
+                      <Sparkles className="w-5 h-5 text-violet-400" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-foreground">What are AI Follow-Up Strategies?</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        These are <strong>intelligent follow-up sequences</strong> that enhance your chosen template. When you select a strategy:
+                      </p>
+                      <ul className="text-sm text-muted-foreground mt-2 space-y-1.5">
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                          <span><strong>Your template + AI strategy</strong> = Complete email sequence in the mailbox</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                          <span><strong>Automated follow-ups</strong> are pre-scheduled (Day 1, 3, 5, etc.) to keep leads engaged</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                          <span><strong>Each strategy targets a specific lead segment</strong> based on your Step 2 analysis</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                          <span><strong>The AI makes follow-ups clearer</strong> so leads understand your value proposition better</span>
+                        </li>
+                      </ul>
+                      <div className="mt-3 p-2 rounded-lg bg-background border border-border">
+                        <p className="text-xs text-muted-foreground">
+                          💡 <strong>Tip:</strong> You can edit any strategy after selecting it in the compose window. The AI provides the framework, you have full control!
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Strategy Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {filteredStrategies.map((strategy) => (
+                    <motion.div
+                      key={strategy.id}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className={cn(
+                        "p-4 rounded-xl border-2 cursor-pointer transition-all group",
+                        selectedStrategy === strategy.id
+                          ? "border-violet-500 bg-violet-500/10 shadow-lg shadow-violet-500/20"
+                          : "border-border bg-background hover:border-violet-500/50 hover:bg-violet-500/5"
+                      )}
+                      onClick={() => handleApplyStrategy(strategy)}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">{strategy.emoji || '📧'}</span>
+                          <h5 className="font-semibold text-sm">{strategy.name}</h5>
+                        </div>
+                        <Badge className={cn(
+                          "text-[10px]",
+                          strategy.priority === 'hot' && "bg-red-500/20 text-red-400 border-red-500/30",
+                          strategy.priority === 'warm' && "bg-amber-500/20 text-amber-400 border-amber-500/30",
+                          strategy.priority === 'cold' && "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                        )}>
+                          {strategy.targetLeads} leads
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-3">{strategy.description}</p>
+                      
+                      <div className="space-y-2">
+                        <div className="text-xs">
+                          <span className="text-muted-foreground">Subject: </span>
+                          <span className="text-foreground italic">"{strategy.subjectTemplate}"</span>
+                        </div>
+                        {strategy.followUpDays && (
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <Clock className="w-3 h-3" />
+                            <span>Follow-ups: Day {strategy.followUpDays.join(', ')}</span>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Hover Action */}
+                      <div className={cn(
+                        "mt-3 pt-3 border-t border-border transition-all",
+                        selectedStrategy === strategy.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                      )}>
+                        <Button size="sm" className="w-full gap-2 bg-violet-500 hover:bg-violet-600 text-white">
+                          <Send className="w-3 h-3" />
+                          Use This Strategy
+                        </Button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+
+                {/* Skip Strategy Option */}
+                <div className="flex items-center justify-center pt-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => onOpenCompose?.({
+                      id: 'custom',
+                      name: 'Custom Campaign',
+                      description: 'Use your template without AI enhancements',
+                      targetLeads: insights?.total || 0,
+                      subjectTemplate: selectedTemplate.subject,
+                      openerTemplate: selectedTemplate.body,
+                      ctaTemplate: '',
+                      priority: 'warm',
+                    })}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    Skip strategy and use template as-is →
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Lead Intelligence Report - MOVED TO BOTTOM */}
       <Card className="border border-border bg-card/50">
