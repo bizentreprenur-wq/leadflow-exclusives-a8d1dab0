@@ -106,7 +106,7 @@ export default function SettingsPanel({ initialTab = 'integrations', onBackToSte
           className="gap-2 text-emerald-400 border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-300 shadow-[0_0_10px_rgba(52,211,153,0.3)]"
         >
           <ArrowLeft className="w-4 h-4" />
-          {onBackToStep4 ? 'Back to Step 3' : 'Back to Dashboard'}
+          SMTP Setup
         </Button>
         <Button
           variant="ghost"
