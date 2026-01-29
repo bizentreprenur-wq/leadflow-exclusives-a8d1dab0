@@ -1471,7 +1471,7 @@ export default function ComposeEmailModal({
                     <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
                       {trialStatus.isExpired 
                         ? 'Your 14-day free trial has ended. Subscribe to continue using AI-powered automated outreach.'
-                        : `Let AI handle everything: Drip sequences, follow-ups, lead responses, and smart nurturing based on ${isSearchA ? ' your niche selling strategy (Option A)' : isSearchB ? ' your agency services (Option B)' : ' your lead data'}.`
+                        : `Let AI handle everything: Email Strategies, Drip sequences, follow-ups, lead responses, and smart nurturing based on ${isSearchA ? ' your niche selling strategy (Option A)' : isSearchB ? ' your agency services (Option B)' : ' your lead data'}.`
                       }
                     </p>
                     <div className="flex items-center justify-center gap-3 mb-4">
