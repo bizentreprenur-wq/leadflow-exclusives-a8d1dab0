@@ -2402,7 +2402,8 @@ export default function Dashboard() {
         <SidebarInset>
           {/* Top Header Bar */}
           <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6">
-            <SidebarTrigger className="md:hidden">
+            {/* Sidebar Toggle - Always visible on all screens */}
+            <SidebarTrigger className="shrink-0 hover:bg-muted transition-colors">
               <Menu className="w-5 h-5" />
             </SidebarTrigger>
 
