@@ -1210,7 +1210,7 @@ export default function SimpleLeadViewer({
                     <TableHead className="w-20 text-center">Score</TableHead>
                     <TableHead className="w-24">Priority</TableHead>
                     <TableHead className="w-[160px]">Business Name</TableHead>
-                    <TableHead className="w-32 text-center">Website</TableHead>
+                    <TableHead className="w-[160px] text-center">Web & Socials</TableHead>
                     <TableHead className="w-[120px]">Email</TableHead>
                     <TableHead className="w-[120px]">Phone</TableHead>
                     <TableHead className="w-24 min-w-[80px]">Timing</TableHead>
@@ -1307,26 +1307,26 @@ export default function SimpleLeadViewer({
                             </div>
                           </div>
                         </TableCell>
-                        {/* Website Column with prominent icon + Social Media icons */}
-                        <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex items-center justify-center gap-0.5">
+                        {/* Web & Socials Column - centered icons */}
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-center gap-1">
                             {lead.website ? (
                               <WebsitePreviewIcon
                                 website={lead.website}
                                 businessName={lead.name}
                                 size="md"
                                 tooltipTitle="Preview Website"
-                                triggerClassName="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-500 hover:text-emerald-400 transition-all hover:scale-110"
+                                triggerClassName="inline-flex items-center justify-center w-7 h-7 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-500 hover:text-emerald-400 transition-all hover:scale-110"
                               />
                             ) : (
-                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-500/10 text-red-400 text-[9px] font-medium">
-                                <Globe className="w-3 h-3" />
+                              <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-red-500/10 text-red-400" title="No website">
+                                <Globe className="w-3.5 h-3.5" />
                               </span>
                             )}
                             <SocialMediaLookup
                               businessName={lead.name}
                               location={lead.address}
-                              size="sm"
+                              size="md"
                             />
                           </div>
                         </TableCell>
