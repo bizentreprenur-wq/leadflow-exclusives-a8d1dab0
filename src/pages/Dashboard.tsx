@@ -1405,51 +1405,27 @@ export default function Dashboard() {
                         </div>
                       </div>
 
-                      {/* What You Get - 6 Points */}
-                      <div className="space-y-3 mb-6">
+                      {/* What You Get - 8 Key Features */}
+                      <div className="space-y-2.5 mb-6">
                         <p className="text-base font-semibold text-primary mb-3">✨ What you'll get:</p>
-                        <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg transition-all duration-200 group-hover:bg-primary/10 group-hover:translate-x-1">
-                          <div className="relative w-5 h-5 shrink-0">
-                            <CheckCircle2 className="w-5 h-5 text-primary absolute inset-0 transition-all duration-300 group-hover:opacity-0 group-hover:scale-0 group-hover:rotate-180" />
-                            <Sparkles className="w-5 h-5 text-primary absolute inset-0 transition-all duration-300 opacity-0 scale-0 rotate-180 group-hover:opacity-100 group-hover:scale-100 group-hover:rotate-0" />
+                        {[
+                          "11-category deep business intelligence",
+                          "Competitor research & market positioning",
+                          "Website health, SEO & tech stack analysis",
+                          "Buyer intent signals & opportunity scoring",
+                          "Reviews, reputation & sentiment analysis",
+                          "Social media & online presence mapping",
+                          "AI-generated outreach scripts & talking points",
+                          "Hot/Warm/Cold lead prioritization"
+                        ].map((feature, index) => (
+                          <div key={index} className={`flex items-center gap-3 p-2 -mx-2 rounded-lg transition-all duration-200 group-hover:bg-primary/10 group-hover:translate-x-1`} style={{ transitionDelay: `${index * 30}ms` }}>
+                            <div className="relative w-5 h-5 shrink-0">
+                              <CheckCircle2 className="w-5 h-5 text-primary absolute inset-0 transition-all duration-300 group-hover:opacity-0 group-hover:scale-0 group-hover:rotate-180" />
+                              <Sparkles className="w-5 h-5 text-primary absolute inset-0 transition-all duration-300 opacity-0 scale-0 rotate-180 group-hover:opacity-100 group-hover:scale-100 group-hover:rotate-0" />
+                            </div>
+                            <span className="text-foreground text-sm">{feature}</span>
                           </div>
-                          <span className="text-foreground text-base">100+ data points per business</span>
-                        </div>
-                        <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg transition-all duration-200 group-hover:bg-primary/10 group-hover:translate-x-1 delay-[50ms]">
-                          <div className="relative w-5 h-5 shrink-0">
-                            <CheckCircle2 className="w-5 h-5 text-primary absolute inset-0 transition-all duration-300 group-hover:opacity-0 group-hover:scale-0 group-hover:rotate-180" />
-                            <Sparkles className="w-5 h-5 text-primary absolute inset-0 transition-all duration-300 opacity-0 scale-0 rotate-180 group-hover:opacity-100 group-hover:scale-100 group-hover:rotate-0" />
-                          </div>
-                          <span className="text-foreground text-base">AI-powered outreach scripts</span>
-                        </div>
-                        <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg transition-all duration-200 group-hover:bg-primary/10 group-hover:translate-x-1 delay-[100ms]">
-                          <div className="relative w-5 h-5 shrink-0">
-                            <CheckCircle2 className="w-5 h-5 text-primary absolute inset-0 transition-all duration-300 group-hover:opacity-0 group-hover:scale-0 group-hover:rotate-180" />
-                            <Sparkles className="w-5 h-5 text-primary absolute inset-0 transition-all duration-300 opacity-0 scale-0 rotate-180 group-hover:opacity-100 group-hover:scale-100 group-hover:rotate-0" />
-                          </div>
-                          <span className="text-foreground text-base">Website & SEO health analysis</span>
-                        </div>
-                        <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg transition-all duration-200 group-hover:bg-primary/10 group-hover:translate-x-1 delay-[150ms]">
-                          <div className="relative w-5 h-5 shrink-0">
-                            <CheckCircle2 className="w-5 h-5 text-primary absolute inset-0 transition-all duration-300 group-hover:opacity-0 group-hover:scale-0 group-hover:rotate-180" />
-                            <Sparkles className="w-5 h-5 text-primary absolute inset-0 transition-all duration-300 opacity-0 scale-0 rotate-180 group-hover:opacity-100 group-hover:scale-100 group-hover:rotate-0" />
-                          </div>
-                          <span className="text-foreground text-base">Google reviews & rating insights</span>
-                        </div>
-                        <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg transition-all duration-200 group-hover:bg-primary/10 group-hover:translate-x-1 delay-[200ms]">
-                          <div className="relative w-5 h-5 shrink-0">
-                            <CheckCircle2 className="w-5 h-5 text-primary absolute inset-0 transition-all duration-300 group-hover:opacity-0 group-hover:scale-0 group-hover:rotate-180" />
-                            <Sparkles className="w-5 h-5 text-primary absolute inset-0 transition-all duration-300 opacity-0 scale-0 rotate-180 group-hover:opacity-100 group-hover:scale-100 group-hover:rotate-0" />
-                          </div>
-                          <span className="text-foreground text-base">Social media presence check</span>
-                        </div>
-                        <div className="flex items-center gap-3 p-2 -mx-2 rounded-lg transition-all duration-200 group-hover:bg-primary/10 group-hover:translate-x-1 delay-[250ms]">
-                          <div className="relative w-5 h-5 shrink-0">
-                            <CheckCircle2 className="w-5 h-5 text-primary absolute inset-0 transition-all duration-300 group-hover:opacity-0 group-hover:scale-0 group-hover:rotate-180" />
-                            <Sparkles className="w-5 h-5 text-primary absolute inset-0 transition-all duration-300 opacity-0 scale-0 rotate-180 group-hover:opacity-100 group-hover:scale-100 group-hover:rotate-0" />
-                          </div>
-                          <span className="text-foreground text-base">Lead scoring & priority ranking</span>
-                        </div>
+                        ))}
                       </div>
 
                       {/* Perfect For */}
