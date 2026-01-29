@@ -12,9 +12,9 @@ import {
   Phone, Calendar as CalendarIcon, Database, ArrowLeft, Home,
   CheckCircle2, ExternalLink, Clock, Users, Video, Link2,
   Sparkles, Info, AlertTriangle, Plus, Settings2, Send, Loader2, RefreshCw,
-  PlayCircle, ListOrdered, Mail, Inbox
+  PlayCircle, ListOrdered, Mail, User
 } from 'lucide-react';
-import AIResponseInbox from './AIResponseInbox';
+
 import AutoFollowUpBuilder from './AutoFollowUpBuilder';
 import CallQueueModal from './CallQueueModal';
 import type { CallOutcome } from '@/lib/api/callLogs';
@@ -503,18 +503,12 @@ export default function Step4OutreachHub({
 
       {/* Tabs Content */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-6 w-full max-w-4xl mx-auto bg-muted/50 p-1">
+        <TabsList className="grid grid-cols-5 w-full max-w-3xl mx-auto bg-muted/50 p-1">
           <TabsTrigger 
             value="overview" 
             className="gap-2 data-[state=active]:bg-violet-500 data-[state=active]:text-white transition-all"
           >
             <Sparkles className="w-4 h-4" />Overview
-          </TabsTrigger>
-          <TabsTrigger 
-            value="inbox" 
-            className="gap-2 data-[state=active]:bg-amber-500 data-[state=active]:text-white transition-all"
-          >
-            <Inbox className="w-4 h-4" />Inbox
           </TabsTrigger>
           <TabsTrigger 
             value="followups" 
@@ -639,10 +633,6 @@ export default function Step4OutreachHub({
           </div>
         </TabsContent>
 
-        {/* Inbox - AI Response Assistant */}
-        <TabsContent value="inbox" className="space-y-6">
-          <AIResponseInbox />
-        </TabsContent>
 
         {/* Follow-ups - Auto AI Follow-up Builder */}
         <TabsContent value="followups" className="space-y-6">
@@ -830,41 +820,99 @@ export default function Step4OutreachHub({
                   <Button onClick={onBack} variant="outline"><ArrowLeft className="w-4 h-4 mr-2" />Back to search</Button>
                 </div>
               ) : (
-                <ScrollArea className="h-[400px]">
-                  <div className="space-y-2">
+                <ScrollArea className="h-[500px]">
+                  <div className="space-y-3">
+                    {/* Table Header */}
+                    <div className="grid grid-cols-12 gap-4 px-4 py-2 bg-muted/50 rounded-lg text-sm font-medium text-muted-foreground">
+                      <div className="col-span-1">#</div>
+                      <div className="col-span-4">Business Name</div>
+                      <div className="col-span-3">Phone Number</div>
+                      <div className="col-span-2">Email</div>
+                      <div className="col-span-2 text-right">Actions</div>
+                    </div>
+                    
                     {callableLeads.map((lead, index) => (
                       <motion.div
                         key={lead.id || index}
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        className="flex items-center justify-between p-4 rounded-xl border border-border bg-card hover:border-green-500/50 transition-all"
+                        transition={{ delay: index * 0.03 }}
+                        className="grid grid-cols-12 gap-4 items-center p-4 rounded-xl border border-border bg-card hover:border-green-500/50 hover:bg-green-500/5 transition-all group"
                       >
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
-                            <span className="text-lg">{(lead.business_name || lead.name || 'B')[0]}</span>
-                          </div>
-                          <div>
-                            <p className="font-semibold">{lead.business_name || lead.name}</p>
-                            <p className="text-sm text-muted-foreground flex items-center gap-1"><Phone className="w-3 h-3" />{lead.phone}</p>
+                        {/* Row Number */}
+                        <div className="col-span-1">
+                          <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center text-sm font-medium text-green-600">
+                            {index + 1}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
+
+                        {/* Business Name */}
+                        <div className="col-span-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center border border-green-500/20">
+                              <User className="w-5 h-5 text-green-500" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-semibold text-foreground truncate">{lead.business_name || lead.name || 'Unknown Business'}</p>
+                              {lead.website && (
+                                <p className="text-xs text-muted-foreground truncate">{lead.website}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Phone Number - Prominent */}
+                        <div className="col-span-3">
+                          <div className="flex items-center gap-2 p-2 rounded-lg bg-green-500/10 border border-green-500/20">
+                            <Phone className="w-4 h-4 text-green-500 flex-shrink-0" />
+                            <span className="font-mono font-semibold text-green-600 dark:text-green-400">{lead.phone}</span>
+                          </div>
+                        </div>
+
+                        {/* Email */}
+                        <div className="col-span-2">
+                          {lead.email ? (
+                            <span className="text-sm text-muted-foreground truncate block" title={lead.email}>
+                              {lead.email}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground/50">No email</span>
+                          )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="col-span-2 flex items-center justify-end gap-2">
                           <Button 
                             variant="outline" 
                             size="sm" 
                             onClick={() => handleScheduleMeeting(lead)} 
                             disabled={isScheduling === (lead.id || lead.business_name || lead.name)}
-                            className="gap-1"
+                            className="gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
                           >
                             {isScheduling === (lead.id || lead.business_name || lead.name) ? (
-                              <><Loader2 className="w-3 h-3 animate-spin" />Scheduling...</>
+                              <><Loader2 className="w-3 h-3 animate-spin" /></>
                             ) : (
-                              <><CalendarIcon className="w-3 h-3" />Schedule</>
+                              <><CalendarIcon className="w-3 h-3" /></>
                             )}
                           </Button>
-                          <Button size="sm" className="bg-green-600 hover:bg-green-700 gap-1" onClick={() => toast.success(`Starting call to ${lead.business_name || lead.name}...`)}>
-                            <Phone className="w-3 h-3" />Call Now
+                          <Button 
+                            size="sm" 
+                            className="gap-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-sm" 
+                            onClick={() => {
+                              // Start call in queue modal with just this lead
+                              const queueLead = {
+                                id: lead.id || `lead-${index}`,
+                                name: lead.business_name || lead.name || 'Unknown Business',
+                                phone: lead.phone,
+                                email: lead.email,
+                                website: lead.website,
+                              };
+                              setCallQueueLeads([queueLead]);
+                              setShowCallQueue(true);
+                            }}
+                          >
+                            <Phone className="w-3 h-3" />
+                            Call
                           </Button>
                         </div>
                       </motion.div>
