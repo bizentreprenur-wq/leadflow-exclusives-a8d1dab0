@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, X, Zap, Building, Rocket, Gift, Sparkles, MessageSquare } from "lucide-react";
+import { Check, X, Zap, Building, Rocket, Gift, Sparkles, MessageSquare, Search, Mail, Brain, Globe, Users, BarChart3, Shield, Workflow, FileText, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
@@ -13,6 +13,109 @@ import { createCheckoutSession } from "@/lib/api/stripe";
 import DiscountCodeInput from "@/components/DiscountCodeInput";
 import FreeTrialBanner from "@/components/FreeTrialBanner";
 
+// Feature categories for comprehensive display
+const featureCategories = [
+  {
+    name: "Lead Discovery",
+    icon: Search,
+    features: [
+      { text: "GMB (Google Maps) Search", free: "5/day", basic: "50/day", pro: "200/day", agency: "Unlimited" },
+      { text: "Platform Search (16 platforms)", free: "3/day", basic: "50/day", pro: "200/day", agency: "Unlimited" },
+      { text: "Super AI Business Search", free: false, basic: true, pro: true, agency: true },
+      { text: "Reverse Lead Discovery", free: false, basic: false, pro: true, agency: true },
+    ],
+  },
+  {
+    name: "AI Intelligence",
+    icon: Brain,
+    features: [
+      { text: "AI Lead Verification Credits", free: "25/mo", basic: "200/mo", pro: "500/mo", agency: "2,000/mo" },
+      { text: "11-Category Business Intelligence", free: false, basic: true, pro: true, agency: true },
+      { text: "AI Lead Scoring & Classification", free: false, basic: true, pro: true, agency: true },
+      { text: "Competitor Analysis", free: false, basic: false, pro: true, agency: true },
+      { text: "Buyer Intent Detection", free: false, basic: false, pro: true, agency: true },
+      { text: "AI Sales Mentor", free: false, basic: false, pro: true, agency: true },
+    ],
+  },
+  {
+    name: "Email Outreach",
+    icon: Mail,
+    features: [
+      { text: "Email Extraction", free: false, basic: true, pro: true, agency: true },
+      { text: "AI Email Writer", free: false, basic: true, pro: true, agency: true },
+      { text: "Email Templates Library", free: false, basic: "Basic", pro: "Full", agency: "Full + Custom" },
+      { text: "Drip Campaigns & Sequences", free: false, basic: false, pro: true, agency: true },
+      { text: "A/B Testing", free: false, basic: false, pro: true, agency: true },
+      { text: "Email Deliverability Tracking", free: false, basic: false, pro: true, agency: true },
+    ],
+  },
+  {
+    name: "Website Analysis",
+    icon: Globe,
+    features: [
+      { text: "WordPress Detection", free: true, basic: true, pro: true, agency: true },
+      { text: "CMS & Tech Stack Detection", free: false, basic: true, pro: true, agency: true },
+      { text: "Website Quality Scoring", free: false, basic: false, pro: true, agency: true },
+      { text: "SEO Health Analysis", free: false, basic: false, pro: true, agency: true },
+      { text: "Mobile Responsiveness Check", free: false, basic: false, pro: true, agency: true },
+    ],
+  },
+  {
+    name: "Social & Contact Discovery",
+    icon: Users,
+    features: [
+      { text: "Social Media Lookup (5 platforms)", free: true, basic: true, pro: true, agency: true },
+      { text: "Decision-Maker Identification", free: false, basic: false, pro: true, agency: true },
+      { text: "LinkedIn Profile Finder", free: false, basic: false, pro: true, agency: true },
+      { text: "Phone Number Extraction", free: false, basic: true, pro: true, agency: true },
+    ],
+  },
+  {
+    name: "CRM & Integrations",
+    icon: Workflow,
+    features: [
+      { text: "CSV Export", free: false, basic: true, pro: true, agency: true },
+      { text: "BamLead CRM (14-day trial)", free: false, basic: true, pro: true, agency: true },
+      { text: "External CRM Integrations", free: false, basic: false, pro: true, agency: true },
+      { text: "Google Calendar Sync", free: false, basic: false, pro: true, agency: true },
+      { text: "Google Drive Export", free: false, basic: false, pro: true, agency: true },
+      { text: "API Access", free: false, basic: false, pro: false, agency: true },
+      { text: "Webhooks", free: false, basic: false, pro: false, agency: true },
+    ],
+  },
+  {
+    name: "Automation",
+    icon: Sparkles,
+    features: [
+      { text: "AI Autopilot Campaign*", free: false, basic: true, pro: true, agency: true },
+      { text: "Auto Follow-Up Sequences", free: false, basic: false, pro: true, agency: true },
+      { text: "Smart Scheduling Engine", free: false, basic: false, pro: true, agency: true },
+      { text: "Lead Response Detection", free: false, basic: false, pro: true, agency: true },
+    ],
+  },
+  {
+    name: "Analytics & Reports",
+    icon: BarChart3,
+    features: [
+      { text: "Campaign Performance Dashboard", free: false, basic: true, pro: true, agency: true },
+      { text: "Lead Intelligence Reports", free: false, basic: true, pro: true, agency: true },
+      { text: "Email Analytics", free: false, basic: "Basic", pro: "Advanced", agency: "Full" },
+      { text: "Conversion Funnel Tracking", free: false, basic: false, pro: true, agency: true },
+      { text: "White-Label Reports", free: false, basic: false, pro: false, agency: true },
+    ],
+  },
+  {
+    name: "Team & Support",
+    icon: Shield,
+    features: [
+      { text: "Team Members", free: "1", basic: "1", pro: "3", agency: "Unlimited" },
+      { text: "Support", free: "Community", basic: "Email", pro: "Priority", agency: "Dedicated Manager" },
+      { text: "Exclusive Territories", free: false, basic: false, pro: false, agency: "3 included" },
+      { text: "Custom Branding", free: false, basic: false, pro: false, agency: true },
+    ],
+  },
+];
+
 const tiers = [
   {
     id: "free",
@@ -21,17 +124,12 @@ const tiers = [
     yearlyPrice: 0,
     description: "Try it out and see real results",
     icon: Gift,
-    verificationCredits: 25,
-    features: [
-      { text: "5 GMB searches per day", included: true },
-      { text: "3 Platform searches per day", included: true },
-      { text: "25 AI verification credits/month", included: true, highlight: true },
-      { text: "Basic lead info (name, phone, website)", included: true },
-      { text: "WordPress detection", included: true },
-      { text: "Community support", included: true },
-      { text: "Email extraction", included: false },
-      { text: "Priority platform detection", included: false },
-      { text: "API access", included: false },
+    highlights: [
+      "5 GMB searches per day",
+      "3 Platform searches per day",
+      "25 AI verification credits",
+      "Social media lookup",
+      "WordPress detection",
     ],
   },
   {
@@ -41,17 +139,12 @@ const tiers = [
     yearlyPrice: 470,
     description: "Perfect for freelancers getting started",
     icon: Zap,
-    verificationCredits: 200,
-    features: [
-      { text: "50 searches per day", included: true },
-      { text: "200 AI verification credits/month", included: true, highlight: true },
-      { text: "Basic lead verification", included: true },
-      { text: "CSV export", included: true },
-      { text: "WordPress detection", included: true },
-      { text: "Email support", included: true },
-      { text: "Priority platform detection", included: false },
-      { text: "Exclusive territories", included: false },
-      { text: "API access", included: false },
+    highlights: [
+      "50 searches per day",
+      "200 AI verification credits/month",
+      "Super AI Business Intelligence",
+      "Email extraction & AI writer",
+      "CSV export & CRM trial",
     ],
   },
   {
@@ -62,17 +155,12 @@ const tiers = [
     description: "For professionals who want more leads",
     icon: Building,
     popular: true,
-    verificationCredits: 500,
-    features: [
-      { text: "200 searches per day", included: true },
-      { text: "500 AI verification credits/month", included: true, highlight: true },
-      { text: "Advanced lead verification", included: true },
-      { text: "CRM integrations", included: true },
-      { text: "All 16 platform detections", included: true },
-      { text: "Priority support", included: true },
-      { text: "Team collaboration (3 users)", included: true },
-      { text: "Website quality scoring", included: true },
-      { text: "API access", included: false },
+    highlights: [
+      "200 searches per day",
+      "500 AI verification credits/month",
+      "Full email outreach suite",
+      "CRM integrations & automation",
+      "Team collaboration (3 users)",
     ],
   },
   {
@@ -82,17 +170,12 @@ const tiers = [
     yearlyPrice: 2390,
     description: "For teams and agencies at scale",
     icon: Rocket,
-    verificationCredits: 2000,
-    features: [
-      { text: "Unlimited searches", included: true },
-      { text: "2,000 AI verification credits/month", included: true, highlight: true },
-      { text: "Full lead verification", included: true },
-      { text: "White-label exports", included: true },
-      { text: "All 16 platform detections", included: true },
-      { text: "Dedicated account manager", included: true },
-      { text: "Unlimited team members", included: true },
-      { text: "API access + webhooks", included: true },
-      { text: "Exclusive territories (3 included)", included: true },
+    highlights: [
+      "Unlimited searches",
+      "2,000 AI verification credits",
+      "API access + webhooks",
+      "White-label everything",
+      "Dedicated account manager",
     ],
   },
 ];
@@ -143,6 +226,17 @@ const Pricing = () => {
     if (monthly === 0) return 0;
     const monthlyTotal = monthly * 12;
     return Math.round(((monthlyTotal - yearly) / monthlyTotal) * 100);
+  };
+
+  // Helper to render feature values in comparison table
+  const renderFeatureValue = (value: boolean | string) => {
+    if (value === true) {
+      return <Check className="w-5 h-5 text-primary mx-auto" />;
+    }
+    if (value === false) {
+      return <X className="w-5 h-5 text-muted-foreground/40 mx-auto" />;
+    }
+    return <span className="text-foreground text-sm font-medium">{value}</span>;
   };
 
   return (
@@ -225,7 +319,7 @@ const Pricing = () => {
         </section>
 
         {/* Pricing cards */}
-        <section className="py-20 md:py-28">
+        <section className="py-12 md:py-16">
           <div className="container px-4">
             <div className="max-w-6xl mx-auto">
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -269,7 +363,7 @@ const Pricing = () => {
                             <span className="text-4xl font-bold text-foreground">${price}</span>
                             <span className="text-muted-foreground">/{isYearly ? 'year' : 'month'}</span>
                             {isYearly && savings > 0 && (
-                              <div className="mt-1 text-sm text-emerald-500">
+                              <div className="mt-1 text-sm text-primary">
                                 Save {savings}% vs monthly
                               </div>
                             )}
@@ -291,36 +385,101 @@ const Pricing = () => {
                         {loadingPlan === tier.id ? 'Loading...' : tier.id === 'free' ? 'Get Started' : 'Subscribe'}
                       </Button>
 
-                      {/* Features */}
+                      {/* Key Highlights */}
                       <div className="space-y-3 flex-1">
-                        {tier.features.map((feature, idx) => (
+                        {tier.highlights.map((highlight, idx) => (
                           <div key={idx} className="flex items-start gap-3">
-                            {feature.included ? (
-                              feature.highlight ? (
-                                <Sparkles className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
-                              ) : (
-                                <Check className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-                              )
-                            ) : (
-                              <X className="w-5 h-5 text-muted-foreground/40 flex-shrink-0 mt-0.5" />
-                            )}
-                            <span
-                              className={
-                                feature.highlight
-                                  ? "text-foreground font-medium"
-                                  : feature.included
-                                  ? "text-foreground"
-                                  : "text-muted-foreground/60"
-                              }
-                            >
-                              {feature.text}
-                            </span>
+                            <Check className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                            <span className="text-foreground text-sm">{highlight}</span>
                           </div>
                         ))}
                       </div>
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Full Feature Comparison Table */}
+        <section className="py-16 md:py-24 bg-secondary/30">
+          <div className="container px-4">
+            <div className="max-w-6xl mx-auto">
+              <div className="text-center mb-12">
+                <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">
+                  Everything Included in Bamlead
+                </h2>
+                <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+                  Compare all features across plans. Bamlead is a complete lead generation platform with 50+ features.
+                </p>
+              </div>
+
+              {/* Feature Categories */}
+              <div className="space-y-8">
+                {featureCategories.map((category) => (
+                  <div key={category.name} className="rounded-2xl border border-border bg-card overflow-hidden">
+                    {/* Category Header */}
+                    <div className="flex items-center gap-3 p-4 bg-secondary/50 border-b border-border">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <category.icon className="w-5 h-5 text-primary" />
+                      </div>
+                      <h3 className="font-display text-lg font-semibold text-foreground">
+                        {category.name}
+                      </h3>
+                    </div>
+
+                    {/* Feature Table */}
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-border">
+                            <th className="text-left p-4 text-muted-foreground font-medium min-w-[200px]">Feature</th>
+                            <th className="text-center p-4 text-muted-foreground font-medium w-24">Free</th>
+                            <th className="text-center p-4 text-muted-foreground font-medium w-24">Basic</th>
+                            <th className="text-center p-4 text-primary font-medium w-24 bg-primary/5">Pro</th>
+                            <th className="text-center p-4 text-muted-foreground font-medium w-24">Agency</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {category.features.map((feature, idx) => (
+                            <tr key={idx} className="border-b border-border/50 last:border-0">
+                              <td className="p-4 text-foreground text-sm">{feature.text}</td>
+                              <td className="p-4 text-center">
+                                {renderFeatureValue(feature.free)}
+                              </td>
+                              <td className="p-4 text-center">
+                                {renderFeatureValue(feature.basic)}
+                              </td>
+                              <td className="p-4 text-center bg-primary/5">
+                                {renderFeatureValue(feature.pro)}
+                              </td>
+                              <td className="p-4 text-center">
+                                {renderFeatureValue(feature.agency)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add-on Note */}
+              <div className="mt-8 p-6 rounded-2xl border border-primary/20 bg-primary/5">
+                <div className="flex items-start gap-4">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Sparkles className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-foreground mb-1">* AI Autopilot Campaign</h4>
+                    <p className="text-muted-foreground text-sm">
+                      Available as an add-on for $39/month with a 14-day free trial. Includes automated lead discovery, 
+                      AI-powered outreach sequences, and intelligent follow-ups. All paid plans have access to this premium feature.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
