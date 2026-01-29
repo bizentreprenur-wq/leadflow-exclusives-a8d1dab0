@@ -491,6 +491,41 @@ export default function EmailSetupFlow({
               </div>
             </div>
 
+            {/* EMAIL TEMPLATES - NOW AT THE TOP */}
+            <div className="space-y-4" data-template-gallery>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-bold text-lg">
+                    {selectedTemplate ? 'Or Choose a Different Template' : '📧 Step A: Browse Email Templates'}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedTemplate
+                      ? 'Browse our library of high-converting templates' 
+                      : 'Pick a template that matches your outreach style. This is your base message for the campaign.'}
+                  </p>
+                </div>
+              </div>
+
+              {!selectedTemplate && (
+                <div className="bg-gradient-to-r from-primary/20 to-emerald-500/10 border-2 border-primary/50 rounded-xl p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-primary/30 flex items-center justify-center">
+                      <ArrowRight className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-primary text-lg">👆 Click "READY TO SEND" on any template below</h3>
+                      <p className="text-sm text-muted-foreground">After selecting, you can optionally enhance with an AI Follow-Up Strategy</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <HighConvertingTemplateGallery 
+                onSelectTemplate={handleTemplateSelect}
+                selectedTemplateId={selectedTemplate?.id}
+              />
+            </div>
+
             {/* Lead Intelligence Review Panel - Shows Step 1 findings + Template & Strategy Selection */}
             {showIntelligencePanel && (
               <LeadIntelligenceReviewPanel
@@ -650,40 +685,6 @@ export default function EmailSetupFlow({
                 selectedTemplateId={selectedTemplate?.id}
               />
             )}
-
-            <div className="space-y-4" data-template-gallery>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-lg">
-                    {selectedTemplate ? 'Or Choose a Different Template' : '📧 Step A: Browse Email Templates'}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedTemplate
-                      ? 'Browse our library of high-converting templates' 
-                      : 'Pick a template that matches your outreach style. This is your base message for the campaign.'}
-                  </p>
-                </div>
-              </div>
-
-              {!selectedTemplate && (
-                <div className="bg-gradient-to-r from-primary/20 to-emerald-500/10 border-2 border-primary/50 rounded-xl p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-primary/30 flex items-center justify-center">
-                      <ArrowRight className="w-6 h-6 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-primary text-lg">👆 Click "READY TO SEND" on any template below</h3>
-                      <p className="text-sm text-muted-foreground">After selecting, you can optionally enhance with an AI Follow-Up Strategy</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <HighConvertingTemplateGallery 
-                onSelectTemplate={handleTemplateSelect}
-                selectedTemplateId={selectedTemplate?.id}
-              />
-            </div>
           </div>
         );
 
