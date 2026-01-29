@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Building2, Globe, X, ArrowRight, CheckCircle2, 
-  Brain, Users, Palette, TrendingUp, Search, Database
+  X, ArrowRight, ArrowLeft, CheckCircle2, 
+  Brain, Users, Palette, Search, Database
 } from "lucide-react";
 
 interface SearchTypeOnboardingProps {
@@ -13,14 +13,12 @@ interface SearchTypeOnboardingProps {
 const SearchTypeOnboarding = ({ onClose }: SearchTypeOnboardingProps) => {
   const [selectedView, setSelectedView] = useState<"overview" | "optionA" | "optionB">("overview");
 
-  // Track view count in localStorage
-  useEffect(() => {
-    const viewCount = parseInt(localStorage.getItem('bamlead_search_onboarding_views') || '0', 10);
-    localStorage.setItem('bamlead_search_onboarding_views', String(viewCount + 1));
-  }, []);
-
   const handleClose = () => {
     onClose();
+  };
+
+  const handleBackToOverview = () => {
+    setSelectedView("overview");
   };
 
   const optionAFeatures = [
@@ -176,12 +174,15 @@ const SearchTypeOnboarding = ({ onClose }: SearchTypeOnboardingProps) => {
           {/* Option A Detail View */}
           {selectedView === "optionA" && (
             <div className="space-y-6">
-              <button 
-                onClick={() => setSelectedView("overview")}
-                className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
+              <Button 
+                variant="ghost"
+                size="sm"
+                onClick={handleBackToOverview}
+                className="text-muted-foreground hover:text-foreground"
               >
-                ← Back to overview
-              </button>
+                <ArrowLeft className="w-4 h-4 mr-1" />
+                Back to overview
+              </Button>
 
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
@@ -234,12 +235,15 @@ const SearchTypeOnboarding = ({ onClose }: SearchTypeOnboardingProps) => {
           {/* Option B Detail View */}
           {selectedView === "optionB" && (
             <div className="space-y-6">
-              <button 
-                onClick={() => setSelectedView("overview")}
-                className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
+              <Button 
+                variant="ghost"
+                size="sm"
+                onClick={handleBackToOverview}
+                className="text-muted-foreground hover:text-foreground"
               >
-                ← Back to overview
-              </button>
+                <ArrowLeft className="w-4 h-4 mr-1" />
+                Back to overview
+              </Button>
 
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-violet-500/10 flex items-center justify-center">
@@ -304,15 +308,21 @@ const SearchTypeOnboarding = ({ onClose }: SearchTypeOnboardingProps) => {
   );
 };
 
-// Helper function to check if onboarding should show
+// Helper function to check if onboarding should show (first 2 logins)
 export const shouldShowSearchOnboarding = (): boolean => {
-  const viewCount = parseInt(localStorage.getItem('bamlead_search_onboarding_views') || '0', 10);
-  return viewCount < 2;
+  const loginCount = parseInt(localStorage.getItem('bamlead_login_count') || '0', 10);
+  return loginCount <= 2;
+};
+
+// Call this when user logs in to track login count
+export const trackLoginForOnboarding = () => {
+  const loginCount = parseInt(localStorage.getItem('bamlead_login_count') || '0', 10);
+  localStorage.setItem('bamlead_login_count', String(loginCount + 1));
 };
 
 // Helper to reset (for testing or accessing again)
 export const resetSearchOnboarding = () => {
-  localStorage.removeItem('bamlead_search_onboarding_views');
+  localStorage.removeItem('bamlead_login_count');
 };
 
 export default SearchTypeOnboarding;

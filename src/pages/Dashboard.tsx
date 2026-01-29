@@ -77,7 +77,7 @@ import { VideoTutorialSection } from '@/components/VideoTutorialSection';
 import AIProcessingPipeline from '@/components/AIProcessingPipeline';
 import StreamingLeadsIndicator from '@/components/StreamingLeadsIndicator';
 import WorkflowOnboardingTour, { startWorkflowTour } from '@/components/WorkflowOnboardingTour';
-import SearchTypeOnboarding, { shouldShowSearchOnboarding } from '@/components/SearchTypeOnboarding';
+import SearchTypeOnboarding, { shouldShowSearchOnboarding, trackLoginForOnboarding } from '@/components/SearchTypeOnboarding';
 
 interface SearchResult {
   id: string;
@@ -250,7 +250,14 @@ export default function Dashboard() {
   const [isCheckingPayment, setIsCheckingPayment] = useState(false);
 
   // Search Type Onboarding modal - shows first 2 logins
-  const [showSearchOnboarding, setShowSearchOnboarding] = useState(() => shouldShowSearchOnboarding());
+  const [showSearchOnboarding, setShowSearchOnboarding] = useState(() => {
+    const shouldShow = shouldShowSearchOnboarding();
+    if (shouldShow) {
+      // Track this login for the onboarding display logic
+      trackLoginForOnboarding();
+    }
+    return shouldShow;
+  });
 
   // Persist workflow state to localStorage (not sessionStorage) so leads survive logout/login cycles
   // Users must explicitly click "Clear All Data" to remove their leads
