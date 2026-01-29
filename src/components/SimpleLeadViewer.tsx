@@ -1179,7 +1179,8 @@ export default function SimpleLeadViewer({
                     <TableHead className="w-12">#</TableHead>
                     <TableHead className="w-20 text-center">Score</TableHead>
                     <TableHead className="w-24">Priority</TableHead>
-                    <TableHead className="min-w-[280px]">Business Name & Socials</TableHead>
+                    <TableHead className="min-w-[180px]">Business Name</TableHead>
+                    <TableHead className="w-[140px]">Socials</TableHead>
                     <TableHead className="w-[120px]">Email</TableHead>
                     <TableHead className="w-[120px]">Phone</TableHead>
                     <TableHead className="w-24 min-w-[80px]">Timing</TableHead>
@@ -1268,33 +1269,32 @@ export default function SimpleLeadViewer({
                         <TableCell>
                           {getClassBadge(lead.aiClassification)}
                         </TableCell>
-                        <TableCell className="min-w-[280px]">
-                          <div className="flex items-center gap-6 min-w-0">
-                            <div className="min-w-0 flex-shrink-0 max-w-[160px]">
-                              <p className="font-medium truncate">{lead.name}</p>
-                              {getSourceBadges(lead.sources)}
-                            </div>
-                            {/* Web & Socials - 7 spaces (gap-6 ≈ 1.5rem) after business name */}
-                            <div className="flex items-center gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-                              {lead.website ? (
-                                <WebsitePreviewIcon
-                                  website={lead.website}
-                                  businessName={lead.name}
-                                  size="md"
-                                  tooltipTitle="Preview Website"
-                                  triggerClassName="inline-flex items-center justify-center w-7 h-7 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-500 hover:text-emerald-400 transition-all hover:scale-110"
-                                />
-                              ) : (
-                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-red-500/10 text-red-400" title="No website">
-                                  <Globe className="w-3.5 h-3.5" />
-                                </span>
-                              )}
-                              <SocialMediaLookup
+                        <TableCell className="min-w-[180px]">
+                          <div className="min-w-0">
+                            <p className="font-medium truncate max-w-[160px]" title={lead.name}>{lead.name}</p>
+                            {getSourceBadges(lead.sources)}
+                          </div>
+                        </TableCell>
+                        <TableCell className="w-[140px]" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center gap-1">
+                            {lead.website ? (
+                              <WebsitePreviewIcon
+                                website={lead.website}
                                 businessName={lead.name}
-                                location={lead.address}
                                 size="md"
+                                tooltipTitle="Preview Website"
+                                triggerClassName="inline-flex items-center justify-center w-7 h-7 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-500 hover:text-emerald-400 transition-all hover:scale-110"
                               />
-                            </div>
+                            ) : (
+                              <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-muted/50 text-muted-foreground/50" title="No website">
+                                <Globe className="w-3.5 h-3.5" />
+                              </span>
+                            )}
+                            <SocialMediaLookup
+                              businessName={lead.name}
+                              location={lead.address}
+                              size="md"
+                            />
                           </div>
                         </TableCell>
                         <TableCell>
