@@ -399,6 +399,18 @@ export default function EmailSetupFlow({
       case 'smtp':
         return (
           <div className="space-y-6">
+            {/* Back button at top */}
+            <div className="flex items-center justify-between">
+              <Button 
+                variant="ghost" 
+                onClick={() => setCurrentPhase('template')} 
+                className="gap-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Back to Templates
+              </Button>
+            </div>
+
             <div className="text-center py-6">
               <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
                 <Server className="w-10 h-10 text-primary" />
@@ -422,7 +434,7 @@ export default function EmailSetupFlow({
                     </h3>
                     <p className="text-sm text-muted-foreground">
                       {smtpConfigured 
-                        ? 'Your email server is ready. You can proceed to choose a template.'
+                        ? 'Your email server is ready. You can proceed to send emails.'
                         : 'Click the button to go to Settings and set up your email server.'
                       }
                     </p>
@@ -454,12 +466,6 @@ export default function EmailSetupFlow({
                   <p className="text-muted-foreground">
                     Configure SMTP when you're ready to send emails.
                   </p>
-                </div>
-                <div className="flex gap-3 justify-center">
-                  <Button onClick={() => setCurrentPhase('template')} variant="outline" size="lg" className="gap-2">
-                    <ArrowLeft className="w-5 h-5" />
-                    Back to Templates
-                  </Button>
                 </div>
               </div>
             )}
