@@ -373,79 +373,102 @@ async function searchGMBStreaming(
               continue;
             }
             if (line.startsWith('data:')) {
-              try {
-                const payload = line.slice(5).trim();
-                if (!payload) {
-                  currentEvent = null;
-                  continue;
-                }
-                const data = JSON.parse(payload);
-                receivedAnyEvent = true;
-                const eventType = currentEvent || (data.leads ? 'results' : data.error ? 'error' : '');
-                
-                // Handle different event types
-                if (eventType === 'results' || data.leads) {
-                  // New batch of leads arrived
-                  for (const lead of data.leads) {
-                    if (isMockLeadId(lead?.id)) {
-                      throw new Error(
-                        'Backend returned mock/demo GMB leads. This is disabled: deploy the updated /api endpoints and ensure SERPAPI_KEY is configured.'
-                      );
-                    }
-                    allResults.push({
-                      id: lead.id,
-                      name: lead.name,
-                      url: lead.url,
-                      snippet: lead.snippet,
-                      displayLink: lead.displayLink,
-                      phone: lead.phone,
-                      address: lead.address,
-                      rating: lead.rating,
-                      reviewCount: lead.reviews,
-                      websiteAnalysis: lead.websiteAnalysis || {
-                        hasWebsite: !!lead.url,
-                        platform: null,
-                        needsUpgrade: !lead.url,
-                        issues: lead.url ? [] : ['No website found'],
-                        mobileScore: null
-                      }
-                    });
-                  }
-                  
-                  // Call progress callback with accumulated results
-                  if (onProgress) {
-                    onProgress([...allResults], data.progress || 0);
-                  }
-                  
-                  console.log(`[GMB API] Stream: ${allResults.length} leads, ${data.progress}%`);
-                } else if (eventType === 'complete') {
-                  receivedComplete = true;
-                  if (onProgress) {
-                    onProgress([...allResults], 100);
-                  }
-                  try {
-                    await reader.cancel();
-                  } catch {
-                    // Ignore cancel errors; stream is already done.
-                  }
-                  clearTimeout(timeoutId);
-                  clearTimeout(initialTimeoutId);
-                  finish({
-                    success: true,
-                    data: allResults,
-                    query: { service, location }
-                  });
-                  return;
-                } else if (eventType === 'error' || data.error) {
-                  throw new Error(data.error);
-                }
+              const payload = line.slice(5).trim();
+              if (!payload) {
                 currentEvent = null;
+                continue;
+              }
+
+              let data: any;
+              try {
+                data = JSON.parse(payload);
               } catch (parseError) {
                 // Ignore JSON parse errors for partial data
                 if (line.includes('"error"')) {
                   console.error('[GMB API] SSE parse error:', parseError);
                 }
+                continue;
               }
+
+              receivedAnyEvent = true;
+              const eventType = currentEvent || (data.leads ? 'results' : data.error ? 'error' : '');
+
+              if (eventType === 'error' || data.error) {
+                clearTimeout(timeoutId);
+                clearTimeout(initialTimeoutId);
+                const message = data.error || 'Search failed.';
+                try {
+                  await reader.cancel();
+                } catch {
+                  // ignore cancel errors
+                }
+                fail(new Error(message));
+                return;
+              }
+
+              // Handle different event types
+              if (eventType === 'results' || data.leads) {
+                // New batch of leads arrived
+                for (const lead of data.leads) {
+                  if (isMockLeadId(lead?.id)) {
+                    clearTimeout(timeoutId);
+                    clearTimeout(initialTimeoutId);
+                    try {
+                      await reader.cancel();
+                    } catch {
+                      // ignore cancel errors
+                    }
+                    fail(new Error(
+                      'Backend returned mock/demo GMB leads. This is disabled: deploy the updated /api endpoints and ensure SERPAPI_KEY is configured.'
+                    ));
+                    return;
+                  }
+                  allResults.push({
+                    id: lead.id,
+                    name: lead.name,
+                    url: lead.url,
+                    snippet: lead.snippet,
+                    displayLink: lead.displayLink,
+                    phone: lead.phone,
+                    address: lead.address,
+                    rating: lead.rating,
+                    reviewCount: lead.reviews,
+                    websiteAnalysis: lead.websiteAnalysis || {
+                      hasWebsite: !!lead.url,
+                      platform: null,
+                      needsUpgrade: !lead.url,
+                      issues: lead.url ? [] : ['No website found'],
+                      mobileScore: null
+                    }
+                  });
+                }
+                
+                // Call progress callback with accumulated results
+                if (onProgress) {
+                  onProgress([...allResults], data.progress || 0);
+                }
+                
+                console.log(`[GMB API] Stream: ${allResults.length} leads, ${data.progress}%`);
+              } else if (eventType === 'complete') {
+                receivedComplete = true;
+                if (onProgress) {
+                  onProgress([...allResults], 100);
+                }
+                try {
+                  await reader.cancel();
+                } catch {
+                  // Ignore cancel errors; stream is already done.
+                }
+                clearTimeout(timeoutId);
+                clearTimeout(initialTimeoutId);
+                finish({
+                  success: true,
+                  data: allResults,
+                  query: { service, location }
+                });
+                return;
+              }
+              currentEvent = null;
             }
           }
         }

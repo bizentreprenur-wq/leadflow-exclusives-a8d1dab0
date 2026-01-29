@@ -233,10 +233,29 @@ function searchSingleEngineNonStream($apiKey, $engine, $query, $resultsKey, $lim
         $response = curlRequest($url);
         
         if ($response['httpCode'] !== 200) {
-            break;
+            $errorMessage = "SerpAPI error (HTTP {$response['httpCode']})";
+            $decoded = json_decode($response['response'] ?? '', true);
+            if (is_array($decoded)) {
+                $apiError = $decoded['error'] ?? ($decoded['search_metadata']['status'] ?? null);
+                if (!empty($apiError)) {
+                    $errorMessage = "SerpAPI error: {$apiError}";
+                }
+            }
+            throw new Exception($errorMessage);
         }
         
         $data = json_decode($response['response'], true);
+        if (is_array($data)) {
+            $apiError = $data['error'] ?? null;
+            $status = $data['search_metadata']['status'] ?? null;
+            if (!empty($apiError)) {
+                throw new Exception("SerpAPI error: {$apiError}");
+            }
+            if (!empty($status) && strtolower($status) === 'error') {
+                $errorMessage = $data['search_metadata']['error'] ?? $status;
+                throw new Exception("SerpAPI error: {$errorMessage}");
+            }
+        }
         $items = $data[$resultsKey] ?? [];
         
         if (empty($items)) {
