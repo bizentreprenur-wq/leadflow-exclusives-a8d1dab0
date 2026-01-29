@@ -31,7 +31,8 @@ import PriorityTemplateSelector from './PriorityTemplateSelector';
 import EmailSequenceSelector from './EmailSequenceSelector';
 import AISequenceRecommendationEngine from './AISequenceRecommendationEngine';
 import AIIntelligenceDecisionPanel from './AIIntelligenceDecisionPanel';
-import { isSMTPConfigured, sendSingleEmail, personalizeContent } from '@/lib/emailService';
+import { isSMTPConfigured, sendSingleEmail, personalizeContent, getSMTPConfig } from '@/lib/emailService';
+import SMTPStatusIndicator from './SMTPStatusIndicator';
 import { sendEmail as apiSendEmail } from '@/lib/api/email';
 import { EmailSequence, EmailStep } from '@/lib/emailSequences';
 import { 
@@ -567,7 +568,17 @@ export default function ComposeEmailModal({
         </div>
 
         {/* MODE SELECTOR - 3 OPTIONS */}
-        <div className="p-4 border-b border-border">
+        <div className="p-4 border-b border-border space-y-4">
+          {/* SMTP Status Indicator - Shows which email account will be used */}
+          <SMTPStatusIndicator 
+            showConfigureButton={true}
+            onConfigure={() => {
+              // Navigate to SMTP setup
+              onClose();
+              sessionStorage.setItem('bamlead_navigate_to', 'smtp-setup');
+              window.dispatchEvent(new CustomEvent('bamlead-navigate', { detail: { target: 'smtp-setup' } }));
+            }}
+          />
           <div className="grid grid-cols-3 gap-3">
             {/* Mode 1: Regular Email */}
             <button
