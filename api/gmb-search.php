@@ -353,7 +353,7 @@ function searchSerpApiEngines($service, $location, $limit, $filters, $filtersAct
                 }
             }
             
-            usleep(200000); // 200ms between engines
+            usleep(50000); // 50ms between engines (reduced from 200ms)
         }
     }
     
@@ -368,7 +368,7 @@ function searchSingleEngineNonStream($apiKey, $engine, $query, $resultsKey, $lim
     $resultsPerPage = 20;
     $maxPages = ceil($limit / $resultsPerPage);
     $maxPages = min($maxPages, 10);
-    $throttleUs = defined('SERPAPI_THROTTLE_US') ? max(0, (int)SERPAPI_THROTTLE_US) : 100000;
+    $throttleUs = defined('SERPAPI_THROTTLE_US') ? max(0, (int)SERPAPI_THROTTLE_US) : 50000; // Reduced from 100ms to 50ms
     
     for ($page = 0; $page < $maxPages; $page++) {
         if (count($results) >= $limit) {
