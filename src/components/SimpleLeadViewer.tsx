@@ -992,29 +992,6 @@ export default function SimpleLeadViewer({
         <Sparkles className="w-4 h-4 text-amber-500" />
       </div>
 
-      {/* Phone Only Stats Banner - only show when phone-only leads exist */}
-      {groupedCounts.phoneOnly > 0 && (
-        <div className="flex items-center justify-between py-3 px-4 rounded-lg bg-green-500/10 border border-green-500/30">
-          <div className="flex items-center gap-3">
-            <Phone className="w-5 h-5 text-green-500" />
-            <div>
-              <span className="text-green-400 font-semibold">{groupedCounts.phoneOnly} leads</span>
-              <span className="text-green-300/80 ml-2">have phone numbers but no email — perfect for direct calling!</span>
-            </div>
-          </div>
-          <Button 
-            size="sm" 
-            className="gap-2 bg-green-600 hover:bg-green-700"
-            onClick={() => {
-              setActiveFilter('phoneOnly');
-              toast.success(`Showing ${groupedCounts.phoneOnly} phone-only leads`);
-            }}
-          >
-            <Phone className="w-4 h-4" />
-            View Phone-Only Leads
-          </Button>
-        </div>
-      )}
 
       {/* Filters & Search Row */}
       <div className="flex flex-wrap items-center gap-2">
@@ -1024,8 +1001,6 @@ export default function SimpleLeadViewer({
           { key: 'warm', label: 'Warm', icon: Thermometer, count: groupedCounts.warm, color: 'text-orange-500', activeColor: 'bg-orange-500 hover:bg-orange-600' },
           { key: 'cold', label: 'Cold', icon: Snowflake, count: groupedCounts.cold, color: 'text-blue-500', activeColor: 'bg-blue-500 hover:bg-blue-600' },
           { key: 'withEmail', label: 'Has Email', icon: Mail, count: groupedCounts.withEmail, color: 'text-cyan-500', activeColor: 'bg-cyan-500 hover:bg-cyan-600' },
-          { key: 'phoneOnly', label: 'Phone Only', icon: Phone, count: groupedCounts.phoneOnly, color: 'text-green-500', activeColor: 'bg-green-500 hover:bg-green-600' },
-          { key: 'ready', label: 'Ready', icon: Phone, count: groupedCounts.ready, color: 'text-emerald-500', activeColor: 'bg-emerald-500 hover:bg-emerald-600' },
           { key: 'nosite', label: 'No Site', icon: Globe, count: groupedCounts.nosite, color: 'text-purple-500', activeColor: 'bg-purple-500 hover:bg-purple-600' },
         ].map((filter) => (
           <Button
