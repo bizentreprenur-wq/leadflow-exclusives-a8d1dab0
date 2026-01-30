@@ -33,12 +33,42 @@ export default function AIAutopilotCampaignPromo() {
           </p>
         </motion.div>
 
+        {/* Wizard Step Indicator */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.1 }}
+          className="mb-6"
+        >
+          <div className="flex items-center justify-center gap-2 md:gap-4 bg-card/80 backdrop-blur-sm rounded-full p-2 max-w-2xl mx-auto border border-border">
+            {[
+              { step: 1, label: 'Leads', icon: Target, active: true },
+              { step: 2, label: 'Template', icon: Mail, active: false },
+              { step: 3, label: 'Sequence', icon: Zap, active: false },
+              { step: 4, label: 'Launch', icon: Rocket, active: false },
+            ].map((item, index) => (
+              <div 
+                key={item.step}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
+                  item.active 
+                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold' 
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <item.icon className="w-4 h-4" />
+                <span className="text-sm">{item.step}. {item.label}</span>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+
         {/* Main Feature Card */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ delay: 0.1 }}
+          transition={{ delay: 0.2 }}
         >
           <Card className="relative overflow-hidden border-2 border-amber-500/30 bg-gradient-to-br from-amber-500/5 via-background to-orange-500/5">
             {/* Background Pattern */}
