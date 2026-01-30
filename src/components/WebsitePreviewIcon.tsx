@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ExternalLink, Globe, Maximize2, Minimize2 } from 'lucide-react';
+import { ExternalLink, Globe, Maximize2, Minimize2, Facebook, Instagram, Youtube, Linkedin, AlertCircle } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -29,6 +29,53 @@ interface WebsitePreviewIconProps {
   tooltipTitle?: string;
 }
 
+// Social media domains that block iframe embedding
+const SOCIAL_MEDIA_DOMAINS = [
+  'facebook.com', 'fb.com', 'fb.me',
+  'instagram.com', 'instagr.am',
+  'tiktok.com',
+  'twitter.com', 'x.com',
+  'linkedin.com',
+  'youtube.com', 'youtu.be',
+  'pinterest.com',
+  'snapchat.com',
+  'reddit.com',
+  'tumblr.com',
+  'whatsapp.com',
+  'telegram.org', 't.me',
+];
+
+const getSocialPlatformInfo = (url: string): { name: string; icon: React.ElementType; color: string } | null => {
+  const domain = url.toLowerCase();
+  if (domain.includes('facebook.com') || domain.includes('fb.com') || domain.includes('fb.me')) {
+    return { name: 'Facebook', icon: Facebook, color: 'bg-blue-600' };
+  }
+  if (domain.includes('instagram.com') || domain.includes('instagr.am')) {
+    return { name: 'Instagram', icon: Instagram, color: 'bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400' };
+  }
+  if (domain.includes('tiktok.com')) {
+    return { name: 'TikTok', icon: () => <span className="text-2xl">🎵</span>, color: 'bg-black' };
+  }
+  if (domain.includes('twitter.com') || domain.includes('x.com')) {
+    return { name: 'X (Twitter)', icon: () => <span className="text-2xl font-bold">𝕏</span>, color: 'bg-black' };
+  }
+  if (domain.includes('linkedin.com')) {
+    return { name: 'LinkedIn', icon: Linkedin, color: 'bg-blue-700' };
+  }
+  if (domain.includes('youtube.com') || domain.includes('youtu.be')) {
+    return { name: 'YouTube', icon: Youtube, color: 'bg-red-600' };
+  }
+  if (domain.includes('pinterest.com')) {
+    return { name: 'Pinterest', icon: () => <span className="text-2xl">📌</span>, color: 'bg-red-700' };
+  }
+  return null;
+};
+
+const isSocialMediaUrl = (url: string): boolean => {
+  const domain = url.toLowerCase();
+  return SOCIAL_MEDIA_DOMAINS.some(social => domain.includes(social));
+};
+
 export default function WebsitePreviewIcon({
   website,
   businessName = 'Business',
@@ -54,10 +101,16 @@ export default function WebsitePreviewIcon({
   };
 
   const normalizedUrl = useMemo(() => (website ? getHomepageUrl(website) : ''), [website]);
+  const fullUrl = useMemo(() => {
+    if (!website) return '';
+    return website.startsWith('http') ? website : `https://${website}`;
+  }, [website]);
   const displayUrl = useMemo(
     () => (website ? website.replace(/^https?:\/\//, '').split('/')[0] : ''),
     [website],
   );
+  const isSocial = useMemo(() => website ? isSocialMediaUrl(website) : false, [website]);
+  const socialInfo = useMemo(() => website ? getSocialPlatformInfo(website) : null, [website]);
 
   const sizeClasses = {
     sm: 'w-3.5 h-3.5',
@@ -145,7 +198,28 @@ export default function WebsitePreviewIcon({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="h-full w-full border-t border-border bg-muted/20">
+          {isSocial && socialInfo ? (
+            /* Social media - show branded card with direct link */
+            <div className="h-full w-full flex flex-col items-center justify-center p-8 bg-muted/30">
+              <div className={cn("w-32 h-32 rounded-2xl flex items-center justify-center text-white mb-6", socialInfo.color)}>
+                <socialInfo.icon className="w-16 h-16" />
+              </div>
+              <div className="flex items-center gap-2 mb-4 text-amber-600">
+                <AlertCircle className="w-5 h-5" />
+                <span className="font-medium">Social media sites cannot be previewed in-app</span>
+              </div>
+              <p className="text-muted-foreground text-center mb-6 max-w-md">
+                {socialInfo.name} blocks embedded previews for security. Click below to view {businessName}'s {socialInfo.name} page directly.
+              </p>
+              <Button asChild size="lg" className="gap-2">
+                <a href={fullUrl} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="w-5 h-5" />
+                  Open {socialInfo.name} Page
+                </a>
+              </Button>
+            </div>
+          ) : (
+            /* Regular website - show iframe */
             <iframe
               title={`${businessName} website preview`}
               src={normalizedUrl}
@@ -153,10 +227,13 @@ export default function WebsitePreviewIcon({
               loading="lazy"
               referrerPolicy="no-referrer"
             />
-          </div>
+          )}
 
           <div className="p-3 border-t border-border text-xs text-muted-foreground">
-            If the preview is blank, the site blocks in-app previews—use "Open" to view it in a new tab.
+            {isSocial 
+              ? "Social platforms restrict in-app previews. Use the button above to visit directly."
+              : "If the preview is blank, the site blocks in-app previews—use \"Open\" to view it in a new tab."
+            }
           </div>
         </DialogContent>
       </Dialog>
