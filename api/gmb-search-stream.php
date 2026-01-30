@@ -142,6 +142,8 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
             'filtersActive' => $filtersActive
         ]);
         
+        $hadEngineError = false;
+
         foreach ($locationsToSearch as $locationIndex => $searchLocation) {
             if ($totalResults >= $limit || $serpapiExhausted) {
                 break;
@@ -187,6 +189,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                 $engineAdded = 0;
                 
                 try {
+                    $lastPingAt = 0;
                     searchSingleEngine(
                         $apiKey,
                         $engineName,
@@ -235,6 +238,20 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                             }
                             
                             return $totalResults < $limit;
+                        },
+                        function ($page, $pageTotal) use (&$lastPingAt, $sourceName, $searchLocation, &$totalResults, $limit) {
+                            $now = time();
+                            if ($now - $lastPingAt >= 10) {
+                                $lastPingAt = $now;
+                                $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
+                                sendSSE('ping', [
+                                    'source' => $sourceName,
+                                    'location' => $searchLocation,
+                                    'page' => $page,
+                                    'total' => $totalResults,
+                                    'progress' => $progress
+                                ]);
+                            }
                         }
                     );
                 } catch (Exception $e) {
@@ -242,8 +259,14 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                         $serpapiExhausted = true;
                         break;
                     }
-                    sendSSEError($e->getMessage());
-                    return;
+                    $hadEngineError = true;
+                    sendSSE('source_error', [
+                        'source' => $sourceName,
+                        'engine' => $engineName,
+                        'location' => $searchLocation,
+                        'error' => $e->getMessage()
+                    ]);
+                    continue;
                 }
                 
                 sendSSE('source_complete', [
@@ -271,6 +294,11 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
             return;
         }
         
+        if ($totalResults === 0 && $hadEngineError) {
+            sendSSEError('Search failed to return results from all sources. Please try again.');
+            return;
+        }
+
         // Send completion
         sendSSE('complete', [
             'total' => $totalResults,
@@ -323,7 +351,7 @@ function isSerpApiCreditsError($message) {
  * Search a single SerpAPI engine
  * Supports up to 50000 total leads by increasing page limits per engine
  */
-function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sourceName, $onPageResults = null) {
+function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sourceName, $onPageResults = null, $onPageTick = null) {
     $results = [];
     
     // Yelp returns 10 per page, others return 20
@@ -392,7 +420,9 @@ function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sour
         }
         
         $url = "https://serpapi.com/search.json?" . http_build_query($params);
-        $timeout = defined('SERPAPI_TIMEOUT_SEC') ? max(5, (int)SERPAPI_TIMEOUT_SEC) : 40;
+        $timeout = defined('SERPAPI_TIMEOUT_SEC')
+            ? max(5, (int)SERPAPI_TIMEOUT_SEC)
+            : ($limit >= 150 ? 25 : 40);
         $response = curlRequest($url, [
             CURLOPT_CONNECTTIMEOUT => defined('SERPAPI_CONNECT_TIMEOUT_SEC') ? max(3, (int)SERPAPI_CONNECT_TIMEOUT_SEC) : 10,
             CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
@@ -469,6 +499,10 @@ function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sour
             break;
         }
         
+        if (is_callable($onPageTick)) {
+            $onPageTick($page + 1, count($results));
+        }
+
         if ($throttleUs > 0) {
             usleep($throttleUs);
         }

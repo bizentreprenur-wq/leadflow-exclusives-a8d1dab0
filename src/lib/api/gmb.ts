@@ -227,6 +227,15 @@ export async function searchGMB(
   }
 
   let lastError: Error | null = null;
+  let lastPartialResults: GMBResult[] = [];
+  const progressWrapper: ProgressCallback | undefined = onProgress
+    ? (results, progress) => {
+        lastPartialResults = results;
+        onProgress(results, progress);
+      }
+    : (results) => {
+        lastPartialResults = results;
+      };
   
   for (let attempt = 1; attempt <= NETWORK_RETRY_CONFIG.maxRetries; attempt++) {
     try {
@@ -234,7 +243,7 @@ export async function searchGMB(
       // We only fall back to the regular endpoint in a very narrow case
       // (streaming endpoint missing + small limits).
       try {
-        return await searchGMBStreaming(service, location, limit, onProgress, filters);
+        return await searchGMBStreaming(service, location, limit, progressWrapper, filters);
       } catch (streamError) {
         const err = streamError instanceof Error ? streamError : new Error(String(streamError));
         console.warn('[GMB API] Streaming failed:', err);
@@ -247,6 +256,16 @@ export async function searchGMB(
         if (streamMissing && limit <= 50) {
           console.warn('[GMB API] Streaming endpoint appears missing; falling back to regular endpoint for small limit');
           return await searchGMBRegular(service, location, limit, onProgress, filters);
+        }
+
+        if (lastPartialResults.length > 0 && isNetworkError(err)) {
+          console.warn('[GMB API] Stream interrupted; returning partial results');
+          return {
+            success: true,
+            data: lastPartialResults,
+            error: 'Stream interrupted before completion. Showing partial results.',
+            query: { service, location },
+          };
         }
 
         throw err;
@@ -272,6 +291,15 @@ export async function searchGMB(
       // Not a network error or max retries reached - throw
       if (onNetworkStatus) {
         onNetworkStatus('failed', attempt);
+      }
+      if (lastPartialResults.length > 0 && isNetworkError(err)) {
+        console.warn('[GMB API] Network failure after retries; returning partial results');
+        return {
+          success: true,
+          data: lastPartialResults,
+          error: 'Network issue interrupted the search. Showing partial results.',
+          query: { service, location },
+        };
       }
       throw err;
     }
