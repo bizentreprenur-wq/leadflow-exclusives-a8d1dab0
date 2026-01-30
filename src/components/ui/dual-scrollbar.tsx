@@ -59,12 +59,12 @@ const DualScrollbar = React.forwardRef<HTMLDivElement, DualScrollbarProps>(
     };
 
     return (
-      <div ref={ref} className={cn("relative", className)} {...props}>
+      <div ref={ref} className={cn("relative flex flex-col overflow-hidden", className)} {...props}>
         {/* Top scrollbar - Enhanced visibility */}
         <div
           ref={topScrollRef}
           onScroll={handleTopScroll}
-          className="overflow-x-auto overflow-y-hidden h-4 border-b-2 border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 rounded-t-lg sticky top-0 z-10"
+          className="shrink-0 overflow-x-auto overflow-y-hidden h-4 border-b-2 border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 rounded-t-lg sticky top-0 z-10"
           style={{ 
             direction: "ltr",
             scrollbarWidth: "auto",
@@ -78,7 +78,7 @@ const DualScrollbar = React.forwardRef<HTMLDivElement, DualScrollbarProps>(
         <div
           ref={contentRef}
           onScroll={handleContentScroll}
-          className="overflow-auto scrollbar-thick"
+          className="flex-1 min-h-0 overflow-auto scrollbar-thick"
           style={{
             scrollbarWidth: "auto",
             scrollbarColor: "hsl(var(--primary)) hsl(var(--muted))",

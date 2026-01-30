@@ -679,15 +679,17 @@ function streamSerperSearch($service, $location, $limit, $filters, $filtersActiv
         if (isset($seenBusinesses[$dedupeKey])) continue;
         
         $seenBusinesses[$dedupeKey] = count($allResults);
-        $business['websiteAnalysis'] = quickWebsiteCheckStream($business['url']);
+        $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
         $allResults[] = $business;
         $totalResults++;
         
-        // Stream each result
-        sendSSE('lead', [
-            'lead' => $business,
-            'index' => $totalResults,
-            'total' => count($places)
+        // Stream each result (frontend expects "results" with "leads")
+        $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
+        sendSSE('results', [
+            'leads' => [$business],
+            'total' => $totalResults,
+            'progress' => $progress,
+            'source' => $business['source'] ?? 'Serper'
         ]);
         
         // Minimal delay - 5ms instead of 10ms
@@ -745,14 +747,16 @@ function streamSerperSearch($service, $location, $limit, $filters, $filtersActiv
                 if (isset($seenBusinesses[$dedupeKey])) continue;
                 
                 $seenBusinesses[$dedupeKey] = count($allResults);
-                $business['websiteAnalysis'] = quickWebsiteCheckStream($business['url']);
+                $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
                 $allResults[] = $business;
                 $totalResults++;
                 
-                sendSSE('lead', [
-                    'lead' => $business,
-                    'index' => $totalResults,
-                    'total' => count($mapsPlaces) + count($places)
+                $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
+                sendSSE('results', [
+                    'leads' => [$business],
+                    'total' => $totalResults,
+                    'progress' => $progress,
+                    'source' => $business['source'] ?? 'Serper Maps'
                 ]);
                 
                 usleep(5000);
