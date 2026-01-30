@@ -25,6 +25,7 @@ import HighConvertingTemplateGallery from './HighConvertingTemplateGallery';
 import ABTestingPanel from './ABTestingPanel';
 import ProposalsContractsPanel from './ProposalsContractsPanel';
 import { sendSingleEmail, getSentEmails } from '@/lib/emailService';
+import { API_BASE_URL, getAuthHeaders } from '@/lib/api/config';
 import { EmailTemplate } from '@/lib/highConvertingTemplates';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 
@@ -189,14 +190,10 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
     setIsTesting(true);
     
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || '';
-      const token = localStorage.getItem('auth_token');
-      
-      const response = await fetch(`${API_BASE}/email-outreach.php?action=test_smtp`, {
+      const response = await fetch(`${API_BASE_URL}/email-outreach.php?action=test_smtp`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          ...getAuthHeaders(),
         },
         body: JSON.stringify({
           host: smtpConfig.host,
@@ -249,24 +246,22 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
     setIsSendingTest(true);
     
     try {
-      const API_BASE = import.meta.env.VITE_API_URL || '';
-      const token = localStorage.getItem('auth_token');
-      
-      const response = await fetch(`${API_BASE}/email-outreach.php?action=send_test`, {
+      const response = await fetch(`${API_BASE_URL}/email-outreach.php?action=send_test`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          ...getAuthHeaders(),
         },
         body: JSON.stringify({
           to_email: testEmailAddress,
-          smtp_host: smtpConfig.host,
-          smtp_port: smtpConfig.port,
-          smtp_username: smtpConfig.username,
-          smtp_password: smtpConfig.password,
-          smtp_secure: smtpConfig.secure,
-          from_email: smtpConfig.fromEmail || smtpConfig.username,
-          from_name: smtpConfig.fromName || 'BamLead',
+          smtp_override: {
+            host: smtpConfig.host,
+            port: smtpConfig.port,
+            username: smtpConfig.username,
+            password: smtpConfig.password,
+            secure: smtpConfig.secure,
+            from_email: smtpConfig.fromEmail || smtpConfig.username,
+            from_name: smtpConfig.fromName || 'BamLead',
+          },
         }),
       });
       
@@ -285,13 +280,9 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
         });
       }
     } catch (error) {
-      // Simulate success for demo purposes if API unavailable
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      toast.success('Test email queued!', {
-        description: `Email will be sent to ${testEmailAddress}`,
+      toast.error('Failed to send test email', {
+        description: 'Network error or server unavailable. Please try again.',
       });
-      setShowTestEmailInput(false);
-      setTestEmailAddress('');
     } finally {
       setIsSendingTest(false);
     }
