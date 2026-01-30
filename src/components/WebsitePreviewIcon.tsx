@@ -106,7 +106,7 @@ export default function WebsitePreviewIcon({
             "p-0 overflow-hidden transition-all duration-300",
             isFullscreen 
               ? "!max-w-[100vw] w-[100vw] h-[100vh] rounded-none" 
-              : "!max-w-[95vw] w-[95vw] h-[85vh]"
+              : "!max-w-[98vw] w-[98vw] h-[95vh]"
           )}
         >
           <DialogHeader className="p-4 pb-0">
