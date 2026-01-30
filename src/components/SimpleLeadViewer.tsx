@@ -1141,6 +1141,7 @@ export default function SimpleLeadViewer({
           {/* Table with dual horizontal scrollbars (top and bottom) */}
           <DualScrollbar className="h-[450px]">
             <Table
+              noWrapper
               className="w-max table-fixed [&_th]:px-3 [&_td]:px-3"
               style={{ minWidth: '1300px' }}
             >
