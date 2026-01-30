@@ -1,4 +1,5 @@
 import { API_BASE_URL, getAuthHeaders, apiRequest } from './config';
+import { getSMTPConfig } from '@/lib/emailService';
 
 // Types
 export interface EmailTemplate {
@@ -210,14 +211,7 @@ export async function sendEmail(params: {
   track_opens?: boolean;
 }): Promise<{ success: boolean; send_id?: number; tracking_id?: string; error?: string }> {
   try {
-    const smtpOverride = (() => {
-      try {
-        const stored = localStorage.getItem('smtp_config');
-        return stored ? JSON.parse(stored) : null;
-      } catch {
-        return null;
-      }
-    })();
+    const smtpOverride = getSMTPConfig();
     return await apiRequest(EMAIL_ENDPOINTS.send, {
       method: 'POST',
       body: JSON.stringify({
@@ -228,6 +222,8 @@ export async function sendEmail(params: {
           username: smtpOverride.username,
           password: smtpOverride.password,
           secure: smtpOverride.secure,
+          from_email: smtpOverride.fromEmail || smtpOverride.username,
+          from_name: smtpOverride.fromName || 'BamLead',
         } : undefined,
       }),
     });
@@ -238,14 +234,7 @@ export async function sendEmail(params: {
 
 export async function sendBulkEmails(params: BulkSendParams): Promise<{ success: boolean; results?: BulkSendResult; error?: string }> {
   try {
-    const smtpOverride = (() => {
-      try {
-        const stored = localStorage.getItem('smtp_config');
-        return stored ? JSON.parse(stored) : null;
-      } catch {
-        return null;
-      }
-    })();
+    const smtpOverride = getSMTPConfig();
     return await apiRequest(EMAIL_ENDPOINTS.sendBulk, {
       method: 'POST',
       body: JSON.stringify({
@@ -256,6 +245,8 @@ export async function sendBulkEmails(params: BulkSendParams): Promise<{ success:
           username: smtpOverride.username,
           password: smtpOverride.password,
           secure: smtpOverride.secure,
+          from_email: smtpOverride.fromEmail || smtpOverride.username,
+          from_name: smtpOverride.fromName || 'BamLead',
         } : undefined,
       }),
     });

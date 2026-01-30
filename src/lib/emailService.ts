@@ -320,6 +320,8 @@ export const sendTestEmail = async (toEmail: string): Promise<TestResult> => {
           username: smtpOverride.username,
           password: smtpOverride.password,
           secure: smtpOverride.secure ?? true,
+          from_email: smtpOverride.fromEmail || smtpOverride.username,
+          from_name: smtpOverride.fromName || 'BamLead',
         },
       }),
     });
@@ -411,6 +413,8 @@ export const sendSingleEmail = async (params: SendEmailParams): Promise<SendResu
           username: smtpConfig.username,
           password: smtpConfig.password,
           secure: smtpConfig.secure,
+          from_email: smtpConfig.fromEmail || smtpConfig.username,
+          from_name: smtpConfig.fromName || 'BamLead',
         },
       }),
     });
@@ -509,6 +513,8 @@ export const sendBulkEmails = async (params: BulkSendParams): Promise<SendResult
           username: smtpConfig.username,
           password: smtpConfig.password,
           secure: smtpConfig.secure,
+          from_email: smtpConfig.fromEmail || smtpConfig.username,
+          from_name: smtpConfig.fromName || 'BamLead',
         },
       }),
     });
