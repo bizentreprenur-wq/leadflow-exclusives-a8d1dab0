@@ -451,11 +451,17 @@ function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sour
                 if ($engine === 'yelp' && stripos($apiError, "yelp hasn't returned any results") !== false) {
                     return [];
                 }
+                if ($engine === 'google_maps' && stripos($apiError, "google hasn't returned any results") !== false) {
+                    return [];
+                }
                 throw new Exception("SerpAPI error: {$apiError}");
             }
             if (!empty($status) && strtolower($status) === 'error') {
                 $errorMessage = $data['search_metadata']['error'] ?? $status;
                 if ($engine === 'yelp' && stripos($errorMessage, "yelp hasn't returned any results") !== false) {
+                    return [];
+                }
+                if ($engine === 'google_maps' && stripos($errorMessage, "google hasn't returned any results") !== false) {
                     return [];
                 }
                 throw new Exception("SerpAPI error: {$errorMessage}");
