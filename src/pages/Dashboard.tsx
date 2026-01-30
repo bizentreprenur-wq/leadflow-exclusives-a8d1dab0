@@ -756,7 +756,8 @@ export default function Dashboard() {
   const [networkStatus, setNetworkStatus] = useState<'idle' | 'verifying' | 'retrying' | 'failed'>('idle');
   const [networkRetryAttempt, setNetworkRetryAttempt] = useState<number>(0);
 
-  const handleSearch = async () => {
+  const handleSearch = async (options?: { append?: boolean }) => {
+    const append = options?.append === true;
     // Clear previous error and network status
     setSearchError(null);
     setPartialResultsNotice(null);
@@ -787,14 +788,16 @@ export default function Dashboard() {
 
     setIsSearching(true);
     setSearchProgress(0);
-    setSearchResults([]); // Clear previous results
-    setSelectedLeads([]); // Clear previous selections
-    setEmailLeads([]); // Clear email leads from previous search
-    setAiGroups(null);
-    setAiSummary(null);
-    setAiStrategies(null);
-    setShowAiGrouping(false);
-    setShowAIPipeline(false); // Reset AI pipeline for new search
+    if (!append) {
+      setSearchResults([]); // Clear previous results
+      setSelectedLeads([]); // Clear previous selections
+      setEmailLeads([]); // Clear email leads from previous search
+      setAiGroups(null);
+      setAiSummary(null);
+      setAiStrategies(null);
+      setShowAiGrouping(false);
+      setShowAIPipeline(false); // Reset AI pipeline for new search
+    }
     setAIPipelineProgress(0);
     setCurrentAIAgent('');
     emailEnrichRunId.current += 1;
@@ -807,11 +810,15 @@ export default function Dashboard() {
     setAdvanceToStep2AfterReport(false);
     
     // Clear localStorage for previous search data (new search replaces old)
-    localStorage.removeItem('bamlead_search_results');
-    localStorage.removeItem('bamlead_email_leads');
-    localStorage.removeItem('bamlead_selected_leads');
+    if (!append) {
+      localStorage.removeItem('bamlead_search_results');
+      localStorage.removeItem('bamlead_email_leads');
+      localStorage.removeItem('bamlead_selected_leads');
+    }
 
     const requestedLimit = searchLimit;
+    const startingResults: SearchResult[] = append ? [...searchResults] : [];
+    let latestMergedResults: SearchResult[] = startingResults;
     const backendFilters = {
       phoneOnly: phoneLeadsOnly,
       noWebsite: filterNoWebsite,
@@ -861,7 +868,13 @@ export default function Dashboard() {
           platform: r.websiteAnalysis?.platform || undefined,
           websiteAnalysis: r.websiteAnalysis,
         }));
-        setSearchResults(mapped);
+        if (append) {
+          const merged = mergeLeads(latestMergedResults, mapped);
+          latestMergedResults = merged;
+          setSearchResults(merged);
+        } else {
+          setSearchResults(mapped);
+        }
       };
       
       if (searchType === 'gmb') {
@@ -920,6 +933,10 @@ export default function Dashboard() {
         }
       }
       
+      if (append) {
+        finalResults = mergeLeads(latestMergedResults, finalResults);
+      }
+
       console.log('[BamLead] Search complete, finalResults:', finalResults.length);
       
       // Apply Phone Leads Only filter if enabled
@@ -1134,7 +1151,9 @@ export default function Dashboard() {
         setShowReportModal(false);
         setShowAIPipeline(false);
         toast.warning('Search interrupted. Showing partial results.');
-        setCurrentStep(2);
+        if (!append) {
+          setCurrentStep(2);
+        }
       } else {
         setSearchError(errorMessage);
         setShowReportModal(false);
@@ -1144,6 +1163,27 @@ export default function Dashboard() {
     } finally {
       setIsSearching(false);
     }
+  };
+
+  const mergeLeads = (base: SearchResult[], incoming: SearchResult[]) => {
+    const seen = new Map<string, SearchResult>();
+    const keyFor = (lead: SearchResult) => {
+      const name = (lead.name || '').toLowerCase().trim();
+      const address = (lead.address || '').toLowerCase().trim();
+      const phone = (lead.phone || '').toLowerCase().trim();
+      const website = (lead.website || '').toLowerCase().trim();
+      return [name, address, phone, website].filter(Boolean).join('|');
+    };
+    for (const lead of base) {
+      seen.set(keyFor(lead), lead);
+    }
+    for (const lead of incoming) {
+      const key = keyFor(lead);
+      if (!seen.has(key)) {
+        seen.set(key, lead);
+      }
+    }
+    return Array.from(seen.values());
   };
 
   const handleSelectGroup = (groupKey: string, leads: LeadAnalysis[]) => {
@@ -2105,6 +2145,14 @@ export default function Dashboard() {
                               className="mt-3 border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
                             >
                               View Partial Results
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleSearch({ append: true })}
+                              className="mt-3 ml-2 border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+                            >
+                              Continue Fetching
                             </Button>
                           </div>
                         </div>
