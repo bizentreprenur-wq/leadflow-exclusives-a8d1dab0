@@ -1114,14 +1114,14 @@ export default function Dashboard() {
             '🤖 AI Lead Intelligence Report is generating in the background. You can preview your leads now!',
             { duration: 6000 }
           );
-          
-          setShowAIPipeline(true);
         } else {
           setPartialResultsNotice({ found: scoredResults.length, requested: requestedLimit });
           toast.info(
             `Found ${scoredResults.length} of ${requestedLimit} requested. Review partial results or broaden your search.`
           );
         }
+        
+        setShowAIPipeline(true);
         
         const hotCount = scoredResults.filter(r => r.aiClassification === 'hot').length;
         toast.success(`Found ${scoredResults.length} ${hasRealData ? 'LIVE' : 'demo'} businesses! 🔥 ${hotCount} Hot leads ready for outreach.`);
