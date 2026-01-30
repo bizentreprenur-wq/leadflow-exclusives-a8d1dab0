@@ -1115,10 +1115,18 @@ export default function Dashboard() {
     } catch (error) {
       console.error('[BamLead] Search error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Search failed. Please try again.';
-      setSearchError(errorMessage);
-      setShowReportModal(false);
-      setShowAIPipeline(false);
-      toast.error(errorMessage);
+      if (searchResults.length > 0) {
+        setSearchError('Search interrupted before completion. Showing partial results.');
+        setShowReportModal(false);
+        setShowAIPipeline(false);
+        toast.warning('Search interrupted. Showing partial results.');
+        setCurrentStep(2);
+      } else {
+        setSearchError(errorMessage);
+        setShowReportModal(false);
+        setShowAIPipeline(false);
+        toast.error(errorMessage);
+      }
     } finally {
       setIsSearching(false);
     }

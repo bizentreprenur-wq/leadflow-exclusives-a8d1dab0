@@ -191,6 +191,7 @@ const NETWORK_RETRY_CONFIG = {
   networkErrorPatterns: [
     'network',
     'failed to fetch',
+    'load failed',
     'timeout',
     'aborted',
     'connection',
