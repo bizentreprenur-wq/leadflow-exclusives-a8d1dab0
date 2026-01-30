@@ -326,13 +326,15 @@ function handleSendEmail($db, $user) {
         $bodyHtml = str_replace('</body>', $trackingPixel . '</body>', $bodyHtml);
     }
     
+    $leadId = resolveValidLeadId($db, $user, $data['lead_id'] ?? null);
+
     // Record the send
     $sendId = $db->insert(
         "INSERT INTO email_sends (user_id, lead_id, template_id, campaign_id, recipient_email, recipient_name, business_name, subject, body_html, tracking_id, status) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')",
         [
             $user['id'],
-            $data['lead_id'] ?? null,
+            $leadId,
             $data['template_id'] ?? null,
             $data['campaign_id'] ?? null,
             $data['to'],
@@ -489,13 +491,15 @@ function handleSendBulk($db, $user) {
             $status = 'scheduled';
         }
         
+        $leadId = resolveValidLeadId($db, $user, $lead['id'] ?? null);
+
         // Record the send
         $sendId = $db->insert(
             "INSERT INTO email_sends (user_id, lead_id, template_id, campaign_id, recipient_email, recipient_name, business_name, subject, body_html, tracking_id, status, scheduled_for) 
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 $user['id'],
-                $lead['id'] ?? null,
+                $leadId,
                 $data['template_id'] ?? null,
                 $data['campaign_id'] ?? null,
                 $lead['email'],
@@ -563,6 +567,32 @@ function handleSendBulk($db, $user) {
     }
     
     echo json_encode(['success' => true, 'results' => $results]);
+}
+
+function resolveValidLeadId($db, $user, $leadId) {
+    if (empty($leadId)) {
+        return null;
+    }
+
+    $id = (int)$leadId;
+    if ($id <= 0) {
+        return null;
+    }
+
+    try {
+        $exists = $db->fetchOne(
+            "SELECT id FROM saved_leads WHERE id = ? AND user_id = ? LIMIT 1",
+            [$id, $user['id']]
+        );
+        if ($exists && isset($exists['id'])) {
+            return (int)$exists['id'];
+        }
+    } catch (Exception $e) {
+        // If saved_leads is unavailable, skip linking to avoid FK failures.
+        error_log('[email-outreach] Lead lookup failed: ' . $e->getMessage());
+    }
+
+    return null;
 }
 
 function handleSends($db, $user) {
