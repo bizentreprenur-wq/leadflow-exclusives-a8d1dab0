@@ -1094,11 +1094,18 @@ function handleSendTestEmail($db, $user) {
         : sendEmail($toEmail, $subject, $htmlBody, $textBody);
     
     if ($sent) {
-        // Log the successful test
-        $db->insert(
-            "INSERT INTO email_sends (user_id, recipient_email, subject, body_html, status, sent_at) VALUES (?, ?, ?, ?, 'sent', NOW())",
-            [$user['id'], $toEmail, $subject, $htmlBody]
-        );
+        // Log the successful test if possible (email_sends table may not exist in some installs).
+        try {
+            $userId = is_array($user) && isset($user['id']) ? $user['id'] : null;
+            if ($userId !== null) {
+                $db->insert(
+                    "INSERT INTO email_sends (user_id, recipient_email, subject, body_html, status, sent_at) VALUES (?, ?, ?, ?, 'sent', NOW())",
+                    [$userId, $toEmail, $subject, $htmlBody]
+                );
+            }
+        } catch (Exception $e) {
+            error_log("Email test log insert failed: " . $e->getMessage());
+        }
         
         echo json_encode([
             'success' => true,

@@ -136,8 +136,13 @@ Best regards,
 [Your Name]
 [Your Company]',
     TRUE
-FROM users u WHERE u.role = 'admin' LIMIT 1
-ON DUPLICATE KEY UPDATE id=id;
+FROM users u
+WHERE u.role = 'admin'
+  AND NOT EXISTS (
+    SELECT 1 FROM email_templates et
+    WHERE et.user_id = u.id AND et.name = 'Website Upgrade Offer'
+  )
+LIMIT 1;
 
 INSERT INTO email_templates (user_id, name, subject, body_html, body_text, is_default) 
 SELECT 
@@ -191,8 +196,13 @@ Would you like a free mobile performance report for your site? Takes just 5 minu
 Cheers,
 [Your Name]',
     FALSE
-FROM users u WHERE u.role = 'admin' LIMIT 1
-ON DUPLICATE KEY UPDATE id=id;
+FROM users u
+WHERE u.role = 'admin'
+  AND NOT EXISTS (
+    SELECT 1 FROM email_templates et
+    WHERE et.user_id = u.id AND et.name = 'Mobile Optimization Offer'
+  )
+LIMIT 1;
 
 INSERT INTO email_templates (user_id, name, subject, body_html, body_text, is_default) 
 SELECT 
@@ -233,5 +243,10 @@ No pressure either way - just let me know if you''d like to chat or if you''d pr
 Best,
 [Your Name]',
     FALSE
-FROM users u WHERE u.role = 'admin' LIMIT 1
-ON DUPLICATE KEY UPDATE id=id;
+FROM users u
+WHERE u.role = 'admin'
+  AND NOT EXISTS (
+    SELECT 1 FROM email_templates et
+    WHERE et.user_id = u.id AND et.name = 'Follow-up Email'
+  )
+LIMIT 1;
