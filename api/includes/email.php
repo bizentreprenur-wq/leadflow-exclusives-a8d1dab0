@@ -270,6 +270,8 @@ function sendEmailWithCustomSMTP($to, $subject, $htmlBody, $textBody = '', $smtp
     $smtpPort = (int)($smtpConfig['port'] ?? 587);
     $smtpUser = strtolower(trim((string)($smtpConfig['username'] ?? '')));
     $smtpPass = (string)($smtpConfig['password'] ?? '');
+    $fromEmail = trim((string)($smtpConfig['from_email'] ?? $smtpConfig['fromEmail'] ?? ''));
+    $fromName = trim((string)($smtpConfig['from_name'] ?? $smtpConfig['fromName'] ?? ''));
     $smtpSecureRaw = $smtpConfig['secure'] ?? '';
     if (is_string($smtpSecureRaw)) {
         $smtpSecure = strtolower(trim($smtpSecureRaw));
@@ -291,12 +293,21 @@ function sendEmailWithCustomSMTP($to, $subject, $htmlBody, $textBody = '', $smtp
         return false;
     }
 
+    if ($fromEmail === '') {
+        $fromEmail = $smtpUser;
+    }
+    if ($fromName === '') {
+        $fromName = MAIL_FROM_NAME;
+    }
+
     logEmail('INFO', 'Using custom SMTP settings', [
         'to' => $to,
         'host' => $smtpHost,
         'port' => $smtpPort,
         'user' => $smtpUser,
-        'secure' => $smtpSecure ?: 'not set'
+        'secure' => $smtpSecure ?: 'not set',
+        'from_email' => $fromEmail,
+        'from_name' => $fromName,
     ]);
 
     $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
@@ -321,7 +332,7 @@ function sendEmailWithCustomSMTP($to, $subject, $htmlBody, $textBody = '', $smtp
         $mail->Timeout = 10;
         $mail->CharSet = 'UTF-8';
 
-        $mail->setFrom(MAIL_FROM_ADDRESS, MAIL_FROM_NAME);
+        $mail->setFrom($fromEmail, $fromName);
         $mail->addAddress($to);
 
         $mail->isHTML(true);
