@@ -752,12 +752,14 @@ export default function Dashboard() {
   };
 
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [partialResultsNotice, setPartialResultsNotice] = useState<{ found: number; requested: number } | null>(null);
   const [networkStatus, setNetworkStatus] = useState<'idle' | 'verifying' | 'retrying' | 'failed'>('idle');
   const [networkRetryAttempt, setNetworkRetryAttempt] = useState<number>(0);
 
   const handleSearch = async () => {
     // Clear previous error and network status
     setSearchError(null);
+    setPartialResultsNotice(null);
     setNetworkStatus('idle');
     setNetworkRetryAttempt(0);
     
@@ -1014,16 +1016,28 @@ export default function Dashboard() {
       setIsLiveDataMode(hasRealData);
 
       if (scoredResults.length > 0) {
-        // AUTO-NAVIGATE to Step 2 immediately so customer sees leads
-        setCurrentStep(2);
-        
-        // Show AI Pipeline notification (non-blocking popup)
-        toast.info(
-          '🤖 AI Lead Intelligence Report is generating in the background. You can preview your leads now!',
-          { duration: 6000 }
-        );
-        
-        setShowAIPipeline(true);
+        const shouldAutoAdvance =
+          requestedLimit >= 1000
+            ? scoredResults.length >= Math.ceil(requestedLimit * 0.8)
+            : scoredResults.length >= Math.min(requestedLimit, 100);
+
+        if (shouldAutoAdvance) {
+          // AUTO-NAVIGATE to Step 2 immediately so customer sees leads
+          setCurrentStep(2);
+          
+          // Show AI Pipeline notification (non-blocking popup)
+          toast.info(
+            '🤖 AI Lead Intelligence Report is generating in the background. You can preview your leads now!',
+            { duration: 6000 }
+          );
+          
+          setShowAIPipeline(true);
+        } else {
+          setPartialResultsNotice({ found: scoredResults.length, requested: requestedLimit });
+          toast.info(
+            `Found ${scoredResults.length} of ${requestedLimit} requested. Review partial results or broaden your search.`
+          );
+        }
         
         const hotCount = scoredResults.filter(r => r.aiClassification === 'hot').length;
         toast.success(`Found ${scoredResults.length} ${hasRealData ? 'LIVE' : 'demo'} businesses! 🔥 ${hotCount} Hot leads ready for outreach.`);
@@ -2068,6 +2082,35 @@ export default function Dashboard() {
                     )}
 
                     {/* Error display with retry button */}
+                    {partialResultsNotice && !isSearching && (
+                      <div className="mt-4 p-4 rounded-lg border border-amber-500/40 bg-amber-500/10">
+                        <div className="flex items-start gap-3">
+                          <div className="text-amber-400 text-lg">⚠️</div>
+                          <div className="flex-1">
+                            <p className="font-medium text-amber-400">Partial Results Ready</p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Found {partialResultsNotice.found} of {partialResultsNotice.requested} requested leads.
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setCurrentStep(2);
+                                toast.info(
+                                  '🤖 AI Lead Intelligence Report is generating in the background. You can preview your leads now!',
+                                  { duration: 6000 }
+                                );
+                                setShowAIPipeline(true);
+                              }}
+                              className="mt-3 border-amber-500/40 text-amber-400 hover:bg-amber-500/10"
+                            >
+                              View Partial Results
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {searchError && !isSearching && (
                       <div className="mt-4 p-4 rounded-lg border border-destructive/50 bg-destructive/10">
                         <div className="flex items-start gap-3">
