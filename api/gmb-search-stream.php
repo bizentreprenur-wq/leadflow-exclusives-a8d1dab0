@@ -251,8 +251,8 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                 'added' => $engineAdded
             ]);
             
-            // Small delay between engines
-            usleep(200000); // 200ms
+            // Minimal delay between engines (50ms instead of 200ms)
+            usleep(50000);
         }
     }
     
@@ -303,7 +303,8 @@ function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sour
     
     $emptyPageStreak = 0; // Track consecutive empty pages to exit early
     
-    $throttleUs = defined('SERPAPI_THROTTLE_US') ? max(0, (int)SERPAPI_THROTTLE_US) : 150000;
+    // Reduced throttle for faster searches - 50ms default instead of 150ms
+    $throttleUs = defined('SERPAPI_THROTTLE_US') ? max(0, (int)SERPAPI_THROTTLE_US) : 50000;
     
     for ($page = 0; $page < $maxPages; $page++) {
         if (count($results) >= $limit) {
@@ -689,8 +690,8 @@ function streamSerperSearch($service, $location, $limit, $filters, $filtersActiv
             'total' => count($places)
         ]);
         
-        // Small delay to prevent overwhelming
-        usleep(10000);
+        // Minimal delay - 5ms instead of 10ms
+        usleep(5000);
     }
     
     // If we need more results, try Maps search
@@ -754,7 +755,7 @@ function streamSerperSearch($service, $location, $limit, $filters, $filtersActiv
                     'total' => count($mapsPlaces) + count($places)
                 ]);
                 
-                usleep(10000);
+                usleep(5000);
             }
         }
     }

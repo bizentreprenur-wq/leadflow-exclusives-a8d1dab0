@@ -107,8 +107,8 @@ define('MAX_PAGE_SIZE', 2097152);
 define('RESULTS_PER_PAGE', 10);
 define('DEBUG_MODE', false);
 // Throttle between SerpAPI page requests (microseconds)
-// Lower = faster, higher = safer vs rate limits. 150000 = 150ms.
-define('SERPAPI_THROTTLE_US', 150000);
+// Lower = faster, higher = safer vs rate limits. 50000 = 50ms.
+define('SERPAPI_THROTTLE_US', 50000);
 // Over-fetch multiplier when filters are active (helps hit target counts)
 define('FILTER_OVERFETCH_MULTIPLIER', 3);
 // Auto-expand locations when results are below the requested limit
