@@ -268,6 +268,9 @@ function matchesSearchFilters($business, $filters) {
 
     $platforms = $filters['platforms'] ?? [];
     if (!empty($platforms)) {
+        if (!empty($filters['platformMode']) && in_array('gmb', $platforms, true)) {
+            return true;
+        }
         $matchesPlatform = $platform !== '' && in_array($platform, $platforms, true);
         if (!empty($filters['platformMode'])) {
             $url = trim((string)($business['url'] ?? ''));

@@ -131,16 +131,20 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50) {
         }
         $remaining = $limit - count($unique);
 
-        // Search using Serper.dev if key is available (preferred - cheapest)
-        if ($hasSerper) {
+        // Prefer SerpAPI; only fall back to Serper if SerpAPI credits are exhausted
+        if ($hasSerpApi) {
+            try {
+                $addResults(searchSerpApi($service, $location, $group, $remaining));
+            } catch (Exception $e) {
+                if (isSerpApiCreditsError($e->getMessage()) && $hasSerper) {
+                    $addResults(searchSerper($service, $location, $group, $remaining));
+                } else {
+                    throw $e;
+                }
+            }
+        } elseif ($hasSerper) {
             $addResults(searchSerper($service, $location, $group, $remaining));
-        }
-        // Fallback: Search using SerpAPI if key is available
-        elseif ($hasSerpApi) {
-            $addResults(searchSerpApi($service, $location, $group, $remaining));
-        }
-        // Fallback: Search Google if API key is available
-        elseif ($hasGoogleApi) {
+        } elseif ($hasGoogleApi) {
             $addResults(searchGoogle($service, $location, $group, $remaining));
         }
 
@@ -360,10 +364,17 @@ function searchSerpApi($service, $location, $platformQueries, $limit = 100) {
         
         $url = "https://serpapi.com/search.json?" . http_build_query($params);
         
-        $response = curlRequest($url);
+        $timeout = defined('SERPAPI_TIMEOUT_SEC') ? max(5, (int)SERPAPI_TIMEOUT_SEC) : 30;
+        $response = curlRequest($url, [
+            CURLOPT_CONNECTTIMEOUT => defined('SERPAPI_CONNECT_TIMEOUT_SEC') ? max(3, (int)SERPAPI_CONNECT_TIMEOUT_SEC) : 10,
+            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+        ], $timeout);
         
         if ($response['httpCode'] !== 200) {
             $message = 'SerpAPI error: HTTP ' . $response['httpCode'];
+            if (!empty($response['error'])) {
+                $message .= ' - cURL: ' . $response['error'];
+            }
             $decoded = json_decode($response['response'], true);
             if (is_array($decoded)) {
                 $message = $decoded['error'] ?? $decoded['error_message'] ?? $message;
@@ -401,6 +412,26 @@ function searchSerpApi($service, $location, $platformQueries, $limit = 100) {
     }
     
     return $results;
+}
+
+function isSerpApiCreditsError($message) {
+    $msg = strtolower($message);
+    $needles = [
+        'run out of searches',
+        'no searches left',
+        'no more searches',
+        'insufficient credits',
+        'exceeded your plan',
+        'exceeded plan',
+        'payment required',
+        'quota'
+    ];
+    foreach ($needles as $needle) {
+        if (strpos($msg, $needle) !== false) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /**

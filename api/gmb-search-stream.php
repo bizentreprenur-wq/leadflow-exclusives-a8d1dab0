@@ -93,7 +93,7 @@ function sendSSEError($message) {
 
 /**
  * Stream multi-source search results progressively
- * Uses Serper.dev (preferred) or SerpAPI as fallback
+ * Uses SerpAPI primarily; falls back to Serper.dev only when credits are exhausted
  */
 function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier) {
     $hasSerper = defined('SERPER_API_KEY') && !empty(SERPER_API_KEY);
@@ -104,169 +104,219 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         return;
     }
     
-    // Use Serper if available (cheaper, faster)
+    // Prefer SerpAPI; only fall back to Serper if SerpAPI is out of credits
+    if ($hasSerpApi) {
+        $serpapiExhausted = false;
+        
+        // Fallback to SerpAPI
+        $apiKey = SERPAPI_KEY;
+        
+        $allResults = [];
+        $seenBusinesses = []; // Track by dedupe key to index for deduplication
+        $totalResults = 0;
+        
+        // Define search engines to query (all supported by SerpAPI)
+        $searchEngines = [
+            ['engine' => 'google_maps', 'name' => 'Google Maps', 'resultsKey' => 'local_results'],
+            ['engine' => 'yelp', 'name' => 'Yelp', 'resultsKey' => 'organic_results'],
+        ];
+        
+        $enableExpansion = defined('ENABLE_LOCATION_EXPANSION') ? ENABLE_LOCATION_EXPANSION : true;
+        $expansionMax = defined('LOCATION_EXPANSION_MAX') ? max(0, (int)LOCATION_EXPANSION_MAX) : 5;
+        $expandedLocations = $enableExpansion ? buildLocationExpansions($location) : [];
+        if ($expansionMax > 0) {
+            $expandedLocations = array_slice($expandedLocations, 0, $expansionMax);
+        } else {
+            $expandedLocations = [];
+        }
+        $locationsToSearch = array_merge([$location], $expandedLocations);
+        $searchedLocations = [];
+        
+        // Send initial status
+        sendSSE('start', [
+            'query' => "$service in $location",
+            'limit' => $limit,
+            'sources' => array_column($searchEngines, 'name'),
+            'estimatedSources' => count($searchEngines),
+            'expandedLocations' => $expandedLocations,
+            'filtersActive' => $filtersActive
+        ]);
+        
+        foreach ($locationsToSearch as $locationIndex => $searchLocation) {
+            if ($totalResults >= $limit || $serpapiExhausted) {
+                break;
+            }
+            
+            $query = "$service in $searchLocation";
+            $searchedLocations[] = $searchLocation;
+            
+            if ($locationIndex > 0) {
+                sendSSE('expansion_start', [
+                    'location' => $searchLocation,
+                    'remaining' => $limit - $totalResults
+                ]);
+            }
+            
+            $engineCount = count($searchEngines);
+            $engineIndex = 0;
+            
+            foreach ($searchEngines as $engineConfig) {
+                if ($totalResults >= $limit || $serpapiExhausted) {
+                    break;
+                }
+                
+                $engineIndex++;
+                $remaining = $limit - $totalResults;
+                $remainingEngines = max(1, $engineCount - $engineIndex + 1);
+                $resultsPerEngine = (int)ceil($remaining / $remainingEngines);
+                if ($filtersActive && $filterMultiplier > 1) {
+                    $resultsPerEngine = (int)ceil($resultsPerEngine * $filterMultiplier);
+                }
+                
+                $engineName = $engineConfig['engine'];
+                $sourceName = $engineConfig['name'];
+                $resultsKey = $engineConfig['resultsKey'];
+                
+                sendSSE('source_start', [
+                    'source' => $sourceName,
+                    'engine' => $engineName,
+                    'location' => $searchLocation
+                ]);
+                
+                $engineFound = 0;
+                $engineAdded = 0;
+                
+                try {
+                    searchSingleEngine(
+                        $apiKey,
+                        $engineName,
+                        $query,
+                        $resultsKey,
+                        $resultsPerEngine,
+                        $sourceName,
+                        function ($pageResults) use (&$allResults, &$seenBusinesses, &$totalResults, &$engineFound, &$engineAdded, $limit, $sourceName, $searchLocation, $filters) {
+                            $engineFound += count($pageResults);
+                            
+                            $newResults = [];
+                            foreach ($pageResults as $business) {
+                                if (!matchesSearchFilters($business, $filters)) {
+                                    continue;
+                                }
+                                $dedupeKey = buildBusinessDedupeKey($business, $searchLocation);
+                                
+                                if (!isset($seenBusinesses[$dedupeKey])) {
+                                    $seenBusinesses[$dedupeKey] = count($allResults);
+                                    $business['sources'] = [$sourceName];
+                                    $newResults[] = $business;
+                                    $allResults[] = $business;
+                                    $totalResults++;
+                                    $engineAdded++;
+                                    
+                                    if ($totalResults >= $limit) {
+                                        break;
+                                    }
+                                } else {
+                                    // Business already exists, track that we found it in multiple sources
+                                    $existingIndex = $seenBusinesses[$dedupeKey];
+                                    if (isset($allResults[$existingIndex]) && !in_array($sourceName, $allResults[$existingIndex]['sources'] ?? [])) {
+                                        $allResults[$existingIndex]['sources'][] = $sourceName;
+                                    }
+                                }
+                            }
+                            
+                            if (!empty($newResults)) {
+                                $progress = min(100, round(($totalResults / $limit) * 100));
+                                sendSSE('results', [
+                                    'leads' => $newResults,
+                                    'total' => $totalResults,
+                                    'progress' => $progress,
+                                    'source' => $sourceName
+                                ]);
+                            }
+                            
+                            return $totalResults < $limit;
+                        }
+                    );
+                } catch (Exception $e) {
+                    if (isSerpApiCreditsError($e->getMessage())) {
+                        $serpapiExhausted = true;
+                        break;
+                    }
+                    sendSSEError($e->getMessage());
+                    return;
+                }
+                
+                sendSSE('source_complete', [
+                    'source' => $sourceName,
+                    'found' => $engineFound,
+                    'added' => $engineAdded
+                ]);
+                
+                // Minimal delay between engines (50ms instead of 200ms)
+                usleep(50000);
+            }
+        }
+        
+        if ($serpapiExhausted) {
+            if ($hasSerper) {
+                sendSSE('status', [
+                    'message' => 'SerpAPI credits exhausted. Switching to Serper...',
+                    'engine' => 'Serper',
+                    'progress' => 0
+                ]);
+                streamSerperSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier);
+                return;
+            }
+            sendSSEError('SerpAPI credits exhausted and SERPER_API_KEY not configured.');
+            return;
+        }
+        
+        // Send completion
+        sendSSE('complete', [
+            'total' => $totalResults,
+            'sources' => array_column($searchEngines, 'name'),
+            'query' => [
+                'service' => $service,
+                'location' => $location,
+                'limit' => $limit
+            ],
+            'searchedLocations' => $searchedLocations
+        ]);
+        return;
+    }
+    
+    // If no SerpAPI key, use Serper directly
     if ($hasSerper) {
         streamSerperSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier);
         return;
     }
     
-    // Fallback to SerpAPI
-    $apiKey = SERPAPI_KEY;
+    // Fallback (should not reach due to earlier guard)
+    sendSSEError('No search API configured. Please add SERPAPI_KEY or SERPER_API_KEY to config.php');
+    return;
     
-    $allResults = [];
-    $seenBusinesses = []; // Track by dedupe key to index for deduplication
-    $totalResults = 0;
-    
-    // Define search engines to query (all supported by SerpAPI)
-    $searchEngines = [
-        ['engine' => 'google_maps', 'name' => 'Google Maps', 'resultsKey' => 'local_results'],
-        ['engine' => 'yelp', 'name' => 'Yelp', 'resultsKey' => 'organic_results'],
-        ['engine' => 'bing_local', 'name' => 'Bing Places', 'resultsKey' => 'local_results'],
+    // ---- Original SerpAPI stream logic removed below ----
+    // ---- Original SerpAPI stream logic removed above ----
+}
+
+function isSerpApiCreditsError($message) {
+    $msg = strtolower($message);
+    $needles = [
+        'run out of searches',
+        'no searches left',
+        'no more searches',
+        'insufficient credits',
+        'exceeded your plan',
+        'exceeded plan',
+        'payment required',
+        'quota'
     ];
-    
-    $enableExpansion = defined('ENABLE_LOCATION_EXPANSION') ? ENABLE_LOCATION_EXPANSION : true;
-    $expansionMax = defined('LOCATION_EXPANSION_MAX') ? max(0, (int)LOCATION_EXPANSION_MAX) : 5;
-    $expandedLocations = $enableExpansion ? buildLocationExpansions($location) : [];
-    if ($expansionMax > 0) {
-        $expandedLocations = array_slice($expandedLocations, 0, $expansionMax);
-    } else {
-        $expandedLocations = [];
-    }
-    $locationsToSearch = array_merge([$location], $expandedLocations);
-    $searchedLocations = [];
-    
-    // Send initial status
-    sendSSE('start', [
-        'query' => "$service in $location",
-        'limit' => $limit,
-        'sources' => array_column($searchEngines, 'name'),
-        'estimatedSources' => count($searchEngines),
-        'expandedLocations' => $expandedLocations,
-        'filtersActive' => $filtersActive
-    ]);
-    
-    foreach ($locationsToSearch as $locationIndex => $searchLocation) {
-        if ($totalResults >= $limit) {
-            break;
-        }
-        
-        $query = "$service in $searchLocation";
-        $searchedLocations[] = $searchLocation;
-        
-        if ($locationIndex > 0) {
-            sendSSE('expansion_start', [
-                'location' => $searchLocation,
-                'remaining' => $limit - $totalResults
-            ]);
-        }
-        
-        $engineCount = count($searchEngines);
-        $engineIndex = 0;
-        
-        foreach ($searchEngines as $engineConfig) {
-            if ($totalResults >= $limit) {
-                break;
-            }
-            
-            $engineIndex++;
-            $remaining = $limit - $totalResults;
-            $remainingEngines = max(1, $engineCount - $engineIndex + 1);
-            $resultsPerEngine = (int)ceil($remaining / $remainingEngines);
-            if ($filtersActive && $filterMultiplier > 1) {
-                $resultsPerEngine = (int)ceil($resultsPerEngine * $filterMultiplier);
-            }
-            
-            $engineName = $engineConfig['engine'];
-            $sourceName = $engineConfig['name'];
-            $resultsKey = $engineConfig['resultsKey'];
-            
-            sendSSE('source_start', [
-                'source' => $sourceName,
-                'engine' => $engineName,
-                'location' => $searchLocation
-            ]);
-            
-            $engineFound = 0;
-            $engineAdded = 0;
-            
-            try {
-                searchSingleEngine(
-                    $apiKey,
-                    $engineName,
-                    $query,
-                    $resultsKey,
-                    $resultsPerEngine,
-                    $sourceName,
-                    function ($pageResults) use (&$allResults, &$seenBusinesses, &$totalResults, &$engineFound, &$engineAdded, $limit, $sourceName, $searchLocation, $filters) {
-                        $engineFound += count($pageResults);
-                        
-                        $newResults = [];
-                        foreach ($pageResults as $business) {
-                            if (!matchesSearchFilters($business, $filters)) {
-                                continue;
-                            }
-                            $dedupeKey = buildBusinessDedupeKey($business, $searchLocation);
-                            
-                            if (!isset($seenBusinesses[$dedupeKey])) {
-                                $seenBusinesses[$dedupeKey] = count($allResults);
-                                $business['sources'] = [$sourceName];
-                                $newResults[] = $business;
-                                $allResults[] = $business;
-                                $totalResults++;
-                                $engineAdded++;
-                                
-                                if ($totalResults >= $limit) {
-                                    break;
-                                }
-                            } else {
-                                // Business already exists, track that we found it in multiple sources
-                                $existingIndex = $seenBusinesses[$dedupeKey];
-                                if (isset($allResults[$existingIndex]) && !in_array($sourceName, $allResults[$existingIndex]['sources'] ?? [])) {
-                                    $allResults[$existingIndex]['sources'][] = $sourceName;
-                                }
-                            }
-                        }
-                        
-                        if (!empty($newResults)) {
-                            $progress = min(100, round(($totalResults / $limit) * 100));
-                            sendSSE('results', [
-                                'leads' => $newResults,
-                                'total' => $totalResults,
-                                'progress' => $progress,
-                                'source' => $sourceName
-                            ]);
-                        }
-                        
-                        return $totalResults < $limit;
-                    }
-                );
-            } catch (Exception $e) {
-                sendSSEError($e->getMessage());
-                return;
-            }
-            
-            sendSSE('source_complete', [
-                'source' => $sourceName,
-                'found' => $engineFound,
-                'added' => $engineAdded
-            ]);
-            
-            // Minimal delay between engines (50ms instead of 200ms)
-            usleep(50000);
+    foreach ($needles as $needle) {
+        if (strpos($msg, $needle) !== false) {
+            return true;
         }
     }
-    
-    // Send completion
-    sendSSE('complete', [
-        'total' => $totalResults,
-        'sources' => array_column($searchEngines, 'name'),
-        'query' => [
-            'service' => $service,
-            'location' => $location,
-            'limit' => $limit
-        ],
-        'searchedLocations' => $searchedLocations
-    ]);
+    return false;
 }
 
 /**
@@ -342,10 +392,17 @@ function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sour
         }
         
         $url = "https://serpapi.com/search.json?" . http_build_query($params);
-        $response = curlRequest($url, [], 20); // Increased timeout for pagination
+        $timeout = defined('SERPAPI_TIMEOUT_SEC') ? max(5, (int)SERPAPI_TIMEOUT_SEC) : 40;
+        $response = curlRequest($url, [
+            CURLOPT_CONNECTTIMEOUT => defined('SERPAPI_CONNECT_TIMEOUT_SEC') ? max(3, (int)SERPAPI_CONNECT_TIMEOUT_SEC) : 10,
+            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+        ], $timeout);
         
         if ($response['httpCode'] !== 200) {
             $errorMessage = "SerpAPI error (HTTP {$response['httpCode']})";
+            if (!empty($response['error'])) {
+                $errorMessage .= " - cURL: {$response['error']}";
+            }
             $decoded = json_decode($response['response'] ?? '', true);
             if (is_array($decoded)) {
                 $apiError = $decoded['error'] ?? ($decoded['search_metadata']['status'] ?? null);
@@ -361,10 +418,16 @@ function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sour
             $apiError = $data['error'] ?? null;
             $status = $data['search_metadata']['status'] ?? null;
             if (!empty($apiError)) {
+                if ($engine === 'yelp' && stripos($apiError, "yelp hasn't returned any results") !== false) {
+                    return [];
+                }
                 throw new Exception("SerpAPI error: {$apiError}");
             }
             if (!empty($status) && strtolower($status) === 'error') {
                 $errorMessage = $data['search_metadata']['error'] ?? $status;
+                if ($engine === 'yelp' && stripos($errorMessage, "yelp hasn't returned any results") !== false) {
+                    return [];
+                }
                 throw new Exception("SerpAPI error: {$errorMessage}");
             }
         }
@@ -443,7 +506,18 @@ function normalizeBusinessResult($item, $engine, $sourceName) {
         $reviews = $item['reviews'] ?? null;
         $snippet = $item['snippet'] ?? ($item['categories'] ?? '');
         if (is_array($snippet)) {
-            $snippet = implode(', ', $snippet);
+            $snippet = implode(', ', array_map(function ($value) {
+                if (is_scalar($value)) {
+                    return (string)$value;
+                }
+                if (is_array($value)) {
+                    $label = $value['title'] ?? $value['name'] ?? null;
+                    if (is_string($label) && $label !== '') {
+                        return $label;
+                    }
+                }
+                return json_encode($value);
+            }, $snippet));
         }
     } elseif ($engine === 'bing_local') {
         $name = $item['title'] ?? '';

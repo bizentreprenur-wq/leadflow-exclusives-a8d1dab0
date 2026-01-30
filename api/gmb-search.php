@@ -96,7 +96,8 @@ try {
 }
 
 /**
- * Search for business listings using Serper.dev or SerpAPI
+ * Search for business listings using SerpAPI primarily.
+ * Falls back to Serper.dev only when SerpAPI credits are exhausted.
  * Queries Google Maps, Yelp, and Bing Local for comprehensive results
  */
 function searchGMBListings($service, $location, $limit = 100, $filters = [], $filtersActive = false, $filterMultiplier = 1) {
@@ -112,7 +113,27 @@ function searchGMBListings($service, $location, $limit = 100, $filters = [], $fi
     $allResults = [];
     $seenBusinesses = [];
     
-    // Use Serper for Google Places if available (cheaper), otherwise SerpAPI
+    // Prefer SerpAPI; only fall back to Serper if SerpAPI is out of credits
+    if ($hasSerpApi) {
+        try {
+            $serpApiResults = searchSerpApiEngines($service, $location, $limit, $filters, $filtersActive, $filterMultiplier);
+            foreach ($serpApiResults as $business) {
+                $dedupeKey = buildBusinessDedupeKey($business, $location);
+                if (!isset($seenBusinesses[$dedupeKey])) {
+                    $seenBusinesses[$dedupeKey] = count($allResults);
+                    $allResults[] = $business;
+                }
+                if (count($allResults) >= $limit) break;
+            }
+            return $allResults;
+        } catch (Exception $e) {
+            if (!isSerpApiCreditsError($e->getMessage()) || !$hasSerper) {
+                throw $e;
+            }
+            // Fall through to Serper when SerpAPI is exhausted
+        }
+    }
+    
     if ($hasSerper) {
         $serperResults = searchSerperPlaces($service, $location, $limit, $filters, $filtersActive, $filterMultiplier);
         foreach ($serperResults as $business) {
@@ -125,21 +146,27 @@ function searchGMBListings($service, $location, $limit = 100, $filters = [], $fi
         }
     }
     
-    // If Serper didn't get enough results or isn't available, use SerpAPI
-    if (count($allResults) < $limit && $hasSerpApi) {
-        $remaining = $limit - count($allResults);
-        $serpApiResults = searchSerpApiEngines($service, $location, $remaining, $filters, $filtersActive, $filterMultiplier);
-        foreach ($serpApiResults as $business) {
-            $dedupeKey = buildBusinessDedupeKey($business, $location);
-            if (!isset($seenBusinesses[$dedupeKey])) {
-                $seenBusinesses[$dedupeKey] = count($allResults);
-                $allResults[] = $business;
-            }
-            if (count($allResults) >= $limit) break;
+    return $allResults;
+}
+
+function isSerpApiCreditsError($message) {
+    $msg = strtolower($message);
+    $needles = [
+        'run out of searches',
+        'no searches left',
+        'no more searches',
+        'insufficient credits',
+        'exceeded your plan',
+        'exceeded plan',
+        'payment required',
+        'quota'
+    ];
+    foreach ($needles as $needle) {
+        if (strpos($msg, $needle) !== false) {
+            return true;
         }
     }
-    
-    return $allResults;
+    return false;
 }
 
 /**
@@ -285,7 +312,6 @@ function searchSerpApiEngines($service, $location, $limit, $filters, $filtersAct
     $searchEngines = [
         ['engine' => 'google_maps', 'name' => 'Google Maps', 'resultsKey' => 'local_results'],
         ['engine' => 'yelp', 'name' => 'Yelp', 'resultsKey' => 'organic_results'],
-        ['engine' => 'bing_local', 'name' => 'Bing Places', 'resultsKey' => 'local_results'],
     ];
     
     $enableExpansion = defined('ENABLE_LOCATION_EXPANSION') ? ENABLE_LOCATION_EXPANSION : true;
@@ -400,10 +426,17 @@ function searchSingleEngineNonStream($apiKey, $engine, $query, $resultsKey, $lim
         }
         
         $url = "https://serpapi.com/search.json?" . http_build_query($params);
-        $response = curlRequest($url);
+        $timeout = defined('SERPAPI_TIMEOUT_SEC') ? max(5, (int)SERPAPI_TIMEOUT_SEC) : 30;
+        $response = curlRequest($url, [
+            CURLOPT_CONNECTTIMEOUT => defined('SERPAPI_CONNECT_TIMEOUT_SEC') ? max(3, (int)SERPAPI_CONNECT_TIMEOUT_SEC) : 10,
+            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+        ], $timeout);
         
         if ($response['httpCode'] !== 200) {
             $errorMessage = "SerpAPI error (HTTP {$response['httpCode']})";
+            if (!empty($response['error'])) {
+                $errorMessage .= " - cURL: {$response['error']}";
+            }
             $decoded = json_decode($response['response'] ?? '', true);
             if (is_array($decoded)) {
                 $apiError = $decoded['error'] ?? ($decoded['search_metadata']['status'] ?? null);
@@ -419,10 +452,16 @@ function searchSingleEngineNonStream($apiKey, $engine, $query, $resultsKey, $lim
             $apiError = $data['error'] ?? null;
             $status = $data['search_metadata']['status'] ?? null;
             if (!empty($apiError)) {
+                if ($engine === 'yelp' && stripos($apiError, "yelp hasn't returned any results") !== false) {
+                    return [];
+                }
                 throw new Exception("SerpAPI error: {$apiError}");
             }
             if (!empty($status) && strtolower($status) === 'error') {
                 $errorMessage = $data['search_metadata']['error'] ?? $status;
+                if ($engine === 'yelp' && stripos($errorMessage, "yelp hasn't returned any results") !== false) {
+                    return [];
+                }
                 throw new Exception("SerpAPI error: {$errorMessage}");
             }
         }

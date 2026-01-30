@@ -254,7 +254,7 @@ function handlePost($db, $user) {
     
     // Track usage
     if ($saved > 0) {
-        trackUsage($db, $user['id'], 'search_save', $saved);
+        trackUsage($db, $user['id'], 'search', $saved);
     }
     
     sendJson([
