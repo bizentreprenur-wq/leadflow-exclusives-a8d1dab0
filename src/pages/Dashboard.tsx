@@ -151,8 +151,47 @@ export default function Dashboard() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchProgress, setSearchProgress] = useState(0);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const getResultsMap = () => {
+    try {
+      const raw = localStorage.getItem('bamlead_search_results_by_type');
+      return raw ? (JSON.parse(raw) as Record<string, SearchResult[]>) : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const setResultsMap = (map: Record<string, SearchResult[]>) => {
+    localStorage.setItem('bamlead_search_results_by_type', JSON.stringify(map));
+  };
+
+  const getCachedResultsForType = (type: 'gmb' | 'platform' | null) => {
+    if (!type) return [];
+    const map = getResultsMap();
+    if (Array.isArray(map[type])) return map[type];
+    try {
+      const savedType = localStorage.getItem('bamlead_search_type');
+      const generic = localStorage.getItem('bamlead_search_results');
+      if (savedType === type && generic) {
+        const parsed = JSON.parse(generic);
+        if (Array.isArray(parsed)) {
+          map[type] = parsed;
+          setResultsMap(map);
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore parse errors
+    }
+    return [];
+  };
+
   const [searchResults, setSearchResults] = useState<SearchResult[]>(() => {
     try {
+      const savedType = sessionStorage.getItem('bamlead_search_type') as 'gmb' | 'platform' | null;
+      const cached = getCachedResultsForType(savedType);
+      if (cached.length > 0) {
+        return cached;
+      }
       const saved = sessionStorage.getItem('bamlead_search_results');
       return saved ? JSON.parse(saved) : [];
     } catch { return []; }
@@ -303,7 +342,7 @@ export default function Dashboard() {
     if (searchType) {
       localStorage.setItem('bamlead_search_type', searchType);
     }
-  }, [searchType]);
+  }, [searchType, searchResults]);
 
   useEffect(() => {
     localStorage.setItem('bamlead_query', query);
@@ -317,7 +356,34 @@ export default function Dashboard() {
     if (searchResults.length > 0) {
       localStorage.setItem('bamlead_search_results', JSON.stringify(searchResults));
     }
-  }, [searchResults]);
+    if (searchType) {
+      const map = getResultsMap();
+      map[searchType] = searchResults;
+      setResultsMap(map);
+      sessionStorage.setItem('bamlead_search_results', JSON.stringify(searchResults));
+    }
+    if (searchResults.length === 0 && searchType) {
+      const map = getResultsMap();
+      map[searchType] = [];
+      setResultsMap(map);
+      sessionStorage.setItem('bamlead_search_results', JSON.stringify([]));
+      localStorage.setItem('bamlead_search_results', JSON.stringify([]));
+    }
+  }, [searchResults, searchType]);
+
+  useEffect(() => {
+    if (!searchType) return;
+    if (searchResults.length > 0 && searchResults.every((lead) => lead.source === searchType)) {
+      sessionStorage.setItem('bamlead_search_results', JSON.stringify(searchResults));
+      localStorage.setItem('bamlead_search_results', JSON.stringify(searchResults));
+      return;
+    }
+    const cached = getCachedResultsForType(searchType);
+    setSearchResults(cached);
+    setSelectedLeads([]);
+    sessionStorage.setItem('bamlead_search_results', JSON.stringify(cached));
+    localStorage.setItem('bamlead_search_results', JSON.stringify(cached));
+  }, [searchType]);
 
   useEffect(() => {
     if (emailLeads.length > 0) {
@@ -691,6 +757,7 @@ export default function Dashboard() {
     sessionStorage.removeItem('savedLeads');
     localStorage.removeItem('bamlead_selected_leads');
     localStorage.removeItem('bamlead_step2_visited');
+    localStorage.removeItem('bamlead_search_results_by_type');
     
     await logout();
     navigate('/');
@@ -1351,6 +1418,7 @@ export default function Dashboard() {
     localStorage.removeItem('bamlead_query');
     localStorage.removeItem('bamlead_location');
     localStorage.removeItem('bamlead_search_results');
+    localStorage.removeItem('bamlead_search_results_by_type');
     localStorage.removeItem('bamlead_email_leads');
     localStorage.removeItem('bamlead_selected_leads');
     localStorage.removeItem('bamlead_step2_visited');
