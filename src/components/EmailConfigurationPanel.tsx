@@ -102,6 +102,14 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
   const [isReplying, setIsReplying] = useState(false);
   const [composeData, setComposeData] = useState({ to: '', subject: '', body: '' });
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+
+  useEffect(() => {
+    const savedConfig = safeParse(localStorage.getItem('smtp_config'), null as SMTPConfig | null);
+    const passwordMatchesSaved = savedConfig ? savedConfig.password === smtpConfig.password : false;
+    if (!isVerificationMatch(smtpConfig) || !passwordMatchesSaved) {
+      setIsConnected(false);
+    }
+  }, [smtpConfig.host, smtpConfig.port, smtpConfig.username, smtpConfig.password]);
   
   // Template state from localStorage
   const [selectedTemplate, setSelectedTemplate] = useState<any>(() => {
@@ -113,6 +121,25 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
   const [isEditingTemplate, setIsEditingTemplate] = useState(false);
   const [showTemplateGallery, setShowTemplateGallery] = useState(false);
   const [showProposalsPanel, setShowProposalsPanel] = useState<'proposals' | 'contracts' | null>(null);
+  const getStoredVerification = () => {
+    return safeParse(localStorage.getItem('smtp_verified'), null as null | {
+      host?: string;
+      port?: string | number;
+      username?: string;
+      verifiedAt?: string;
+    });
+  };
+
+  const isVerificationMatch = (config: SMTPConfig) => {
+    const verification = getStoredVerification();
+    if (!verification) return false;
+    return (
+      (verification.host || '').toLowerCase() === (config.host || '').toLowerCase() &&
+      String(verification.port || '') === String(config.port || '') &&
+      (verification.username || '').toLowerCase() === (config.username || '').toLowerCase()
+    );
+  };
+
   // Load saved config on mount
   useEffect(() => {
     const savedConfig = localStorage.getItem('smtp_config');
@@ -120,7 +147,7 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
       try {
         const parsed = JSON.parse(savedConfig);
         setSMTPConfig(parsed);
-        setIsConnected(true);
+        setIsConnected(isVerificationMatch(parsed));
       } catch (e) {
         console.error('Failed to parse SMTP config');
       }
@@ -182,7 +209,8 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
     }
 
     localStorage.setItem('smtp_config', JSON.stringify(smtpConfig));
-    setIsConnected(true);
+    localStorage.removeItem('smtp_verified');
+    setIsConnected(false);
     toast.success('SMTP configuration saved!');
   };
 
@@ -210,16 +238,26 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
         toast.success('SMTP connection verified!', {
           description: `Connected to ${smtpConfig.host}:${smtpConfig.port}`,
         });
+        localStorage.setItem('smtp_verified', JSON.stringify({
+          host: smtpConfig.host,
+          port: smtpConfig.port,
+          username: smtpConfig.username,
+          verifiedAt: new Date().toISOString(),
+        }));
         setIsConnected(true);
       } else {
         toast.error('Connection failed', {
           description: result.error || 'Please check your SMTP credentials',
         });
+        localStorage.removeItem('smtp_verified');
+        setIsConnected(false);
       }
     } catch (error) {
       toast.error('SMTP test failed', {
         description: 'Unable to reach the test endpoint. Please try again or check your API.',
       });
+      localStorage.removeItem('smtp_verified');
+      setIsConnected(false);
     } finally {
       setIsTesting(false);
     }
@@ -271,6 +309,12 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
         toast.success('Test email sent!', {
           description: `Check ${testEmailAddress} for your test email`,
         });
+        localStorage.setItem('smtp_verified', JSON.stringify({
+          host: smtpConfig.host,
+          port: smtpConfig.port,
+          username: smtpConfig.username,
+          verifiedAt: new Date().toISOString(),
+        }));
         setIsConnected(true);
         setShowTestEmailInput(false);
         setTestEmailAddress('');
@@ -278,11 +322,15 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
         toast.error('Failed to send test email', {
           description: result.error || 'Check your SMTP configuration',
         });
+        localStorage.removeItem('smtp_verified');
+        setIsConnected(false);
       }
     } catch (error) {
       toast.error('Failed to send test email', {
         description: 'Network error or server unavailable. Please try again.',
       });
+      localStorage.removeItem('smtp_verified');
+      setIsConnected(false);
     } finally {
       setIsSendingTest(false);
     }

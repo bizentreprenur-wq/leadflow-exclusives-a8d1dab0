@@ -912,6 +912,9 @@ function handleTestSMTP($db, $user) {
     $username = $data['username'] ?? (defined('SMTP_USER') ? SMTP_USER : '');
     $password = $data['password'] ?? (defined('SMTP_PASS') ? SMTP_PASS : '');
     $secure = $data['secure'] ?? (defined('SMTP_SECURE') ? SMTP_SECURE : 'ssl');
+    if (is_bool($secure)) {
+        $secure = $secure ? ((int)$port === 465 ? 'ssl' : 'tls') : '';
+    }
     
     if (empty($host) || empty($username) || empty($password)) {
         http_response_code(400);
@@ -969,38 +972,11 @@ function handleTestSMTP($db, $user) {
         }
     }
 
-    // Fallback: raw socket connectivity check (no auth)
-    try {
-        $errno = 0;
-        $errstr = '';
-        $timeout = 10;
-
-        $protocol = ($secure === 'ssl' || $port == 465) ? 'ssl://' : '';
-        $connection = @fsockopen($protocol . $host, (int)$port, $errno, $errstr, $timeout);
-
-        if ($connection) {
-            $response = fgets($connection, 512);
-            fclose($connection);
-
-            if (strpos($response, '220') === 0) {
-                echo json_encode([
-                    'success' => true,
-                    'message' => 'SMTP connection successful (auth not tested)',
-                    'server_response' => trim($response)
-                ]);
-                return;
-            }
-        }
-
-        echo json_encode([
-            'success' => false,
-            'error' => $errstr ?: 'Could not connect to SMTP server',
-            'errno' => $errno
-        ]);
-    } catch (Exception $e) {
-        http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'Connection test failed: ' . $e->getMessage()]);
-    }
+    http_response_code(500);
+    echo json_encode([
+        'success' => false,
+        'error' => 'SMTP auth test unavailable (PHPMailer missing).',
+    ]);
 }
 
 /**
