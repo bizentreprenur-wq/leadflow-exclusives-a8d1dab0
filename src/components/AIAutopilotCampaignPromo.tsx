@@ -1,14 +1,73 @@
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
 import {
-  Crown, Bot, Zap, Sparkles, Rocket, Brain, Clock, 
-  Mail, Target, TrendingUp, CheckCircle2, Play, ArrowRight
+  Crown, Bot, Zap, Rocket, Brain, Clock, 
+  Mail, Target, CheckCircle2, Play, ArrowRight,
+  Users, FileText, ChevronLeft, ChevronRight, Sparkles
 } from 'lucide-react';
 
+const wizardSteps = [
+  { step: 1, label: 'Leads', icon: Users },
+  { step: 2, label: 'Template', icon: FileText },
+  { step: 3, label: 'Sequence', icon: Zap },
+  { step: 4, label: 'Launch', icon: Rocket },
+];
+
+const stepContent = [
+  {
+    title: 'Select Your Leads',
+    description: 'Choose from your verified leads or let AI automatically select the highest-scoring prospects.',
+    features: [
+      { icon: Target, title: 'Smart Selection', desc: 'AI picks leads with highest conversion potential' },
+      { icon: Brain, title: 'Lead Scoring', desc: 'Prioritizes leads with verified emails (+35 points)' },
+      { icon: Users, title: 'Bulk Import', desc: 'Import from search results or CSV files' },
+    ],
+  },
+  {
+    title: 'Choose Your Template',
+    description: 'Select from high-converting templates or let AI generate personalized messages.',
+    features: [
+      { icon: FileText, title: 'Template Gallery', desc: 'Pre-built templates for every industry' },
+      { icon: Sparkles, title: 'AI Personalization', desc: 'Dynamic content based on lead data' },
+      { icon: Mail, title: 'A/B Testing', desc: 'Test multiple versions automatically' },
+    ],
+  },
+  {
+    title: 'Configure Sequence',
+    description: 'Set up intelligent drip sequences with smart timing and response detection.',
+    features: [
+      { icon: Zap, title: 'Smart Timing', desc: 'Sends at optimal engagement hours' },
+      { icon: Clock, title: 'Follow-up Logic', desc: 'Automatic escalation patterns' },
+      { icon: Brain, title: 'AI Strategy', desc: 'The brain that guides all decisions' },
+    ],
+  },
+  {
+    title: 'Review & Launch',
+    description: 'Final verification before AI takes full control of your outreach campaign.',
+    features: [
+      { icon: CheckCircle2, title: 'Campaign Preview', desc: 'Review all emails before sending' },
+      { icon: Rocket, title: 'One-Click Launch', desc: 'AI handles everything from here' },
+      { icon: Target, title: 'Real-time Monitoring', desc: 'Track responses and conversions live' },
+    ],
+  },
+];
+
 export default function AIAutopilotCampaignPromo() {
+  const [activeStep, setActiveStep] = useState(0);
+  const currentContent = stepContent[activeStep];
+
+  const handlePrevStep = () => {
+    setActiveStep((prev) => Math.max(0, prev - 1));
+  };
+
+  const handleNextStep = () => {
+    setActiveStep((prev) => Math.min(wizardSteps.length - 1, prev + 1));
+  };
+
   return (
     <section className="py-16 md:py-24 bg-gradient-to-b from-background via-background to-muted/30 overflow-hidden">
       <div className="container px-4">
@@ -33,7 +92,7 @@ export default function AIAutopilotCampaignPromo() {
           </p>
         </motion.div>
 
-        {/* Wizard Step Indicator */}
+        {/* Interactive Wizard Step Indicator */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -41,29 +100,26 @@ export default function AIAutopilotCampaignPromo() {
           transition={{ delay: 0.1 }}
           className="mb-6"
         >
-          <div className="flex items-center justify-center gap-2 md:gap-4 bg-card/80 backdrop-blur-sm rounded-full p-2 max-w-2xl mx-auto border border-border">
-            {[
-              { step: 1, label: 'Leads', icon: Target, active: true },
-              { step: 2, label: 'Template', icon: Mail, active: false },
-              { step: 3, label: 'Sequence', icon: Zap, active: false },
-              { step: 4, label: 'Launch', icon: Rocket, active: false },
-            ].map((item, index) => (
-              <div 
+          <div className="flex items-center justify-center gap-1 md:gap-2 bg-card/80 backdrop-blur-sm rounded-full p-2 max-w-2xl mx-auto border border-border">
+            {wizardSteps.map((item, index) => (
+              <button
                 key={item.step}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
-                  item.active 
-                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold' 
-                    : 'text-muted-foreground hover:text-foreground'
+                onClick={() => setActiveStep(index)}
+                className={`flex items-center gap-2 px-3 md:px-4 py-2 rounded-full transition-all cursor-pointer ${
+                  activeStep === index
+                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white font-semibold shadow-lg shadow-amber-500/25' 
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 }`}
               >
                 <item.icon className="w-4 h-4" />
-                <span className="text-sm">{item.step}. {item.label}</span>
-              </div>
+                <span className="text-sm hidden sm:inline">{item.step}. {item.label}</span>
+                <span className="text-sm sm:hidden">{item.step}</span>
+              </button>
             ))}
           </div>
         </motion.div>
 
-        {/* Main Feature Card */}
+        {/* Main Feature Card with Dynamic Content */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -76,38 +132,70 @@ export default function AIAutopilotCampaignPromo() {
             
             <CardContent className="relative z-10 p-8 md:p-12">
               <div className="grid md:grid-cols-2 gap-8 items-center">
-                {/* Left: Features */}
+                {/* Left: Dynamic Step Content */}
                 <div className="space-y-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
-                      <Bot className="w-7 h-7 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-2xl font-bold text-foreground">AI Autopilot Campaign</h3>
-                      <p className="text-muted-foreground">Fully automated lead nurturing</p>
-                    </div>
-                  </div>
-
-                  {/* Feature List */}
-                  <div className="space-y-4">
-                    {[
-                      { icon: Brain, title: 'Smart Lead Analysis', desc: 'AI classifies leads by intent & priority' },
-                      { icon: Zap, title: 'Intelligent Sequences', desc: 'Context-aware follow-up patterns' },
-                      { icon: Clock, title: 'Optimal Timing', desc: 'Sends at peak engagement hours' },
-                      { icon: Mail, title: 'Response Detection', desc: 'Pauses sequences when leads reply' },
-                      { icon: Target, title: 'Intent Classification', desc: 'Routes hot leads for immediate action' },
-                    ].map((feature) => (
-                      <div key={feature.title} className="flex items-start gap-3">
-                        <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
-                          <feature.icon className="w-4 h-4 text-amber-500" />
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={activeStep}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ duration: 0.3 }}
+                      className="space-y-6"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
+                          <Bot className="w-7 h-7 text-white" />
                         </div>
                         <div>
-                          <p className="font-medium text-foreground">{feature.title}</p>
-                          <p className="text-sm text-muted-foreground">{feature.desc}</p>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-amber-500 border-amber-500/50 text-xs">
+                              Step {activeStep + 1} of 4
+                            </Badge>
+                          </div>
+                          <h3 className="text-2xl font-bold text-foreground">{currentContent.title}</h3>
                         </div>
                       </div>
-                    ))}
-                  </div>
+
+                      <p className="text-muted-foreground">{currentContent.description}</p>
+
+                      {/* Dynamic Feature List */}
+                      <div className="space-y-4">
+                        {currentContent.features.map((feature) => (
+                          <div key={feature.title} className="flex items-start gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                              <feature.icon className="w-4 h-4 text-amber-500" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-foreground">{feature.title}</p>
+                              <p className="text-sm text-muted-foreground">{feature.desc}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Navigation Buttons */}
+                      <div className="flex items-center gap-3 pt-4">
+                        <Button
+                          variant="outline"
+                          onClick={handlePrevStep}
+                          disabled={activeStep === 0}
+                          className="gap-2"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          Previous
+                        </Button>
+                        <Button
+                          onClick={handleNextStep}
+                          disabled={activeStep === wizardSteps.length - 1}
+                          className="gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
+                        >
+                          Next Step
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </motion.div>
+                  </AnimatePresence>
                 </div>
 
                 {/* Right: Pricing & CTA */}
