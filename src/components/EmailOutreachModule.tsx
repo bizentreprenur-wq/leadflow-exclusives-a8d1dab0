@@ -278,7 +278,7 @@ function SMTPTestSection() {
     }
   };
 
-  const smtpConfig = safeParse(localStorage.getItem('smtp_config'), {});
+  const smtpConfig = safeParse(localStorage.getItem('smtp_config'), {} as { host?: string; port?: number; username?: string });
 
   return (
     <div className="space-y-4">
@@ -286,7 +286,7 @@ function SMTPTestSection() {
         <div className="flex-1">
           <p className="text-sm font-medium">Current Configuration</p>
           <p className="text-xs text-muted-foreground">
-            {smtpConfig.host}:{smtpConfig.port} • {smtpConfig.username}
+            {smtpConfig.host || 'Not configured'}:{smtpConfig.port || ''} • {smtpConfig.username || ''}
           </p>
         </div>
         <Button variant="ghost" size="sm" onClick={() => {

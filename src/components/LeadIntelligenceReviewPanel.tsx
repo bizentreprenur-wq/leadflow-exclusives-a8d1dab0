@@ -533,7 +533,7 @@ export default function LeadIntelligenceReviewPanel({
                   <div>
                     <span className="text-xs text-muted-foreground">Preview:</span>
                     <p className="text-sm text-muted-foreground line-clamp-2">
-                      {(selectedTemplate.body || selectedTemplate.preview || '').slice(0, 150)}...
+                      {(selectedTemplate.body || '').slice(0, 150)}...
                     </p>
                   </div>
                 </div>
