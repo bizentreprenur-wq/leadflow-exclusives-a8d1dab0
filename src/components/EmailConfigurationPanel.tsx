@@ -69,6 +69,15 @@ interface EmailConfigurationPanelProps {
 }
 
 export default function EmailConfigurationPanel({ leads = [], hideTabBar = false, initialTab, hideWebhooks = false }: EmailConfigurationPanelProps) {
+  const safeParse = <T,>(value: string | null, fallback: T): T => {
+    if (!value) return fallback;
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return fallback;
+    }
+  };
+
   const [activeTab, setActiveTab] = useState(initialTab || 'smtp');
   const [showPassword, setShowPassword] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
@@ -95,12 +104,10 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
   
   // Template state from localStorage
   const [selectedTemplate, setSelectedTemplate] = useState<any>(() => {
-    const saved = localStorage.getItem('bamlead_selected_template');
-    return saved ? JSON.parse(saved) : null;
+    return safeParse(localStorage.getItem('bamlead_selected_template'), null);
   });
   const [customizedContent, setCustomizedContent] = useState<{ subject: string; body: string } | null>(() => {
-    const saved = localStorage.getItem('bamlead_template_customizations');
-    return saved ? JSON.parse(saved) : null;
+    return safeParse(localStorage.getItem('bamlead_template_customizations'), null);
   });
   const [isEditingTemplate, setIsEditingTemplate] = useState(false);
   const [showTemplateGallery, setShowTemplateGallery] = useState(false);

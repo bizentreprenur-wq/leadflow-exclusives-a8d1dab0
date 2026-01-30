@@ -81,14 +81,45 @@ export default function EmailSetupFlow({
   onOpenSettings,
   searchType,
 }: EmailSetupFlowProps) {
+  const safeJsonParse = <T,>(value: string | null, fallback: T): T => {
+    if (!value) return fallback;
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const sanitizeLocalStorageJson = () => {
+    const keys = [
+      'smtp_config',
+      'bamlead_selected_template',
+      'bamlead_template_customizations',
+      'email_branding',
+      'bamlead_branding_info',
+      'ai_email_template',
+      'bamlead_email_leads',
+      'bamlead_crm_leads',
+    ];
+    for (const key of keys) {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      try {
+        JSON.parse(raw);
+      } catch {
+        localStorage.removeItem(key);
+      }
+    }
+  };
+
+  sanitizeLocalStorageJson();
+
   const [currentPhase, setCurrentPhase] = useState<'smtp' | 'template' | 'send'>('template');
   const [selectedTemplate, setSelectedTemplate] = useState<any>(() => {
-    const saved = localStorage.getItem('bamlead_selected_template');
-    return saved ? JSON.parse(saved) : null;
+    return safeJsonParse(localStorage.getItem('bamlead_selected_template'), null);
   });
   const [customizedContent, setCustomizedContent] = useState<{ subject: string; body: string } | null>(() => {
-    const saved = localStorage.getItem('bamlead_template_customizations');
-    return saved ? JSON.parse(saved) : null;
+    return safeJsonParse(localStorage.getItem('bamlead_template_customizations'), null);
   });
   const [showCRMModal, setShowCRMModal] = useState(false);
   const [showAutoCampaign, setShowAutoCampaign] = useState(false);
@@ -115,12 +146,11 @@ export default function EmailSetupFlow({
   
   // Business logo for email branding
   const [businessLogo, setBusinessLogo] = useState<string | null>(() => {
-    const branding = localStorage.getItem('email_branding');
-    if (branding) {
-      const parsed = JSON.parse(branding);
-      return parsed.logoUrl || null;
-    }
-    return null;
+    const branding = safeJsonParse<{ logoUrl?: string } | null>(
+      localStorage.getItem('email_branding'),
+      null
+    );
+    return branding?.logoUrl || null;
   });
   
   // Load branding from backend on mount (for logged-in users)
@@ -174,11 +204,11 @@ export default function EmailSetupFlow({
       setBusinessLogo(base64);
       
       // Sync with email_branding localStorage
-      const existing = JSON.parse(localStorage.getItem('email_branding') || '{}');
+      const existing = safeJsonParse<Record<string, unknown>>(localStorage.getItem('email_branding'), {});
       localStorage.setItem('email_branding', JSON.stringify({ ...existing, logoUrl: base64 }));
       
       // Also sync with bamlead_branding_info for proposals/contracts
-      const brandingInfo = JSON.parse(localStorage.getItem('bamlead_branding_info') || '{}');
+      const brandingInfo = safeJsonParse<Record<string, unknown>>(localStorage.getItem('bamlead_branding_info'), {});
       localStorage.setItem('bamlead_branding_info', JSON.stringify({ ...brandingInfo, logo: base64 }));
       
       // Persist to backend for logged-in users
@@ -198,11 +228,11 @@ export default function EmailSetupFlow({
 
   const handleRemoveLogo = async () => {
     setBusinessLogo(null);
-    const existing = JSON.parse(localStorage.getItem('email_branding') || '{}');
+    const existing = safeJsonParse<Record<string, unknown>>(localStorage.getItem('email_branding'), {});
     delete existing.logoUrl;
     localStorage.setItem('email_branding', JSON.stringify(existing));
     
-    const brandingInfo = JSON.parse(localStorage.getItem('bamlead_branding_info') || '{}');
+    const brandingInfo = safeJsonParse<Record<string, unknown>>(localStorage.getItem('bamlead_branding_info'), {});
     delete brandingInfo.logo;
     localStorage.setItem('bamlead_branding_info', JSON.stringify(brandingInfo));
     
@@ -220,7 +250,10 @@ export default function EmailSetupFlow({
   
   // SMTP configuration
   const [smtpConfigured, setSmtpConfigured] = useState(() => {
-    const config = JSON.parse(localStorage.getItem('smtp_config') || '{}');
+    const config = safeJsonParse<{ username?: string; password?: string }>(
+      localStorage.getItem('smtp_config'),
+      {}
+    );
     return Boolean(config.username && config.password);
   });
 
@@ -362,7 +395,10 @@ export default function EmailSetupFlow({
 
   useEffect(() => {
     const checkSMTP = () => {
-      const config = JSON.parse(localStorage.getItem('smtp_config') || '{}');
+      const config = safeJsonParse<{ username?: string; password?: string }>(
+        localStorage.getItem('smtp_config'),
+        {}
+      );
       setSmtpConfigured(Boolean(config.username && config.password));
     };
     checkSMTP();

@@ -269,7 +269,16 @@ function SMTPTestSection() {
     setIsSending(false);
   };
 
-  const smtpConfig = JSON.parse(localStorage.getItem('smtp_config') || '{}');
+  const safeParse = <T,>(value: string | null, fallback: T): T => {
+    if (!value) return fallback;
+    try {
+      return JSON.parse(value) as T;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const smtpConfig = safeParse(localStorage.getItem('smtp_config'), {});
 
   return (
     <div className="space-y-4">
