@@ -93,15 +93,25 @@ function sendSSEError($message) {
 
 /**
  * Stream multi-source search results progressively
- * Searches Google Maps, Yelp, and Bing Local via SerpAPI
+ * Uses Serper.dev (preferred) or SerpAPI as fallback
  */
 function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier) {
-    $apiKey = defined('SERPAPI_KEY') ? SERPAPI_KEY : '';
+    $hasSerper = defined('SERPER_API_KEY') && !empty(SERPER_API_KEY);
+    $hasSerpApi = defined('SERPAPI_KEY') && !empty(SERPAPI_KEY);
     
-    if (empty($apiKey)) {
-        sendSSEError('SERPAPI_KEY is not configured');
+    if (!$hasSerper && !$hasSerpApi) {
+        sendSSEError('No search API configured. Please add SERPER_API_KEY or SERPAPI_KEY to config.php');
         return;
     }
+    
+    // Use Serper if available (cheaper, faster)
+    if ($hasSerper) {
+        streamSerperSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier);
+        return;
+    }
+    
+    // Fallback to SerpAPI
+    $apiKey = SERPAPI_KEY;
     
     $allResults = [];
     $seenBusinesses = []; // Track by dedupe key to index for deduplication
@@ -564,4 +574,194 @@ function quickWebsiteCheck($url) {
         'mobileScore' => null,
         'loadTime' => null
     ];
+}
+
+/**
+ * Stream search results using Serper.dev Places API
+ */
+function streamSerperSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier) {
+    $allResults = [];
+    $seenBusinesses = [];
+    $totalResults = 0;
+    $query = "$service in $location";
+    
+    sendSSE('status', [
+        'message' => 'Searching with Serper Places API...',
+        'engine' => 'Serper Places',
+        'progress' => 0
+    ]);
+    
+    // Search Serper Places
+    $payload = [
+        'q' => $query,
+        'gl' => 'us',
+        'hl' => 'en'
+    ];
+    
+    $response = curlRequest('https://google.serper.dev/places', [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($payload),
+        CURLOPT_HTTPHEADER => [
+            'X-API-KEY: ' . SERPER_API_KEY,
+            'Content-Type: application/json'
+        ]
+    ]);
+    
+    if ($response['httpCode'] !== 200) {
+        // Try organic search as fallback
+        $response = curlRequest('https://google.serper.dev/search', [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_HTTPHEADER => [
+                'X-API-KEY: ' . SERPER_API_KEY,
+                'Content-Type: application/json'
+            ]
+        ]);
+        
+        if ($response['httpCode'] !== 200) {
+            sendSSEError('Serper API error: HTTP ' . $response['httpCode']);
+            return;
+        }
+        
+        $data = json_decode($response['response'], true);
+        $places = $data['organic'] ?? [];
+        $isOrganic = true;
+    } else {
+        $data = json_decode($response['response'], true);
+        $places = $data['places'] ?? [];
+        $isOrganic = false;
+    }
+    
+    sendSSE('status', [
+        'message' => 'Processing ' . count($places) . ' results from Serper...',
+        'engine' => 'Serper',
+        'progress' => 30
+    ]);
+    
+    foreach ($places as $index => $item) {
+        if (count($allResults) >= $limit) break;
+        
+        if ($isOrganic) {
+            $business = [
+                'id' => generateId('srpr_'),
+                'name' => $item['title'] ?? '',
+                'url' => $item['link'] ?? '',
+                'snippet' => $item['snippet'] ?? '',
+                'displayLink' => parse_url($item['link'] ?? '', PHP_URL_HOST) ?? '',
+                'address' => '',
+                'phone' => '',
+                'rating' => null,
+                'reviews' => null,
+                'source' => 'Serper Organic',
+                'sources' => ['Serper Organic']
+            ];
+        } else {
+            $business = [
+                'id' => generateId('srpr_'),
+                'name' => $item['title'] ?? '',
+                'url' => $item['website'] ?? '',
+                'snippet' => $item['category'] ?? '',
+                'displayLink' => parse_url($item['website'] ?? '', PHP_URL_HOST) ?? '',
+                'address' => $item['address'] ?? '',
+                'phone' => $item['phoneNumber'] ?? '',
+                'rating' => $item['rating'] ?? null,
+                'reviews' => $item['ratingCount'] ?? null,
+                'source' => 'Serper Places',
+                'sources' => ['Serper Places']
+            ];
+        }
+        
+        if (empty($business['name'])) continue;
+        if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
+        
+        $dedupeKey = buildBusinessDedupeKey($business, $location);
+        if (isset($seenBusinesses[$dedupeKey])) continue;
+        
+        $seenBusinesses[$dedupeKey] = count($allResults);
+        $business['websiteAnalysis'] = quickWebsiteCheckStream($business['url']);
+        $allResults[] = $business;
+        $totalResults++;
+        
+        // Stream each result
+        sendSSE('lead', [
+            'lead' => $business,
+            'index' => $totalResults,
+            'total' => count($places)
+        ]);
+        
+        // Small delay to prevent overwhelming
+        usleep(10000);
+    }
+    
+    // If we need more results, try Maps search
+    if (count($allResults) < $limit) {
+        sendSSE('status', [
+            'message' => 'Searching additional sources...',
+            'engine' => 'Serper Maps',
+            'progress' => 60
+        ]);
+        
+        $mapsPayload = [
+            'q' => $query,
+            'gl' => 'us',
+            'hl' => 'en'
+        ];
+        
+        $mapsResponse = curlRequest('https://google.serper.dev/maps', [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($mapsPayload),
+            CURLOPT_HTTPHEADER => [
+                'X-API-KEY: ' . SERPER_API_KEY,
+                'Content-Type: application/json'
+            ]
+        ]);
+        
+        if ($mapsResponse['httpCode'] === 200) {
+            $mapsData = json_decode($mapsResponse['response'], true);
+            $mapsPlaces = $mapsData['places'] ?? [];
+            
+            foreach ($mapsPlaces as $item) {
+                if (count($allResults) >= $limit) break;
+                
+                $business = [
+                    'id' => generateId('srpm_'),
+                    'name' => $item['title'] ?? '',
+                    'url' => $item['website'] ?? '',
+                    'snippet' => $item['category'] ?? '',
+                    'displayLink' => parse_url($item['website'] ?? '', PHP_URL_HOST) ?? '',
+                    'address' => $item['address'] ?? '',
+                    'phone' => $item['phoneNumber'] ?? '',
+                    'rating' => $item['rating'] ?? null,
+                    'reviews' => $item['ratingCount'] ?? null,
+                    'source' => 'Serper Maps',
+                    'sources' => ['Serper Maps']
+                ];
+                
+                if (empty($business['name'])) continue;
+                if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
+                
+                $dedupeKey = buildBusinessDedupeKey($business, $location);
+                if (isset($seenBusinesses[$dedupeKey])) continue;
+                
+                $seenBusinesses[$dedupeKey] = count($allResults);
+                $business['websiteAnalysis'] = quickWebsiteCheckStream($business['url']);
+                $allResults[] = $business;
+                $totalResults++;
+                
+                sendSSE('lead', [
+                    'lead' => $business,
+                    'index' => $totalResults,
+                    'total' => count($mapsPlaces) + count($places)
+                ]);
+                
+                usleep(10000);
+            }
+        }
+    }
+    
+    // Send completion
+    sendSSE('complete', [
+        'totalResults' => $totalResults,
+        'message' => "Search complete! Found {$totalResults} businesses."
+    ]);
 }
