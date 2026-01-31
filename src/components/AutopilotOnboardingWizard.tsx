@@ -221,12 +221,22 @@ export default function AutopilotOnboardingWizard({
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden p-0">
         {/* Header */}
         <div className="bg-gradient-to-r from-amber-500 to-orange-500 p-6 text-white">
+          {/* Welcome Banner with Logo */}
+          <div className="flex items-center justify-center gap-3 mb-4 pb-4 border-b border-white/20">
+            <img 
+              src="/favicon.png" 
+              alt="Bamlead" 
+              className="w-10 h-10 rounded-lg bg-white/20 p-1"
+            />
+            <h1 className="text-2xl font-bold">Welcome to Bamlead</h1>
+          </div>
+          
           <div className="flex items-center gap-3 mb-4">
             <div className="p-2 rounded-xl bg-white/20">
               <Crown className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-xl font-bold">Welcome to Autopilot</h2>
+              <h2 className="text-xl font-bold">Autopilot Plan Setup</h2>
               <p className="text-white/80 text-sm">Let's set up your AI-powered outreach in minutes</p>
             </div>
           </div>
