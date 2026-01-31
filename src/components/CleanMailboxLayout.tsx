@@ -38,6 +38,8 @@ import AIAutopilotDashboard from './AIAutopilotDashboard';
 import SequencePreviewModal from './SequencePreviewModal';
 import ConversionFunnelDashboard from './ConversionFunnelDashboard';
 import { EmailSequence } from '@/lib/emailSequences';
+import { updateAutopilotCampaign } from '@/lib/autopilotCampaign';
+import { useAutopilotTrial } from '@/hooks/useAutopilotTrial';
 
 // Tab types for main navigation
 type MainTab = 'inbox' | 'campaigns' | 'sequences' | 'automation' | 'analytics' | 'documents' | 'settings';
@@ -102,6 +104,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   const [inboxFilter, setInboxFilter] = useState<InboxFilter>('all');
   const [selectedReply, setSelectedReply] = useState<EmailReply | null>(null);
   const [showComposeModal, setShowComposeModal] = useState(false);
+  const [showAutopilotSubscription, setShowAutopilotSubscription] = useState(false);
   const [composeInitialEmail, setComposeInitialEmail] = useState<{
     to: string;
     subject: string;
@@ -134,6 +137,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
     return 450;
   });
   const [isEmailPreviewResizing, setIsEmailPreviewResizing] = useState(false);
+  const { status: trialStatus, startTrial, TRIAL_DURATION_DAYS } = useAutopilotTrial();
 
   const clampMailboxSidebarWidth = (w: number) => Math.max(220, Math.min(520, w));
 
@@ -344,6 +348,79 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
     setShowComposeModal(true);
   };
 
+  const pauseAutopilotCampaign = () => {
+    updateAutopilotCampaign({ status: 'paused' });
+    try {
+      const raw = localStorage.getItem('bamlead_drip_active');
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      localStorage.setItem('bamlead_drip_active', JSON.stringify({
+        ...parsed,
+        active: false,
+        autopilot: false,
+        pausedAt: new Date().toISOString(),
+      }));
+    } catch {
+      // ignore
+    }
+  };
+
+  const enableAutopilot = () => {
+    setAutomation(prev => ({
+      ...prev,
+      doneForYouMode: true,
+      responseMode: 'automatic',
+      autoFollowUps: true,
+    }));
+    setMainTab('automation');
+  };
+
+  const disableAutopilot = () => {
+    setAutomation(prev => ({
+      ...prev,
+      doneForYouMode: false,
+      responseMode: 'manual',
+    }));
+    pauseAutopilotCampaign();
+  };
+
+  const handleAutopilotToggle = (next: boolean) => {
+    if (next) {
+      if (trialStatus.canUseAutopilot) {
+        enableAutopilot();
+        if (trialStatus.isTrialActive && !trialStatus.isPaid) {
+          toast.success(`🤖 AI Autopilot enabled! ${trialStatus.trialDaysRemaining} days left in trial.`);
+        } else {
+          toast.success('🤖 AI Autopilot enabled.');
+        }
+        return;
+      }
+
+      if (!trialStatus.hasStartedTrial && !trialStatus.isExpired) {
+        const started = startTrial();
+        if (started) {
+          enableAutopilot();
+          toast.success(`🚀 ${TRIAL_DURATION_DAYS}-day AI Autopilot trial started!`);
+          return;
+        }
+      }
+
+      disableAutopilot();
+      setShowAutopilotSubscription(true);
+      toast.error(
+        trialStatus.isExpired
+          ? 'Your AI Autopilot trial has expired. Please subscribe to continue.'
+          : 'AI Autopilot requires a trial or subscription.'
+      );
+      return;
+    }
+
+    if (automation.doneForYouMode) {
+      disableAutopilot();
+      toast.info('👤 Switched to Manual Mode. AI Autopilot paused.');
+    }
+  };
+
   useEffect(() => {
     localStorage.setItem('bamlead_automation_settings', JSON.stringify(automation));
   }, [automation]);
@@ -355,6 +432,13 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
       // ignore
     }
   }, [campaignAnalytics]);
+
+  useEffect(() => {
+    if (automation.doneForYouMode && !trialStatus.canUseAutopilot) {
+      disableAutopilot();
+      toast.error('AI Autopilot disabled because your trial expired.');
+    }
+  }, [automation.doneForYouMode, trialStatus.canUseAutopilot]);
 
   // Filter replies
   const filteredReplies = DEMO_REPLIES.filter(r => {
@@ -484,7 +568,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                   </div>
                   <Switch
                     checked={automation.doneForYouMode}
-                    onCheckedChange={(v) => setAutomation(prev => ({ ...prev, doneForYouMode: v }))}
+                    onCheckedChange={handleAutopilotToggle}
                     className="data-[state=checked]:bg-amber-500 scale-75"
                   />
                 </div>
@@ -1265,6 +1349,29 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
           toast.success(`Applied Day ${step.day} email`);
         }}
       />
+
+      {/* Autopilot Subscription Modal */}
+      <Dialog open={showAutopilotSubscription} onOpenChange={setShowAutopilotSubscription}>
+        <DialogContent
+          elevated
+          className="max-w-2xl max-h-[85vh] overflow-auto"
+        >
+          <DialogTitle className="text-lg font-bold text-foreground">
+            AI Autopilot Access
+          </DialogTitle>
+          <AIAutopilotSubscription
+            isActive={automation.doneForYouMode}
+            onToggle={(active) => {
+              if (active) {
+                enableAutopilot();
+              } else {
+                disableAutopilot();
+              }
+              setShowAutopilotSubscription(false);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
