@@ -861,8 +861,8 @@ export default function ComposeEmailModal({
         </div>
 
         {/* MAIN CONTENT */}
-        <ScrollArea className="flex-1 min-h-0 h-full">
-          <div className="p-4 pb-10">
+        <ScrollArea className="flex-1 min-h-0 h-full" showHorizontalScrollbar>
+          <div className="p-4 pb-10 min-w-[820px]">
             {/* ===================== REGULAR EMAIL MODE ===================== */}
             {composeMode === 'regular' && (
               <div className="space-y-4">
