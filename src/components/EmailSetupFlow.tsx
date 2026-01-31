@@ -487,15 +487,6 @@ export default function EmailSetupFlow({
               </CardContent>
             </Card>
 
-            {smtpConfigured && (
-              <div className="flex justify-center">
-                <Button onClick={() => setCurrentPhase('send')} size="lg" className="gap-2">
-                  Continue to Send Emails
-                  <ArrowRight className="w-5 h-5" />
-                </Button>
-              </div>
-            )}
-
             {!smtpConfigured && (
               <div className="space-y-4">
                 <div className="text-center p-6 bg-muted/30 rounded-xl border border-dashed border-border">
@@ -1383,19 +1374,30 @@ export default function EmailSetupFlow({
             <ArrowLeft className="w-4 h-4" />
             Back to Step 2
           </Button>
-          <Button 
-            onClick={() => {
-              // Navigate to SMTP setup phase
-              setCurrentPhase('smtp');
-              toast.success('📧 Now configure your mail server');
-            }} 
-            className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground px-8 py-3 text-lg font-bold shadow-elevated"
-            size="lg"
-          >
-            <Server className="w-5 h-5" />
-            Next: SMTP Setup
-            <ArrowRight className="w-5 h-5" />
-          </Button>
+          {smtpConfigured ? (
+            <Button
+              onClick={() => setCurrentPhase('send')}
+              className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground px-8 py-3 text-lg font-bold shadow-elevated"
+              size="lg"
+            >
+              Continue to Send Emails
+              <ArrowRight className="w-5 h-5" />
+            </Button>
+          ) : (
+            <Button 
+              onClick={() => {
+                // Navigate to SMTP setup phase
+                setCurrentPhase('smtp');
+                toast.success('📧 Now configure your mail server');
+              }} 
+              className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground px-8 py-3 text-lg font-bold shadow-elevated"
+              size="lg"
+            >
+              <Server className="w-5 h-5" />
+              Next: SMTP Setup
+              <ArrowRight className="w-5 h-5" />
+            </Button>
+          )}
         </div>
       </div>
 
