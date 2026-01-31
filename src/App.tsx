@@ -30,6 +30,7 @@ import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import SignContract from "./pages/SignContract";
 import NotFound from "./pages/NotFound";
+import AutopilotOnboarding from "./pages/AutopilotOnboarding";
 // AI-optimized pages
 import WhatIsBamlead from "./pages/WhatIsBamlead";
 import Capabilities from "./pages/Capabilities";
@@ -91,6 +92,7 @@ function AppInner() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/sign-contract" element={<SignContract />} />
+        <Route path="/autopilot-onboarding" element={<AutopilotOnboarding />} />
         {/* AI-optimized pages */}
         <Route path="/what-is-bamlead" element={<WhatIsBamlead />} />
         <Route path="/capabilities" element={<Capabilities />} />
