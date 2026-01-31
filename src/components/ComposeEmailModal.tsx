@@ -144,7 +144,7 @@ export default function ComposeEmailModal({
   } | null>(null);
   
   // Select All leads state
-  const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string | number>>(new Set());
+  const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
   const [selectAllLeads, setSelectAllLeads] = useState(false);
   const [showTemplateRequiredModal, setShowTemplateRequiredModal] = useState(false);
 
@@ -326,19 +326,49 @@ export default function ComposeEmailModal({
     return selectedSequence || suggestedSequence;
   }, [selectedSequence, suggestedSequence]);
   
+  const getLeadKey = (lead: Lead, index: number) => {
+    if (lead.id !== undefined && lead.id !== null) return String(lead.id);
+    if (lead.email) return `email:${lead.email}`;
+    return `idx:${index}`;
+  };
+
+  const filteredLeadKeys = useMemo(() => {
+    return new Set(filteredLeads.map((lead, idx) => getLeadKey(lead, idx)));
+  }, [filteredLeads]);
+
+  const selectedLeads = useMemo(() => {
+    if (selectAllLeads || selectedLeadIds.size === 0) {
+      return filteredLeads;
+    }
+    return filteredLeads.filter((lead, idx) => selectedLeadIds.has(getLeadKey(lead, idx)));
+  }, [filteredLeads, selectAllLeads, selectedLeadIds]);
+
+  useEffect(() => {
+    if (selectAllLeads) {
+      setSelectedLeadIds(filteredLeadKeys);
+      return;
+    }
+    if (selectedLeadIds.size === 0) return;
+    const updated = new Set(
+      Array.from(selectedLeadIds).filter((key) => filteredLeadKeys.has(key))
+    );
+    if (updated.size !== selectedLeadIds.size) {
+      setSelectedLeadIds(updated);
+    }
+  }, [filteredLeadKeys, selectAllLeads, selectedLeadIds]);
+
   // Handle select all toggle
   const handleSelectAllToggle = (checked: boolean) => {
     setSelectAllLeads(checked);
     if (checked) {
-      const allIds = new Set(filteredLeads.map(l => l.id ?? '').filter(Boolean));
-      setSelectedLeadIds(allIds);
+      setSelectedLeadIds(new Set(filteredLeadKeys));
     } else {
       setSelectedLeadIds(new Set());
     }
   };
   
   // Handle individual lead selection
-  const handleLeadSelection = (leadId: string | number, checked: boolean) => {
+  const handleLeadSelection = (leadId: string, checked: boolean) => {
     const newSelected = new Set(selectedLeadIds);
     if (checked) {
       newSelected.add(leadId);
@@ -346,20 +376,28 @@ export default function ComposeEmailModal({
       newSelected.delete(leadId);
     }
     setSelectedLeadIds(newSelected);
-    setSelectAllLeads(newSelected.size === filteredLeads.length);
+    setSelectAllLeads(newSelected.size === filteredLeadKeys.size);
   };
   
   // Get selected lead count for campaign
   const selectedLeadCount = useMemo(() => {
-    if (selectAllLeads) return filteredLeads.length;
-    return selectedLeadIds.size > 0 ? selectedLeadIds.size : filteredLeads.length;
-  }, [selectAllLeads, selectedLeadIds.size, filteredLeads.length]);
+    return selectedLeads.length;
+  }, [selectedLeads]);
   
   const dripLeadCount = useMemo(() => {
-    if (workflowEmailLeadCount > 0) return workflowEmailLeadCount;
-    const emailCount = safeLeads.filter(l => l.email).length;
-    return emailCount > 0 ? emailCount : safeLeads.length;
-  }, [workflowEmailLeadCount, safeLeads]);
+    return selectedLeadCount;
+  }, [selectedLeadCount]);
+
+  const currentFilteredIndex = useMemo(() => {
+    if (!currentLead) return -1;
+    return filteredLeads.indexOf(currentLead);
+  }, [filteredLeads, currentLead]);
+
+  const lastSentFilteredIndex = useMemo(() => {
+    if (lastSentIndex < 0) return -1;
+    const lastLead = leads[lastSentIndex];
+    return lastLead ? filteredLeads.indexOf(lastLead) : -1;
+  }, [lastSentIndex, leads, filteredLeads]);
 
   // Check if user came through workflow (Step 1 → 2 → 3)
   const workflowContext = useMemo(() => {
@@ -457,6 +495,77 @@ export default function ComposeEmailModal({
       toast.error(`Failed to send: ${errorMessage}`);
     }
     setIsSending(false);
+  };
+
+  const handleSendCampaign = async () => {
+    if (!email.subject || !email.body) {
+      toast.error('Please add a subject and message before sending.');
+      return;
+    }
+
+    if (!isSMTPConfigured()) {
+      toast.error('Please configure SMTP settings first. Go to Settings > SMTP Configuration.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const selected = selectedLeads;
+    const validLeads = selected.filter((lead) => lead.email && emailRegex.test(lead.email));
+
+    if (validLeads.length === 0) {
+      toast.error('No selected leads have valid email addresses.');
+      return;
+    }
+
+    setIsSending(true);
+    try {
+      const leadsForSend: LeadForEmail[] = validLeads.map((lead) => ({
+        id: typeof lead.id === 'number' ? lead.id : undefined,
+        email: lead.email as string,
+        business_name: lead.business_name || lead.name,
+        contact_name: lead.contact_name || lead.first_name,
+        website: lead.website,
+        platform: lead.industry,
+        issues: lead.websiteIssues,
+        phone: (lead as any).phone,
+        leadScore: lead.leadScore,
+      }));
+
+      const dripConfig = dripMode
+        ? { emailsPerHour: Math.max(1, dripRate), delayMinutes: Math.max(1, Math.floor(60 / Math.max(1, dripRate))) }
+        : undefined;
+
+      const result = await sendBulkEmails({
+        leads: leadsForSend,
+        custom_subject: email.subject,
+        custom_body: email.body,
+        send_mode: dripMode ? 'drip' : 'instant',
+        drip_config: dripConfig,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to send campaign.');
+      }
+
+      const sentCount = result.results?.sent || validLeads.length;
+      validLeads.forEach((lead) => {
+        const globalIndex = safeLeads.indexOf(lead);
+        if (globalIndex >= 0) {
+          onEmailSent(globalIndex);
+        }
+      });
+
+      toast.success(`Campaign sent! ${sentCount} emails queued.`);
+      if (dripMode) {
+        toast.info(`Drip mode active: ~${Math.ceil(sentCount / Math.max(1, dripRate))} hours to complete.`);
+      }
+      setCampaignTab('leads');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to send campaign.';
+      toast.error(message);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleSchedule = async (date: Date) => {
@@ -903,6 +1012,20 @@ export default function ComposeEmailModal({
                     className="bg-muted/30 border-border"
                   />
                 </div>
+                {showAISubjects && (
+                  <AISubjectLineGenerator
+                    currentLead={currentLead ? {
+                      business_name: currentLead.business_name || currentLead.name,
+                      first_name: currentLead.first_name || currentLead.contact_name,
+                      industry: currentLead.industry,
+                      aiClassification: currentLead.aiClassification,
+                      hasWebsite: !!currentLead.website,
+                      websiteIssues: currentLead.websiteIssues,
+                    } : undefined}
+                    onSelect={(subject) => setEmail(prev => ({ ...prev, subject }))}
+                    searchType={detectedSearchType}
+                  />
+                )}
 
                 {/* Body */}
                 <div>
@@ -1109,8 +1232,8 @@ export default function ComposeEmailModal({
                         <>
                           <LeadQueueIndicator
                             leads={filteredLeads}
-                            currentIndex={currentLeadIndex}
-                            lastSentIndex={lastSentIndex}
+                            currentIndex={currentFilteredIndex}
+                            lastSentIndex={lastSentFilteredIndex}
                             variant="horizontal"
                           />
                           
@@ -1134,39 +1257,43 @@ export default function ComposeEmailModal({
                           
                           <ScrollArea className="h-[200px] mt-4">
                             <div className="space-y-2">
-                              {filteredLeads.map((lead, idx) => (
-                                <div
-                                  key={lead?.id ?? idx}
-                                  className={cn(
-                                    "w-full text-left p-3 rounded-lg border transition-all flex items-center gap-3",
-                                    selectedLeadIds.has(lead.id ?? '') || selectAllLeads
-                                      ? "border-orange-500 bg-orange-500/10"
-                                      : idx <= lastSentIndex
-                                      ? "border-emerald-500/30 bg-emerald-500/5"
-                                      : "border-border hover:border-orange-500/50"
-                                  )}
-                                >
+                              {filteredLeads.map((lead, idx) => {
+                                const globalIndex = safeLeads.indexOf(lead);
+                                return (
+                                  <div
+                                    key={lead?.id ?? idx}
+                                    className={cn(
+                                      "w-full text-left p-3 rounded-lg border transition-all flex items-center gap-3",
+                                      selectedLeadIds.has(getLeadKey(lead, idx)) || selectAllLeads
+                                        ? "border-orange-500 bg-orange-500/10"
+                                        : globalIndex >= 0 && globalIndex <= lastSentIndex
+                                        ? "border-emerald-500/30 bg-emerald-500/5"
+                                        : "border-border hover:border-orange-500/50"
+                                    )}
+                                  >
                                   <Checkbox
-                                    checked={selectAllLeads || selectedLeadIds.has(lead.id ?? '')}
-                                    onCheckedChange={(checked) => handleLeadSelection(lead.id ?? idx, checked === true)}
+                                    checked={selectAllLeads || selectedLeadIds.has(getLeadKey(lead, idx))}
+                                    onCheckedChange={(checked) => handleLeadSelection(getLeadKey(lead, idx), checked === true)}
                                     className="data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
                                   />
                                   <button
                                     onClick={() => {
-                                      onLeadIndexChange(idx);
+                                      if (globalIndex >= 0) {
+                                        onLeadIndexChange(globalIndex);
+                                      }
                                       setEmail(prev => ({ ...prev, to: lead.email || '' }));
                                     }}
                                     className="flex-1 flex items-center gap-3 min-w-0"
                                   >
                                     <div className={cn(
                                       "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
-                                      idx <= lastSentIndex
+                                      globalIndex >= 0 && globalIndex <= lastSentIndex
                                         ? "bg-emerald-500/20 text-emerald-400"
-                                        : idx === currentLeadIndex
+                                        : globalIndex === currentLeadIndex
                                         ? "bg-orange-500/20 text-orange-400"
                                         : "bg-muted text-muted-foreground"
                                     )}>
-                                      {idx <= lastSentIndex ? <CheckCircle2 className="w-4 h-4" /> : idx + 1}
+                                      {globalIndex >= 0 && globalIndex <= lastSentIndex ? <CheckCircle2 className="w-4 h-4" /> : idx + 1}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                       <p className="text-sm font-medium text-foreground truncate text-left">
@@ -1179,8 +1306,9 @@ export default function ComposeEmailModal({
                                       {lead.aiClassification || 'cold'}
                                     </Badge>
                                   </button>
-                                </div>
-                              ))}
+                                  </div>
+                                );
+                              })}
                             </div>
                           </ScrollArea>
                         </>
@@ -1243,11 +1371,11 @@ export default function ComposeEmailModal({
                               variant="ghost"
                               onClick={() => {
                                 // Apply template to editor for viewing/editing
-                                if (selectedCampaignTemplate.subject) {
+                                if (selectedCampaignTemplate.subject || selectedCampaignTemplate.rawSubject) {
                                   setEmail(prev => ({
                                     ...prev,
-                                    subject: selectedCampaignTemplate.subject || '',
-                                    body: selectedCampaignTemplate.body || '',
+                                    subject: selectedCampaignTemplate.rawSubject || selectedCampaignTemplate.subject || '',
+                                    body: selectedCampaignTemplate.rawBody || selectedCampaignTemplate.body || '',
                                   }));
                                 }
                                 setCampaignTab('template');
@@ -1568,7 +1696,7 @@ export default function ComposeEmailModal({
                       
                       {/* First 3 recipients preview */}
                       <div className="space-y-2">
-                        {filteredLeads.slice(0, showLeadsPreview ? filteredLeads.length : 3).map((lead, idx) => (
+                        {selectedLeads.slice(0, showLeadsPreview ? selectedLeads.length : 3).map((lead, idx) => (
                           <div key={lead?.id ?? idx} className="flex items-center gap-3 p-2 rounded-lg bg-background border border-border">
                             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
                               {idx + 1}
@@ -1590,9 +1718,9 @@ export default function ComposeEmailModal({
                             </Badge>
                           </div>
                         ))}
-                        {!showLeadsPreview && filteredLeads.length > 3 && (
+                        {!showLeadsPreview && selectedLeads.length > 3 && (
                           <p className="text-xs text-center text-muted-foreground py-2">
-                            + {filteredLeads.length - 3} more recipients
+                            + {selectedLeads.length - 3} more recipients
                           </p>
                         )}
                       </div>
@@ -1603,8 +1731,8 @@ export default function ComposeEmailModal({
                         Back
                       </Button>
                       <Button 
-                        onClick={handleSend}
-                        disabled={isSending || !email.subject}
+                        onClick={handleSendCampaign}
+                        disabled={isSending || !email.subject || !email.body || selectedLeads.length === 0}
                         className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white gap-2"
                       >
                         {isSending ? (
@@ -2147,13 +2275,13 @@ export default function ComposeEmailModal({
           <div className="p-4 border-t border-border bg-muted/30 flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Target className="w-4 h-4 text-orange-400" />
-              <span>Campaign: {dripLeadCount} leads | {email.subject ? `"${email.subject.substring(0, 30)}..."` : 'No subject'}</span>
+              <span>Campaign: {selectedLeadCount} leads | {email.subject ? `"${email.subject.substring(0, 30)}..."` : 'No subject'}</span>
             </div>
             <div className="flex items-center gap-3">
               <Button variant="outline" onClick={() => setCampaignTab('sequence')}>Back</Button>
               <Button
-                onClick={handleSend}
-                disabled={isSending || !email.subject}
+                onClick={handleSendCampaign}
+                disabled={isSending || !email.subject || !email.body || selectedLeads.length === 0}
                 className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white gap-2"
               >
                 {isSending ? (
@@ -2233,10 +2361,11 @@ export default function ComposeEmailModal({
         isOpen={showTemplateSelector}
         onClose={() => setShowTemplateSelector(false)}
         onSelectTemplate={(template) => {
+          const useRawTemplate = composeMode === 'campaign';
           setEmail(prev => ({
             ...prev,
-            subject: template.subject,
-            body: template.body,
+            subject: useRawTemplate ? template.rawSubject : template.subject,
+            body: useRawTemplate ? template.rawBody : template.body,
           }));
           setSelectedCampaignTemplate({
             id: template.id,
