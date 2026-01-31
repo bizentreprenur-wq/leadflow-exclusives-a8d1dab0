@@ -19,7 +19,7 @@ const tiers = [
   { 
     icon: Rocket, 
     name: "Autopilot", 
-    price: "$149/mo",
+    price: "$249/mo",
     aiMode: "Agentic Mode",
     description: "AI handles everything — Discovery → Nurture → Proposal",
     featured: true

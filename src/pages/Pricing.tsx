@@ -174,8 +174,8 @@ const tiers = [
   {
     id: "autopilot",
     name: "Autopilot",
-    monthlyPrice: 149,
-    yearlyPrice: 1430,
+    monthlyPrice: 249,
+    yearlyPrice: 2390,
     description: "AI handles everything — Discovery → Nurture → Proposal",
     icon: Rocket,
     aiLevel: "Agentic Mode",
