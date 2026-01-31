@@ -102,6 +102,11 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   const [inboxFilter, setInboxFilter] = useState<InboxFilter>('all');
   const [selectedReply, setSelectedReply] = useState<EmailReply | null>(null);
   const [showComposeModal, setShowComposeModal] = useState(false);
+  const [composeInitialEmail, setComposeInitialEmail] = useState<{
+    to: string;
+    subject: string;
+    body: string;
+  } | null>(null);
   const [sequences, setSequences] = useState<OutreachSequence[]>(DEMO_SEQUENCES);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mailboxSidebarWidth, setMailboxSidebarWidth] = useState(() => {
@@ -277,6 +282,25 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
     }
   });
 
+  const campaignStats = useMemo(() => {
+    const sent = Math.max(0, campaignAnalytics.sent || 0);
+    const delivered = Math.max(0, Math.min(sent, campaignAnalytics.delivered || 0));
+    const opened = Math.max(0, Math.min(delivered, campaignAnalytics.opened || 0));
+    const clicked = Math.max(0, Math.min(opened, campaignAnalytics.clicked || 0));
+    const replied = Math.max(0, Math.min(clicked, campaignAnalytics.replied || 0));
+    return {
+      sent,
+      delivered,
+      opened,
+      clicked,
+      replied,
+      bounced: Math.max(0, sent - delivered),
+      unsubscribed: Math.max(0, Math.floor(sent * 0.01)),
+      meetingsBooked: Math.max(0, Math.floor(replied * 0.4)),
+      dealsClosed: Math.max(0, Math.floor(replied * 0.12)),
+    };
+  }, [campaignAnalytics]);
+
   // Sync campaign context from Step 3
   useEffect(() => {
     if (campaignContext?.isActive) {
@@ -293,13 +317,31 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
 
   // Handler to open compose with document content
   const handleUseDocumentInEmail = (doc: any) => {
+    setComposeInitialEmail({
+      to: activeLeadEmail,
+      subject: doc?.name ? `Document: ${doc.name}` : 'Document',
+      body: doc?.fullContent || '',
+    });
     setShowComposeModal(true);
     setMainTab('inbox');
+  };
+
+  const openCompose = (initial?: { to: string; subject: string; body: string }) => {
+    setComposeInitialEmail(initial || null);
+    setShowComposeModal(true);
   };
 
   useEffect(() => {
     localStorage.setItem('bamlead_automation_settings', JSON.stringify(automation));
   }, [automation]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('bamlead_campaign_analytics', JSON.stringify(campaignAnalytics));
+    } catch {
+      // ignore
+    }
+  }, [campaignAnalytics]);
 
   // Filter replies
   const filteredReplies = DEMO_REPLIES.filter(r => {
@@ -363,7 +405,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
             {/* Compose Button */}
             <div className="p-4 space-y-2">
               <Button
-                onClick={() => setShowComposeModal(true)}
+                onClick={() => openCompose()}
                 className="w-full bg-emerald-600 hover:bg-emerald-500 text-white gap-2"
               >
                 <PenTool className="w-4 h-4" />
@@ -669,7 +711,16 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                         {selectedReply.preview || 'No preview available.'}
                       </p>
                       <div className="mt-6 flex gap-2">
-                        <Button onClick={() => setShowComposeModal(true)} className="gap-2">
+                        <Button
+                          onClick={() =>
+                            openCompose({
+                              to: selectedReply.from_email,
+                              subject: selectedReply.subject ? `Re: ${selectedReply.subject}` : 'Re:',
+                              body: '',
+                            })
+                          }
+                          className="gap-2"
+                        >
                           <Reply className="w-4 h-4" />
                           Reply
                         </Button>
@@ -816,7 +867,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                 </div>
 
                 {/* Campaign Performance Dashboard */}
-                <CampaignPerformanceDashboard />
+                <CampaignPerformanceDashboard stats={campaignStats} />
 
                 {/* Click Heatmap Visualization */}
                 <ClickHeatmapChart />
@@ -968,11 +1019,12 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
           {mainTab === 'analytics' && (
             <div className="h-full overflow-auto p-6">
               <div className="max-w-6xl mx-auto space-y-6">
-                <ConversionFunnelDashboard searchType={searchType} />
+                <ConversionFunnelDashboard searchType={searchType} analytics={campaignStats} />
                 
                 {/* Email Performance Report with PDF Export */}
                 <EmailPerformanceReport 
                   campaignName="Current Campaign"
+                  stats={campaignStats}
                   leadsByPriority={{
                     hot: campaignLeads.filter(l => l?.aiClassification === 'hot').length,
                     warm: campaignLeads.filter(l => l?.aiClassification === 'warm').length,
@@ -1092,7 +1144,10 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
       {/* Compose Email Modal - 3 Modes: Regular, Campaign, Autopilot */}
       <ComposeEmailModal
         isOpen={showComposeModal}
-        onClose={() => setShowComposeModal(false)}
+        onClose={() => {
+          setShowComposeModal(false);
+          setComposeInitialEmail(null);
+        }}
         leads={campaignLeads}
         currentLeadIndex={currentLeadIndex}
         lastSentIndex={lastSentLeadIndex}
@@ -1106,6 +1161,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
             delivered: prev.delivered + 1,
           }));
         }}
+        initialEmail={composeInitialEmail || undefined}
         automationSettings={automation}
         onAutomationChange={setAutomation}
         searchType={searchType}
@@ -1165,7 +1221,11 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
               onApplyStep={(step, personalized) => {
                 // Open compose modal with this content
                 setShowSequenceBrowser(false);
-                setShowComposeModal(true);
+                openCompose({
+                  to: activeLeadEmail,
+                  subject: personalized.subject,
+                  body: personalized.body,
+                });
                 toast.success(`Applied Day ${step.day} email template`);
               }}
             />
@@ -1184,7 +1244,11 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
         }}
         onApplyStep={(step, personalized) => {
           setShowSequencePreview(false);
-          setShowComposeModal(true);
+          openCompose({
+            to: activeLeadEmail,
+            subject: personalized.subject,
+            body: personalized.body,
+          });
           toast.success(`Applied Day ${step.day} email`);
         }}
       />

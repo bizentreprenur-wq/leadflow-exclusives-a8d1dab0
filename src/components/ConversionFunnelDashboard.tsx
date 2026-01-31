@@ -26,14 +26,34 @@ interface FunnelStage {
 
 interface ConversionFunnelDashboardProps {
   searchType?: 'gmb' | 'platform' | null;
+  analytics?: {
+    sent: number;
+    delivered?: number;
+    opened: number;
+    clicked: number;
+    replied: number;
+    meetingsBooked?: number;
+    dealsClosed?: number;
+  };
 }
 
-export default function ConversionFunnelDashboard({ searchType }: ConversionFunnelDashboardProps) {
+export default function ConversionFunnelDashboard({ searchType, analytics: analyticsProp }: ConversionFunnelDashboardProps) {
   const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d'>('30d');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Mock analytics data - in production, fetch from backend
   const [analytics, setAnalytics] = useState(() => {
+    if (analyticsProp) {
+      return {
+        sent: analyticsProp.sent,
+        delivered: analyticsProp.delivered ?? Math.floor(analyticsProp.sent * 0.95),
+        opened: analyticsProp.opened,
+        clicked: analyticsProp.clicked,
+        replied: analyticsProp.replied,
+        meetingsBooked: analyticsProp.meetingsBooked ?? Math.max(0, Math.floor(analyticsProp.replied * 0.4)),
+        dealsClosed: analyticsProp.dealsClosed ?? Math.max(0, Math.floor(analyticsProp.replied * 0.12)),
+      };
+    }
     try {
       const stored = localStorage.getItem('bamlead_campaign_analytics');
       if (stored) {
@@ -50,6 +70,19 @@ export default function ConversionFunnelDashboard({ searchType }: ConversionFunn
       dealsClosed: 12,
     };
   });
+
+  useEffect(() => {
+    if (!analyticsProp) return;
+    setAnalytics({
+      sent: analyticsProp.sent,
+      delivered: analyticsProp.delivered ?? Math.floor(analyticsProp.sent * 0.95),
+      opened: analyticsProp.opened,
+      clicked: analyticsProp.clicked,
+      replied: analyticsProp.replied,
+      meetingsBooked: analyticsProp.meetingsBooked ?? Math.max(0, Math.floor(analyticsProp.replied * 0.4)),
+      dealsClosed: analyticsProp.dealsClosed ?? Math.max(0, Math.floor(analyticsProp.replied * 0.12)),
+    });
+  }, [analyticsProp]);
 
   // Calculate conversion rates
   const funnelData: FunnelStage[] = useMemo(() => [

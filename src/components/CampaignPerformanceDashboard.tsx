@@ -16,6 +16,13 @@ import {
 
 interface CampaignPerformanceDashboardProps {
   className?: string;
+  stats?: {
+    sent: number;
+    delivered: number;
+    opened: number;
+    clicked: number;
+    replied: number;
+  };
 }
 
 // Demo historical data
@@ -43,13 +50,14 @@ const weeklyTrends = [
   { week: 'Week 4', hot: 65, warm: 48, cold: 32 },
 ];
 
-export default function CampaignPerformanceDashboard({ className }: CampaignPerformanceDashboardProps) {
+export default function CampaignPerformanceDashboard({ className, stats }: CampaignPerformanceDashboardProps) {
   const [timeframe, setTimeframe] = useState<'7d' | '30d' | '90d'>('7d');
   const [historicalData, setHistoricalData] = useState(generateHistoricalData);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Load real analytics from localStorage if available
   const analytics = useMemo(() => {
+    if (stats) return stats;
     try {
       const stored = localStorage.getItem('bamlead_campaign_analytics');
       return stored ? JSON.parse(stored) : {
