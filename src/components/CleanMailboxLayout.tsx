@@ -62,6 +62,7 @@ interface EmailReply {
   from_email: string;
   subject: string;
   preview: string;
+  body?: string;
   time: string;
   urgencyLevel: 'hot' | 'warm' | 'cold';
   isRead: boolean;
@@ -83,12 +84,14 @@ const DEMO_SEQUENCES: OutreachSequence[] = [
 ];
 
 const DEMO_REPLIES: EmailReply[] = [
-  { id: '1', from_name: 'Katie Myers', from_email: 'katie@example.com', subject: 'Thank you for your great assist...', preview: 'Thank you for giving great assist...', time: 'Today 4:32 PM', urgencyLevel: 'hot', isRead: false },
-  { id: '2', from_name: 'Thomas Jackson', from_email: 'thomas@example.com', subject: 'Forwarded meeting times!', preview: 'Hi, below, opposite PM...', time: 'Today 2:15 PM', urgencyLevel: 'hot', isRead: false },
-  { id: '3', from_name: 'Michael Davis', from_email: 'michael@example.com', subject: 'Interested in reality TV promo', preview: '', time: 'Yesterday 5:42 PM', urgencyLevel: 'warm', isRead: true },
-  { id: '4', from_name: 'Laura Bennett', from_email: 'laura@example.com', subject: 'Re: Need us think additional times?', preview: 'Finally, 200 PM...', time: 'Yesterday 2:10 PM', urgencyLevel: 'warm', isRead: true },
-  { id: '5', from_name: 'Ryan Brooks', from_email: 'ryan@example.com', subject: 'Thank you for following up!', preview: 'Finally, Got PM...', time: '2 days ago 6:27 PM', urgencyLevel: 'cold', isRead: true, hasDocument: true },
+  { id: '1', from_name: 'Katie Myers', from_email: 'katie@example.com', subject: 'Thank you for your great assist...', preview: 'Thank you for giving great assist...', body: 'Thank you for giving great assist. We appreciate the help and would like to discuss next steps.', time: 'Today 4:32 PM', urgencyLevel: 'hot', isRead: false },
+  { id: '2', from_name: 'Thomas Jackson', from_email: 'thomas@example.com', subject: 'Forwarded meeting times!', preview: 'Hi, below, opposite PM...', body: 'Hi, below are the meeting times I can do next week. Let me know what works best on your end.', time: 'Today 2:15 PM', urgencyLevel: 'hot', isRead: false },
+  { id: '3', from_name: 'Michael Davis', from_email: 'michael@example.com', subject: 'Interested in reality TV promo', preview: 'Interested in reality TV promo', body: 'Interested in reality TV promo. Can you share pricing and timelines?', time: 'Yesterday 5:42 PM', urgencyLevel: 'warm', isRead: true },
+  { id: '4', from_name: 'Laura Bennett', from_email: 'laura@example.com', subject: 'Re: Need us think additional times?', preview: 'Finally, 200 PM...', body: 'Finally, 2:00 PM or 3:30 PM both work for me. Please confirm.', time: 'Yesterday 2:10 PM', urgencyLevel: 'warm', isRead: true },
+  { id: '5', from_name: 'Ryan Brooks', from_email: 'ryan@example.com', subject: 'Thank you for following up!', preview: 'Finally, Got PM...', body: 'Finally got your PM. I have a couple of questions about the proposal you sent.', time: '2 days ago 6:27 PM', urgencyLevel: 'cold', isRead: true, hasDocument: true },
 ];
+
+const INBOX_STORAGE_KEY = 'bamlead_inbox_replies';
 
 interface CleanMailboxLayoutProps {
   searchType?: 'gmb' | 'platform' | null;
@@ -103,6 +106,26 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   const [mainTab, setMainTab] = useState<MainTab>('inbox');
   const [inboxFilter, setInboxFilter] = useState<InboxFilter>('all');
   const [selectedReply, setSelectedReply] = useState<EmailReply | null>(null);
+  const [replies, setReplies] = useState<EmailReply[]>(() => {
+    if (typeof window === 'undefined') return DEMO_REPLIES;
+    try {
+      const stored = localStorage.getItem(INBOX_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          return parsed.map((reply: EmailReply, idx: number) => ({
+            ...reply,
+            id: reply.id || String(idx + 1),
+            isRead: Boolean(reply.isRead),
+            urgencyLevel: reply.urgencyLevel || 'cold',
+          }));
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return DEMO_REPLIES;
+  });
   const [showComposeModal, setShowComposeModal] = useState(false);
   const [showAutopilotSubscription, setShowAutopilotSubscription] = useState(false);
   const [composeInitialEmail, setComposeInitialEmail] = useState<{
@@ -348,6 +371,26 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
     setShowComposeModal(true);
   };
 
+  const formatForwardBody = (reply: EmailReply) => {
+    const headerLines = [
+      '--- Forwarded message ---',
+      `From: ${reply.from_name} <${reply.from_email}>`,
+      `Date: ${reply.time}`,
+      `Subject: ${reply.subject}`,
+      '',
+    ];
+    return `${headerLines.join('\n')}\n${reply.body || reply.preview || ''}`;
+  };
+
+  const selectReply = (reply: EmailReply) => {
+    const updated = replies.map(r => 
+      r.id === reply.id ? { ...r, isRead: true } : r
+    );
+    setReplies(updated);
+    const selected = updated.find(r => r.id === reply.id) || null;
+    setSelectedReply(selected);
+  };
+
   const pauseAutopilotCampaign = () => {
     updateAutopilotCampaign({ status: 'paused' });
     try {
@@ -434,6 +477,46 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   }, [campaignAnalytics]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem(INBOX_STORAGE_KEY, JSON.stringify(replies));
+    } catch {
+      // ignore
+    }
+  }, [replies]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sync = () => {
+      try {
+        const stored = localStorage.getItem(INBOX_STORAGE_KEY);
+        if (!stored) return;
+        const parsed = JSON.parse(stored);
+        if (!Array.isArray(parsed)) return;
+        const normalized = parsed.map((reply: EmailReply, idx: number) => ({
+          ...reply,
+          id: reply.id || String(idx + 1),
+          isRead: Boolean(reply.isRead),
+          urgencyLevel: reply.urgencyLevel || 'cold',
+        }));
+        setReplies(normalized);
+        if (selectedReply) {
+          const refreshed = normalized.find(r => r.id === selectedReply.id) || null;
+          setSelectedReply(refreshed);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    window.addEventListener('storage', sync);
+    window.addEventListener('focus', sync);
+    return () => {
+      window.removeEventListener('storage', sync);
+      window.removeEventListener('focus', sync);
+    };
+  }, [selectedReply]);
+
+  useEffect(() => {
     if (automation.doneForYouMode && !trialStatus.canUseAutopilot) {
       disableAutopilot();
       toast.error('AI Autopilot disabled because your trial expired.');
@@ -441,7 +524,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   }, [automation.doneForYouMode, trialStatus.canUseAutopilot]);
 
   // Filter replies
-  const filteredReplies = DEMO_REPLIES.filter(r => {
+  const filteredReplies = replies.filter(r => {
     if (inboxFilter === 'hot') return r.urgencyLevel === 'hot';
     if (inboxFilter === 'unread') return !r.isRead;
     return true;
@@ -539,7 +622,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                   {tab.label}
                   {tab.id === 'inbox' && (
                     <Badge className="ml-auto bg-red-500 text-white text-[10px] px-1.5">
-                      {DEMO_REPLIES.filter(r => !r.isRead).length}
+                      {replies.filter(r => !r.isRead).length}
                     </Badge>
                   )}
                   {(tab as any).isPro && (
@@ -691,7 +774,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                   {filteredReplies.map(reply => (
                     <button
                       key={reply.id}
-                      onClick={() => setSelectedReply(reply)}
+                      onClick={() => selectReply(reply)}
                       className={cn(
                         "w-full text-left p-4 border-b border-border/40 hover:bg-muted/30 transition-colors",
                         selectedReply?.id === reply.id && "bg-muted/50",
@@ -713,11 +796,11 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                               {reply.from_name}
                             </span>
                             <span className="text-[10px] text-muted-foreground flex-shrink-0 ml-2">
-                              {reply.time.split(' ')[0]}
+                              {reply.time?.split(' ')[0] || reply.time}
                             </span>
                           </div>
                           <p className="text-xs text-foreground truncate mb-0.5">{reply.subject}</p>
-                          <p className="text-[11px] text-muted-foreground truncate">{reply.preview}</p>
+                          <p className="text-[11px] text-muted-foreground truncate">{reply.preview || reply.body || ''}</p>
                           <Badge 
                             className={cn(
                               "mt-2 text-[9px] px-1.5 py-0",
@@ -804,8 +887,8 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                       </div>
                       <h2 className="text-xl font-bold text-foreground mb-4">{selectedReply.subject}</h2>
                       <Separator className="my-4" />
-                      <p className="text-muted-foreground leading-relaxed">
-                        {selectedReply.preview || 'No preview available.'}
+                      <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
+                        {selectedReply.body || selectedReply.preview || 'No message content available.'}
                       </p>
                       <div className="mt-6 flex gap-2">
                         <Button
@@ -821,7 +904,18 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                           <Reply className="w-4 h-4" />
                           Reply
                         </Button>
-                        <Button variant="outline">Forward</Button>
+                        <Button
+                          variant="outline"
+                          onClick={() =>
+                            openCompose({
+                              to: '',
+                              subject: selectedReply.subject ? `Fwd: ${selectedReply.subject}` : 'Fwd:',
+                              body: formatForwardBody(selectedReply),
+                            })
+                          }
+                        >
+                          Forward
+                        </Button>
                       </div>
                     </div>
                   </div>
