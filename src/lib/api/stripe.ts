@@ -73,8 +73,8 @@ const MOCK_CONFIG: StripeConfig = {
     },
     autopilot: {
       name: 'Autopilot',
-      monthly_price: 149,
-      yearly_price: 1430,
+      monthly_price: 249,
+      yearly_price: 2390,
       features: [
         'Unlimited searches',
         'Agentic Mode: Full Autopilot',
