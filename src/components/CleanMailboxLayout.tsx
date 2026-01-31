@@ -249,6 +249,19 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Auto-open compose modal when coming from AI verification
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const autoOpen = sessionStorage.getItem('bamlead_auto_open_compose');
+    if (autoOpen === 'true') {
+      sessionStorage.removeItem('bamlead_auto_open_compose');
+      // Small delay to ensure leads are loaded
+      setTimeout(() => {
+        setShowComposeModal(true);
+      }, 100);
+    }
+  }, []);
+
   const activeLeadEmail = useMemo(() => {
     if (selectedReply?.from_email) return selectedReply.from_email;
     if (typeof window !== 'undefined') {

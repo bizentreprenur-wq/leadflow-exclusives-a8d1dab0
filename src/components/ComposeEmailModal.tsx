@@ -2403,15 +2403,15 @@ export default function ComposeEmailModal({
                 setSelectedCampaignTemplate({
                   name: template.name || 'Selected Template',
                   subject: template.subject,
-                  body: template.body || template.body_html || '',
+                  body: template.body_html || '',
                   rawSubject: template.subject,
-                  rawBody: template.body || template.body_html || '',
+                  rawBody: template.body_html || '',
                   source: 'gallery',
                 });
                 setEmail(prev => ({
                   ...prev,
                   subject: template.subject || '',
-                  body: template.body || template.body_html || '',
+                  body: template.body_html || '',
                 }));
                 setShowTemplateGalleryModal(false);
                 setCampaignTab('template');

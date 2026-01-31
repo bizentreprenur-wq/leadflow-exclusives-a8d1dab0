@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -9,7 +10,8 @@ import { toast } from 'sonner';
 import {
   CheckCircle2, XCircle, Loader2, Mail, Globe, Brain, Target,
   TrendingUp, Clock, Sparkles, AlertTriangle, Phone, Building2,
-  Calendar, BarChart3, Zap, Users, Send, Star, Download, Cloud, FileSpreadsheet
+  Calendar, BarChart3, Zap, Users, Send, Star, Download, Cloud, FileSpreadsheet,
+  ArrowRight, Rocket, Flame
 } from 'lucide-react';
 import { VerificationSkeleton } from '@/components/ui/loading-skeletons';
 import * as XLSX from 'xlsx-js-style';
@@ -97,6 +99,7 @@ const analyzeLeadWithAI = async (lead: Lead): Promise<VerifiedLead> => {
 };
 
 export default function AIVerifierWidget({ isOpen, onClose, leads, onComplete, onSendEmails }: AIVerifierWidgetProps) {
+  const navigate = useNavigate();
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationComplete, setVerificationComplete] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -141,26 +144,65 @@ export default function AIVerifierWidget({ isOpen, onClose, leads, onComplete, o
     return { color: 'bg-slate-500/10 text-slate-600 border-slate-500/20', label: 'Nurture' };
   };
 
+  // Navigate directly to compose with leads
+  const handleGoToCompose = () => {
+    // Store verified leads in sessionStorage for the mailbox
+    const emailLeads = verifiedLeads.filter(l => l.emailValid).map(l => ({
+      id: l.id,
+      email: l.email,
+      business_name: l.name,
+      name: l.name,
+      contact_name: l.name,
+      website: l.website,
+      phone: l.phone,
+      aiClassification: l.conversionProbability === 'high' ? 'hot' : l.conversionProbability === 'medium' ? 'warm' : 'cold',
+      leadScore: l.leadScore,
+      painPoints: l.painPoints,
+      talkingPoints: l.talkingPoints,
+    }));
+    
+    sessionStorage.setItem('bamlead_email_leads', JSON.stringify(emailLeads));
+    sessionStorage.setItem('bamlead_auto_open_compose', 'true');
+    
+    onClose();
+    navigate('/mailbox-demo');
+    toast.success(`${emailLeads.length} verified leads ready for outreach!`);
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-full w-screen h-screen max-h-screen flex flex-col p-0 gap-0 rounded-none border-0">
-        <DialogHeader className="p-6 border-b bg-gradient-to-r from-violet-500/10 to-purple-500/10 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-violet-500/20 flex items-center justify-center">
-              <Brain className="w-6 h-6 text-violet-500" />
+        <DialogHeader className="p-6 border-b bg-gradient-to-br from-emerald-500/15 via-teal-500/10 to-cyan-500/15 shrink-0">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                <Brain className="w-7 h-7 text-white" />
+              </div>
+              <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-500 flex items-center justify-center">
+                <Sparkles className="w-3 h-3 text-white" />
+              </div>
             </div>
             <div>
-              <DialogTitle className="text-xl flex items-center gap-2">
-                AI Lead Verifier
-                <Badge variant="secondary" className="bg-violet-500/10 text-violet-600">
-                  <Sparkles className="w-3 h-3 mr-1" />
+              <DialogTitle className="text-2xl font-bold flex items-center gap-3">
+                <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                  AI Lead Verifier
+                </span>
+                <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 shadow-md">
+                  <Zap className="w-3 h-3 mr-1" />
                   Predictive AI
                 </Badge>
               </DialogTitle>
-              <DialogDescription>
+              <DialogDescription className="text-base mt-1">
                 {verificationComplete 
-                  ? `${verifiedLeads.length} leads analyzed • ${highPriorityLeads.length} high priority`
-                  : `Analyzing ${leads.length} leads...`
+                  ? <span className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      <span className="font-medium text-foreground">{verifiedLeads.length} leads analyzed</span>
+                      <span className="text-emerald-600 font-semibold">• {highPriorityLeads.length} hot leads ready!</span>
+                    </span>
+                  : <span className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-teal-500" />
+                      Analyzing {leads.length} leads with AI intelligence...
+                    </span>
                 }
               </DialogDescription>
             </div>
@@ -171,22 +213,39 @@ export default function AIVerifierWidget({ isOpen, onClose, leads, onComplete, o
           <div className="p-6 space-y-6">
             {/* Verification Progress */}
             {isVerifying && (
-              <Card className="border-violet-500/30 bg-violet-500/5">
+              <Card className="border-2 border-teal-500/40 bg-gradient-to-br from-teal-500/10 via-emerald-500/5 to-cyan-500/10 overflow-hidden">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4 mb-4">
-                    <div className="w-10 h-10 rounded-full bg-violet-500/20 flex items-center justify-center">
-                      <Loader2 className="w-5 h-5 text-violet-500 animate-spin" />
+                    <div className="relative">
+                      <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-teal-500/30">
+                        <Brain className="w-7 h-7 text-white animate-pulse" />
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-amber-500 flex items-center justify-center border-2 border-card">
+                        <Loader2 className="w-3 h-3 text-white animate-spin" />
+                      </div>
                     </div>
                     <div className="flex-1">
-                      <p className="font-semibold">AI Analyzing Leads...</p>
-                      <p className="text-sm text-muted-foreground">{currentLead}</p>
+                      <p className="font-bold text-lg text-foreground">AI Analyzing Leads...</p>
+                      <p className="text-sm text-teal-600 font-medium truncate">{currentLead}</p>
                     </div>
-                    <span className="text-2xl font-bold text-violet-600">{Math.round(progress)}%</span>
+                    <div className="text-right">
+                      <span className="text-3xl font-bold bg-gradient-to-r from-teal-600 to-emerald-600 bg-clip-text text-transparent">{Math.round(progress)}%</span>
+                      <p className="text-xs text-muted-foreground">Complete</p>
+                    </div>
                   </div>
-                  <Progress value={progress} className="h-2" />
-                  <div className="flex justify-between text-xs text-muted-foreground mt-2">
-                    <span>Verifying emails & scoring leads</span>
-                    <span>{verifiedLeads.length}/{leads.length} complete</span>
+                  <div className="relative h-3 rounded-full bg-muted overflow-hidden">
+                    <div 
+                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-teal-500 via-emerald-500 to-cyan-500 rounded-full transition-all duration-300"
+                      style={{ width: `${progress}%` }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse" />
+                  </div>
+                  <div className="flex justify-between text-xs text-muted-foreground mt-3">
+                    <span className="flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-amber-500" />
+                      Verifying emails & scoring leads with AI
+                    </span>
+                    <span className="font-medium text-teal-600">{verifiedLeads.length}/{leads.length} processed</span>
                   </div>
                 </CardContent>
               </Card>
@@ -195,42 +254,63 @@ export default function AIVerifierWidget({ isOpen, onClose, leads, onComplete, o
             {/* Summary Cards */}
             {verificationComplete && (
               <>
-                <div className="grid grid-cols-3 gap-3">
-                  <Card className="border-emerald-500/30 bg-emerald-500/5">
-                    <CardContent className="p-4 text-center">
-                      <p className="text-3xl font-bold text-emerald-600">{highPriorityLeads.length}</p>
-                      <p className="text-xs text-muted-foreground">High Priority</p>
+                <div className="grid grid-cols-3 gap-4">
+                  <Card className="border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-500/15 to-teal-500/10 overflow-hidden relative">
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 rounded-full blur-xl" />
+                    <CardContent className="p-5 text-center relative">
+                      <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                        <Flame className="w-5 h-5 text-white" />
+                      </div>
+                      <p className="text-4xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">{highPriorityLeads.length}</p>
+                      <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Hot Leads 🔥</p>
                     </CardContent>
                   </Card>
-                  <Card className="border-blue-500/30 bg-blue-500/5">
-                    <CardContent className="p-4 text-center">
-                      <p className="text-3xl font-bold text-blue-600">{validEmailLeads.length}</p>
-                      <p className="text-xs text-muted-foreground">Valid Emails</p>
+                  <Card className="border-2 border-blue-500/40 bg-gradient-to-br from-blue-500/15 to-cyan-500/10 overflow-hidden relative">
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/10 rounded-full blur-xl" />
+                    <CardContent className="p-5 text-center relative">
+                      <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                        <Mail className="w-5 h-5 text-white" />
+                      </div>
+                      <p className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">{validEmailLeads.length}</p>
+                      <p className="text-sm font-medium text-blue-700 dark:text-blue-400">Valid Emails</p>
                     </CardContent>
                   </Card>
-                  <Card className="border-violet-500/30 bg-violet-500/5">
-                    <CardContent className="p-4 text-center">
-                      <p className="text-3xl font-bold text-violet-600">
+                  <Card className="border-2 border-amber-500/40 bg-gradient-to-br from-amber-500/15 to-orange-500/10 overflow-hidden relative">
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/10 rounded-full blur-xl" />
+                    <CardContent className="p-5 text-center relative">
+                      <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
+                        <TrendingUp className="w-5 h-5 text-white" />
+                      </div>
+                      <p className="text-4xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
                         {Math.round(verifiedLeads.reduce((sum, l) => sum + l.predictedResponse, 0) / verifiedLeads.length || 0)}%
                       </p>
-                      <p className="text-xs text-muted-foreground">Avg Response Rate</p>
+                      <p className="text-sm font-medium text-amber-700 dark:text-amber-400">Avg Response</p>
                     </CardContent>
                   </Card>
                 </div>
 
                 {/* AI Recommendation */}
-                <Card className="border-2 border-primary/30 bg-gradient-to-r from-primary/5 to-violet-500/5">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Target className="w-4 h-4 text-primary" />
-                      AI Recommendation
+                <Card className="border-2 border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-cyan-500/10 overflow-hidden">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md shadow-emerald-500/20">
+                        <Rocket className="w-5 h-5 text-white" />
+                      </div>
+                      <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent font-bold">
+                        AI Recommendation
+                      </span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm">
-                      <strong className="text-primary">{highPriorityLeads.length} hot leads</strong> are ready for outreach. 
-                      Best time to contact: <strong className="text-violet-600">Tuesday-Thursday, 10AM or 2PM</strong>.
-                      Expected response rate: <strong className="text-emerald-600">{Math.round(verifiedLeads.reduce((sum, l) => sum + l.predictedResponse, 0) / verifiedLeads.length || 0)}%</strong>
+                    <p className="text-base leading-relaxed">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-semibold">
+                        <Flame className="w-3.5 h-3.5" />
+                        {highPriorityLeads.length} hot leads
+                      </span>{' '}
+                      are ready for outreach. Best time to contact:{' '}
+                      <span className="font-semibold text-teal-600">Tuesday-Thursday, 10AM or 2PM</span>.
+                      Expected response rate:{' '}
+                      <span className="font-bold text-emerald-600">{Math.round(verifiedLeads.reduce((sum, l) => sum + l.predictedResponse, 0) / verifiedLeads.length || 0)}%</span>
                     </p>
                   </CardContent>
                 </Card>
@@ -379,7 +459,7 @@ export default function AIVerifierWidget({ isOpen, onClose, leads, onComplete, o
 
         {/* Footer */}
         {verificationComplete && (
-          <div className="p-6 border-t bg-muted/30 space-y-3">
+          <div className="p-6 border-t bg-gradient-to-r from-muted/50 via-muted/30 to-emerald-500/5 space-y-4">
             {/* Export Actions */}
             <div className="flex gap-2">
               <Button 
@@ -509,18 +589,19 @@ export default function AIVerifierWidget({ isOpen, onClose, leads, onComplete, o
               </Button>
             </div>
             
-            {/* Email Action */}
+            {/* Main Action - Go directly to Compose */}
             <div className="flex gap-3">
               <Button variant="outline" onClick={onClose} className="flex-1">
                 Close
               </Button>
               <Button 
-                onClick={() => onSendEmails(verifiedLeads.filter(l => l.emailValid))}
+                onClick={handleGoToCompose}
                 disabled={validEmailLeads.length === 0}
-                className="flex-1 gap-2 bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90"
+                className="flex-1 gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg shadow-emerald-500/25"
               >
-                <Send className="w-4 h-4" />
-                Send to {validEmailLeads.length} Leads
+                <Rocket className="w-4 h-4" />
+                Continue to Outreach
+                <ArrowRight className="w-4 h-4" />
               </Button>
             </div>
           </div>
