@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Check, X, Zap, Building, Rocket, Gift, Sparkles, MessageSquare, Search, Mail, Brain, Globe, Users, BarChart3, Shield, Workflow, FileText, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -501,17 +502,60 @@ const Pricing = () => {
                 ))}
               </div>
 
-              {/* Add-on Note */}
-              <div className="mt-8 p-6 rounded-2xl border border-primary/20 bg-primary/5">
-                <div className="flex items-start gap-4">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Sparkles className="w-5 h-5 text-primary" />
+              {/* Add-ons Section */}
+              <div className="mt-8 space-y-4">
+                <h3 className="text-lg font-semibold text-foreground mb-4">Premium Add-ons</h3>
+                
+                {/* AI Calling Add-on */}
+                <div className="p-6 rounded-2xl border-2 border-emerald-500/30 bg-emerald-500/5">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 rounded-xl bg-emerald-500/10">
+                      <Phone className="w-6 h-6 text-emerald-500" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h4 className="font-bold text-foreground text-lg">AI Voice Calling</h4>
+                        <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                          Add-on
+                        </Badge>
+                      </div>
+                      <div className="flex items-baseline gap-1 mb-2">
+                        <span className="text-3xl font-bold text-emerald-500">$24.99</span>
+                        <span className="text-muted-foreground">/month</span>
+                      </div>
+                      <p className="text-muted-foreground text-sm mb-3">
+                        AI-powered outbound calling with natural voice conversations. Automatically dial leads, 
+                        qualify prospects, and schedule callbacks. Works alongside any plan.
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>Natural AI voice conversations</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>Bulk call queue</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>Call analytics dashboard</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>Callback scheduling</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-semibold text-foreground mb-1">* AI Autopilot Campaign</h4>
-                    <p className="text-muted-foreground text-sm">
-                      Available as an add-on for $19.99/month with a 7-day free trial. Includes automated lead discovery, 
-                      AI-powered outreach sequences, and intelligent follow-ups. All paid plans have access to this premium feature.
+                </div>
+
+                {/* Note about Autopilot being included */}
+                <div className="p-4 rounded-xl border border-amber-500/20 bg-amber-500/5">
+                  <div className="flex items-center gap-3">
+                    <Sparkles className="w-5 h-5 text-amber-500" />
+                    <p className="text-sm text-muted-foreground">
+                      <span className="font-medium text-foreground">AI Autopilot</span> (autonomous email sequences, follow-ups, and proposal delivery) 
+                      is <span className="text-amber-500 font-medium">included</span> in Pro and Autopilot plans — no add-on needed.
                     </p>
                   </div>
                 </div>

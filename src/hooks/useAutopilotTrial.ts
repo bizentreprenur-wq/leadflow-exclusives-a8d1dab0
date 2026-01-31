@@ -267,7 +267,7 @@ export function useAutopilotTrial() {
     upgradeToPaid,
     refreshStatus,
     TRIAL_DURATION_DAYS,
-    MONTHLY_PRICE: 19.99,
+    MONTHLY_PRICE: 249, // Now included in Autopilot tier
     isOwnerAccount,
   };
 }
