@@ -16,7 +16,15 @@ import {
 interface PriorityTemplateSelectorProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectTemplate: (template: { subject: string; body: string }) => void;
+  onSelectTemplate: (template: {
+    id: string;
+    name: string;
+    subject: string;
+    body: string;
+    rawSubject: string;
+    rawBody: string;
+    priority: PriorityTemplate['priority'];
+  }) => void;
   currentLead?: {
     business_name?: string;
     first_name?: string;
@@ -70,7 +78,15 @@ export default function PriorityTemplateSelector({
       senderName
     );
 
-    onSelectTemplate(personalized);
+    onSelectTemplate({
+      id: selectedTemplate.id,
+      name: selectedTemplate.name,
+      subject: personalized.subject,
+      body: personalized.body,
+      rawSubject: selectedTemplate.subject,
+      rawBody: selectedTemplate.body,
+      priority: selectedTemplate.priority,
+    });
     onClose();
   };
 

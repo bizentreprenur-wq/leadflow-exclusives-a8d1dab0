@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { sendBulkEmails, LeadForEmail } from '@/lib/api/email';
+import { getSuggestedSequence } from '@/lib/emailSequences';
+import { isSMTPConfigured } from '@/lib/emailService';
+import { saveAutopilotCampaign } from '@/lib/autopilotCampaign';
+import { useAutopilotTrial } from '@/hooks/useAutopilotTrial';
 import {
   Crown, Bot, Zap, Sparkles, Rocket, Play, Pause, CheckCircle2,
   Clock, Calendar, Mail, Target, ArrowRight, CreditCard, Shield,
@@ -40,38 +45,8 @@ export default function AutoCampaignWizardPro({
   onClose,
   isEmbedded = false,
 }: AutoCampaignWizardProProps) {
-  // Subscription state
-  const [subscriptionState, setSubscriptionState] = useState<{
-    hasSubscription: boolean;
-    isTrialActive: boolean;
-    trialDaysRemaining: number;
-    isPaid: boolean;
-  }>(() => {
-    try {
-      const stored = localStorage.getItem('bamlead_autopilot_trial');
-      if (stored) {
-        const data = JSON.parse(stored);
-        if (data.isPaid) {
-          return { hasSubscription: true, isTrialActive: false, trialDaysRemaining: 0, isPaid: true };
-        }
-        if (data.trialStartDate) {
-          const startDate = new Date(data.trialStartDate);
-          const now = new Date();
-          const diffDays = Math.ceil((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-          const remaining = Math.max(0, 7 - diffDays); // 7-day trial
-          return { 
-            hasSubscription: remaining > 0, 
-            isTrialActive: remaining > 0, 
-            trialDaysRemaining: remaining,
-            isPaid: false,
-          };
-        }
-      }
-      return { hasSubscription: false, isTrialActive: false, trialDaysRemaining: 0, isPaid: false };
-    } catch { 
-      return { hasSubscription: false, isTrialActive: false, trialDaysRemaining: 0, isPaid: false }; 
-    }
-  });
+  // Subscription state (shared with Autopilot trial hook)
+  const { status: trialStatus, startTrial, MONTHLY_PRICE, TRIAL_DURATION_DAYS } = useAutopilotTrial();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'sequences' | 'scheduling' | 'review'>('overview');
   const [isActivating, setIsActivating] = useState(false);
@@ -88,28 +63,16 @@ export default function AutoCampaignWizardPro({
     return null;
   });
 
-  const hasSubscription = subscriptionState.hasSubscription;
+  const hasSubscription = trialStatus.canUseAutopilot;
 
   const startFreeTrial = () => {
-    const trialData = {
-      isTrialActive: true,
-      trialDaysRemaining: 7, // 7-day trial
-      trialStartDate: new Date().toISOString(),
-      isPaid: false,
-    };
-    localStorage.setItem('bamlead_autopilot_trial', JSON.stringify(trialData));
-    setSubscriptionState({
-      hasSubscription: true,
-      isTrialActive: true,
-      trialDaysRemaining: 7, // 7-day trial
-      isPaid: false,
-    });
-    toast.success('🎉 7-day free trial started! AI Autopilot is now available.');
+    const success = startTrial();
+    if (success) {
+      toast.success(`🎉 ${TRIAL_DURATION_DAYS}-day free trial started! AI Autopilot is now available.`);
+    }
   };
 
   const handleSubscribe = () => {
-    // In production, this would open Stripe checkout
-    toast.info('Redirecting to payment... (Demo: Trial activated instead)');
     startFreeTrial();
   };
 
@@ -119,24 +82,102 @@ export default function AutoCampaignWizardPro({
       return;
     }
 
+    if (!isSMTPConfigured()) {
+      toast.error('Please configure SMTP settings first. Go to Settings > SMTP Configuration.');
+      return;
+    }
+
+    const validLeads = leads.filter(l => l.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(l.email));
+    if (validLeads.length === 0) {
+      toast.error('No leads with valid email addresses.');
+      return;
+    }
+
+    const search = searchType || 'gmb';
+    const representativeLead = validLeads[0];
+    const fallbackSequence = getSuggestedSequence(search, {
+      aiClassification: representativeLead.aiClassification,
+      priority: representativeLead.aiClassification,
+      leadScore: undefined,
+      hasWebsite: undefined,
+      websiteIssues: undefined,
+    });
+    const sequence = selectedSequence || fallbackSequence;
+    const subject = selectedTemplate?.subject || sequence?.steps?.[0]?.subject;
+    const body = selectedTemplate?.body || sequence?.steps?.[0]?.body;
+
+    if (!subject || !body) {
+      toast.error('Please select a template or sequence before launching.');
+      return;
+    }
+
     setIsActivating(true);
-    
-    // Simulate activation
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    // Store autopilot state
-    localStorage.setItem('bamlead_drip_active', JSON.stringify({
-      active: true,
-      leads: leads.map(l => l?.id ?? '').filter(Boolean),
-      searchType,
-      sequence: selectedSequence,
-      schedule: smartSchedule,
-      startedAt: new Date().toISOString(),
-    }));
-    
-    setIsActivating(false);
-    onActivate();
-    toast.success('🤖 AI Autopilot activated! AI will manage your outreach automatically.');
+
+    try {
+      const leadsForSend: LeadForEmail[] = validLeads.map(l => ({
+        id: typeof l.id === 'number' ? l.id : undefined,
+        email: l.email as string,
+        business_name: l.business_name || l.name,
+      }));
+
+      const dripConfig = { emailsPerHour: 50, delayMinutes: 1 };
+      const result = await sendBulkEmails({
+        leads: leadsForSend,
+        custom_subject: subject,
+        custom_body: body,
+        send_mode: 'drip',
+        drip_config: dripConfig,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to launch Autopilot campaign.');
+      }
+
+      const now = new Date().toISOString();
+      const campaignId = `autopilot_${Date.now()}`;
+
+      saveAutopilotCampaign({
+        id: campaignId,
+        status: 'active',
+        searchType: searchType || null,
+        createdAt: now,
+        startedAt: now,
+        template: {
+          name: selectedTemplate?.name || 'AI Smart Selection',
+          subject,
+          body,
+          rawSubject: subject,
+          rawBody: body,
+          source: selectedTemplate ? 'gallery' : 'sequence',
+        },
+        sequence,
+        leads: validLeads,
+        totalLeads: validLeads.length,
+        sentCount: result.results?.sent || validLeads.length,
+        lastSentAt: now,
+        dripConfig,
+      });
+
+      localStorage.setItem('bamlead_drip_active', JSON.stringify({
+        active: true,
+        autopilot: true,
+        campaignId,
+        leads: validLeads.map(l => l?.id ?? '').filter(Boolean),
+        searchType,
+        sequenceId: sequence?.id,
+        schedule: smartSchedule,
+        startedAt: now,
+        sentCount: result.results?.sent || validLeads.length,
+      }));
+
+      onActivate();
+      toast.success(`🤖 AI Autopilot activated! Sending ${result.results?.sent || validLeads.length} emails.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to launch Autopilot campaign.';
+      toast.error(message);
+    } finally {
+      setIsActivating(false);
+    }
   };
 
   const leadStats = useMemo(() => ({
@@ -184,8 +225,8 @@ export default function AutoCampaignWizardPro({
               {hasSubscription ? (
                 <Badge className="bg-white/20 text-white border-white/30 gap-1.5 py-1.5 px-3">
                   <CheckCircle2 className="w-4 h-4" />
-                  {subscriptionState.isTrialActive 
-                    ? `Trial: ${subscriptionState.trialDaysRemaining} days left`
+                  {trialStatus.isTrialActive 
+                    ? `Trial: ${trialStatus.trialDaysRemaining} days left`
                     : 'Active Subscription'
                   }
                 </Badge>
@@ -220,11 +261,13 @@ export default function AutoCampaignWizardPro({
             <div className="mt-6 p-4 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-between">
               <div>
                 <p className="text-white/80 text-sm">Subscription</p>
-                <p className="text-2xl font-bold text-white">$19.99<span className="text-base font-normal text-white/70">/month</span></p>
+                <p className="text-2xl font-bold text-white">
+                  {`$${MONTHLY_PRICE}`}<span className="text-base font-normal text-white/70">/month</span>
+                </p>
               </div>
               <div className="text-right">
                 <p className="text-white/80 text-sm">Free Trial</p>
-                <p className="text-xl font-bold text-white">7 days</p>
+                <p className="text-xl font-bold text-white">{TRIAL_DURATION_DAYS} days</p>
               </div>
               {!hasSubscription && (
                 <Button 
@@ -233,7 +276,7 @@ export default function AutoCampaignWizardPro({
                   className="bg-white text-orange-600 hover:bg-white/90 gap-2 font-bold"
                 >
                   <Rocket className="w-5 h-5" />
-                  Start 7-Day Trial
+                  Start {TRIAL_DURATION_DAYS}-Day Trial
                 </Button>
               )}
             </div>
@@ -378,7 +421,7 @@ export default function AutoCampaignWizardPro({
                           <p className="text-sm text-muted-foreground">
                             {hasSubscription 
                               ? `AI will manage ${leads.length} leads with automated follow-ups`
-                              : 'Start your 7-day free trial to unlock AI automation'
+                              : `Start your ${TRIAL_DURATION_DAYS}-day free trial to unlock AI automation`
                             }
                           </p>
                         </div>
@@ -696,7 +739,7 @@ export default function AutoCampaignWizardPro({
                         <p className="text-sm text-muted-foreground">
                           {hasSubscription 
                             ? `AI will manage ${leads.length} leads automatically. You can monitor and intervene anytime.`
-                            : 'Start your 7-day free trial to unlock AI automation'
+                            : `Start your ${TRIAL_DURATION_DAYS}-day free trial to unlock AI automation`
                           }
                         </p>
                       </div>

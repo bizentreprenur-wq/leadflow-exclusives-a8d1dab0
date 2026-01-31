@@ -14,10 +14,11 @@ import {
   Sparkles, Phone, Globe, XCircle, MailOpen, Reply, Crown, CreditCard, Lock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { getStoredLeadContext, LeadAnalysisContext } from '@/lib/leadContext';
-import { EmailSequence } from '@/lib/emailSequences';
+import { getStoredLeadContext } from '@/lib/leadContext';
+import { getSuggestedSequence } from '@/lib/emailSequences';
 import { useAutopilotTrial } from '@/hooks/useAutopilotTrial';
 import AutopilotTrialWarning from './AutopilotTrialWarning';
+import { getAutopilotCampaign, updateAutopilotCampaign } from '@/lib/autopilotCampaign';
 
 interface AutopilotLead {
   id: string;
@@ -60,152 +61,71 @@ export default function AIAutopilotDashboard({
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'responded' | 'proposal_ready'>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [autopilotEnabled, setAutopilotEnabled] = useState(true);
+  const [campaign, setCampaign] = useState(() => getAutopilotCampaign());
   
   // Trial status
   const { status: trialStatus, upgradeToPaid, MONTHLY_PRICE } = useAutopilotTrial();
   const isExpired = trialStatus.isExpired;
   const canUseAutopilot = trialStatus.canUseAutopilot;
 
-  // Generate demo autopilot leads from stored context
+  useEffect(() => {
+    if (!campaign) return;
+    setAutopilotEnabled(campaign.status === 'active');
+  }, [campaign]);
+
   const autopilotLeads = useMemo<AutopilotLead[]>(() => {
     const storedLeads = getStoredLeadContext();
-    
-    if (storedLeads.length === 0) {
-      // Return demo data if no leads
-      return [
-        {
-          id: '1',
-          businessName: 'Acme Plumbing Co',
-          email: 'john@acmeplumbing.com',
-          priority: 'hot',
-          sequenceId: 'a-hot-1',
-          sequenceName: 'Cold Intro → Value Proof',
-          currentStep: 2,
-          totalSteps: 4,
-          status: 'active',
-          lastActivity: '2 hours ago',
-          nextAction: 'Send follow-up email',
-          nextActionTime: 'Tomorrow 9:00 AM',
-          emailsSent: 2,
-          opensCount: 2,
-          clicksCount: 1,
-          websiteStatus: 'Needs Upgrade',
-        },
-        {
-          id: '2',
-          businessName: 'Best Auto Repair',
-          email: 'mike@bestauto.com',
-          priority: 'hot',
-          sequenceId: 'a-hot-2',
-          sequenceName: '"We Found This" Audit',
-          currentStep: 3,
-          totalSteps: 4,
-          status: 'responded',
-          lastActivity: '30 minutes ago',
-          nextAction: 'Review response',
-          nextActionTime: 'Now',
-          responseDetected: true,
-          responseType: 'positive',
-          emailsSent: 3,
-          opensCount: 3,
-          clicksCount: 2,
-          websiteStatus: 'No Website',
-        },
-        {
-          id: '3',
-          businessName: 'City Dental Clinic',
-          email: 'info@citydental.com',
-          priority: 'warm',
-          sequenceId: 'a-warm-1',
-          sequenceName: 'Social Proof & Authority',
-          currentStep: 4,
-          totalSteps: 4,
-          status: 'proposal_ready',
-          lastActivity: '1 hour ago',
-          nextAction: 'Send proposal',
-          nextActionTime: 'Ready now',
-          responseDetected: true,
-          responseType: 'positive',
-          proposalReady: true,
-          emailsSent: 4,
-          opensCount: 4,
-          clicksCount: 3,
-          painPoints: ['Low online visibility', 'No booking system'],
-        },
-        {
-          id: '4',
-          businessName: 'Joe\'s Pizza',
-          email: 'joe@joespizza.com',
-          priority: 'cold',
-          sequenceId: 'a-cold-1',
-          sequenceName: 'Gentle Introduction',
-          currentStep: 1,
-          totalSteps: 4,
-          status: 'active',
-          lastActivity: '1 day ago',
-          nextAction: 'Send intro email',
-          nextActionTime: 'Today 2:00 PM',
-          emailsSent: 1,
-          opensCount: 0,
-          clicksCount: 0,
-        },
-        {
-          id: '5',
-          businessName: 'Elite Fitness Gym',
-          email: 'contact@elitefitness.com',
-          priority: 'warm',
-          sequenceId: 'a-warm-2',
-          sequenceName: 'Re-Engagement',
-          currentStep: 2,
-          totalSteps: 4,
-          status: 'paused',
-          lastActivity: '3 days ago',
-          nextAction: 'Paused - waiting for review',
-          nextActionTime: 'Manual action needed',
-          emailsSent: 2,
-          opensCount: 1,
-          clicksCount: 0,
-        },
-      ];
-    }
+    const sourceLeads = campaign?.leads && campaign.leads.length > 0 ? campaign.leads : storedLeads;
+    if (sourceLeads.length === 0) return [];
 
-    // Map stored leads to autopilot format
-    return storedLeads.slice(0, 10).map((lead, idx) => {
-      const statuses: AutopilotLead['status'][] = ['active', 'active', 'responded', 'proposal_ready', 'paused'];
-      const status = statuses[idx % statuses.length];
-      const currentStep = Math.min(idx % 4 + 1, 4);
-      
+    const totalLeads = sourceLeads.length;
+    const sentCount = campaign?.sentCount || 0;
+    const baseSent = totalLeads > 0 ? Math.floor(sentCount / totalLeads) : 0;
+    const remainder = totalLeads > 0 ? sentCount % totalLeads : 0;
+    const search = campaign?.searchType || searchType || 'gmb';
+    const campaignStatus = campaign?.status || 'paused';
+
+    return sourceLeads.slice(0, 50).map((lead, idx) => {
+      const businessName =
+        (lead as any).business_name ||
+        (lead as any).businessName ||
+        (lead as any).name ||
+        'Unknown';
+      const sequence = campaign?.sequence || getSuggestedSequence(search, {
+        aiClassification: (lead as any).aiClassification,
+        priority: (lead as any).aiClassification,
+        leadScore: (lead as any).leadScore,
+        hasWebsite: !!(lead as any).website,
+        websiteIssues: (lead as any).websiteIssues,
+      });
+      const totalSteps = sequence?.steps.length || 1;
+      const status: AutopilotLead['status'] = campaignStatus === 'active' ? 'active' : 'paused';
+      const emailsSent = baseSent + (idx < remainder ? 1 : 0);
+      const nextStep = sequence?.steps[1];
+
       return {
-        id: lead.id || `lead-${idx}`,
-        businessName: lead.businessName,
-        email: lead.email || `contact@${lead.businessName.toLowerCase().replace(/\s/g, '')}.com`,
-        priority: lead.aiClassification || 'cold',
-        sequenceId: `${searchType === 'platform' ? 'b' : 'a'}-${lead.aiClassification || 'cold'}-1`,
-        sequenceName: lead.aiClassification === 'hot' ? 'Cold Intro → Value Proof' 
-          : lead.aiClassification === 'warm' ? 'Social Proof & Authority'
-          : 'Gentle Introduction',
-        currentStep,
-        totalSteps: 4,
+        id: (lead as any).id || `lead-${idx}`,
+        businessName,
+        email: (lead as any).email || `contact@${businessName.toLowerCase().replace(/\s/g, '')}.com`,
+        priority: (lead as any).aiClassification || 'cold',
+        sequenceId: sequence?.id || `${search === 'platform' ? 'b' : 'a'}-${(lead as any).aiClassification || 'cold'}-1`,
+        sequenceName: sequence?.name || 'AI Sequence',
+        currentStep: Math.max(1, Math.min(emailsSent, totalSteps)),
+        totalSteps,
         status,
-        lastActivity: ['5 minutes ago', '1 hour ago', '3 hours ago', '1 day ago'][idx % 4],
-        nextAction: status === 'proposal_ready' ? 'Send proposal' 
-          : status === 'responded' ? 'Review response'
-          : status === 'paused' ? 'Resume campaign'
-          : 'Send follow-up email',
-        nextActionTime: status === 'proposal_ready' || status === 'responded' ? 'Now' : 'Tomorrow 9:00 AM',
-        responseDetected: status === 'responded' || status === 'proposal_ready',
-        responseType: status === 'responded' ? 'positive' : undefined,
-        proposalReady: status === 'proposal_ready',
-        emailsSent: currentStep,
-        opensCount: Math.max(0, currentStep - 1),
-        clicksCount: Math.max(0, currentStep - 2),
-        websiteStatus: lead.websiteAnalysis?.hasWebsite 
-          ? (lead.websiteAnalysis.needsUpgrade ? 'Needs Upgrade' : 'Has Website')
+        lastActivity: campaign?.lastSentAt ? 'Recently' : 'Not started',
+        nextAction: campaignStatus === 'active' && nextStep ? `Send follow-up (Day ${nextStep.day})` : 'Waiting for launch',
+        nextActionTime: campaignStatus === 'active' && nextStep ? `Day ${nextStep.day}` : '—',
+        emailsSent,
+        opensCount: 0,
+        clicksCount: 0,
+        websiteStatus: (lead as any).websiteAnalysis?.hasWebsite
+          ? ((lead as any).websiteAnalysis.needsUpgrade ? 'Needs Upgrade' : 'Has Website')
           : 'No Website',
-        painPoints: lead.painPoints,
+        painPoints: (lead as any).painPoints,
       };
     });
-  }, [searchType]);
+  }, [campaign, searchType]);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -235,7 +155,15 @@ export default function AIAutopilotDashboard({
   const handleRefresh = async () => {
     setIsRefreshing(true);
     await new Promise(r => setTimeout(r, 1000));
+    setCampaign(getAutopilotCampaign());
     setIsRefreshing(false);
+  };
+
+  const handleToggleAutopilot = (enabled: boolean) => {
+    setAutopilotEnabled(enabled);
+    if (!campaign) return;
+    const updated = updateAutopilotCampaign({ status: enabled ? 'active' : 'paused' });
+    if (updated) setCampaign(updated);
   };
 
   const getPriorityBadge = (priority: string) => {
@@ -288,7 +216,7 @@ export default function AIAutopilotDashboard({
                 className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white gap-2"
               >
                 <Crown className="w-5 h-5" />
-                Upgrade for ${MONTHLY_PRICE}/month
+                {`Upgrade for $${MONTHLY_PRICE}/month`}
               </Button>
               <p className="text-xs text-muted-foreground">Cancel anytime • Secure payment</p>
             </div>
@@ -320,7 +248,7 @@ export default function AIAutopilotDashboard({
               )}
             </h2>
             <p className="text-sm text-muted-foreground">
-              AI handles everything: Drip → Follow-ups → Responses ($19.99/mo)
+              {`AI handles everything: Drip → Follow-ups → Responses ($${MONTHLY_PRICE}/mo)`}
             </p>
           </div>
         </div>
@@ -340,7 +268,7 @@ export default function AIAutopilotDashboard({
             <span className="text-xs text-amber-400 font-medium">Autopilot</span>
             <Switch
               checked={autopilotEnabled && canUseAutopilot}
-              onCheckedChange={setAutopilotEnabled}
+              onCheckedChange={handleToggleAutopilot}
               disabled={!canUseAutopilot}
               className="data-[state=checked]:bg-amber-500"
             />

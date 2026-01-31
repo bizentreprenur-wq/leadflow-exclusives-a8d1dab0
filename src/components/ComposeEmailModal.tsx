@@ -33,17 +33,17 @@ import AISequenceRecommendationEngine from './AISequenceRecommendationEngine';
 import AIIntelligenceDecisionPanel from './AIIntelligenceDecisionPanel';
 import { isSMTPConfigured, sendSingleEmail, personalizeContent, getSMTPConfig } from '@/lib/emailService';
 import SMTPStatusIndicator from './SMTPStatusIndicator';
-import { sendEmail as apiSendEmail } from '@/lib/api/email';
-import { EmailSequence, EmailStep } from '@/lib/emailSequences';
+import { sendBulkEmails, LeadForEmail } from '@/lib/api/email';
+import { EmailSequence, getSuggestedSequence } from '@/lib/emailSequences';
 import HighConvertingTemplateGallery from './HighConvertingTemplateGallery';
 import { 
   getLeadContextByEmail, 
   generatePersonalizationFromContext,
-  generateEmailSuggestionsFromContext,
-  LeadAnalysisContext,
   saveCampaignLeadsWithContext,
   getStoredLeadContext
 } from '@/lib/leadContext';
+import { getSuggestedTemplate, personalizeTemplate } from '@/lib/priorityEmailTemplates';
+import { saveAutopilotCampaign, updateAutopilotCampaign } from '@/lib/autopilotCampaign';
 
 // Enhanced Lead interface with Step 2 analysis data
 interface Lead {
@@ -134,9 +134,13 @@ export default function ComposeEmailModal({
   const [showSequenceSelector, setShowSequenceSelector] = useState(false);
   const [selectedSequence, setSelectedSequence] = useState<EmailSequence | null>(null);
   const [selectedCampaignTemplate, setSelectedCampaignTemplate] = useState<{
+    id?: string;
     name: string;
     subject?: string;
     body?: string;
+    rawSubject?: string;
+    rawBody?: string;
+    source?: 'priority' | 'gallery' | 'sequence' | 'auto';
   } | null>(null);
   
   // Select All leads state
@@ -164,7 +168,7 @@ export default function ComposeEmailModal({
   const [dripSettingsReady, setDripSettingsReady] = useState(false);
 
   // Use the trial hook for autopilot subscription status
-  const { status: trialStatus, startTrial, upgradeToPaid, MONTHLY_PRICE } = useAutopilotTrial();
+  const { status: trialStatus, startTrial, upgradeToPaid, MONTHLY_PRICE, TRIAL_DURATION_DAYS } = useAutopilotTrial();
   const hasAutopilotSubscription = trialStatus.canUseAutopilot;
 
   useEffect(() => {
@@ -254,6 +258,73 @@ export default function ComposeEmailModal({
         : l.aiClassification === campaignTarget
     );
   }, [safeLeads, campaignTarget]);
+
+  const smtpSenderName = useMemo(() => getSMTPConfig()?.fromName || 'Your Name', []);
+
+  const dominantPriority = useMemo<'hot' | 'warm' | 'cold'>(() => {
+    const hot = safeLeads.filter(l => l.aiClassification === 'hot').length;
+    const warm = safeLeads.filter(l => l.aiClassification === 'warm').length;
+    const cold = safeLeads.filter(l => l.aiClassification === 'cold' || !l.aiClassification).length;
+    if (hot >= warm && hot >= cold) return 'hot';
+    if (warm >= hot && warm >= cold) return 'warm';
+    return 'cold';
+  }, [safeLeads]);
+
+  const representativeLead = useMemo(() => {
+    if (safeLeads.length === 0) return null;
+    return safeLeads.find(l => (l.aiClassification || 'cold') === dominantPriority) || safeLeads[0];
+  }, [safeLeads, dominantPriority]);
+
+  const suggestedTemplate = useMemo(() => {
+    if (!representativeLead) return null;
+    const suggested = getSuggestedTemplate({
+      aiClassification: representativeLead.aiClassification,
+      priority: representativeLead.priority as 'hot' | 'warm' | 'cold' | undefined,
+      leadScore: representativeLead.leadScore,
+      hasWebsite: !!representativeLead.website,
+      websiteIssues: representativeLead.websiteIssues,
+    });
+    const personalized = personalizeTemplate(
+      suggested,
+      {
+        business_name: representativeLead.business_name || representativeLead.name,
+        first_name: representativeLead.first_name || representativeLead.contact_name,
+        email: representativeLead.email,
+        website: representativeLead.website,
+        industry: representativeLead.industry,
+      },
+      smtpSenderName
+    );
+    return {
+      id: suggested.id,
+      name: suggested.name,
+      subject: personalized.subject,
+      body: personalized.body,
+      rawSubject: suggested.subject,
+      rawBody: suggested.body,
+      source: 'auto' as const,
+    };
+  }, [representativeLead, smtpSenderName]);
+
+  const effectiveTemplate = useMemo(() => {
+    return selectedCampaignTemplate || suggestedTemplate;
+  }, [selectedCampaignTemplate, suggestedTemplate]);
+
+  const suggestedSequence = useMemo(() => {
+    if (!representativeLead) return undefined;
+    const search = detectedSearchType || 'gmb';
+    return getSuggestedSequence(search, {
+      aiClassification: representativeLead.aiClassification,
+      priority: representativeLead.priority as 'hot' | 'warm' | 'cold' | undefined,
+      leadScore: representativeLead.leadScore,
+      hasWebsite: !!representativeLead.website,
+      websiteIssues: representativeLead.websiteIssues,
+    });
+  }, [representativeLead, detectedSearchType]);
+
+  const effectiveSequence = useMemo(() => {
+    return selectedSequence || suggestedSequence;
+  }, [selectedSequence, suggestedSequence]);
   
   // Handle select all toggle
   const handleSelectAllToggle = (checked: boolean) => {
@@ -420,7 +491,33 @@ export default function ComposeEmailModal({
 
   const handleStartAutopilot = async () => {
     if (!hasAutopilotSubscription) {
-      toast.error('Please subscribe to AI Autopilot Campaign first ($19.99/mo or start 14-day trial)');
+      toast.error(`Please subscribe to AI Autopilot first ($${MONTHLY_PRICE}/mo or start ${TRIAL_DURATION_DAYS}-day trial)`);
+      return;
+    }
+
+    if (!isSMTPConfigured()) {
+      toast.error('Please configure SMTP settings first. Go to Settings > SMTP Configuration.');
+      return;
+    }
+
+    if (safeLeads.length === 0) {
+      toast.error('No leads available for Autopilot. Add leads first.');
+      return;
+    }
+
+    const validLeads = safeLeads.filter(l => l.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(l.email));
+    if (validLeads.length === 0) {
+      toast.error('No leads with valid email addresses. Please add valid emails first.');
+      return;
+    }
+
+    const launchTemplate = effectiveTemplate;
+    const launchSequence = effectiveSequence;
+    const fallbackStep = launchSequence?.steps?.[0];
+    const subject = launchTemplate?.rawSubject || launchTemplate?.subject || fallbackStep?.subject;
+    const body = launchTemplate?.rawBody || launchTemplate?.body || fallbackStep?.body;
+    if (!subject || !body) {
+      toast.error('Please select a template or sequence before launching Autopilot.');
       return;
     }
 
@@ -443,47 +540,110 @@ export default function ComposeEmailModal({
       setAutopilotLaunchProgress(step.progress);
     }
     
-    // Get full lead context from Step 2 analysis for AI Autopilot
-    const leadsWithContext = getStoredLeadContext();
-    
-    // Save leads with their full analysis context for AI to use
-    saveCampaignLeadsWithContext(leadsWithContext);
-    
-    // Store campaign configuration with analysis data
-    localStorage.setItem('bamlead_drip_active', JSON.stringify({
-      active: true,
-      leads: safeLeads.map(l => l?.id ?? ''),
-      leadsWithAnalysis: leadsWithContext.length,
-      currentIndex: currentLeadIndex,
-      interval: dripInterval,
-      searchType: detectedSearchType,
-      startedAt: new Date().toISOString(),
-      // Include summary of lead analysis for AI reference
-      analysisContext: {
+    try {
+      const leadsWithContext = getStoredLeadContext();
+      saveCampaignLeadsWithContext(leadsWithContext);
+
+      const leadsForSend: LeadForEmail[] = validLeads.map(l => ({
+        id: typeof l.id === 'number' ? l.id : undefined,
+        email: l.email as string,
+        business_name: l.business_name || l.name,
+        contact_name: l.contact_name || l.first_name,
+        website: l.website,
+        platform: l.industry,
+        issues: l.websiteIssues,
+        phone: (l as any).phone,
+        leadScore: l.leadScore,
+      }));
+
+      const dripConfig = {
+        emailsPerHour: Math.max(1, dripRate),
+        delayMinutes: Math.max(1, Math.floor(60 / Math.max(1, dripRate))),
+      };
+
+      const result = await sendBulkEmails({
+        leads: leadsForSend,
+        custom_subject: subject,
+        custom_body: body,
+        send_mode: 'drip',
+        drip_config: dripConfig,
+      });
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to launch Autopilot campaign.');
+      }
+
+      const now = new Date().toISOString();
+      const campaignId = `autopilot_${Date.now()}`;
+      const analysisContext = {
         totalLeads: leadsWithContext.length,
         noWebsiteCount: leadsWithContext.filter(l => !l.websiteAnalysis?.hasWebsite).length,
         needsUpgradeCount: leadsWithContext.filter(l => l.websiteAnalysis?.needsUpgrade).length,
         hotLeadsCount: leadsWithContext.filter(l => l.aiClassification === 'hot').length,
         warmLeadsCount: leadsWithContext.filter(l => l.aiClassification === 'warm').length,
         coldLeadsCount: leadsWithContext.filter(l => l.aiClassification === 'cold').length,
-      },
-    }));
-    
-    onAutomationChange({ ...automationSettings, doneForYouMode: true });
-    
-    // Small delay to show 100% completion
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    setIsLaunchingAutopilot(false);
-    setAutopilotLaunchProgress(0);
-    toast.success('🤖 AI Autopilot activated! AI will use Step 2 analysis to personalize your outreach.');
-    onClose();
+      };
+
+      saveAutopilotCampaign({
+        id: campaignId,
+        status: 'active',
+        searchType: detectedSearchType || null,
+        createdAt: now,
+        startedAt: now,
+        template: {
+          id: launchTemplate?.id,
+          name: launchTemplate?.name || 'AI Smart Selection',
+          subject: launchTemplate?.subject || subject,
+          body: launchTemplate?.body || body,
+          rawSubject: launchTemplate?.rawSubject || subject,
+          rawBody: launchTemplate?.rawBody || body,
+          source: launchTemplate?.source || (launchSequence ? 'sequence' : 'auto'),
+        },
+        sequence: launchSequence,
+        leads: validLeads,
+        totalLeads: validLeads.length,
+        sentCount: result.results?.sent || validLeads.length,
+        lastSentAt: now,
+        dripConfig,
+        analysisSummary: analysisContext,
+      });
+
+      localStorage.setItem('bamlead_drip_active', JSON.stringify({
+        active: true,
+        autopilot: true,
+        campaignId,
+        leads: validLeads.map(l => l?.id ?? ''),
+        leadsWithAnalysis: leadsWithContext.length,
+        currentIndex: currentLeadIndex,
+        interval: dripInterval,
+        searchType: detectedSearchType,
+        startedAt: now,
+        templateName: launchTemplate?.name || 'AI Smart Selection',
+        sequenceId: launchSequence?.id,
+        sentCount: result.results?.sent || validLeads.length,
+        analysisContext,
+      }));
+
+      onAutomationChange({ ...automationSettings, doneForYouMode: true });
+
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setIsLaunchingAutopilot(false);
+      setAutopilotLaunchProgress(0);
+      toast.success(`🤖 AI Autopilot activated! Sending ${result.results?.sent || validLeads.length} emails.`);
+      onClose();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to launch Autopilot campaign.';
+      updateAutopilotCampaign({ status: 'paused' });
+      toast.error(message);
+      setIsLaunchingAutopilot(false);
+      setAutopilotLaunchProgress(0);
+    }
   };
 
   const handleStartFreeTrial = () => {
     const success = startTrial();
     if (success) {
-      toast.success('🎉 14-day free trial started! AI Autopilot is now available.');
+      toast.success(`🎉 ${TRIAL_DURATION_DAYS}-day free trial started! AI Autopilot is now available.`);
     }
   };
 
@@ -1499,7 +1659,7 @@ export default function ComposeEmailModal({
                       </p>
                       <div className="flex items-center justify-center gap-3 mb-4">
                         <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
-                          ${MONTHLY_PRICE}/month
+                          {`$${MONTHLY_PRICE}/month`}
                         </Badge>
                       </div>
                       <Button 
@@ -1507,7 +1667,7 @@ export default function ComposeEmailModal({
                         className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white gap-2"
                       >
                         <CreditCard className="w-4 h-4" />
-                        Subscribe Now - ${MONTHLY_PRICE}/month
+                        {`Subscribe Now - $${MONTHLY_PRICE}/month`}
                       </Button>
                     </div>
                   )}
@@ -1549,7 +1709,7 @@ export default function ComposeEmailModal({
                               {trialStatus.isPaid ? 'AI Autopilot Pro Active' : 'AI Autopilot Trial Active'}
                             </h4>
                             <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]">
-                              ${MONTHLY_PRICE}/mo
+                              {`$${MONTHLY_PRICE}/mo`}
                             </Badge>
                           </div>
                           <p className="text-xs text-muted-foreground">
@@ -1667,10 +1827,17 @@ export default function ComposeEmailModal({
                             AI will automatically personalize emails based on each lead's website status, pain points, and business type.
                           </p>
                           
-                          {selectedCampaignTemplate ? (
+                          {effectiveTemplate ? (
                             <div className="p-4 rounded-lg bg-background border border-amber-500/30 mb-4">
                               <div className="flex items-center justify-between mb-2">
-                                <p className="text-sm font-medium text-foreground">{selectedCampaignTemplate.name}</p>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-medium text-foreground">{effectiveTemplate.name}</p>
+                                  {!selectedCampaignTemplate && (
+                                    <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-amber-500/30">
+                                      AI Selected
+                                    </Badge>
+                                  )}
+                                </div>
                                 <Button
                                   size="sm"
                                   variant="ghost"
@@ -1681,8 +1848,8 @@ export default function ComposeEmailModal({
                                   Change
                                 </Button>
                               </div>
-                              {selectedCampaignTemplate.subject && (
-                                <p className="text-xs text-muted-foreground">Subject: {selectedCampaignTemplate.subject}</p>
+                              {effectiveTemplate.subject && (
+                                <p className="text-xs text-muted-foreground">Subject: {effectiveTemplate.subject}</p>
                               )}
                             </div>
                           ) : (
@@ -1845,11 +2012,11 @@ export default function ComposeEmailModal({
                             </div>
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">Template:</span>
-                              <span className="font-medium text-foreground">{selectedCampaignTemplate?.name || 'AI Smart Selection'}</span>
+                              <span className="font-medium text-foreground">{effectiveTemplate?.name || 'AI Smart Selection'}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">Sequence:</span>
-                              <span className="font-medium text-foreground">{selectedSequence?.name || 'AI Optimized'}</span>
+                              <span className="font-medium text-foreground">{effectiveSequence?.name || 'AI Optimized'}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">Mode:</span>
@@ -2069,6 +2236,15 @@ export default function ComposeEmailModal({
             subject: template.subject,
             body: template.body,
           }));
+          setSelectedCampaignTemplate({
+            id: template.id,
+            name: template.name,
+            subject: template.subject,
+            body: template.body,
+            rawSubject: template.rawSubject,
+            rawBody: template.rawBody,
+            source: 'priority',
+          });
         }}
         currentLead={currentLead ? {
           business_name: currentLead.business_name || currentLead.name,
@@ -2097,6 +2273,9 @@ export default function ComposeEmailModal({
                   name: template.name || 'Selected Template',
                   subject: template.subject,
                   body: template.body || template.body_html || '',
+                  rawSubject: template.subject,
+                  rawBody: template.body || template.body_html || '',
+                  source: 'gallery',
                 });
                 setEmail(prev => ({
                   ...prev,
@@ -2276,7 +2455,9 @@ export default function ComposeEmailModal({
                 <p>• Automated drip sequences</p>
                 <p>• Intelligent follow-ups</p>
                 <p>• AI response detection</p>
-                <p className="text-amber-400">$19.99/month or 14-day free trial</p>
+                <p className="text-amber-400">
+                  {`$${MONTHLY_PRICE}/month or ${TRIAL_DURATION_DAYS}-day free trial`}
+                </p>
               </div>
             </button>
           </div>
@@ -2310,8 +2491,10 @@ export default function ComposeEmailModal({
               <li>✓ Real-time campaign monitoring</li>
             </ul>
             <div className="mt-4 pt-3 border-t border-amber-500/20">
-              <p className="text-lg font-bold text-amber-400">$19.99/month</p>
-              <p className="text-xs text-muted-foreground">or start with a 14-day free trial</p>
+              <p className="text-lg font-bold text-amber-400">{`$${MONTHLY_PRICE}/month`}</p>
+              <p className="text-xs text-muted-foreground">
+                {`or start with a ${TRIAL_DURATION_DAYS}-day free trial`}
+              </p>
             </div>
           </div>
           
@@ -2336,7 +2519,7 @@ export default function ComposeEmailModal({
                 logs.push(auditLog);
                 localStorage.setItem('bamlead_campaign_audit', JSON.stringify(logs));
                 
-                toast.success('14-day free trial started!');
+                toast.success(`${TRIAL_DURATION_DAYS}-day free trial started!`);
               }}
               className="bg-amber-500 hover:bg-amber-600 gap-2"
             >
@@ -2361,7 +2544,7 @@ export default function ComposeEmailModal({
               className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 gap-2"
             >
               <CreditCard className="w-4 h-4" />
-              Subscribe $19.99/mo
+              {`Subscribe $${MONTHLY_PRICE}/mo`}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
