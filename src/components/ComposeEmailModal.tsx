@@ -517,7 +517,7 @@ export default function ComposeEmailModal({
       <DialogContent 
         elevated 
         className={cn(
-          "bg-card border-border overflow-hidden flex flex-col p-0 min-h-0",
+          "bg-card border-border overflow-hidden flex flex-col p-0 min-h-0 [&>button]:hidden",
           isFullscreen 
             ? "max-w-[100vw] w-[100vw] h-[100vh] max-h-[100vh] rounded-none" 
             : "max-w-3xl max-h-[90vh] h-[90vh]"
