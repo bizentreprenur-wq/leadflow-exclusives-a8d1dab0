@@ -219,6 +219,8 @@ export default function Dashboard() {
   const [showVerifierWidget, setShowVerifierWidget] = useState(false);
   const [showResultsPanel, setShowResultsPanel] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [reportAutoPopKey, setReportAutoPopKey] = useState<string | null>(null);
+  const [lastReportShownKey, setLastReportShownKey] = useState<string | null>(null);
   const [advanceToStep2AfterReport, setAdvanceToStep2AfterReport] = useState(false);
   const [isEmailEnriching, setIsEmailEnriching] = useState(false);
   const [emailEnrichTotal, setEmailEnrichTotal] = useState(0);
@@ -384,6 +386,13 @@ export default function Dashboard() {
     sessionStorage.setItem('bamlead_search_results', JSON.stringify(cached));
     localStorage.setItem('bamlead_search_results', JSON.stringify(cached));
   }, [searchType]);
+
+  useEffect(() => {
+    if (currentStep !== 2 || searchResults.length === 0) return;
+    const key = reportAutoPopKey || localStorage.getItem('bamlead_search_timestamp');
+    if (!key || lastReportShownKey === key) return;
+    setShowReportModal(true);
+  }, [currentStep, searchResults.length, reportAutoPopKey, lastReportShownKey]);
 
   useEffect(() => {
     if (emailLeads.length > 0) {
@@ -1092,7 +1101,9 @@ export default function Dashboard() {
       setRestoredFromSession(null);
       
       // Save the search timestamp for restoration tracking
-      localStorage.setItem('bamlead_search_timestamp', new Date().toISOString());
+      const searchTimestamp = new Date().toISOString();
+      localStorage.setItem('bamlead_search_timestamp', searchTimestamp);
+      setReportAutoPopKey(searchTimestamp);
       
       // Detect if we got real data (live SerpAPI) or mock data
       // Mock results have IDs starting with "mock_"
@@ -2129,29 +2140,7 @@ export default function Dashboard() {
                       </div>
                     )}
 
-                    {/* AI Processing Pipeline - Shows after search completes for final processing */}
-                    {showAIPipeline && searchResults.length > 0 && !isSearching && (
-                      <div className="mt-6">
-                        <AIProcessingPipeline
-                          isActive={showAIPipeline}
-                          leads={searchResults}
-                          onComplete={(enhancedLeads) => {
-                            // Update leads with AI enhancements
-                            setSearchResults(enhancedLeads as SearchResult[]);
-                            setShowAIPipeline(false);
-                            // Show the Intelligence Report first, then move to Step 2 after close
-                            setAdvanceToStep2AfterReport(true);
-                            setShowReportModal(true);
-                            startEmailEnrichment(enhancedLeads as SearchResult[]);
-                            toast.success('🎉 All 8 AI agents complete! Your leads are supercharged.');
-                          }}
-                          onProgressUpdate={(progress, agentName) => {
-                            setAIPipelineProgress(progress);
-                            setCurrentAIAgent(agentName);
-                          }}
-                        />
-                      </div>
-                    )}
+                    {/* AI Processing Pipeline - final processing is rendered globally */}
 
                     {/* Network Status during search - HIGHLY VISIBLE */}
                     {isSearching && (networkStatus === 'verifying' || networkStatus === 'retrying') && (
@@ -2846,6 +2835,28 @@ export default function Dashboard() {
         </SidebarInset>
       </div>
 
+      {/* AI Processing Pipeline - final processing always available (even after Step 2 navigation) */}
+      {showAIPipeline && searchResults.length > 0 && !isSearching && (
+        <div className="fixed bottom-6 right-6 z-50 w-[420px] max-w-[90vw]">
+          <AIProcessingPipeline
+            isActive={showAIPipeline}
+            leads={searchResults}
+            onComplete={(enhancedLeads) => {
+              setSearchResults(enhancedLeads as SearchResult[]);
+              setShowAIPipeline(false);
+              setAdvanceToStep2AfterReport(true);
+              setShowReportModal(true);
+              startEmailEnrichment(enhancedLeads as SearchResult[]);
+              toast.success('🎉 All 8 AI agents complete! Your leads are supercharged.');
+            }}
+            onProgressUpdate={(progress, agentName) => {
+              setAIPipelineProgress(progress);
+              setCurrentAIAgent(agentName);
+            }}
+          />
+        </div>
+      )}
+
       {/* Email Widget */}
       <EmailWidget
         isOpen={showEmailWidget}
@@ -2895,6 +2906,12 @@ export default function Dashboard() {
           if (!open && advanceToStep2AfterReport && searchResults.length > 0) {
             setAdvanceToStep2AfterReport(false);
             setCurrentStep(2);
+          }
+          if (!open) {
+            const key = reportAutoPopKey || localStorage.getItem('bamlead_search_timestamp');
+            if (key) {
+              setLastReportShownKey(key);
+            }
           }
         }}
         leads={searchResults}
