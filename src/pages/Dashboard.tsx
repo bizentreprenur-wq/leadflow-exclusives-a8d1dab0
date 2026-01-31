@@ -2077,7 +2077,7 @@ export default function Dashboard() {
                     </div>
 
                     <Button
-                      onClick={handleSearch}
+                      onClick={() => handleSearch()}
                       disabled={isSearching || (searchType === 'platform' && selectedPlatforms.length === 0)}
                       size="lg"
                       className={`w-full mt-4 ${

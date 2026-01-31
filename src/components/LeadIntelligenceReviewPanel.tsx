@@ -31,6 +31,24 @@ interface LeadIntelligenceReviewPanelProps {
   onOpenCompose?: (strategy: EmailStrategy) => void;
   selectedTemplate?: { subject: string; body: string } | null;
   onOpenTemplates?: () => void;
+  /** Optional leads array - if not provided, falls back to storage */
+  leads?: Array<{
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    website?: string;
+    aiClassification?: 'hot' | 'warm' | 'cold';
+    leadScore?: number;
+    successProbability?: number;
+    painPoints?: string[];
+    websiteAnalysis?: {
+      hasWebsite: boolean;
+      needsUpgrade?: boolean;
+      mobileScore?: number;
+      issues?: string[];
+    };
+  }>;
 }
 
 export interface EmailStrategy {
@@ -62,7 +80,8 @@ export default function LeadIntelligenceReviewPanel({
   onOpenSettings,
   onOpenCompose,
   selectedTemplate,
-  onOpenTemplates
+  onOpenTemplates,
+  leads: passedLeads
 }: LeadIntelligenceReviewPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [selectedStrategy, setSelectedStrategy] = useState<string | null>(null);
@@ -86,8 +105,38 @@ export default function LeadIntelligenceReviewPanel({
     }
   }, [selectedTemplate]);
   
-  // Get lead analysis from Step 1/2
-  const leadAnalysis = useMemo(() => getStoredLeadContext(), []);
+  // Get lead analysis from passed props OR fall back to storage
+  const leadAnalysis = useMemo(() => {
+    // If leads passed as prop, use them directly
+    if (passedLeads && passedLeads.length > 0) {
+      return passedLeads.map(lead => ({
+        id: lead.id,
+        businessName: lead.name,
+        email: lead.email,
+        phone: lead.phone,
+        website: lead.website,
+        aiClassification: lead.aiClassification,
+        leadScore: lead.leadScore,
+        successProbability: lead.successProbability,
+        painPoints: lead.painPoints || [],
+        websiteAnalysis: lead.websiteAnalysis ? {
+          hasWebsite: lead.websiteAnalysis.hasWebsite,
+          needsUpgrade: lead.websiteAnalysis.needsUpgrade || false,
+          mobileScore: lead.websiteAnalysis.mobileScore,
+          issues: lead.websiteAnalysis.issues || [],
+          opportunities: [],
+        } : {
+          hasWebsite: !!lead.website,
+          needsUpgrade: false,
+          mobileScore: undefined,
+          issues: [],
+          opportunities: [],
+        },
+      })) as LeadAnalysisContext[];
+    }
+    // Fall back to storage
+    return getStoredLeadContext();
+  }, [passedLeads]);
   
   // Calculate insights
   const insights = useMemo(() => {
