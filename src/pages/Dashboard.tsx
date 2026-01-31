@@ -413,6 +413,29 @@ export default function Dashboard() {
     }
   }, [emailLeads]);
 
+  useEffect(() => {
+    const handleNavigate = (event: Event) => {
+      const detail = (event as CustomEvent<{ target?: string }>).detail;
+      if (!detail?.target) return;
+      if (detail.target === 'smtp-setup') {
+        setCurrentStep(3);
+        localStorage.setItem('bamlead_current_step', '3');
+        localStorage.setItem('bamlead_email_setup_phase', 'smtp');
+      }
+      if (detail.target === 'template-gallery') {
+        setCurrentStep(3);
+        localStorage.setItem('bamlead_current_step', '3');
+        localStorage.setItem('bamlead_email_setup_phase', 'template');
+        localStorage.setItem('bamlead_focus_template_gallery', '1');
+      }
+    };
+
+    window.addEventListener('bamlead-navigate', handleNavigate as EventListener);
+    return () => {
+      window.removeEventListener('bamlead-navigate', handleNavigate as EventListener);
+    };
+  }, []);
+
   // Check for payment success
   useEffect(() => {
     const paymentStatus = searchParams.get('payment');

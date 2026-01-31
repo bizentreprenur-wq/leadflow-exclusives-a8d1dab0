@@ -257,6 +257,25 @@ export default function EmailSetupFlow({
     return Boolean(config.username && config.password);
   });
 
+  useEffect(() => {
+    const requestedPhase = localStorage.getItem('bamlead_email_setup_phase');
+    if (requestedPhase === 'smtp' || requestedPhase === 'template' || requestedPhase === 'send') {
+      setCurrentPhase(requestedPhase);
+      localStorage.removeItem('bamlead_email_setup_phase');
+    }
+
+    const focusGallery = localStorage.getItem('bamlead_focus_template_gallery');
+    if (focusGallery) {
+      setTimeout(() => {
+        const templateSection = document.querySelector('[data-template-gallery]');
+        if (templateSection) {
+          templateSection.scrollIntoView({ behavior: 'smooth' });
+        }
+        localStorage.removeItem('bamlead_focus_template_gallery');
+      }, 200);
+    }
+  }, []);
+
   // Load AI-generated email template
   useEffect(() => {
     const savedAiTemplate = localStorage.getItem('ai_email_template');

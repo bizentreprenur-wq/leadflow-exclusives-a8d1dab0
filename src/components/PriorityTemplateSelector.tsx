@@ -76,7 +76,7 @@ export default function PriorityTemplateSelector({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-2xl bg-card border-border">
+      <DialogContent elevated className="max-w-2xl bg-card border-border">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-primary" />

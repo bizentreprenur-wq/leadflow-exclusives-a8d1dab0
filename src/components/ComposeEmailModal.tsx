@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +35,7 @@ import { isSMTPConfigured, sendSingleEmail, personalizeContent, getSMTPConfig } 
 import SMTPStatusIndicator from './SMTPStatusIndicator';
 import { sendEmail as apiSendEmail } from '@/lib/api/email';
 import { EmailSequence, EmailStep } from '@/lib/emailSequences';
+import HighConvertingTemplateGallery from './HighConvertingTemplateGallery';
 import { 
   getLeadContextByEmail, 
   generatePersonalizationFromContext,
@@ -128,6 +129,7 @@ export default function ComposeEmailModal({
   const [isSending, setIsSending] = useState(false);
   const [showScheduler, setShowScheduler] = useState(false);
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  const [showTemplateGalleryModal, setShowTemplateGalleryModal] = useState(false);
   const [showAISubjects, setShowAISubjects] = useState(true);
   const [showSequenceSelector, setShowSequenceSelector] = useState(false);
   const [selectedSequence, setSelectedSequence] = useState<EmailSequence | null>(null);
@@ -147,6 +149,7 @@ export default function ComposeEmailModal({
   const [autopilotLaunchProgress, setAutopilotLaunchProgress] = useState(0);
   const [showLeadsPreview, setShowLeadsPreview] = useState(false);
   const [autopilotTab, setAutopilotTab] = useState<AutopilotTab>('leads');
+  const subjectInputRef = useRef<HTMLInputElement>(null);
   
   // Campaign selection state
   const [showCampaignSelection, setShowCampaignSelection] = useState(false);
@@ -1085,6 +1088,11 @@ export default function ComposeEmailModal({
                                     body: selectedCampaignTemplate.body || '',
                                   }));
                                 }
+                                setCampaignTab('template');
+                                setTimeout(() => {
+                                  subjectInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                  subjectInputRef.current?.focus();
+                                }, 50);
                                 toast.info('Template loaded into editor. You can now view and edit it.');
                               }}
                               className="text-xs gap-1 h-7"
@@ -1095,7 +1103,9 @@ export default function ComposeEmailModal({
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => setShowTemplateSelector(true)}
+                              onClick={() => {
+                                setShowTemplateGalleryModal(true);
+                              }}
                               className="text-xs gap-1 h-7"
                             >
                               <Edit3 className="w-3 h-3" />
@@ -1124,6 +1134,7 @@ export default function ComposeEmailModal({
                     <div className="space-y-3">
                       <label className="text-sm font-medium text-foreground">Subject Line</label>
                       <Input
+                        ref={subjectInputRef}
                         value={email.subject}
                         onChange={(e) => setEmail(prev => ({ ...prev, subject: e.target.value }))}
                         placeholder="Email subject..."
@@ -2072,6 +2083,38 @@ export default function ComposeEmailModal({
           websiteIssues: currentLead.websiteIssues,
         } : undefined}
       />
+
+      {/* Full Template Gallery Modal */}
+      <Dialog open={showTemplateGalleryModal} onOpenChange={setShowTemplateGalleryModal}>
+        <DialogContent
+          elevated
+          className="max-w-6xl w-[96vw] h-[92vh] flex flex-col p-0 bg-card border-border overflow-hidden"
+        >
+          <ScrollArea className="h-full">
+            <HighConvertingTemplateGallery
+              onSelectTemplate={(template) => {
+                setSelectedCampaignTemplate({
+                  name: template.name || 'Selected Template',
+                  subject: template.subject,
+                  body: template.body || template.body_html || '',
+                });
+                setEmail(prev => ({
+                  ...prev,
+                  subject: template.subject || '',
+                  body: template.body || template.body_html || '',
+                }));
+                setShowTemplateGalleryModal(false);
+                setCampaignTab('template');
+                setTimeout(() => {
+                  subjectInputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  subjectInputRef.current?.focus();
+                }, 50);
+                toast.success(`Template "${template.name}" selected!`);
+              }}
+            />
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
       
       {/* Template Required Modal */}
       <AlertDialog open={showTemplateRequiredModal} onOpenChange={setShowTemplateRequiredModal}>
