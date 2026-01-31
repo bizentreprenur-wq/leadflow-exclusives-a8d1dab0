@@ -1135,7 +1135,10 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
 
       {/* Sequence Browser Modal */}
       <Dialog open={showSequenceBrowser} onOpenChange={setShowSequenceBrowser}>
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogContent
+          elevated
+          className="max-w-4xl h-[85vh] max-h-[85vh] overflow-hidden flex flex-col"
+        >
           <DialogTitle className="flex items-center gap-2 text-lg font-bold">
             <Layers className="w-5 h-5 text-primary" />
             Email Sequences Library
@@ -1148,7 +1151,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
               {searchType === 'gmb' ? 'Option A' : 'Option B'}
             </Badge>
           </DialogTitle>
-          <ScrollArea className="flex-1 mt-4">
+          <ScrollArea className="flex-1 min-h-0 mt-4" type="always">
             <EmailSequenceSelector
               searchType={searchType || 'gmb'}
               currentLead={campaignLeads[0] ? {
