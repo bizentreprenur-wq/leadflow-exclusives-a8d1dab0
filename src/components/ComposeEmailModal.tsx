@@ -980,65 +980,67 @@ export default function ComposeEmailModal({
                         <Target className="w-4 h-4 text-primary" />
                         Campaign Type
                       </h4>
-                      <div className="grid grid-cols-4 gap-2">
-                        <button
-                          onClick={() => setCampaignTarget('all')}
-                          className={cn(
-                            "p-3 rounded-lg border-2 transition-all text-center",
-                            campaignTarget === 'all'
-                              ? "border-primary bg-primary/10"
-                              : "border-border hover:border-primary/50"
-                          )}
-                        >
-                          <Users className="w-5 h-5 mx-auto mb-1 text-primary" />
-                          <span className="text-xs font-medium">All Leads</span>
-                          <p className="text-[10px] text-muted-foreground">{safeLeads.length}</p>
-                        </button>
-                        <button
-                          onClick={() => setCampaignTarget('hot')}
-                          className={cn(
-                            "p-3 rounded-lg border-2 transition-all text-center",
-                            campaignTarget === 'hot'
-                              ? "border-red-500 bg-red-500/10"
-                              : "border-border hover:border-red-500/50"
-                          )}
-                        >
-                          <Flame className="w-5 h-5 mx-auto mb-1 text-red-400" />
-                          <span className="text-xs font-medium">Hot</span>
-                          <p className="text-[10px] text-muted-foreground">
-                            {safeLeads.filter(l => l.aiClassification === 'hot').length}
-                          </p>
-                        </button>
-                        <button
-                          onClick={() => setCampaignTarget('warm')}
-                          className={cn(
-                            "p-3 rounded-lg border-2 transition-all text-center",
-                            campaignTarget === 'warm'
-                              ? "border-amber-500 bg-amber-500/10"
-                              : "border-border hover:border-amber-500/50"
-                          )}
-                        >
-                          <ThermometerSun className="w-5 h-5 mx-auto mb-1 text-amber-400" />
-                          <span className="text-xs font-medium">Warm</span>
-                          <p className="text-[10px] text-muted-foreground">
-                            {safeLeads.filter(l => l.aiClassification === 'warm').length}
-                          </p>
-                        </button>
-                        <button
-                          onClick={() => setCampaignTarget('cold')}
-                          className={cn(
-                            "p-3 rounded-lg border-2 transition-all text-center",
-                            campaignTarget === 'cold'
-                              ? "border-blue-500 bg-blue-500/10"
-                              : "border-border hover:border-blue-500/50"
-                          )}
-                        >
-                          <Snowflake className="w-5 h-5 mx-auto mb-1 text-blue-400" />
-                          <span className="text-xs font-medium">Cold</span>
-                          <p className="text-[10px] text-muted-foreground">
-                            {safeLeads.filter(l => l.aiClassification === 'cold' || !l.aiClassification).length}
-                          </p>
-                        </button>
+                      <div className="overflow-x-auto pb-2">
+                        <div className="grid grid-cols-4 gap-2 min-w-[520px]">
+                          <button
+                            onClick={() => setCampaignTarget('all')}
+                            className={cn(
+                              "p-3 rounded-lg border-2 transition-all text-center",
+                              campaignTarget === 'all'
+                                ? "border-primary bg-primary/10"
+                                : "border-border hover:border-primary/50"
+                            )}
+                          >
+                            <Users className="w-5 h-5 mx-auto mb-1 text-primary" />
+                            <span className="text-xs font-medium">All Leads</span>
+                            <p className="text-[10px] text-muted-foreground">{safeLeads.length}</p>
+                          </button>
+                          <button
+                            onClick={() => setCampaignTarget('hot')}
+                            className={cn(
+                              "p-3 rounded-lg border-2 transition-all text-center",
+                              campaignTarget === 'hot'
+                                ? "border-red-500 bg-red-500/10"
+                                : "border-border hover:border-red-500/50"
+                            )}
+                          >
+                            <Flame className="w-5 h-5 mx-auto mb-1 text-red-400" />
+                            <span className="text-xs font-medium">Hot</span>
+                            <p className="text-[10px] text-muted-foreground">
+                              {safeLeads.filter(l => l.aiClassification === 'hot').length}
+                            </p>
+                          </button>
+                          <button
+                            onClick={() => setCampaignTarget('warm')}
+                            className={cn(
+                              "p-3 rounded-lg border-2 transition-all text-center",
+                              campaignTarget === 'warm'
+                                ? "border-amber-500 bg-amber-500/10"
+                                : "border-border hover:border-amber-500/50"
+                            )}
+                          >
+                            <ThermometerSun className="w-5 h-5 mx-auto mb-1 text-amber-400" />
+                            <span className="text-xs font-medium">Warm</span>
+                            <p className="text-[10px] text-muted-foreground">
+                              {safeLeads.filter(l => l.aiClassification === 'warm').length}
+                            </p>
+                          </button>
+                          <button
+                            onClick={() => setCampaignTarget('cold')}
+                            className={cn(
+                              "p-3 rounded-lg border-2 transition-all text-center",
+                              campaignTarget === 'cold'
+                                ? "border-blue-500 bg-blue-500/10"
+                                : "border-border hover:border-blue-500/50"
+                            )}
+                          >
+                            <Snowflake className="w-5 h-5 mx-auto mb-1 text-blue-400" />
+                            <span className="text-xs font-medium">Cold</span>
+                            <p className="text-[10px] text-muted-foreground">
+                              {safeLeads.filter(l => l.aiClassification === 'cold' || !l.aiClassification).length}
+                            </p>
+                          </button>
+                        </div>
                       </div>
                     </div>
 
