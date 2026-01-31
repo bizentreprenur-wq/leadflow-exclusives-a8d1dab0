@@ -22,7 +22,7 @@ export interface StripeConfig {
   plans: {
     basic: Plan;
     pro: Plan;
-    agency: Plan;
+    autopilot: Plan;
   };
 }
 
@@ -42,7 +42,7 @@ export interface Payment {
   date: string;
 }
 
-// Mock data for testing
+// Mock data for testing - 2026 AI Outcomes Model
 const MOCK_CONFIG: StripeConfig = {
   publishable_key: 'pk_test_mock',
   plans: {
@@ -52,7 +52,8 @@ const MOCK_CONFIG: StripeConfig = {
       yearly_price: 470,
       features: [
         '50 searches per day',
-        'Basic lead verification',
+        'Manual Mode: AI assists, you send',
+        'AI Email Writer',
         'CSV export',
         'Email support',
       ],
@@ -63,20 +64,22 @@ const MOCK_CONFIG: StripeConfig = {
       yearly_price: 950,
       features: [
         '200 searches per day',
-        'Advanced lead verification',
-        'CRM integrations',
+        'Co-Pilot Mode: AI manages sequences',
+        'Smart Response Detection',
+        'Auto Follow-Up Sequences',
         'Priority support',
         'Team collaboration (3 users)',
       ],
     },
-    agency: {
-      name: 'Agency',
+    autopilot: {
+      name: 'Autopilot',
       monthly_price: 249,
       yearly_price: 2390,
       features: [
         'Unlimited searches',
-        'Full lead verification',
-        'White-label exports',
+        'Agentic Mode: Full Autopilot',
+        'Autonomous Proposal Delivery',
+        'White-label reports',
         'API access',
         'Dedicated account manager',
         'Unlimited team members',
@@ -95,7 +98,7 @@ export async function getStripeConfig(): Promise<StripeConfig> {
 }
 
 export async function createCheckoutSession(
-  plan: 'basic' | 'pro' | 'agency',
+  plan: 'basic' | 'pro' | 'autopilot',
   billingPeriod: 'monthly' | 'yearly' = 'monthly'
 ): Promise<{ checkout_url: string; session_id: string }> {
   if (USE_MOCK_AUTH) {

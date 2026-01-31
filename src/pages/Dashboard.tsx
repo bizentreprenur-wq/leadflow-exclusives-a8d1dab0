@@ -78,6 +78,8 @@ import AIProcessingPipeline from '@/components/AIProcessingPipeline';
 import StreamingLeadsIndicator from '@/components/StreamingLeadsIndicator';
 import WorkflowOnboardingTour, { startWorkflowTour } from '@/components/WorkflowOnboardingTour';
 import SearchTypeOnboarding, { shouldShowSearchOnboarding, trackLoginForOnboarding } from '@/components/SearchTypeOnboarding';
+import AutopilotOnboardingWizard from '@/components/AutopilotOnboardingWizard';
+import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 
 interface SearchResult {
   id: string;
@@ -132,6 +134,17 @@ export default function Dashboard() {
   });
   const { celebrate } = useCelebration();
   const { status: smtpStatus } = useSMTPConfig();
+  const { needsOnboarding, completeOnboarding, isAutopilot, tier } = usePlanFeatures();
+  
+  // Autopilot onboarding wizard state
+  const [showAutopilotOnboarding, setShowAutopilotOnboarding] = useState(false);
+  
+  // Show onboarding wizard for new Autopilot subscribers
+  useEffect(() => {
+    if (needsOnboarding && isAutopilot) {
+      setShowAutopilotOnboarding(true);
+    }
+  }, [needsOnboarding, isAutopilot]);
 
   // Workflow state - Initialize from sessionStorage for persistence
   const [currentStep, setCurrentStep] = useState(() => {
@@ -2088,7 +2101,7 @@ export default function Dashboard() {
                     </div>
 
                     <Button
-                      onClick={handleSearch}
+                      onClick={() => handleSearch()}
                       disabled={isSearching || (searchType === 'platform' && selectedPlatforms.length === 0)}
                       size="lg"
                       className={`w-full mt-4 ${
@@ -3014,6 +3027,17 @@ export default function Dashboard() {
       {showSearchOnboarding && (
         <SearchTypeOnboarding onClose={() => setShowSearchOnboarding(false)} />
       )}
+
+      {/* Autopilot Tier Onboarding Wizard - Shows for new $249/mo subscribers */}
+      <AutopilotOnboardingWizard
+        open={showAutopilotOnboarding}
+        onOpenChange={setShowAutopilotOnboarding}
+        onComplete={() => {
+          completeOnboarding();
+          setShowAutopilotOnboarding(false);
+          toast.success('🚀 Welcome to Autopilot! AI is now managing your outreach.');
+        }}
+      />
 
     </SidebarProvider>
   );

@@ -80,10 +80,10 @@ export default function Auth() {
     redirectingRef.current = true;
     setIsRedirecting(true);
 
-    if (pendingPlan && ['basic', 'pro', 'agency'].includes(pendingPlan)) {
+    if (pendingPlan && ['basic', 'pro', 'autopilot'].includes(pendingPlan)) {
       try {
         const { checkout_url } = await createCheckoutSession(
-          pendingPlan,
+          pendingPlan as 'basic' | 'pro' | 'autopilot',
           pendingBilling || 'monthly'
         );
         window.location.assign(checkout_url);
