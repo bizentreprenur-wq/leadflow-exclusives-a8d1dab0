@@ -571,6 +571,7 @@ export default function EmailSetupFlow({
             {/* Lead Intelligence Review Panel - Shows Step 1 findings + Template & Strategy Selection */}
             {showIntelligencePanel && (
               <LeadIntelligenceReviewPanel
+                leads={leads}
                 searchType={searchType}
                 selectedTemplate={customizedContent || (selectedTemplate ? { subject: selectedTemplate.subject, body: selectedTemplate.body } : null)}
                 onOpenTemplates={() => {
