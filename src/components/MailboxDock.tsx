@@ -139,10 +139,10 @@ export default function MailboxDock({
             </div>
           )}
 
-          {/* Close Button - floating on top */}
+          {/* Close Button - floating on top with orange ring for visibility */}
           <button
             onClick={handleClose}
-            className="absolute top-4 right-4 z-[110] p-2.5 rounded-full bg-slate-800/90 hover:bg-slate-700 text-white shadow-lg transition-colors"
+            className="absolute top-4 right-4 z-[110] p-2.5 rounded-full bg-slate-800/90 hover:bg-slate-700 text-white shadow-lg transition-colors ring-2 ring-orange-500 ring-offset-2 ring-offset-background"
             aria-label="Close mailbox"
           >
             <X className="w-5 h-5" />
