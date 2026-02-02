@@ -141,26 +141,40 @@ export default function LeadSpreadsheetViewer({
     return `${sample}:${leads.length}`;
   }, [leads]);
   
-  // Check if this specific search has been visited before
-  const lastVisitedSearchKey = localStorage.getItem('bamlead_last_visited_search') || '';
+  // Get user-specific storage key for report tracking
+  const getUserStorageKey = () => {
+    try {
+      const userData = localStorage.getItem('bamlead_user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        if (user?.id) return `bamlead_last_visited_search_${user.id}`;
+      }
+    } catch {}
+    return 'bamlead_last_visited_search';
+  };
+  
+  const userStorageKey = getUserStorageKey();
+  
+  // Check if this specific search has been visited before (user-specific)
+  const lastVisitedSearchKey = localStorage.getItem(userStorageKey) || '';
   const isNewSearch = currentSearchKey !== '' && currentSearchKey !== lastVisitedSearchKey;
   
   // Loading states for report generation - Only auto-open for NEW searches
   const [isGeneratingReport, setIsGeneratingReport] = useState(isNewSearch && leads.length > 0);
   const [showLeadReportDocument, setShowLeadReportDocument] = useState(false);
 
-  // Quick report generation - only show for NEW searches, then mark this search as visited
+  // Quick report generation - only show for NEW searches, then mark this search as visited (user-specific)
   useEffect(() => {
     if (open && isGeneratingReport && isNewSearch) {
       // Super fast - just 500ms
       const timer = setTimeout(() => {
         setIsGeneratingReport(false);
         setShowLeadReportDocument(true);
-        localStorage.setItem('bamlead_last_visited_search', currentSearchKey);
+        localStorage.setItem(userStorageKey, currentSearchKey);
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [open, isGeneratingReport, isNewSearch, currentSearchKey]);
+  }, [open, isGeneratingReport, isNewSearch, currentSearchKey, userStorageKey]);
 
   // Big "PDF is ready" popup (show once when this viewer opens)
   useEffect(() => {
