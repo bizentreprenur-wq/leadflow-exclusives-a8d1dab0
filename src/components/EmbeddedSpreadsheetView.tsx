@@ -189,13 +189,32 @@ export default function EmbeddedSpreadsheetView({
   // Generate a unique search key from the current leads to track per-search visits
   const currentSearchKey = useMemo(() => {
     if (leads.length === 0) return '';
-    // Create a key from first 3 lead names + total count to identify this search
-    const sampleNames = leads.slice(0, 3).map(l => l.name).join('|');
-    return `${sampleNames}:${leads.length}`;
+    // Create a stable key (order-independent) from a small sample + total count
+    // This prevents the report/banner from re-triggering after logout/login if lead ordering changes.
+    const stableIds = leads
+      .map((l) => l.id || l.name || '')
+      .filter(Boolean)
+      .sort();
+    const sample = stableIds.slice(0, 3).join('|');
+    return `${sample}:${leads.length}`;
   }, [leads]);
   
-  // Check if this specific search has been visited before
-  const lastVisitedSearchKey = localStorage.getItem('bamlead_last_visited_search') || '';
+  // Get user-specific storage key for report tracking
+  const getUserStorageKey = () => {
+    try {
+      const userData = localStorage.getItem('bamlead_user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        if (user?.id) return `bamlead_last_visited_search_${user.id}`;
+      }
+    } catch {}
+    return 'bamlead_last_visited_search';
+  };
+  
+  const userStorageKey = getUserStorageKey();
+  
+  // Check if this specific search has been visited before (user-specific)
+  const lastVisitedSearchKey = localStorage.getItem(userStorageKey) || '';
   const isNewSearch = currentSearchKey !== '' && currentSearchKey !== lastVisitedSearchKey;
   
   // State for auto-open PDF - Only auto-open for NEW searches
@@ -720,18 +739,18 @@ export default function EmbeddedSpreadsheetView({
     setShowPDFPreview(true);
   };
 
-  // Show PDF ready banner when component mounts - only for NEW searches
+  // Show PDF ready banner when component mounts - only for NEW searches (user-specific)
   useEffect(() => {
     if (isNewSearch && !hasAutoOpenedPDF && leads.length > 0) {
       const timer = setTimeout(() => {
         setShowPDFReadyBanner(true);
         setHasAutoOpenedPDF(true);
         // Mark this specific search as visited so returning to same search skips the popup
-        localStorage.setItem('bamlead_last_visited_search', currentSearchKey);
+        localStorage.setItem(userStorageKey, currentSearchKey);
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [leads, hasAutoOpenedPDF, isNewSearch, currentSearchKey]);
+  }, [leads, hasAutoOpenedPDF, isNewSearch, currentSearchKey, userStorageKey]);
 
   const handleOpenPDFFromBanner = () => {
     setShowPDFReadyBanner(false);

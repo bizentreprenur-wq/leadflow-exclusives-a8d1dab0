@@ -49,7 +49,7 @@ const features = [
   {
     icon: RefreshCw,
     title: "Lead Retargeting Ads",
-    description: "Every lead is automatically added to follow-up ad campaigns across Facebook, Google, and YouTube."
+    description: "Every lead is automatically added to follow-up ad campaigns across Facebook, Instagram, YouTube, TikTok, Snapchat, and Google."
   },
   {
     icon: Sparkles,

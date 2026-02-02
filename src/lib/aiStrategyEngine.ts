@@ -3,6 +3,15 @@
 
 import { EmailSequence, OPTION_A_SEQUENCES, OPTION_B_SEQUENCES } from './emailSequences';
 import { getStoredLeadContext } from './leadContext';
+import { 
+  AutonomousSequence, 
+  AUTONOMOUS_SEQUENCES, 
+  determineSequence,
+  getSequencesForSearchType 
+} from './autonomousSequences';
+
+// Storage key for persisting strategy selection
+const STRATEGY_STORAGE_KEY = 'bamlead_selected_strategy';
 
 export type StrategyApproach = 
   | 'direct-pitch'      // Straightforward service offer
@@ -28,6 +37,7 @@ export interface AIStrategy {
   keyTalkingPoints: string[];
   personalizedOpener: string;
   matchScore: number; // 0-100 based on context fit
+  autonomousSequences?: string[]; // IDs for 7-step autonomous sequences
 }
 
 export interface StrategyContext {
@@ -41,10 +51,43 @@ export interface StrategyContext {
   noWebsiteCount: number;
   needsUpgradeCount: number;
   hasPainPoints: number;
+  lowReviewsCount: number;
   selectedTemplateId?: string;
   selectedTemplateName?: string;
   dominantIndustry?: string;
   averageLeadScore?: number;
+}
+
+// Persist strategy selection
+export function saveSelectedStrategy(strategy: AIStrategy, userId?: string): void {
+  try {
+    const key = userId ? `${STRATEGY_STORAGE_KEY}_${userId}` : STRATEGY_STORAGE_KEY;
+    localStorage.setItem(key, JSON.stringify({
+      strategy,
+      savedAt: new Date().toISOString(),
+    }));
+  } catch {}
+}
+
+// Retrieve persisted strategy
+export function getPersistedStrategy(userId?: string): AIStrategy | null {
+  try {
+    const key = userId ? `${STRATEGY_STORAGE_KEY}_${userId}` : STRATEGY_STORAGE_KEY;
+    const data = localStorage.getItem(key);
+    if (!data) return null;
+    const parsed = JSON.parse(data);
+    return parsed.strategy as AIStrategy;
+  } catch {
+    return null;
+  }
+}
+
+// Clear persisted strategy
+export function clearPersistedStrategy(userId?: string): void {
+  try {
+    const key = userId ? `${STRATEGY_STORAGE_KEY}_${userId}` : STRATEGY_STORAGE_KEY;
+    localStorage.removeItem(key);
+  } catch {}
 }
 
 // Generate strategies based on workflow context
@@ -78,6 +121,7 @@ export function generateStrategies(context: StrategyContext): AIStrategy[] {
       ],
       personalizedOpener: `I noticed {{business_name}} is looking to improve their ${isSearchA ? 'online presence' : 'client acquisition'} - I have a solution that can help immediately.`,
       matchScore: Math.min(100, 60 + (context.hotLeadCount / context.leadCount) * 100),
+      autonomousSequences: ['auto-hot-lead'],
     });
   }
 
@@ -110,6 +154,7 @@ export function generateStrategies(context: StrategyContext): AIStrategy[] {
         ? `While researching {{industry}} businesses in {{location}}, I noticed {{business_name}} doesn't have a website yet. In today's digital-first world, this means potential customers are going to your competitors instead.`
         : `I analyzed {{business_name}}'s website and found several issues that are likely costing you customers - the good news is they're all fixable.`,
       matchScore: Math.min(100, 50 + (problemCount / context.leadCount) * 100),
+      autonomousSequences: context.noWebsiteCount > 0 ? ['auto-no-website'] : ['auto-outdated-website'],
     });
   }
 
@@ -137,6 +182,7 @@ export function generateStrategies(context: StrategyContext): AIStrategy[] {
     ],
     personalizedOpener: `I put together a free ${isSearchA ? 'digital presence audit' : 'growth opportunity analysis'} for {{business_name}} - no strings attached. Would you like me to send it over?`,
     matchScore: Math.min(100, 40 + (context.coldLeadCount / context.leadCount) * 80),
+    autonomousSequences: ['auto-warm-nurture'],
   });
 
   // Strategy 4: Social Proof (for skeptical audiences)
@@ -163,6 +209,7 @@ export function generateStrategies(context: StrategyContext): AIStrategy[] {
     ],
     personalizedOpener: `I recently helped a {{industry}} business similar to {{business_name}} increase their leads by 340%. Would you like to see how we did it?`,
     matchScore: 55,
+    autonomousSequences: ['auto-warm-nurture'],
   });
 
   // Strategy 5: Educational (for complex services)
@@ -189,6 +236,7 @@ export function generateStrategies(context: StrategyContext): AIStrategy[] {
     ],
     personalizedOpener: `Quick tip for {{business_name}}: ${isSearchA ? 'Most local businesses miss 70% of potential customers because they don\'t show up in mobile searches.' : 'The #1 reason agencies fail to close clients is they pitch features instead of outcomes.'}`,
     matchScore: 40,
+    autonomousSequences: ['auto-warm-nurture'],
   });
 
   // Strategy 6: Personalized Audit (highest engagement, requires Step 2 data)
@@ -217,6 +265,7 @@ export function generateStrategies(context: StrategyContext): AIStrategy[] {
       ],
       personalizedOpener: `I analyzed {{business_name}}'s digital presence and found {{pain_points_count}} specific opportunities to improve. Would you like me to share the full report?`,
       matchScore: Math.min(100, 70 + (context.hasPainPoints / context.leadCount) * 60),
+      autonomousSequences: ['auto-low-visibility', 'auto-outdated-website'],
     });
   }
 
@@ -244,7 +293,37 @@ export function generateStrategies(context: StrategyContext): AIStrategy[] {
     ],
     personalizedOpener: `I'm reaching out because I have 3 spots open this month for new {{industry}} clients in {{location}} - and {{business_name}} caught my attention.`,
     matchScore: 50,
+    autonomousSequences: ['auto-hot-lead'],
   });
+
+  // Strategy 8: Review Booster (for low reviews, GMB only)
+  if (isSearchA && context.lowReviewsCount > 0) {
+    strategies.push({
+      id: 'review-booster',
+      name: 'Review Booster Strategy',
+      description: 'Help businesses build their online reputation through reviews',
+      approach: 'value-first',
+      icon: '⭐',
+      recommendedFor: ['Low review count', 'New businesses', 'Reputation building'],
+      sequenceIds: ['a-warm-1'],
+      templateIds: ['review-help', 'reputation-builder'],
+      urgencyLevel: 'medium',
+      expectedResponseRate: '12-18%',
+      aiReasoning: [
+        `${context.lowReviewsCount} leads have fewer than 10 reviews`,
+        'Reviews are critical for local business trust',
+        'Easy entry point to build relationship before larger services',
+      ],
+      keyTalkingPoints: [
+        'Importance of reviews for local SEO',
+        'Simple system to get more reviews',
+        'Competitor review comparison',
+      ],
+      personalizedOpener: `I noticed {{business_name}} has great ratings but only {{review_count}} reviews. Your competitors have 50+. I can help you catch up quickly.`,
+      matchScore: Math.min(100, 45 + (context.lowReviewsCount / context.leadCount) * 80),
+      autonomousSequences: ['auto-low-reviews'],
+    });
+  }
 
   // Sort by match score
   return strategies.sort((a, b) => b.matchScore - a.matchScore);
@@ -267,6 +346,7 @@ export function buildStrategyContext(
     noWebsiteCount: analysisContext.filter(l => !l.websiteAnalysis?.hasWebsite).length,
     needsUpgradeCount: analysisContext.filter(l => l.websiteAnalysis?.needsUpgrade).length,
     hasPainPoints: analysisContext.filter(l => l.painPoints && l.painPoints.length > 0).length,
+    lowReviewsCount: leads.filter(l => (l.review_count || l.reviews || 0) < 10).length,
     selectedTemplateId: selectedTemplate?.id,
     selectedTemplateName: selectedTemplate?.name,
   };
@@ -326,10 +406,11 @@ export function autoSelectStrategy(context: StrategyContext): AIStrategy {
     keyTalkingPoints: ['Personalized approach', 'Value-first messaging'],
     personalizedOpener: 'AI will generate personalized opener',
     matchScore: 50,
+    autonomousSequences: ['auto-warm-nurture'],
   };
 }
 
-// Get sequence recommendations for a strategy
+// Get sequence recommendations for a strategy (legacy 4-step)
 export function getSequencesForStrategy(
   strategy: AIStrategy, 
   searchType: 'gmb' | 'platform' | null
@@ -338,4 +419,33 @@ export function getSequencesForStrategy(
   return strategy.sequenceIds
     .map(id => sequences.find(s => s.id === id))
     .filter((s): s is EmailSequence => s !== undefined);
+}
+
+// Get 7-step autonomous sequences for a strategy (Autopilot mode)
+export function getAutonomousSequencesForStrategy(
+  strategy: AIStrategy
+): AutonomousSequence[] {
+  if (!strategy.autonomousSequences) return [];
+  return strategy.autonomousSequences
+    .map(id => AUTONOMOUS_SEQUENCES.find(s => s.id === id))
+    .filter((s): s is AutonomousSequence => s !== undefined);
+}
+
+// Intelligently assign sequences to leads based on their analysis
+export function assignSequencesToLeads(
+  leads: any[],
+  searchType: 'gmb' | 'platform',
+  strategy: AIStrategy
+): Array<{ lead: any; sequence: AutonomousSequence }> {
+  return leads.map(lead => ({
+    lead,
+    sequence: determineSequence(lead, searchType),
+  }));
+}
+
+// Get all available autonomous sequences for a search type
+export function getAvailableAutonomousSequences(
+  searchType: 'gmb' | 'platform'
+): AutonomousSequence[] {
+  return getSequencesForSearchType(searchType);
 }

@@ -2,61 +2,111 @@
  * Plan Features Hook
  * Central hook for tier-based feature gating
  * Maps subscription plans to available features
+ * 
+ * KEY DIFFERENTIATIONS:
+ * - Basic: Manual mode, you do everything, AI helps write
+ * - Pro/Co-Pilot: AI drafts, auto follow-ups AFTER first approval, YOU choose sequences
+ * - Autopilot: Fully autonomous, AI selects strategy+sequences, AI responds to replies
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSubscription } from '@/lib/api/stripe';
+import { 
+  CampaignMode, 
+  getModeConfig, 
+  hasCapability,
+  getSendingBehavior,
+  getSelectionBehavior,
+  getResponseBehavior,
+} from '@/lib/campaignModes';
 
 export type PlanTier = 'free' | 'basic' | 'pro' | 'autopilot';
 
 export interface PlanFeatures {
   tier: PlanTier;
+  campaignMode: CampaignMode;
+  
   // Search limits
   dailySearches: number | 'unlimited';
+  dailyGMBSearches?: number; // Separate GMB limit for Explorer
+  dailyPlatformSearches?: number; // Separate Platform limit for Explorer
   monthlyVerifications: number;
+  
   // Email features
   manualEmailSend: boolean;
   aiEmailWriter: 'none' | 'basic' | 'full' | 'autonomous';
   emailTemplates: 'none' | 'basic' | 'full' | 'custom';
   dripCampaigns: boolean;
   abTesting: boolean;
+  sequenceSteps: 4 | 7; // KEY: Basic/Pro get 4-step, Autopilot gets 7-step
+  
+  // Sending behaviors (KEY DIFFERENTIATORS)
+  initialEmailSending: 'manual' | 'manual-with-approval' | 'automatic';
+  followUpSending: 'manual' | 'automatic-after-first' | 'fully-automatic';
+  
+  // Strategy & Sequence selection (KEY DIFFERENTIATORS)
+  strategySelection: 'user-chooses' | 'ai-recommends-user-approves' | 'ai-auto-selects';
+  sequenceSelection: 'user-chooses' | 'ai-auto-assigns';
+  
   // AI Automation
   autoFollowUps: boolean;
   smartResponseDetection: boolean;
   aiResurrectionSequences: boolean;
   fullAutopilot: boolean;
   autonomousProposals: boolean;
+  
+  // Response handling (KEY DIFFERENTIATOR)
+  responseHandling: 'manual' | 'ai-notifies' | 'ai-auto-responds';
+  autoPauseOnPositive: boolean;
+  
   // CRM
   crmIncluded: boolean;
   crmTrial: boolean;
   externalCrmIntegrations: boolean;
+  
   // Team
   teamMembers: number | 'unlimited';
+  
   // Premium
   apiAccess: boolean;
   webhooks: boolean;
   whiteLabelReports: boolean;
   dedicatedManager: boolean;
+  
   // Onboarding
   requiresOnboarding: boolean;
+  
+  // Explorer mode features
+  socialMediaLookup?: boolean;
+  wordpressDetection?: boolean;
 }
 
 const PLAN_FEATURES: Record<PlanTier, PlanFeatures> = {
   free: {
     tier: 'free',
-    dailySearches: 5,
-    monthlyVerifications: 25,
+    campaignMode: 'explorer', // Explorer mode
+    dailySearches: 8, // 5 GMB + 3 Platform (tracked separately in UI)
+    dailyGMBSearches: 5, // GMB searches per day
+    dailyPlatformSearches: 3, // Platform searches per day
+    monthlyVerifications: 25, // 25 AI verification credits
     manualEmailSend: false,
     aiEmailWriter: 'none',
     emailTemplates: 'none',
     dripCampaigns: false,
     abTesting: false,
+    sequenceSteps: 4,
+    initialEmailSending: 'manual',
+    followUpSending: 'manual',
+    strategySelection: 'user-chooses',
+    sequenceSelection: 'user-chooses',
     autoFollowUps: false,
     smartResponseDetection: false,
     aiResurrectionSequences: false,
     fullAutopilot: false,
     autonomousProposals: false,
+    responseHandling: 'manual',
+    autoPauseOnPositive: false,
     crmIncluded: false,
     crmTrial: false,
     externalCrmIntegrations: false,
@@ -66,21 +116,33 @@ const PLAN_FEATURES: Record<PlanTier, PlanFeatures> = {
     whiteLabelReports: false,
     dedicatedManager: false,
     requiresOnboarding: false,
+    // Explorer mode features
+    socialMediaLookup: true,
+    wordpressDetection: true,
   },
   basic: {
     tier: 'basic',
-    dailySearches: 50,
-    monthlyVerifications: 200,
+    campaignMode: 'basic',
+    dailySearches: 30, // Updated: 30 searches/day
+    monthlyVerifications: 200, // Updated: 200 AI verification credits
     manualEmailSend: true,
-    aiEmailWriter: 'basic',
+    aiEmailWriter: 'basic', // AI helps write, user clicks send
     emailTemplates: 'basic',
-    dripCampaigns: false,
+    dripCampaigns: true, // KEY: AI drip feeds emails, but user responds
     abTesting: false,
-    autoFollowUps: false,
-    smartResponseDetection: false,
+    sequenceSteps: 4,
+    // BASIC: Manual send, but AI drip feeds follow-ups
+    initialEmailSending: 'manual', // You click send
+    followUpSending: 'automatic-after-first', // AI drip feeds follow-ups
+    strategySelection: 'user-chooses',
+    sequenceSelection: 'user-chooses',
+    autoFollowUps: true, // AI drip feeds
+    smartResponseDetection: false, // User responds to customers
     aiResurrectionSequences: false,
     fullAutopilot: false,
     autonomousProposals: false,
+    responseHandling: 'manual', // YOU respond to customers
+    autoPauseOnPositive: false,
     crmIncluded: false,
     crmTrial: true,
     externalCrmIntegrations: false,
@@ -93,6 +155,7 @@ const PLAN_FEATURES: Record<PlanTier, PlanFeatures> = {
   },
   pro: {
     tier: 'pro',
+    campaignMode: 'copilot',
     dailySearches: 200,
     monthlyVerifications: 500,
     manualEmailSend: true,
@@ -100,11 +163,19 @@ const PLAN_FEATURES: Record<PlanTier, PlanFeatures> = {
     emailTemplates: 'full',
     dripCampaigns: true,
     abTesting: true,
+    sequenceSteps: 4, // Pro still uses 4-step sequences
+    // CO-PILOT: AI drafts, auto follow-ups AFTER first approval
+    initialEmailSending: 'manual-with-approval', // AI drafts, you approve
+    followUpSending: 'automatic-after-first', // KEY: Auto after first approval
+    strategySelection: 'ai-recommends-user-approves', // AI recommends, you approve
+    sequenceSelection: 'user-chooses', // KEY: YOU still choose sequences
     autoFollowUps: true,
     smartResponseDetection: true,
     aiResurrectionSequences: true,
-    fullAutopilot: false, // Not full autopilot, but co-pilot
-    autonomousProposals: false,
+    fullAutopilot: false, // NOT full autopilot
+    autonomousProposals: false, // User sends proposals
+    responseHandling: 'ai-notifies', // AI notifies, you respond
+    autoPauseOnPositive: false, // User controls manually
     crmIncluded: false,
     crmTrial: true,
     externalCrmIntegrations: true,
@@ -117,6 +188,7 @@ const PLAN_FEATURES: Record<PlanTier, PlanFeatures> = {
   },
   autopilot: {
     tier: 'autopilot',
+    campaignMode: 'autopilot',
     dailySearches: 'unlimited',
     monthlyVerifications: 2000,
     manualEmailSend: true,
@@ -124,18 +196,26 @@ const PLAN_FEATURES: Record<PlanTier, PlanFeatures> = {
     emailTemplates: 'custom',
     dripCampaigns: true,
     abTesting: true,
+    sequenceSteps: 7, // KEY: Autopilot gets 7-step autonomous sequences
+    // AUTOPILOT: Fully autonomous
+    initialEmailSending: 'automatic', // AI sends automatically
+    followUpSending: 'fully-automatic', // 7-step sequences run autonomously
+    strategySelection: 'ai-auto-selects', // KEY: AI picks strategy
+    sequenceSelection: 'ai-auto-assigns', // KEY: AI assigns per lead
     autoFollowUps: true,
     smartResponseDetection: true,
     aiResurrectionSequences: true,
     fullAutopilot: true,
-    autonomousProposals: true,
+    autonomousProposals: true, // KEY: AI sends proposals
+    responseHandling: 'ai-auto-responds', // KEY: AI reads & responds
+    autoPauseOnPositive: true, // KEY: AI pauses on positive
     crmIncluded: true,
     crmTrial: false, // No trial needed, it's included
     externalCrmIntegrations: true,
     teamMembers: 'unlimited',
     apiAccess: true,
     webhooks: true,
-    whiteLabelReports: true,
+    whiteLabelReports: true, // KEY: White-label reports
     dedicatedManager: true,
     requiresOnboarding: true, // Needs onboarding wizard
   },
