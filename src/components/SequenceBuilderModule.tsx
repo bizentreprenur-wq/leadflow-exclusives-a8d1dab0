@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -59,6 +59,8 @@ interface LeadTypeAnalysis {
 interface SequenceBuilderModuleProps {
   leads?: LeadData[];
 }
+
+const STORAGE_KEY = 'bamlead_sequences';
 
 // Classify a single lead
 function classifyLead(lead: LeadData): 'hot' | 'warm' | 'cold' | 'no-website' {
@@ -269,15 +271,62 @@ const SEQUENCE_TEMPLATES = [
   },
 ];
 
+const createDefaultSequence = (): Sequence => ({
+  ...SEQUENCE_TEMPLATES[0],
+  id: generateId(),
+  status: 'draft',
+  createdAt: new Date(),
+  leadsEnrolled: 0,
+  steps: SEQUENCE_TEMPLATES[0].steps.map(step => ({ ...step, id: generateId() })),
+});
+
+const normalizeStoredSequence = (stored: Partial<Sequence>): Sequence | null => {
+  if (!stored || !stored.id || !stored.name || !Array.isArray(stored.steps)) return null;
+
+  const steps: SequenceStep[] = stored.steps
+    .filter((step): step is SequenceStep => Boolean(step && step.id && step.channel && step.message))
+    .map(step => ({
+      ...step,
+      delay: Number.isFinite(step.delay) ? step.delay : 0,
+      delayUnit: step.delayUnit === 'hours' ? 'hours' : 'days',
+      isActive: step.isActive !== false,
+    }));
+
+  if (!steps.length) return null;
+
+  return {
+    id: stored.id,
+    name: stored.name,
+    description: stored.description || '',
+    status: stored.status === 'active' || stored.status === 'paused' ? stored.status : 'draft',
+    createdAt: stored.createdAt ? new Date(stored.createdAt) : new Date(),
+    leadsEnrolled: Number.isFinite(stored.leadsEnrolled) ? Number(stored.leadsEnrolled) : 0,
+    steps,
+  };
+};
+
+function generateId() {
+  return Math.random().toString(36).substring(2, 9);
+}
+
 export default function SequenceBuilderModule({ leads = [] }: SequenceBuilderModuleProps) {
-  const [sequences, setSequences] = useState<Sequence[]>([
-    {
-      ...SEQUENCE_TEMPLATES[0],
-      status: 'draft',
-      createdAt: new Date(),
-      leadsEnrolled: 0,
-    },
-  ]);
+  const [sequences, setSequences] = useState<Sequence[]>(() => {
+    if (typeof window === 'undefined') {
+      return [createDefaultSequence()];
+    }
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [createDefaultSequence()];
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [createDefaultSequence()];
+      const normalized = parsed
+        .map((item: Partial<Sequence>) => normalizeStoredSequence(item))
+        .filter((item): item is Sequence => Boolean(item));
+      return normalized.length ? normalized : [createDefaultSequence()];
+    } catch {
+      return [createDefaultSequence()];
+    }
+  });
 
   // Analyze leads to detect types and recommend sequences
   const leadAnalysis = useMemo(() => analyzeLeadTypes(leads), [leads]);
@@ -295,7 +344,51 @@ export default function SequenceBuilderModule({ leads = [] }: SequenceBuilderMod
     steps: [],
   });
 
-  const generateId = () => Math.random().toString(36).substring(2, 9);
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sequences));
+    } catch {
+      // ignore storage failures
+    }
+  }, [sequences]);
+
+  const getRecommendedEnrollment = useCallback((sequence: Sequence) => {
+    const templateId = sequence.id.includes('hot-leads') || sequence.name.toLowerCase().includes('hot')
+      ? 'hot-leads'
+      : sequence.id.includes('warm-nurture') || sequence.name.toLowerCase().includes('warm')
+        ? 'warm-nurture'
+        : sequence.id.includes('no-website') || sequence.name.toLowerCase().includes('no website')
+          ? 'no-website'
+          : sequence.id.includes('reengagement') || sequence.name.toLowerCase().includes('re-engagement')
+            ? 'reengagement'
+            : sequence.id.includes('cold-outreach') || sequence.name.toLowerCase().includes('cold')
+              ? 'cold-outreach'
+              : 'custom';
+
+    switch (templateId) {
+      case 'hot-leads':
+        return leadAnalysis.hot;
+      case 'warm-nurture':
+        return leadAnalysis.warm;
+      case 'no-website':
+        return leadAnalysis.noWebsite;
+      case 'reengagement':
+      case 'cold-outreach':
+        return leadAnalysis.cold;
+      default:
+        return leadAnalysis.total;
+    }
+  }, [leadAnalysis.cold, leadAnalysis.hot, leadAnalysis.noWebsite, leadAnalysis.total, leadAnalysis.warm]);
+
+  useEffect(() => {
+    if (leadAnalysis.total === 0) return;
+    setSequences(prev => prev.map(sequence => {
+      if (sequence.status !== 'active') return sequence;
+      const nextCount = getRecommendedEnrollment(sequence);
+      if (sequence.leadsEnrolled === nextCount) return sequence;
+      return { ...sequence, leadsEnrolled: nextCount };
+    }));
+  }, [getRecommendedEnrollment, leadAnalysis.total]);
 
   const handleCreateSequence = () => {
     setNewSequence({
@@ -381,7 +474,12 @@ export default function SequenceBuilderModule({ leads = [] }: SequenceBuilderMod
       // Update existing
       setSequences(prev => prev.map(s => 
         s.id === activeSequence.id 
-          ? { ...s, ...newSequence, steps: newSequence.steps || [] } as Sequence
+          ? {
+              ...s,
+              name: newSequence.name || s.name,
+              description: newSequence.description || '',
+              steps: newSequence.steps || s.steps,
+            }
           : s
       ));
       toast.success('Sequence updated!');
@@ -422,9 +520,23 @@ export default function SequenceBuilderModule({ leads = [] }: SequenceBuilderMod
   const handleToggleStatus = (sequenceId: string) => {
     setSequences(prev => prev.map(s => {
       if (s.id === sequenceId) {
+        if (s.status !== 'active' && leadAnalysis.total === 0) {
+          toast.error('No leads available. Add leads before starting a sequence.');
+          return s;
+        }
+
         const newStatus = s.status === 'active' ? 'paused' : 'active';
-        toast.success(`Sequence ${newStatus === 'active' ? 'activated' : 'paused'}!`);
-        return { ...s, status: newStatus };
+        const leadsEnrolled = newStatus === 'active'
+          ? Math.max(0, getRecommendedEnrollment(s))
+          : s.leadsEnrolled;
+
+        toast.success(
+          newStatus === 'active'
+            ? `Sequence activated for ${leadsEnrolled} lead${leadsEnrolled === 1 ? '' : 's'}`
+            : 'Sequence paused'
+        );
+
+        return { ...s, status: newStatus, leadsEnrolled };
       }
       return s;
     }));
