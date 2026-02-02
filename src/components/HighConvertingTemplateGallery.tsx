@@ -184,7 +184,7 @@ export default function HighConvertingTemplateGallery({
   const [editedSubject, setEditedSubject] = useState("");
   const [editedBody, setEditedBody] = useState("");
   const [newTemplateName, setNewTemplateName] = useState("");
-  const [selectedFolderId, setSelectedFolderId] = useState<string>("");
+  const [selectedFolderId, setSelectedFolderId] = useState<string>("none");
   
   // Visual template editor state
   const [showVisualEditor, setShowVisualEditor] = useState(false);
@@ -411,10 +411,20 @@ export default function HighConvertingTemplateGallery({
   const allTemplates = [...customTemplates, ...HIGH_CONVERTING_TEMPLATES];
 
   const filteredTemplates = allTemplates.filter(template => {
+    const normalizedSearch = searchQuery.toLowerCase().trim();
+    const tags = Array.isArray((template as { tags?: string[] }).tags)
+      ? (template as { tags?: string[] }).tags
+      : [];
+    const name = (template.name ?? '').toLowerCase();
+    const subject = (template.subject ?? '').toLowerCase();
+    const industry = (template.industry ?? '').toLowerCase();
+    const description = (template.description ?? '').toLowerCase();
     const matchesSearch = 
-      template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      template.industry.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      template.description.toLowerCase().includes(searchQuery.toLowerCase());
+      name.includes(normalizedSearch) ||
+      subject.includes(normalizedSearch) ||
+      industry.includes(normalizedSearch) ||
+      description.includes(normalizedSearch) ||
+      tags.some((tag) => tag.toLowerCase().includes(normalizedSearch));
     
     // Check folder filter for custom templates
     if (activeFolder) {
@@ -428,9 +438,16 @@ export default function HighConvertingTemplateGallery({
     return matchesSearch && matchesCategory;
   });
 
-  const handleCopy = (template: EmailTemplate) => {
-    navigator.clipboard.writeText(template.body_html);
-    toast.success("Template HTML copied!");
+  const getNormalizedFolderId = (folderId: string) =>
+    folderId === "none" || !folderId.trim() ? undefined : folderId;
+
+  const handleCopy = async (template: EmailTemplate) => {
+    try {
+      await navigator.clipboard.writeText(template.body_html);
+      toast.success("Template HTML copied!");
+    } catch {
+      toast.error("Clipboard access failed. Please copy manually from preview.");
+    }
   };
 
   const handleSelect = (template: EmailTemplate) => {
@@ -446,6 +463,7 @@ export default function HighConvertingTemplateGallery({
     tempDiv.innerHTML = template.body_html;
     setEditedBody(tempDiv.textContent || tempDiv.innerText || '');
     setNewTemplateName(`My ${template.name}`);
+    setSelectedFolderId(('isCustom' in template && template.folderId) ? template.folderId : 'none');
     setIsEditing(true);
   };
 
@@ -487,7 +505,7 @@ export default function HighConvertingTemplateGallery({
       conversionTip: previewTemplate.conversionTip,
       openRate: previewTemplate.openRate,
       replyRate: previewTemplate.replyRate,
-      folderId: selectedFolderId || undefined,
+      folderId: getNormalizedFolderId(selectedFolderId),
     });
     
     setCustomTemplates(getCustomTemplates());
@@ -522,7 +540,7 @@ export default function HighConvertingTemplateGallery({
       conversionTip: previewTemplate.conversionTip,
       openRate: previewTemplate.openRate,
       replyRate: previewTemplate.replyRate,
-      folderId: selectedFolderId || undefined,
+      folderId: getNormalizedFolderId(selectedFolderId),
     });
     
     // Refresh the templates list so it shows immediately
@@ -540,12 +558,15 @@ export default function HighConvertingTemplateGallery({
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = template.body_html;
     setEditedBody(tempDiv.textContent || tempDiv.innerText || '');
+    setNewTemplateName(`My ${template.name}`);
+    setSelectedFolderId(('isCustom' in template && template.folderId) ? template.folderId : 'none');
     setIsEditing(false);
   };
 
   const closePreview = () => {
     setPreviewTemplate(null);
     setIsEditing(false);
+    setSelectedFolderId('none');
   };
 
   useEffect(() => {
@@ -891,6 +912,11 @@ export default function HighConvertingTemplateGallery({
 
               <AIEmailTemplateBuilder
                 onSaveTemplate={(template) => {
+                  const paragraphHtml = template.body
+                    .split('\n')
+                    .map((p) => `<p style="margin: 0 0 15px 0; line-height: 1.6;">${p}</p>`)
+                    .join('');
+
                   const newTemplate = saveCustomTemplate({
                     id: '',
                     name: 'AI-Built Template',
@@ -898,8 +924,8 @@ export default function HighConvertingTemplateGallery({
                     industry: 'AI Generated',
                     subject: template.subject,
                     body_html: template.heroImage
-                      ? `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">\n                          <img src="${template.heroImage}" alt="Hero" style="width:100%;max-width:600px;height:auto;margin-bottom:20px;border-radius:8px;" />\n                          ${template.body.split('\\n').map(p => `<p style=\"margin: 0 0 15px 0; line-height: 1.6;\">${p}</p>`).join('')}\n                        </div>`
-                      : `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">\n                          ${template.body.split('\\n').map(p => `<p style=\"margin: 0 0 15px 0; line-height: 1.6;\">${p}</p>`).join('')}\n                        </div>`,
+                      ? `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;"><img src="${template.heroImage}" alt="Hero" style="width:100%;max-width:600px;height:auto;margin-bottom:20px;border-radius:8px;" />${paragraphHtml}</div>`
+                      : `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">${paragraphHtml}</div>`,
                     description: 'AI-generated custom template',
                     previewImage:
                       template.heroImage ||
