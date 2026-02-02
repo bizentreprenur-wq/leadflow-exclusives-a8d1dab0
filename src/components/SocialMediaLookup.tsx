@@ -364,7 +364,7 @@ export default function SocialMediaLookup({
 
       {/* In-app social search dialog */}
       <Dialog open={!!openPlatform} onOpenChange={(open) => !open && setOpenPlatform(null)}>
-        <DialogContent className="w-[min(98vw,90rem)] h-[90vh] max-w-none p-0 overflow-hidden">
+        <DialogContent className="w-[min(98vw,90rem)] h-[95vh] max-w-none p-0 overflow-hidden">
           <DialogHeader className="p-4 pb-0">
             <DialogTitle className="flex items-center gap-2">
               {openPlatform && (
@@ -385,14 +385,51 @@ export default function SocialMediaLookup({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="h-full w-full border-t border-border bg-muted/20">
-            <iframe
-              title={`${businessName} ${openPlatform?.name} search`}
-              src={searchUrl}
-              className="h-full w-full"
-              loading="lazy"
-              referrerPolicy="no-referrer"
-            />
+          <div className="flex-1 w-full border-t border-border bg-muted/20 overflow-hidden">
+            {/* Platforms that block iframes: Facebook, TikTok, LinkedIn */}
+            {openPlatform && ['Facebook', 'TikTok', 'LinkedIn'].includes(openPlatform.name) ? (
+              <div className="h-full w-full flex items-center justify-center p-8">
+                <div className="max-w-md text-center space-y-6">
+                  <div className={cn(
+                    'w-20 h-20 mx-auto rounded-2xl flex items-center justify-center',
+                    openPlatform.bgColor
+                  )}>
+                    <span className={cn('w-10 h-10', openPlatform.color)}>
+                      {openPlatform.icon}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground mb-2">
+                      Open {openPlatform.name} to view profile
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {openPlatform.name} doesn't allow embedding for privacy reasons. 
+                      Click the button below to search for <span className="font-medium text-foreground">{businessName}</span> directly on {openPlatform.name}.
+                    </p>
+                  </div>
+                  <Button asChild size="lg" className={cn('gap-2 font-semibold', openPlatform.bgColor)}>
+                    <a href={searchUrl} target="_blank" rel="noopener noreferrer">
+                      <span className={cn('w-5 h-5', openPlatform.color)}>
+                        {openPlatform.icon}
+                      </span>
+                      Open {openPlatform.name}
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    A new tab will open with your search results
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <iframe
+                title={`${businessName} ${openPlatform?.name} search`}
+                src={searchUrl}
+                className="h-full w-full"
+                loading="lazy"
+                referrerPolicy="no-referrer"
+              />
+            )}
           </div>
 
           <div className="p-3 border-t border-border text-xs text-muted-foreground">
