@@ -875,7 +875,6 @@ export default function Dashboard() {
     sessionStorage.removeItem('leadsToVerify');
     sessionStorage.removeItem('savedLeads');
     localStorage.removeItem('bamlead_selected_leads');
-    localStorage.removeItem('bamlead_step2_visited');
     localStorage.removeItem('bamlead_search_results_by_type');
     
     await logout();
