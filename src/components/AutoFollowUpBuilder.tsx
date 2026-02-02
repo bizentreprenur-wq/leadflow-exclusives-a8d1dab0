@@ -703,7 +703,7 @@ export default function AutoFollowUpBuilder({ campaignContext }: AutoFollowUpBui
             <Target className="w-4 h-4 text-emerald-400" />
             Follow-up Sequences
           </h3>
-          <Button onClick={loadData} variant="ghost" size="sm" className="gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
+          <Button onClick={() => loadData()} variant="ghost" size="sm" className="gap-2 text-slate-400 hover:text-white hover:bg-slate-800">
             <RefreshCw className="w-3.5 h-3.5" />
             Refresh
           </Button>

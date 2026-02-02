@@ -189,9 +189,14 @@ export default function EmbeddedSpreadsheetView({
   // Generate a unique search key from the current leads to track per-search visits
   const currentSearchKey = useMemo(() => {
     if (leads.length === 0) return '';
-    // Create a key from first 3 lead names + total count to identify this search
-    const sampleNames = leads.slice(0, 3).map(l => l.name).join('|');
-    return `${sampleNames}:${leads.length}`;
+    // Create a stable key (order-independent) from a small sample + total count
+    // This prevents the report/banner from re-triggering after logout/login if lead ordering changes.
+    const stableIds = leads
+      .map((l) => l.id || l.name || '')
+      .filter(Boolean)
+      .sort();
+    const sample = stableIds.slice(0, 3).join('|');
+    return `${sample}:${leads.length}`;
   }, [leads]);
   
   // Check if this specific search has been visited before
