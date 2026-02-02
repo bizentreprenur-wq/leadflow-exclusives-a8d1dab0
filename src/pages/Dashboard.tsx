@@ -233,7 +233,10 @@ export default function Dashboard() {
   const [showResultsPanel, setShowResultsPanel] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportAutoPopKey, setReportAutoPopKey] = useState<string | null>(null);
-  const [lastReportShownKey, setLastReportShownKey] = useState<string | null>(null);
+  // Persist lastReportShownKey so report re-shows after logout/login when leads are restored
+  const [lastReportShownKey, setLastReportShownKey] = useState<string | null>(() => {
+    try { return localStorage.getItem('bamlead_last_report_shown_key'); } catch { return null; }
+  });
   const [advanceToStep2AfterReport, setAdvanceToStep2AfterReport] = useState(false);
   const [isEmailEnriching, setIsEmailEnriching] = useState(false);
   const [emailEnrichTotal, setEmailEnrichTotal] = useState(0);
@@ -301,6 +304,9 @@ export default function Dashboard() {
         sessionStorage.removeItem('bamlead_email_leads');
         sessionStorage.removeItem('leadsToVerify');
         sessionStorage.removeItem('savedLeads');
+        // Clear last report shown key so report auto-pops when leads are restored
+        localStorage.removeItem('bamlead_last_report_shown_key');
+        setLastReportShownKey(null);
       }
     } catch {
       isFreshLoginRef.current = false;
@@ -2947,6 +2953,8 @@ export default function Dashboard() {
             const key = reportAutoPopKey || localStorage.getItem('bamlead_search_timestamp');
             if (key) {
               setLastReportShownKey(key);
+              // Persist to localStorage so it survives page refresh
+              localStorage.setItem('bamlead_last_report_shown_key', key);
             }
           }
         }}
