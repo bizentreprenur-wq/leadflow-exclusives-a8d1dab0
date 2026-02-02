@@ -257,7 +257,15 @@ export default function AIStrategySelector({
                 <div className="p-3 flex items-center gap-3">
                   <div className="text-lg">{strategy.icon}</div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white">{strategy.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-white">{strategy.name}</p>
+                      {strategy.id === recommendedStrategy?.id && (
+                        <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[9px] gap-0.5">
+                          <Sparkles className="w-3 h-3" />
+                          Recommended
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-[10px] text-slate-400 truncate">{strategy.description}</p>
                   </div>
                   <div className="flex items-center gap-2">
