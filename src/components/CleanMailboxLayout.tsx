@@ -37,9 +37,11 @@ import AISequenceRecommendationEngine from './AISequenceRecommendationEngine';
 import AIAutopilotDashboard from './AIAutopilotDashboard';
 import SequencePreviewModal from './SequencePreviewModal';
 import ConversionFunnelDashboard from './ConversionFunnelDashboard';
+import AIStrategySelector from './AIStrategySelector';
 import { EmailSequence } from '@/lib/emailSequences';
 import { updateAutopilotCampaign } from '@/lib/autopilotCampaign';
 import { useAutopilotTrial } from '@/hooks/useAutopilotTrial';
+import { AIStrategy } from '@/lib/aiStrategyEngine';
 
 // Tab types for main navigation
 type MainTab = 'inbox' | 'campaigns' | 'sequences' | 'automation' | 'analytics' | 'documents' | 'settings';
@@ -147,6 +149,8 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   });
   const [isMailboxSidebarResizing, setIsMailboxSidebarResizing] = useState(false);
   const [selectedEmailSequence, setSelectedEmailSequence] = useState<EmailSequence | null>(null);
+  const [showStrategyPanel, setShowStrategyPanel] = useState(false);
+  const [selectedStrategy, setSelectedStrategy] = useState<AIStrategy | null>(null);
   
   // Email preview panel width (right side resizable)
   const [emailPreviewWidth, setEmailPreviewWidth] = useState(() => {
@@ -1158,12 +1162,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => {
-                        // Open AI Strategy panel
-                        toast.info('AI Strategy shows the AI reasoning for each lead', {
-                          description: 'Select a sequence to see how AI personalizes outreach'
-                        });
-                      }}
+                      onClick={() => setShowStrategyPanel(true)}
                       className="gap-1.5 text-xs border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
@@ -1479,6 +1478,38 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
               }
               setShowAutopilotSubscription(false);
             }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Strategy Panel Modal */}
+      <Dialog open={showStrategyPanel} onOpenChange={setShowStrategyPanel}>
+        <DialogContent
+          elevated
+          className="max-w-3xl max-h-[85vh] overflow-auto"
+        >
+          <DialogTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-amber-400" />
+            AI Strategy Brain
+          </DialogTitle>
+          <p className="text-sm text-muted-foreground mb-4">
+            The AI analyzes your search context, lead data, and templates to recommend optimal outreach strategies.
+          </p>
+          <AIStrategySelector
+            mode="copilot"
+            searchType={searchType}
+            leads={campaignLeads}
+            selectedTemplate={undefined}
+            onSelectStrategy={(strategy) => {
+              setSelectedStrategy(strategy);
+              toast.success(`Strategy selected: ${strategy.name}`);
+            }}
+            onApproveStrategy={(strategy) => {
+              setSelectedStrategy(strategy);
+              setShowStrategyPanel(false);
+              toast.success(`Strategy approved: ${strategy.name}`);
+            }}
+            selectedStrategy={selectedStrategy}
           />
         </DialogContent>
       </Dialog>

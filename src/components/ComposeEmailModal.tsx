@@ -44,6 +44,8 @@ import {
 } from '@/lib/leadContext';
 import { getSuggestedTemplate, personalizeTemplate } from '@/lib/priorityEmailTemplates';
 import { saveAutopilotCampaign, updateAutopilotCampaign } from '@/lib/autopilotCampaign';
+import AIStrategySelector from './AIStrategySelector';
+import { AIStrategy, autoSelectStrategy, buildStrategyContext } from '@/lib/aiStrategyEngine';
 
 // Enhanced Lead interface with Step 2 analysis data
 interface Lead {
@@ -159,6 +161,10 @@ export default function ComposeEmailModal({
   const [showCampaignSelection, setShowCampaignSelection] = useState(false);
   const [selectedCampaignType, setSelectedCampaignType] = useState<'manual' | 'autopilot' | null>(null);
   const [showPaymentRequired, setShowPaymentRequired] = useState(false);
+  
+  // AI Strategy state
+  const [selectedStrategy, setSelectedStrategy] = useState<AIStrategy | null>(null);
+  const [strategyApproved, setStrategyApproved] = useState(false);
 
   // Drip settings
   const [dripMode, setDripMode] = useState(false);
@@ -976,9 +982,23 @@ export default function ComposeEmailModal({
             {composeMode === 'regular' && (
               <div className="space-y-4">
                 <div className="flex items-center gap-2 mb-4">
-                  <Mail className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium text-foreground">Compose a single email</span>
+                  <Mail className="w-4 h-4 text-blue-500" />
+                  <span className="text-sm font-medium text-foreground">Compose a single email (Manual Mode)</span>
                 </div>
+
+                {/* AI Strategy Selector for Basic Mode - Manual Selection */}
+                <AIStrategySelector
+                  mode="basic"
+                  searchType={detectedSearchType}
+                  leads={safeLeads}
+                  selectedTemplate={selectedCampaignTemplate || undefined}
+                  onSelectStrategy={(strategy) => {
+                    setSelectedStrategy(strategy);
+                    toast.success(`Strategy selected: ${strategy.name}`);
+                  }}
+                  selectedStrategy={selectedStrategy}
+                  compact
+                />
 
                 {/* To field */}
                 <div>
@@ -1476,6 +1496,25 @@ export default function ComposeEmailModal({
 
                   {/* Step 3: Sequence Settings */}
                   <TabsContent value="sequence" className="mt-4 space-y-4">
+                    {/* AI Strategy Panel - Co-Pilot Mode */}
+                    <AIStrategySelector
+                      mode="copilot"
+                      searchType={detectedSearchType}
+                      leads={safeLeads}
+                      selectedTemplate={selectedCampaignTemplate || undefined}
+                      onSelectStrategy={(strategy) => {
+                        setSelectedStrategy(strategy);
+                        setStrategyApproved(false);
+                        toast.info(`Strategy selected: ${strategy.name}`);
+                      }}
+                      onApproveStrategy={(strategy) => {
+                        setSelectedStrategy(strategy);
+                        setStrategyApproved(true);
+                        toast.success(`Strategy approved: ${strategy.name}`);
+                      }}
+                      selectedStrategy={selectedStrategy}
+                    />
+                    
                     {/* Sequence Selector Toggle */}
                     <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 to-emerald-500/10 border border-primary/30">
                       <div className="flex items-center justify-between mb-3">
@@ -2023,6 +2062,16 @@ export default function ComposeEmailModal({
 
                       {/* Step 3: Sequence */}
                       <TabsContent value="sequence" className="mt-4 space-y-4">
+                        {/* AI Strategy Panel - Autopilot Mode (Auto-Selected) */}
+                        <AIStrategySelector
+                          mode="autopilot"
+                          searchType={detectedSearchType}
+                          leads={safeLeads}
+                          selectedTemplate={selectedCampaignTemplate || effectiveTemplate || undefined}
+                          onSelectStrategy={(strategy) => setSelectedStrategy(strategy)}
+                          selectedStrategy={selectedStrategy || autoSelectStrategy(buildStrategyContext(detectedSearchType, safeLeads))}
+                        />
+                        
                         <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
