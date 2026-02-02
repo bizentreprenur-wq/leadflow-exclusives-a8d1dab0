@@ -53,6 +53,7 @@ import { searchPlatforms, PlatformResult } from '@/lib/api/platforms';
 import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } from '@/lib/api/leadAnalysis';
 import { quickScoreLeads } from '@/lib/api/aiLeadScoring';
 import { verifyLead } from '@/lib/api/verification';
+import { scrapeSocialContacts } from '@/lib/api/socialContacts';
 import { HIGH_CONVERTING_TEMPLATES } from '@/lib/highConvertingTemplates';
 import { generateMechanicLeads, injectTestLeads } from '@/lib/testMechanicLeads';
 import { fetchSearchLeads, saveSearchLeads, deleteSearchLeads, SearchLead } from '@/lib/api/searchLeads';
@@ -242,6 +243,11 @@ export default function Dashboard() {
   const [emailEnrichTotal, setEmailEnrichTotal] = useState(0);
   const [emailEnrichCompleted, setEmailEnrichCompleted] = useState(0);
   const emailEnrichRunId = useRef(0);
+  // Social contact enrichment state
+  const [isSocialEnriching, setIsSocialEnriching] = useState(false);
+  const [socialEnrichTotal, setSocialEnrichTotal] = useState(0);
+  const [socialEnrichCompleted, setSocialEnrichCompleted] = useState(0);
+  const socialEnrichRunId = useRef(0);
   const [autoSelectAllForAIScoring, setAutoSelectAllForAIScoring] = useState(false);
   const [widgetLeads, setWidgetLeads] = useState<SearchResult[]>([]);
   const [verifiedWidgetLeads, setVerifiedWidgetLeads] = useState<any[]>([]);
@@ -526,6 +532,68 @@ export default function Dashboard() {
     if (emailEnrichRunId.current === runId) {
       setIsEmailEnriching(false);
       toast.success('Email enrichment complete.');
+    }
+  };
+
+  // Start social contact enrichment for all leads (runs during AI pipeline)
+  const startSocialEnrichment = async (leads: SearchResult[]) => {
+    const runId = ++socialEnrichRunId.current;
+    
+    // Only process leads without cached social data
+    const candidates = leads.filter((lead) => {
+      const cacheKey = `social_contacts_${lead.name}_${lead.address || ''}`;
+      return !sessionStorage.getItem(cacheKey);
+    });
+
+    if (candidates.length === 0) {
+      setIsSocialEnriching(false);
+      setSocialEnrichTotal(0);
+      setSocialEnrichCompleted(0);
+      console.log('[BamLead] Social enrichment: All leads already cached');
+      return;
+    }
+
+    setIsSocialEnriching(true);
+    setSocialEnrichTotal(candidates.length);
+    setSocialEnrichCompleted(0);
+    toast.info(`🔍 Scraping social contacts for ${candidates.length} leads...`);
+
+    const queue = [...candidates];
+    const concurrency = 3; // Lower concurrency to avoid rate limits
+
+    const worker = async () => {
+      while (queue.length > 0 && socialEnrichRunId.current === runId) {
+        const lead = queue.shift();
+        if (!lead) continue;
+
+        try {
+          const result = await scrapeSocialContacts(lead.name, lead.address);
+          
+          // Cache the result in sessionStorage
+          const cacheKey = `social_contacts_${lead.name}_${lead.address || ''}`;
+          sessionStorage.setItem(cacheKey, JSON.stringify(result));
+          
+          // If we found contacts, update the lead's email if missing
+          if (result.success && result.contacts.emails.length > 0 && !lead.email) {
+            const foundEmail = result.contacts.emails[0];
+            setSearchResults((prev) =>
+              prev.map((item) => (item.id === lead.id ? { ...item, email: foundEmail } : item))
+            );
+          }
+        } catch (error) {
+          console.warn('[BamLead] Social enrichment failed for lead:', lead.id, error);
+        } finally {
+          setSocialEnrichCompleted((prev) => prev + 1);
+        }
+      }
+    };
+
+    await Promise.all(Array.from({ length: concurrency }, () => worker()));
+
+    if (socialEnrichRunId.current === runId) {
+      setIsSocialEnriching(false);
+      const cachedCount = candidates.length;
+      toast.success(`✨ Social contacts scraped for ${cachedCount} leads. Click sparkle icons to view.`);
     }
   };
 
@@ -2888,7 +2956,9 @@ export default function Dashboard() {
               setShowAIPipeline(false);
               setAdvanceToStep2AfterReport(true);
               setShowReportModal(true);
+              // Run both email and social enrichment in parallel
               startEmailEnrichment(enhancedLeads as SearchResult[]);
+              startSocialEnrichment(enhancedLeads as SearchResult[]);
               toast.success('🎉 All 8 AI agents complete! Your leads are supercharged.');
             }}
             onProgressUpdate={(progress, agentName) => {

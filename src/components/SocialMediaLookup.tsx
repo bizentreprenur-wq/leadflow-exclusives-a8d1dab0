@@ -100,6 +100,7 @@ export default function SocialMediaLookup({
   const [isScrapingContacts, setIsScrapingContacts] = useState(false);
   const [socialContacts, setSocialContacts] = useState<SocialContactsResult | null>(null);
   const [showContactsPanel, setShowContactsPanel] = useState(false);
+  const [wasPreScraped, setWasPreScraped] = useState(false);
 
   const sizeClasses = {
     sm: 'w-6 h-6',
@@ -111,7 +112,7 @@ export default function SocialMediaLookup({
     md: 'w-3.5 h-3.5',
   };
 
-  // Auto-scrape for contacts on mount if not already scraped
+  // Auto-load cached contacts on mount (pre-scraped during search)
   useEffect(() => {
     const cacheKey = `social_contacts_${businessName}_${location}`;
     const cached = sessionStorage.getItem(cacheKey);
@@ -120,6 +121,7 @@ export default function SocialMediaLookup({
       try {
         const parsed = JSON.parse(cached);
         setSocialContacts(parsed);
+        setWasPreScraped(true); // Mark as pre-scraped from search
         if (onContactsFound && (parsed.contacts?.emails?.length || parsed.contacts?.phones?.length)) {
           onContactsFound(parsed.contacts.emails || [], parsed.contacts.phones || []);
         }
@@ -171,6 +173,9 @@ export default function SocialMediaLookup({
 
   const hasContacts = socialContacts?.contacts && 
     (socialContacts.contacts.emails.length > 0 || socialContacts.contacts.phones.length > 0);
+  
+  // Was scraped but no contacts found - show different state
+  const wasScrapedNoResults = wasPreScraped && socialContacts && !hasContacts;
 
   return (
     <>
@@ -185,6 +190,9 @@ export default function SocialMediaLookup({
                   e.preventDefault();
                   if (hasContacts) {
                     setShowContactsPanel(true);
+                  } else if (wasScrapedNoResults) {
+                    // Already scraped but found nothing - show panel with option to rescrape
+                    setShowContactsPanel(true);
                   } else {
                     handleScrapeContacts();
                   }
@@ -195,6 +203,8 @@ export default function SocialMediaLookup({
                   sizeClasses[size],
                   hasContacts 
                     ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-500'
+                    : wasScrapedNoResults
+                    ? 'bg-muted hover:bg-muted/80 text-muted-foreground'
                     : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-500',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background'
                 )}
@@ -213,7 +223,9 @@ export default function SocialMediaLookup({
             <TooltipContent side="top" className="bg-popover border-border">
               <p className="text-sm font-medium">
                 {hasContacts 
-                  ? `View ${socialContacts?.contacts.emails.length || 0} emails, ${socialContacts?.contacts.phones.length || 0} phones`
+                  ? `✓ ${socialContacts?.contacts.emails.length || 0} emails, ${socialContacts?.contacts.phones.length || 0} phones found`
+                  : wasScrapedNoResults
+                  ? 'No contacts found (click to try again)'
                   : 'AI Scrape Social Profiles for Contacts'
                 }
               </p>
@@ -251,12 +263,37 @@ export default function SocialMediaLookup({
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-amber-500" />
-              Contacts Found for {businessName}
+              {hasContacts ? 'Contacts Found' : 'Social Contact Lookup'} for {businessName}
             </DialogTitle>
             <DialogDescription>
-              Extracted from public social profiles
+              {hasContacts 
+                ? 'Pre-scraped from social profiles during search' 
+                : wasScrapedNoResults 
+                ? 'No public contacts found - try rescraping or check profiles manually'
+                : 'Click scrape to find contacts from social profiles'
+              }
             </DialogDescription>
           </DialogHeader>
+
+          {/* No contacts found state */}
+          {wasScrapedNoResults && !hasContacts && (
+            <div className="flex flex-col items-center justify-center py-8 text-center">
+              <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
+                <Sparkles className="w-6 h-6 text-muted-foreground" />
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                No public email or phone numbers found on social profiles for this business.
+              </p>
+              <Button 
+                onClick={handleScrapeContacts}
+                disabled={isScrapingContacts}
+                className="gap-2"
+              >
+                {isScrapingContacts ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                Try Scraping Again
+              </Button>
+            </div>
+          )}
 
           {socialContacts?.contacts && (
             <div className="space-y-4 mt-4">
