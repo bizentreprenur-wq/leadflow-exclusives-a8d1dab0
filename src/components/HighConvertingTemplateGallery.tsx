@@ -821,6 +821,35 @@ export default function HighConvertingTemplateGallery({
         </div>
       )}
 
+      {/* ═══════════════ CUSTOM TEMPLATES SECTION DIVIDER ═══════════════ */}
+      <div className="relative my-10">
+        {/* Decorative line */}
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t-2 border-dashed border-primary/30"></div>
+        </div>
+        
+        {/* Big Custom Templates Headline */}
+        <div className="relative flex justify-center">
+          <div className="bg-background px-6 py-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 border border-primary/30">
+                <Upload className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
+                  Custom Templates
+                </h2>
+                <p className="text-xs text-muted-foreground">Create your own or let AI build one for you</p>
+              </div>
+              <Badge variant="outline" className="ml-2 border-primary/50 text-primary bg-primary/10">
+                <Plus className="w-3 h-3 mr-1" />
+                Build Your Own
+              </Badge>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* AI Template Builder Section - UNDER the Email Template Gallery */}
       <Card className="border-2 border-dashed border-violet-500/40 bg-gradient-to-r from-violet-500/5 to-purple-500/5">
         <CardContent className="p-4">
