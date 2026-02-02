@@ -29,6 +29,8 @@ export interface PlanFeatures {
   
   // Search limits
   dailySearches: number | 'unlimited';
+  dailyGMBSearches?: number; // Separate GMB limit for Explorer
+  dailyPlatformSearches?: number; // Separate Platform limit for Explorer
   monthlyVerifications: number;
   
   // Email features
@@ -74,14 +76,20 @@ export interface PlanFeatures {
   
   // Onboarding
   requiresOnboarding: boolean;
+  
+  // Explorer mode features
+  socialMediaLookup?: boolean;
+  wordpressDetection?: boolean;
 }
 
 const PLAN_FEATURES: Record<PlanTier, PlanFeatures> = {
   free: {
     tier: 'free',
-    campaignMode: 'basic',
-    dailySearches: 5,
-    monthlyVerifications: 25,
+    campaignMode: 'explorer', // Explorer mode
+    dailySearches: 8, // 5 GMB + 3 Platform (tracked separately in UI)
+    dailyGMBSearches: 5, // GMB searches per day
+    dailyPlatformSearches: 3, // Platform searches per day
+    monthlyVerifications: 25, // 25 AI verification credits
     manualEmailSend: false,
     aiEmailWriter: 'none',
     emailTemplates: 'none',
@@ -108,6 +116,9 @@ const PLAN_FEATURES: Record<PlanTier, PlanFeatures> = {
     whiteLabelReports: false,
     dedicatedManager: false,
     requiresOnboarding: false,
+    // Explorer mode features
+    socialMediaLookup: true,
+    wordpressDetection: true,
   },
   basic: {
     tier: 'basic',

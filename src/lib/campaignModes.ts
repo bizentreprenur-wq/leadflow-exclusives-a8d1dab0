@@ -1,7 +1,7 @@
 // Campaign Mode Configurations
-// Defines the exact behaviors for Basic, Co-Pilot, and Autopilot modes
+// Defines the exact behaviors for Explorer, Basic, Co-Pilot, and Autopilot modes
 
-export type CampaignMode = 'basic' | 'copilot' | 'autopilot';
+export type CampaignMode = 'explorer' | 'basic' | 'copilot' | 'autopilot';
 
 export interface ModeCapabilities {
   // Sending behaviors
@@ -46,6 +46,48 @@ export interface CampaignModeConfig {
   keyBenefits: string[];
   timeSavings: string;
 }
+
+// ============================================================================
+// EXPLORER MODE (Free) - Try Before You Buy
+// Limited searches, basic lookups, see real results before subscribing
+// ============================================================================
+export const EXPLORER_MODE: CampaignModeConfig = {
+  id: 'explorer',
+  name: 'Explorer',
+  tagline: 'Try Before You Subscribe',
+  description: 'See real results — 5 GMB + 3 Platform searches/day',
+  price: 0,
+  priceDisplay: 'Free',
+  aiLevel: 'Explorer Mode',
+  icon: '🔍',
+  color: 'muted',
+  capabilities: {
+    initialEmailSending: 'manual',
+    followUpSending: 'manual',
+    strategySelection: 'user-chooses',
+    sequenceSelection: 'user-chooses',
+    responseHandling: 'manual',
+    responseClassification: false,
+    autoPauseOnPositive: false,
+    proposalCreation: 'manual',
+    whitelabelReports: false,
+    searchesPerDay: 8, // 5 GMB + 3 Platform
+    aiVerificationCredits: 25,
+    aiResurrectionSequences: false,
+    smartResponseDetection: false,
+    intelligentLeadScoring: true, // Basic scoring included
+    multiChannelSupport: false,
+  },
+  keyBenefits: [
+    '5 GMB searches/day',
+    '3 Platform searches/day',
+    '25 AI verification credits',
+    'Social media lookup',
+    'WordPress detection',
+    'See real results before subscribing',
+  ],
+  timeSavings: 'Trial experience',
+};
 
 // ============================================================================
 // BASIC MODE ($49/mo) - Manual Mode
@@ -183,6 +225,8 @@ export const AUTOPILOT_MODE: CampaignModeConfig = {
 // Get mode config by ID
 export function getModeConfig(mode: CampaignMode): CampaignModeConfig {
   switch (mode) {
+    case 'explorer':
+      return EXPLORER_MODE;
     case 'basic':
       return BASIC_MODE;
     case 'copilot':
@@ -190,13 +234,18 @@ export function getModeConfig(mode: CampaignMode): CampaignModeConfig {
     case 'autopilot':
       return AUTOPILOT_MODE;
     default:
-      return BASIC_MODE;
+      return EXPLORER_MODE;
   }
 }
 
-// Get all mode configs
+// Get all mode configs (paid tiers only)
 export function getAllModeConfigs(): CampaignModeConfig[] {
   return [BASIC_MODE, COPILOT_MODE, AUTOPILOT_MODE];
+}
+
+// Get all modes including free Explorer
+export function getAllModeConfigsWithFree(): CampaignModeConfig[] {
+  return [EXPLORER_MODE, BASIC_MODE, COPILOT_MODE, AUTOPILOT_MODE];
 }
 
 // Check if a capability is available for a mode
