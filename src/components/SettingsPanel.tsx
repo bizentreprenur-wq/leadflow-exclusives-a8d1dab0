@@ -22,6 +22,17 @@ import EmailConfigurationPanel from './EmailConfigurationPanel';
 import CRMIntegrationModal from './CRMIntegrationModal';
 import BackendHealthDashboard from './BackendHealthDashboard';
 import BrandingSettingsPanel from './BrandingSettingsPanel';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface SettingsPanelProps {
   initialTab?: string;
@@ -30,19 +41,73 @@ interface SettingsPanelProps {
   hideWebhooks?: boolean;
 }
 
+const SETTINGS_TAB_VALUES = ['integrations', 'branding', 'email', 'notifications', 'account'] as const;
+type SettingsTabValue = typeof SETTINGS_TAB_VALUES[number];
+
+const normalizeSettingsTab = (tab?: string): SettingsTabValue => {
+  if (!tab) return 'integrations';
+  const normalized = tab.toLowerCase();
+  if (SETTINGS_TAB_VALUES.includes(normalized as SettingsTabValue)) {
+    return normalized as SettingsTabValue;
+  }
+
+  // Backward-compatible aliases from older callers/routes.
+  if (normalized === 'alerts') return 'notifications';
+  if (normalized === 'smtp' || normalized === 'smtp-setup') return 'email';
+  if (normalized === 'voice') return 'integrations';
+
+  return 'integrations';
+};
+
 export default function SettingsPanel({ initialTab = 'integrations', onBackToStep4, onBackToSMTPSetup, hideWebhooks = false }: SettingsPanelProps) {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const [activeTab, setActiveTab] = useState<SettingsTabValue>(normalizeSettingsTab(initialTab));
   const [driveConnected, setDriveConnected] = useState(false);
   const [isCheckingDrive, setIsCheckingDrive] = useState(true);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [showCRMModal, setShowCRMModal] = useState(false);
+  const [notificationPrefs, setNotificationPrefs] = useState(() => {
+    try {
+      const raw = localStorage.getItem('bamlead_notification_prefs');
+      if (!raw) {
+        return {
+          emailNotifications: true,
+          leadAlerts: true,
+          weeklyDigest: false,
+          outreachNotifications: true,
+        };
+      }
+      const parsed = JSON.parse(raw);
+      return {
+        emailNotifications: parsed.emailNotifications !== false,
+        leadAlerts: parsed.leadAlerts !== false,
+        weeklyDigest: parsed.weeklyDigest === true,
+        outreachNotifications: parsed.outreachNotifications !== false,
+      };
+    } catch {
+      return {
+        emailNotifications: true,
+        leadAlerts: true,
+        weeklyDigest: false,
+        outreachNotifications: true,
+      };
+    }
+  });
 
   // Check Google Drive connection status on mount
   useEffect(() => {
     checkDriveStatus();
   }, []);
+
+  // Keep tab selection in sync when parent requests a specific tab later.
+  useEffect(() => {
+    setActiveTab(normalizeSettingsTab(initialTab));
+  }, [initialTab]);
+
+  useEffect(() => {
+    localStorage.setItem('bamlead_notification_prefs', JSON.stringify(notificationPrefs));
+  }, [notificationPrefs]);
 
   const checkDriveStatus = async () => {
     setIsCheckingDrive(true);
@@ -88,6 +153,55 @@ export default function SettingsPanel({ initialTab = 'integrations', onBackToSte
     } finally {
       setIsDisconnecting(false);
     }
+  };
+
+  const handleNotificationToggle = (
+    key: 'emailNotifications' | 'leadAlerts' | 'weeklyDigest' | 'outreachNotifications',
+    value: boolean
+  ) => {
+    setNotificationPrefs((prev) => ({ ...prev, [key]: value }));
+    toast.success('Notification preferences updated');
+  };
+
+  const handleExportAllData = () => {
+    const data: Record<string, unknown> = {
+      exportedAt: new Date().toISOString(),
+      userEmail: user?.email || null,
+      settings: {
+        activeTab,
+        notificationPrefs,
+      },
+      localStorage: {} as Record<string, string>,
+    };
+
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      if (key.startsWith('bamlead_') || key.startsWith('email_')) {
+        const value = localStorage.getItem(key);
+        if (value !== null) {
+          (data.localStorage as Record<string, string>)[key] = value;
+        }
+      }
+    }
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `bamlead-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success('Data export downloaded');
+  };
+
+  const handleDeleteAccountRequest = () => {
+    const subject = encodeURIComponent('Account Deletion Request');
+    const body = encodeURIComponent(`Please delete my BamLead account.\n\nEmail: ${user?.email || 'unknown'}\nRequested at: ${new Date().toISOString()}`);
+    window.location.href = `mailto:support@bamlead.com?subject=${subject}&body=${body}`;
+    toast.info('Deletion request draft opened in your email app');
   };
 
   return (
@@ -340,12 +454,16 @@ export default function SettingsPanel({ initialTab = 'integrations', onBackToSte
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label htmlFor="email-notifications">Email notifications</Label>
-                  <p className="text-sm text-muted-foreground">Receive email updates about new leads</p>
-                </div>
-                <Switch id="email-notifications" defaultChecked />
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label htmlFor="email-notifications">Email notifications</Label>
+                    <p className="text-sm text-muted-foreground">Receive email updates about new leads</p>
+                  </div>
+                <Switch
+                  id="email-notifications"
+                  checked={notificationPrefs.emailNotifications}
+                  onCheckedChange={(checked) => handleNotificationToggle('emailNotifications', checked)}
+                />
               </div>
               <Separator />
               <div className="flex items-center justify-between">
@@ -353,7 +471,11 @@ export default function SettingsPanel({ initialTab = 'integrations', onBackToSte
                   <Label htmlFor="lead-alerts">Lead verification alerts</Label>
                   <p className="text-sm text-muted-foreground">Get notified when AI verification completes</p>
                 </div>
-                <Switch id="lead-alerts" defaultChecked />
+                <Switch
+                  id="lead-alerts"
+                  checked={notificationPrefs.leadAlerts}
+                  onCheckedChange={(checked) => handleNotificationToggle('leadAlerts', checked)}
+                />
               </div>
               <Separator />
               <div className="flex items-center justify-between">
@@ -361,7 +483,11 @@ export default function SettingsPanel({ initialTab = 'integrations', onBackToSte
                   <Label htmlFor="weekly-digest">Weekly digest</Label>
                   <p className="text-sm text-muted-foreground">Summary of your lead generation activity</p>
                 </div>
-                <Switch id="weekly-digest" />
+                <Switch
+                  id="weekly-digest"
+                  checked={notificationPrefs.weeklyDigest}
+                  onCheckedChange={(checked) => handleNotificationToggle('weeklyDigest', checked)}
+                />
               </div>
               <Separator />
               <div className="flex items-center justify-between">
@@ -369,7 +495,11 @@ export default function SettingsPanel({ initialTab = 'integrations', onBackToSte
                   <Label htmlFor="outreach-notifications">Outreach notifications</Label>
                   <p className="text-sm text-muted-foreground">Get notified about email delivery and replies</p>
                 </div>
-                <Switch id="outreach-notifications" defaultChecked />
+                <Switch
+                  id="outreach-notifications"
+                  checked={notificationPrefs.outreachNotifications}
+                  onCheckedChange={(checked) => handleNotificationToggle('outreachNotifications', checked)}
+                />
               </div>
             </CardContent>
           </Card>
@@ -423,7 +553,7 @@ export default function SettingsPanel({ initialTab = 'integrations', onBackToSte
                   <h4 className="font-medium">Export All Data</h4>
                   <p className="text-sm text-muted-foreground">Download all your leads and settings</p>
                 </div>
-                <Button variant="outline" size="sm" className="gap-1">
+                <Button variant="outline" size="sm" className="gap-1" onClick={handleExportAllData}>
                   <Download className="w-4 h-4" />
                   Export
                 </Button>
@@ -432,12 +562,30 @@ export default function SettingsPanel({ initialTab = 'integrations', onBackToSte
               <div className="flex items-center justify-between p-4 rounded-lg border border-destructive/30">
                 <div>
                   <h4 className="font-medium text-destructive">Delete Account</h4>
-                  <p className="text-sm text-muted-foreground">Permanently delete your account and all data</p>
+                  <p className="text-sm text-muted-foreground">Submit a secure deletion request with support</p>
                 </div>
-                <Button variant="destructive" size="sm" className="gap-1">
-                  <Trash2 className="w-4 h-4" />
-                  Delete
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" className="gap-1">
+                      <Trash2 className="w-4 h-4" />
+                      Delete
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Request account deletion?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will open your email app with a pre-filled deletion request to support.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeleteAccountRequest}>
+                        Continue
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </CardContent>
           </Card>
