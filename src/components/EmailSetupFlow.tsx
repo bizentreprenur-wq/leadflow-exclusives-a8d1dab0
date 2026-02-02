@@ -133,7 +133,7 @@ export default function EmailSetupFlow({
     emailBody: string;
   } | null>(null);
   const [dripSettings, setDripSettings] = useState(() => loadDripSettings());
-  const [showIntelligencePanel, setShowIntelligencePanel] = useState(true);
+  // Intelligence panel state removed - now only in Step 2
   const [appliedStrategy, setAppliedStrategy] = useState<{
     id: string;
     name: string;
@@ -527,21 +527,6 @@ export default function EmailSetupFlow({
                 <ArrowLeft className="w-4 h-4" />
                 Back to Templates
               </Button>
-              <div className="flex items-center gap-3">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowIntelligencePanel(!showIntelligencePanel)}
-                  className="gap-2"
-                >
-                  <Brain className="w-4 h-4 text-primary" />
-                  {showIntelligencePanel ? 'Hide' : 'Show'} Lead Intelligence
-                </Button>
-                <Badge variant="outline" className="gap-2 text-lg px-4 py-2 bg-primary/10 border-primary/30">
-                  <Mail className="w-5 h-5 text-primary" />
-                  <span className="font-bold text-primary">{leadsWithEmail.length}</span> leads ready to email
-                </Badge>
-              </div>
             </div>
 
             {/* EMAIL TEMPLATES - NOW AT THE TOP */}
@@ -580,27 +565,29 @@ export default function EmailSetupFlow({
             </div>
 
             {/* ═══════════════ AI STRATEGY SECTION DIVIDER ═══════════════ */}
-            <div className="relative my-12">
-              {/* Decorative line */}
+            <div className="relative my-16 py-8">
+              {/* Decorative lines */}
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t-2 border-dashed border-primary/30"></div>
+                <div className="w-full border-t-4 border-dashed border-primary/40"></div>
               </div>
               
-              {/* Big AI Strategy Headline */}
+              {/* Big AI Strategy Headline - Centered */}
               <div className="relative flex justify-center">
-                <div className="bg-background px-6 py-3">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 border border-primary/30">
-                      <Brain className="w-6 h-6 text-primary" />
+                <div className="bg-background px-10 py-6">
+                  <div className="flex flex-col items-center gap-4 text-center">
+                    <div className="p-4 rounded-2xl bg-gradient-to-br from-primary/30 to-primary/10 border-2 border-primary/40 shadow-lg">
+                      <Brain className="w-10 h-10 text-primary" />
                     </div>
                     <div>
-                      <h2 className="text-2xl font-bold bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
-                        AI Strategy
+                      <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent mb-2">
+                        Review Your AI Strategy
                       </h2>
-                      <p className="text-xs text-muted-foreground">Intelligent outreach paths tailored to your leads</p>
+                      <p className="text-sm text-muted-foreground max-w-md">
+                        Intelligent outreach paths tailored to your leads and selected template
+                      </p>
                     </div>
-                    <Badge variant="outline" className="ml-2 border-primary/50 text-primary bg-primary/10">
-                      <Sparkles className="w-3 h-3 mr-1" />
+                    <Badge variant="outline" className="border-primary/50 text-primary bg-primary/10 px-4 py-1.5">
+                      <Sparkles className="w-4 h-4 mr-2" />
                       Powered by AI
                     </Badge>
                   </div>
@@ -641,62 +628,7 @@ export default function EmailSetupFlow({
               />
             </div>
 
-            {/* Lead Intelligence Review Panel - Shows Step 1 findings */}
-            {showIntelligencePanel && (
-              <LeadIntelligenceReviewPanel
-                leads={leads}
-                searchType={searchType}
-                selectedTemplate={customizedContent || (selectedTemplate ? { subject: selectedTemplate.subject, body: selectedTemplate.body } : null)}
-                onOpenTemplates={() => {
-                  // Scroll to template gallery or open template modal
-                  const templateSection = document.querySelector('[data-template-gallery]');
-                  if (templateSection) {
-                    templateSection.scrollIntoView({ behavior: 'smooth' });
-                  }
-                }}
-                onApplyStrategy={(strategy) => {
-                  setAppliedStrategy({
-                    id: strategy.id,
-                    name: strategy.name,
-                    subjectTemplate: strategy.subjectTemplate,
-                    openerTemplate: strategy.openerTemplate,
-                    ctaTemplate: strategy.ctaTemplate,
-                  });
-                  // Auto-apply strategy to template if no template selected
-                  if (!selectedTemplate) {
-                    setCustomizedContent({
-                      subject: strategy.subjectTemplate,
-                      body: `${strategy.openerTemplate}\n\n${strategy.ctaTemplate}`,
-                    });
-                    localStorage.setItem('bamlead_template_customizations', JSON.stringify({
-                      subject: strategy.subjectTemplate,
-                      body: `${strategy.openerTemplate}\n\n${strategy.ctaTemplate}`,
-                    }));
-                  }
-                  toast.success(`Applied "${strategy.name}" strategy to your campaign`);
-                }}
-                onOpenCompose={(strategy) => {
-                  // Apply strategy to template
-                  setCustomizedContent({
-                    subject: strategy.subjectTemplate,
-                    body: `${strategy.openerTemplate}\n\n${strategy.ctaTemplate}`,
-                  });
-                  localStorage.setItem('bamlead_template_customizations', JSON.stringify({
-                    subject: strategy.subjectTemplate,
-                    body: `${strategy.openerTemplate}\n\n${strategy.ctaTemplate}`,
-                  }));
-                  // Save follow-up days if provided
-                  if (strategy.followUpDays) {
-                    const updatedDrip = { ...dripSettings, followUpDays: strategy.followUpDays };
-                    saveDripSettings(updatedDrip);
-                    setDripSettings(updatedDrip);
-                  }
-                  // Open the mailbox dock
-                  setMailboxOpen(true);
-                  toast.success(`"${strategy.name}" loaded into composer with follow-up sequence`);
-                }}
-              />
-            )}
+            {/* Lead Intelligence is now ONLY in Step 2 - removed from Step 3 to reduce clutter */}
 
             {/* Applied Strategy Indicator */}
             {appliedStrategy && (
@@ -1411,7 +1343,7 @@ export default function EmailSetupFlow({
         <div className="text-5xl mb-4">📧</div>
         <h1 className="text-2xl md:text-3xl font-bold mb-2">STEP 3: Drip Sequence Email Setup</h1>
         <p className="text-muted-foreground">
-          {leads.length} leads ready • {leadsWithEmail.length} with email addresses
+          Choose your template, then review your AI strategy
         </p>
       </div>
 
