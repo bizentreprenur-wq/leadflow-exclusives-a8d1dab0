@@ -579,8 +579,37 @@ export default function EmailSetupFlow({
               />
             </div>
 
+            {/* ═══════════════ AI STRATEGY SECTION DIVIDER ═══════════════ */}
+            <div className="relative my-12">
+              {/* Decorative line */}
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t-2 border-dashed border-primary/30"></div>
+              </div>
+              
+              {/* Big AI Strategy Headline */}
+              <div className="relative flex justify-center">
+                <div className="bg-background px-6 py-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 border border-primary/30">
+                      <Brain className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
+                        AI Strategy
+                      </h2>
+                      <p className="text-xs text-muted-foreground">Intelligent outreach paths tailored to your leads</p>
+                    </div>
+                    <Badge variant="outline" className="ml-2 border-primary/50 text-primary bg-primary/10">
+                      <Sparkles className="w-3 h-3 mr-1" />
+                      Powered by AI
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* AI STRATEGIES - SEPARATE SECTION */}
-            <div className="space-y-4 mt-8" data-strategy-section>
+            <div className="space-y-4" data-strategy-section>
               <AIStrategyReviewPanel
                 searchType={searchType || null}
                 leads={leads}
