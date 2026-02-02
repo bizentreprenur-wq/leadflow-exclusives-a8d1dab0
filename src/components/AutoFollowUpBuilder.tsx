@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -107,6 +107,38 @@ interface LeadEngagement {
   eligibleForFollowUp: boolean;
 }
 
+const FOLLOWUP_SEQUENCES_STORAGE_KEY = 'bamlead_followup_sequences';
+
+const DEFAULT_SEQUENCES: FollowUpSequence[] = [
+  { id: 'noOpen', name: 'No Open Follow-up', pattern: 'no_open', enabled: true, delayDays: 3, leadsEligible: 0 },
+  { id: 'openedNoReply', name: 'Opened But No Reply', pattern: 'opened_no_reply', enabled: true, delayDays: 4, leadsEligible: 0 },
+  { id: 'clickedNoReply', name: 'Clicked (Hot Lead!)', pattern: 'clicked_no_reply', enabled: true, delayDays: 2, leadsEligible: 0 },
+  { id: 'finalNurture', name: 'Final Nurture', pattern: 'nurture', enabled: false, delayDays: 7, leadsEligible: 0 },
+];
+
+function loadStoredSequences(): FollowUpSequence[] {
+  try {
+    const stored = localStorage.getItem(FOLLOWUP_SEQUENCES_STORAGE_KEY);
+    if (!stored) return DEFAULT_SEQUENCES;
+    const parsed = JSON.parse(stored);
+    if (!Array.isArray(parsed)) return DEFAULT_SEQUENCES;
+
+    return DEFAULT_SEQUENCES.map(defaultSequence => {
+      const saved = parsed.find((item: Partial<FollowUpSequence>) => item?.id === defaultSequence.id);
+      if (!saved) return defaultSequence;
+      const delayDays = Number.isFinite(saved.delayDays) ? Number(saved.delayDays) : defaultSequence.delayDays;
+      return {
+        ...defaultSequence,
+        enabled: saved.enabled !== false,
+        delayDays: Math.max(1, delayDays),
+        lastRun: typeof saved.lastRun === 'string' ? saved.lastRun : undefined,
+      };
+    });
+  } catch {
+    return DEFAULT_SEQUENCES;
+  }
+}
+
 interface AutoFollowUpBuilderProps {
   /** Campaign context to show real-time drip status */
   campaignContext?: {
@@ -131,39 +163,32 @@ export default function AutoFollowUpBuilder({ campaignContext }: AutoFollowUpBui
     return (localStorage.getItem('bamlead_followup_mode') as 'automatic' | 'manual') || 'manual';
   });
   
-  const [sequences, setSequences] = useState<FollowUpSequence[]>([
-    { id: 'noOpen', name: 'No Open Follow-up', pattern: 'no_open', enabled: true, delayDays: 3, leadsEligible: 0 },
-    { id: 'openedNoReply', name: 'Opened But No Reply', pattern: 'opened_no_reply', enabled: true, delayDays: 4, leadsEligible: 0 },
-    { id: 'clickedNoReply', name: 'Clicked (Hot Lead!)', pattern: 'clicked_no_reply', enabled: true, delayDays: 2, leadsEligible: 0 },
-    { id: 'finalNurture', name: 'Final Nurture', pattern: 'nurture', enabled: false, delayDays: 7, leadsEligible: 0 },
-  ]);
+  const [sequences, setSequences] = useState<FollowUpSequence[]>(() => loadStoredSequences());
+  const sequencesRef = useRef<FollowUpSequence[]>(sequences);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    sequencesRef.current = sequences;
+  }, [sequences]);
 
-  const loadData = async () => {
-    setIsLoading(true);
+  useEffect(() => {
     try {
-      const [statsRes, sendsRes, leadsRes] = await Promise.all([
-        getEmailStats(30),
-        getSends({ limit: 500 }),
-        fetchVerifiedLeads(1, 500, { emailValid: true }),
-      ]);
-
-      if (statsRes.success && statsRes.stats) setStats(statsRes.stats);
-      if (sendsRes.success && sendsRes.sends) setSends(sendsRes.sends);
-      if (leadsRes.success && leadsRes.data) setSavedLeads(leadsRes.data.leads);
-
-      analyzeEngagement(sendsRes.sends || [], leadsRes.data?.leads || []);
-    } catch (error) {
-      console.error('Failed to load data:', error);
-      toast.error('Failed to load engagement data');
+      const serializable = sequences.map(sequence => ({
+        id: sequence.id,
+        enabled: sequence.enabled,
+        delayDays: sequence.delayDays,
+        lastRun: sequence.lastRun,
+      }));
+      localStorage.setItem(FOLLOWUP_SEQUENCES_STORAGE_KEY, JSON.stringify(serializable));
+    } catch {
+      // ignore storage failures
     }
-    setIsLoading(false);
-  };
+  }, [sequences]);
 
-  const analyzeEngagement = (sends: EmailSend[], leads: SavedLead[]) => {
+  const analyzeEngagement = useCallback((
+    sendsData: EmailSend[],
+    leadsData: SavedLead[],
+    sequenceConfig: FollowUpSequence[]
+  ) => {
     const now = new Date();
     const engagements: LeadEngagement[] = [];
     const patternCounts: Record<EngagementPattern, number> = {
@@ -173,14 +198,14 @@ export default function AutoFollowUpBuilder({ campaignContext }: AutoFollowUpBui
       nurture: 0,
     };
 
-    const sendsByEmail = sends.reduce((acc, send) => {
+    const sendsByEmail = sendsData.reduce((acc, send) => {
       const email = send.recipient_email.toLowerCase();
       if (!acc[email]) acc[email] = [];
       acc[email].push(send);
       return acc;
     }, {} as Record<string, EmailSend[]>);
 
-    for (const lead of leads) {
+    for (const lead of leadsData) {
       if (!lead.email || lead.outreachStatus === 'converted' || lead.outreachStatus === 'replied') continue;
 
       const leadSends = sendsByEmail[lead.email.toLowerCase()] || [];
@@ -206,7 +231,7 @@ export default function AutoFollowUpBuilder({ campaignContext }: AutoFollowUpBui
         pattern = 'no_open';
       }
 
-      const sequenceForPattern = sequences.find(s => s.pattern === pattern);
+      const sequenceForPattern = sequenceConfig.find(s => s.pattern === pattern);
       const eligibleForFollowUp = sequenceForPattern 
         ? daysSince >= sequenceForPattern.delayDays && leadSends.length < 3
         : false;
@@ -223,12 +248,50 @@ export default function AutoFollowUpBuilder({ campaignContext }: AutoFollowUpBui
       });
     }
 
+    return { engagements, patternCounts };
+  }, []);
+
+  const syncEngagementState = useCallback((
+    sendsData: EmailSend[],
+    leadsData: SavedLead[],
+    sequenceConfig: FollowUpSequence[]
+  ) => {
+    const { engagements, patternCounts } = analyzeEngagement(sendsData, leadsData, sequenceConfig);
     setLeadEngagements(engagements);
-    setSequences(prev => prev.map(seq => ({
+    setSequences(sequenceConfig.map(seq => ({
       ...seq,
       leadsEligible: patternCounts[seq.pattern] || 0,
     })));
-  };
+  }, [analyzeEngagement]);
+
+  const loadData = useCallback(async (sequenceConfigOverride?: FollowUpSequence[]) => {
+    setIsLoading(true);
+    try {
+      const [statsRes, sendsRes, leadsRes] = await Promise.all([
+        getEmailStats(30),
+        getSends({ limit: 500 }),
+        fetchVerifiedLeads(1, 500, { emailValid: true }),
+      ]);
+
+      const nextSends = sendsRes.success && sendsRes.sends ? sendsRes.sends : [];
+      const nextLeads = leadsRes.success && leadsRes.data ? leadsRes.data.leads : [];
+      const sequenceConfig = sequenceConfigOverride || sequencesRef.current;
+
+      if (statsRes.success && statsRes.stats) setStats(statsRes.stats);
+      setSends(nextSends);
+      setSavedLeads(nextLeads);
+      syncEngagementState(nextSends, nextLeads, sequenceConfig);
+    } catch (error) {
+      console.error('Failed to load data:', error);
+      toast.error('Failed to load engagement data');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [syncEngagementState]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const getPatternIcon = (pattern: EngagementPattern) => {
     switch (pattern) {
@@ -257,9 +320,9 @@ export default function AutoFollowUpBuilder({ campaignContext }: AutoFollowUpBui
     }
   };
 
-  const handleRunSequence = async (sequenceId: string) => {
+  const handleRunSequence = useCallback(async (sequenceId: string, triggeredByAutomation = false) => {
     const sequence = sequences.find(s => s.id === sequenceId);
-    if (!sequence || sequence.leadsEligible === 0) {
+    if (!sequence || !sequence.enabled || sequence.leadsEligible === 0) {
       toast.error('No eligible leads for this sequence');
       return;
     }
@@ -274,7 +337,14 @@ export default function AutoFollowUpBuilder({ campaignContext }: AutoFollowUpBui
 
       const template = getTemplateForPattern(sequence.pattern);
       
-      toast.info(`Sending follow-ups to ${eligibleLeads.length} leads...`);
+      if (!eligibleLeads.length) {
+        toast.error('No eligible leads found for this sequence');
+        return;
+      }
+
+      if (!triggeredByAutomation) {
+        toast.info(`Sending follow-ups to ${eligibleLeads.length} leads...`);
+      }
 
       const leadsForEmail = eligibleLeads.map(lead => ({
         id: lead.dbId,
@@ -297,13 +367,17 @@ export default function AutoFollowUpBuilder({ campaignContext }: AutoFollowUpBui
       for (let i = 0; i < leadsForEmail.length; i += batchSize) {
         const batch = leadsForEmail.slice(i, i + batchSize);
         
-        await sendBulkEmails({
+        const result = await sendBulkEmails({
           leads: batch,
           custom_subject: template.subject,
           custom_body: htmlTemplate,
           send_mode: 'drip',
           drip_config: { emailsPerHour: 50, delayMinutes: 1 },
         });
+
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to send follow-up batch.');
+        }
 
         sent += batch.length;
         setProcessingProgress((sent / leadsForEmail.length) * 100);
@@ -318,34 +392,42 @@ export default function AutoFollowUpBuilder({ campaignContext }: AutoFollowUpBui
         }
       }
 
-      toast.success(`✅ Sent ${eligibleLeads.length} follow-up emails!`);
+      toast.success(
+        triggeredByAutomation
+          ? `🤖 Auto-sent ${eligibleLeads.length} follow-up emails`
+          : `✅ Sent ${eligibleLeads.length} follow-up emails!`
+      );
       
-      setSequences(prev => prev.map(s => 
+      const updatedSequences = sequences.map(s => 
         s.id === sequenceId 
           ? { ...s, lastRun: new Date().toISOString(), leadsEligible: 0 }
           : s
-      ));
+      );
+      setSequences(updatedSequences);
 
-      await loadData();
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to send follow-ups');
+      await loadData(updatedSequences);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to send follow-ups';
+      toast.error(message);
+    } finally {
+      setIsProcessing(false);
+      setProcessingProgress(0);
     }
-
-    setIsProcessing(false);
-    setProcessingProgress(0);
-  };
+  }, [leadEngagements, loadData, sequences]);
 
   const toggleSequence = (sequenceId: string) => {
-    setSequences(prev => prev.map(s =>
+    const updated = sequences.map(s =>
       s.id === sequenceId ? { ...s, enabled: !s.enabled } : s
-    ));
+    );
+    syncEngagementState(sends, savedLeads, updated);
   };
 
   const updateSequenceDelay = (sequenceId: string, days: number) => {
-    setSequences(prev => prev.map(s =>
-      s.id === sequenceId ? { ...s, delayDays: days } : s
-    ));
-    analyzeEngagement(sends, savedLeads);
+    const safeDays = Math.max(1, days);
+    const updated = sequences.map(s =>
+      s.id === sequenceId ? { ...s, delayDays: safeDays } : s
+    );
+    syncEngagementState(sends, savedLeads, updated);
   };
 
   const handleModeChange = (mode: 'automatic' | 'manual') => {
@@ -358,6 +440,18 @@ export default function AutoFollowUpBuilder({ campaignContext }: AutoFollowUpBui
   };
 
   const totalEligible = sequences.reduce((sum, s) => sum + (s.enabled ? s.leadsEligible : 0), 0);
+
+  useEffect(() => {
+    if (automationMode !== 'automatic' || isLoading || isProcessing) return;
+    const nextSequence = sequences.find(sequence => sequence.enabled && sequence.leadsEligible > 0);
+    if (!nextSequence) return;
+
+    const delay = window.setTimeout(() => {
+      handleRunSequence(nextSequence.id, true);
+    }, 400);
+
+    return () => window.clearTimeout(delay);
+  }, [automationMode, handleRunSequence, isLoading, isProcessing, sequences]);
 
   if (isLoading) {
     return (
