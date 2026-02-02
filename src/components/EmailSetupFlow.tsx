@@ -41,6 +41,7 @@ import AIEmailAssistant from './AIEmailAssistant';
 import EmailConfigurationPanel from './EmailConfigurationPanel';
 import LeadIntelligenceReviewPanel from './LeadIntelligenceReviewPanel';
 import PersonalizedLeadPreview from './PersonalizedLeadPreview';
+import AIStrategyReviewPanel from './AIStrategyReviewPanel';
 import { LeadForEmail, sendBulkEmails } from '@/lib/api/email';
 import { isSMTPConfigured, personalizeContent, sendTestEmail } from '@/lib/emailService';
 import { addLeadsToCRM, queueLeadsForEmail } from '@/lib/customTemplates';
@@ -578,7 +579,40 @@ export default function EmailSetupFlow({
               />
             </div>
 
-            {/* Lead Intelligence Review Panel - Shows Step 1 findings + Template & Strategy Selection */}
+            {/* AI STRATEGIES - SEPARATE SECTION */}
+            <div className="space-y-4 mt-8" data-strategy-section>
+              <AIStrategyReviewPanel
+                searchType={searchType || null}
+                leads={leads}
+                selectedTemplate={selectedTemplate}
+                onSendToComposer={(strategy) => {
+                  // Apply strategy to template
+                  setCustomizedContent({
+                    subject: strategy.personalizedOpener.slice(0, 80),
+                    body: `${strategy.personalizedOpener}\n\n${strategy.keyTalkingPoints.map(p => `• ${p}`).join('\n')}\n\nBest regards,\n{{sender_name}}`,
+                  });
+                  localStorage.setItem('bamlead_template_customizations', JSON.stringify({
+                    subject: strategy.personalizedOpener.slice(0, 80),
+                    body: `${strategy.personalizedOpener}\n\n${strategy.keyTalkingPoints.map(p => `• ${p}`).join('\n')}\n\nBest regards,\n{{sender_name}}`,
+                  }));
+                  setAppliedStrategy({
+                    id: strategy.id,
+                    name: strategy.name,
+                    subjectTemplate: strategy.personalizedOpener.slice(0, 80),
+                    openerTemplate: strategy.personalizedOpener,
+                    ctaTemplate: strategy.keyTalkingPoints.join('. '),
+                  });
+                  // Save follow-up sequence
+                  const updatedDrip = { ...dripSettings, followUpDays: [1, 3, 7, 14] };
+                  saveDripSettings(updatedDrip);
+                  setDripSettings(updatedDrip);
+                  // Open the mailbox dock
+                  setMailboxOpen(true);
+                }}
+              />
+            </div>
+
+            {/* Lead Intelligence Review Panel - Shows Step 1 findings */}
             {showIntelligencePanel && (
               <LeadIntelligenceReviewPanel
                 leads={leads}
