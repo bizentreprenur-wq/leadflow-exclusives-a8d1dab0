@@ -15,9 +15,16 @@ import {
 interface FreeTrialBannerProps {
   variant?: "full" | "compact" | "floating";
   onDismiss?: () => void;
+  ctaTo?: string;
+  ctaLabel?: string;
 }
 
-export default function FreeTrialBanner({ variant = "full", onDismiss }: FreeTrialBannerProps) {
+export default function FreeTrialBanner({
+  variant = "full",
+  onDismiss,
+  ctaTo = "/auth",
+  ctaLabel,
+}: FreeTrialBannerProps) {
   const [dismissed, setDismissed] = useState(false);
 
   if (dismissed) return null;
@@ -48,12 +55,12 @@ export default function FreeTrialBanner({ variant = "full", onDismiss }: FreeTri
             </div>
           </div>
           
-          <Link to="/auth">
+          <Link to={ctaTo}>
             <Button 
               variant="secondary" 
               className="w-full gap-2 bg-white text-primary hover:bg-white/90"
             >
-              Start Free Trial
+              {ctaLabel || "Start Free Trial"}
               <ArrowRight className="w-4 h-4" />
             </Button>
           </Link>
@@ -75,9 +82,9 @@ export default function FreeTrialBanner({ variant = "full", onDismiss }: FreeTri
               <p className="text-sm text-muted-foreground">Try all features free</p>
             </div>
           </div>
-          <Link to="/auth">
+          <Link to={ctaTo}>
             <Button size="sm" className="gap-2">
-              Start Trial
+              {ctaLabel || "Start Trial"}
               <ArrowRight className="w-4 h-4" />
             </Button>
           </Link>
@@ -126,14 +133,14 @@ export default function FreeTrialBanner({ variant = "full", onDismiss }: FreeTri
               ))}
             </div>
 
-            <Link to="/auth">
+            <Link to={ctaTo}>
               <Button 
                 size="lg" 
                 variant="secondary"
                 className="gap-2 bg-white text-primary hover:bg-white/90"
               >
                 <Zap className="w-5 h-5" />
-                Start Your Free Trial
+                {ctaLabel || "Start Your Free Trial"}
                 <ArrowRight className="w-5 h-5" />
               </Button>
             </Link>

@@ -2921,9 +2921,18 @@ export default function Dashboard() {
             ) : null}
 
             {/* Free Trial Banner */}
-            <section className="mt-8">
-              <FreeTrialBanner variant="compact" />
-            </section>
+            {!user?.is_owner &&
+              !user?.has_active_subscription &&
+              user?.subscription_plan !== 'free_granted' &&
+              user?.subscription_status !== 'active' && (
+                <section className="mt-8">
+                  <FreeTrialBanner
+                    variant="compact"
+                    ctaTo="/pricing"
+                    ctaLabel="View Plans"
+                  />
+                </section>
+              )}
           </main>
 
           {/* Footer */}
