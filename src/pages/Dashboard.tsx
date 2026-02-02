@@ -116,7 +116,7 @@ interface SearchResult {
 const WORKFLOW_STEPS = [
   { id: 1, title: 'STEP 1: Search', description: 'Find businesses', icon: Search, emoji: '🔍' },
   { id: 2, title: 'STEP 2: Leads', description: 'View & decide action', icon: Users, emoji: '📋' },
-  { id: 3, title: 'STEP 3: Email', description: 'SMTP → Template → Send', icon: Send, emoji: '📧' },
+  { id: 3, title: 'STEP 3: Drip Sequence', description: 'Email Setup & Launch', icon: Send, emoji: '📧' },
   { id: 4, title: 'STEP 4: Call', description: 'AI voice calls', icon: Phone, emoji: '📞' },
 ];
 

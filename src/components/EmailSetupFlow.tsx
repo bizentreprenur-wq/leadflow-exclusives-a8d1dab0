@@ -1346,7 +1346,7 @@ export default function EmailSetupFlow({
       {/* Header */}
       <div className="text-center py-6 bg-gradient-card rounded-2xl border-2 border-primary/20 shadow-card">
         <div className="text-5xl mb-4">📧</div>
-        <h1 className="text-2xl md:text-3xl font-bold mb-2">STEP 3: Email Outreach</h1>
+        <h1 className="text-2xl md:text-3xl font-bold mb-2">STEP 3: Drip Sequence Email Setup</h1>
         <p className="text-muted-foreground">
           {leads.length} leads ready • {leadsWithEmail.length} with email addresses
         </p>
@@ -1404,7 +1404,7 @@ export default function EmailSetupFlow({
               className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground px-8 py-3 text-lg font-bold shadow-elevated"
               size="lg"
             >
-              Continue to Send Emails
+              Continue To Drip Sequence Email
               <ArrowRight className="w-5 h-5" />
             </Button>
           ) : (
