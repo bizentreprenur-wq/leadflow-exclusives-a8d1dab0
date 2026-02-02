@@ -211,6 +211,7 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
     localStorage.setItem('smtp_config', JSON.stringify(smtpConfig));
     localStorage.removeItem('smtp_verified');
     setIsConnected(false);
+    window.dispatchEvent(new Event('bamlead-smtp-config-updated'));
     toast.success('SMTP configuration saved!');
   };
 

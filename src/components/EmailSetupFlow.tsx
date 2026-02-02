@@ -75,6 +75,8 @@ interface EmailSetupFlowProps {
   searchType?: 'gmb' | 'platform' | null;
 }
 
+type SmartDripTab = 'mailbox' | 'intelligence' | 'preview' | 'crm' | 'ab-testing' | 'settings' | 'inbox';
+
 export default function EmailSetupFlow({
   leads,
   onBack,
@@ -169,20 +171,41 @@ export default function EmailSetupFlow({
   const smartDripRef = useRef<HTMLDivElement>(null);
   
   // Unified mailbox tab tracking - default to mailbox view
-  const [activeTab, setActiveTab] = useState('mailbox');
-  const [visitedTabs, setVisitedTabs] = useState<string[]>(['mailbox']);
+  const [activeTab, setActiveTab] = useState<SmartDripTab>('mailbox');
+  const [visitedTabs, setVisitedTabs] = useState<SmartDripTab[]>(['mailbox']);
+  const [mailboxUnreadCount, setMailboxUnreadCount] = useState(1);
   
-  const handleTabChange = (tab: string) => {
-    // If clicking "Inbox" tab, open the mailbox dock instead
-    if (tab === 'inbox') {
-      setMailboxOpen(true);
-      return;
-    }
+  const markTabVisited = useCallback((tab: SmartDripTab) => {
+    setVisitedTabs(prev => (prev.includes(tab) ? prev : [...prev, tab]));
+  }, []);
+
+  const handleTabChange = (tab: SmartDripTab) => {
     setActiveTab(tab);
-    if (!visitedTabs.includes(tab)) {
-      setVisitedTabs(prev => [...prev, tab]);
+    markTabVisited(tab);
+    if (tab === 'inbox') {
+      refreshInboxUnreadCount();
+      setMailboxOpen(true);
     }
   };
+
+  const refreshInboxUnreadCount = useCallback(() => {
+    try {
+      const stored = localStorage.getItem('bamlead_inbox_replies');
+      if (!stored) {
+        setMailboxUnreadCount(1);
+        return;
+      }
+      const parsed = JSON.parse(stored);
+      if (!Array.isArray(parsed)) {
+        setMailboxUnreadCount(1);
+        return;
+      }
+      const unread = parsed.filter((reply: { isRead?: boolean }) => !reply.isRead).length;
+      setMailboxUnreadCount(unread);
+    } catch {
+      setMailboxUnreadCount(1);
+    }
+  }, []);
 
   // Logo upload handler
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -257,6 +280,14 @@ export default function EmailSetupFlow({
     );
     return Boolean(config.username && config.password);
   });
+
+  const refreshSMTPConfigured = useCallback(() => {
+    const config = safeJsonParse<{ username?: string; password?: string }>(
+      localStorage.getItem('smtp_config'),
+      {}
+    );
+    setSmtpConfigured(Boolean(config.username && config.password));
+  }, []);
 
   useEffect(() => {
     const requestedPhase = localStorage.getItem('bamlead_email_setup_phase');
@@ -414,17 +445,27 @@ export default function EmailSetupFlow({
   ];
 
   useEffect(() => {
-    const checkSMTP = () => {
-      const config = safeJsonParse<{ username?: string; password?: string }>(
-        localStorage.getItem('smtp_config'),
-        {}
-      );
-      setSmtpConfigured(Boolean(config.username && config.password));
+    refreshSMTPConfigured();
+    refreshInboxUnreadCount();
+    window.addEventListener('focus', refreshSMTPConfigured);
+    window.addEventListener('focus', refreshInboxUnreadCount);
+    window.addEventListener('storage', refreshSMTPConfigured);
+    window.addEventListener('storage', refreshInboxUnreadCount);
+    window.addEventListener('bamlead-smtp-config-updated', refreshSMTPConfigured);
+    return () => {
+      window.removeEventListener('focus', refreshSMTPConfigured);
+      window.removeEventListener('focus', refreshInboxUnreadCount);
+      window.removeEventListener('storage', refreshSMTPConfigured);
+      window.removeEventListener('storage', refreshInboxUnreadCount);
+      window.removeEventListener('bamlead-smtp-config-updated', refreshSMTPConfigured);
     };
-    checkSMTP();
-    window.addEventListener('focus', checkSMTP);
-    return () => window.removeEventListener('focus', checkSMTP);
-  }, []);
+  }, [refreshSMTPConfigured, refreshInboxUnreadCount]);
+
+  useEffect(() => {
+    if (activeTab !== 'settings') {
+      refreshSMTPConfigured();
+    }
+  }, [activeTab, refreshSMTPConfigured]);
 
   const handleTemplateSelect = (template: any) => {
     setSelectedTemplate(template);
@@ -849,31 +890,38 @@ export default function EmailSetupFlow({
                       { tab: 'crm', icon: Database, label: 'CRM', color: 'violet', tooltip: 'Connect HubSpot, Salesforce, or use BamLead CRM to manage leads' },
                       { tab: 'ab-testing', icon: FlaskConical, label: 'A/B', color: 'pink', tooltip: 'Create email variants & test which performs best' },
                       { tab: 'settings', icon: Settings, label: 'SMTP', color: 'slate', tooltip: 'Configure your email server (Gmail, Outlook, custom SMTP)' },
-                      { tab: 'inbox', icon: Mail, label: 'Inbox', color: 'slate', tooltip: 'View inbox messages (coming soon)' },
-                    ].map((item) => (
-                      <Tooltip key={item.tab}>
-                        <TooltipTrigger asChild>
-                          <button
-                            onClick={() => handleTabChange(item.tab)}
-                            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-all
-                              ${activeTab === item.tab
-                                ? (item.tab === 'mailbox'
-                                  ? 'border-primary bg-primary/20 text-white shadow-lg shadow-primary/20'
-                                  : 'border-primary bg-primary/20 text-foreground shadow-lg shadow-primary/20')
-                                : (item.tab === 'mailbox'
-                                  ? 'border-transparent bg-muted/20 text-white/80 hover:bg-muted/40 hover:text-white'
-                                  : 'border-transparent bg-muted/20 text-muted-foreground hover:bg-muted/40 hover:text-foreground')
-                              }`}
-                          >
-                            <item.icon className={`w-4 h-4 ${item.tab === 'mailbox' ? 'text-white' : ''}`} />
-                            <span className={item.tab === 'mailbox' ? 'text-white' : ''}>{item.label}</span>
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent side="bottom" className="max-w-[200px] text-center">
-                          <p>{item.tooltip}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    ))}
+                      { tab: 'inbox', icon: Mail, label: 'Inbox', color: 'slate', tooltip: 'Open your live inbox in the mailbox dock' },
+                    ].map((item) => {
+                      const typedTab = item.tab as SmartDripTab;
+                      const isVisited = visitedTabs.includes(typedTab);
+                      return (
+                        <Tooltip key={item.tab}>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={() => handleTabChange(typedTab)}
+                              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-all
+                                ${activeTab === item.tab
+                                  ? (item.tab === 'mailbox'
+                                    ? 'border-primary bg-primary/20 text-white shadow-lg shadow-primary/20'
+                                    : 'border-primary bg-primary/20 text-foreground shadow-lg shadow-primary/20')
+                                  : (item.tab === 'mailbox'
+                                    ? 'border-transparent bg-muted/20 text-white/80 hover:bg-muted/40 hover:text-white'
+                                    : 'border-transparent bg-muted/20 text-muted-foreground hover:bg-muted/40 hover:text-foreground')
+                                }`}
+                            >
+                              <item.icon className={`w-4 h-4 ${item.tab === 'mailbox' ? 'text-white' : ''}`} />
+                              <span className={item.tab === 'mailbox' ? 'text-white' : ''}>{item.label}</span>
+                              {isVisited && activeTab !== typedTab && (
+                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                              )}
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="bottom" className="max-w-[200px] text-center">
+                            <p>{item.tooltip}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })}
                   </TooltipProvider>
                 </div>
                 
@@ -1278,8 +1326,39 @@ export default function EmailSetupFlow({
                       </div>
                     )}
 
-                    {/* INBOX VIEW - Now opens the Mailbox Dock instead */}
-                    {/* The inbox tab now triggers setMailboxOpen(true) in handleTabChange */}
+                    {/* INBOX VIEW */}
+                    {activeTab === 'inbox' && (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Mail className="w-5 h-5 text-cyan-400" />
+                          <h3 className="font-bold text-lg">Inbox</h3>
+                          <Badge variant="outline" className="ml-2 text-xs">
+                            {mailboxUnreadCount} unread
+                          </Badge>
+                        </div>
+                        <Card className="border border-primary/30 bg-primary/5">
+                          <CardContent className="p-6 space-y-3">
+                            <p className="text-sm text-muted-foreground">
+                              Your inbox runs in the mailbox dock so you can keep monitoring sends and replies.
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <Button onClick={() => setMailboxOpen(true)} className="gap-2">
+                                <Mail className="w-4 h-4" />
+                                {mailboxOpen ? 'Open Inbox Focus' : 'Open Inbox'}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                onClick={() => handleTabChange('mailbox')}
+                                className="gap-2"
+                              >
+                                <ArrowLeft className="w-4 h-4" />
+                                Back to Mailbox
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    )}
                   </motion.div>
                 </AnimatePresence>
               </CardContent>
@@ -1310,10 +1389,16 @@ export default function EmailSetupFlow({
       {/* Floating mailbox on the right (visible throughout Step 3) */}
       <MailboxDock 
         enabled={true} 
-        badgeCount={1}
+        badgeCount={mailboxUnreadCount}
         isOpen={mailboxOpen}
-        onOpen={() => setMailboxOpen(true)}
-        onClose={() => setMailboxOpen(false)}
+        onOpen={() => {
+          refreshInboxUnreadCount();
+          setMailboxOpen(true);
+        }}
+        onClose={() => {
+          setMailboxOpen(false);
+          refreshInboxUnreadCount();
+        }}
         campaignContext={
           (demoIsActive || realSendingMode) ? {
             isActive: true,
