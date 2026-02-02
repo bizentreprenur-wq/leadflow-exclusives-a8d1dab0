@@ -463,7 +463,8 @@ export default function HighConvertingTemplateGallery({
     tempDiv.innerHTML = template.body_html;
     setEditedBody(tempDiv.textContent || tempDiv.innerText || '');
     setNewTemplateName(`My ${template.name}`);
-    setSelectedFolderId(('isCustom' in template && template.folderId) ? template.folderId : 'none');
+    const folderId = 'isCustom' in template ? (template as CustomTemplate).folderId : undefined;
+    setSelectedFolderId(folderId ? folderId : 'none');
     setIsEditing(true);
   };
 
@@ -559,7 +560,8 @@ export default function HighConvertingTemplateGallery({
     tempDiv.innerHTML = template.body_html;
     setEditedBody(tempDiv.textContent || tempDiv.innerText || '');
     setNewTemplateName(`My ${template.name}`);
-    setSelectedFolderId(('isCustom' in template && template.folderId) ? template.folderId : 'none');
+    const folderId = 'isCustom' in template ? (template as CustomTemplate).folderId : undefined;
+    setSelectedFolderId(folderId ? folderId : 'none');
     setIsEditing(false);
   };
 
