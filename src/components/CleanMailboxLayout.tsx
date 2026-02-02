@@ -994,6 +994,89 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
           {mainTab === 'campaigns' && (
             <div className="h-full overflow-auto p-6">
               <div className="max-w-4xl mx-auto space-y-6">
+                {/* ==================== AI STRATEGY SECTION - THE BRAIN ==================== */}
+                <div className="rounded-2xl bg-slate-900 border border-slate-700 overflow-hidden">
+                  {/* Header */}
+                  <div className="p-6 text-center border-b border-slate-700">
+                    <div className="w-14 h-14 rounded-2xl bg-teal-500/20 border border-teal-500/30 flex items-center justify-center mx-auto mb-4">
+                      <Bot className="w-7 h-7 text-teal-400" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-white mb-2">Review Your AI Strategy</h2>
+                    <p className="text-slate-400 text-sm max-w-md mx-auto">
+                      Intelligent outreach paths tailored to your leads and selected template
+                    </p>
+                    <Badge className="mt-3 bg-teal-500/20 text-teal-400 border-teal-500/30 gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      Powered by AI
+                    </Badge>
+                  </div>
+                  
+                  {/* Strategy Content */}
+                  <div className="p-4">
+                    {selectedStrategy ? (
+                      <div className="p-4 rounded-xl bg-gradient-to-br from-teal-500/10 to-emerald-500/10 border border-teal-500/30">
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className="text-2xl">{selectedStrategy.icon}</div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold text-white">{selectedStrategy.name}</h4>
+                              <Badge className="bg-teal-500/20 text-teal-400 border-teal-500/30 text-[9px]">
+                                Active Strategy
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-slate-400">{selectedStrategy.description}</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 text-xs mt-3">
+                          <div className="p-2 rounded-lg bg-slate-800/50 border border-slate-700">
+                            <span className="text-slate-500">Expected Response</span>
+                            <p className="font-medium text-emerald-400">{selectedStrategy.expectedResponseRate}</p>
+                          </div>
+                          <div className="p-2 rounded-lg bg-slate-800/50 border border-slate-700">
+                            <span className="text-slate-500">Urgency Level</span>
+                            <p className="font-medium text-amber-400 capitalize">{selectedStrategy.urgencyLevel}</p>
+                          </div>
+                        </div>
+                        <div className="mt-3">
+                          <p className="text-[10px] font-medium text-slate-500 mb-1.5">AI Reasoning</p>
+                          <ul className="text-[10px] text-slate-400 space-y-0.5">
+                            {selectedStrategy.aiReasoning.slice(0, 3).map((reason, idx) => (
+                              <li key={idx} className="flex items-start gap-1.5">
+                                <CheckCircle2 className="w-3 h-3 text-teal-400 shrink-0 mt-0.5" />
+                                {reason}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowStrategyPanel(true)}
+                          className="w-full mt-4 border-teal-500/30 text-teal-400 hover:bg-teal-500/10 gap-2"
+                        >
+                          <Bot className="w-4 h-4" />
+                          Change Strategy
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="text-center py-6">
+                        <p className="text-slate-400 text-sm mb-4">No strategy selected yet. Choose a strategy to power your campaigns.</p>
+                        <AIStrategySelector
+                          mode="basic"
+                          searchType={searchType || 'gmb'}
+                          leads={campaignLeads}
+                          selectedStrategy={selectedStrategy}
+                          onSelectStrategy={(strategy) => {
+                            setSelectedStrategy(strategy);
+                            toast.success(`Strategy selected: ${strategy.name}`);
+                          }}
+                          compact
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
                 {/* Header with Create Campaign Button */}
                 <div className="flex items-center justify-between">
                   <div>

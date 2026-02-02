@@ -199,8 +199,22 @@ export default function EmbeddedSpreadsheetView({
     return `${sample}:${leads.length}`;
   }, [leads]);
   
-  // Check if this specific search has been visited before
-  const lastVisitedSearchKey = localStorage.getItem('bamlead_last_visited_search') || '';
+  // Get user-specific storage key for report tracking
+  const getUserStorageKey = () => {
+    try {
+      const userData = localStorage.getItem('bamlead_user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        if (user?.id) return `bamlead_last_visited_search_${user.id}`;
+      }
+    } catch {}
+    return 'bamlead_last_visited_search';
+  };
+  
+  const userStorageKey = getUserStorageKey();
+  
+  // Check if this specific search has been visited before (user-specific)
+  const lastVisitedSearchKey = localStorage.getItem(userStorageKey) || '';
   const isNewSearch = currentSearchKey !== '' && currentSearchKey !== lastVisitedSearchKey;
   
   // State for auto-open PDF - Only auto-open for NEW searches
@@ -725,18 +739,18 @@ export default function EmbeddedSpreadsheetView({
     setShowPDFPreview(true);
   };
 
-  // Show PDF ready banner when component mounts - only for NEW searches
+  // Show PDF ready banner when component mounts - only for NEW searches (user-specific)
   useEffect(() => {
     if (isNewSearch && !hasAutoOpenedPDF && leads.length > 0) {
       const timer = setTimeout(() => {
         setShowPDFReadyBanner(true);
         setHasAutoOpenedPDF(true);
         // Mark this specific search as visited so returning to same search skips the popup
-        localStorage.setItem('bamlead_last_visited_search', currentSearchKey);
+        localStorage.setItem(userStorageKey, currentSearchKey);
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [leads, hasAutoOpenedPDF, isNewSearch, currentSearchKey]);
+  }, [leads, hasAutoOpenedPDF, isNewSearch, currentSearchKey, userStorageKey]);
 
   const handleOpenPDFFromBanner = () => {
     setShowPDFReadyBanner(false);
