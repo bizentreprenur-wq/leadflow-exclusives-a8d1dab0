@@ -2540,6 +2540,63 @@ export default function Dashboard() {
           iconBg: 'bg-success/10',
           component: <AffiliateProgram />,
         };
+      case 'search-guide':
+        return {
+          title: 'Search Options Guide',
+          description: 'Choose the best lead discovery method for your workflow',
+          icon: HelpCircle,
+          iconColor: 'text-cyan-500',
+          iconBg: 'bg-cyan-500/10',
+          component: (
+            <div className="max-w-4xl mx-auto space-y-6">
+              <Card className="border-border bg-card">
+                <CardHeader>
+                  <CardTitle>Which search mode should you use?</CardTitle>
+                  <CardDescription>
+                    Pick based on your goal. You can switch any time.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid md:grid-cols-2 gap-4">
+                  <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+                    <h3 className="font-semibold">Super AI Business Search</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Best for broad discovery with AI scoring, website insights, and prioritized outreach.
+                    </p>
+                    <Button
+                      className="gap-2"
+                      onClick={() => {
+                        setActiveTab('workflow');
+                        setCurrentStep(1);
+                        setSearchType('gmb');
+                      }}
+                    >
+                      Use Super AI Search
+                      <ArrowRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  <div className="rounded-xl border border-violet-500/30 bg-violet-500/5 p-4 space-y-3">
+                    <h3 className="font-semibold">Agency Lead Finder</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Best for agencies targeting leads with website/marketing gaps and service opportunities.
+                    </p>
+                    <Button
+                      variant="outline"
+                      className="gap-2 border-violet-500/40 hover:bg-violet-500/10"
+                      onClick={() => {
+                        setActiveTab('workflow');
+                        setCurrentStep(1);
+                        setSearchType('platform');
+                      }}
+                    >
+                      Use Agency Finder
+                      <ArrowRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ),
+        };
       case 'ai-journey':
         return {
           title: 'AI Features Guide',
@@ -2918,7 +2975,27 @@ export default function Dashboard() {
                   {activeTool.component}
                 </CardContent>
               </Card>
-            ) : null}
+            ) : (
+              <Card className="border-border bg-card shadow-card">
+                <CardContent className="p-8 text-center space-y-3">
+                  <AlertTriangle className="w-8 h-8 mx-auto text-amber-500" />
+                  <h3 className="text-lg font-semibold">This section is not available yet</h3>
+                  <p className="text-sm text-muted-foreground">
+                    The selected page is not mapped correctly. Please open Workflow while we load the correct tool.
+                  </p>
+                  <Button
+                    className="gap-2"
+                    onClick={() => {
+                      setActiveTab('workflow');
+                      setCurrentStep(1);
+                    }}
+                  >
+                    Go to Workflow
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Free Trial Banner */}
             {!user?.is_owner &&
