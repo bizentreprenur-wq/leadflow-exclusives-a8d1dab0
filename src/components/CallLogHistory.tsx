@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -81,21 +81,20 @@ export default function CallLogHistory() {
   const [logs, setLogs] = useState<CallLog[]>([]);
   const [stats, setStats] = useState<CallStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [outcomeFilter, setOutcomeFilter] = useState<CallOutcome | 'all'>('all');
   const [selectedLog, setSelectedLog] = useState<CallLog | null>(null);
   const [editingNotes, setEditingNotes] = useState('');
+  const [analyticsRefreshSignal, setAnalyticsRefreshSignal] = useState(0);
   
   const pageSize = 10;
 
-  useEffect(() => {
-    loadLogs();
-    loadStats();
-  }, [page, outcomeFilter]);
-
-  const loadLogs = async () => {
+  const loadLogs = useCallback(async () => {
     setLoading(true);
+    setError(null);
     const result = await listCallLogs({
       limit: pageSize,
       offset: page * pageSize,
@@ -105,25 +104,55 @@ export default function CallLogHistory() {
     if (result.success && result.logs) {
       setLogs(result.logs);
       setTotal(result.total || 0);
+      setError(null);
+    } else {
+      setLogs([]);
+      setTotal(0);
+      setError(result.error || 'Failed to load call logs');
     }
     setLoading(false);
-  };
+  }, [outcomeFilter, page]);
 
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
+    setStatsLoading(true);
     const result = await getCallStats();
     if (result.success && result.stats) {
       setStats(result.stats);
+    } else {
+      // Keep UI usable when stats endpoint fails.
+      setStats({
+        total_calls: 0,
+        total_duration_seconds: 0,
+        average_duration_seconds: 0,
+        calls_this_week: 0,
+        interested_rate: 0,
+        outcomes: {
+          completed: 0,
+          no_answer: 0,
+          callback_requested: 0,
+          interested: 0,
+          not_interested: 0,
+          wrong_number: 0,
+          other: 0,
+        },
+      });
     }
-  };
+    setStatsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    loadLogs();
+    loadStats();
+  }, [loadLogs, loadStats]);
 
   const handleUpdateOutcome = async (id: number, outcome: CallOutcome) => {
     const result = await updateCallLog(id, { outcome });
     if (result.success) {
       toast.success('Outcome updated');
-      loadLogs();
-      loadStats();
+      await Promise.all([loadLogs(), loadStats()]);
+      setAnalyticsRefreshSignal(prev => prev + 1);
     } else {
-      toast.error('Failed to update outcome');
+      toast.error(result.error || 'Failed to update outcome');
     }
   };
 
@@ -134,9 +163,10 @@ export default function CallLogHistory() {
     if (result.success) {
       toast.success('Notes saved');
       setSelectedLog(null);
-      loadLogs();
+      await loadLogs();
+      setAnalyticsRefreshSignal(prev => prev + 1);
     } else {
-      toast.error('Failed to save notes');
+      toast.error(result.error || 'Failed to save notes');
     }
   };
 
@@ -146,10 +176,16 @@ export default function CallLogHistory() {
     const result = await deleteCallLog(id);
     if (result.success) {
       toast.success('Call log deleted');
-      loadLogs();
-      loadStats();
+      const shouldGoBackPage = logs.length === 1 && page > 0;
+      if (shouldGoBackPage) {
+        setPage(prev => Math.max(0, prev - 1));
+      } else {
+        await loadLogs();
+      }
+      await loadStats();
+      setAnalyticsRefreshSignal(prev => prev + 1);
     } else {
-      toast.error('Failed to delete');
+      toast.error(result.error || 'Failed to delete');
     }
   };
 
@@ -189,13 +225,13 @@ export default function CallLogHistory() {
   };
 
   const exportToCSV = async () => {
-    toast.loading('Preparing CSV export...');
+    const toastId = toast.loading('Preparing CSV export...');
     
     try {
       const allLogs = await fetchAllLogsForExport();
       
       if (allLogs.length === 0) {
-        toast.dismiss();
+        toast.dismiss(toastId);
         toast.error('No call logs to export');
         return;
       }
@@ -219,7 +255,7 @@ export default function CallLogHistory() {
         wch: Math.max(
           key.length,
           ...exportData.map(row => String(row[key as keyof typeof row] || '').length)
-        ).toString().length + 2
+        ) + 2
       }));
       ws['!cols'] = colWidths;
 
@@ -229,23 +265,23 @@ export default function CallLogHistory() {
       const fileName = `call-logs-${new Date().toISOString().split('T')[0]}.csv`;
       XLSX.writeFile(wb, fileName, { bookType: 'csv' });
       
-      toast.dismiss();
+      toast.dismiss(toastId);
       toast.success(`Exported ${allLogs.length} call logs to CSV`);
     } catch (error) {
-      toast.dismiss();
+      toast.dismiss(toastId);
       toast.error('Failed to export CSV');
       console.error('CSV export error:', error);
     }
   };
 
   const exportToPDF = async () => {
-    toast.loading('Generating PDF report...');
+    const toastId = toast.loading('Generating PDF report...');
     
     try {
       const allLogs = await fetchAllLogsForExport();
       
       if (allLogs.length === 0) {
-        toast.dismiss();
+        toast.dismiss(toastId);
         toast.error('No call logs to export');
         return;
       }
@@ -309,10 +345,10 @@ export default function CallLogHistory() {
       const fileName = `call-logs-report-${new Date().toISOString().split('T')[0]}.pdf`;
       doc.save(fileName);
       
-      toast.dismiss();
+      toast.dismiss(toastId);
       toast.success(`PDF report generated with ${allLogs.length} call logs`);
     } catch (error) {
-      toast.dismiss();
+      toast.dismiss(toastId);
       toast.error('Failed to generate PDF');
       console.error('PDF export error:', error);
     }
@@ -337,12 +373,12 @@ export default function CallLogHistory() {
         </TabsList>
 
         <TabsContent value="analytics" className="mt-6">
-          <CallAnalyticsDashboard />
+          <CallAnalyticsDashboard refreshSignal={analyticsRefreshSignal} />
         </TabsContent>
 
         <TabsContent value="history" className="mt-6 space-y-6">
           {/* Stats Cards */}
-          {stats && (
+          {stats && !statsLoading && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card>
                 <CardContent className="pt-4">
@@ -453,6 +489,15 @@ export default function CallLogHistory() {
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : error ? (
+            <div className="text-center py-8 text-muted-foreground space-y-3">
+              <Phone className="w-12 h-12 mx-auto opacity-50" />
+              <p>{error}</p>
+              <Button variant="outline" size="sm" onClick={loadLogs} className="gap-2">
+                <Loader2 className="w-4 h-4" />
+                Retry
+              </Button>
             </div>
           ) : logs.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">

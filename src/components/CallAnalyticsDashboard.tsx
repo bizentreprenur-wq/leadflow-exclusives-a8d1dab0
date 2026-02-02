@@ -57,7 +57,11 @@ const OUTCOME_CONFIG: Record<CallOutcome, { label: string; color: string; icon: 
   other: { label: 'Other', color: '#8b5cf6', icon: Phone },
 };
 
-export default function CallAnalyticsDashboard() {
+interface CallAnalyticsDashboardProps {
+  refreshSignal?: number;
+}
+
+export default function CallAnalyticsDashboard({ refreshSignal = 0 }: CallAnalyticsDashboardProps) {
   const [stats, setStats] = useState<CallStats | null>(null);
   const [recentLogs, setRecentLogs] = useState<CallLog[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +69,7 @@ export default function CallAnalyticsDashboard() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [refreshSignal]);
 
   const loadData = async () => {
     setLoading(true);
