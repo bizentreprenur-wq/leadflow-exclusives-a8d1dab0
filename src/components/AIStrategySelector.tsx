@@ -217,6 +217,120 @@ export default function AIStrategySelector({
   }
 
   // For Basic mode or after approval in Co-Pilot, show full selection grid
+  // In compact mode for basic email, use a collapsible dark-themed section
+  if (compact && mode === 'basic') {
+    return (
+      <div className="rounded-xl bg-slate-900 border border-slate-700 overflow-hidden">
+        {/* Header */}
+        <button
+          onClick={() => setShowAllStrategies(!showAllStrategies)}
+          className="w-full p-3 flex items-center justify-between hover:bg-slate-800/50 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Brain className="w-4 h-4 text-teal-400" />
+            <span className="text-sm font-medium text-white">Choose Your Strategy</span>
+            <Badge className="text-[9px] bg-teal-500/20 text-teal-400 border-teal-500/30">
+              {strategies.length} options
+            </Badge>
+          </div>
+          {showAllStrategies ? (
+            <ChevronUp className="w-4 h-4 text-slate-400" />
+          ) : (
+            <ChevronDown className="w-4 h-4 text-slate-400" />
+          )}
+        </button>
+
+        {/* Collapsible Strategy Cards */}
+        {showAllStrategies && (
+          <div className="p-3 pt-0 space-y-2">
+            {strategies.map((strategy) => (
+              <div
+                key={strategy.id}
+                onClick={() => onSelectStrategy(strategy)}
+                className={cn(
+                  "rounded-lg border transition-all cursor-pointer overflow-hidden",
+                  selectedStrategy?.id === strategy.id
+                    ? "border-teal-500 bg-teal-500/10"
+                    : "border-slate-700 bg-slate-800/50 hover:border-teal-500/50"
+                )}
+              >
+                <div className="p-3 flex items-center gap-3">
+                  <div className="text-lg">{strategy.icon}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white">{strategy.name}</p>
+                    <p className="text-[10px] text-slate-400 truncate">{strategy.description}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge className={cn("text-[9px]", urgencyColors[strategy.urgencyLevel])}>
+                      {strategy.urgencyLevel}
+                    </Badge>
+                    <Badge variant="outline" className="text-[9px] text-slate-300 border-slate-600">
+                      {strategy.matchScore}%
+                    </Badge>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6 text-slate-400 hover:text-white"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setExpandedStrategy(expandedStrategy === strategy.id ? null : strategy.id);
+                      }}
+                    >
+                      {expandedStrategy === strategy.id ? (
+                        <ChevronUp className="w-3.5 h-3.5" />
+                      ) : (
+                        <ChevronDown className="w-3.5 h-3.5" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Expanded Details */}
+                {expandedStrategy === strategy.id && (
+                  <div className="px-3 pb-3 border-t border-slate-700 mt-1 pt-3 space-y-2">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-[10px] font-medium text-slate-500 mb-1">Expected Response</p>
+                        <p className="text-sm font-medium text-emerald-400">{strategy.expectedResponseRate}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-medium text-slate-500 mb-1">Best For</p>
+                        <div className="flex flex-wrap gap-1">
+                          {strategy.recommendedFor.slice(0, 2).map((item, idx) => (
+                            <Badge key={idx} variant="outline" className="text-[8px] text-slate-300 border-slate-600">{item}</Badge>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-medium text-slate-500 mb-1">AI Reasoning</p>
+                      <ul className="text-[10px] text-slate-400 space-y-0.5">
+                        {strategy.aiReasoning.slice(0, 2).map((reason, idx) => (
+                          <li key={idx} className="flex items-start gap-1.5">
+                            <CheckCircle2 className="w-3 h-3 text-teal-400 shrink-0 mt-0.5" />
+                            {reason}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => onSelectStrategy(strategy)}
+                      className="w-full bg-teal-500 hover:bg-teal-600 text-white gap-1 text-xs"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Use This Strategy
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
