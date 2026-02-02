@@ -41,7 +41,9 @@ import {
   MoveRight,
   Upload,
   Image as ImageIcon,
-  Bot
+  Bot,
+  Type,
+  Palette
 } from "lucide-react";
 import { HIGH_CONVERTING_TEMPLATES, TEMPLATE_CATEGORIES, EmailTemplate } from "@/lib/highConvertingTemplates";
 import { 
@@ -61,6 +63,7 @@ import { saveUserBranding } from "@/lib/api/branding";
 import { useAuth } from "@/contexts/AuthContext";
 import TemplateAIAssistant from "./TemplateAIAssistant";
 import AIEmailTemplateBuilder from "./AIEmailTemplateBuilder";
+import VisualTemplateEditor from "./VisualTemplateEditor";
 
 interface HighConvertingTemplateGalleryProps {
   onSelectTemplate?: (template: EmailTemplate) => void;
@@ -182,6 +185,10 @@ export default function HighConvertingTemplateGallery({
   const [editedBody, setEditedBody] = useState("");
   const [newTemplateName, setNewTemplateName] = useState("");
   const [selectedFolderId, setSelectedFolderId] = useState<string>("");
+  
+  // Visual template editor state
+  const [showVisualEditor, setShowVisualEditor] = useState(false);
+  const [visualEditorTemplate, setVisualEditorTemplate] = useState<EmailTemplate | null>(null);
 
   // Handle inline image upload - inserts at cursor position
   const handleInlineImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1270,14 +1277,28 @@ Best regards,
                     </p>
                   </div>
                   <div className="flex items-center gap-2 mr-8">
+                    {/* Quick Edit toggle for basic editing */}
                     <Button
                       size="sm"
                       onClick={() => setIsEditing(!isEditing)}
-                      className={`gap-2 ${isEditing ? "" : "bg-emerald-600 hover:bg-emerald-700 text-white"}`}
-                      variant={isEditing ? "outline" : undefined}
+                      variant="outline"
+                      className="gap-2"
                     >
-                      {isEditing ? <Eye className="w-4 h-4" /> : <Edit3 className="w-4 h-4" />}
-                      {isEditing ? "Preview" : "Edit & Customize"}
+                      {isEditing ? <Eye className="w-4 h-4" /> : <Type className="w-4 h-4" />}
+                      {isEditing ? "Preview" : "Quick Edit"}
+                    </Button>
+                    {/* Visual Editor for full customization */}
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setVisualEditorTemplate(previewTemplate);
+                        setShowVisualEditor(true);
+                        closePreview();
+                      }}
+                      className="gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white"
+                    >
+                      <Palette className="w-4 h-4" />
+                      Visual Editor
                     </Button>
                   </div>
                 </div>
@@ -1439,8 +1460,19 @@ Best regards,
                         Copy HTML
                       </Button>
                       <Button variant="outline" onClick={() => setIsEditing(true)} className="gap-2">
-                        <Edit3 className="w-4 h-4" />
-                        Edit Template
+                        <Type className="w-4 h-4" />
+                        Quick Edit
+                      </Button>
+                      <Button 
+                        onClick={() => {
+                          setVisualEditorTemplate(previewTemplate);
+                          setShowVisualEditor(true);
+                          closePreview();
+                        }} 
+                        className="gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+                      >
+                        <Palette className="w-4 h-4" />
+                        Visual Editor
                       </Button>
                       {onSelectTemplate && (
                         <Button
@@ -1517,6 +1549,28 @@ Best regards,
             </div>
           </div>
         </div>
+      )}
+
+      {/* Visual Template Editor Modal */}
+      {visualEditorTemplate && (
+        <VisualTemplateEditor
+          open={showVisualEditor}
+          onOpenChange={(open) => {
+            setShowVisualEditor(open);
+            if (!open) setVisualEditorTemplate(null);
+          }}
+          template={visualEditorTemplate}
+          onSave={(updated) => {
+            // Update highlighted template with edits
+            setHighlightedTemplate(updated);
+          }}
+          onSelect={(updated) => {
+            handleSelect(updated);
+            setHighlightedTemplate(updated);
+            setShowVisualEditor(false);
+            setVisualEditorTemplate(null);
+          }}
+        />
       )}
     </div>
   );
