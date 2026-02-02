@@ -186,14 +186,25 @@ export default function EmbeddedSpreadsheetView({
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [showEmailTransition, setShowEmailTransition] = useState(false);
 
-  // State for auto-open PDF - Check if returning user
-  const isReturningUser = localStorage.getItem('bamlead_step2_visited') === 'true';
-  const [hasAutoOpenedPDF, setHasAutoOpenedPDF] = useState(isReturningUser);
+  // Generate a unique search key from the current leads to track per-search visits
+  const currentSearchKey = useMemo(() => {
+    if (leads.length === 0) return '';
+    // Create a key from first 3 lead names + total count to identify this search
+    const sampleNames = leads.slice(0, 3).map(l => l.name).join('|');
+    return `${sampleNames}:${leads.length}`;
+  }, [leads]);
+  
+  // Check if this specific search has been visited before
+  const lastVisitedSearchKey = localStorage.getItem('bamlead_last_visited_search') || '';
+  const isNewSearch = currentSearchKey !== '' && currentSearchKey !== lastVisitedSearchKey;
+  
+  // State for auto-open PDF - Only auto-open for NEW searches
+  const [hasAutoOpenedPDF, setHasAutoOpenedPDF] = useState(!isNewSearch);
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
   const [showPDFReadyBanner, setShowPDFReadyBanner] = useState(false);
   
-  // Auto-open Lead Report Document popup - Only for first-time visitors AND if leads exist
-  const [showLeadReportDocument, setShowLeadReportDocument] = useState(!isReturningUser && leads.length > 0);
+  // Auto-open Lead Report Document popup - Only for NEW searches AND if leads exist
+  const [showLeadReportDocument, setShowLeadReportDocument] = useState(isNewSearch && leads.length > 0);
   
   // SMTP Status - Check localStorage for configuration
   const [smtpConfigured, setSmtpConfigured] = useState(() => {
@@ -709,18 +720,18 @@ export default function EmbeddedSpreadsheetView({
     setShowPDFPreview(true);
   };
 
-  // Show PDF ready banner when component mounts - only for first-time visitors
+  // Show PDF ready banner when component mounts - only for NEW searches
   useEffect(() => {
-    if (!isReturningUser && !hasAutoOpenedPDF && leads.length > 0) {
+    if (isNewSearch && !hasAutoOpenedPDF && leads.length > 0) {
       const timer = setTimeout(() => {
         setShowPDFReadyBanner(true);
         setHasAutoOpenedPDF(true);
-        // Mark as visited so returning users skip the popup
-        localStorage.setItem('bamlead_step2_visited', 'true');
+        // Mark this specific search as visited so returning to same search skips the popup
+        localStorage.setItem('bamlead_last_visited_search', currentSearchKey);
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [leads, hasAutoOpenedPDF, isReturningUser]);
+  }, [leads, hasAutoOpenedPDF, isNewSearch, currentSearchKey]);
 
   const handleOpenPDFFromBanner = () => {
     setShowPDFReadyBanner(false);

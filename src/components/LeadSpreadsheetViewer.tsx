@@ -128,23 +128,34 @@ export default function LeadSpreadsheetViewer({
   const [pdfDataUrl, setPdfDataUrl] = useState<string | null>(null);
   const pdfIframeRef = useRef<HTMLIFrameElement | null>(null);
   
-  // Loading states for report generation - Check if returning user
-  const isReturningUser = localStorage.getItem('bamlead_step2_visited') === 'true';
-  const [isGeneratingReport, setIsGeneratingReport] = useState(!isReturningUser && leads.length > 0);
+  // Generate a unique search key from the current leads to track per-search visits
+  const currentSearchKey = useMemo(() => {
+    if (leads.length === 0) return '';
+    // Create a key from first 3 lead names + total count to identify this search
+    const sampleNames = leads.slice(0, 3).map(l => l.name).join('|');
+    return `${sampleNames}:${leads.length}`;
+  }, [leads]);
+  
+  // Check if this specific search has been visited before
+  const lastVisitedSearchKey = localStorage.getItem('bamlead_last_visited_search') || '';
+  const isNewSearch = currentSearchKey !== '' && currentSearchKey !== lastVisitedSearchKey;
+  
+  // Loading states for report generation - Only auto-open for NEW searches
+  const [isGeneratingReport, setIsGeneratingReport] = useState(isNewSearch && leads.length > 0);
   const [showLeadReportDocument, setShowLeadReportDocument] = useState(false);
 
-  // Quick report generation - only show for FIRST visit, then mark as returning user
+  // Quick report generation - only show for NEW searches, then mark this search as visited
   useEffect(() => {
-    if (open && isGeneratingReport && !isReturningUser) {
+    if (open && isGeneratingReport && isNewSearch) {
       // Super fast - just 500ms
       const timer = setTimeout(() => {
         setIsGeneratingReport(false);
         setShowLeadReportDocument(true);
-        localStorage.setItem('bamlead_step2_visited', 'true');
+        localStorage.setItem('bamlead_last_visited_search', currentSearchKey);
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [open, isGeneratingReport, isReturningUser]);
+  }, [open, isGeneratingReport, isNewSearch, currentSearchKey]);
 
   // Big "PDF is ready" popup (show once when this viewer opens)
   useEffect(() => {
@@ -463,8 +474,8 @@ export default function LeadSpreadsheetViewer({
 
   return (
     <>
-    {/* Loading Popup - Shows while generating report (only for first visit) */}
-    {isGeneratingReport && !isReturningUser && (
+    {/* Loading Popup - Shows while generating report (only for new searches) */}
+    {isGeneratingReport && isNewSearch && (
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70">
         <div className="bg-card rounded-2xl p-8 shadow-2xl max-w-md mx-4 text-center animate-in zoom-in-95 duration-300">
           <div className="w-16 h-16 mx-auto mb-4 relative">
