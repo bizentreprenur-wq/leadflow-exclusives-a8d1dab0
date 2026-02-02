@@ -84,10 +84,10 @@ const WORKFLOW_STEPS: WorkflowStep[] = [
   },
   {
     id: 3,
-    title: "Step 3: Email",
-    subtitle: "Personalized Outreach",
+    title: "Step 3: Drip Sequence",
+    subtitle: "Email Setup & Launch",
     description:
-      "Configure your SMTP settings, choose from 60+ high-converting templates, and send personalized emails to your leads. AI auto-personalizes each message with the lead's business name and details.",
+      "Configure your SMTP settings, choose from 60+ high-converting templates, and set up automated drip sequences to nurture your leads. AI auto-personalizes each message with the lead's business name and details.",
     icon: Send,
     color: "text-purple-500",
     gradient: "from-purple-500 to-pink-500",
