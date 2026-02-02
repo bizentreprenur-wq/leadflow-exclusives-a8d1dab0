@@ -1149,11 +1149,26 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
 
                 {/* AI Sequence Recommendation Engine - Campaign Mode */}
                 <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold flex items-center gap-2">
-                      <Send className="w-4 h-4 text-emerald-400" />
-                      For Manual Campaigns
-                    </h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <Send className="w-4 h-4 text-emerald-400" />
+                    For Co-Pilot Campaigns
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        // Open AI Strategy panel
+                        toast.info('AI Strategy shows the AI reasoning for each lead', {
+                          description: 'Select a sequence to see how AI personalizes outreach'
+                        });
+                      }}
+                      className="gap-1.5 text-xs border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      AI Strategy
+                    </Button>
                     {selectedEmailSequence && (
                       <Button
                         size="sm"
@@ -1169,6 +1184,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                       </Button>
                     )}
                   </div>
+                </div>
                   <AISequenceRecommendationEngine
                     searchType={searchType}
                     mode="campaign"

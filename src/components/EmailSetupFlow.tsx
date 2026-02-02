@@ -1193,8 +1193,13 @@ export default function EmailSetupFlow({
                             <Button 
                               variant="outline" 
                               size="sm" 
-                              onClick={() => setShowTemplateEditor(true)}
-                              className="gap-2"
+                              onClick={() => {
+                                // Navigate to template phase and open the editor
+                                setCurrentPhase('template');
+                                setShowTemplateEditor(true);
+                                toast.info('Opening template editor...');
+                              }}
+                              className="gap-2 bg-foreground/10 text-foreground hover:bg-foreground/20 font-medium"
                             >
                               <FileText className="w-4 h-4" />
                               Edit Template

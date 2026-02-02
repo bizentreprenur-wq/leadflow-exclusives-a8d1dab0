@@ -852,29 +852,29 @@ export default function ComposeEmailModal({
             }}
           />
           <div className="grid grid-cols-3 gap-3">
-            {/* Mode 1: Regular Email */}
+            {/* Mode 1: Basic Single Email */}
             <button
               onClick={() => setComposeMode('regular')}
               className={cn(
                 "p-4 rounded-xl border-2 transition-all text-left",
                 composeMode === 'regular'
-                  ? "border-primary bg-primary/10"
-                  : "border-border hover:border-primary/50 bg-muted/30"
+                  ? "border-blue-500 bg-blue-500/10"
+                  : "border-border hover:border-blue-500/50 bg-muted/30"
               )}
             >
               <div className="flex items-center gap-2 mb-2">
-                <Mail className="w-5 h-5 text-primary" />
-                <span className="font-semibold text-foreground text-sm">Regular Email</span>
-                <Badge className="text-[8px] px-1.5 bg-emerald-500/20 text-emerald-500 border-emerald-500/30">
-                  FREE
+                <Mail className="w-5 h-5 text-blue-500" />
+                <span className="font-semibold text-foreground text-sm">Basic Email</span>
+                <Badge className="text-[8px] px-1.5 bg-blue-500/20 text-blue-500 border-blue-500/30">
+                  Manual Mode
                 </Badge>
               </div>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                Send emails to any recipient. No leads required.
+                Send a single email to one customer. You control everything.
               </p>
             </button>
 
-            {/* Mode 2: Manual Campaign Send */}
+            {/* Mode 2: Co-Pilot Mode Campaign */}
             <button
               onClick={() => {
                 setSelectedCampaignType('manual');
@@ -883,7 +883,7 @@ export default function ComposeEmailModal({
                 try {
                   const auditLog = JSON.parse(localStorage.getItem('bamlead_campaign_audit') || '[]');
                   auditLog.push({
-                    type: 'manual',
+                    type: 'copilot',
                     timestamp: new Date().toISOString(),
                     leadCount: safeLeads.length,
                   });
@@ -893,22 +893,22 @@ export default function ComposeEmailModal({
               className={cn(
                 "p-4 rounded-xl border-2 transition-all text-left relative",
                 composeMode === 'campaign' && selectedCampaignType === 'manual'
-                  ? "border-orange-500 bg-orange-500/10"
-                  : "border-border hover:border-orange-500/50 bg-muted/30"
+                  ? "border-primary bg-primary/10"
+                  : "border-border hover:border-primary/50 bg-muted/30"
               )}
             >
               <div className="flex items-center gap-2 mb-2">
-                <Rocket className="w-5 h-5 text-orange-400" />
-                <span className="font-semibold text-foreground text-sm">Manual Campaign</span>
-                <Badge className="text-[8px] px-1.5 bg-emerald-500/20 text-emerald-500 border-emerald-500/30">
-                  FREE
+                <Rocket className="w-5 h-5 text-primary" />
+                <span className="font-semibold text-foreground text-sm">Co-Pilot Mode</span>
+                <Badge className="text-[8px] px-1.5 bg-primary/20 text-primary border-primary/30">
+                  Co-Pilot
                 </Badge>
               </div>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                Send emails to multiple leads. You control follow-ups.
+                AI assists with writing — you click 'Send'. Send to one or many leads.
               </p>
               {safeLeads.length > 0 && (
-                <Badge className="absolute top-2 right-2 bg-orange-500/20 text-orange-400 border-orange-500/30 text-[9px]">
+                <Badge className="absolute top-2 right-2 bg-primary/20 text-primary border-primary/30 text-[9px]">
                   {safeLeads.length} leads
                 </Badge>
               )}
@@ -1071,25 +1071,25 @@ export default function ComposeEmailModal({
               </div>
             )}
 
-            {/* ===================== CAMPAIGN MODE ===================== */}
+            {/* ===================== CO-PILOT MODE ===================== */}
             {composeMode === 'campaign' && (
               <div className="space-y-4">
-                {/* Campaign sub-tabs */}
+                {/* Co-Pilot Campaign sub-tabs */}
                 <Tabs value={campaignTab} onValueChange={(v) => setCampaignTab(v as CampaignTab)}>
-                  <TabsList className="bg-muted/50 border border-border p-1 w-full">
-                    <TabsTrigger value="leads" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-orange-500 data-[state=active]:text-white">
+                  <TabsList className="bg-muted/50 border border-primary/30 p-1 w-full">
+                    <TabsTrigger value="leads" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                       <Users className="w-3.5 h-3.5" />
                       1. Leads ({safeLeads.length})
                     </TabsTrigger>
-                    <TabsTrigger value="template" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-orange-500 data-[state=active]:text-white">
+                    <TabsTrigger value="template" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                       <FileText className="w-3.5 h-3.5" />
                       2. Template
                     </TabsTrigger>
-                    <TabsTrigger value="sequence" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-orange-500 data-[state=active]:text-white">
+                    <TabsTrigger value="sequence" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                       <Layers className="w-3.5 h-3.5" />
                       3. Sequence
                     </TabsTrigger>
-                    <TabsTrigger value="review" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-orange-500 data-[state=active]:text-white">
+                    <TabsTrigger value="review" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                       <Send className="w-3.5 h-3.5" />
                       4. Send
                     </TabsTrigger>
@@ -1238,19 +1238,19 @@ export default function ComposeEmailModal({
                           />
                           
                           {/* Select All Toggle */}
-                          <div className="flex items-center justify-between p-3 mt-4 rounded-lg bg-orange-500/10 border border-orange-500/30">
+                          <div className="flex items-center justify-between p-3 mt-4 rounded-lg bg-primary/10 border border-primary/30">
                             <div className="flex items-center gap-3">
                               <Checkbox
                                 id="select-all"
                                 checked={selectAllLeads}
                                 onCheckedChange={(checked) => handleSelectAllToggle(checked === true)}
-                                className="data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
+                                className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                               />
                               <label htmlFor="select-all" className="text-sm font-medium text-foreground cursor-pointer">
                                 Select All Leads
                               </label>
                             </div>
-                            <Badge className="bg-orange-500/20 text-orange-400 border-orange-500/30 text-xs">
+                            <Badge className="bg-primary/20 text-primary border-primary/30 text-xs">
                               {selectedLeadCount} / {filteredLeads.length} selected
                             </Badge>
                           </div>
@@ -1265,16 +1265,16 @@ export default function ComposeEmailModal({
                                     className={cn(
                                       "w-full text-left p-3 rounded-lg border transition-all flex items-center gap-3",
                                       selectedLeadIds.has(getLeadKey(lead, idx)) || selectAllLeads
-                                        ? "border-orange-500 bg-orange-500/10"
+                                        ? "border-primary bg-primary/10"
                                         : globalIndex >= 0 && globalIndex <= lastSentIndex
                                         ? "border-emerald-500/30 bg-emerald-500/5"
-                                        : "border-border hover:border-orange-500/50"
+                                        : "border-border hover:border-primary/50"
                                     )}
                                   >
                                   <Checkbox
                                     checked={selectAllLeads || selectedLeadIds.has(getLeadKey(lead, idx))}
                                     onCheckedChange={(checked) => handleLeadSelection(getLeadKey(lead, idx), checked === true)}
-                                    className="data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
+                                    className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                                   />
                                   <button
                                     onClick={() => {
@@ -1317,7 +1317,7 @@ export default function ComposeEmailModal({
                     <Button 
                       onClick={() => setCampaignTab('template')} 
                       disabled={safeLeads.length === 0}
-                      className="w-full bg-orange-500 hover:bg-orange-600 gap-2"
+                      className="w-full bg-primary hover:bg-primary/90 gap-2"
                     >
                       Continue to Templates <ArrowRight className="w-4 h-4" />
                     </Button>
