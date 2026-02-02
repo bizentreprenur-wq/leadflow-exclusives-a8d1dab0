@@ -41,7 +41,13 @@ import AIStrategySelector from './AIStrategySelector';
 import { EmailSequence } from '@/lib/emailSequences';
 import { updateAutopilotCampaign } from '@/lib/autopilotCampaign';
 import { useAutopilotTrial } from '@/hooks/useAutopilotTrial';
-import { AIStrategy } from '@/lib/aiStrategyEngine';
+import { 
+  AIStrategy, 
+  saveSelectedStrategy, 
+  getPersistedStrategy,
+  getAutonomousSequencesForStrategy 
+} from '@/lib/aiStrategyEngine';
+import { AutonomousSequence } from '@/lib/autonomousSequences';
 
 // Tab types for main navigation
 type MainTab = 'inbox' | 'campaigns' | 'sequences' | 'automation' | 'analytics' | 'documents' | 'settings';
@@ -150,7 +156,28 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   const [isMailboxSidebarResizing, setIsMailboxSidebarResizing] = useState(false);
   const [selectedEmailSequence, setSelectedEmailSequence] = useState<EmailSequence | null>(null);
   const [showStrategyPanel, setShowStrategyPanel] = useState(false);
-  const [selectedStrategy, setSelectedStrategy] = useState<AIStrategy | null>(null);
+  
+  // Load persisted strategy on mount
+  const [selectedStrategy, setSelectedStrategy] = useState<AIStrategy | null>(() => {
+    try {
+      return getPersistedStrategy();
+    } catch {
+      return null;
+    }
+  });
+  
+  // Connected autonomous sequences based on selected strategy
+  const [autonomousSequences, setAutonomousSequences] = useState<AutonomousSequence[]>([]);
+  
+  // Update autonomous sequences when strategy changes
+  useEffect(() => {
+    if (selectedStrategy) {
+      const sequences = getAutonomousSequencesForStrategy(selectedStrategy);
+      setAutonomousSequences(sequences);
+      // Persist the selected strategy
+      saveSelectedStrategy(selectedStrategy);
+    }
+  }, [selectedStrategy]);
   
   // Email preview panel width (right side resizable)
   const [emailPreviewWidth, setEmailPreviewWidth] = useState(() => {
@@ -1014,45 +1041,109 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                   {/* Strategy Content */}
                   <div className="p-4">
                     {selectedStrategy ? (
-                      <div className="p-4 rounded-xl bg-gradient-to-br from-teal-500/10 to-emerald-500/10 border border-teal-500/30">
-                        <div className="flex items-center gap-3 mb-3">
-                          <div className="text-2xl">{selectedStrategy.icon}</div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-semibold text-white">{selectedStrategy.name}</h4>
-                              <Badge className="bg-teal-500/20 text-teal-400 border-teal-500/30 text-[9px]">
-                                Active Strategy
-                              </Badge>
+                      <div className="space-y-4">
+                        {/* Active Strategy Card */}
+                        <div className="p-4 rounded-xl bg-gradient-to-br from-teal-500/10 to-emerald-500/10 border border-teal-500/30">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="text-2xl">{selectedStrategy.icon}</div>
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-semibold text-white">{selectedStrategy.name}</h4>
+                                <Badge className="bg-teal-500/20 text-teal-400 border-teal-500/30 text-[9px]">
+                                  Active Strategy
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-slate-400">{selectedStrategy.description}</p>
                             </div>
-                            <p className="text-xs text-slate-400">{selectedStrategy.description}</p>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 text-xs mt-3">
+                            <div className="p-2 rounded-lg bg-slate-800/50 border border-slate-700">
+                              <span className="text-slate-500">Expected Response</span>
+                              <p className="font-medium text-emerald-400">{selectedStrategy.expectedResponseRate}</p>
+                            </div>
+                            <div className="p-2 rounded-lg bg-slate-800/50 border border-slate-700">
+                              <span className="text-slate-500">Urgency Level</span>
+                              <p className="font-medium text-amber-400 capitalize">{selectedStrategy.urgencyLevel}</p>
+                            </div>
+                          </div>
+                          <div className="mt-3">
+                            <p className="text-[10px] font-medium text-slate-500 mb-1.5">AI Reasoning</p>
+                            <ul className="text-[10px] text-slate-400 space-y-0.5">
+                              {selectedStrategy.aiReasoning.slice(0, 3).map((reason, idx) => (
+                                <li key={idx} className="flex items-start gap-1.5">
+                                  <CheckCircle2 className="w-3 h-3 text-teal-400 shrink-0 mt-0.5" />
+                                  {reason}
+                                </li>
+                              ))}
+                            </ul>
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3 text-xs mt-3">
-                          <div className="p-2 rounded-lg bg-slate-800/50 border border-slate-700">
-                            <span className="text-slate-500">Expected Response</span>
-                            <p className="font-medium text-emerald-400">{selectedStrategy.expectedResponseRate}</p>
+                        
+                        {/* Connected 7-Step Autonomous Sequences */}
+                        {autonomousSequences.length > 0 && (
+                          <div className="rounded-xl bg-slate-800/50 border border-slate-700 overflow-hidden">
+                            <div className="p-3 border-b border-slate-700">
+                              <div className="flex items-center gap-2">
+                                <Layers className="w-4 h-4 text-amber-400" />
+                                <span className="text-sm font-medium text-white">Connected 7-Step Sequences</span>
+                                <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[9px]">
+                                  Autopilot Ready
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="p-3 space-y-2">
+                              {autonomousSequences.map((seq) => (
+                                <div 
+                                  key={seq.id}
+                                  className="p-3 rounded-lg bg-slate-900/50 border border-slate-700 hover:border-amber-500/30 transition-all"
+                                >
+                                  <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-lg">{seq.icon}</span>
+                                      <span className="text-sm font-medium text-white">{seq.name}</span>
+                                    </div>
+                                    <Badge variant="outline" className="text-[9px] text-slate-300 border-slate-600">
+                                      {seq.steps.length} emails
+                                    </Badge>
+                                  </div>
+                                  <p className="text-[10px] text-slate-400 mb-2">{seq.description}</p>
+                                  
+                                  {/* Mini sequence preview */}
+                                  <div className="flex items-center gap-1 flex-wrap">
+                                    {seq.steps.slice(0, 7).map((step, idx) => (
+                                      <div 
+                                        key={idx}
+                                        className="flex items-center gap-1"
+                                      >
+                                        <div className="w-5 h-5 rounded-full bg-teal-500/20 border border-teal-500/30 flex items-center justify-center text-[8px] font-medium text-teal-400">
+                                          {step.day}
+                                        </div>
+                                        {idx < seq.steps.length - 1 && idx < 6 && (
+                                          <div className="w-3 h-px bg-slate-600" />
+                                        )}
+                                      </div>
+                                    ))}
+                                    <span className="text-[9px] text-slate-500 ml-1">days</span>
+                                  </div>
+                                  
+                                  {/* Expected response day */}
+                                  <div className="mt-2 pt-2 border-t border-slate-700">
+                                    <p className="text-[9px] text-slate-500">
+                                      <TrendingUp className="w-3 h-3 inline mr-1 text-emerald-400" />
+                                      Typical response: Day {seq.expectedResponseDay}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                          <div className="p-2 rounded-lg bg-slate-800/50 border border-slate-700">
-                            <span className="text-slate-500">Urgency Level</span>
-                            <p className="font-medium text-amber-400 capitalize">{selectedStrategy.urgencyLevel}</p>
-                          </div>
-                        </div>
-                        <div className="mt-3">
-                          <p className="text-[10px] font-medium text-slate-500 mb-1.5">AI Reasoning</p>
-                          <ul className="text-[10px] text-slate-400 space-y-0.5">
-                            {selectedStrategy.aiReasoning.slice(0, 3).map((reason, idx) => (
-                              <li key={idx} className="flex items-start gap-1.5">
-                                <CheckCircle2 className="w-3 h-3 text-teal-400 shrink-0 mt-0.5" />
-                                {reason}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
+                        )}
+                        
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => setShowStrategyPanel(true)}
-                          className="w-full mt-4 border-teal-500/30 text-teal-400 hover:bg-teal-500/10 gap-2"
+                          className="w-full border-teal-500/30 text-teal-400 hover:bg-teal-500/10 gap-2"
                         >
                           <Bot className="w-4 h-4" />
                           Change Strategy
