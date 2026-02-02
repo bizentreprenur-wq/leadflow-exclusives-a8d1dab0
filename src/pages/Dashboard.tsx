@@ -1541,7 +1541,7 @@ export default function Dashboard() {
     localStorage.removeItem('bamlead_search_results_by_type');
     localStorage.removeItem('bamlead_email_leads');
     localStorage.removeItem('bamlead_selected_leads');
-    localStorage.removeItem('bamlead_step2_visited');
+    localStorage.removeItem('bamlead_last_visited_search');
     localStorage.removeItem('bamlead_search_timestamp');
     localStorage.removeItem('bamlead_lead_versions');
     // Clear filter settings

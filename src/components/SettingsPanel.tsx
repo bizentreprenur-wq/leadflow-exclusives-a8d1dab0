@@ -408,7 +408,7 @@ export default function SettingsPanel({ initialTab = 'integrations', onBackToSte
                   size="sm" 
                   className="gap-1"
                   onClick={() => {
-                    localStorage.removeItem('bamlead_step2_visited');
+                    localStorage.removeItem('bamlead_last_visited_search');
                     localStorage.removeItem('bamlead_tour_completed');
                     toast.success('Tutorial reset! You\'ll see the welcome guides again.');
                   }}
