@@ -49,43 +49,45 @@ export interface CampaignModeConfig {
 
 // ============================================================================
 // BASIC MODE ($49/mo) - Manual Mode
-// User does everything, AI assists with writing only
+// AI assists with writing, drip feeds follow-ups, but YOU respond to customers
 // ============================================================================
 export const BASIC_MODE: CampaignModeConfig = {
   id: 'basic',
   name: 'Basic',
   tagline: 'AI-Assisted Writing',
-  description: 'AI assists with writing — you click Send',
+  description: 'AI helps write & drip feeds — you respond to customers',
   price: 49,
   priceDisplay: '$49/mo',
   aiLevel: 'Manual Mode',
   icon: '⚡',
   color: 'cyan',
   capabilities: {
-    initialEmailSending: 'manual',
-    followUpSending: 'manual',
+    initialEmailSending: 'manual', // You click send
+    followUpSending: 'automatic-after-first', // AI drip feeds follow-ups
     strategySelection: 'user-chooses',
     sequenceSelection: 'user-chooses',
-    responseHandling: 'manual',
+    responseHandling: 'manual', // YOU respond to customers
     responseClassification: false,
     autoPauseOnPositive: false,
     proposalCreation: 'manual',
     whitelabelReports: false,
-    searchesPerDay: 50,
-    aiVerificationCredits: 100,
+    searchesPerDay: 30, // Updated: 30 searches/day
+    aiVerificationCredits: 200, // Updated: 200 credits/month
     aiResurrectionSequences: false,
-    smartResponseDetection: false,
-    intelligentLeadScoring: true,
+    smartResponseDetection: false, // User handles responses
+    intelligentLeadScoring: true, // 12-Category Business Intelligence
     multiChannelSupport: false,
   },
   keyBenefits: [
     'AI helps write emails',
-    'Basic lead scoring',
-    '50 searches/day',
-    '100 AI verification credits',
-    'You control every send',
+    'AI drip feeds follow-ups',
+    '12-Category Business Intelligence',
+    '30 searches/day',
+    '200 AI verification credits',
+    'You click Send',
+    'You respond to customers',
   ],
-  timeSavings: '~20% (writing time only)',
+  timeSavings: '~30% (writing + drip)',
 };
 
 // ============================================================================
@@ -290,11 +292,13 @@ export interface ComparisonRow {
 export function getComparisonData(): ComparisonRow[] {
   return [
     // Sending
-    { feature: 'Initial Email Sending', category: 'sending', basic: 'Manual', copilot: 'AI drafts → You send', autopilot: 'Fully automatic', highlight: 'autopilot' },
-    { feature: 'Follow-up Emails', category: 'sending', basic: 'Manual', copilot: 'Auto after first approval', autopilot: '7-step autonomous', highlight: 'autopilot' },
+    { feature: 'Initial Email Sending', category: 'sending', basic: 'You click Send', copilot: 'AI drafts → You approve', autopilot: 'Fully automatic', highlight: 'autopilot' },
+    { feature: 'Follow-up Emails', category: 'sending', basic: 'AI drip feeds', copilot: 'Auto after first approval', autopilot: '7-step autonomous', highlight: 'autopilot' },
     { feature: 'Sequence Steps', category: 'sending', basic: '4 steps', copilot: '4 steps', autopilot: '7 steps', highlight: 'autopilot' },
+    { feature: 'Response Handling', category: 'sending', basic: 'You respond', copilot: 'AI notifies', autopilot: 'AI auto-responds', highlight: 'autopilot' },
     
     // Intelligence
+    { feature: 'Business Intelligence', category: 'intelligence', basic: '12 Categories', copilot: '12 Categories', autopilot: '12 Categories + AI Insights' },
     { feature: 'Strategy Selection', category: 'intelligence', basic: 'You choose', copilot: 'AI recommends', autopilot: 'AI auto-selects', highlight: 'autopilot' },
     { feature: 'Sequence Selection', category: 'intelligence', basic: 'You choose', copilot: 'You choose', autopilot: 'AI assigns per lead', highlight: 'autopilot' },
     { feature: 'Lead Scoring', category: 'intelligence', basic: true, copilot: true, autopilot: true },
@@ -302,18 +306,18 @@ export function getComparisonData(): ComparisonRow[] {
     { feature: 'Smart Response Detection', category: 'intelligence', basic: false, copilot: true, autopilot: true },
     
     // Automation
-    { feature: 'Response Handling', category: 'automation', basic: 'Manual', copilot: 'AI notifies', autopilot: 'AI auto-responds', highlight: 'autopilot' },
     { feature: 'Auto-pause on Positive', category: 'automation', basic: false, copilot: false, autopilot: true, highlight: 'autopilot' },
     { feature: 'AI Resurrection Sequences', category: 'automation', basic: false, copilot: true, autopilot: true },
     { feature: 'Proposal Delivery', category: 'automation', basic: 'Manual', copilot: 'AI prepares', autopilot: 'AI auto-sends', highlight: 'autopilot' },
     
     // Limits
-    { feature: 'Searches per Day', category: 'limits', basic: 50, copilot: 200, autopilot: 'Unlimited', highlight: 'autopilot' },
-    { feature: 'AI Verification Credits', category: 'limits', basic: 100, copilot: 500, autopilot: 2000, highlight: 'autopilot' },
+    { feature: 'Searches per Day', category: 'limits', basic: 30, copilot: 200, autopilot: 'Unlimited', highlight: 'autopilot' },
+    { feature: 'AI Verification Credits', category: 'limits', basic: 200, copilot: 500, autopilot: 2000, highlight: 'autopilot' },
     
     // Extras
     { feature: 'White-label Reports', category: 'extras', basic: false, copilot: false, autopilot: true, highlight: 'autopilot' },
     { feature: 'Multi-channel Support', category: 'extras', basic: false, copilot: true, autopilot: true },
-    { feature: 'Time Savings', category: 'extras', basic: '~20%', copilot: '~50%', autopilot: '~90%', highlight: 'autopilot' },
+    { feature: 'Buy More Credits', category: 'extras', basic: true, copilot: true, autopilot: true },
+    { feature: 'Time Savings', category: 'extras', basic: '~30%', copilot: '~50%', autopilot: '~90%', highlight: 'autopilot' },
   ];
 }

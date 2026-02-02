@@ -112,25 +112,25 @@ const PLAN_FEATURES: Record<PlanTier, PlanFeatures> = {
   basic: {
     tier: 'basic',
     campaignMode: 'basic',
-    dailySearches: 50,
-    monthlyVerifications: 100,
+    dailySearches: 30, // Updated: 30 searches/day
+    monthlyVerifications: 200, // Updated: 200 AI verification credits
     manualEmailSend: true,
-    aiEmailWriter: 'basic',
+    aiEmailWriter: 'basic', // AI helps write, user clicks send
     emailTemplates: 'basic',
-    dripCampaigns: false,
+    dripCampaigns: true, // KEY: AI drip feeds emails, but user responds
     abTesting: false,
     sequenceSteps: 4,
-    // BASIC: Manual everything
-    initialEmailSending: 'manual',
-    followUpSending: 'manual',
+    // BASIC: Manual send, but AI drip feeds follow-ups
+    initialEmailSending: 'manual', // You click send
+    followUpSending: 'automatic-after-first', // AI drip feeds follow-ups
     strategySelection: 'user-chooses',
     sequenceSelection: 'user-chooses',
-    autoFollowUps: false,
-    smartResponseDetection: false,
+    autoFollowUps: true, // AI drip feeds
+    smartResponseDetection: false, // User responds to customers
     aiResurrectionSequences: false,
     fullAutopilot: false,
     autonomousProposals: false,
-    responseHandling: 'manual',
+    responseHandling: 'manual', // YOU respond to customers
     autoPauseOnPositive: false,
     crmIncluded: false,
     crmTrial: true,
