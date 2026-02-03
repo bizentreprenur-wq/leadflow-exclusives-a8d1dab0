@@ -81,6 +81,7 @@ import StreamingLeadsIndicator from '@/components/StreamingLeadsIndicator';
 import WorkflowOnboardingTour, { startWorkflowTour } from '@/components/WorkflowOnboardingTour';
 import SearchTypeOnboarding, { shouldShowSearchOnboarding, trackLoginForOnboarding } from '@/components/SearchTypeOnboarding';
 import AutopilotOnboardingWizard from '@/components/AutopilotOnboardingWizard';
+import SuperAIResearchModeSelector, { ResearchMode } from '@/components/SuperAIResearchModeSelector';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 
 interface SearchResult {
@@ -159,6 +160,20 @@ export default function Dashboard() {
     try {
       const saved = sessionStorage.getItem('bamlead_search_type');
       return saved ? (saved as 'gmb' | 'platform') : null;
+    } catch { return null; }
+  });
+  // Research mode for Super AI Search: 'niche' = find prospects, 'competitive' = compare to your business
+  const [researchMode, setResearchMode] = useState<'niche' | 'competitive'>(() => {
+    try {
+      const saved = sessionStorage.getItem('bamlead_research_mode');
+      return (saved as 'niche' | 'competitive') || 'niche';
+    } catch { return 'niche'; }
+  });
+  // User's own business info for competitive analysis
+  const [myBusinessInfo, setMyBusinessInfo] = useState<{ name: string; url: string } | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('bamlead_my_business_info');
+      return saved ? JSON.parse(saved) : null;
     } catch { return null; }
   });
   const [query, setQuery] = useState(() => sessionStorage.getItem('bamlead_query') || '');
@@ -1882,7 +1897,7 @@ export default function Dashboard() {
                     ? 'border-primary/30 bg-primary/5' 
                     : 'border-violet-500/30 bg-violet-500/5'
                 }`}>
-                  <div className="flex items-center gap-3 mb-6">
+                  <div className="flex items-center gap-3 mb-4">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
                       searchType === 'gmb' ? 'bg-primary/20' : 'bg-violet-500/20'
                     }`}>
@@ -1901,6 +1916,105 @@ export default function Dashboard() {
                       </p>
                     </div>
                   </div>
+
+                  {/* Research Mode Selector - GMB only */}
+                  {searchType === 'gmb' && (
+                    <div className="mb-6 p-4 rounded-xl bg-gradient-to-br from-muted/50 to-muted/30 border border-border">
+                      <p className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-2">
+                        <Target className="w-3.5 h-3.5" />
+                        WHAT'S YOUR RESEARCH GOAL?
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {/* Niche Research Option */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setResearchMode('niche');
+                            setMyBusinessInfo(null);
+                            sessionStorage.setItem('bamlead_research_mode', 'niche');
+                            sessionStorage.removeItem('bamlead_my_business_info');
+                          }}
+                          className={`p-4 rounded-xl border-2 text-left transition-all ${
+                            researchMode === 'niche'
+                              ? 'border-primary bg-primary/10 shadow-lg shadow-primary/20'
+                              : 'border-border bg-card/50 hover:border-primary/50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            <Search className="w-5 h-5 text-primary" />
+                            <span className="font-semibold text-foreground">Niche Research</span>
+                            {researchMode === 'niche' && (
+                              <CheckCircle2 className="w-4 h-4 text-primary ml-auto" />
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Find businesses in a niche to discover prospects or understand the market
+                          </p>
+                        </button>
+
+                        {/* Competitive Analysis Option */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setResearchMode('competitive');
+                            sessionStorage.setItem('bamlead_research_mode', 'competitive');
+                          }}
+                          className={`p-4 rounded-xl border-2 text-left transition-all ${
+                            researchMode === 'competitive'
+                              ? 'border-amber-500 bg-amber-500/10 shadow-lg shadow-amber-500/20'
+                              : 'border-border bg-card/50 hover:border-amber-500/50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            <Trophy className="w-5 h-5 text-amber-500" />
+                            <span className="font-semibold text-foreground">Competitive Analysis</span>
+                            <Badge className="text-[9px] py-0 px-1.5 bg-amber-500/20 text-amber-400 border-amber-500/30">PRO</Badge>
+                            {researchMode === 'competitive' && (
+                              <CheckCircle2 className="w-4 h-4 text-amber-500 ml-auto" />
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Compare YOUR business to competitors and find your advantages
+                          </p>
+                        </button>
+                      </div>
+
+                      {/* My Business Info - only show when competitive mode is selected */}
+                      {researchMode === 'competitive' && (
+                        <div className="mt-4 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20 space-y-3">
+                          <p className="text-xs font-medium text-amber-400 flex items-center gap-1.5">
+                            <Trophy className="w-3.5 h-3.5" />
+                            Enter YOUR business info for comparison:
+                          </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <Input
+                              placeholder="Your Business Name"
+                              value={myBusinessInfo?.name || ''}
+                              onChange={(e) => {
+                                const updated = { name: e.target.value, url: myBusinessInfo?.url || '' };
+                                setMyBusinessInfo(updated);
+                                sessionStorage.setItem('bamlead_my_business_info', JSON.stringify(updated));
+                              }}
+                              className="bg-secondary/50 text-sm"
+                            />
+                            <Input
+                              placeholder="Your Website URL (optional)"
+                              value={myBusinessInfo?.url || ''}
+                              onChange={(e) => {
+                                const updated = { name: myBusinessInfo?.name || '', url: e.target.value };
+                                setMyBusinessInfo(updated);
+                                sessionStorage.setItem('bamlead_my_business_info', JSON.stringify(updated));
+                              }}
+                              className="bg-secondary/50 text-sm"
+                            />
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">
+                            The AI report will show: ✅ Your advantages | ⚠️ Areas to improve | 💡 How to win
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className="space-y-4">
                     <div>
@@ -3099,6 +3213,8 @@ export default function Dashboard() {
         searchQuery={query}
         location={location}
         onProceedToVerify={handleResultsPanelProceed}
+        researchMode={researchMode}
+        myBusinessInfo={myBusinessInfo}
       />
 
       {/* AI Lead Scoring Dashboard Modal */}
