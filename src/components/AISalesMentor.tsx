@@ -14,21 +14,17 @@ import {
   Send,
   Target,
   TrendingUp,
-  Award,
   Lightbulb,
   Shield,
   Mic,
   MicOff,
   RefreshCw,
   CheckCircle2,
-  XCircle,
   AlertCircle,
-  BookOpen,
   Zap,
   Star,
   Brain,
   Play,
-  Pause,
   RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -49,6 +45,25 @@ interface PracticeScenario {
   category: "cold-call" | "objection" | "closing" | "discovery";
   icon: React.ElementType;
 }
+
+interface PitchAnalysis {
+  score: number;
+  strengths: string[];
+  feedback: string[];
+}
+
+type SpeechRecognitionCtor = new () => {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onerror: ((event: { error: string }) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+const SALES_MENTOR_STATS_KEY = "bamlead_sales_mentor_stats";
 
 const scenarios: PracticeScenario[] = [
   {
@@ -154,33 +169,171 @@ export default function AISalesMentor() {
   const [practiceStreak, setPracticeStreak] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [pitchText, setPitchText] = useState("");
-  const [pitchAnalysis, setPitchAnalysis] = useState<any>(null);
+  const [pitchAnalysis, setPitchAnalysis] = useState<PitchAnalysis | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<InstanceType<SpeechRecognitionCtor> | null>(null);
 
   useEffect(() => {
-    if (messages.length === 0) {
+    setMessages((prev) => {
+      if (prev.length > 0) return prev;
       const greeting = mentorResponses.greeting[Math.floor(Math.random() * mentorResponses.greeting.length)];
-      setMessages([{
+      return [{
         id: "greeting",
         role: "mentor",
         content: greeting,
         timestamp: new Date(),
-      }]);
-    }
+      }];
+    });
   }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SALES_MENTOR_STATS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Partial<{ practiceScore: number; practiceStreak: number }>;
+      if (typeof parsed.practiceScore === "number") {
+        setPracticeScore(Math.max(0, Math.min(100, parsed.practiceScore)));
+      }
+      if (typeof parsed.practiceStreak === "number") {
+        setPracticeStreak(Math.max(0, parsed.practiceStreak));
+      }
+    } catch {
+      // ignore invalid localStorage payload
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(
+      SALES_MENTOR_STATS_KEY,
+      JSON.stringify({ practiceScore, practiceStreak })
+    );
+  }, [practiceScore, practiceStreak]);
+
+  useEffect(() => {
+    return () => {
+      recognitionRef.current?.stop();
+    };
+  }, []);
+
+  const getSpeechRecognitionCtor = (): SpeechRecognitionCtor | null => {
+    if (typeof window === "undefined") return null;
+    const speechWindow = window as Window & {
+      SpeechRecognition?: SpeechRecognitionCtor;
+      webkitSpeechRecognition?: SpeechRecognitionCtor;
+    };
+    return speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition || null;
+  };
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      recognitionRef.current?.stop();
+      setIsRecording(false);
+      return;
+    }
+
+    const SpeechRecognition = getSpeechRecognitionCtor();
+    if (!SpeechRecognition) {
+      toast.error("Voice input is not supported in this browser.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (event) => {
+      const chunks: string[] = [];
+      for (let i = 0; i < event.results.length; i += 1) {
+        const chunk = event.results[i]?.[0]?.transcript?.trim();
+        if (chunk) chunks.push(chunk);
+      }
+      const transcript = chunks.join(" ").trim();
+      if (transcript) {
+        setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+      }
+    };
+
+    recognition.onerror = (event) => {
+      toast.error(`Voice input error: ${event.error}`);
+      setIsRecording(false);
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognitionRef.current = recognition;
+    setIsRecording(true);
+    recognition.start();
+  };
+
+  const evaluateScenarioReply = (text: string, scenario: PracticeScenario) => {
+    const hasEmpathy = /(understand|fair point|totally get|makes sense|appreciate)/i.test(text);
+    const hasQuestion = text.includes("?");
+    const hasValue = /(value|roi|results|impact|save|revenue|growth|efficiency)/i.test(text);
+    const hasNextStep = /(call|meeting|demo|schedule|calendar|next step|tomorrow|this week)/i.test(text);
+
+    let quality = 0;
+    const strengths: string[] = [];
+    const fixes: string[] = [];
+
+    if (hasEmpathy) {
+      quality += 1;
+      strengths.push("You acknowledged their concern first.");
+    } else {
+      fixes.push("Start with empathy before pitching.");
+    }
+
+    if (hasQuestion) {
+      quality += 1;
+      strengths.push("You asked a question to keep control of the conversation.");
+    } else {
+      fixes.push("Add a question to re-open dialogue.");
+    }
+
+    if (hasValue) {
+      quality += 1;
+      strengths.push("You focused on value, not just features.");
+    } else {
+      fixes.push("Tie your response to business value or ROI.");
+    }
+
+    if (hasNextStep) {
+      quality += 1;
+      strengths.push("You ended with a concrete next step.");
+    } else {
+      fixes.push("End with a clear next action (demo, call, or schedule).");
+    }
+
+    const scoreDelta = quality >= 3 ? 7 : quality >= 2 ? 5 : 3;
+    const praise = mentorResponses.praise[Math.floor(Math.random() * mentorResponses.praise.length)];
+    const scenarioLabel = `${scenario.title} (${scenario.difficulty})`;
+
+    const response = quality >= 3
+      ? `${praise}\n\nScenario: ${scenarioLabel}\n\nWhat you did well:\n- ${strengths.join("\n- ")}`
+      : `Good start. Let's sharpen it for "${scenario.title}".\n\nImprove these points:\n- ${fixes.join("\n- ")}\n\nTry one more version and keep it concise.`;
+
+    return {
+      response,
+      type: (quality >= 3 ? "praise" : "challenge") as Message["type"],
+      scoreDelta,
+    };
+  };
+
   const handleSend = async () => {
-    if (!input.trim()) return;
+    const userInput = input.trim();
+    if (!userInput) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: input,
+      content: userInput,
       timestamp: new Date(),
     };
 
@@ -194,10 +347,15 @@ export default function AISalesMentor() {
     let response = "";
     let type: Message["type"] = undefined;
 
-    const lowerInput = input.toLowerCase();
+    const lowerInput = userInput.toLowerCase();
 
-    // Check for objection keywords
-    if (lowerInput.includes("expensive") || lowerInput.includes("cost") || lowerInput.includes("price")) {
+    if (selectedScenario) {
+      const scenarioResult = evaluateScenarioReply(userInput, selectedScenario);
+      response = scenarioResult.response;
+      type = scenarioResult.type;
+      setPracticeScore(prev => Math.min(100, prev + scenarioResult.scoreDelta));
+    } else if (lowerInput.includes("expensive") || lowerInput.includes("cost") || lowerInput.includes("price")) {
+      // Check for objection keywords
       const obj = mentorResponses.objections["too expensive"];
       response = `${obj.response}\n\n${obj.tip}`;
       type = "objection";
@@ -247,7 +405,7 @@ export default function AISalesMentor() {
     const scenarioMessage: Message = {
       id: Date.now().toString(),
       role: "mentor",
-      content: `Great choice! Let's practice "${scenario.title}".\n\n🎭 **Scenario:** You're reaching out to a potential client and they say:\n\n"${getScenarioPrompt(scenario)}"\n\nHow would you respond? Type your best reply!`,
+      content: `Great choice! Let's practice "${scenario.title}".\n\nScenario:\n"${getScenarioPrompt(scenario)}"\n\nHow would you respond? Type your best reply and I'll coach you.`,
       timestamp: new Date(),
       type: "challenge",
     };
@@ -305,7 +463,10 @@ export default function AISalesMentor() {
     if (wordCount > 30 && wordCount < 100) { score += 5; }
     else if (wordCount >= 100) { feedback.push("Consider being more concise"); }
 
-    setPitchAnalysis({ score: Math.min(score, 100), strengths, feedback });
+    const boundedScore = Math.min(score, 100);
+    setPitchAnalysis({ score: boundedScore, strengths, feedback });
+    setPracticeScore((prev) => Math.max(prev, boundedScore));
+    setPracticeStreak((prev) => prev + 1);
     setIsAnalyzing(false);
     toast.success("Analysis complete!");
   };
@@ -345,6 +506,13 @@ export default function AISalesMentor() {
           </div>
         </div>
       </div>
+      <div className="space-y-1">
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          <span>Mentor Progress</span>
+          <span>{practiceScore}%</span>
+        </div>
+        <Progress value={practiceScore} className="h-1.5" />
+      </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid grid-cols-3 w-full max-w-md">
@@ -366,6 +534,22 @@ export default function AISalesMentor() {
         <TabsContent value="chat" className="mt-4">
           <Card className="border-border">
             <CardContent className="p-0">
+              {selectedScenario && (
+                <div className="mx-4 mt-4 p-3 rounded-lg border border-primary/30 bg-primary/5 flex flex-wrap items-center gap-2">
+                  <Badge variant="outline" className="border-primary/40 text-primary">
+                    Active Scenario
+                  </Badge>
+                  <span className="text-sm font-medium">{selectedScenario.title}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="ml-auto h-7 px-2 text-xs"
+                    onClick={() => setSelectedScenario(null)}
+                  >
+                    End Scenario
+                  </Button>
+                </div>
+              )}
               <ScrollArea className="h-[400px] p-4">
                 <div className="space-y-4">
                   {messages.map((message) => (
@@ -415,15 +599,41 @@ export default function AISalesMentor() {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="Type your sales pitch or ask for tips..."
-                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSend()}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        void handleSend();
+                      }
+                    }}
                     className="flex-1"
                   />
+                  <Button variant="outline" onClick={toggleRecording} aria-label="Toggle voice input">
+                    {isRecording ? <MicOff className="w-4 h-4 text-destructive" /> : <Mic className="w-4 h-4" />}
+                  </Button>
                   <Button onClick={handleSend} disabled={!input.trim() || isTyping}>
                     <Send className="w-4 h-4" />
                   </Button>
                 </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {[
+                    "How do I handle price objections?",
+                    "Give me a better closing line",
+                    "Review my discovery call opener",
+                  ].map((quickPrompt) => (
+                    <Button
+                      key={quickPrompt}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs"
+                      onClick={() => setInput(quickPrompt)}
+                    >
+                      {quickPrompt}
+                    </Button>
+                  ))}
+                </div>
                 <p className="text-xs text-muted-foreground mt-2 text-center">
-                  Try: "How do I handle price objections?" or practice your pitch
+                  Try: "How do I handle price objections?" or switch to Practice scenarios
                 </p>
               </div>
             </CardContent>
@@ -436,7 +646,9 @@ export default function AISalesMentor() {
             {scenarios.map((scenario) => (
               <Card
                 key={scenario.id}
-                className="border-border hover:border-primary/50 transition-all cursor-pointer"
+                className={`border-border hover:border-primary/50 transition-all cursor-pointer ${
+                  selectedScenario?.id === scenario.id ? "border-primary/60 bg-primary/5" : ""
+                }`}
                 onClick={() => startScenario(scenario)}
               >
                 <CardContent className="p-4">
@@ -466,9 +678,18 @@ export default function AISalesMentor() {
                       <p className="text-sm text-muted-foreground">{scenario.description}</p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="sm" className="w-full mt-3 gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full mt-3 gap-2"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      startScenario(scenario);
+                    }}
+                  >
                     <Play className="w-4 h-4" />
-                    Start Practice
+                    {selectedScenario?.id === scenario.id ? "Practicing" : "Start Practice"}
                   </Button>
                 </CardContent>
               </Card>
