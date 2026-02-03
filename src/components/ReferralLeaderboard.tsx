@@ -33,6 +33,11 @@ interface LeaderboardUser {
   isCurrentUser?: boolean;
 }
 
+interface RewardMilestone {
+  referrals: number;
+  reward: string;
+}
+
 const tierConfig = {
   bronze: { color: "text-amber-600", bg: "bg-amber-600/10", border: "border-amber-600/30", icon: Medal },
   silver: { color: "text-slate-400", bg: "bg-slate-400/10", border: "border-slate-400/30", icon: Medal },
@@ -69,18 +74,26 @@ const demoLeaderboard: LeaderboardUser[] = [
   { rank: 10, name: "You", referrals: 0, earnings: 0, tier: "bronze", badges: ["early-adopter"], streak: 0, isCurrentUser: true },
 ];
 
-const rewards = [
-  { referrals: 5, reward: "Free month of Pro", unlocked: false },
-  { referrals: 10, reward: "$50 Amazon Gift Card", unlocked: false },
-  { referrals: 25, reward: "Exclusive Mastermind Access", unlocked: false },
-  { referrals: 50, reward: "1-on-1 Strategy Call", unlocked: false },
-  { referrals: 100, reward: "Lifetime Pro Account", unlocked: false },
+const rewards: RewardMilestone[] = [
+  { referrals: 5, reward: "Free month of Pro" },
+  { referrals: 10, reward: "$50 Amazon Gift Card" },
+  { referrals: 25, reward: "Exclusive Mastermind Access" },
+  { referrals: 50, reward: "1-on-1 Strategy Call" },
+  { referrals: 100, reward: "Lifetime Pro Account" },
 ];
 
 export default function ReferralLeaderboard() {
   const [selectedUser, setSelectedUser] = useState<LeaderboardUser | null>(null);
   const currentUser = demoLeaderboard.find(u => u.isCurrentUser);
-  const nextMilestone = rewards.find(r => !r.unlocked);
+  const spotlightUser = selectedUser ?? currentUser ?? demoLeaderboard[0];
+  const rewardsWithStatus = rewards.map((reward) => ({
+    ...reward,
+    unlocked: (currentUser?.referrals ?? 0) >= reward.referrals,
+  }));
+  const nextMilestone = rewardsWithStatus.find((reward) => !reward.unlocked);
+  const referralProgress = nextMilestone
+    ? Math.min(100, ((currentUser?.referrals ?? 0) / nextMilestone.referrals) * 100)
+    : 100;
 
   return (
     <div className="space-y-6">
@@ -151,6 +164,7 @@ export default function ReferralLeaderboard() {
                     <button
                       key={user.rank}
                       onClick={() => setSelectedUser(user)}
+                      aria-label={`View details for ${user.name}`}
                       className={`w-full p-3 rounded-xl border-2 transition-all text-left flex items-center gap-3 ${
                         user.isCurrentUser 
                           ? "border-primary bg-primary/5" 
@@ -223,7 +237,7 @@ export default function ReferralLeaderboard() {
 
                       {/* Earnings */}
                       <div className="text-right">
-                        <p className="font-bold text-success">${user.earnings}</p>
+                        <p className="font-bold text-success">${user.earnings.toLocaleString()}</p>
                         <p className="text-xs text-muted-foreground">earned</p>
                       </div>
 
@@ -238,6 +252,44 @@ export default function ReferralLeaderboard() {
 
         {/* Sidebar */}
         <div className="space-y-6">
+          {/* Spotlight */}
+          {spotlightUser && (
+            <Card className="border-border">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Affiliate Spotlight</CardTitle>
+                <CardDescription>
+                  {spotlightUser.isCurrentUser ? "Your current affiliate stats" : `Details for ${spotlightUser.name}`}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Rank</span>
+                  <span className="font-bold text-foreground">#{spotlightUser.rank}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Tier</span>
+                  <Badge variant="outline" className="capitalize">
+                    {spotlightUser.tier}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Referrals</span>
+                  <span className="font-bold text-foreground">{spotlightUser.referrals}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Total Earned</span>
+                  <span className="font-bold text-success">${spotlightUser.earnings.toLocaleString()}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Active Streak</span>
+                  <span className="font-bold text-orange-500">
+                    {spotlightUser.streak > 0 ? `🔥 ${spotlightUser.streak}d` : "No streak yet"}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Your Progress */}
           {currentUser && (
             <Card className="border-primary/30 bg-primary/5">
@@ -255,14 +307,19 @@ export default function ReferralLeaderboard() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Total Earned</span>
-                  <span className="font-bold text-success">${currentUser.earnings}</span>
+                  <span className="font-bold text-success">${currentUser.earnings.toLocaleString()}</span>
                 </div>
                 
                 {nextMilestone && (
                   <div className="pt-3 border-t border-border">
                     <p className="text-sm text-muted-foreground mb-2">Next reward at {nextMilestone.referrals} referrals</p>
-                    <Progress value={(currentUser.referrals / nextMilestone.referrals) * 100} className="h-2" />
+                    <Progress value={referralProgress} className="h-2" />
                     <p className="text-xs text-primary mt-1">{nextMilestone.reward}</p>
+                  </div>
+                )}
+                {!nextMilestone && (
+                  <div className="pt-3 border-t border-border">
+                    <p className="text-sm text-success font-medium">All milestone rewards unlocked 🎉</p>
                   </div>
                 )}
               </CardContent>
@@ -279,7 +336,7 @@ export default function ReferralLeaderboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {rewards.map((reward, idx) => (
+                {rewardsWithStatus.map((reward, idx) => (
                   <div
                     key={idx}
                     className={`p-3 rounded-lg border flex items-center gap-3 ${
