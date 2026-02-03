@@ -2601,12 +2601,18 @@ export default function Dashboard() {
         };
       case 'templates':
         return {
-          title: '📧 Email Template Gallery',
-          description: '60+ high-converting visual templates organized by industry',
+          title: researchMode === 'competitive' ? '📧 Competitive Outreach Templates' : '📧 Email Template Gallery',
+          description: researchMode === 'competitive' 
+            ? 'Templates for partnerships, market research, and product pitching'
+            : '60+ high-converting visual templates organized by industry',
           icon: FileText,
           iconColor: 'text-purple-500',
           iconBg: 'bg-purple-500/10',
-          component: <HighConvertingTemplateGallery onSelectTemplate={(template) => toast.success(`Template "${template.name}" selected!`)} />,
+          component: <HighConvertingTemplateGallery 
+            onSelectTemplate={(template) => toast.success(`Template "${template.name}" selected!`)} 
+            researchMode={researchMode}
+            myBusinessInfo={myBusinessInfo}
+          />,
         };
       case 'extension':
         return {
