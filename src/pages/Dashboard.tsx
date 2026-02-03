@@ -2019,12 +2019,20 @@ export default function Dashboard() {
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="query" className="text-foreground font-medium">
-                        {searchType === 'gmb' ? 'Enter the niche you want to search' : 'What industry?'}
+                        {searchType === 'gmb' 
+                          ? (researchMode === 'competitive' 
+                              ? 'Search competitors in your market segment' 
+                              : 'Enter the niche you want to search')
+                          : 'What industry?'}
                       </Label>
                       <div className="flex gap-2 mt-2">
                         <Input
                           id="query"
-                          placeholder={searchType === 'gmb' ? 'e.g., plumbers in Miami, auto repair shops, dental clinics...' : 'e.g., real estate, dental, fitness...'}
+                          placeholder={searchType === 'gmb' 
+                            ? (researchMode === 'competitive'
+                                ? 'e.g., marketing agencies in Chicago, web design firms, SaaS companies...'
+                                : 'e.g., plumbers in Miami, auto repair shops, dental clinics...')
+                            : 'e.g., real estate, dental, fitness...'}
                           value={query}
                           onChange={(e) => {
                             setQuery(e.target.value);
