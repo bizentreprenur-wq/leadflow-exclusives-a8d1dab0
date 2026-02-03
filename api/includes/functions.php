@@ -135,6 +135,8 @@ function buildLocationExpansions($location) {
         $parts = array_map('trim', explode(',', $clean, 2));
         $city = $parts[0] ?? '';
         $state = $parts[1] ?? '';
+    } else {
+        $state = $clean;
     }
 
     if ($city && $state) {
@@ -146,6 +148,14 @@ function buildLocationExpansions($location) {
         foreach (['north', 'south', 'east', 'west'] as $direction) {
             $expansions[] = "{$direction} {$city}, {$state}";
         }
+    }
+
+    // For broad state-level searches (e.g., "Texas"), add major city shards
+    // to increase unique lead coverage.
+    $stateCityShards = getStateCityShards($state ?: $clean);
+    foreach ($stateCityShards as $cityShard) {
+        $expansions[] = $cityShard;
+        $expansions[] = "{$cityShard} metro";
     }
 
     $includeState = defined('LOCATION_EXPANSION_INCLUDE_STATE') ? LOCATION_EXPANSION_INCLUDE_STATE : false;
@@ -170,6 +180,93 @@ function buildLocationExpansions($location) {
     }
 
     return $unique;
+}
+
+/**
+ * Return major city shards for a US state to improve broad-location coverage.
+ */
+function getStateCityShards($stateInput) {
+    $normalized = strtolower(trim((string)$stateInput));
+    if ($normalized === '') {
+        return [];
+    }
+    $normalized = preg_replace('/\s+/', ' ', $normalized);
+    $normalized = trim($normalized, " ,.");
+
+    $aliases = [
+        'tx' => 'texas',
+        'ca' => 'california',
+        'fl' => 'florida',
+        'ny' => 'new york',
+        'il' => 'illinois',
+        'pa' => 'pennsylvania',
+        'ga' => 'georgia',
+        'nc' => 'north carolina',
+        'oh' => 'ohio',
+        'mi' => 'michigan',
+        'va' => 'virginia',
+        'wa' => 'washington',
+        'az' => 'arizona',
+        'tn' => 'tennessee',
+        'co' => 'colorado',
+        'mo' => 'missouri',
+        'md' => 'maryland',
+        'mn' => 'minnesota',
+        'wi' => 'wisconsin',
+        'ma' => 'massachusetts',
+        'in' => 'indiana',
+        'or' => 'oregon',
+        'sc' => 'south carolina',
+        'al' => 'alabama',
+        'la' => 'louisiana',
+        'ky' => 'kentucky',
+        'ok' => 'oklahoma',
+        'ct' => 'connecticut',
+        'ut' => 'utah',
+        'ia' => 'iowa',
+        'nv' => 'nevada',
+        'ar' => 'arkansas',
+        'ks' => 'kansas',
+        'ms' => 'mississippi',
+        'nm' => 'new mexico',
+        'ne' => 'nebraska',
+        'id' => 'idaho',
+        'wv' => 'west virginia',
+        'hi' => 'hawaii',
+        'nh' => 'new hampshire',
+        'me' => 'maine',
+        'ri' => 'rhode island',
+        'mt' => 'montana',
+        'de' => 'delaware',
+        'sd' => 'south dakota',
+        'nd' => 'north dakota',
+        'ak' => 'alaska',
+        'dc' => 'district of columbia',
+        'nj' => 'new jersey',
+        'vt' => 'vermont',
+        'wy' => 'wyoming',
+    ];
+    if (isset($aliases[$normalized])) {
+        $normalized = $aliases[$normalized];
+    }
+
+    $stateCities = [
+        // High-impact states first.
+        'texas' => ['Houston, TX', 'Dallas, TX', 'San Antonio, TX', 'Austin, TX', 'Fort Worth, TX', 'El Paso, TX', 'Arlington, TX', 'Plano, TX', 'Corpus Christi, TX', 'Lubbock, TX', 'Laredo, TX', 'Irving, TX', 'Garland, TX', 'Frisco, TX', 'McKinney, TX', 'Amarillo, TX', 'Waco, TX', 'Brownsville, TX', 'Pasadena, TX', 'Mesquite, TX'],
+        'california' => ['Los Angeles, CA', 'San Diego, CA', 'San Jose, CA', 'San Francisco, CA', 'Fresno, CA', 'Sacramento, CA', 'Long Beach, CA', 'Oakland, CA', 'Bakersfield, CA', 'Anaheim, CA'],
+        'florida' => ['Jacksonville, FL', 'Miami, FL', 'Tampa, FL', 'Orlando, FL', 'St. Petersburg, FL', 'Hialeah, FL', 'Tallahassee, FL', 'Fort Lauderdale, FL'],
+        'new york' => ['New York, NY', 'Buffalo, NY', 'Rochester, NY', 'Yonkers, NY', 'Syracuse, NY', 'Albany, NY'],
+        'illinois' => ['Chicago, IL', 'Aurora, IL', 'Naperville, IL', 'Joliet, IL', 'Rockford, IL', 'Springfield, IL'],
+        'pennsylvania' => ['Philadelphia, PA', 'Pittsburgh, PA', 'Allentown, PA', 'Erie, PA', 'Reading, PA'],
+        'georgia' => ['Atlanta, GA', 'Augusta, GA', 'Columbus, GA', 'Macon, GA', 'Savannah, GA'],
+        'north carolina' => ['Charlotte, NC', 'Raleigh, NC', 'Greensboro, NC', 'Durham, NC', 'Winston-Salem, NC'],
+    ];
+
+    if (!isset($stateCities[$normalized])) {
+        return [];
+    }
+
+    return $stateCities[$normalized];
 }
 
 /**
@@ -230,6 +327,40 @@ function getSearchFillTargetRatio() {
 function getSearchFillTargetCount($limit) {
     $limit = max(1, (int)$limit);
     return (int)ceil($limit * getSearchFillTargetRatio());
+}
+
+/**
+ * Detect transient network-level failures that are usually worth retrying/fallback.
+ */
+function isTransientNetworkErrorMessage($message) {
+    $msg = strtolower(trim((string)$message));
+    if ($msg === '') {
+        return false;
+    }
+
+    $patterns = [
+        'timed out',
+        'timeout',
+        'http 0',
+        'could not resolve host',
+        'failed to connect',
+        'connection reset',
+        'connection refused',
+        'temporarily unavailable',
+        'operation too slow',
+        'ssl connect error',
+        'empty reply from server',
+        'recv failure',
+        'send failure',
+    ];
+
+    foreach ($patterns as $pattern) {
+        if (strpos($msg, $pattern) !== false) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /**

@@ -109,6 +109,10 @@ define('DEBUG_MODE', false);
 // Throttle between SerpAPI page requests (microseconds)
 // Lower = faster, higher = safer vs rate limits. 50000 = 50ms.
 define('SERPAPI_THROTTLE_US', 50000);
+// SerpAPI request timeouts/retries for large searches
+define('SERPAPI_CONNECT_TIMEOUT_SEC', 15);
+define('SERPAPI_TIMEOUT_SEC', 60);
+define('SERPAPI_REQUEST_RETRIES', 2);
 // Over-fetch multiplier when filters are active (helps hit target counts)
 define('FILTER_OVERFETCH_MULTIPLIER', 3);
 // Minimum acceptable ratio of requested leads before fallback broadening kicks in

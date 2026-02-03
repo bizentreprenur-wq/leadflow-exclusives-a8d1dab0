@@ -1216,22 +1216,18 @@ export default function Dashboard() {
       setIsLiveDataMode(hasRealData);
 
       if (scoredResults.length > 0) {
-        const shouldAutoAdvance =
-          scoredResults.length >= minimumAcceptableResults;
+        // Search is complete: now we can move to Step 2.
+        setCurrentStep(2);
 
-        if (shouldAutoAdvance) {
-          // AUTO-NAVIGATE to Step 2 immediately so customer sees leads
-          setCurrentStep(2);
-          
-          // Show AI Pipeline notification (non-blocking popup)
-          toast.info(
-            '🤖 AI Lead Intelligence Report is generating in the background. You can preview your leads now!',
-            { duration: 6000 }
-          );
-        } else {
+        if (scoredResults.length < minimumAcceptableResults) {
           setPartialResultsNotice({ found: scoredResults.length, requested: requestedLimit });
           toast.info(
             `Found ${scoredResults.length} of ${requestedLimit} requested. Review partial results or broaden your search.`
+          );
+        } else {
+          toast.info(
+            '🤖 AI Lead Intelligence Report is generating in the background. You can preview your leads now!',
+            { duration: 6000 }
           );
         }
         

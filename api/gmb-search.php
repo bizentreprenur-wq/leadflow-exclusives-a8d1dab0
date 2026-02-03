@@ -136,10 +136,13 @@ function searchGMBListings($service, $location, $limit = 100, $filters = [], $fi
             }
             return $allResults;
         } catch (Exception $e) {
-            if (!isSerpApiCreditsError($e->getMessage()) || !$hasSerper) {
+            $message = $e->getMessage();
+            $creditsError = isSerpApiCreditsError($message);
+            $transientError = isTransientNetworkErrorMessage($message);
+            if ((!$creditsError && !$transientError) || !$hasSerper) {
                 throw $e;
             }
-            // Fall through to Serper when SerpAPI is exhausted
+            // Fall through to Serper when SerpAPI is exhausted or temporarily unreachable
         }
     }
     
@@ -327,6 +330,12 @@ function searchSerpApiEngines($service, $location, $limit, $filters, $filtersAct
     
     $enableExpansion = defined('ENABLE_LOCATION_EXPANSION') ? ENABLE_LOCATION_EXPANSION : true;
     $expansionMax = defined('LOCATION_EXPANSION_MAX') ? max(0, (int)LOCATION_EXPANSION_MAX) : 5;
+    if ($limit >= 1000) {
+        $expansionMax = max($expansionMax, 20);
+    }
+    if ($limit >= 2000) {
+        $expansionMax = max($expansionMax, 35);
+    }
     $expandedLocations = $enableExpansion ? buildLocationExpansions($location) : [];
     if ($expansionMax > 0) {
         $expandedLocations = array_slice($expandedLocations, 0, $expansionMax);
@@ -490,8 +499,27 @@ function searchSingleEngineNonStream($apiKey, $engine, $query, $resultsKey, $lim
     } else {
         $pageCap = 2500;
     }
+    if ($limit >= 1000) {
+        if ($engine === 'google_maps') {
+            $pageCap = min($pageCap, 12);
+        } elseif ($engine === 'yelp') {
+            $pageCap = min($pageCap, 15);
+        } elseif ($engine === 'bing_maps') {
+            $pageCap = min($pageCap, 20);
+        }
+    }
     $maxPages = min($maxPages, $pageCap);
     $throttleUs = defined('SERPAPI_THROTTLE_US') ? max(0, (int)SERPAPI_THROTTLE_US) : 50000; // Reduced from 100ms to 50ms
+    if ($limit >= 2000) {
+        $throttleUs = min($throttleUs, 10000);
+    } elseif ($limit >= 1000) {
+        $throttleUs = min($throttleUs, 15000);
+    }
+    $connectTimeout = defined('SERPAPI_CONNECT_TIMEOUT_SEC') ? max(5, (int)SERPAPI_CONNECT_TIMEOUT_SEC) : 15;
+    $requestTimeout = defined('SERPAPI_TIMEOUT_SEC')
+        ? max(10, (int)SERPAPI_TIMEOUT_SEC)
+        : ($limit >= 2000 ? 60 : ($limit >= 500 ? 45 : 35));
+    $requestRetries = defined('SERPAPI_REQUEST_RETRIES') ? max(0, (int)SERPAPI_REQUEST_RETRIES) : 2;
     
     for ($page = 0; $page < $maxPages; $page++) {
         if (count($results) >= $limit) {
@@ -524,11 +552,27 @@ function searchSingleEngineNonStream($apiKey, $engine, $query, $resultsKey, $lim
         }
         
         $url = "https://serpapi.com/search.json?" . http_build_query($params);
-        $timeout = defined('SERPAPI_TIMEOUT_SEC') ? max(5, (int)SERPAPI_TIMEOUT_SEC) : 30;
-        $response = curlRequest($url, [
-            CURLOPT_CONNECTTIMEOUT => defined('SERPAPI_CONNECT_TIMEOUT_SEC') ? max(3, (int)SERPAPI_CONNECT_TIMEOUT_SEC) : 10,
-            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
-        ], $timeout);
+        $response = null;
+        for ($attempt = 0; $attempt <= $requestRetries; $attempt++) {
+            $response = curlRequest($url, [
+                CURLOPT_CONNECTTIMEOUT => $connectTimeout,
+                CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+            ], $requestTimeout);
+            $httpCode = (int)($response['httpCode'] ?? 0);
+            $curlError = (string)($response['error'] ?? '');
+
+            if ($httpCode === 200) {
+                break;
+            }
+
+            $retryableStatus = in_array($httpCode, [408, 429, 500, 502, 503, 504], true);
+            $retryable = $retryableStatus || isTransientNetworkErrorMessage($curlError) || $httpCode === 0;
+            if (!$retryable || $attempt >= $requestRetries) {
+                break;
+            }
+
+            usleep((int)(250000 * ($attempt + 1))); // 250ms, 500ms, 750ms...
+        }
         
         if ($response['httpCode'] !== 200) {
             $errorMessage = "SerpAPI error (HTTP {$response['httpCode']})";

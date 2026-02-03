@@ -131,6 +131,12 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         
         $enableExpansion = defined('ENABLE_LOCATION_EXPANSION') ? ENABLE_LOCATION_EXPANSION : true;
         $expansionMax = defined('LOCATION_EXPANSION_MAX') ? max(0, (int)LOCATION_EXPANSION_MAX) : 5;
+        if ($limit >= 1000) {
+            $expansionMax = max($expansionMax, 20);
+        }
+        if ($limit >= 2000) {
+            $expansionMax = max($expansionMax, 35);
+        }
         $expandedLocations = $enableExpansion ? buildLocationExpansions($location) : [];
         if ($expansionMax > 0) {
             $expandedLocations = array_slice($expandedLocations, 0, $expansionMax);
@@ -425,6 +431,15 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         }
         
         if ($totalResults === 0 && $hadEngineError) {
+            if ($hasSerper) {
+                sendSSE('status', [
+                    'message' => 'Primary sources timed out. Switching to Serper fallback...',
+                    'engine' => 'Serper',
+                    'progress' => 0
+                ]);
+                streamSerperSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier);
+                return;
+            }
             sendSSEError('Search failed to return results from all sources. Please try again.');
             return;
         }
@@ -552,10 +567,9 @@ function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sour
     // Google Maps: 16667/20 = 834 pages, Yelp: 16667/10 = 1667 pages, Bing: 16667/20 = 834 pages
     $maxPages = ceil($limit / $resultsPerPage);
     
-    // Dynamic page cap based on limit requested - scaled for massive searches
-    // Small searches (≤100): 10 pages, Medium (≤500): 30 pages, Large (≤2000): 100 pages
-    // Extra Large (≤10000): 500 pages, Massive (≤50000): 2000 pages per engine
-    // Increased page caps for better results yield
+    // Dynamic page cap based on limit requested - scaled for massive searches.
+    // We intentionally keep high-volume searches wider (more query shards) and
+    // shallower (fewer pages per shard) for better speed and uniqueness.
     if ($limit <= 100) {
         $pageCap = 20; // Doubled from 10
     } elseif ($limit <= 500) {
@@ -567,13 +581,33 @@ function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sour
     } else {
         $pageCap = 2500; // Increased from 2000
     }
+    if ($limit >= 1000) {
+        if ($engine === 'google_maps') {
+            $pageCap = min($pageCap, 12);
+        } elseif ($engine === 'yelp') {
+            $pageCap = min($pageCap, 15);
+        } elseif ($engine === 'bing_maps') {
+            $pageCap = min($pageCap, 20);
+        }
+    }
     $maxPages = min($maxPages, $pageCap);
     
     $emptyPageStreak = 0; // Track consecutive empty pages to exit early
     
-    // Reduced throttle for faster searches - 50ms default instead of 150ms
+    // Reduced throttle for faster searches
     $throttleUs = defined('SERPAPI_THROTTLE_US') ? max(0, (int)SERPAPI_THROTTLE_US) : 50000;
+    if ($limit >= 2000) {
+        $throttleUs = min($throttleUs, 10000);
+    } elseif ($limit >= 1000) {
+        $throttleUs = min($throttleUs, 15000);
+    }
     
+    $connectTimeout = defined('SERPAPI_CONNECT_TIMEOUT_SEC') ? max(5, (int)SERPAPI_CONNECT_TIMEOUT_SEC) : 15;
+    $requestTimeout = defined('SERPAPI_TIMEOUT_SEC')
+        ? max(10, (int)SERPAPI_TIMEOUT_SEC)
+        : ($limit >= 2000 ? 60 : ($limit >= 500 ? 45 : 35));
+    $requestRetries = defined('SERPAPI_REQUEST_RETRIES') ? max(0, (int)SERPAPI_REQUEST_RETRIES) : 2;
+
     for ($page = 0; $page < $maxPages; $page++) {
         if (count($results) >= $limit) {
             break;
@@ -611,13 +645,29 @@ function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sour
         }
         
         $url = "https://serpapi.com/search.json?" . http_build_query($params);
-        $timeout = defined('SERPAPI_TIMEOUT_SEC')
-            ? max(5, (int)SERPAPI_TIMEOUT_SEC)
-            : ($limit >= 150 ? 25 : 40);
-        $response = curlRequest($url, [
-            CURLOPT_CONNECTTIMEOUT => defined('SERPAPI_CONNECT_TIMEOUT_SEC') ? max(3, (int)SERPAPI_CONNECT_TIMEOUT_SEC) : 10,
-            CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
-        ], $timeout);
+        $response = null;
+        $lastRequestError = '';
+        for ($attempt = 0; $attempt <= $requestRetries; $attempt++) {
+            $response = curlRequest($url, [
+                CURLOPT_CONNECTTIMEOUT => $connectTimeout,
+                CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+            ], $requestTimeout);
+            $httpCode = (int)($response['httpCode'] ?? 0);
+            $curlError = (string)($response['error'] ?? '');
+            $lastRequestError = $curlError;
+
+            if ($httpCode === 200) {
+                break;
+            }
+
+            $retryableStatus = in_array($httpCode, [408, 429, 500, 502, 503, 504], true);
+            $retryable = $retryableStatus || isTransientNetworkErrorMessage($curlError) || $httpCode === 0;
+            if (!$retryable || $attempt >= $requestRetries) {
+                break;
+            }
+
+            usleep((int)(250000 * ($attempt + 1))); // 250ms, 500ms, 750ms...
+        }
         
         if ($response['httpCode'] !== 200) {
             $errorMessage = "SerpAPI error (HTTP {$response['httpCode']})";
