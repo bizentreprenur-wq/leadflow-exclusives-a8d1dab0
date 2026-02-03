@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import {
   Search, Globe, Mail, Target, TrendingUp,
   Zap, BarChart3, ArrowRight, Sparkles, Menu,
-  CheckCircle2, Send, FileText, Chrome, Download,
+  CheckCircle2, Send, FileText, Chrome,
   Trophy, Bot, Gift, Brain, Server, Building2,
   MapPin, Phone, ExternalLink, Star, Loader2,
   ArrowLeft, Users, ChevronRight, HelpCircle,
@@ -73,6 +73,7 @@ import CloudCRMIntegrationsPanel from '@/components/CloudCRMIntegrationsPanel';
 import CRMIntegrationModal from '@/components/CRMIntegrationModal';
 import Step4OutreachHub from '@/components/Step4OutreachHub';
 import AILeadScoringDashboard from '@/components/AILeadScoringDashboard';
+import ChromeExtensionPanel from '@/components/ChromeExtensionPanel';
 import UserManualDownload from '@/components/UserManualDownload';
 import { VideoTutorialSection } from '@/components/VideoTutorialSection';
 import AIProcessingPipeline from '@/components/AIProcessingPipeline';
@@ -2497,19 +2498,7 @@ export default function Dashboard() {
           icon: Chrome,
           iconColor: 'text-blue-500',
           iconBg: 'bg-blue-500/10',
-          component: (
-            <div className="text-center py-12">
-              <Chrome className="w-16 h-16 mx-auto mb-4 text-blue-500" />
-              <h3 className="text-xl font-semibold mb-2">BamLead Chrome Extension</h3>
-              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                Extract contact info, analyze websites, and save leads directly from any webpage.
-              </p>
-              <Button className="gap-2" onClick={() => toast.info('Download the extension from the chrome-extension folder in your project')}>
-                <Download className="w-4 h-4" />
-                Download Extension
-              </Button>
-            </div>
-          ),
+          component: <ChromeExtensionPanel />,
         };
       case 'mentor':
         return {
