@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -58,6 +57,14 @@ interface Stats {
   searches_today: number;
 }
 
+async function readJsonSafe<T>(response: Response): Promise<T | null> {
+  try {
+    return (await response.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
 // Mock data for testing
 const MOCK_USERS: AdminUser[] = [
   {
@@ -97,10 +104,10 @@ const MOCK_STATS: Stats = {
 };
 
 export default function Admin() {
-  const { user } = useAuth();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeUserMutationId, setActiveUserMutationId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [grantEmail, setGrantEmail] = useState('');
   const [isGranting, setIsGranting] = useState(false);
@@ -113,7 +120,9 @@ export default function Admin() {
   const [editStatus, setEditStatus] = useState('');
   const [editPlan, setEditPlan] = useState<string | null>(null);
 
-  const fetchData = async () => {
+  const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     
     if (USE_MOCK_AUTH) {
@@ -126,30 +135,57 @@ export default function Admin() {
     }
 
     try {
-      const [usersRes, statsRes] = await Promise.all([
+      let hasError = false;
+
+      const [usersResult, statsResult] = await Promise.allSettled([
         fetch(ADMIN_ENDPOINTS.users, { headers: getAuthHeaders() }),
-        fetch(ADMIN_ENDPOINTS.stats, { headers: getAuthHeaders() })
+        fetch(ADMIN_ENDPOINTS.stats, { headers: getAuthHeaders() }),
       ]);
 
-      const usersData = await usersRes.json();
-      const statsData = await statsRes.json();
+      if (usersResult.status === 'fulfilled') {
+        const usersData = await readJsonSafe<{ success?: boolean; users?: AdminUser[]; error?: string }>(usersResult.value);
+        if (!usersResult.value.ok || !usersData?.success || !Array.isArray(usersData.users)) {
+          hasError = true;
+        } else {
+          setUsers(usersData.users);
+        }
+      } else {
+        hasError = true;
+      }
 
-      if (usersData.success) setUsers(usersData.users);
-      if (statsData.success) setStats(statsData.stats);
-    } catch (error) {
-      toast.error('Failed to load admin data');
+      if (statsResult.status === 'fulfilled') {
+        const statsData = await readJsonSafe<{ success?: boolean; stats?: Stats; error?: string }>(statsResult.value);
+        if (!statsResult.value.ok || !statsData?.success || !statsData.stats) {
+          hasError = true;
+        } else {
+          setStats(statsData.stats);
+        }
+      } else {
+        hasError = true;
+      }
+
+      if (hasError) {
+        toast.error('Failed to load some admin data. Please refresh.');
+      }
+    } catch {
+      toast.error('Failed to load admin data. Please refresh.');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchData();
   }, []);
 
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
+
   const handleGrantFreeAccount = async () => {
-    if (!grantEmail) {
+    const trimmedEmail = grantEmail.trim().toLowerCase();
+    if (!trimmedEmail) {
       toast.error('Please enter an email address');
+      return;
+    }
+    if (!isValidEmail(trimmedEmail)) {
+      toast.error('Please enter a valid email address');
       return;
     }
 
@@ -157,7 +193,7 @@ export default function Admin() {
     
     if (USE_MOCK_AUTH) {
       await new Promise(resolve => setTimeout(resolve, 500));
-      toast.success(`Free account granted to ${grantEmail} (mock mode)`);
+      toast.success(`Free account granted to ${trimmedEmail} (mock mode)`);
       setGrantEmail('');
       setIsGranting(false);
       return;
@@ -167,19 +203,19 @@ export default function Admin() {
       const response = await fetch(ADMIN_ENDPOINTS.grantFree, {
         method: 'POST',
         headers: getAuthHeaders(),
-        body: JSON.stringify({ email: grantEmail })
+        body: JSON.stringify({ email: trimmedEmail })
       });
 
-      const data = await response.json();
+      const data = await readJsonSafe<{ success?: boolean; error?: string }>(response);
 
-      if (data.success) {
-        toast.success(`Free account granted to ${grantEmail}`);
+      if (response.ok && data?.success) {
+        toast.success(`Free account granted to ${trimmedEmail}`);
         setGrantEmail('');
-        fetchData();
+        void fetchData();
       } else {
-        toast.error(data.error || 'Failed to grant free account');
+        toast.error(data?.error || 'Failed to grant free account');
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to grant free account');
     } finally {
       setIsGranting(false);
@@ -187,9 +223,11 @@ export default function Admin() {
   };
 
   const handleUpdateUser = async (userId: number, updates: Partial<AdminUser>) => {
+    setActiveUserMutationId(userId);
     if (USE_MOCK_AUTH) {
       toast.success('User updated (mock mode)');
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updates } : u));
+      setActiveUserMutationId(null);
       return;
     }
 
@@ -200,16 +238,18 @@ export default function Admin() {
         body: JSON.stringify(updates)
       });
 
-      const data = await response.json();
+      const data = await readJsonSafe<{ success?: boolean; error?: string }>(response);
 
-      if (data.success) {
+      if (response.ok && data?.success) {
         toast.success('User updated');
-        fetchData();
+        void fetchData();
       } else {
-        toast.error(data.error || 'Failed to update user');
+        toast.error(data?.error || 'Failed to update user');
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to update user');
+    } finally {
+      setActiveUserMutationId(null);
     }
   };
 
@@ -249,6 +289,7 @@ export default function Admin() {
       setUsers(prev => prev.map(u => u.id === editTarget.id ? { ...u, ...updates } : u));
       toast.success('User updated (mock mode)');
       setIsUpdating(false);
+      setActiveUserMutationId(null);
       setEditTarget(null);
       return;
     }
@@ -264,12 +305,14 @@ export default function Admin() {
   const handleDeleteUser = async () => {
     if (!deleteTarget) return;
     setIsDeleting(true);
+    setActiveUserMutationId(deleteTarget.id);
 
     if (USE_MOCK_AUTH) {
       setUsers(prev => prev.filter(u => u.id !== deleteTarget.id));
       toast.success('User deleted (mock mode)');
       setDeleteTarget(null);
       setIsDeleting(false);
+      setActiveUserMutationId(null);
       return;
     }
 
@@ -278,25 +321,30 @@ export default function Admin() {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });
-      const data = await response.json();
-      if (data.success) {
+      const data = await readJsonSafe<{ success?: boolean; error?: string }>(response);
+      if (response.ok && data?.success) {
         toast.success('User deleted');
         setDeleteTarget(null);
-        fetchData();
+        void fetchData();
       } else {
-        toast.error(data.error || 'Failed to delete user');
+        toast.error(data?.error || 'Failed to delete user');
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete user');
     } finally {
       setIsDeleting(false);
+      setActiveUserMutationId(null);
     }
   };
 
-  const filteredUsers = users.filter(u => 
-    u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    u.name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredUsers = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    if (!normalizedQuery) return users;
+    return users.filter((u) =>
+      u.email.toLowerCase().includes(normalizedQuery) ||
+      u.name?.toLowerCase().includes(normalizedQuery)
+    );
+  }, [users, searchQuery]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -318,7 +366,7 @@ export default function Admin() {
                 Home
               </Button>
             </Link>
-            <Button variant="outline" size="sm" onClick={fetchData} disabled={isLoading}>
+            <Button variant="outline" size="sm" onClick={() => void fetchData()} disabled={isLoading}>
               <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
@@ -412,14 +460,20 @@ export default function Admin() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
               <Input
                 placeholder="user@example.com"
                 value={grantEmail}
                 onChange={(e) => setGrantEmail(e.target.value)}
-                className="max-w-md"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    void handleGrantFreeAccount();
+                  }
+                }}
+                className="w-full sm:max-w-md"
               />
-              <Button onClick={handleGrantFreeAccount} disabled={isGranting}>
+              <Button onClick={() => void handleGrantFreeAccount()} disabled={isGranting}>
                 {isGranting ? 'Granting...' : 'Grant Free Access'}
               </Button>
             </div>
@@ -473,7 +527,7 @@ export default function Admin() {
                           <Select
                             value={u.role}
                             onValueChange={(value) => handleUpdateUser(u.id, { role: value as 'admin' | 'user' })}
-                            disabled={u.is_owner}
+                            disabled={u.is_owner || activeUserMutationId === u.id || isLoading}
                           >
                             <SelectTrigger className="w-24">
                               <SelectValue />
@@ -504,6 +558,7 @@ export default function Admin() {
                               <Button 
                                 variant="outline" 
                                 size="sm"
+                                disabled={activeUserMutationId === u.id || isLoading}
                                 onClick={() => handleUpdateUser(u.id, { subscription_status: 'active', subscription_plan: 'free_granted' })}
                               >
                                 <Gift className="w-4 h-4" />
@@ -513,6 +568,7 @@ export default function Admin() {
                               variant="outline"
                               size="sm"
                               onClick={() => openEditUser(u)}
+                              disabled={activeUserMutationId === u.id || isLoading}
                             >
                               <Pencil className="w-4 h-4" />
                             </Button>
@@ -521,7 +577,7 @@ export default function Admin() {
                               size="sm"
                               className="text-red-500 border-red-500/50 hover:bg-red-500/10"
                               onClick={() => setDeleteTarget(u)}
-                              disabled={u.is_owner}
+                              disabled={u.is_owner || activeUserMutationId === u.id || isLoading}
                             >
                               <Trash2 className="w-4 h-4" />
                             </Button>
