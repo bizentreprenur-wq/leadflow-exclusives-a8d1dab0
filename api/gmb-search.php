@@ -322,7 +322,7 @@ function searchSerpApiEngines($service, $location, $limit, $filters, $filtersAct
     $searchEngines = [
         ['engine' => 'google_maps', 'name' => 'Google Maps', 'resultsKey' => 'local_results'],
         ['engine' => 'yelp', 'name' => 'Yelp', 'resultsKey' => 'organic_results'],
-        ['engine' => 'bing_local', 'name' => 'Bing Places', 'resultsKey' => 'local_results'],
+        ['engine' => 'bing_maps', 'name' => 'Bing Places', 'resultsKey' => 'local_results'],
     ];
     
     $enableExpansion = defined('ENABLE_LOCATION_EXPANSION') ? ENABLE_LOCATION_EXPANSION : true;
@@ -472,7 +472,12 @@ function buildSearchQueryVariantsForNonStream($service, $searchedLocations) {
  */
 function searchSingleEngineNonStream($apiKey, $engine, $query, $resultsKey, $limit, $sourceName) {
     $results = [];
-    $resultsPerPage = ($engine === 'yelp') ? 10 : 20;
+    $resultsPerPage = 20;
+    if ($engine === 'yelp') {
+        $resultsPerPage = 10;
+    } elseif ($engine === 'bing_maps') {
+        $resultsPerPage = 30;
+    }
     $maxPages = ceil($limit / $resultsPerPage);
     if ($limit <= 100) {
         $pageCap = 20;
@@ -511,7 +516,8 @@ function searchSingleEngineNonStream($apiKey, $engine, $query, $resultsKey, $lim
             if ($page > 0) {
                 $params['start'] = $page * 10;
             }
-        } elseif ($engine === 'bing_local') {
+        } elseif ($engine === 'bing_maps') {
+            $params['count'] = min(30, $resultsPerPage);
             if ($page > 0) {
                 $params['first'] = $page * $resultsPerPage;
             }
@@ -623,7 +629,7 @@ function normalizeBusinessResultNonStream($item, $engine, $sourceName) {
         if (is_array($snippet)) {
             $snippet = implode(', ', $snippet);
         }
-    } elseif ($engine === 'bing_local') {
+    } elseif ($engine === 'bing_maps') {
         $name = $item['title'] ?? '';
         $websiteUrl = $item['link'] ?? ($item['website'] ?? '');
         $address = $item['address'] ?? '';

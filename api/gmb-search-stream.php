@@ -126,7 +126,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         $searchEngines = [
             ['engine' => 'google_maps', 'name' => 'Google Maps', 'resultsKey' => 'local_results'],
             ['engine' => 'yelp', 'name' => 'Yelp', 'resultsKey' => 'organic_results'],
-            ['engine' => 'bing_local', 'name' => 'Bing Places', 'resultsKey' => 'local_results'],
+            ['engine' => 'bing_maps', 'name' => 'Bing Places', 'resultsKey' => 'local_results'],
         ];
         
         $enableExpansion = defined('ENABLE_LOCATION_EXPANSION') ? ENABLE_LOCATION_EXPANSION : true;
@@ -539,8 +539,13 @@ function isSerpApiCreditsError($message) {
 function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sourceName, $onPageResults = null, $onPageTick = null) {
     $results = [];
     
-    // Yelp returns 10 per page, others return 20
-    $resultsPerPage = ($engine === 'yelp') ? 10 : 20;
+    // Engine-specific page sizes
+    $resultsPerPage = 20;
+    if ($engine === 'yelp') {
+        $resultsPerPage = 10;
+    } elseif ($engine === 'bing_maps') {
+        $resultsPerPage = 30;
+    }
     
     // Calculate max pages needed - scale based on requested limit
     // For 50000 leads split across 3 engines = ~16667 per engine
@@ -598,7 +603,8 @@ function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sour
             if ($page > 0) {
                 $params['start'] = $page * $resultsPerPage;
             }
-        } elseif ($engine === 'bing_local') {
+        } elseif ($engine === 'bing_maps') {
+            $params['count'] = min(30, $resultsPerPage);
             if ($page > 0) {
                 $params['first'] = $page * $resultsPerPage;
             }
@@ -744,7 +750,7 @@ function normalizeBusinessResult($item, $engine, $sourceName) {
                 return json_encode($value);
             }, $snippet));
         }
-    } elseif ($engine === 'bing_local') {
+    } elseif ($engine === 'bing_maps') {
         $name = $item['title'] ?? '';
         $websiteUrl = $item['link'] ?? ($item['website'] ?? '');
         $address = $item['address'] ?? '';
