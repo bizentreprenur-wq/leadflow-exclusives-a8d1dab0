@@ -234,7 +234,7 @@ export default function Dashboard() {
   const [showResultsPanel, setShowResultsPanel] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportAutoPopKey, setReportAutoPopKey] = useState<string | null>(null);
-  // Persist lastReportShownKey so report re-shows after logout/login when leads are restored
+  // Persist lastReportShownKey so the Intelligence Report does NOT auto-open again for the same search
   const [lastReportShownKey, setLastReportShownKey] = useState<string | null>(() => {
     try { return localStorage.getItem('bamlead_last_report_shown_key'); } catch { return null; }
   });
@@ -310,9 +310,6 @@ export default function Dashboard() {
         sessionStorage.removeItem('bamlead_email_leads');
         sessionStorage.removeItem('leadsToVerify');
         sessionStorage.removeItem('savedLeads');
-        // Clear last report shown key so report auto-pops when leads are restored
-        localStorage.removeItem('bamlead_last_report_shown_key');
-        setLastReportShownKey(null);
       }
     } catch {
       isFreshLoginRef.current = false;
@@ -414,7 +411,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (currentStep !== 2 || searchResults.length === 0) return;
-    const key = reportAutoPopKey || localStorage.getItem('bamlead_search_timestamp');
+    // Only auto-open immediately after a NEW search (never on login/restore).
+    const key = reportAutoPopKey;
     if (!key || lastReportShownKey === key) return;
     setShowReportModal(true);
   }, [currentStep, searchResults.length, reportAutoPopKey, lastReportShownKey]);
