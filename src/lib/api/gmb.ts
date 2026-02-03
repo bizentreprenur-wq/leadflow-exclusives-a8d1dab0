@@ -422,7 +422,15 @@ async function searchGMBStreaming(
               receivedAnyEvent = true;
               const eventType = currentEvent || (data.leads ? 'results' : data.error ? 'error' : '');
 
-              if (eventType === 'error' || data.error) {
+              // Non-fatal per-source errors are expected on large searches.
+              // Backend emits `source_error` to signal "this source failed, keep going".
+              if (eventType === 'source_error') {
+                console.warn('[GMB API] Source error (continuing):', data.error || 'Unknown source error');
+                currentEvent = null;
+                continue;
+              }
+
+              if (eventType === 'error') {
                 clearTimeout(timeoutId);
                 clearTimeout(initialTimeoutId);
                 const message = data.error || 'Search failed.';
@@ -431,6 +439,18 @@ async function searchGMBStreaming(
                 } catch {
                   // ignore cancel errors
                 }
+
+                // If we already have leads, return partial results instead of failing hard.
+                if (allResults.length > 0) {
+                  finish({
+                    success: true,
+                    data: allResults,
+                    error: `${message} Showing partial results.`,
+                    query: { service, location }
+                  });
+                  return;
+                }
+
                 fail(new Error(message));
                 return;
               }
