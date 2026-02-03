@@ -18,7 +18,7 @@ import {
   Zap, Building2, Mail, Clock, ChevronRight, FileSpreadsheet,
   TrendingUp, ThermometerSun, Calendar, MessageSquare, DollarSign,
   Eye, PhoneCall, MailOpen, Sparkles, BarChart3, Timer, Lightbulb, Shield,
-  Copy, Check, ZoomIn, ZoomOut, RotateCcw
+  Copy, Check, ZoomIn, ZoomOut, RotateCcw, Trophy, Swords
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 
@@ -50,6 +50,9 @@ interface LeadDocumentViewerProps {
   location: string;
   onProceedToVerify: (leads: SearchResult[]) => void;
   onProceedToEmail?: (leads: SearchResult[]) => void;
+  // Research mode support
+  researchMode?: 'niche' | 'competitive';
+  myBusinessInfo?: { name: string; url: string } | null;
 }
 
 // AI Analysis for each lead
@@ -860,6 +863,8 @@ export default function LeadDocumentViewer({
   location,
   onProceedToVerify,
   onProceedToEmail,
+  researchMode = 'niche',
+  myBusinessInfo,
 }: LeadDocumentViewerProps) {
   const [selectedFields, setSelectedFields] = useState<string[]>(
     EXPORT_FIELDS.filter(f => f.default).map(f => f.id)
@@ -1927,15 +1932,32 @@ export default function LeadDocumentViewer({
         ) : (
           <>
             {/* Document Header - Like a PDF */}
-            <div className="bg-white border-b px-6 py-4 shrink-0 rounded-t-xl">
+            <div className={`border-b px-6 py-4 shrink-0 rounded-t-xl ${researchMode === 'competitive' ? 'bg-gradient-to-r from-amber-50 to-orange-50' : 'bg-white'}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
-                    <FileText className="w-6 h-6 text-white" />
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${
+                    researchMode === 'competitive' 
+                      ? 'bg-gradient-to-br from-amber-500 to-orange-600' 
+                      : 'bg-gradient-to-br from-violet-500 to-purple-600'
+                  }`}>
+                    {researchMode === 'competitive' ? (
+                      <Swords className="w-6 h-6 text-white" />
+                    ) : (
+                      <FileText className="w-6 h-6 text-white" />
+                    )}
                   </div>
                   <div>
-                    <h1 className="text-xl font-bold text-gray-900">Lead Intelligence Report</h1>
-                    <p className="text-gray-500 text-sm">{reportDate} • {searchQuery} in {location}</p>
+                    <h1 className="text-xl font-bold text-gray-900">
+                      {researchMode === 'competitive' ? 'Competitive Analysis Report' : 'Lead Intelligence Report'}
+                    </h1>
+                    <p className="text-gray-500 text-sm">
+                      {reportDate} • {searchQuery} in {location}
+                      {researchMode === 'competitive' && myBusinessInfo?.name && (
+                        <span className="ml-2 text-amber-600 font-medium">
+                          vs {myBusinessInfo.name}
+                        </span>
+                      )}
+                    </p>
                   </div>
                 </div>
 
@@ -2067,6 +2089,96 @@ export default function LeadDocumentViewer({
                     </div>
                   </div>
                 </div>
+
+                {/* Competitive Analysis Overview - Only show in competitive mode */}
+                {researchMode === 'competitive' && myBusinessInfo?.name && (
+                  <div className="border-b pb-6 mb-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Swords className="w-5 h-5 text-amber-600" />
+                      <h2 className="text-lg font-bold text-gray-900">🏆 Competitive Analysis: {myBusinessInfo.name}</h2>
+                      <Badge className="bg-amber-100 text-amber-700 border-amber-300 ml-2">
+                        vs {leads.length} Competitors
+                      </Badge>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                      {/* Your Advantages */}
+                      <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Trophy className="w-5 h-5 text-emerald-600" />
+                          <span className="font-bold text-emerald-700">Your Advantages</span>
+                        </div>
+                        <ul className="space-y-2 text-sm text-emerald-700">
+                          <li className="flex items-start gap-2">
+                            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                            <span>{hotLeads.length > warmLeads.length / 2 ? 'Many competitors have weak online presence' : 'Room to differentiate with better marketing'}</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                            <span>{leads.filter(l => !l.website).length} competitors have no website</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                            <span>{leads.filter(l => (l.rating || 0) < 4).length} have ratings below 4.0</span>
+                          </li>
+                        </ul>
+                      </div>
+
+                      {/* Areas to Watch */}
+                      <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                        <div className="flex items-center gap-2 mb-3">
+                          <AlertTriangle className="w-5 h-5 text-amber-600" />
+                          <span className="font-bold text-amber-700">Areas to Watch</span>
+                        </div>
+                        <ul className="space-y-2 text-sm text-amber-700">
+                          <li className="flex items-start gap-2">
+                            <ChevronRight className="w-4 h-4 shrink-0 mt-0.5" />
+                            <span>{leads.filter(l => (l.rating || 0) >= 4.5).length} competitors have 4.5+ ratings</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <ChevronRight className="w-4 h-4 shrink-0 mt-0.5" />
+                            <span>Top competitors in {location} are well-established</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <ChevronRight className="w-4 h-4 shrink-0 mt-0.5" />
+                            <span>Review velocity matters in this niche</span>
+                          </li>
+                        </ul>
+                      </div>
+
+                      {/* AI Win Strategies */}
+                      <div className="p-4 bg-violet-50 border border-violet-200 rounded-xl">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Sparkles className="w-5 h-5 text-violet-600" />
+                          <span className="font-bold text-violet-700">AI Win Strategies</span>
+                        </div>
+                        <ul className="space-y-2 text-sm text-violet-700">
+                          <li className="flex items-start gap-2">
+                            <Zap className="w-4 h-4 shrink-0 mt-0.5" />
+                            <span>Focus on mobile experience—{leads.filter(l => l.websiteAnalysis?.mobileScore && l.websiteAnalysis.mobileScore < 70).length} competitors have poor mobile</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <Zap className="w-4 h-4 shrink-0 mt-0.5" />
+                            <span>Invest in review generation campaigns</span>
+                          </li>
+                          <li className="flex items-start gap-2">
+                            <Zap className="w-4 h-4 shrink-0 mt-0.5" />
+                            <span>Differentiate with faster response times</span>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg">
+                      <p className="text-sm text-amber-800">
+                        <strong>💡 Key Insight:</strong> Based on the analysis, {myBusinessInfo.name} can gain market share by 
+                        {hotLeads.length > leads.length / 3 
+                          ? ' targeting the large number of businesses with outdated digital presence in this market.'
+                          : ' focusing on service quality and customer experience to stand out from established competitors.'}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* AI Research Intelligence Sections - Updated to 12 Categories */}
                 <div className="border-b pb-6 mb-6">
