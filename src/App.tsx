@@ -94,9 +94,30 @@ function AppInner() {
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/sign-contract" element={<SignContract />} />
-        <Route path="/autopilot-onboarding" element={<AutopilotOnboarding />} />
-        <Route path="/basic-onboarding" element={<BasicOnboarding />} />
-        <Route path="/pro-onboarding" element={<ProOnboarding />} />
+        <Route
+          path="/autopilot-onboarding"
+          element={
+            <ProtectedRoute>
+              <AutopilotOnboarding />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/basic-onboarding"
+          element={
+            <ProtectedRoute>
+              <BasicOnboarding />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/pro-onboarding"
+          element={
+            <ProtectedRoute>
+              <ProOnboarding />
+            </ProtectedRoute>
+          }
+        />
         {/* AI-optimized pages */}
         <Route path="/what-is-bamlead" element={<WhatIsBamlead />} />
         <Route path="/capabilities" element={<Capabilities />} />

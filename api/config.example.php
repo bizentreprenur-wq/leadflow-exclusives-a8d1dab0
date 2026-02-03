@@ -166,28 +166,52 @@ define('MAX_PAGE_SIZE', 2 * 1024 * 1024); // 2MB
 // SEARCH SETTINGS
 // =====================================
 // Number of results per search (max 10 for Google, 50 for Bing)
-define('RESULTS_PER_PAGE', 200);
+if (!defined('RESULTS_PER_PAGE')) {
+    define('RESULTS_PER_PAGE', 200);
+}
 // Throttle between SerpAPI page requests (microseconds)
 // Lower = faster, higher = safer vs rate limits. 150000 = 150ms.
-define('SERPAPI_THROTTLE_US', 80000);
+if (!defined('SERPAPI_THROTTLE_US')) {
+    define('SERPAPI_THROTTLE_US', 80000);
+}
 // SerpAPI request timeouts/retries for large searches
-define('SERPAPI_CONNECT_TIMEOUT_SEC', 15);
-define('SERPAPI_TIMEOUT_SEC', 60);
-define('SERPAPI_REQUEST_RETRIES', 2);
+if (!defined('SERPAPI_CONNECT_TIMEOUT_SEC')) {
+    define('SERPAPI_CONNECT_TIMEOUT_SEC', 15);
+}
+if (!defined('SERPAPI_TIMEOUT_SEC')) {
+    define('SERPAPI_TIMEOUT_SEC', 60);
+}
+if (!defined('SERPAPI_REQUEST_RETRIES')) {
+    define('SERPAPI_REQUEST_RETRIES', 2);
+}
 // Over-fetch multiplier when filters are active (helps hit target counts)
-define('FILTER_OVERFETCH_MULTIPLIER', 3);
+if (!defined('FILTER_OVERFETCH_MULTIPLIER')) {
+    define('FILTER_OVERFETCH_MULTIPLIER', 3);
+}
 // Minimum acceptable ratio of requested leads before fallback broadening kicks in
-define('SEARCH_FILL_TARGET_RATIO', 0.95);
+if (!defined('SEARCH_FILL_TARGET_RATIO')) {
+    define('SEARCH_FILL_TARGET_RATIO', 0.95);
+}
 // Max number of supplemental query variants used for top-up passes
-define('SEARCH_QUERY_VARIANT_MAX', 8);
+if (!defined('SEARCH_QUERY_VARIANT_MAX')) {
+    define('SEARCH_QUERY_VARIANT_MAX', 8);
+}
 // Auto-expand locations when results are below the requested limit
-define('ENABLE_LOCATION_EXPANSION', true);
+if (!defined('ENABLE_LOCATION_EXPANSION')) {
+    define('ENABLE_LOCATION_EXPANSION', true);
+}
 // Maximum number of extra location variants to try
-define('LOCATION_EXPANSION_MAX', 5);
+if (!defined('LOCATION_EXPANSION_MAX')) {
+    define('LOCATION_EXPANSION_MAX', 5);
+}
 // Allow widening to state-level searches (broader, less targeted)
-define('LOCATION_EXPANSION_INCLUDE_STATE', false);
+if (!defined('LOCATION_EXPANSION_INCLUDE_STATE')) {
+    define('LOCATION_EXPANSION_INCLUDE_STATE', false);
+}
 // Allow widening to country-level searches (very broad)
-define('LOCATION_EXPANSION_INCLUDE_COUNTRY', false);
+if (!defined('LOCATION_EXPANSION_INCLUDE_COUNTRY')) {
+    define('LOCATION_EXPANSION_INCLUDE_COUNTRY', false);
+}
 
 // =====================================
 // DEBUG MODE

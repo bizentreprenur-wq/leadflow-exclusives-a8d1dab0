@@ -36,6 +36,7 @@ const DEFAULT_STATUS: SMTPStatus = {
 
 // Custom event for cross-component sync
 const SMTP_CHANGE_EVENT = 'bamlead_smtp_changed';
+const CONNECTION_FIELDS: Array<keyof SMTPConfig> = ['host', 'port', 'username', 'password', 'secure'];
 
 export function useSMTPConfig() {
   const [config, setConfig] = useState<SMTPConfig>(() => {
@@ -134,6 +135,23 @@ export function useSMTPConfig() {
       const configData = JSON.stringify(updated);
       localStorage.setItem(SMTP_CONFIG_KEY, configData);
       localStorage.setItem('smtp_config', configData); // Legacy support
+
+      const connectionChanged = CONNECTION_FIELDS.some((field) => (
+        field in newConfig && prev[field] !== updated[field]
+      ));
+      if (connectionChanged) {
+        const hasCredentials = Boolean(updated.host && updated.port && updated.username && updated.password);
+        setStatus(prevStatus => {
+          const nextStatus: SMTPStatus = {
+            ...prevStatus,
+            isConnected: hasCredentials,
+            isVerified: false,
+          };
+          localStorage.setItem(SMTP_STATUS_KEY, JSON.stringify(nextStatus));
+          return nextStatus;
+        });
+      }
+
       broadcastChange();
       return updated;
     });

@@ -155,12 +155,23 @@ export default function BasicOnboardingWizard({
     }
   };
 
+  const isSenderEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(companyInfo.senderEmail.trim());
+
   const canProceed = () => {
     switch (currentStep) {
       case 0: // Company Info
-        return companyInfo.companyName && companyInfo.senderName && companyInfo.senderEmail;
+        return Boolean(
+          companyInfo.companyName.trim() &&
+            companyInfo.senderName.trim() &&
+            isSenderEmailValid,
+        );
       case 1: // SMTP
-        return smtpConfig.host && smtpConfig.username && smtpConfig.password;
+        return Boolean(
+          smtpConfig.host.trim() &&
+            smtpConfig.username.trim() &&
+            smtpConfig.password.trim() &&
+            smtpStatus.isVerified,
+        );
       case 2: // CRM
         return selectedCRM;
       default:
@@ -207,7 +218,6 @@ export default function BasicOnboardingWizard({
       });
       
       onComplete();
-      onOpenChange(false);
     } catch (error) {
       toast.error('Failed to complete setup');
     } finally {
@@ -496,6 +506,11 @@ export default function BasicOnboardingWizard({
                     </>
                   )}
                 </Button>
+                {!smtpStatus.isVerified && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    Please run SMTP test successfully before continuing.
+                  </p>
+                )}
 
                 {/* Quick Setup Guides */}
                 <div className="p-4 rounded-xl bg-muted/50 border border-border">
