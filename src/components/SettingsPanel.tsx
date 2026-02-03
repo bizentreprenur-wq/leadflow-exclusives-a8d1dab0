@@ -246,7 +246,7 @@ export default function SettingsPanel({ initialTab = 'integrations', onBackToSte
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(normalizeSettingsTab(value))}>
         <TabsList className="grid w-full grid-cols-5 bg-muted/50 p-1">
           <TabsTrigger 
             value="integrations" 
