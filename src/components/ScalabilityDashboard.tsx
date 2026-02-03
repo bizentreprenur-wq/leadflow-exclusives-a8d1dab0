@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,9 +28,9 @@ interface PerformanceMetric {
 }
 
 const ScalabilityDashboard = () => {
+  const TARGET_USERS = 500;
   const [isSimulating, setIsSimulating] = useState(false);
   const [currentUsers, setCurrentUsers] = useState(0);
-  const [targetUsers, setTargetUsers] = useState(500);
   const [metrics, setMetrics] = useState<PerformanceMetric[]>([
     { label: "Response Time", value: 0, max: 200, unit: "ms", status: "excellent" },
     { label: "Email Queue", value: 0, max: 10000, unit: "emails", status: "excellent" },
@@ -38,20 +38,41 @@ const ScalabilityDashboard = () => {
     { label: "DB Connections", value: 0, max: 100, unit: "active", status: "excellent" }
   ]);
   const [systemStatus, setSystemStatus] = useState<"idle" | "running" | "complete">("idle");
+  const simulationIntervalRef = useRef<number | null>(null);
+
+  const clearSimulationInterval = useCallback(() => {
+    if (simulationIntervalRef.current !== null) {
+      window.clearInterval(simulationIntervalRef.current);
+      simulationIntervalRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      clearSimulationInterval();
+    };
+  }, [clearSimulationInterval]);
 
   const simulateLoad = () => {
+    clearSimulationInterval();
     setIsSimulating(true);
     setSystemStatus("running");
     setCurrentUsers(0);
+    setMetrics([
+      { label: "Response Time", value: 0, max: 200, unit: "ms", status: "excellent" },
+      { label: "Email Queue", value: 0, max: 10000, unit: "emails", status: "excellent" },
+      { label: "Search Queries", value: 0, max: 1000, unit: "/min", status: "excellent" },
+      { label: "DB Connections", value: 0, max: 100, unit: "active", status: "excellent" }
+    ]);
 
-    const interval = setInterval(() => {
+    simulationIntervalRef.current = window.setInterval(() => {
       setCurrentUsers(prev => {
         const next = prev + Math.floor(Math.random() * 20) + 10;
-        if (next >= targetUsers) {
-          clearInterval(interval);
+        if (next >= TARGET_USERS) {
+          clearSimulationInterval();
           setIsSimulating(false);
           setSystemStatus("complete");
-          return targetUsers;
+          return TARGET_USERS;
         }
         return next;
       });
@@ -130,10 +151,10 @@ const ScalabilityDashboard = () => {
   return (
     <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-accent/5">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex flex-wrap items-center gap-2">
           <Server className="h-6 w-6 text-primary" />
           System Scalability Dashboard
-          <Badge className="ml-auto bg-green-500 text-white">
+          <Badge className="sm:ml-auto bg-green-500 text-white">
             <Activity className="h-3 w-3 mr-1" />
             PRODUCTION READY
           </Badge>
@@ -145,17 +166,17 @@ const ScalabilityDashboard = () => {
       <CardContent className="space-y-6">
         {/* Load Simulator */}
         <div className="p-4 rounded-xl bg-card border">
-          <div className="flex items-center justify-between mb-4">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="font-bold">Load Test Simulator</h3>
               <p className="text-sm text-muted-foreground">
-                Simulate {targetUsers} concurrent users to verify system capacity
+                Simulate {TARGET_USERS} concurrent users to verify system capacity
               </p>
             </div>
             <Button 
               onClick={simulateLoad} 
               disabled={isSimulating}
-              className="bg-primary"
+              className="w-full sm:w-auto bg-primary"
             >
               {isSimulating ? (
                 <>
@@ -175,11 +196,11 @@ const ScalabilityDashboard = () => {
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm">Concurrent Users</span>
-              <span className="font-bold text-2xl text-primary">
-                {currentUsers} / {targetUsers}
+              <span className="font-bold text-xl sm:text-2xl text-primary">
+                {currentUsers} / {TARGET_USERS}
               </span>
             </div>
-            <Progress value={(currentUsers / targetUsers) * 100} className="h-4" />
+            <Progress value={Math.min(100, (currentUsers / TARGET_USERS) * 100)} className="h-4" />
           </div>
 
           {/* Metrics Grid */}
@@ -214,7 +235,7 @@ const ScalabilityDashboard = () => {
             <div className="mt-4 p-3 rounded-lg bg-green-500/10 border border-green-500/30 flex items-center gap-2">
               <CheckCircle2 className="h-5 w-5 text-green-500" />
               <span className="text-sm font-medium text-green-500">
-                Load test passed! System handled {targetUsers} concurrent users with stable performance.
+                Load test passed! System handled {TARGET_USERS} concurrent users with stable performance.
               </span>
             </div>
           )}

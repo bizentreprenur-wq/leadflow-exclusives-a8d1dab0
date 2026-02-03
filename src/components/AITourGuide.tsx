@@ -140,13 +140,28 @@ export default function AITourGuide() {
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
   
   const speechRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const didCheckFirstVisitRef = useRef(false);
   const location = useLocation();
   const navigate = useNavigate();
 
   const currentStep = TOUR_STEPS[currentStepIndex];
+  const hideFloatingDemoButton = useMemo(() => {
+    const path = location.pathname;
+    return (
+      path.startsWith("/dashboard") ||
+      path.startsWith("/admin") ||
+      path.startsWith("/auth") ||
+      path.startsWith("/verify-email") ||
+      path.startsWith("/forgot-password") ||
+      path.startsWith("/reset-password")
+    );
+  }, [location.pathname]);
 
   // Check if first visit
   useEffect(() => {
+    if (didCheckFirstVisitRef.current) return;
+    didCheckFirstVisitRef.current = true;
+
     const completed = localStorage.getItem(STORAGE_KEY);
     const disabled = localStorage.getItem(TOUR_DISABLED_KEY);
     
@@ -159,7 +174,7 @@ export default function AITourGuide() {
       setIsFirstVisit(true);
       setTimeout(() => setShowTour(true), 1500);
     }
-  }, []);
+  }, [location.pathname]);
 
   // Listen for manual tour start
   useEffect(() => {
@@ -571,7 +586,7 @@ export default function AITourGuide() {
 
   // Floating demo button (always visible when tour not active)
   // Hidden on mobile to avoid blocking the menu button
-  if (!showTour && !isFirstVisit) {
+  if (!showTour && !isFirstVisit && !hideFloatingDemoButton) {
     // Minimized state - small icon only
     if (isDemoMinimized) {
       return (
@@ -878,7 +893,7 @@ export default function AITourGuide() {
                 {/* Tooltip on hover */}
                 <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                   <div className="bg-foreground text-background text-[10px] px-2 py-1 rounded whitespace-nowrap font-medium shadow-lg">
-                    {index + 1}. {step.title.replace(/[🎉🚀]/g, '').trim()}
+                    {index + 1}. {step.title.replace(/[🎉🚀]/gu, '').trim()}
                   </div>
                 </div>
               </button>
