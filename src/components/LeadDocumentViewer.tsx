@@ -2091,90 +2091,125 @@ export default function LeadDocumentViewer({
                 </div>
 
                 {/* Competitive Analysis Overview - Only show in competitive mode */}
-                {researchMode === 'competitive' && myBusinessInfo?.name && (
+                {researchMode === 'competitive' && (
                   <div className="border-b pb-6 mb-6">
                     <div className="flex items-center gap-2 mb-4">
                       <Swords className="w-5 h-5 text-amber-600" />
-                      <h2 className="text-lg font-bold text-gray-900">🏆 Competitive Analysis: {myBusinessInfo.name}</h2>
+                      <h2 className="text-lg font-bold text-gray-900">🏆 Competitive Intelligence Dashboard</h2>
                       <Badge className="bg-amber-100 text-amber-700 border-amber-300 ml-2">
-                        vs {leads.length} Competitors
+                        {leads.length} Businesses Analyzed
                       </Badge>
+                      {myBusinessInfo?.name && (
+                        <Badge className="bg-emerald-100 text-emerald-700 border-emerald-300 ml-1">
+                          Benchmarking: {myBusinessInfo.name}
+                        </Badge>
+                      )}
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                      {/* Your Advantages */}
+                    <p className="text-sm text-gray-600 mb-4">
+                      Use this intelligence to: <strong>benchmark your business</strong> against competitors, 
+                      <strong> find partnership opportunities</strong>, <strong>research before entering a market</strong>, 
+                      or <strong>identify businesses that need your product/service</strong>.
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                      {/* Market Overview */}
+                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                        <div className="flex items-center gap-2 mb-3">
+                          <BarChart3 className="w-5 h-5 text-slate-600" />
+                          <span className="font-bold text-slate-700">Market Overview</span>
+                        </div>
+                        <div className="space-y-2 text-sm text-slate-700">
+                          <div className="flex justify-between">
+                            <span>Total in Market:</span>
+                            <span className="font-medium">{leads.length}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Avg Rating:</span>
+                            <span className="font-medium">{(leads.reduce((acc, l) => acc + (l.rating || 0), 0) / leads.length).toFixed(1)}⭐</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>With Website:</span>
+                            <span className="font-medium">{leads.filter(l => l.website).length} ({Math.round(leads.filter(l => l.website).length / leads.length * 100)}%)</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Your Advantages (if benchmarking) */}
                       <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
                         <div className="flex items-center gap-2 mb-3">
                           <Trophy className="w-5 h-5 text-emerald-600" />
-                          <span className="font-bold text-emerald-700">Your Advantages</span>
+                          <span className="font-bold text-emerald-700">{myBusinessInfo?.name ? 'Your Advantages' : 'Market Gaps'}</span>
                         </div>
                         <ul className="space-y-2 text-sm text-emerald-700">
                           <li className="flex items-start gap-2">
                             <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-                            <span>{hotLeads.length > warmLeads.length / 2 ? 'Many competitors have weak online presence' : 'Room to differentiate with better marketing'}</span>
+                            <span>{leads.filter(l => !l.website).length} have no website</span>
                           </li>
                           <li className="flex items-start gap-2">
                             <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-                            <span>{leads.filter(l => !l.website).length} competitors have no website</span>
+                            <span>{leads.filter(l => (l.rating || 0) < 4).length} rated below 4.0</span>
                           </li>
                           <li className="flex items-start gap-2">
                             <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-                            <span>{leads.filter(l => (l.rating || 0) < 4).length} have ratings below 4.0</span>
+                            <span>{leads.filter(l => l.websiteAnalysis?.mobileScore && l.websiteAnalysis.mobileScore < 60).length} poor mobile exp.</span>
                           </li>
                         </ul>
                       </div>
 
-                      {/* Areas to Watch */}
+                      {/* Competitive Threats */}
                       <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
                         <div className="flex items-center gap-2 mb-3">
                           <AlertTriangle className="w-5 h-5 text-amber-600" />
-                          <span className="font-bold text-amber-700">Areas to Watch</span>
+                          <span className="font-bold text-amber-700">Strong Players</span>
                         </div>
                         <ul className="space-y-2 text-sm text-amber-700">
                           <li className="flex items-start gap-2">
                             <ChevronRight className="w-4 h-4 shrink-0 mt-0.5" />
-                            <span>{leads.filter(l => (l.rating || 0) >= 4.5).length} competitors have 4.5+ ratings</span>
+                            <span>{leads.filter(l => (l.rating || 0) >= 4.5).length} with 4.5+ rating</span>
                           </li>
                           <li className="flex items-start gap-2">
                             <ChevronRight className="w-4 h-4 shrink-0 mt-0.5" />
-                            <span>Top competitors in {location} are well-established</span>
+                            <span>{leads.filter(l => l.website && l.websiteAnalysis?.mobileScore && l.websiteAnalysis.mobileScore >= 80).length} have strong sites</span>
                           </li>
                           <li className="flex items-start gap-2">
                             <ChevronRight className="w-4 h-4 shrink-0 mt-0.5" />
-                            <span>Review velocity matters in this niche</span>
+                            <span>Top players in {location}</span>
                           </li>
                         </ul>
                       </div>
 
-                      {/* AI Win Strategies */}
+                      {/* AI Recommendations */}
                       <div className="p-4 bg-violet-50 border border-violet-200 rounded-xl">
                         <div className="flex items-center gap-2 mb-3">
                           <Sparkles className="w-5 h-5 text-violet-600" />
-                          <span className="font-bold text-violet-700">AI Win Strategies</span>
+                          <span className="font-bold text-violet-700">AI Recommendations</span>
                         </div>
                         <ul className="space-y-2 text-sm text-violet-700">
                           <li className="flex items-start gap-2">
                             <Zap className="w-4 h-4 shrink-0 mt-0.5" />
-                            <span>Focus on mobile experience—{leads.filter(l => l.websiteAnalysis?.mobileScore && l.websiteAnalysis.mobileScore < 70).length} competitors have poor mobile</span>
+                            <span>{hotLeads.length > warmLeads.length ? 'Many underserved - act fast' : 'Build relationships first'}</span>
                           </li>
                           <li className="flex items-start gap-2">
                             <Zap className="w-4 h-4 shrink-0 mt-0.5" />
-                            <span>Invest in review generation campaigns</span>
+                            <span>Focus on {leads.filter(l => !l.website).length > leads.length / 4 ? 'no-website prospects' : 'mobile experience'}</span>
                           </li>
                           <li className="flex items-start gap-2">
                             <Zap className="w-4 h-4 shrink-0 mt-0.5" />
-                            <span>Differentiate with faster response times</span>
+                            <span>Partner with complementary</span>
                           </li>
                         </ul>
                       </div>
                     </div>
 
+                    {/* Key Insight */}
                     <div className="p-3 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg">
                       <p className="text-sm text-amber-800">
-                        <strong>💡 Key Insight:</strong> Based on the analysis, {myBusinessInfo.name} can gain market share by 
+                        <strong>💡 Key Insight:</strong> This market has {leads.length} players. 
                         {hotLeads.length > leads.length / 3 
-                          ? ' targeting the large number of businesses with outdated digital presence in this market.'
-                          : ' focusing on service quality and customer experience to stand out from established competitors.'}
+                          ? ` ${hotLeads.length} businesses (${Math.round(hotLeads.length / leads.length * 100)}%) have significant digital gaps - prime targets for your product/service or easy wins if competing.`
+                          : ` Most businesses are digitally mature - differentiate through service quality, partnerships, or niche specialization.`}
+                        {myBusinessInfo?.name && ` Use this data to position ${myBusinessInfo.name} strategically.`}
                       </p>
                     </div>
                   </div>
@@ -2190,7 +2225,9 @@ export default function LeadDocumentViewer({
                     </Badge>
                   </div>
                   <p className="text-sm text-gray-600 mb-4">
-                    Complete decision-level intelligence: who to contact, what problem they have, how much money they're losing, what service they need, and the exact message that will convert.
+                    {researchMode === 'competitive' 
+                      ? 'Detailed intelligence on each business in this market. Use this data to identify partnership opportunities, benchmark your position, or find businesses that need your product/service.'
+                      : 'Complete decision-level intelligence: who to contact, what problem they have, how much money they\'re losing, what service they need, and the exact message that will convert.'}
                   </p>
                   
                   <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
