@@ -122,6 +122,15 @@ function createCheckoutSession($user, $planName, $billingPeriod = 'monthly') {
         $subscriptionData['trial_period_days'] = 7;
     }
     
+    // Determine the correct success URL based on plan (tier-specific onboarding)
+    $onboardingPaths = [
+        'basic' => '/basic-onboarding',
+        'pro' => '/pro-onboarding',
+        'autopilot' => '/autopilot-onboarding',
+    ];
+    $onboardingPath = $onboardingPaths[$planName] ?? '/dashboard';
+    $successUrl = FRONTEND_URL . $onboardingPath . '?payment=success&session_id={CHECKOUT_SESSION_ID}';
+    
     $session = \Stripe\Checkout\Session::create([
         'customer' => $customer->id,
         'payment_method_types' => ['card'],
@@ -130,7 +139,7 @@ function createCheckoutSession($user, $planName, $billingPeriod = 'monthly') {
             'quantity' => 1,
         ]],
         'mode' => 'subscription',
-        'success_url' => FRONTEND_URL . '/dashboard?payment=success&session_id={CHECKOUT_SESSION_ID}',
+        'success_url' => $successUrl,
         'cancel_url' => FRONTEND_URL . '/pricing?payment=canceled',
         'metadata' => [
             'user_id' => $user['id'],

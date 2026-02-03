@@ -54,7 +54,7 @@ function handleCreateCheckout() {
     $plan = sanitizeInput($input['plan'] ?? '', 20);
     $billingPeriod = sanitizeInput($input['billing_period'] ?? 'monthly', 10);
     
-    if (!in_array($plan, ['basic', 'pro', 'agency'])) {
+    if (!in_array($plan, ['basic', 'pro', 'autopilot'])) {
         sendError('Invalid plan');
     }
     
