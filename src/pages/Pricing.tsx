@@ -20,8 +20,8 @@ const featureCategories = [
     name: "Lead Discovery",
     icon: Search,
     features: [
-      { text: "GMB (Google Maps) Search", free: "5/day", basic: "50/day", pro: "200/day", autopilot: "Unlimited" },
-      { text: "Platform Search (16 platforms)", free: "3/day", basic: "50/day", pro: "200/day", autopilot: "Unlimited" },
+      { text: "GMB (Google Maps) Search", free: "5/day", basic: "30/day", pro: "200/day", autopilot: "Unlimited" },
+      { text: "Platform Search (16 platforms)", free: "3/day", basic: "30/day", pro: "200/day", autopilot: "Unlimited" },
       { text: "Super AI Business Search", free: false, basic: true, pro: true, autopilot: true },
       { text: "Reverse Lead Discovery", free: false, basic: false, pro: true, autopilot: true },
     ],
@@ -147,7 +147,7 @@ const tiers = [
     icon: Zap,
     aiLevel: "Manual Mode",
     highlights: [
-      "50 searches per day",
+      "30 searches per day",
       "200 AI verification credits/month",
       "12-Category Business Intelligence",
       "AI Email Writer (you control)",
