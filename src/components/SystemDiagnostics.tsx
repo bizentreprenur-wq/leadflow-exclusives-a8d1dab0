@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 import {
   CheckCircle2, XCircle, AlertTriangle, RefreshCw, 
   Database, Mail, Search, CreditCard, FileCode,
-  Server, Loader2, Copy, ExternalLink, Shield
+  Server, Loader2, Shield
 } from 'lucide-react';
 import { API_BASE_URL } from '@/lib/api/config';
 
@@ -36,7 +36,9 @@ export function SystemDiagnostics() {
   const [error, setError] = useState<string | null>(null);
 
   const runDiagnostics = async () => {
-    if (!cronKey.trim()) {
+    const secret = cronKey.trim();
+
+    if (!secret) {
       toast.error('Please enter your CRON_SECRET_KEY');
       return;
     }
@@ -45,46 +47,68 @@ export function SystemDiagnostics() {
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/diagnostics.php?key=${encodeURIComponent(cronKey)}`, {
+      const response = await fetch(`${API_BASE_URL}/diagnostics.php`, {
         method: 'GET',
-        headers: { 'Accept': 'application/json' },
+        headers: {
+          Accept: 'application/json',
+          'X-Cron-Secret': secret,
+        },
       });
 
       const contentType = response.headers.get('content-type') || '';
       const text = await response.text();
+      let data: unknown = null;
 
-      if (!contentType.includes('application/json')) {
-        setError(`Backend returned HTML instead of JSON. This usually means diagnostics.php is missing or PHP has an error.\n\nResponse:\n${text.slice(0, 500)}`);
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        if (!contentType.includes('application/json')) {
+          setError(`Backend returned HTML instead of JSON. This usually means diagnostics.php is missing or PHP has an error.\n\nResponse:\n${text.slice(0, 500)}`);
+        } else {
+          setError(`Backend returned invalid JSON.\n\nResponse:\n${text.slice(0, 500)}`);
+        }
         setResults(null);
         return;
       }
 
-      const data = JSON.parse(text);
-      
-      if (data.error) {
-        setError(data.error);
+      if (!response.ok) {
+        const errorMessage =
+          typeof data === 'object' && data !== null && 'error' in data && typeof (data as { error?: unknown }).error === 'string'
+            ? (data as { error: string }).error
+            : `Diagnostics request failed (${response.status} ${response.statusText})`;
+        const ipHint =
+          response.status === 403
+            ? '\n\nTip: diagnostics.php now requires both X-Cron-Secret header and allowed IP in CRON_ALLOWED_IPS.'
+            : '';
+        setError(`${errorMessage}${ipHint}`);
         setResults(null);
-      } else {
-        setResults(data);
-        toast.success('Diagnostics complete');
+        return;
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to run diagnostics');
+
+      if (typeof data === 'object' && data !== null && 'error' in data && typeof (data as { error?: unknown }).error === 'string') {
+        setError((data as { error: string }).error);
+        setResults(null);
+        return;
+      }
+
+      if (
+        !data ||
+        typeof data !== 'object' ||
+        !('checks' in data) ||
+        typeof (data as { checks?: unknown }).checks !== 'object'
+      ) {
+        setError('Diagnostics returned an unexpected response shape. Please verify /api/diagnostics.php is up to date.');
+        setResults(null);
+        return;
+      }
+
+      setResults(data as DiagnosticsResult);
+      toast.success('Diagnostics complete');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to run diagnostics');
       setResults(null);
     } finally {
       setIsRunning(false);
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'ok':
-        return <CheckCircle2 className="w-4 h-4 text-green-500" />;
-      case 'error':
-      case 'missing':
-        return <XCircle className="w-4 h-4 text-destructive" />;
-      default:
-        return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
     }
   };
 
@@ -122,22 +146,36 @@ export function SystemDiagnostics() {
         {/* Cron Key Input */}
         <div className="space-y-2">
           <Label htmlFor="cron-key">CRON_SECRET_KEY (from config.php)</Label>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Input
               id="cron-key"
               type="password"
               placeholder="Enter your CRON_SECRET_KEY"
               value={cronKey}
               onChange={(e) => setCronKey(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  void runDiagnostics();
+                }
+              }}
             />
-            <Button onClick={runDiagnostics} disabled={isRunning}>
+            <Button onClick={() => void runDiagnostics()} disabled={isRunning} className="sm:min-w-[170px] gap-2">
               {isRunning ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Running...
+                </>
               ) : (
-                <RefreshCw className="w-4 h-4" />
+                <>
+                  <RefreshCw className="w-4 h-4" />
+                  Run Diagnostics
+                </>
               )}
             </Button>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Security note: this key is sent as the <code>X-Cron-Secret</code> header (not in the URL).
+          </p>
         </div>
 
         {/* Error Display */}
@@ -147,6 +185,16 @@ export function SystemDiagnostics() {
             <pre className="text-xs text-muted-foreground whitespace-pre-wrap max-h-40 overflow-auto">
               {error}
             </pre>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {!results && !error && (
+          <div className="p-4 bg-muted/30 border border-border/60 rounded-lg">
+            <p className="text-sm font-medium mb-1">Ready to run diagnostics</p>
+            <p className="text-xs text-muted-foreground">
+              Enter your CRON secret key, then run a full backend check for files, config, database, SMTP, SerpAPI, and Stripe.
+            </p>
           </div>
         )}
 
