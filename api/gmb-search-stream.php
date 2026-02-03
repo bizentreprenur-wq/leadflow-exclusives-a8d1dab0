@@ -58,6 +58,13 @@ $limit = max(20, min(50000, $limit));
 $filters = normalizeSearchFilters($input['filters'] ?? null);
 $filtersActive = hasAnySearchFilter($filters);
 $filterMultiplier = $filtersActive ? (defined('FILTER_OVERFETCH_MULTIPLIER') ? max(1, (int)FILTER_OVERFETCH_MULTIPLIER) : 3) : 1;
+if ($filtersActive && $limit >= 500) {
+    $filterMultiplier = max($filterMultiplier, 4);
+}
+if ($filtersActive && $limit >= 1500) {
+    $filterMultiplier = max($filterMultiplier, 5);
+}
+$targetCount = getSearchFillTargetCount($limit);
 
 if (empty($service)) {
     sendSSEError('Service type is required');
@@ -70,7 +77,7 @@ if (empty($location)) {
 }
 
 // Start streaming search
-streamGMBSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier);
+streamGMBSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier, $targetCount);
 
 /**
  * Send SSE message
@@ -95,7 +102,7 @@ function sendSSEError($message) {
  * Stream multi-source search results progressively
  * Uses SerpAPI primarily; falls back to Serper.dev only when credits are exhausted
  */
-function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier) {
+function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier, $targetCount) {
     $hasSerper = defined('SERPER_API_KEY') && !empty(SERPER_API_KEY);
     $hasSerpApi = defined('SERPAPI_KEY') && !empty(SERPAPI_KEY);
     
@@ -119,6 +126,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         $searchEngines = [
             ['engine' => 'google_maps', 'name' => 'Google Maps', 'resultsKey' => 'local_results'],
             ['engine' => 'yelp', 'name' => 'Yelp', 'resultsKey' => 'organic_results'],
+            ['engine' => 'bing_local', 'name' => 'Bing Places', 'resultsKey' => 'local_results'],
         ];
         
         $enableExpansion = defined('ENABLE_LOCATION_EXPANSION') ? ENABLE_LOCATION_EXPANSION : true;
@@ -136,6 +144,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         sendSSE('start', [
             'query' => "$service in $location",
             'limit' => $limit,
+            'targetCount' => $targetCount,
             'sources' => array_column($searchEngines, 'name'),
             'estimatedSources' => count($searchEngines),
             'expandedLocations' => $expandedLocations,
@@ -279,6 +288,127 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                 usleep(50000);
             }
         }
+
+        // If we still under-fill the request, run additional query variants before finishing.
+        if (!$serpapiExhausted && $totalResults < $targetCount) {
+            sendSSE('coverage', [
+                'message' => "Under target ({$totalResults}/{$targetCount}). Running broader query variants...",
+                'total' => $totalResults,
+                'target' => $targetCount,
+                'progress' => min(100, round(($totalResults / max(1, $limit)) * 100)),
+            ]);
+
+            $queryVariants = buildSearchQueryVariants($service, !empty($searchedLocations) ? $searchedLocations : [$location]);
+            foreach ($queryVariants as $variant) {
+                if ($totalResults >= $limit || $serpapiExhausted) {
+                    break;
+                }
+
+                $query = $variant['query'];
+                $variantLocation = $variant['location'];
+                sendSSE('variant_start', [
+                    'query' => $query,
+                    'location' => $variantLocation,
+                    'remaining' => $limit - $totalResults,
+                ]);
+
+                $engineCount = count($searchEngines);
+                $engineIndex = 0;
+                foreach ($searchEngines as $engineConfig) {
+                    if ($totalResults >= $limit || $serpapiExhausted) {
+                        break;
+                    }
+
+                    $engineIndex++;
+                    $remaining = $limit - $totalResults;
+                    $remainingEngines = max(1, $engineCount - $engineIndex + 1);
+                    $resultsPerEngine = (int)ceil($remaining / $remainingEngines);
+                    if ($filtersActive && $filterMultiplier > 1) {
+                        $resultsPerEngine = (int)ceil($resultsPerEngine * $filterMultiplier);
+                    }
+                    $resultsPerEngine = max(50, min(2500, $resultsPerEngine));
+
+                    $engineName = $engineConfig['engine'];
+                    $sourceName = $engineConfig['name'];
+                    $resultsKey = $engineConfig['resultsKey'];
+                    $sourceLabel = $sourceName . ' (variant)';
+
+                    try {
+                        $lastPingAt = 0;
+                        searchSingleEngine(
+                            $apiKey,
+                            $engineName,
+                            $query,
+                            $resultsKey,
+                            $resultsPerEngine,
+                            $sourceName,
+                            function ($pageResults) use (&$allResults, &$seenBusinesses, &$totalResults, $limit, $sourceLabel, $variantLocation, $filters) {
+                                $newResults = [];
+                                foreach ($pageResults as $business) {
+                                    if (!matchesSearchFilters($business, $filters)) {
+                                        continue;
+                                    }
+                                    $dedupeKey = buildBusinessDedupeKey($business, $variantLocation);
+                                    if (!isset($seenBusinesses[$dedupeKey])) {
+                                        $seenBusinesses[$dedupeKey] = count($allResults);
+                                        $business['sources'] = [$sourceLabel];
+                                        $newResults[] = $business;
+                                        $allResults[] = $business;
+                                        $totalResults++;
+                                        if ($totalResults >= $limit) {
+                                            break;
+                                        }
+                                    } else {
+                                        $existingIndex = $seenBusinesses[$dedupeKey];
+                                        if (isset($allResults[$existingIndex]) && !in_array($sourceLabel, $allResults[$existingIndex]['sources'] ?? [])) {
+                                            $allResults[$existingIndex]['sources'][] = $sourceLabel;
+                                        }
+                                    }
+                                }
+
+                                if (!empty($newResults)) {
+                                    $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
+                                    sendSSE('results', [
+                                        'leads' => $newResults,
+                                        'total' => $totalResults,
+                                        'progress' => $progress,
+                                        'source' => $sourceLabel
+                                    ]);
+                                }
+
+                                return $totalResults < $limit;
+                            },
+                            function ($page, $pageTotal) use (&$lastPingAt, $sourceLabel, $variantLocation, &$totalResults, $limit) {
+                                $now = time();
+                                if ($now - $lastPingAt >= 10) {
+                                    $lastPingAt = $now;
+                                    $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
+                                    sendSSE('ping', [
+                                        'source' => $sourceLabel,
+                                        'location' => $variantLocation,
+                                        'page' => $page,
+                                        'total' => $totalResults,
+                                        'progress' => $progress
+                                    ]);
+                                }
+                            }
+                        );
+                    } catch (Exception $e) {
+                        if (isSerpApiCreditsError($e->getMessage())) {
+                            $serpapiExhausted = true;
+                            break;
+                        }
+                        $hadEngineError = true;
+                        sendSSE('source_error', [
+                            'source' => $sourceLabel,
+                            'engine' => $engineName,
+                            'location' => $variantLocation,
+                            'error' => $e->getMessage()
+                        ]);
+                    }
+                }
+            }
+        }
         
         if ($serpapiExhausted) {
             if ($hasSerper) {
@@ -302,6 +432,9 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         // Send completion
         sendSSE('complete', [
             'total' => $totalResults,
+            'requested' => $limit,
+            'targetCount' => $targetCount,
+            'coverage' => round(($totalResults / max(1, $limit)) * 100, 2),
             'sources' => array_column($searchEngines, 'name'),
             'query' => [
                 'service' => $service,
@@ -325,6 +458,58 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
     
     // ---- Original SerpAPI stream logic removed below ----
     // ---- Original SerpAPI stream logic removed above ----
+}
+
+/**
+ * Build supplemental search query variants for top-up passes.
+ */
+function buildSearchQueryVariants($service, $searchedLocations) {
+    $service = trim((string)$service);
+    if ($service === '') {
+        return [];
+    }
+
+    $locations = [];
+    if (is_array($searchedLocations)) {
+        foreach ($searchedLocations as $loc) {
+            $loc = preg_replace('/\s+/', ' ', trim((string)$loc));
+            if ($loc !== '' && !in_array($loc, $locations, true)) {
+                $locations[] = $loc;
+            }
+        }
+    }
+    $locations = array_slice($locations, 0, 4);
+    if (empty($locations)) {
+        return [];
+    }
+
+    $templates = [
+        'best %s in %s',
+        '%s near %s',
+        '%s companies in %s',
+        '%s services %s',
+    ];
+
+    $variants = [];
+    foreach ($locations as $loc) {
+        foreach ($templates as $template) {
+            $query = sprintf($template, $service, $loc);
+            $query = preg_replace('/\s+/', ' ', trim($query));
+            if ($query === '') {
+                continue;
+            }
+            $key = strtolower($query);
+            if (!isset($variants[$key])) {
+                $variants[$key] = [
+                    'query' => $query,
+                    'location' => $loc,
+                ];
+            }
+        }
+    }
+
+    $maxVariants = defined('SEARCH_QUERY_VARIANT_MAX') ? max(1, (int)SEARCH_QUERY_VARIANT_MAX) : 8;
+    return array_slice(array_values($variants), 0, $maxVariants);
 }
 
 function isSerpApiCreditsError($message) {

@@ -172,6 +172,10 @@ define('RESULTS_PER_PAGE', 200);
 define('SERPAPI_THROTTLE_US', 80000);
 // Over-fetch multiplier when filters are active (helps hit target counts)
 define('FILTER_OVERFETCH_MULTIPLIER', 3);
+// Minimum acceptable ratio of requested leads before fallback broadening kicks in
+define('SEARCH_FILL_TARGET_RATIO', 0.95);
+// Max number of supplemental query variants used for top-up passes
+define('SEARCH_QUERY_VARIANT_MAX', 8);
 // Auto-expand locations when results are below the requested limit
 define('ENABLE_LOCATION_EXPANSION', true);
 // Maximum number of extra location variants to try

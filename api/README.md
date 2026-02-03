@@ -165,6 +165,19 @@ curl -X POST https://yourdomain.com/api/gmb-search.php \
 - ✅ Social Media Link Detection
 - ✅ Response Caching
 - ✅ Mock Data for Testing
+- ✅ Auto-expansion of search locations to reach target lead counts
+
+## Search Tuning
+
+You can speed up large searches and widen results with these `config.php` settings:
+
+- `SERPAPI_THROTTLE_US` (lower = faster, higher = safer vs rate limits)
+- `FILTER_OVERFETCH_MULTIPLIER` (fetch extra results when filters are active)
+- `SEARCH_FILL_TARGET_RATIO` (target minimum coverage of requested leads, e.g. `0.95`)
+- `SEARCH_QUERY_VARIANT_MAX` (max supplemental query variants for top-up passes)
+- `ENABLE_LOCATION_EXPANSION` (auto-expand when results are below the requested limit)
+- `LOCATION_EXPANSION_MAX` (how many extra location variants to try)
+- `LOCATION_EXPANSION_INCLUDE_STATE` / `LOCATION_EXPANSION_INCLUDE_COUNTRY` (broader coverage)
 
 ## Troubleshooting
 

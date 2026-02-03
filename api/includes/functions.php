@@ -124,7 +124,7 @@ function buildLocationExpansions($location) {
     }
 
     $expansions = [];
-    $variants = ['area', 'metro', 'suburbs'];
+    $variants = ['area', 'metro', 'metro area', 'suburbs', 'downtown', 'nearby'];
     foreach ($variants as $variant) {
         $expansions[] = "{$clean} {$variant}";
     }
@@ -138,9 +138,14 @@ function buildLocationExpansions($location) {
     }
 
     if ($city && $state) {
-        $expansions[] = "{$city} {$state}";
-        $expansions[] = "{$city} {$state} metro";
-        $expansions[] = "{$city} {$state} suburbs";
+        $cityState = "{$city}, {$state}";
+        $expansions[] = $cityState;
+        $expansions[] = "{$cityState} metro";
+        $expansions[] = "{$cityState} suburbs";
+        $expansions[] = "{$cityState} downtown";
+        foreach (['north', 'south', 'east', 'west'] as $direction) {
+            $expansions[] = "{$direction} {$city}, {$state}";
+        }
     }
 
     $includeState = defined('LOCATION_EXPANSION_INCLUDE_STATE') ? LOCATION_EXPANSION_INCLUDE_STATE : false;
@@ -171,12 +176,13 @@ function buildLocationExpansions($location) {
  * Build a stable dedupe key for a business result.
  */
 function buildBusinessDedupeKey($business, $context = '') {
-    $name = strtolower(trim($business['name'] ?? ''));
-    $address = strtolower(trim($business['address'] ?? ''));
+    $name = strtolower(trim((string)($business['name'] ?? '')));
+    $name = preg_replace('/\s+/', ' ', preg_replace('/[^a-z0-9\s]/', '', $name));
+    $address = strtolower(trim((string)($business['address'] ?? '')));
     if ($address !== '') {
         return "{$name}|{$address}";
     }
-    $phone = strtolower(trim($business['phone'] ?? ''));
+    $phone = preg_replace('/\D+/', '', (string)($business['phone'] ?? ''));
     if ($phone !== '') {
         return "{$name}|phone:{$phone}";
     }
@@ -187,11 +193,43 @@ function buildBusinessDedupeKey($business, $context = '') {
     if ($host !== '') {
         return "{$name}|host:{$host}";
     }
+    $snippet = strtolower(trim((string)($business['snippet'] ?? '')));
+    if ($snippet !== '') {
+        $snippet = preg_replace('/\s+/', ' ', $snippet);
+    }
     $ctx = strtolower(trim((string)$context));
+    if ($ctx !== '' && $snippet !== '') {
+        return "{$name}|{$ctx}|snip:" . substr(sha1($snippet), 0, 12);
+    }
     if ($ctx !== '') {
         return "{$name}|{$ctx}";
     }
+    if ($snippet !== '') {
+        return "{$name}|snip:" . substr(sha1($snippet), 0, 12);
+    }
     return $name;
+}
+
+/**
+ * Minimum acceptable fill ratio for search results.
+ */
+function getSearchFillTargetRatio() {
+    $ratio = defined('SEARCH_FILL_TARGET_RATIO') ? (float)SEARCH_FILL_TARGET_RATIO : 0.95;
+    if ($ratio < 0.5) {
+        $ratio = 0.5;
+    }
+    if ($ratio > 1.0) {
+        $ratio = 1.0;
+    }
+    return $ratio;
+}
+
+/**
+ * Minimum acceptable result count for a requested limit.
+ */
+function getSearchFillTargetCount($limit) {
+    $limit = max(1, (int)$limit);
+    return (int)ceil($limit * getSearchFillTargetRatio());
 }
 
 /**

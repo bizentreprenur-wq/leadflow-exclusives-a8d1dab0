@@ -176,19 +176,46 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50) {
         return $result;
     }, array_slice($unique, 0, $limit));
     
-    // For Agency Lead Finder, filter to only leads with email AND phone
-    $filtered = array_filter($enriched, function($result) {
+    // For Agency Lead Finder, prioritize leads with both email and phone,
+    // then backfill with partial-contact leads to hit the requested volume.
+    $targetCount = getSearchFillTargetCount($limit);
+    $filtered = array_values(array_filter($enriched, function($result) {
         return !empty($result['email']) && !empty($result['phone']);
-    });
-    
-    // If filtering removes too many, return enriched results with a note
-    // But prioritize filtered results
-    if (count($filtered) < 5 && count($enriched) > 0) {
-        // Add a flag to indicate partial contact info
-        return array_values($enriched);
+    }));
+
+    if (count($filtered) >= $targetCount || count($filtered) >= $limit) {
+        return array_slice($filtered, 0, $limit);
     }
-    
-    return array_values($filtered);
+
+    $prioritized = [];
+    $seen = [];
+    $addLead = function ($lead) use (&$prioritized, &$seen, $limit) {
+        if (count($prioritized) >= $limit) {
+            return;
+        }
+        $key = strtolower(trim((string)($lead['id'] ?? '')));
+        if ($key === '') {
+            $key = strtolower(trim((string)($lead['url'] ?? '')));
+        }
+        if ($key === '') {
+            $key = strtolower(trim((string)($lead['name'] ?? ''))) . '|' . strtolower(trim((string)($lead['displayLink'] ?? '')));
+        }
+        if ($key === '' || isset($seen[$key])) {
+            return;
+        }
+        $seen[$key] = true;
+        $lead['contactCompleteness'] = (!empty($lead['email']) && !empty($lead['phone'])) ? 'full' : 'partial';
+        $prioritized[] = $lead;
+    };
+
+    foreach ($filtered as $lead) {
+        $addLead($lead);
+    }
+    foreach ($enriched as $lead) {
+        $addLead($lead);
+    }
+
+    return array_values($prioritized);
 }
 
 /**

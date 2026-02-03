@@ -1001,6 +1001,7 @@ export default function Dashboard() {
     }
 
     const requestedLimit = searchLimit;
+    const minimumAcceptableResults = Math.ceil(requestedLimit * 0.95);
     const startingResults: SearchResult[] = append ? [...searchResults] : [];
     let latestMergedResults: SearchResult[] = startingResults;
     const backendFilters = {
@@ -1018,12 +1019,8 @@ export default function Dashboard() {
       backendFilters.outdated ||
       (backendFilters.platforms && backendFilters.platforms.length > 0);
     setLastRequestedLimit(requestedLimit);
-    // Check if any filters are active - if so, over-fetch to compensate for filtering
-    const needsFilteredLeads = phoneLeadsOnly || filterNoWebsite || filterNotMobile || filterOutdated || (searchType === 'platform' && selectedPlatforms.length > 0);
-    // Over-fetch by 3x when filters are active (max 5000 for performance)
-    const effectiveLimit = backendFiltersActive
-      ? requestedLimit
-      : Math.min(5000, needsFilteredLeads ? requestedLimit * 3 : requestedLimit);
+    // Backend handles over-fetching, location expansion, and query variants to hit requested volume.
+    const effectiveLimit = requestedLimit;
 
     console.log('[BamLead] Starting search:', {
       searchType,
@@ -1182,10 +1179,10 @@ export default function Dashboard() {
       if (phoneLeadsOnly) activeFilters.push('Phone Required');
 
       // Show result summary with context about what was found vs requested
-      if (finalResults.length < requestedLimit) {
+      if (finalResults.length < minimumAcceptableResults) {
         const filterInfo = activeFilters.length > 0 ? ` matching [${activeFilters.join(', ')}]` : '';
         toast.info(
-          `Found ${finalResults.length} leads${filterInfo}. ` +
+          `Found ${finalResults.length}/${requestedLimit} leads${filterInfo}. ` +
           (activeFilters.length > 0 
             ? 'Try disabling some filters or broadening your search for more results.'
             : 'This may be all available businesses in this area. Try a different location.')
@@ -1220,9 +1217,7 @@ export default function Dashboard() {
 
       if (scoredResults.length > 0) {
         const shouldAutoAdvance =
-          requestedLimit >= 1000
-            ? scoredResults.length >= Math.ceil(requestedLimit * 0.8)
-            : scoredResults.length >= Math.min(requestedLimit, 100);
+          scoredResults.length >= minimumAcceptableResults;
 
         if (shouldAutoAdvance) {
           // AUTO-NAVIGATE to Step 2 immediately so customer sees leads
