@@ -32,7 +32,7 @@ export default function Auth() {
   const [searchParams] = useSearchParams();
 
   // Check for pending checkout plan from pricing page
-  const pendingPlan = searchParams.get('plan') as 'basic' | 'pro' | 'agency' | null;
+  const pendingPlan = searchParams.get('plan') as 'basic' | 'pro' | 'autopilot' | null;
   const pendingBilling = searchParams.get('billing') as 'monthly' | 'yearly' | null;
   
   // Dev bypass - allows accessing dashboard in preview environments
