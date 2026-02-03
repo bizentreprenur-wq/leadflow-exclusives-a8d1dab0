@@ -46,6 +46,7 @@ import {
   Palette
 } from "lucide-react";
 import { HIGH_CONVERTING_TEMPLATES, TEMPLATE_CATEGORIES, EmailTemplate } from "@/lib/highConvertingTemplates";
+import { COMPETITIVE_EMAIL_TEMPLATES, COMPETITIVE_TEMPLATE_CATEGORIES, CompetitiveEmailTemplate } from "@/lib/competitiveTemplates";
 import { 
   getCustomTemplates, 
   saveCustomTemplate, 
@@ -69,6 +70,8 @@ interface HighConvertingTemplateGalleryProps {
   onSelectTemplate?: (template: EmailTemplate) => void;
   selectedTemplateId?: string;
   leads?: Array<{ id: string; name: string; email?: string; phone?: string; website?: string; address?: string }>;
+  researchMode?: 'niche' | 'competitive';
+  myBusinessInfo?: { name: string; url: string } | null;
 }
 
 // Track the currently highlighted template for the sticky bar
@@ -85,6 +88,12 @@ const getCategoryIcon = (category: string) => {
     case 'general': return <MessageSquare className="w-4 h-4" />;
     case 'follow-up': return <RotateCcw className="w-4 h-4" />;
     case 'promotional': return <Sparkles className="w-4 h-4" />;
+    // Competitive categories
+    case 'partnership': return <Briefcase className="w-4 h-4" />;
+    case 'market-research': return <Search className="w-4 h-4" />;
+    case 'product-pitch': return <Sparkles className="w-4 h-4" />;
+    case 'vendor-inquiry': return <Building2 className="w-4 h-4" />;
+    case 'networking': return <MessageSquare className="w-4 h-4" />;
     default: return <Sparkles className="w-4 h-4" />;
   }
 };
@@ -126,6 +135,8 @@ export default function HighConvertingTemplateGallery({
   onSelectTemplate, 
   selectedTemplateId,
   leads = [],
+  researchMode = 'niche',
+  myBusinessInfo = null,
 }: HighConvertingTemplateGalleryProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
@@ -408,7 +419,24 @@ export default function HighConvertingTemplateGallery({
   };
 
   // Combine custom templates with built-in templates (custom first)
-  const allTemplates = [...customTemplates, ...HIGH_CONVERTING_TEMPLATES];
+  // Use competitive templates when in competitive research mode
+  const baseTemplates: EmailTemplate[] = researchMode === 'competitive' 
+    ? COMPETITIVE_EMAIL_TEMPLATES.map(t => ({
+        id: t.id,
+        name: t.name,
+        subject: t.subject,
+        body_html: t.body_html,
+        body_text: t.body_text,
+        category: t.category as EmailTemplate['category'],
+        industry: t.purpose,
+        description: t.description,
+        tags: t.tags,
+        previewImage: '',
+        conversionTip: `Best for: ${t.useCase === 'all' ? 'All use cases' : t.useCase.replace('-', ' ')}`,
+      }))
+    : HIGH_CONVERTING_TEMPLATES;
+  
+  const allTemplates = [...customTemplates, ...baseTemplates];
 
   const filteredTemplates = allTemplates.filter(template => {
     const normalizedSearch = searchQuery.toLowerCase().trim();
@@ -589,11 +617,22 @@ export default function HighConvertingTemplateGallery({
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold flex items-center gap-2">
-              <Sparkles className="w-6 h-6 text-primary" />
-              Email Template Gallery
+              {researchMode === 'competitive' ? (
+                <>
+                  <Briefcase className="w-6 h-6 text-amber-500" />
+                  Competitive Outreach Templates
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-6 h-6 text-primary" />
+                  Email Template Gallery
+                </>
+              )}
             </h2>
             <p className="text-muted-foreground">
-              {allTemplates.length} templates ({customTemplates.length} custom, {HIGH_CONVERTING_TEMPLATES.length} built-in)
+              {researchMode === 'competitive' 
+                ? `${baseTemplates.length} templates for partnerships, research & product pitching${myBusinessInfo?.name ? ` • Targeting for ${myBusinessInfo.name}` : ''}`
+                : `${allTemplates.length} templates (${customTemplates.length} custom, ${HIGH_CONVERTING_TEMPLATES.length} built-in)`}
             </p>
           </div>
           <div className="relative w-72">
@@ -688,18 +727,22 @@ export default function HighConvertingTemplateGallery({
                 </span>
               </TabsTrigger>
             )}
-            {TEMPLATE_CATEGORIES.map((cat) => (
+            {(researchMode === 'competitive' ? COMPETITIVE_TEMPLATE_CATEGORIES : TEMPLATE_CATEGORIES).map((cat) => (
               <TabsTrigger
                 key={cat.id}
                 value={cat.id}
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2 rounded-full border border-border"
+                className={`data-[state=active]:bg-primary data-[state=active]:text-primary-foreground px-4 py-2 rounded-full border border-border ${
+                  researchMode === 'competitive' ? 'data-[state=active]:bg-amber-500' : ''
+                }`}
               >
                 <span className="flex items-center gap-2">
                   {getCategoryIcon(cat.id)}
-                  {cat.label}
-                  <Badge variant="secondary" className="ml-1 text-xs">
-                    {cat.count}
-                  </Badge>
+                  {'label' in cat ? cat.label : cat.name}
+                  {'count' in cat && (
+                    <Badge variant="secondary" className="ml-1 text-xs">
+                      {cat.count}
+                    </Badge>
+                  )}
                 </span>
               </TabsTrigger>
             ))}
