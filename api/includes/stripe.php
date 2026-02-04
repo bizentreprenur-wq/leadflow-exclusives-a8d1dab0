@@ -154,6 +154,86 @@ function createCheckoutSession($user, $planName, $billingPeriod = 'monthly') {
 }
 
 /**
+ * Available one-time credit packages for AI verification.
+ */
+function getCreditPackages() {
+    return [
+        'starter' => [
+            'credits' => 100,
+            'amount_cents' => 999,
+            'name' => 'Starter Credit Pack (100 credits)',
+        ],
+        'standard' => [
+            'credits' => 500,
+            'amount_cents' => 3999,
+            'name' => 'Standard Credit Pack (500 credits)',
+        ],
+        'pro' => [
+            'credits' => 1000,
+            'amount_cents' => 6999,
+            'name' => 'Pro Credit Pack (1,000 credits)',
+        ],
+        'enterprise' => [
+            'credits' => 2500,
+            'amount_cents' => 14999,
+            'name' => 'Enterprise Credit Pack (2,500 credits)',
+        ],
+    ];
+}
+
+/**
+ * Create a one-time Stripe Checkout session for AI credit packs.
+ */
+function createCreditCheckoutSession($user, $packageId) {
+    initStripe();
+
+    $packages = getCreditPackages();
+    $package = $packages[$packageId] ?? null;
+    if (!$package) {
+        throw new Exception('Invalid credit package');
+    }
+
+    $customer = getOrCreateStripeCustomer($user);
+    $baseMetadata = [
+        'user_id' => (string)$user['id'],
+        'purchase_type' => 'credits',
+        'package_id' => $packageId,
+        'credits' => (string)$package['credits'],
+    ];
+
+    $successUrl = FRONTEND_URL
+        . '/dashboard?payment=success&type=credits'
+        . '&package=' . urlencode($packageId)
+        . '&credits=' . urlencode((string)$package['credits'])
+        . '&session_id={CHECKOUT_SESSION_ID}';
+
+    $session = \Stripe\Checkout\Session::create([
+        'customer' => $customer->id,
+        'payment_method_types' => ['card'],
+        'line_items' => [[
+            'price_data' => [
+                'currency' => 'usd',
+                'unit_amount' => $package['amount_cents'],
+                'product_data' => [
+                    'name' => $package['name'],
+                ],
+            ],
+            'quantity' => 1,
+        ]],
+        'mode' => 'payment',
+        'success_url' => $successUrl,
+        'cancel_url' => FRONTEND_URL . '/dashboard?payment=canceled&type=credits',
+        'metadata' => $baseMetadata,
+        'payment_intent_data' => [
+            'metadata' => $baseMetadata,
+        ],
+        'allow_promotion_codes' => true,
+    ]);
+
+    return $session;
+}
+
+/**
  * Create customer portal session
  */
 function createPortalSession($user) {

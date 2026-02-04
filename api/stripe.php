@@ -18,6 +18,9 @@ switch ($action) {
     case 'create-checkout':
         handleCreateCheckout();
         break;
+    case 'create-credits-checkout':
+        handleCreateCreditsCheckout();
+        break;
     case 'create-portal':
         handleCreatePortal();
         break;
@@ -74,6 +77,35 @@ function handleCreateCheckout() {
             'success' => true,
             'checkout_url' => $session->url,
             'session_id' => $session->id
+        ]);
+    } catch (Exception $e) {
+        sendError($e->getMessage(), 500);
+    }
+}
+
+/**
+ * Create checkout session for one-time AI credit purchase
+ */
+function handleCreateCreditsCheckout() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        sendError('Method not allowed', 405);
+    }
+
+    $user = requireAuth();
+    $input = getJsonInput();
+    $packageId = sanitizeInput($input['package'] ?? '', 20);
+
+    $validPackages = ['starter', 'standard', 'pro', 'enterprise'];
+    if (!in_array($packageId, $validPackages, true)) {
+        sendError('Invalid credit package', 400);
+    }
+
+    try {
+        $session = createCreditCheckoutSession($user, $packageId);
+        sendJson([
+            'success' => true,
+            'checkout_url' => $session->url,
+            'session_id' => $session->id,
         ]);
     } catch (Exception $e) {
         sendError($e->getMessage(), 500);

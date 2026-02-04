@@ -1,14 +1,17 @@
-import { API_BASE_URL, apiRequest, getAuthHeaders, USE_MOCK_AUTH } from './config';
+import { API_BASE_URL, apiRequest, USE_MOCK_AUTH } from './config';
 
 const STRIPE_ENDPOINTS = {
   config: `${API_BASE_URL}/stripe.php?action=config`,
   createCheckout: `${API_BASE_URL}/stripe.php?action=create-checkout`,
+  createCreditsCheckout: `${API_BASE_URL}/stripe.php?action=create-credits-checkout`,
   createPortal: `${API_BASE_URL}/stripe.php?action=create-portal`,
   subscription: `${API_BASE_URL}/stripe.php?action=subscription`,
   cancel: `${API_BASE_URL}/stripe.php?action=cancel`,
   resume: `${API_BASE_URL}/stripe.php?action=resume`,
   history: `${API_BASE_URL}/stripe.php?action=history`,
 };
+
+export type CreditPackageId = 'starter' | 'standard' | 'pro' | 'enterprise';
 
 export interface Plan {
   name: string;
@@ -128,6 +131,24 @@ export async function createPortalSession(): Promise<{ portal_url: string }> {
     { method: 'POST' }
   );
   
+  return response;
+}
+
+export async function createCreditsCheckoutSession(
+  packageId: CreditPackageId
+): Promise<{ checkout_url: string; session_id: string }> {
+  if (USE_MOCK_AUTH) {
+    throw new Error('Credits checkout not available in demo mode. Configure Stripe to enable purchases.');
+  }
+
+  const response = await apiRequest<{ success: boolean; checkout_url: string; session_id: string }>(
+    STRIPE_ENDPOINTS.createCreditsCheckout,
+    {
+      method: 'POST',
+      body: JSON.stringify({ package: packageId }),
+    }
+  );
+
   return response;
 }
 

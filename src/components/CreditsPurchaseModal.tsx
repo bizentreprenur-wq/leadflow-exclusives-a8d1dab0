@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Coins, Zap, Sparkles, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { createCreditsCheckoutSession, type CreditPackageId } from '@/lib/api/stripe';
 
 interface CreditPackage {
   id: string;
@@ -56,14 +57,12 @@ interface CreditsPurchaseModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentCredits?: number;
-  onPurchaseComplete?: (credits: number) => void;
 }
 
 export function CreditsPurchaseModal({
   isOpen,
   onClose,
   currentCredits = 0,
-  onPurchaseComplete,
 }: CreditsPurchaseModalProps) {
   const [selectedPackage, setSelectedPackage] = useState<string>('standard');
   const [isPurchasing, setIsPurchasing] = useState(false);
@@ -74,19 +73,13 @@ export function CreditsPurchaseModal({
 
     setIsPurchasing(true);
     try {
-      // TODO: Integrate with Stripe for actual purchase
-      // For now, simulate purchase
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      toast.success(`Successfully purchased ${pkg.credits} credits!`, {
-        description: `Your new balance: ${currentCredits + pkg.credits} credits`,
-      });
-      
-      onPurchaseComplete?.(pkg.credits);
-      onClose();
+      const session = await createCreditsCheckoutSession(pkg.id as CreditPackageId);
+
+      toast.info('Redirecting to secure Stripe checkout...');
+      window.location.assign(session.checkout_url);
     } catch (error) {
       toast.error('Purchase failed', {
-        description: 'Please try again or contact support.',
+        description: error instanceof Error ? error.message : 'Please try again or contact support.',
       });
     } finally {
       setIsPurchasing(false);

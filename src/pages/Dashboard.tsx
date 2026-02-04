@@ -465,10 +465,17 @@ export default function Dashboard() {
   // Check for payment success
   useEffect(() => {
     const paymentStatus = searchParams.get('payment');
+    const paymentType = searchParams.get('type');
     if (paymentStatus === 'success') {
-      toast.success('Payment successful! Your subscription is now active.');
-      celebrate('subscription-activated');
-      refreshUser();
+      if (paymentType === 'credits') {
+        const credits = Number(searchParams.get('credits') || 0);
+        const creditLabel = Number.isFinite(credits) && credits > 0 ? `${credits} credits` : 'your credits';
+        toast.success(`Payment successful! ${creditLabel} purchase completed.`);
+      } else {
+        toast.success('Payment successful! Your subscription is now active.');
+        celebrate('subscription-activated');
+        refreshUser();
+      }
       window.history.replaceState({}, '', '/dashboard');
     }
   }, [searchParams, refreshUser, celebrate]);

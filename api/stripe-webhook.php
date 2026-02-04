@@ -94,9 +94,59 @@ function handleCheckoutCompleted($session) {
         error_log("Checkout completed but no user_id in metadata");
         return;
     }
-    
-    // The subscription will be handled by customer.subscription.created event
-    error_log("Checkout completed for user: $userId");
+
+    $purchaseType = $session->metadata->purchase_type ?? 'subscription';
+
+    if ($purchaseType === 'credits') {
+        recordCreditCheckoutPayment($session, $userId);
+        error_log("Credits checkout completed for user: $userId");
+        return;
+    }
+
+    // Subscription updates are handled by customer.subscription.created/updated events
+    error_log("Subscription checkout completed for user: $userId");
+}
+
+/**
+ * Record one-time credit checkout payments in payment history.
+ */
+function recordCreditCheckoutPayment($session, $userId) {
+    $paymentIntentId = $session->payment_intent ?? null;
+    if (!$paymentIntentId) {
+        error_log("Credits checkout missing payment_intent for user: $userId");
+        return;
+    }
+
+    $db = getDB();
+
+    $existing = $db->fetchOne(
+        "SELECT id FROM payment_history WHERE stripe_payment_intent_id = ? LIMIT 1",
+        [$paymentIntentId]
+    );
+    if ($existing) {
+        return;
+    }
+
+    $credits = (int)($session->metadata->credits ?? 0);
+    $packageId = $session->metadata->package_id ?? 'unknown';
+    $description = "AI Credit Pack ($packageId)";
+    if ($credits > 0) {
+        $description .= " - $credits credits";
+    }
+
+    $db->insert(
+        "INSERT INTO payment_history (user_id, stripe_payment_intent_id, stripe_invoice_id, amount, currency, status, description)
+         VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [
+            $userId,
+            $paymentIntentId,
+            null,
+            (int)($session->amount_total ?? 0),
+            strtolower((string)($session->currency ?? 'usd')),
+            (string)($session->payment_status ?? 'paid'),
+            $description,
+        ]
+    );
 }
 
 /**
