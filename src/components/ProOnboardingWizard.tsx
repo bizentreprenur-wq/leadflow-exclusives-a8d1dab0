@@ -184,12 +184,23 @@ export default function ProOnboardingWizard({
     }
   };
 
+  const isSenderEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(companyInfo.senderEmail.trim());
+
   const canProceed = () => {
     switch (currentStep) {
       case 0: // Company Info
-        return companyInfo.companyName && companyInfo.senderName && companyInfo.senderEmail;
+        return Boolean(
+          companyInfo.companyName.trim() &&
+            companyInfo.senderName.trim() &&
+            isSenderEmailValid,
+        );
       case 1: // SMTP
-        return smtpConfig.host && smtpConfig.username && smtpConfig.password;
+        return Boolean(
+          smtpConfig.host.trim() &&
+            smtpConfig.username.trim() &&
+            smtpConfig.password.trim() &&
+            smtpStatus.isVerified,
+        );
       case 2: // CRM
         return selectedCRM;
       case 3: // AI Preferences
@@ -227,10 +238,25 @@ export default function ProOnboardingWizard({
         fromName: companyInfo.senderName,
         fromEmail: companyInfo.senderEmail,
       }));
+      updateSmtpConfig({
+        fromName: companyInfo.senderName.trim(),
+        fromEmail: companyInfo.senderEmail.trim().toLowerCase(),
+      });
 
       localStorage.setItem('bamlead_selected_crm', selectedCRM);
       localStorage.setItem('bamlead_ai_level', String(aiLevel));
       localStorage.setItem('bamlead_pro_onboarding_complete', 'true');
+      localStorage.removeItem(ONBOARDING_KEY);
+      if (aiLevel === 1) {
+        localStorage.setItem('bamlead_ai_response_mode', 'approve');
+        localStorage.setItem('bamlead_followup_mode', 'manual');
+      } else if (aiLevel === 2) {
+        localStorage.setItem('bamlead_ai_response_mode', 'approve');
+        localStorage.setItem('bamlead_followup_mode', 'manual');
+      } else {
+        localStorage.setItem('bamlead_ai_response_mode', 'approve');
+        localStorage.setItem('bamlead_followup_mode', 'automatic');
+      }
       
       await new Promise(resolve => setTimeout(resolve, 1500));
       
@@ -239,7 +265,6 @@ export default function ProOnboardingWizard({
       });
       
       onComplete();
-      onOpenChange(false);
     } catch (error) {
       toast.error('Failed to complete setup');
     } finally {
@@ -397,6 +422,9 @@ export default function ProOnboardingWizard({
                       className="mt-1"
                     />
                     <p className="text-xs text-muted-foreground mt-1">Replies will go here</p>
+                    {companyInfo.senderEmail.trim() && !isSenderEmailValid && (
+                      <p className="text-xs text-red-500 mt-1">Enter a valid email address</p>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -530,6 +558,11 @@ export default function ProOnboardingWizard({
                     </>
                   )}
                 </Button>
+                {!smtpStatus.isVerified && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    Please run SMTP test successfully before continuing.
+                  </p>
+                )}
 
                 {/* Quick Setup Guides */}
                 <div className="p-4 rounded-xl bg-muted/50 border border-border">
