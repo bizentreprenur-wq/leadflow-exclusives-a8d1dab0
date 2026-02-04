@@ -107,7 +107,8 @@ export default function AutopilotOnboardingWizard({
       if (saved) {
         const data = JSON.parse(saved);
         if (data.companyInfo) setCompanyInfo(data.companyInfo);
-        if (data.currentStep) setCurrentStep(data.currentStep);
+        if (Array.isArray(data.recommendations)) setRecommendations(data.recommendations);
+        if (typeof data.currentStep === 'number') setCurrentStep(data.currentStep);
       }
     } catch {}
   }, []);
@@ -116,9 +117,10 @@ export default function AutopilotOnboardingWizard({
   useEffect(() => {
     localStorage.setItem(ONBOARDING_KEY, JSON.stringify({
       companyInfo,
+      recommendations,
       currentStep,
     }));
-  }, [companyInfo, currentStep]);
+  }, [companyInfo, recommendations, currentStep]);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -144,6 +146,8 @@ export default function AutopilotOnboardingWizard({
     }
   };
 
+  const isSenderEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(companyInfo.senderEmail.trim());
+
   const toggleTemplateApproval = (id: string) => {
     setRecommendations(prev => 
       prev.map(r => r.id === id ? { ...r, approved: !r.approved } : r)
@@ -153,9 +157,18 @@ export default function AutopilotOnboardingWizard({
   const canProceed = () => {
     switch (currentStep) {
       case 0: // Company Info
-        return companyInfo.companyName && companyInfo.senderName && companyInfo.senderEmail;
+        return Boolean(
+          companyInfo.companyName.trim() &&
+            companyInfo.senderName.trim() &&
+            isSenderEmailValid,
+        );
       case 1: // SMTP
-        return smtpConfig.host && smtpConfig.username && smtpConfig.password;
+        return Boolean(
+          smtpConfig.host.trim() &&
+            smtpConfig.username.trim() &&
+            smtpConfig.password.trim() &&
+            smtpStatus.isVerified,
+        );
       case 2: // Templates
         return recommendations.some(r => r.approved);
       default:
@@ -194,9 +207,22 @@ export default function AutopilotOnboardingWizard({
         fromName: companyInfo.senderName,
         fromEmail: companyInfo.senderEmail,
       }));
+      updateSmtpConfig({
+        fromName: companyInfo.senderName.trim(),
+        fromEmail: companyInfo.senderEmail.trim().toLowerCase(),
+      });
+      localStorage.setItem(
+        'bamlead_autopilot_templates',
+        JSON.stringify(recommendations.filter((r) => r.approved)),
+      );
+      localStorage.setItem('bamlead_selected_crm', 'bamlead');
+      localStorage.setItem('bamlead_ai_level', '3');
+      localStorage.setItem('bamlead_ai_response_mode', 'automatic');
+      localStorage.setItem('bamlead_followup_mode', 'automatic');
 
       // Mark onboarding as complete
       localStorage.setItem('bamlead_autopilot_onboarding_complete', 'true');
+      localStorage.removeItem(ONBOARDING_KEY);
       
       // Simulate AI activation
       await new Promise(resolve => setTimeout(resolve, 2000));
@@ -206,7 +232,6 @@ export default function AutopilotOnboardingWizard({
       });
       
       onComplete();
-      onOpenChange(false);
     } catch (error) {
       toast.error('Failed to complete setup');
     } finally {
@@ -391,6 +416,9 @@ export default function AutopilotOnboardingWizard({
                       className="mt-1"
                     />
                     <p className="text-xs text-muted-foreground mt-1">Replies will go here</p>
+                    {companyInfo.senderEmail.trim() && !isSenderEmailValid && (
+                      <p className="text-xs text-red-500 mt-1">Enter a valid email address</p>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -524,6 +552,11 @@ export default function AutopilotOnboardingWizard({
                     </>
                   )}
                 </Button>
+                {!smtpStatus.isVerified && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    Please run SMTP test successfully before continuing.
+                  </p>
+                )}
 
                 {/* Quick Setup Guides */}
                 <div className="p-4 rounded-xl bg-muted/50 border border-border">
