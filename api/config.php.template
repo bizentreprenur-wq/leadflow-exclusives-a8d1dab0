@@ -83,6 +83,17 @@ define('GOOGLE_SEARCH_ENGINE_ID', '');
 define('BING_API_KEY', '');
 
 // =====================================
+// FIRECRAWL (Website Enrichment)
+// =====================================
+define('FIRECRAWL_API_KEY', 'YOUR_FIRECRAWL_API_KEY_HERE');
+define('FIRECRAWL_TIMEOUT', 30);
+define('FIRECRAWL_MAX_RETRIES', 3);
+define('FIRECRAWL_RETRY_DELAY_MS', 1000);
+// Enrichment queue settings
+define('ENRICHMENT_BATCH_SIZE', 5);
+define('ENRICHMENT_MAX_CONCURRENT', 5);
+
+// =====================================
 // CORS
 // =====================================
 define('ALLOWED_ORIGINS', [
