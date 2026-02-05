@@ -183,6 +183,59 @@ function buildLocationExpansions($location) {
 }
 
 /**
+ * Expand common service synonyms to increase query coverage.
+ */
+function expandServiceSynonyms($service) {
+    $clean = preg_replace('/\s+/', ' ', trim((string)$service));
+    if ($clean === '') {
+        return [];
+    }
+
+    $normalized = strtolower($clean);
+    $variants = [$clean];
+    $synonyms = [];
+
+    if (preg_match('/\bdental\b|\bdentist\b/', $normalized)) {
+        $synonyms = array_merge($synonyms, [
+            'dentist',
+            'dental clinic',
+            'dental clinics',
+            'dental office',
+            'dental practice',
+            'family dentist',
+            'cosmetic dentist',
+            'pediatric dentist',
+            'emergency dentist',
+        ]);
+    }
+
+    if (preg_match('/\borthodont\b/', $normalized)) {
+        $synonyms = array_merge($synonyms, [
+            'orthodontist',
+            'orthodontics',
+            'braces',
+        ]);
+    }
+
+    foreach ($synonyms as $synonym) {
+        $synonym = preg_replace('/\s+/', ' ', trim($synonym));
+        if ($synonym !== '') {
+            $variants[] = $synonym;
+        }
+    }
+
+    $unique = [];
+    foreach ($variants as $variant) {
+        $key = strtolower($variant);
+        if (!isset($unique[$key])) {
+            $unique[$key] = $variant;
+        }
+    }
+
+    return array_values($unique);
+}
+
+/**
  * Return major city shards for a US state to improve broad-location coverage.
  */
 function getStateCityShards($stateInput) {

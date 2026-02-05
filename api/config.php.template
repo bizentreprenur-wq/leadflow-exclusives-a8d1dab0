@@ -20,6 +20,10 @@ define('DB_PASS', 'YOUR_DATABASE_PASSWORD_HERE');
 // SERPER.DEV (Preferred - Cheaper Google Search API)
 // =====================================
 define('SERPER_API_KEY', 'YOUR_SERPER_API_KEY_HERE');
+// Run Serper as a top-up source even when SerpAPI succeeds.
+if (!defined('ENABLE_SERPER_PARALLEL')) {
+    define('ENABLE_SERPER_PARALLEL', true);
+}
 
 // =====================================
 // SERPAPI (Fallback if Serper not configured)

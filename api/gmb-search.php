@@ -1,7 +1,7 @@
 <?php
 /**
  * GMB Search API Endpoint
- * Searches for businesses using SerpAPI Google Maps
+ * Searches for businesses using Serper.dev Places API
  */
 
 require_once __DIR__ . '/config.php';
@@ -105,46 +105,20 @@ try {
 }
 
 /**
- * Search for business listings using SerpAPI primarily.
- * Falls back to Serper.dev only when SerpAPI credits are exhausted.
- * Queries Google Maps, Yelp, and Bing Local for comprehensive results
+ * Search for business listings using Serper.dev.
+ * Uses Serper Places with an organic fallback.
  */
 function searchGMBListings($service, $location, $limit = 100, $filters = [], $filtersActive = false, $filterMultiplier = 1, $targetCount = null) {
     $hasSerper = defined('SERPER_API_KEY') && !empty(SERPER_API_KEY);
-    $hasSerpApi = defined('SERPAPI_KEY') && !empty(SERPAPI_KEY);
     
-    if (!$hasSerper && !$hasSerpApi) {
-        throw new Exception('No search API configured. Please add SERPER_API_KEY or SERPAPI_KEY to config.php for real search results.');
+    if (!$hasSerper) {
+        throw new Exception('No search API configured. Please add SERPER_API_KEY to config.php for real search results.');
     }
     
     set_time_limit(3600); // 60 min for massive searches
     
     $allResults = [];
     $seenBusinesses = [];
-    
-    // Prefer SerpAPI; only fall back to Serper if SerpAPI is out of credits
-    if ($hasSerpApi) {
-        try {
-            $serpApiResults = searchSerpApiEngines($service, $location, $limit, $filters, $filtersActive, $filterMultiplier, $targetCount);
-            foreach ($serpApiResults as $business) {
-                $dedupeKey = buildBusinessDedupeKey($business, $location);
-                if (!isset($seenBusinesses[$dedupeKey])) {
-                    $seenBusinesses[$dedupeKey] = count($allResults);
-                    $allResults[] = $business;
-                }
-                if (count($allResults) >= $limit) break;
-            }
-            return $allResults;
-        } catch (Exception $e) {
-            $message = $e->getMessage();
-            $creditsError = isSerpApiCreditsError($message);
-            $transientError = isTransientNetworkErrorMessage($message);
-            if ((!$creditsError && !$transientError) || !$hasSerper) {
-                throw $e;
-            }
-            // Fall through to Serper when SerpAPI is exhausted or temporarily unreachable
-        }
-    }
     
     if ($hasSerper) {
         $serperResults = searchSerperPlaces($service, $location, $limit, $filters, $filtersActive, $filterMultiplier);

@@ -240,85 +240,107 @@ function processEnrichmentQueue() {
     $sessionId = $_GET['session_id'] ?? '';
     $pdo = getDbConnection();
     
-    $batchSize = defined('ENRICHMENT_BATCH_SIZE') ? ENRICHMENT_BATCH_SIZE : 5;
+    $batchSize = defined('ENRICHMENT_BATCH_SIZE') ? ENRICHMENT_BATCH_SIZE : 8;
+    $maxSeconds = defined('ENRICHMENT_PROCESS_MAX_SECONDS') ? max(5, (int)ENRICHMENT_PROCESS_MAX_SECONDS) : 20;
     
-    // Get pending items
-    $whereSession = '';
-    $params = ['pending', $batchSize];
-    if ($sessionId) {
-        $whereSession = ' AND session_id = ?';
-        array_splice($params, 1, 0, $sessionId);
+    $processed = 0;
+    $failed = 0;
+    $maxRetries = defined('FIRECRAWL_MAX_RETRIES') ? FIRECRAWL_MAX_RETRIES : 3;
+    $startTime = time();
+    $hadItems = false;
+    
+    while (true) {
+        // Stop if we've exceeded the time budget.
+        if ((time() - $startTime) >= $maxSeconds) {
+            break;
+        }
+
+        // Get pending items
+        $whereSession = '';
+        $params = ['pending', $batchSize];
+        if ($sessionId) {
+            $whereSession = ' AND session_id = ?';
+            array_splice($params, 1, 0, $sessionId);
+        }
+        
+        $stmt = $pdo->prepare("
+            SELECT id, lead_id, url, search_type, session_id, retry_count
+            FROM enrichment_queue
+            WHERE status = ?{$whereSession}
+            ORDER BY created_at ASC
+            LIMIT ?
+        ");
+        $stmt->execute($params);
+        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        if (empty($items)) {
+            break;
+        }
+
+        $hadItems = true;
+    
+        foreach ($items as $item) {
+            // Mark as processing
+            $updateStmt = $pdo->prepare("UPDATE enrichment_queue SET status = 'processing', started_at = NOW() WHERE id = ?");
+            $updateStmt->execute([$item['id']]);
+            
+            try {
+                $result = firecrawlScrape($item['url'], $item['search_type']);
+                
+                // Cache the result
+                $cacheKey = "firecrawl_" . md5($item['url'] . $item['search_type']);
+                setCache($cacheKey, $result, 86400);
+                
+                // Mark as completed
+                $updateStmt = $pdo->prepare("
+                    UPDATE enrichment_queue 
+                    SET status = 'completed', result_data = ?, completed_at = NOW(), error_message = NULL
+                    WHERE id = ?
+                ");
+                $updateStmt->execute([json_encode($result), $item['id']]);
+                $processed++;
+                
+            } catch (Exception $e) {
+                $retryCount = ($item['retry_count'] ?? 0) + 1;
+                
+                if ($retryCount < $maxRetries && isRetryableError($e->getMessage())) {
+                    // Queue for retry
+                    $updateStmt = $pdo->prepare("
+                        UPDATE enrichment_queue 
+                        SET status = 'pending', retry_count = ?, error_message = ?, started_at = NULL
+                        WHERE id = ?
+                    ");
+                    $updateStmt->execute([$retryCount, $e->getMessage(), $item['id']]);
+                } else {
+                    // Mark as failed
+                    $updateStmt = $pdo->prepare("
+                        UPDATE enrichment_queue 
+                        SET status = 'failed', error_message = ?, completed_at = NOW()
+                        WHERE id = ?
+                    ");
+                    $updateStmt->execute([$e->getMessage(), $item['id']]);
+                    $failed++;
+                }
+            }
+            
+            // Small delay to respect rate limits
+            $delay = defined('FIRECRAWL_RETRY_DELAY_MS') ? FIRECRAWL_RETRY_DELAY_MS : 1000;
+            if ($delay > 0) {
+                usleep($delay * 1000);
+            }
+
+            if ((time() - $startTime) >= $maxSeconds) {
+                break 2;
+            }
+        }
     }
     
-    $stmt = $pdo->prepare("
-        SELECT id, lead_id, url, search_type, session_id, retry_count
-        FROM enrichment_queue
-        WHERE status = ?{$whereSession}
-        ORDER BY created_at ASC
-        LIMIT ?
-    ");
-    $stmt->execute($params);
-    $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    if (empty($items)) {
+    if (!$hadItems && $processed === 0 && $failed === 0) {
         sendJson([
             'success' => true,
             'processed' => 0,
             'message' => 'No pending items to process'
         ]);
-    }
-    
-    $processed = 0;
-    $failed = 0;
-    $maxRetries = defined('FIRECRAWL_MAX_RETRIES') ? FIRECRAWL_MAX_RETRIES : 3;
-    
-    foreach ($items as $item) {
-        // Mark as processing
-        $updateStmt = $pdo->prepare("UPDATE enrichment_queue SET status = 'processing', started_at = NOW() WHERE id = ?");
-        $updateStmt->execute([$item['id']]);
-        
-        try {
-            $result = firecrawlScrape($item['url'], $item['search_type']);
-            
-            // Cache the result
-            $cacheKey = "firecrawl_" . md5($item['url'] . $item['search_type']);
-            setCache($cacheKey, $result, 86400);
-            
-            // Mark as completed
-            $updateStmt = $pdo->prepare("
-                UPDATE enrichment_queue 
-                SET status = 'completed', result_data = ?, completed_at = NOW(), error_message = NULL
-                WHERE id = ?
-            ");
-            $updateStmt->execute([json_encode($result), $item['id']]);
-            $processed++;
-            
-        } catch (Exception $e) {
-            $retryCount = ($item['retry_count'] ?? 0) + 1;
-            
-            if ($retryCount < $maxRetries && isRetryableError($e->getMessage())) {
-                // Queue for retry
-                $updateStmt = $pdo->prepare("
-                    UPDATE enrichment_queue 
-                    SET status = 'pending', retry_count = ?, error_message = ?, started_at = NULL
-                    WHERE id = ?
-                ");
-                $updateStmt->execute([$retryCount, $e->getMessage(), $item['id']]);
-            } else {
-                // Mark as failed
-                $updateStmt = $pdo->prepare("
-                    UPDATE enrichment_queue 
-                    SET status = 'failed', error_message = ?, completed_at = NOW()
-                    WHERE id = ?
-                ");
-                $updateStmt->execute([$e->getMessage(), $item['id']]);
-                $failed++;
-            }
-        }
-        
-        // Small delay to respect rate limits
-        $delay = defined('FIRECRAWL_RETRY_DELAY_MS') ? FIRECRAWL_RETRY_DELAY_MS : 1000;
-        usleep($delay * 1000);
     }
     
     sendJson([
@@ -401,7 +423,10 @@ function firecrawlScrape($url, $searchType = 'gmb') {
     }
     
     // Extract and normalize the data
-    return normalizeFirecrawlResult($data['data'] ?? $data, $url, $searchType);
+    $normalized = normalizeFirecrawlResult($data['data'] ?? $data, $url, $searchType);
+
+    // Gap-filling pass: scrape common contact pages when Firecrawl misses email/phone.
+    return fillContactGapsFromWebsiteScrape($normalized, $url);
 }
 
 /**
@@ -500,6 +525,43 @@ function normalizeFirecrawlResult($data, $url, $searchType) {
     }
     
     return $result;
+}
+
+/**
+ * Fill missing contact fields using the built-in website contact scraper.
+ * Only merges missing data and keeps existing Firecrawl fields intact.
+ */
+function fillContactGapsFromWebsiteScrape($enrichment, $url) {
+    $emails = isset($enrichment['emails']) && is_array($enrichment['emails']) ? $enrichment['emails'] : [];
+    $phones = isset($enrichment['phones']) && is_array($enrichment['phones']) ? $enrichment['phones'] : [];
+
+    if (!empty($emails) && !empty($phones)) {
+        return $enrichment;
+    }
+
+    try {
+        $fallback = scrapeWebsiteForContacts($url, 6);
+    } catch (Exception $e) {
+        error_log("Firecrawl fallback scrape error: " . $e->getMessage());
+        return $enrichment;
+    }
+
+    $fallbackEmails = isset($fallback['emails']) && is_array($fallback['emails']) ? $fallback['emails'] : [];
+    $fallbackPhones = isset($fallback['phones']) && is_array($fallback['phones']) ? $fallback['phones'] : [];
+
+    if (!empty($fallbackEmails)) {
+        $emails = array_values(array_unique(array_merge($emails, $fallbackEmails)));
+    }
+    if (!empty($fallbackPhones)) {
+        $phones = array_values(array_unique(array_merge($phones, $fallbackPhones)));
+    }
+
+    $enrichment['emails'] = array_slice($emails, 0, 5);
+    $enrichment['phones'] = array_slice($phones, 0, 3);
+    $enrichment['hasEmail'] = !empty($enrichment['emails']);
+    $enrichment['hasPhone'] = !empty($enrichment['phones']);
+
+    return $enrichment;
 }
 
 /**
@@ -669,16 +731,21 @@ function triggerBackgroundProcessing($sessionId) {
     
     // Use fsockopen for non-blocking request (fire and forget)
     $parts = parse_url($processUrl);
+    $port = $parts['port'] ?? ($parts['scheme'] === 'https' ? 443 : 80);
     $fp = @fsockopen(
         ($parts['scheme'] === 'https' ? 'ssl://' : '') . $parts['host'],
-        $parts['scheme'] === 'https' ? 443 : 80,
+        $port,
         $errno, $errstr, 1
     );
     
     if ($fp) {
         $path = $parts['path'] . (isset($parts['query']) ? '?' . $parts['query'] : '');
+        $hostHeader = $parts['host'];
+        if (!empty($parts['port']) && !in_array((int)$parts['port'], [80, 443], true)) {
+            $hostHeader .= ':' . $parts['port'];
+        }
         $out = "GET $path HTTP/1.1\r\n";
-        $out .= "Host: {$parts['host']}\r\n";
+        $out .= "Host: {$hostHeader}\r\n";
         $out .= "Connection: Close\r\n\r\n";
         fwrite($fp, $out);
         fclose($fp);

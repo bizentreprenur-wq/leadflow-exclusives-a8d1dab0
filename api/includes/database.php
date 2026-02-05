@@ -100,3 +100,10 @@ class Database {
 function getDB() {
     return Database::getInstance();
 }
+
+/**
+ * Get raw PDO connection (legacy helper for modules expecting PDO).
+ */
+function getDbConnection() {
+    return Database::getInstance()->getConnection();
+}

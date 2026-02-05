@@ -4,6 +4,8 @@
  * Used for parallel enrichment during SSE streaming
  */
 
+require_once __DIR__ . '/database.php';
+
 /**
  * Queue a single lead for Firecrawl enrichment (non-blocking)
  * Returns immediately, enrichment happens in background
@@ -232,7 +234,11 @@ function callFirecrawlApi($url, $searchType, $apiKey) {
         throw new Exception($errorMsg);
     }
     
-    return normalizeFirecrawlData($data['data'] ?? $data, $url, $searchType);
+    $normalized = normalizeFirecrawlData($data['data'] ?? $data, $url, $searchType);
+
+    // Gap-filling pass: if Firecrawl misses email/phone, do a fast contact-page scrape.
+    // This uses the same website URL and only merges missing fields.
+    return fillContactGapsFromWebsiteScrape($normalized, $url);
 }
 
 /**
@@ -297,6 +303,43 @@ function normalizeFirecrawlData($data, $url, $searchType) {
 }
 
 /**
+ * Fill missing contact fields using the built-in website contact scraper.
+ * Only runs when Firecrawl did not return email and/or phone.
+ */
+function fillContactGapsFromWebsiteScrape($enrichment, $url) {
+    $emails = isset($enrichment['emails']) && is_array($enrichment['emails']) ? $enrichment['emails'] : [];
+    $phones = isset($enrichment['phones']) && is_array($enrichment['phones']) ? $enrichment['phones'] : [];
+
+    if (!empty($emails) && !empty($phones)) {
+        return $enrichment;
+    }
+
+    try {
+        $fallback = scrapeWebsiteForContacts($url, 6);
+    } catch (Exception $e) {
+        error_log("Firecrawl fallback scrape error: " . $e->getMessage());
+        return $enrichment;
+    }
+
+    $fallbackEmails = isset($fallback['emails']) && is_array($fallback['emails']) ? $fallback['emails'] : [];
+    $fallbackPhones = isset($fallback['phones']) && is_array($fallback['phones']) ? $fallback['phones'] : [];
+
+    if (!empty($fallbackEmails)) {
+        $emails = array_values(array_unique(array_merge($emails, $fallbackEmails)));
+    }
+    if (!empty($fallbackPhones)) {
+        $phones = array_values(array_unique(array_merge($phones, $fallbackPhones)));
+    }
+
+    $enrichment['emails'] = array_slice($emails, 0, 5);
+    $enrichment['phones'] = array_slice($phones, 0, 3);
+    $enrichment['hasEmail'] = !empty($enrichment['emails']);
+    $enrichment['hasPhone'] = !empty($enrichment['phones']);
+
+    return $enrichment;
+}
+
+/**
  * Check if error is retryable
  */
 function isRetryableFirecrawlError($message) {
@@ -339,4 +382,53 @@ function ensureEnrichmentQueueTableExists($pdo) {
     ");
     
     $checked = true;
+}
+
+/**
+ * Trigger background processing for queued enrichment items (non-blocking).
+ */
+function triggerBackgroundEnrichmentProcessing($sessionId) {
+    if (empty($sessionId)) {
+        return false;
+    }
+
+    $host = $_SERVER['HTTP_HOST'] ?? '';
+    if ($host === '') {
+        return false;
+    }
+
+    $isHttps = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+    $scheme = $isHttps ? 'https' : 'http';
+    $processUrl = $scheme . '://' . $host . '/api/firecrawl.php?action=process&session_id=' . urlencode($sessionId);
+
+    $parts = parse_url($processUrl);
+    if (!$parts || empty($parts['host'])) {
+        return false;
+    }
+
+    $port = $parts['port'] ?? ($parts['scheme'] === 'https' ? 443 : 80);
+    $fp = @fsockopen(
+        ($parts['scheme'] === 'https' ? 'ssl://' : '') . $parts['host'],
+        $port,
+        $errno,
+        $errstr,
+        1
+    );
+
+    if (!$fp) {
+        return false;
+    }
+
+    $path = ($parts['path'] ?? '/') . (isset($parts['query']) ? '?' . $parts['query'] : '');
+    $hostHeader = $parts['host'];
+    if (!empty($parts['port']) && !in_array((int)$parts['port'], [80, 443], true)) {
+        $hostHeader .= ':' . $parts['port'];
+    }
+    $out = "GET {$path} HTTP/1.1\r\n";
+    $out .= "Host: {$hostHeader}\r\n";
+    $out .= "Connection: Close\r\n\r\n";
+    fwrite($fp, $out);
+    fclose($fp);
+
+    return true;
 }

@@ -1,7 +1,7 @@
 <?php
 /**
  * GMB Search API Endpoint - STREAMING VERSION
- * Streams results progressively as they arrive from SerpAPI
+ * Streams results progressively as they arrive from Serper
  * Uses Server-Sent Events (SSE) for real-time updates
  */
 
@@ -105,436 +105,198 @@ function sendSSEError($message) {
 
 /**
  * Stream multi-source search results progressively
- * Uses SerpAPI primarily; falls back to Serper.dev only when credits are exhausted
+ * Uses Serper.dev for search coverage and Firecrawl for enrichment
  */
 function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier, $targetCount, $enrichmentSessionId = '', $enableEnrichment = false) {
     $hasSerper = defined('SERPER_API_KEY') && !empty(SERPER_API_KEY);
-    $hasSerpApi = defined('SERPAPI_KEY') && !empty(SERPAPI_KEY);
-    
-    if (!$hasSerper && !$hasSerpApi) {
-        sendSSEError('No search API configured. Please add SERPER_API_KEY or SERPAPI_KEY to config.php');
+    $enrichmentSearchType = !empty($filters['platformMode']) ? 'platform' : 'gmb';
+
+    if (!$hasSerper) {
+        sendSSEError('No search API configured. Please add SERPER_API_KEY to config.php');
         return;
     }
-    
-    // Prefer SerpAPI; only fall back to Serper if SerpAPI is out of credits
-    if ($hasSerpApi) {
-        $serpapiExhausted = false;
-        
-        // Fallback to SerpAPI
-        $apiKey = SERPAPI_KEY;
-        
-        $allResults = [];
-        $seenBusinesses = []; // Track by dedupe key to index for deduplication
-        $totalResults = 0;
-        
-        // Define search engines to query (all supported by SerpAPI)
-        $searchEngines = [
-            ['engine' => 'google_maps', 'name' => 'Google Maps', 'resultsKey' => 'local_results'],
-            ['engine' => 'yelp', 'name' => 'Yelp', 'resultsKey' => 'organic_results'],
-            ['engine' => 'bing_maps', 'name' => 'Bing Places', 'resultsKey' => 'local_results'],
-        ];
-        
-        $enableExpansion = defined('ENABLE_LOCATION_EXPANSION') ? ENABLE_LOCATION_EXPANSION : true;
-        $expansionMax = defined('LOCATION_EXPANSION_MAX') ? max(0, (int)LOCATION_EXPANSION_MAX) : 5;
-        if ($limit >= 1000) {
-            $expansionMax = max($expansionMax, 20);
-        }
-        if ($limit >= 2000) {
-            $expansionMax = max($expansionMax, 35);
-        }
-        $expandedLocations = $enableExpansion ? buildLocationExpansions($location) : [];
-        if ($expansionMax > 0) {
-            $expandedLocations = array_slice($expandedLocations, 0, $expansionMax);
-        } else {
-            $expandedLocations = [];
-        }
-        $locationsToSearch = array_merge([$location], $expandedLocations);
-        $searchedLocations = [];
-        
-        // Send initial status
-        sendSSE('start', [
-            'query' => "$service in $location",
-            'limit' => $limit,
-            'targetCount' => $targetCount,
-            'sources' => array_column($searchEngines, 'name'),
-            'estimatedSources' => count($searchEngines),
-            'expandedLocations' => $expandedLocations,
-            'filtersActive' => $filtersActive,
-            'enrichmentEnabled' => $enableEnrichment,
-            'enrichmentSessionId' => $enrichmentSessionId
-        ]);
-        
-        $hadEngineError = false;
-        $enrichmentLastProcessed = 0;
-        $enrichmentProcessInterval = 3; // Process enrichment every 3 seconds
 
-        foreach ($locationsToSearch as $locationIndex => $searchLocation) {
-            if ($totalResults >= $limit || $serpapiExhausted) {
+    $allResults = [];
+    $seenBusinesses = [];
+    $totalResults = 0;
+
+    $enableExpansion = defined('ENABLE_LOCATION_EXPANSION') ? ENABLE_LOCATION_EXPANSION : true;
+    $expansionMax = defined('LOCATION_EXPANSION_MAX') ? max(0, (int)LOCATION_EXPANSION_MAX) : 12;
+    if ($limit >= 1000) {
+        $expansionMax = max($expansionMax, 30);
+    }
+    if ($limit >= 2000) {
+        $expansionMax = max($expansionMax, 45);
+    }
+    if ($limit >= 250) {
+        $expansionMax = max($expansionMax, 18);
+    }
+    $expandedLocations = $enableExpansion ? buildLocationExpansions($location) : [];
+    if ($expansionMax > 0) {
+        $expandedLocations = array_slice($expandedLocations, 0, $expansionMax);
+    } else {
+        $expandedLocations = [];
+    }
+    $locationsToSearch = array_merge([$location], $expandedLocations);
+    $searchedLocations = [];
+
+    sendSSE('start', [
+        'query' => "$service in $location",
+        'limit' => $limit,
+        'targetCount' => $targetCount,
+        'sources' => ['Serper Places', 'Serper Organic', 'Serper Maps'],
+        'estimatedSources' => 3,
+        'expandedLocations' => $expandedLocations,
+        'filtersActive' => $filtersActive,
+        'enrichmentEnabled' => $enableEnrichment,
+        'enrichmentSessionId' => $enrichmentSessionId
+    ]);
+
+    $enrichmentLastPolled = 0;
+    $enrichmentLastId = 0;
+    $enrichmentLastTrigger = 0;
+    $enrichmentPollInterval = 1;
+    $enrichmentTriggerInterval = 8;
+
+    if ($enableEnrichment && function_exists('triggerBackgroundEnrichmentProcessing')) {
+        triggerBackgroundEnrichmentProcessing($enrichmentSessionId);
+        $enrichmentLastTrigger = time();
+    }
+
+    $emitEnrichment = function () use (
+        &$enrichmentLastPolled,
+        &$enrichmentLastId,
+        &$enrichmentLastTrigger,
+        $enrichmentPollInterval,
+        $enrichmentTriggerInterval,
+        $enrichmentSessionId,
+        $enableEnrichment
+    ) {
+        if (!$enableEnrichment || empty($enrichmentSessionId)) {
+            return;
+        }
+
+        $now = time();
+        if (($now - $enrichmentLastPolled) < $enrichmentPollInterval) {
+            return;
+        }
+        $enrichmentLastPolled = $now;
+
+        if (function_exists('triggerBackgroundEnrichmentProcessing') && ($now - $enrichmentLastTrigger) >= $enrichmentTriggerInterval) {
+            $enrichmentLastTrigger = $now;
+            triggerBackgroundEnrichmentProcessing($enrichmentSessionId);
+        }
+
+        $completed = getCompletedEnrichments($enrichmentSessionId, $enrichmentLastId);
+        if (!empty($completed['results'])) {
+            sendSSE('enrichment', [
+                'results' => $completed['results'],
+                'processed' => count($completed['results'])
+            ]);
+        }
+        $enrichmentLastId = $completed['lastId'] ?? $enrichmentLastId;
+    };
+
+    foreach ($locationsToSearch as $locationIndex => $searchLocation) {
+        if ($totalResults >= $limit) {
+            break;
+        }
+
+        $searchedLocations[] = $searchLocation;
+        if ($locationIndex > 0) {
+            sendSSE('expansion_start', [
+                'location' => $searchLocation,
+                'remaining' => $limit - $totalResults
+            ]);
+        }
+
+        streamSerperSearchInto(
+            $service,
+            $searchLocation,
+            $limit,
+            $filters,
+            $filtersActive,
+            $filterMultiplier,
+            $allResults,
+            $seenBusinesses,
+            $totalResults,
+            $enrichmentSessionId,
+            $enableEnrichment,
+            $enrichmentSearchType,
+            false
+        );
+
+        $emitEnrichment();
+    }
+
+    if ($totalResults < $targetCount) {
+        sendSSE('coverage', [
+            'message' => "Under target ({$totalResults}/{$targetCount}). Running broader query variants...",
+            'total' => $totalResults,
+            'target' => $targetCount,
+            'progress' => min(100, round(($totalResults / max(1, $limit)) * 100)),
+        ]);
+
+        $queryVariants = buildSearchQueryVariants($service, !empty($searchedLocations) ? $searchedLocations : [$location]);
+        foreach ($queryVariants as $variant) {
+            if ($totalResults >= $limit) {
                 break;
             }
-            
-            $query = "$service in $searchLocation";
-            $searchedLocations[] = $searchLocation;
-            
-            if ($locationIndex > 0) {
-                sendSSE('expansion_start', [
-                    'location' => $searchLocation,
-                    'remaining' => $limit - $totalResults
-                ]);
-            }
-            
-            $engineCount = count($searchEngines);
-            $engineIndex = 0;
-            
-            foreach ($searchEngines as $engineConfig) {
-                if ($totalResults >= $limit || $serpapiExhausted) {
-                    break;
-                }
-                
-                $engineIndex++;
-                $remaining = $limit - $totalResults;
-                $remainingEngines = max(1, $engineCount - $engineIndex + 1);
-                $resultsPerEngine = (int)ceil($remaining / $remainingEngines);
-                if ($filtersActive && $filterMultiplier > 1) {
-                    $resultsPerEngine = (int)ceil($resultsPerEngine * $filterMultiplier);
-                }
-                
-                $engineName = $engineConfig['engine'];
-                $sourceName = $engineConfig['name'];
-                $resultsKey = $engineConfig['resultsKey'];
-                
-                sendSSE('source_start', [
-                    'source' => $sourceName,
-                    'engine' => $engineName,
-                    'location' => $searchLocation
-                ]);
-                
-                $engineFound = 0;
-                $engineAdded = 0;
-                
-                try {
-                    $lastPingAt = 0;
-                    searchSingleEngine(
-                        $apiKey,
-                        $engineName,
-                        $query,
-                        $resultsKey,
-                        $resultsPerEngine,
-                        $sourceName,
-                        function ($pageResults) use (&$allResults, &$seenBusinesses, &$totalResults, &$engineFound, &$engineAdded, $limit, $sourceName, $searchLocation, $filters, $enrichmentSessionId, $enableEnrichment, &$enrichmentLastProcessed, $enrichmentProcessInterval) {
-                            $engineFound += count($pageResults);
-                            
-                            $newResults = [];
-                            foreach ($pageResults as $business) {
-                                if (!matchesSearchFilters($business, $filters)) {
-                                    continue;
-                                }
-                                $dedupeKey = buildBusinessDedupeKey($business, $searchLocation);
-                                
-                                if (!isset($seenBusinesses[$dedupeKey])) {
-                                    $seenBusinesses[$dedupeKey] = count($allResults);
-                                    $business['sources'] = [$sourceName];
-                                    $newResults[] = $business;
-                                    $allResults[] = $business;
-                                    $totalResults++;
-                                    $engineAdded++;
-                                    
-                                    // Queue for Firecrawl enrichment (non-blocking)
-                                    if ($enableEnrichment && !empty($business['url'])) {
-                                        queueFirecrawlEnrichment($business['id'], $business['url'], $enrichmentSessionId, 'gmb');
-                                    }
-                                    
-                                    if ($totalResults >= $limit) {
-                                        break;
-                                    }
-                                } else {
-                                    // Business already exists, track that we found it in multiple sources
-                                    $existingIndex = $seenBusinesses[$dedupeKey];
-                                    if (isset($allResults[$existingIndex]) && !in_array($sourceName, $allResults[$existingIndex]['sources'] ?? [])) {
-                                        $allResults[$existingIndex]['sources'][] = $sourceName;
-                                    }
-                                }
-                            }
-                            
-                            if (!empty($newResults)) {
-                                $progress = min(100, round(($totalResults / $limit) * 100));
-                                sendSSE('results', [
-                                    'leads' => $newResults,
-                                    'total' => $totalResults,
-                                    'progress' => $progress,
-                                    'source' => $sourceName
-                                ]);
-                                
-                                // Process enrichment queue and send results (every N seconds)
-                                $now = time();
-                                if ($enableEnrichment && ($now - $enrichmentLastProcessed) >= $enrichmentProcessInterval) {
-                                    $enrichmentLastProcessed = $now;
-                                    $enrichmentBatch = processEnrichmentBatch($enrichmentSessionId, 2);
-                                    if (!empty($enrichmentBatch['results'])) {
-                                        sendSSE('enrichment', [
-                                            'results' => $enrichmentBatch['results'],
-                                            'processed' => $enrichmentBatch['processed']
-                                        ]);
-                                    }
-                                }
-                            }
-                            
-                            return $totalResults < $limit;
-                        },
-                        function ($page, $pageTotal) use (&$lastPingAt, $sourceName, $searchLocation, &$totalResults, $limit, $enrichmentSessionId, $enableEnrichment, &$enrichmentLastProcessed, $enrichmentProcessInterval) {
-                            $now = time();
-                            if ($now - $lastPingAt >= 10) {
-                                $lastPingAt = $now;
-                                $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
-                                sendSSE('ping', [
-                                    'source' => $sourceName,
-                                    'location' => $searchLocation,
-                                    'page' => $page,
-                                    'total' => $totalResults,
-                                    'progress' => $progress
-                                ]);
-                                
-                                // Also process enrichment during pings
-                                if ($enableEnrichment && ($now - $enrichmentLastProcessed) >= $enrichmentProcessInterval) {
-                                    $enrichmentLastProcessed = $now;
-                                    $enrichmentBatch = processEnrichmentBatch($enrichmentSessionId, 2);
-                                    if (!empty($enrichmentBatch['results'])) {
-                                        sendSSE('enrichment', [
-                                            'results' => $enrichmentBatch['results'],
-                                            'processed' => $enrichmentBatch['processed']
-                                        ]);
-                                    }
-                                }
-                            }
-                        }
-                    );
-                } catch (Exception $e) {
-                    if (isSerpApiCreditsError($e->getMessage())) {
-                        $serpapiExhausted = true;
-                        break;
-                    }
-                    $hadEngineError = true;
-                    sendSSE('source_error', [
-                        'source' => $sourceName,
-                        'engine' => $engineName,
-                        'location' => $searchLocation,
-                        'error' => $e->getMessage()
-                    ]);
-                    continue;
-                }
-                
-                sendSSE('source_complete', [
-                    'source' => $sourceName,
-                    'found' => $engineFound,
-                    'added' => $engineAdded
-                ]);
-                
-                // Minimal delay between engines (50ms instead of 200ms)
-                usleep(50000);
-            }
-        }
 
-        // If we still under-fill the request, run additional query variants before finishing.
-        if (!$serpapiExhausted && $totalResults < $targetCount) {
-            sendSSE('coverage', [
-                'message' => "Under target ({$totalResults}/{$targetCount}). Running broader query variants...",
-                'total' => $totalResults,
-                'target' => $targetCount,
-                'progress' => min(100, round(($totalResults / max(1, $limit)) * 100)),
+            $query = $variant['query'];
+            $variantLocation = $variant['location'];
+            sendSSE('variant_start', [
+                'query' => $query,
+                'location' => $variantLocation,
+                'remaining' => $limit - $totalResults,
             ]);
 
-            $queryVariants = buildSearchQueryVariants($service, !empty($searchedLocations) ? $searchedLocations : [$location]);
-            foreach ($queryVariants as $variant) {
-                if ($totalResults >= $limit || $serpapiExhausted) {
-                    break;
-                }
+            streamSerperSearchInto(
+                $service,
+                $variantLocation,
+                $limit,
+                $filters,
+                $filtersActive,
+                $filterMultiplier,
+                $allResults,
+                $seenBusinesses,
+                $totalResults,
+                $enrichmentSessionId,
+                $enableEnrichment,
+                $enrichmentSearchType,
+                false,
+                $query
+            );
 
-                $query = $variant['query'];
-                $variantLocation = $variant['location'];
-                sendSSE('variant_start', [
-                    'query' => $query,
-                    'location' => $variantLocation,
-                    'remaining' => $limit - $totalResults,
-                ]);
-
-                $engineCount = count($searchEngines);
-                $engineIndex = 0;
-                foreach ($searchEngines as $engineConfig) {
-                    if ($totalResults >= $limit || $serpapiExhausted) {
-                        break;
-                    }
-
-                    $engineIndex++;
-                    $remaining = $limit - $totalResults;
-                    $remainingEngines = max(1, $engineCount - $engineIndex + 1);
-                    $resultsPerEngine = (int)ceil($remaining / $remainingEngines);
-                    if ($filtersActive && $filterMultiplier > 1) {
-                        $resultsPerEngine = (int)ceil($resultsPerEngine * $filterMultiplier);
-                    }
-                    $resultsPerEngine = max(50, min(2500, $resultsPerEngine));
-
-                    $engineName = $engineConfig['engine'];
-                    $sourceName = $engineConfig['name'];
-                    $resultsKey = $engineConfig['resultsKey'];
-                    $sourceLabel = $sourceName . ' (variant)';
-
-                    try {
-                        $lastPingAt = 0;
-                        searchSingleEngine(
-                            $apiKey,
-                            $engineName,
-                            $query,
-                            $resultsKey,
-                            $resultsPerEngine,
-                            $sourceName,
-                            function ($pageResults) use (&$allResults, &$seenBusinesses, &$totalResults, $limit, $sourceLabel, $variantLocation, $filters) {
-                                $newResults = [];
-                                foreach ($pageResults as $business) {
-                                    if (!matchesSearchFilters($business, $filters)) {
-                                        continue;
-                                    }
-                                    $dedupeKey = buildBusinessDedupeKey($business, $variantLocation);
-                                    if (!isset($seenBusinesses[$dedupeKey])) {
-                                        $seenBusinesses[$dedupeKey] = count($allResults);
-                                        $business['sources'] = [$sourceLabel];
-                                        $newResults[] = $business;
-                                        $allResults[] = $business;
-                                        $totalResults++;
-                                        if ($totalResults >= $limit) {
-                                            break;
-                                        }
-                                    } else {
-                                        $existingIndex = $seenBusinesses[$dedupeKey];
-                                        if (isset($allResults[$existingIndex]) && !in_array($sourceLabel, $allResults[$existingIndex]['sources'] ?? [])) {
-                                            $allResults[$existingIndex]['sources'][] = $sourceLabel;
-                                        }
-                                    }
-                                }
-
-                                if (!empty($newResults)) {
-                                    $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
-                                    sendSSE('results', [
-                                        'leads' => $newResults,
-                                        'total' => $totalResults,
-                                        'progress' => $progress,
-                                        'source' => $sourceLabel
-                                    ]);
-                                }
-
-                                return $totalResults < $limit;
-                            },
-                            function ($page, $pageTotal) use (&$lastPingAt, $sourceLabel, $variantLocation, &$totalResults, $limit) {
-                                $now = time();
-                                if ($now - $lastPingAt >= 10) {
-                                    $lastPingAt = $now;
-                                    $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
-                                    sendSSE('ping', [
-                                        'source' => $sourceLabel,
-                                        'location' => $variantLocation,
-                                        'page' => $page,
-                                        'total' => $totalResults,
-                                        'progress' => $progress
-                                    ]);
-                                }
-                            }
-                        );
-                    } catch (Exception $e) {
-                        if (isSerpApiCreditsError($e->getMessage())) {
-                            $serpapiExhausted = true;
-                            break;
-                        }
-                        $hadEngineError = true;
-                        sendSSE('source_error', [
-                            'source' => $sourceLabel,
-                            'engine' => $engineName,
-                            'location' => $variantLocation,
-                            'error' => $e->getMessage()
-                        ]);
-                    }
-                }
-            }
+            $emitEnrichment();
         }
-        
-        if ($serpapiExhausted) {
-            if ($hasSerper) {
-                sendSSE('status', [
-                    'message' => 'SerpAPI credits exhausted. Switching to Serper...',
-                    'engine' => 'Serper',
-                    'progress' => 0
-                ]);
-                streamSerperSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier, $enrichmentSessionId, $enableEnrichment);
-                return;
-            }
-            sendSSEError('SerpAPI credits exhausted and SERPER_API_KEY not configured.');
-            return;
-        }
-        
-        if ($totalResults === 0 && $hadEngineError) {
-            if ($hasSerper) {
-                sendSSE('status', [
-                    'message' => 'Primary sources timed out. Switching to Serper fallback...',
-                    'engine' => 'Serper',
-                    'progress' => 0
-                ]);
-                streamSerperSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier, $enrichmentSessionId, $enableEnrichment);
-                return;
-            }
-            sendSSEError('Search failed to return results from all sources. Please try again.');
-            return;
-        }
-
-        // Send completion
-        
-        // Final flush of remaining enrichment results
-        if ($enableEnrichment) {
-            // Process any remaining items in queue
-            for ($flush = 0; $flush < 10; $flush++) {
-                $enrichmentBatch = processEnrichmentBatch($enrichmentSessionId, 5);
-                if (!empty($enrichmentBatch['results'])) {
-                    sendSSE('enrichment', [
-                        'results' => $enrichmentBatch['results'],
-                        'processed' => $enrichmentBatch['processed']
-                    ]);
-                }
-                if ($enrichmentBatch['processed'] === 0) {
-                    break;
-                }
-                usleep(500000); // 500ms between flush batches
-            }
-        }
-        
-        sendSSE('complete', [
-            'total' => $totalResults,
-            'requested' => $limit,
-            'targetCount' => $targetCount,
-            'coverage' => round(($totalResults / max(1, $limit)) * 100, 2),
-            'sources' => array_column($searchEngines, 'name'),
-            'query' => [
-                'service' => $service,
-                'location' => $location,
-                'limit' => $limit
-            ],
-            'searchedLocations' => $searchedLocations,
-            'enrichmentSessionId' => $enrichmentSessionId,
-            'enrichmentEnabled' => $enableEnrichment
-        ]);
-        return;
     }
-    
-    // If no SerpAPI key, use Serper directly
-    if ($hasSerper) {
-        streamSerperSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier, $enrichmentSessionId, $enableEnrichment);
-        return;
+
+    if ($enableEnrichment) {
+        $flushStart = time();
+        while ((time() - $flushStart) < 8) {
+            $emitEnrichment();
+            usleep(200000);
+        }
     }
-    
-    // Fallback (should not reach due to earlier guard)
-    sendSSEError('No search API configured. Please add SERPAPI_KEY or SERPER_API_KEY to config.php');
+
+    sendSSE('complete', [
+        'total' => $totalResults,
+        'requested' => $limit,
+        'targetCount' => $targetCount,
+        'coverage' => round(($totalResults / max(1, $limit)) * 100, 2),
+        'sources' => ['Serper Places', 'Serper Organic', 'Serper Maps'],
+        'query' => [
+            'service' => $service,
+            'location' => $location,
+            'limit' => $limit
+        ],
+        'searchedLocations' => $searchedLocations,
+        'enrichmentSessionId' => $enrichmentSessionId,
+        'enrichmentEnabled' => $enableEnrichment
+    ]);
     return;
-    
-    // ---- Original SerpAPI stream logic removed below ----
-    // ---- Original SerpAPI stream logic removed above ----
 }
-
 /**
  * Build supplemental search query variants for top-up passes.
  */
@@ -542,6 +304,11 @@ function buildSearchQueryVariants($service, $searchedLocations) {
     $service = trim((string)$service);
     if ($service === '') {
         return [];
+    }
+
+    $serviceVariants = expandServiceSynonyms($service);
+    if (empty($serviceVariants)) {
+        $serviceVariants = [$service];
     }
 
     $locations = [];
@@ -560,30 +327,37 @@ function buildSearchQueryVariants($service, $searchedLocations) {
 
     $templates = [
         'best %s in %s',
+        'top %s in %s',
         '%s near %s',
+        '%s in %s',
+        'local %s in %s',
         '%s companies in %s',
-        '%s services %s',
+        '%s businesses in %s',
+        '%s providers in %s',
+        '%s services in %s',
     ];
 
     $variants = [];
     foreach ($locations as $loc) {
-        foreach ($templates as $template) {
-            $query = sprintf($template, $service, $loc);
-            $query = preg_replace('/\s+/', ' ', trim($query));
-            if ($query === '') {
-                continue;
-            }
-            $key = strtolower($query);
-            if (!isset($variants[$key])) {
-                $variants[$key] = [
-                    'query' => $query,
-                    'location' => $loc,
-                ];
+        foreach ($serviceVariants as $serviceVariant) {
+            foreach ($templates as $template) {
+                $query = sprintf($template, $serviceVariant, $loc);
+                $query = preg_replace('/\s+/', ' ', trim($query));
+                if ($query === '') {
+                    continue;
+                }
+                $key = strtolower($query);
+                if (!isset($variants[$key])) {
+                    $variants[$key] = [
+                        'query' => $query,
+                        'location' => $loc,
+                    ];
+                }
             }
         }
     }
 
-    $maxVariants = defined('SEARCH_QUERY_VARIANT_MAX') ? max(1, (int)SEARCH_QUERY_VARIANT_MAX) : 8;
+    $maxVariants = defined('SEARCH_QUERY_VARIANT_MAX') ? max(1, (int)SEARCH_QUERY_VARIANT_MAX) : 24;
     return array_slice(array_values($variants), 0, $maxVariants);
 }
 
@@ -995,35 +769,171 @@ function quickWebsiteCheck($url) {
 /**
  * Stream search results using Serper.dev Places API
  */
-function streamSerperSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier, $enrichmentSessionId = '', $enableEnrichment = false) {
+function streamSerperSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier, $enrichmentSessionId = '', $enableEnrichment = false, $enrichmentSearchType = 'gmb') {
     $allResults = [];
     $seenBusinesses = [];
     $totalResults = 0;
-    $query = "$service in $location";
+
+    streamSerperSearchInto(
+        $service,
+        $location,
+        $limit,
+        $filters,
+        $filtersActive,
+        $filterMultiplier,
+        $allResults,
+        $seenBusinesses,
+        $totalResults,
+        $enrichmentSessionId,
+        $enableEnrichment,
+        $enrichmentSearchType,
+        true
+    );
+}
+
+/**
+ * Fetch Serper places/maps concurrently to reduce per-query latency.
+ */
+function fetchSerperPlacesAndMaps($payload) {
+    $headers = [
+        'X-API-KEY: ' . SERPER_API_KEY,
+        'Content-Type: application/json'
+    ];
+    $body = json_encode($payload);
+
+    $createHandle = function ($url) use ($headers, $body) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $body,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_TIMEOUT => 25,
+            CURLOPT_CONNECTTIMEOUT => 8,
+        ]);
+        return $ch;
+    };
+
+    $multi = curl_multi_init();
+    $placesHandle = $createHandle('https://google.serper.dev/places');
+    $mapsHandle = $createHandle('https://google.serper.dev/maps');
+
+    curl_multi_add_handle($multi, $placesHandle);
+    curl_multi_add_handle($multi, $mapsHandle);
+
+    do {
+        $status = curl_multi_exec($multi, $running);
+        if ($running) {
+            curl_multi_select($multi, 1.0);
+        }
+    } while ($running && $status === CURLM_OK);
+
+    $places = [
+        'response' => curl_multi_getcontent($placesHandle),
+        'httpCode' => (int)curl_getinfo($placesHandle, CURLINFO_HTTP_CODE),
+        'error' => curl_error($placesHandle),
+    ];
+    $maps = [
+        'response' => curl_multi_getcontent($mapsHandle),
+        'httpCode' => (int)curl_getinfo($mapsHandle, CURLINFO_HTTP_CODE),
+        'error' => curl_error($mapsHandle),
+    ];
+
+    curl_multi_remove_handle($multi, $placesHandle);
+    curl_multi_remove_handle($multi, $mapsHandle);
+    curl_close($placesHandle);
+    curl_close($mapsHandle);
+    curl_multi_close($multi);
+
+    return [
+        'places' => $places,
+        'maps' => $maps,
+    ];
+}
+
+/**
+ * Stream search results using Serper.dev Places API into existing collections.
+ */
+function streamSerperSearchInto(
+    $service,
+    $location,
+    $limit,
+    $filters,
+    $filtersActive,
+    $filterMultiplier,
+    &$allResults,
+    &$seenBusinesses,
+    &$totalResults,
+    $enrichmentSessionId = '',
+    $enableEnrichment = false,
+    $enrichmentSearchType = 'gmb',
+    $emitComplete = true,
+    $queryOverride = null
+) {
+    $query = $queryOverride ?: "$service in $location";
+    $enrichmentLastPolled = 0;
+    $enrichmentLastId = 0;
+    $enrichmentLastTrigger = 0;
+    $enrichmentPollInterval = 1;
+    $enrichmentTriggerInterval = 8;
+
+    if ($enableEnrichment && function_exists('triggerBackgroundEnrichmentProcessing')) {
+        triggerBackgroundEnrichmentProcessing($enrichmentSessionId);
+        $enrichmentLastTrigger = time();
+    }
+
+    $emitEnrichment = function () use (
+        &$enrichmentLastPolled,
+        &$enrichmentLastId,
+        &$enrichmentLastTrigger,
+        $enrichmentPollInterval,
+        $enrichmentTriggerInterval,
+        $enrichmentSessionId,
+        $enableEnrichment
+    ) {
+        if (!$enableEnrichment || empty($enrichmentSessionId)) {
+            return;
+        }
+
+        $now = time();
+        if (($now - $enrichmentLastPolled) < $enrichmentPollInterval) {
+            return;
+        }
+        $enrichmentLastPolled = $now;
+
+        if (function_exists('triggerBackgroundEnrichmentProcessing') && ($now - $enrichmentLastTrigger) >= $enrichmentTriggerInterval) {
+            $enrichmentLastTrigger = $now;
+            triggerBackgroundEnrichmentProcessing($enrichmentSessionId);
+        }
+
+        $completed = getCompletedEnrichments($enrichmentSessionId, $enrichmentLastId);
+        if (!empty($completed['results'])) {
+            sendSSE('enrichment', [
+                'results' => $completed['results'],
+                'processed' => count($completed['results'])
+            ]);
+        }
+        $enrichmentLastId = $completed['lastId'] ?? $enrichmentLastId;
+    };
     
     sendSSE('status', [
         'message' => 'Searching with Serper Places API...',
         'engine' => 'Serper Places',
-        'progress' => 0
+        'progress' => min(100, round(($totalResults / max(1, $limit)) * 100))
     ]);
     
-    // Search Serper Places
+    // Search Serper Places + Maps in parallel
     $payload = [
         'q' => $query,
         'gl' => 'us',
         'hl' => 'en'
     ];
-    
-    $response = curlRequest('https://google.serper.dev/places', [
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode($payload),
-        CURLOPT_HTTPHEADER => [
-            'X-API-KEY: ' . SERPER_API_KEY,
-            'Content-Type: application/json'
-        ]
-    ]);
-    
-    if ($response['httpCode'] !== 200) {
+
+    $primaryResponses = fetchSerperPlacesAndMaps($payload);
+    $placesResponse = $primaryResponses['places'];
+    $mapsResponse = $primaryResponses['maps'];
+
+    if (($placesResponse['httpCode'] ?? 0) !== 200) {
         // Try organic search as fallback
         $response = curlRequest('https://google.serper.dev/search', [
             CURLOPT_POST => true,
@@ -1043,7 +953,7 @@ function streamSerperSearch($service, $location, $limit, $filters, $filtersActiv
         $places = $data['organic'] ?? [];
         $isOrganic = true;
     } else {
-        $data = json_decode($response['response'], true);
+        $data = json_decode($placesResponse['response'] ?? '', true);
         $places = $data['places'] ?? [];
         $isOrganic = false;
     }
@@ -1099,8 +1009,9 @@ function streamSerperSearch($service, $location, $limit, $filters, $filtersActiv
         $totalResults++;
         
         // Queue for Firecrawl enrichment
-        if ($enableEnrichment && !empty($business['url'])) {
-            queueFirecrawlEnrichment($business['id'], $business['url'], $enrichmentSessionId, 'gmb');
+        $needsEnrichment = empty($business['email']) || empty($business['phone']);
+        if ($enableEnrichment && $needsEnrichment && !empty($business['url'])) {
+            queueFirecrawlEnrichment($business['id'], $business['url'], $enrichmentSessionId, $enrichmentSearchType);
         }
         
         // Stream each result (frontend expects "results" with "leads")
@@ -1111,82 +1022,90 @@ function streamSerperSearch($service, $location, $limit, $filters, $filtersActiv
             'progress' => $progress,
             'source' => $business['source'] ?? 'Serper'
         ]);
+
+        $emitEnrichment();
         
-        // Minimal delay - 5ms instead of 10ms
-        usleep(5000);
     }
     
     // If we need more results, try Maps search
-    if (count($allResults) < $limit) {
+    if (count($allResults) < $limit && ($mapsResponse['httpCode'] ?? 0) === 200) {
         sendSSE('status', [
             'message' => 'Searching additional sources...',
             'engine' => 'Serper Maps',
             'progress' => 60
         ]);
+
+        $mapsData = json_decode($mapsResponse['response'] ?? '', true);
+        $mapsPlaces = $mapsData['places'] ?? [];
         
-        $mapsPayload = [
-            'q' => $query,
-            'gl' => 'us',
-            'hl' => 'en'
-        ];
-        
-        $mapsResponse = curlRequest('https://google.serper.dev/maps', [
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => json_encode($mapsPayload),
-            CURLOPT_HTTPHEADER => [
-                'X-API-KEY: ' . SERPER_API_KEY,
-                'Content-Type: application/json'
-            ]
-        ]);
-        
-        if ($mapsResponse['httpCode'] === 200) {
-            $mapsData = json_decode($mapsResponse['response'], true);
-            $mapsPlaces = $mapsData['places'] ?? [];
+        foreach ($mapsPlaces as $item) {
+            if (count($allResults) >= $limit) break;
             
-            foreach ($mapsPlaces as $item) {
-                if (count($allResults) >= $limit) break;
-                
-                $business = [
-                    'id' => generateId('srpm_'),
-                    'name' => $item['title'] ?? '',
-                    'url' => $item['website'] ?? '',
-                    'snippet' => $item['category'] ?? '',
-                    'displayLink' => parse_url($item['website'] ?? '', PHP_URL_HOST) ?? '',
-                    'address' => $item['address'] ?? '',
-                    'phone' => $item['phoneNumber'] ?? '',
-                    'rating' => $item['rating'] ?? null,
-                    'reviews' => $item['ratingCount'] ?? null,
-                    'source' => 'Serper Maps',
-                    'sources' => ['Serper Maps']
-                ];
-                
-                if (empty($business['name'])) continue;
-                if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
-                
-                $dedupeKey = buildBusinessDedupeKey($business, $location);
-                if (isset($seenBusinesses[$dedupeKey])) continue;
-                
-                $seenBusinesses[$dedupeKey] = count($allResults);
-                $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
-                $allResults[] = $business;
-                $totalResults++;
-                
-                $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
-                sendSSE('results', [
-                    'leads' => [$business],
-                    'total' => $totalResults,
-                    'progress' => $progress,
-                    'source' => $business['source'] ?? 'Serper Maps'
-                ]);
-                
-                usleep(5000);
+            $business = [
+                'id' => generateId('srpm_'),
+                'name' => $item['title'] ?? '',
+                'url' => $item['website'] ?? '',
+                'snippet' => $item['category'] ?? '',
+                'displayLink' => parse_url($item['website'] ?? '', PHP_URL_HOST) ?? '',
+                'address' => $item['address'] ?? '',
+                'phone' => $item['phoneNumber'] ?? '',
+                'rating' => $item['rating'] ?? null,
+                'reviews' => $item['ratingCount'] ?? null,
+                'source' => 'Serper Maps',
+                'sources' => ['Serper Maps']
+            ];
+            
+            if (empty($business['name'])) continue;
+            if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
+            
+            $dedupeKey = buildBusinessDedupeKey($business, $location);
+            if (isset($seenBusinesses[$dedupeKey])) continue;
+            
+            $seenBusinesses[$dedupeKey] = count($allResults);
+            $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
+            $allResults[] = $business;
+            $totalResults++;
+
+            $needsEnrichment = empty($business['email']) || empty($business['phone']);
+            if ($enableEnrichment && $needsEnrichment && !empty($business['url'])) {
+                queueFirecrawlEnrichment($business['id'], $business['url'], $enrichmentSessionId, $enrichmentSearchType);
             }
+            
+            $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
+            sendSSE('results', [
+                'leads' => [$business],
+                'total' => $totalResults,
+                'progress' => $progress,
+                'source' => $business['source'] ?? 'Serper Maps'
+            ]);
+
+            $emitEnrichment();
+        }
+    }
+
+    if ($enableEnrichment && $emitComplete) {
+        $flushStart = time();
+        $flushSeconds = defined('ENRICHMENT_FINAL_FLUSH_SECONDS') ? max(1, (int)ENRICHMENT_FINAL_FLUSH_SECONDS) : 4;
+        while ((time() - $flushStart) < $flushSeconds) {
+            $emitEnrichment();
+            usleep(200000);
         }
     }
     
-    // Send completion
-    sendSSE('complete', [
-        'totalResults' => $totalResults,
-        'message' => "Search complete! Found {$totalResults} businesses."
-    ]);
+    if ($emitComplete) {
+        // Send completion
+        sendSSE('complete', [
+            'total' => $totalResults,
+            'requested' => $limit,
+            'coverage' => round(($totalResults / max(1, $limit)) * 100, 2),
+            'query' => [
+                'service' => $service,
+                'location' => $location,
+                'limit' => $limit
+            ],
+            'enrichmentSessionId' => $enrichmentSessionId,
+            'enrichmentEnabled' => $enableEnrichment,
+            'message' => "Search complete! Found {$totalResults} businesses."
+        ]);
+    }
 }

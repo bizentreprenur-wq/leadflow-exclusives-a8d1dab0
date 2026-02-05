@@ -21,6 +21,16 @@ define('DB_USER', 'u497238762_bamlead');
 define('DB_PASS', 'YOUR_DATABASE_PASSWORD_HERE'); // <-- REPLACE THIS
 
 // =====================================
+// SERPER.DEV (Optional - Faster/cheaper Google Search API)
+// =====================================
+// Get from: https://serper.dev/
+define('SERPER_API_KEY', 'YOUR_SERPER_API_KEY_HERE'); // <-- OPTIONAL
+// Run Serper as a top-up source even when SerpAPI succeeds.
+if (!defined('ENABLE_SERPER_PARALLEL')) {
+    define('ENABLE_SERPER_PARALLEL', true);
+}
+
+// =====================================
 // SERPAPI (Required for GMB Search)
 // =====================================
 // Get from: https://serpapi.com/manage-api-key
@@ -36,6 +46,17 @@ define('GOOGLE_SEARCH_ENGINE_ID', '');
 // BING SEARCH API (Optional)
 // =====================================
 define('BING_API_KEY', '');
+
+// =====================================
+// FIRECRAWL (Website Enrichment)
+// =====================================
+define('FIRECRAWL_API_KEY', 'YOUR_FIRECRAWL_API_KEY_HERE'); // <-- REPLACE THIS
+define('FIRECRAWL_TIMEOUT', 30);
+define('FIRECRAWL_MAX_RETRIES', 3);
+define('FIRECRAWL_RETRY_DELAY_MS', 1000);
+// Enrichment queue settings
+define('ENRICHMENT_BATCH_SIZE', 5);
+define('ENRICHMENT_MAX_CONCURRENT', 5);
 
 // =====================================
 // EMAIL SETTINGS

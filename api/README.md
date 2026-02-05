@@ -172,6 +172,8 @@ curl -X POST https://yourdomain.com/api/gmb-search.php \
 You can speed up large searches and widen results with these `config.php` settings:
 
 - `SERPAPI_THROTTLE_US` (lower = faster, higher = safer vs rate limits)
+- `SERPAPI_CONNECT_TIMEOUT_SEC` / `SERPAPI_TIMEOUT_SEC` (raise for slow networks/large searches)
+- `SERPAPI_REQUEST_RETRIES` (retries transient HTTP 0/timeouts before failing over)
 - `FILTER_OVERFETCH_MULTIPLIER` (fetch extra results when filters are active)
 - `SEARCH_FILL_TARGET_RATIO` (target minimum coverage of requested leads, e.g. `0.95`)
 - `SEARCH_QUERY_VARIANT_MAX` (max supplemental query variants for top-up passes)
