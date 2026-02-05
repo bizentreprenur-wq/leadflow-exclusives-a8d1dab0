@@ -1589,7 +1589,9 @@ export default function Dashboard() {
   };
 
   const resetWorkflow = async () => {
-    setCurrentStep(1);
+    const stepToPreserve = currentStep > 1 ? currentStep : 1;
+    const shouldPreserveStepContext = stepToPreserve > 1;
+    setCurrentStep(stepToPreserve);
     setSearchType(null);
     setQuery('');
     setLocation('');
@@ -1638,6 +1640,12 @@ export default function Dashboard() {
     sessionStorage.removeItem('bamlead_email_leads');
     sessionStorage.removeItem('leadsToVerify');
     sessionStorage.removeItem('savedLeads');
+    if (shouldPreserveStepContext) {
+      // Preserve UX context when clearing from later workflow steps.
+      const preservedStep = String(stepToPreserve);
+      localStorage.setItem('bamlead_current_step', preservedStep);
+      sessionStorage.setItem('bamlead_current_step', preservedStep);
+    }
 
     try {
       const token = localStorage.getItem('auth_token');
