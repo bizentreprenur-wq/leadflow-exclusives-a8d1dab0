@@ -66,6 +66,17 @@ interface SearchResult {
     issues: string[];
     mobileScore: number | null;
   };
+  // Firecrawl enrichment data
+  enrichment?: {
+    emails?: string[];
+    phones?: string[];
+    socials?: Record<string, string>;
+    hasEmail?: boolean;
+    hasPhone?: boolean;
+    hasSocials?: boolean;
+    scrapedAt?: string;
+  };
+  enrichmentStatus?: 'pending' | 'processing' | 'completed' | 'failed';
 }
 
 // Source badge helper - shows which platforms found each lead
@@ -1271,6 +1282,7 @@ export default function SimpleLeadViewer({
                               businessName={lead.name}
                               location={lead.address}
                               size="md"
+                              enrichment={lead.enrichment}
                             />
                           </div>
                         </TableCell>

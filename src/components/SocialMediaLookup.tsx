@@ -24,6 +24,16 @@ interface SocialMediaLookupProps {
   location?: string;
   size?: 'sm' | 'md';
   onContactsFound?: (emails: string[], phones: string[]) => void;
+  // Pre-loaded enrichment data from Firecrawl (bypasses scraping)
+  enrichment?: {
+    emails?: string[];
+    phones?: string[];
+    socials?: Record<string, string>;
+    hasEmail?: boolean;
+    hasPhone?: boolean;
+    hasSocials?: boolean;
+    scrapedAt?: string;
+  };
 }
 
 const socialPlatforms = [
@@ -94,6 +104,7 @@ export default function SocialMediaLookup({
   location = '',
   size = 'sm',
   onContactsFound,
+  enrichment,
 }: SocialMediaLookupProps) {
   const [openPlatform, setOpenPlatform] = useState<typeof socialPlatforms[0] | null>(null);
   const [searchUrl, setSearchUrl] = useState('');
@@ -112,8 +123,39 @@ export default function SocialMediaLookup({
     md: 'w-3.5 h-3.5',
   };
 
-  // Auto-load cached contacts on mount (pre-scraped during search)
+  // Auto-load enrichment data or cached contacts on mount
   useEffect(() => {
+    // First check if enrichment prop has data (from Firecrawl parallel streaming)
+    if (enrichment && (enrichment.emails?.length || enrichment.phones?.length || enrichment.socials && Object.keys(enrichment.socials).length > 0)) {
+      // Convert enrichment socials to SocialProfile format
+      const profiles: Record<string, { url: string; username?: string }> = {};
+      if (enrichment.socials) {
+        Object.entries(enrichment.socials).forEach(([platform, url]) => {
+          profiles[platform] = { url: url };
+        });
+      }
+      
+      const enrichmentContacts: SocialContactsResult = {
+        success: true,
+        cached: true,
+        business_name: businessName,
+        location: location,
+        contacts: {
+          emails: enrichment.emails || [],
+          phones: enrichment.phones || [],
+          sources: enrichment.socials ? Object.keys(enrichment.socials) : [],
+          profiles,
+        },
+      };
+      setSocialContacts(enrichmentContacts);
+      setWasPreScraped(true);
+      if (onContactsFound && (enrichment.emails?.length || enrichment.phones?.length)) {
+        onContactsFound(enrichment.emails || [], enrichment.phones || []);
+      }
+      return;
+    }
+    
+    // Fall back to cached contacts from sessionStorage
     const cacheKey = `social_contacts_${businessName}_${location}`;
     const cached = sessionStorage.getItem(cacheKey);
     
@@ -129,7 +171,7 @@ export default function SocialMediaLookup({
         // Ignore parse errors
       }
     }
-  }, [businessName, location]);
+  }, [businessName, location, enrichment]);
 
   const handleScrapeContacts = async () => {
     if (isScrapingContacts) return;
