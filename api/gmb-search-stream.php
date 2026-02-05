@@ -9,6 +9,7 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/ratelimit.php';
+require_once __DIR__ . '/includes/firecrawl.php';
 
 // SSE headers
 header('Content-Type: text/event-stream');
@@ -77,7 +78,11 @@ if (empty($location)) {
 }
 
 // Start streaming search
-streamGMBSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier, $targetCount);
+// Generate enrichment session ID
+$enrichmentSessionId = 'enrich_' . uniqid() . '_' . time();
+$enableEnrichment = defined('FIRECRAWL_API_KEY') && !empty(FIRECRAWL_API_KEY) && FIRECRAWL_API_KEY !== 'YOUR_FIRECRAWL_API_KEY_HERE';
+
+streamGMBSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier, $targetCount, $enrichmentSessionId, $enableEnrichment);
 
 /**
  * Send SSE message
@@ -102,7 +107,7 @@ function sendSSEError($message) {
  * Stream multi-source search results progressively
  * Uses SerpAPI primarily; falls back to Serper.dev only when credits are exhausted
  */
-function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier, $targetCount) {
+function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier, $targetCount, $enrichmentSessionId = '', $enableEnrichment = false) {
     $hasSerper = defined('SERPER_API_KEY') && !empty(SERPER_API_KEY);
     $hasSerpApi = defined('SERPAPI_KEY') && !empty(SERPAPI_KEY);
     
@@ -154,10 +159,14 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
             'sources' => array_column($searchEngines, 'name'),
             'estimatedSources' => count($searchEngines),
             'expandedLocations' => $expandedLocations,
-            'filtersActive' => $filtersActive
+            'filtersActive' => $filtersActive,
+            'enrichmentEnabled' => $enableEnrichment,
+            'enrichmentSessionId' => $enrichmentSessionId
         ]);
         
         $hadEngineError = false;
+        $enrichmentLastProcessed = 0;
+        $enrichmentProcessInterval = 3; // Process enrichment every 3 seconds
 
         foreach ($locationsToSearch as $locationIndex => $searchLocation) {
             if ($totalResults >= $limit || $serpapiExhausted) {
@@ -212,7 +221,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                         $resultsKey,
                         $resultsPerEngine,
                         $sourceName,
-                        function ($pageResults) use (&$allResults, &$seenBusinesses, &$totalResults, &$engineFound, &$engineAdded, $limit, $sourceName, $searchLocation, $filters) {
+                        function ($pageResults) use (&$allResults, &$seenBusinesses, &$totalResults, &$engineFound, &$engineAdded, $limit, $sourceName, $searchLocation, $filters, $enrichmentSessionId, $enableEnrichment, &$enrichmentLastProcessed, $enrichmentProcessInterval) {
                             $engineFound += count($pageResults);
                             
                             $newResults = [];
@@ -229,6 +238,11 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                                     $allResults[] = $business;
                                     $totalResults++;
                                     $engineAdded++;
+                                    
+                                    // Queue for Firecrawl enrichment (non-blocking)
+                                    if ($enableEnrichment && !empty($business['url'])) {
+                                        queueFirecrawlEnrichment($business['id'], $business['url'], $enrichmentSessionId, 'gmb');
+                                    }
                                     
                                     if ($totalResults >= $limit) {
                                         break;
@@ -250,11 +264,24 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                                     'progress' => $progress,
                                     'source' => $sourceName
                                 ]);
+                                
+                                // Process enrichment queue and send results (every N seconds)
+                                $now = time();
+                                if ($enableEnrichment && ($now - $enrichmentLastProcessed) >= $enrichmentProcessInterval) {
+                                    $enrichmentLastProcessed = $now;
+                                    $enrichmentBatch = processEnrichmentBatch($enrichmentSessionId, 2);
+                                    if (!empty($enrichmentBatch['results'])) {
+                                        sendSSE('enrichment', [
+                                            'results' => $enrichmentBatch['results'],
+                                            'processed' => $enrichmentBatch['processed']
+                                        ]);
+                                    }
+                                }
                             }
                             
                             return $totalResults < $limit;
                         },
-                        function ($page, $pageTotal) use (&$lastPingAt, $sourceName, $searchLocation, &$totalResults, $limit) {
+                        function ($page, $pageTotal) use (&$lastPingAt, $sourceName, $searchLocation, &$totalResults, $limit, $enrichmentSessionId, $enableEnrichment, &$enrichmentLastProcessed, $enrichmentProcessInterval) {
                             $now = time();
                             if ($now - $lastPingAt >= 10) {
                                 $lastPingAt = $now;
@@ -266,6 +293,18 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                                     'total' => $totalResults,
                                     'progress' => $progress
                                 ]);
+                                
+                                // Also process enrichment during pings
+                                if ($enableEnrichment && ($now - $enrichmentLastProcessed) >= $enrichmentProcessInterval) {
+                                    $enrichmentLastProcessed = $now;
+                                    $enrichmentBatch = processEnrichmentBatch($enrichmentSessionId, 2);
+                                    if (!empty($enrichmentBatch['results'])) {
+                                        sendSSE('enrichment', [
+                                            'results' => $enrichmentBatch['results'],
+                                            'processed' => $enrichmentBatch['processed']
+                                        ]);
+                                    }
+                                }
                             }
                         }
                     );
@@ -423,7 +462,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                     'engine' => 'Serper',
                     'progress' => 0
                 ]);
-                streamSerperSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier);
+                streamSerperSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier, $enrichmentSessionId, $enableEnrichment);
                 return;
             }
             sendSSEError('SerpAPI credits exhausted and SERPER_API_KEY not configured.');
@@ -437,7 +476,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                     'engine' => 'Serper',
                     'progress' => 0
                 ]);
-                streamSerperSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier);
+                streamSerperSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier, $enrichmentSessionId, $enableEnrichment);
                 return;
             }
             sendSSEError('Search failed to return results from all sources. Please try again.');
@@ -445,6 +484,25 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         }
 
         // Send completion
+        
+        // Final flush of remaining enrichment results
+        if ($enableEnrichment) {
+            // Process any remaining items in queue
+            for ($flush = 0; $flush < 10; $flush++) {
+                $enrichmentBatch = processEnrichmentBatch($enrichmentSessionId, 5);
+                if (!empty($enrichmentBatch['results'])) {
+                    sendSSE('enrichment', [
+                        'results' => $enrichmentBatch['results'],
+                        'processed' => $enrichmentBatch['processed']
+                    ]);
+                }
+                if ($enrichmentBatch['processed'] === 0) {
+                    break;
+                }
+                usleep(500000); // 500ms between flush batches
+            }
+        }
+        
         sendSSE('complete', [
             'total' => $totalResults,
             'requested' => $limit,
@@ -456,14 +514,16 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                 'location' => $location,
                 'limit' => $limit
             ],
-            'searchedLocations' => $searchedLocations
+            'searchedLocations' => $searchedLocations,
+            'enrichmentSessionId' => $enrichmentSessionId,
+            'enrichmentEnabled' => $enableEnrichment
         ]);
         return;
     }
     
     // If no SerpAPI key, use Serper directly
     if ($hasSerper) {
-        streamSerperSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier);
+        streamSerperSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier, $enrichmentSessionId, $enableEnrichment);
         return;
     }
     
@@ -935,7 +995,7 @@ function quickWebsiteCheck($url) {
 /**
  * Stream search results using Serper.dev Places API
  */
-function streamSerperSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier) {
+function streamSerperSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier, $enrichmentSessionId = '', $enableEnrichment = false) {
     $allResults = [];
     $seenBusinesses = [];
     $totalResults = 0;
@@ -1037,6 +1097,11 @@ function streamSerperSearch($service, $location, $limit, $filters, $filtersActiv
         $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
         $allResults[] = $business;
         $totalResults++;
+        
+        // Queue for Firecrawl enrichment
+        if ($enableEnrichment && !empty($business['url'])) {
+            queueFirecrawlEnrichment($business['id'], $business['url'], $enrichmentSessionId, 'gmb');
+        }
         
         // Stream each result (frontend expects "results" with "leads")
         $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
