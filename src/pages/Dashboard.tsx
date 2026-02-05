@@ -48,6 +48,7 @@ import EmailVerificationRequired from '@/components/EmailVerificationRequired';
 import bamMascot from '@/assets/bamlead-mascot.png';
 import { LeadForEmail } from '@/lib/api/email';
 import { searchGMB, GMBResult } from '@/lib/api/gmb';
+import type { EnrichmentCallback } from '@/lib/api/gmb';
 import { useSMTPConfig } from '@/hooks/useSMTPConfig';
 import { searchPlatforms, PlatformResult } from '@/lib/api/platforms';
 import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } from '@/lib/api/leadAnalysis';
@@ -112,6 +113,17 @@ interface SearchResult {
     mobileScore: number | null;
     loadTime?: number | null;
   };
+  // Firecrawl enrichment data
+  enrichment?: {
+    emails?: string[];
+    phones?: string[];
+    socials?: Record<string, string>;
+    hasEmail?: boolean;
+    hasPhone?: boolean;
+    hasSocials?: boolean;
+    scrapedAt?: string;
+  };
+  enrichmentStatus?: 'pending' | 'processing' | 'completed' | 'failed';
 }
 
 // Step configuration - 4 simple steps
@@ -1070,6 +1082,9 @@ export default function Dashboard() {
           source: searchType as 'gmb' | 'platform',
           platform: r.websiteAnalysis?.platform || undefined,
           websiteAnalysis: r.websiteAnalysis,
+          // Include enrichment data if available
+          enrichment: r.enrichment,
+          enrichmentStatus: r.enrichmentStatus,
         }));
         if (append) {
           const merged = mergeLeads(latestMergedResults, mapped);
@@ -1078,6 +1093,53 @@ export default function Dashboard() {
         } else {
           setSearchResults(mapped);
         }
+      };
+      
+      // Handle real-time enrichment updates from Firecrawl
+      const handleEnrichment: EnrichmentCallback = (leadId, enrichmentData) => {
+        console.log('[BamLead] Enrichment received for lead:', leadId, enrichmentData);
+        
+        if (!enrichmentData) return;
+        
+        // Update the lead in search results with enrichment data
+        setSearchResults(prev => prev.map(lead => {
+          if (lead.id !== leadId) return lead;
+          
+          // Merge enrichment data into lead
+          const updatedLead = {
+            ...lead,
+            email: enrichmentData.emails?.[0] || lead.email,
+            phone: enrichmentData.phones?.[0] || lead.phone,
+            enrichment: enrichmentData,
+            enrichmentStatus: 'completed' as const,
+          };
+          
+          // Cache social contacts in sessionStorage for SocialMediaLookup component
+          if (enrichmentData.socials && Object.keys(enrichmentData.socials).length > 0) {
+            const cacheKey = `social_contacts_${lead.name}_${lead.address || ''}`;
+            // Convert socials to profiles format matching SocialContactsResult
+            const profiles: Record<string, { url: string }> = {};
+            Object.entries(enrichmentData.socials).forEach(([platform, url]) => {
+              profiles[platform] = { url };
+            });
+            
+            const socialData = {
+              success: true,
+              cached: true,
+              business_name: lead.name,
+              location: lead.address || '',
+              contacts: {
+                emails: enrichmentData.emails || [],
+                phones: enrichmentData.phones || [],
+                sources: Object.keys(enrichmentData.socials),
+                profiles,
+              },
+            };
+            sessionStorage.setItem(cacheKey, JSON.stringify(socialData));
+          }
+          
+          return updatedLead;
+        }));
       };
       
       if (searchType === 'gmb') {
@@ -1093,7 +1155,7 @@ export default function Dashboard() {
             setNetworkStatus('failed');
           }
         };
-        const response = await searchGMB(query, location, effectiveLimit, handleProgress, backendFilters, handleNetworkStatus);
+        const response = await searchGMB(query, location, effectiveLimit, handleProgress, backendFilters, handleNetworkStatus, handleEnrichment);
         console.log('[BamLead] GMB response:', response);
         if (response.success && response.data) {
           finalResults = response.data.map((r: GMBResult, index: number) => ({
@@ -1106,6 +1168,8 @@ export default function Dashboard() {
             rating: r.rating,
             source: 'gmb' as const,
             websiteAnalysis: r.websiteAnalysis,
+            enrichment: r.enrichment,
+            enrichmentStatus: r.enrichmentStatus,
           }));
         } else if (response.error) {
           throw new Error(response.error);
@@ -1114,7 +1178,7 @@ export default function Dashboard() {
         // Agency Lead Finder now uses GMB search as primary (Google Maps + Yelp + Bing)
         // then filters for platform-specific opportunities
         console.log('[BamLead] Agency Lead Finder: Using GMB search with platform filtering, limit:', effectiveLimit);
-        const response = await searchGMB(query, location, effectiveLimit, handleProgress, backendFilters);
+        const response = await searchGMB(query, location, effectiveLimit, handleProgress, backendFilters, undefined, handleEnrichment);
         console.log('[BamLead] Agency Lead Finder GMB response:', response);
         if (response.success && response.data) {
           const resultsToUse = backendFiltersActive ? response.data : response.data;
@@ -1130,6 +1194,8 @@ export default function Dashboard() {
             source: 'platform' as const,
             platform: r.websiteAnalysis?.platform || undefined,
             websiteAnalysis: r.websiteAnalysis,
+            enrichment: r.enrichment,
+            enrichmentStatus: r.enrichmentStatus,
           }));
         } else if (response.error) {
           throw new Error(response.error);
