@@ -274,28 +274,48 @@ export default function SocialMediaLookup({
             </TooltipContent>
           </Tooltip>
 
-          {socialPlatforms.map((platform) => (
-            <Tooltip key={platform.name}>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={(e) => handleClick(platform, e)}
-                  className={cn(
-                    'inline-flex items-center justify-center rounded-full transition-all duration-200 hover:scale-110',
-                    sizeClasses[size],
-                    platform.bgColor,
-                    platform.color,
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background'
-                  )}
-                  aria-label={`Find ${businessName} on ${platform.name}`}
-                >
-                  <span className={iconSize[size]}>{platform.icon}</span>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top" className="bg-popover border-border">
-                <p className="text-sm font-medium">Find on {platform.name}</p>
-              </TooltipContent>
-            </Tooltip>
-          ))}
+          {socialPlatforms.map((platform) => {
+            // Check if this platform has a profile URL from enrichment
+            const platformKey = platform.name.toLowerCase();
+            const hasProfile = socialContacts?.contacts?.profiles?.[platformKey]?.url || 
+                               socialContacts?.contacts?.profiles?.[platform.name]?.url ||
+                               enrichment?.socials?.[platformKey] ||
+                               enrichment?.socials?.[platform.name];
+            
+            // Determine if we've finished checking (scraped or enriched)
+            const hasBeenChecked = wasPreScraped || (socialContacts !== null);
+            
+            return (
+              <Tooltip key={platform.name}>
+                <TooltipTrigger asChild>
+                  <button
+                    onClick={(e) => handleClick(platform, e)}
+                    className={cn(
+                      'inline-flex items-center justify-center rounded-full transition-all duration-200',
+                      sizeClasses[size],
+                      hasBeenChecked && !hasProfile
+                        ? 'bg-muted/50 text-muted-foreground/40 cursor-default'
+                        : cn(platform.bgColor, platform.color, 'hover:scale-110'),
+                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background'
+                    )}
+                    aria-label={`Find ${businessName} on ${platform.name}`}
+                  >
+                    <span className={iconSize[size]}>{platform.icon}</span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top" className="bg-popover border-border">
+                  <p className="text-sm font-medium">
+                    {hasBeenChecked && !hasProfile 
+                      ? `No ${platform.name} found` 
+                      : hasProfile 
+                        ? `View ${platform.name} profile`
+                        : `Find on ${platform.name}`
+                    }
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
         </div>
       </TooltipProvider>
 
