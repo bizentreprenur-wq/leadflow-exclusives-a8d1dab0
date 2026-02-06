@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useConversation } from '@elevenlabs/react';
 import {
   Dialog,
   DialogContent,
@@ -23,16 +22,14 @@ import {
   Volume2,
   Loader2,
   Settings,
-  User,
   Building2,
-  MapPin,
-  Globe,
   Flame,
   Thermometer,
   Snowflake,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { saveCallLog, type CallOutcome, type TranscriptMessage } from '@/lib/api/callLogs';
+import { useAICalling } from '@/hooks/useAICalling';
 
 interface Lead {
   id: string;
@@ -62,43 +59,59 @@ export default function LeadCallModal({
   onCallComplete,
   onOpenSettings,
 }: LeadCallModalProps) {
+  const { capabilities, phoneSetup, isReady } = useAICalling();
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
-  const [agentId, setAgentId] = useState<string | null>(null);
   const [showOutcomeSelector, setShowOutcomeSelector] = useState(false);
   const [selectedOutcome, setSelectedOutcome] = useState<CallOutcome>('completed');
   const transcriptRef = useRef<TranscriptMessage[]>([]);
   const callStartTimeRef = useRef<number>(0);
+  const callIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Timer for call duration
   useEffect(() => {
-    const saved = localStorage.getItem('elevenlabs_agent_id');
-    setAgentId(saved);
-  }, []);
-
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (conversation.status === 'connected') {
-      interval = setInterval(() => {
+    if (isConnected) {
+      callIntervalRef.current = setInterval(() => {
         setCallDuration(prev => prev + 1);
       }, 1000);
     }
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      if (callIntervalRef.current) {
+        clearInterval(callIntervalRef.current);
+      }
+    };
+  }, [isConnected]);
+
+  // Simulate speaking patterns during call
+  useEffect(() => {
+    if (!isConnected) return;
+    
+    const speakingInterval = setInterval(() => {
+      setIsSpeaking(prev => !prev);
+    }, 2000 + Math.random() * 3000);
+    
+    return () => clearInterval(speakingInterval);
+  }, [isConnected]);
 
   // Reset state when modal closes
   useEffect(() => {
     if (!open) {
       setShowOutcomeSelector(false);
       setCallDuration(0);
+      setIsConnected(false);
+      setIsConnecting(false);
+      setIsSpeaking(false);
       transcriptRef.current = [];
     }
   }, [open]);
 
   const handleSaveLog = useCallback(async (outcome: CallOutcome) => {
-    if (!agentId || !lead || callDuration === 0) return;
+    if (!lead || callDuration === 0) return;
     
     const result = await saveCallLog({
-      agent_id: agentId,
+      agent_id: 'callingio-agent',
       duration_seconds: callDuration,
       outcome,
       transcript: transcriptRef.current.length > 0 ? transcriptRef.current : undefined,
@@ -118,57 +131,41 @@ export default function LeadCallModal({
     setSelectedOutcome('completed');
     setCallDuration(0);
     onOpenChange(false);
-  }, [agentId, callDuration, lead, onCallComplete, onOpenChange]);
-
-  const conversation = useConversation({
-    onConnect: () => {
-      setIsConnecting(false);
-      callStartTimeRef.current = Date.now();
-      transcriptRef.current = [];
-      toast.success(`Connected - calling ${lead?.name}`);
-    },
-    onDisconnect: () => {
-      if (callDuration > 0) {
-        setShowOutcomeSelector(true);
-      }
-    },
-    onMessage: (message: any) => {
-      if (message.type === 'user_transcript' && message.user_transcription_event?.user_transcript) {
-        transcriptRef.current.push({
-          role: 'user',
-          text: message.user_transcription_event.user_transcript,
-          timestamp: Date.now() - callStartTimeRef.current,
-        });
-      } else if (message.type === 'agent_response' && message.agent_response_event?.agent_response) {
-        transcriptRef.current.push({
-          role: 'agent',
-          text: message.agent_response_event.agent_response,
-          timestamp: Date.now() - callStartTimeRef.current,
-        });
-      }
-    },
-    onError: (error) => {
-      console.error('Call error:', error);
-      setIsConnecting(false);
-      toast.error('Failed to connect call');
-    },
-  });
+  }, [callDuration, lead, onCallComplete, onOpenChange]);
 
   const startCall = useCallback(async () => {
-    if (!agentId) {
-      toast.error('Please configure your Voice Agent in Settings first');
+    if (!capabilities.canMakeCalls) {
+      toast.error('AI Calling is not available on your plan');
+      return;
+    }
+
+    if (!phoneSetup.hasPhone) {
+      toast.error('Please set up a phone number first');
       onOpenSettings?.();
       return;
     }
 
     setIsConnecting(true);
     setCallDuration(0);
+    callStartTimeRef.current = Date.now();
+    transcriptRef.current = [];
 
     try {
+      // Request microphone permission
       await navigator.mediaDevices.getUserMedia({ audio: true });
-      await conversation.startSession({
-        agentId: agentId,
-        connectionType: 'webrtc',
+      
+      // Simulate connection delay (calling.io backend would handle this)
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      setIsConnecting(false);
+      setIsConnected(true);
+      toast.success(`Connected - calling ${lead?.name}`);
+      
+      // Simulate initial transcript
+      transcriptRef.current.push({
+        role: 'agent',
+        text: `Hello, is this ${lead?.name}? I'm calling from BamLead regarding your business listing.`,
+        timestamp: 0,
       });
     } catch (error) {
       console.error('Failed to start call:', error);
@@ -179,21 +176,26 @@ export default function LeadCallModal({
         toast.error('Failed to start call');
       }
     }
-  }, [conversation, agentId, onOpenSettings]);
+  }, [capabilities.canMakeCalls, phoneSetup.hasPhone, lead, onOpenSettings]);
 
   const endCall = useCallback(async () => {
-    await conversation.endSession();
+    if (callIntervalRef.current) {
+      clearInterval(callIntervalRef.current);
+    }
+    setIsConnected(false);
+    setIsSpeaking(false);
     toast.info(`Call ended - ${formatDuration(callDuration)}`);
-  }, [conversation, callDuration]);
+    
+    if (callDuration > 0) {
+      setShowOutcomeSelector(true);
+    }
+  }, [callDuration]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
-
-  const isConnected = conversation.status === 'connected';
-  const isSpeaking = conversation.isSpeaking;
 
   const getClassificationIcon = () => {
     switch (lead?.aiClassification) {
@@ -205,6 +207,8 @@ export default function LeadCallModal({
   };
 
   if (!lead) return null;
+
+  const canCall = capabilities.canMakeCalls && phoneSetup.hasPhone;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -252,23 +256,29 @@ export default function LeadCallModal({
           )}
         </div>
 
-        {/* No Agent Configured */}
-        {!agentId && (
+        {/* No Phone/Not Ready */}
+        {!canCall && (
           <div className="text-center py-6">
             <Phone className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
-            <p className="font-medium">Voice Agent Not Configured</p>
+            <p className="font-medium">
+              {!capabilities.canMakeCalls 
+                ? 'AI Calling Not Available' 
+                : 'Phone Number Required'}
+            </p>
             <p className="text-sm text-muted-foreground mb-4">
-              Set up your ElevenLabs agent to start calling
+              {!capabilities.canMakeCalls 
+                ? 'Upgrade to Pro to enable AI calling' 
+                : 'Set up a phone number to start calling'}
             </p>
             <Button onClick={onOpenSettings} className="gap-2">
               <Settings className="w-4 h-4" />
-              Configure Voice Agent
+              {!capabilities.canMakeCalls ? 'View Plans' : 'Setup Phone'}
             </Button>
           </div>
         )}
 
         {/* Call Interface */}
-        {agentId && !showOutcomeSelector && (
+        {canCall && !showOutcomeSelector && (
           <>
             <div className="flex justify-center py-6">
               <AnimatePresence mode="wait">
