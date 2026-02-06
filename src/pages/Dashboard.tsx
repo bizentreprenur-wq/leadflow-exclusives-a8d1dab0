@@ -1614,6 +1614,8 @@ export default function Dashboard() {
     const stepToPreserve = currentStep > 1 ? currentStep : 1;
     const shouldPreserveStepContext = stepToPreserve > 1;
     setCurrentStep(stepToPreserve);
+    setIsSearching(false);
+    setSearchProgress(0);
     setSearchType(null);
     setQuery('');
     setLocation('');
@@ -1624,6 +1626,11 @@ export default function Dashboard() {
     setAiSummary(null);
     setAiStrategies(null);
     setShowAiGrouping(false);
+    setSearchError(null);
+    setPartialResultsNotice(null);
+    setNetworkStatus('idle');
+    setNetworkRetryAttempt(0);
+    setLastRequestedLimit(null);
     
     // Reset filters to default (off)
     setFilterNoWebsite(false);
