@@ -28,6 +28,16 @@ import { Button } from "@/components/ui/button";
 const Index = () => {
   return (
     <div className="min-h-screen bg-background">
+      {/* Temporary Pre-Launch Banner */}
+      <div className="bg-primary text-primary-foreground py-3 px-4 text-center">
+        <p className="text-sm md:text-base font-medium">
+          🚀 BamLead is launching soon!{" "}
+          <Link to="/presignup" className="underline font-bold hover:opacity-80">
+            Join the waitlist
+          </Link>{" "}
+          to get early access and exclusive benefits.
+        </p>
+      </div>
       <AnnouncementBar />
       <Navbar />
       <main>
