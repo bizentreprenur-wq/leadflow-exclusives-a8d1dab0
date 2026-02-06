@@ -148,6 +148,16 @@ function buildLocationExpansions($location) {
         foreach (['north', 'south', 'east', 'west'] as $direction) {
             $expansions[] = "{$direction} {$city}, {$state}";
         }
+
+        $enableRadiusExpansion = defined('ENABLE_RADIUS_LOCATION_EXPANSION') ? (bool)ENABLE_RADIUS_LOCATION_EXPANSION : true;
+        $radiusMiles = defined('LOCATION_EXPANSION_RADIUS_MILES') ? max(5, (int)LOCATION_EXPANSION_RADIUS_MILES) : 40;
+        if ($enableRadiusExpansion) {
+            $nearbyCityShards = getNearbyCityShards($city, $state, $radiusMiles);
+            foreach ($nearbyCityShards as $nearbyCity) {
+                $expansions[] = $nearbyCity;
+                $expansions[] = "{$nearbyCity} metro";
+            }
+        }
     }
 
     // For broad state-level searches (e.g., "Texas"), add major city shards
@@ -176,6 +186,164 @@ function buildLocationExpansions($location) {
         }
         if (!in_array($loc, $unique, true)) {
             $unique[] = $loc;
+        }
+    }
+
+    return $unique;
+}
+
+/**
+ * Normalize state input to 2-letter code (US-focused).
+ */
+function normalizeStateCode($stateInput) {
+    $normalized = strtolower(trim((string)$stateInput));
+    if ($normalized === '') {
+        return '';
+    }
+
+    $normalized = preg_replace('/\s+/', ' ', $normalized);
+    $normalized = trim($normalized, " ,.");
+
+    $aliases = [
+        'alabama' => 'al', 'al' => 'al',
+        'alaska' => 'ak', 'ak' => 'ak',
+        'arizona' => 'az', 'az' => 'az',
+        'arkansas' => 'ar', 'ar' => 'ar',
+        'california' => 'ca', 'ca' => 'ca',
+        'colorado' => 'co', 'co' => 'co',
+        'connecticut' => 'ct', 'ct' => 'ct',
+        'delaware' => 'de', 'de' => 'de',
+        'district of columbia' => 'dc', 'dc' => 'dc',
+        'florida' => 'fl', 'fl' => 'fl',
+        'georgia' => 'ga', 'ga' => 'ga',
+        'hawaii' => 'hi', 'hi' => 'hi',
+        'idaho' => 'id', 'id' => 'id',
+        'illinois' => 'il', 'il' => 'il',
+        'indiana' => 'in', 'in' => 'in',
+        'iowa' => 'ia', 'ia' => 'ia',
+        'kansas' => 'ks', 'ks' => 'ks',
+        'kentucky' => 'ky', 'ky' => 'ky',
+        'louisiana' => 'la', 'la' => 'la',
+        'maine' => 'me', 'me' => 'me',
+        'maryland' => 'md', 'md' => 'md',
+        'massachusetts' => 'ma', 'ma' => 'ma',
+        'michigan' => 'mi', 'mi' => 'mi',
+        'minnesota' => 'mn', 'mn' => 'mn',
+        'mississippi' => 'ms', 'ms' => 'ms',
+        'missouri' => 'mo', 'mo' => 'mo',
+        'montana' => 'mt', 'mt' => 'mt',
+        'nebraska' => 'ne', 'ne' => 'ne',
+        'nevada' => 'nv', 'nv' => 'nv',
+        'new hampshire' => 'nh', 'nh' => 'nh',
+        'new jersey' => 'nj', 'nj' => 'nj',
+        'new mexico' => 'nm', 'nm' => 'nm',
+        'new york' => 'ny', 'ny' => 'ny',
+        'north carolina' => 'nc', 'nc' => 'nc',
+        'north dakota' => 'nd', 'nd' => 'nd',
+        'ohio' => 'oh', 'oh' => 'oh',
+        'oklahoma' => 'ok', 'ok' => 'ok',
+        'oregon' => 'or', 'or' => 'or',
+        'pennsylvania' => 'pa', 'pa' => 'pa',
+        'rhode island' => 'ri', 'ri' => 'ri',
+        'south carolina' => 'sc', 'sc' => 'sc',
+        'south dakota' => 'sd', 'sd' => 'sd',
+        'tennessee' => 'tn', 'tn' => 'tn',
+        'texas' => 'tx', 'tx' => 'tx',
+        'utah' => 'ut', 'ut' => 'ut',
+        'vermont' => 'vt', 'vt' => 'vt',
+        'virginia' => 'va', 'va' => 'va',
+        'washington' => 'wa', 'wa' => 'wa',
+        'west virginia' => 'wv', 'wv' => 'wv',
+        'wisconsin' => 'wi', 'wi' => 'wi',
+        'wyoming' => 'wy', 'wy' => 'wy',
+    ];
+
+    return $aliases[$normalized] ?? $normalized;
+}
+
+/**
+ * Normalize city names for stable map lookup.
+ */
+function normalizeCityKey($cityInput) {
+    $city = strtolower(trim((string)$cityInput));
+    $city = preg_replace('/[^a-z0-9\s]/', ' ', $city);
+    $city = preg_replace('/\s+/', ' ', $city);
+    return trim($city);
+}
+
+/**
+ * Return nearby city shards by metro for radius-style expansion.
+ * Distances are approximate and curated for practical lead coverage.
+ */
+function getNearbyCityShards($cityInput, $stateInput, $radiusMiles = 40) {
+    $state = normalizeStateCode($stateInput);
+    $city = normalizeCityKey($cityInput);
+    if ($city === '' || $state === '') {
+        return [];
+    }
+
+    $radiusMiles = max(5, (int)$radiusMiles);
+    $metroKey = "{$city},{$state}";
+
+    $metroMap = [
+        'houston,tx' => [
+            15 => ['Pasadena, TX', 'Bellaire, TX', 'South Houston, TX'],
+            25 => ['Pearland, TX', 'Sugar Land, TX', 'Missouri City, TX', 'Katy, TX'],
+            40 => ['League City, TX', 'Baytown, TX', 'Cypress, TX', 'Spring, TX', 'The Woodlands, TX', 'Tomball, TX'],
+        ],
+        'dallas,tx' => [
+            15 => ['Irving, TX', 'Grand Prairie, TX', 'Mesquite, TX'],
+            25 => ['Plano, TX', 'Garland, TX', 'Richardson, TX', 'Arlington, TX'],
+            40 => ['Frisco, TX', 'McKinney, TX', 'Carrollton, TX', 'Lewisville, TX', 'Denton, TX', 'Fort Worth, TX'],
+        ],
+        'austin,tx' => [
+            15 => ['Round Rock, TX', 'Pflugerville, TX'],
+            25 => ['Cedar Park, TX', 'Leander, TX', 'Georgetown, TX'],
+            40 => ['San Marcos, TX', 'Kyle, TX', 'Buda, TX'],
+        ],
+        'san antonio,tx' => [
+            15 => ['Balcones Heights, TX', 'Alamo Heights, TX'],
+            25 => ['Schertz, TX', 'Live Oak, TX', 'Converse, TX'],
+            40 => ['New Braunfels, TX', 'Boerne, TX', 'Seguin, TX'],
+        ],
+        'los angeles,ca' => [
+            15 => ['Glendale, CA', 'Pasadena, CA', 'Burbank, CA'],
+            25 => ['Long Beach, CA', 'Santa Monica, CA', 'Inglewood, CA'],
+            40 => ['Anaheim, CA', 'Irvine, CA', 'Santa Ana, CA', 'Pomona, CA'],
+        ],
+        'miami,fl' => [
+            15 => ['Hialeah, FL', 'Miami Beach, FL'],
+            25 => ['Coral Gables, FL', 'Doral, FL', 'North Miami, FL'],
+            40 => ['Fort Lauderdale, FL', 'Hollywood, FL', 'Pembroke Pines, FL'],
+        ],
+        'chicago,il' => [
+            15 => ['Evanston, IL', 'Oak Park, IL', 'Cicero, IL'],
+            25 => ['Skokie, IL', 'Berwyn, IL', 'Naperville, IL'],
+            40 => ['Aurora, IL', 'Elgin, IL', 'Joliet, IL'],
+        ],
+        'new york,ny' => [
+            15 => ['Jersey City, NJ', 'Newark, NJ', 'Yonkers, NY'],
+            25 => ['Paterson, NJ', 'Elizabeth, NJ', 'Stamford, CT'],
+            40 => ['New Rochelle, NY', 'White Plains, NY', 'Bridgeport, CT'],
+        ],
+    ];
+
+    if (!isset($metroMap[$metroKey])) {
+        return [];
+    }
+
+    $nearby = [];
+    foreach ($metroMap[$metroKey] as $distance => $cities) {
+        if ((int)$distance <= $radiusMiles) {
+            $nearby = array_merge($nearby, $cities);
+        }
+    }
+
+    $unique = [];
+    foreach ($nearby as $cityName) {
+        $cityName = preg_replace('/\s+/', ' ', trim((string)$cityName));
+        if ($cityName !== '' && !in_array($cityName, $unique, true)) {
+            $unique[] = $cityName;
         }
     }
 
@@ -961,12 +1129,64 @@ function extractPhoneNumbers($text) {
  * Extract email addresses from text
  */
 function extractEmails($text) {
-    $emails = [];
-    
-    if (preg_match_all('/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/', $text, $matches)) {
-        $emails = array_unique($matches[0]);
+    if (!is_string($text) || $text === '') {
+        return [];
     }
-    
+
+    $emails = [];
+
+    // Decode common encodings first so regex can catch obfuscated values.
+    $decodedText = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    $decodedText = urldecode($decodedText);
+
+    // Standard email pattern.
+    if (preg_match_all('/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/', $decodedText, $matches)) {
+        $emails = array_merge($emails, $matches[0]);
+    }
+
+    // Extract from mailto links (can include query string and URL-encoded @).
+    if (preg_match_all('/mailto:([^"\'\s>]+)/i', $decodedText, $mailtoMatches)) {
+        foreach ($mailtoMatches[1] as $mailtoTarget) {
+            $candidate = urldecode((string)$mailtoTarget);
+            $candidate = preg_replace('/\?.*/', '', $candidate);
+            if ($candidate !== '') {
+                $emails[] = $candidate;
+            }
+        }
+    }
+
+    // Extract [at]/[dot] style obfuscated emails.
+    if (preg_match_all('/([a-z0-9._%+\-]+)\s*(?:\(|\[|\{)?\s*(?:@|at)\s*(?:\)|\]|\})?\s*([a-z0-9.\-]+)\s*(?:\(|\[|\{)?\s*(?:\.|dot)\s*(?:\)|\]|\})?\s*([a-z]{2,})/i', $decodedText, $obfuscatedMatches, PREG_SET_ORDER)) {
+        foreach ($obfuscatedMatches as $parts) {
+            $local = $parts[1] ?? '';
+            $domainBase = $parts[2] ?? '';
+            $tld = $parts[3] ?? '';
+            if ($local !== '' && $domainBase !== '' && $tld !== '') {
+                $emails[] = "{$local}@{$domainBase}.{$tld}";
+            }
+        }
+    }
+
+    // Decode Cloudflare-protected addresses from data-cfemail.
+    if (preg_match_all('/data-cfemail=["\']([a-f0-9]+)["\']/i', $decodedText, $cfMatches)) {
+        foreach ($cfMatches[1] as $encoded) {
+            $encoded = trim((string)$encoded);
+            if (strlen($encoded) < 4 || strlen($encoded) % 2 !== 0) {
+                continue;
+            }
+            $key = hexdec(substr($encoded, 0, 2));
+            $decoded = '';
+            for ($i = 2; $i < strlen($encoded); $i += 2) {
+                $decoded .= chr(hexdec(substr($encoded, $i, 2)) ^ $key);
+            }
+            if ($decoded !== '') {
+                $emails[] = $decoded;
+            }
+        }
+    }
+
+    $emails = array_unique($emails);
+
     // Filter out invalid/spam emails
     $filtered = [];
     $excludePatterns = ['example.com', 'test.com', 'domain.com', 'email.com', 'sample.', 'noreply', 'no-reply', 
@@ -983,7 +1203,7 @@ function extractEmails($text) {
                 break;
             }
         }
-        if ($isValid && strlen($email) < 100) {
+        if ($isValid && strlen($email) < 100 && filter_var($emailLower, FILTER_VALIDATE_EMAIL)) {
             $filtered[] = $emailLower;
         }
     }
@@ -1022,40 +1242,51 @@ function scrapeWebsiteForContacts($url, $timeout = 8) {
     $allEmails = [];
     $allPhones = [];
     $pagesChecked = [];
+    $pagesQueued = [];
+    $queuedSet = [];
     $hasWebsite = false;
-    
-    // Common contact page paths to check
-    $contactPaths = [
-        '',                    // Homepage
+
+    // Queue seed pages (homepage + common contact routes).
+    $seedPaths = [
+        '',
         '/contact',
         '/contact-us',
-        '/contact-us/',
         '/contactus',
         '/about',
         '/about-us',
-        '/about/',
         '/get-in-touch',
         '/reach-us',
+        '/team',
+        '/support',
     ];
-    
-    // Check up to 3 pages to avoid too many requests
-    $pagesLimit = 3;
-    $pagesScraped = 0;
-    
-    foreach ($contactPaths as $path) {
-        if ($pagesScraped >= $pagesLimit) {
-            break;
+    foreach ($seedPaths as $path) {
+        $pageUrl = $baseUrl . $path;
+        $normalized = rtrim(strtolower($pageUrl), '/');
+        if ($normalized === '') {
+            $normalized = strtolower($pageUrl);
         }
-        
-        // Already have email? Stop early
+        if (!isset($queuedSet[$normalized])) {
+            $queuedSet[$normalized] = true;
+            $pagesQueued[] = $pageUrl;
+        }
+    }
+
+    // Keep this low for speed, but high enough to catch contact pages.
+    $pagesLimit = 5;
+    $pagesScraped = 0;
+
+    while (!empty($pagesQueued) && $pagesScraped < $pagesLimit) {
+        // Already have email? Stop early for speed.
         if (!empty($allEmails)) {
             break;
         }
-        
-        $pageUrl = $baseUrl . $path;
-        
-        // Skip if already checked
-        if (in_array($pageUrl, $pagesChecked)) {
+
+        $pageUrl = array_shift($pagesQueued);
+        if (!$pageUrl) {
+            continue;
+        }
+
+        if (in_array($pageUrl, $pagesChecked, true)) {
             continue;
         }
         
@@ -1086,18 +1317,60 @@ function scrapeWebsiteForContacts($url, $timeout = 8) {
         $pagePhones = extractPhoneNumbers($html);
         $allPhones = array_merge($allPhones, $pagePhones);
         
-        // Also check for mailto: links specifically
-        if (preg_match_all('/mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/', $html, $mailtoMatches)) {
-            $allEmails = array_merge($allEmails, array_map('strtolower', $mailtoMatches[1]));
-        }
-        
         // Check for tel: links
         if (preg_match_all('/tel:([+\d\-\(\)\s\.]+)/', $html, $telMatches)) {
             $allPhones = array_merge($allPhones, $telMatches[1]);
         }
-        
-        // Small delay between pages
-        usleep(100000); // 100ms
+
+        // Discover likely contact pages from links on fetched pages.
+        if (preg_match_all('/<a[^>]+href=["\']([^"\']+)["\']/i', $html, $linkMatches)) {
+            foreach ($linkMatches[1] as $href) {
+                $href = trim(html_entity_decode((string)$href, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                if ($href === '' || strpos($href, '#') === 0) {
+                    continue;
+                }
+                if (preg_match('/^(mailto:|tel:|javascript:)/i', $href)) {
+                    continue;
+                }
+
+                $candidate = '';
+                if (preg_match('/^https?:\/\//i', $href)) {
+                    $candidate = $href;
+                } elseif (strpos($href, '//') === 0) {
+                    $candidate = "{$scheme}:{$href}";
+                } elseif (strpos($href, '/') === 0) {
+                    $candidate = $baseUrl . $href;
+                } else {
+                    $candidate = $baseUrl . '/' . ltrim($href, '/');
+                }
+
+                $parsedCandidate = parse_url($candidate);
+                if (!$parsedCandidate || empty($parsedCandidate['host'])) {
+                    continue;
+                }
+                if (strtolower($parsedCandidate['host']) !== strtolower($host)) {
+                    continue;
+                }
+
+                $path = strtolower((string)($parsedCandidate['path'] ?? ''));
+                if (!preg_match('/(contact|about|team|staff|support|get[-_ ]?in[-_ ]?touch|reach|location|book|appointment)/i', $path)) {
+                    continue;
+                }
+
+                $normalized = rtrim(strtolower($candidate), '/');
+                if ($normalized === '') {
+                    $normalized = strtolower($candidate);
+                }
+                if (isset($queuedSet[$normalized])) {
+                    continue;
+                }
+                if (count($pagesQueued) >= 12) {
+                    break;
+                }
+                $queuedSet[$normalized] = true;
+                $pagesQueued[] = $candidate;
+            }
+        }
     }
     
     // Dedupe and clean

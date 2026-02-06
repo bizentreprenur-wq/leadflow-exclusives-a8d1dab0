@@ -223,7 +223,15 @@ if (!defined('ENABLE_LOCATION_EXPANSION')) {
 }
 // Maximum number of extra location variants to try
 if (!defined('LOCATION_EXPANSION_MAX')) {
-    define('LOCATION_EXPANSION_MAX', 5);
+    define('LOCATION_EXPANSION_MAX', 15);
+}
+// Enable radius-style nearby city expansion (used by Option A and Option B)
+if (!defined('ENABLE_RADIUS_LOCATION_EXPANSION')) {
+    define('ENABLE_RADIUS_LOCATION_EXPANSION', true);
+}
+// Approximate radius in miles for nearby city expansion
+if (!defined('LOCATION_EXPANSION_RADIUS_MILES')) {
+    define('LOCATION_EXPANSION_RADIUS_MILES', 40);
 }
 // Allow widening to state-level searches (broader, less targeted)
 if (!defined('LOCATION_EXPANSION_INCLUDE_STATE')) {

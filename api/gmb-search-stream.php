@@ -929,33 +929,99 @@ function streamSerperSearchInto(
         'hl' => 'en'
     ];
 
-    $primaryResponses = fetchSerperPlacesAndMaps($payload);
+    $payloadCandidates = [];
+    $addPayloadCandidate = function ($q) use (&$payloadCandidates) {
+        $q = preg_replace('/\s+/', ' ', trim((string)$q));
+        if ($q === '') {
+            return;
+        }
+        foreach ($payloadCandidates as $existing) {
+            if (($existing['q'] ?? '') === $q) {
+                return;
+            }
+        }
+        $payloadCandidates[] = [
+            'q' => $q,
+            'gl' => 'us',
+            'hl' => 'en'
+        ];
+    };
+    $addPayloadCandidate($query);
+    $addPayloadCandidate(trim("$service $location"));
+    $addPayloadCandidate(preg_replace('/\s+in\s+/i', ' ', $query, 1));
+    $payloadCandidates = array_values(array_slice($payloadCandidates, 0, 3));
+    if (empty($payloadCandidates)) {
+        $payloadCandidates[] = $payload;
+    }
+
+    $primaryResponses = fetchSerperPlacesAndMaps($payloadCandidates[0]);
     $placesResponse = $primaryResponses['places'];
     $mapsResponse = $primaryResponses['maps'];
 
-    if (($placesResponse['httpCode'] ?? 0) !== 200) {
-        // Try organic search as fallback
-        $response = curlRequest('https://google.serper.dev/search', [
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => json_encode($payload),
-            CURLOPT_HTTPHEADER => [
-                'X-API-KEY: ' . SERPER_API_KEY,
-                'Content-Type: application/json'
-            ]
-        ]);
-        
-        if ($response['httpCode'] !== 200) {
-            sendSSEError('Serper API error: HTTP ' . $response['httpCode']);
-            return;
+    $parseSerperError = function ($response, $defaultPrefix = 'Serper API error') {
+        $httpCode = (int)($response['httpCode'] ?? 0);
+        $message = "{$defaultPrefix}: HTTP {$httpCode}";
+        $decoded = json_decode($response['response'] ?? '', true);
+        if (is_array($decoded)) {
+            $apiMessage = $decoded['message'] ?? $decoded['error'] ?? '';
+            if (!empty($apiMessage)) {
+                $message .= " - {$apiMessage}";
+            }
         }
-        
-        $data = json_decode($response['response'], true);
-        $places = $data['organic'] ?? [];
-        $isOrganic = true;
-    } else {
+        if (!empty($response['error'])) {
+            $message .= " - cURL: " . $response['error'];
+        }
+        return $message;
+    };
+
+    $places = [];
+    $isOrganic = false;
+    if (($placesResponse['httpCode'] ?? 0) === 200) {
         $data = json_decode($placesResponse['response'] ?? '', true);
         $places = $data['places'] ?? [];
-        $isOrganic = false;
+    } else {
+        // Fallback to organic search using progressively simpler query candidates.
+        $organicResponse = null;
+        $lastOrganicError = '';
+        foreach ($payloadCandidates as $candidatePayload) {
+            $tryResponse = curlRequest('https://google.serper.dev/search', [
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => json_encode($candidatePayload),
+                CURLOPT_HTTPHEADER => [
+                    'X-API-KEY: ' . SERPER_API_KEY,
+                    'Content-Type: application/json'
+                ]
+            ]);
+
+            if (($tryResponse['httpCode'] ?? 0) === 200) {
+                $organicResponse = $tryResponse;
+                break;
+            }
+
+            $lastOrganicError = $parseSerperError($tryResponse);
+            if (DEBUG_MODE) {
+                error_log("[Serper] Organic fallback failed for query '{$candidatePayload['q']}': {$lastOrganicError}");
+            }
+        }
+
+        if ($organicResponse !== null) {
+            $data = json_decode($organicResponse['response'] ?? '', true);
+            $places = $data['organic'] ?? [];
+            $isOrganic = true;
+        } elseif (($mapsResponse['httpCode'] ?? 0) !== 200) {
+            $placesError = $parseSerperError($placesResponse);
+            $mapsError = $parseSerperError($mapsResponse);
+            $combinedError = $lastOrganicError ?: "{$placesError}; {$mapsError}";
+            sendSSEError($combinedError);
+            return;
+        } else {
+            if (DEBUG_MODE) {
+                $placesError = $parseSerperError($placesResponse);
+                error_log("[Serper] Places failed but Maps is available. Continuing with Maps only. {$placesError}");
+            }
+            $places = [];
+            $isOrganic = false;
+        }
     }
     
     sendSSE('status', [

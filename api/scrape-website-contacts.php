@@ -72,7 +72,11 @@ foreach ($urls as $singleUrl) {
         $cacheKey = "scrape_contacts_" . md5($cleanUrl);
         $cached = getCache($cacheKey);
         
-        if ($cached !== null) {
+        $cachedEmails = is_array($cached) ? ($cached['emails'] ?? []) : [];
+        $cachedPhones = is_array($cached) ? ($cached['phones'] ?? []) : [];
+        $hasCachedContacts = !empty($cachedEmails) || !empty($cachedPhones);
+
+        if ($cached !== null && $hasCachedContacts) {
             $results[$singleUrl] = array_merge(['success' => true, 'cached' => true], $cached);
             continue;
         }
@@ -80,8 +84,9 @@ foreach ($urls as $singleUrl) {
         // Scrape the website
         $contactInfo = scrapeWebsiteForContacts($cleanUrl, 8);
         
-        // Cache results for 24 hours
-        setCache($cacheKey, $contactInfo, 86400);
+        // Cache positive hits longer; retry empty results sooner.
+        $cacheTtl = (!empty($contactInfo['emails']) || !empty($contactInfo['phones'])) ? 86400 : 900;
+        setCache($cacheKey, $contactInfo, $cacheTtl);
         
         $results[$singleUrl] = array_merge([
             'success' => true,
