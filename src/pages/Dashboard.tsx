@@ -2633,10 +2633,13 @@ export default function Dashboard() {
       case 3:
         return (
           <EmailSetupFlow
-            leads={searchResults.filter(r => selectedLeads.includes(r.id)).length > 0 
+            leads={(searchResults.filter(r => selectedLeads.includes(r.id)).length > 0
               ? searchResults.filter(r => selectedLeads.includes(r.id))
               : searchResults
-            }
+            ).map((lead) => ({
+              ...lead,
+              email: lead.email || lead.enrichment?.emails?.[0] || '',
+            }))}
             onBack={() => setCurrentStep(2)}
             onComplete={() => {
               toast.success('Email campaign sent!');

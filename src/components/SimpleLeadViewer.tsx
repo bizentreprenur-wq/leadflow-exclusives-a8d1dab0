@@ -188,6 +188,12 @@ export default function SimpleLeadViewer({
   const [showVersionHistory, setShowVersionHistory] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showHistoryPanel, setShowHistoryPanel] = useState(false);
+  const getPrimaryEmail = (lead: SearchResult): string => {
+    const direct = (lead.email || '').trim();
+    if (direct) return direct;
+    const enriched = (lead.enrichment?.emails?.[0] || '').trim();
+    return enriched;
+  };
 
   // Load version history from localStorage
   useEffect(() => {
@@ -327,8 +333,8 @@ export default function SimpleLeadViewer({
     cold: leads.filter(l => l.aiClassification === 'cold').length,
     ready: leads.filter(l => l.readyToCall || l.phone).length,
     nosite: leads.filter(l => !l.website || l.websiteAnalysis?.hasWebsite === false).length,
-    phoneOnly: leads.filter(l => l.phone && !l.email).length,
-    withEmail: leads.filter(l => l.email).length,
+    phoneOnly: leads.filter(l => l.phone && !getPrimaryEmail(l)).length,
+    withEmail: leads.filter(l => !!getPrimaryEmail(l)).length,
   }), [leads]);
 
   const filteredLeads = useMemo(() => {
@@ -341,9 +347,9 @@ export default function SimpleLeadViewer({
     } else if (activeFilter === 'nosite') {
       result = result.filter(l => !l.website || l.websiteAnalysis?.hasWebsite === false);
     } else if (activeFilter === 'phoneOnly') {
-      result = result.filter(l => l.phone && !l.email);
+      result = result.filter(l => l.phone && !getPrimaryEmail(l));
     } else if (activeFilter === 'withEmail') {
-      result = result.filter(l => l.email);
+      result = result.filter(l => !!getPrimaryEmail(l));
     }
     
     if (searchQuery.trim()) {
@@ -351,7 +357,7 @@ export default function SimpleLeadViewer({
       result = result.filter(l => 
         l.name?.toLowerCase().includes(q) ||
         l.phone?.includes(q) ||
-        l.email?.toLowerCase().includes(q)
+        getPrimaryEmail(l).toLowerCase().includes(q)
       );
     }
     
@@ -406,7 +412,7 @@ export default function SimpleLeadViewer({
       const rows = dataToExport.map(r => [
         `"${r.name || ''}"`,
         `"${r.phone || ''}"`,
-        `"${r.email || ''}"`,
+        `"${getPrimaryEmail(r) || ''}"`,
         `"${r.address || ''}"`,
         `"${r.website || ''}"`,
         r.rating || '',
@@ -427,7 +433,7 @@ export default function SimpleLeadViewer({
       const worksheetData = dataToExport.map(r => ({
         'Business Name': r.name || '',
         'Phone': r.phone || '',
-        'Email': r.email || '',
+        'Email': getPrimaryEmail(r) || '',
         'Address': r.address || '',
         'Website': r.website || '',
         'Rating': r.rating || '',
@@ -1287,8 +1293,8 @@ export default function SimpleLeadViewer({
                           </div>
                         </TableCell>
                         <TableCell>
-                          {lead.email ? (
-                            <span className="text-sm">{lead.email}</span>
+                          {getPrimaryEmail(lead) ? (
+                            <span className="text-sm">{getPrimaryEmail(lead)}</span>
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
                           )}
