@@ -584,7 +584,7 @@ const Pricing = () => {
                       </div>
                       <div className="flex items-center gap-2 text-foreground">
                         <Check className="w-3.5 h-3.5 text-primary" />
-                        <span>1 phone number (own or $7/mo)</span>
+                        <span>1 phone number (own or $8/mo)</span>
                       </div>
                       <div className="flex items-center gap-2 text-foreground">
                         <Check className="w-3.5 h-3.5 text-primary" />
@@ -628,7 +628,7 @@ const Pricing = () => {
                 {/* Phone Number Pricing Note */}
                 <div className="p-4 rounded-xl border border-border bg-secondary/30 text-center">
                   <p className="text-sm text-muted-foreground">
-                    <span className="font-medium text-foreground">Phone Number Options:</span> Use your own number (verified via API) or get a BamLead-provided number for <span className="text-primary font-medium">$7/month</span>. 
+                    <span className="font-medium text-foreground">Phone Number Options:</span> Use your own number (verified via API) or get a BamLead-provided number for <span className="text-primary font-medium">$8/month</span>. 
                     Autopilot plan includes one phone number at no extra cost.
                   </p>
                 </div>

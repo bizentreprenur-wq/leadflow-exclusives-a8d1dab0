@@ -198,7 +198,7 @@ export default function PhoneNumberSetupModal({
                           Free with Autopilot
                         </Badge>
                       ) : (
-                        <Badge variant="secondary" className="text-xs">$7/month</Badge>
+                        <Badge variant="secondary" className="text-xs">$8/month</Badge>
                       )}
                       <span className="text-xs text-muted-foreground">Instant setup</span>
                     </div>
@@ -279,7 +279,7 @@ export default function PhoneNumberSetupModal({
                   {isAutopilot ? (
                     <Badge className="bg-amber-500/20 text-amber-600">Included</Badge>
                   ) : (
-                    <span className="text-xl font-bold text-primary">$7/mo</span>
+                    <span className="text-xl font-bold text-primary">$8/mo</span>
                   )}
                 </div>
                 <ul className="space-y-2 text-sm text-muted-foreground">
