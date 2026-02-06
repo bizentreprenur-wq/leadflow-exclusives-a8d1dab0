@@ -21,6 +21,7 @@ const Navbar = () => {
     { href: "/closeloop", labelKey: "nav.closeloop", isSpecial: true },
     { href: "/pricing", labelKey: "nav.pricing" },
     { href: "/comparisons", labelKey: "nav.comparisons" },
+    { href: "/presignup", labelKey: "nav.presignup" },
   ];
 
   const isActive = (path: string) => location.pathname === path;
