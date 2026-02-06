@@ -125,32 +125,77 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50) {
         }
     };
 
-    foreach ($queryGroups as $group) {
+    $serviceVariants = expandServiceSynonyms($service);
+    if (empty($serviceVariants)) {
+        $serviceVariants = [$service];
+    } elseif (!in_array($service, $serviceVariants, true)) {
+        array_unshift($serviceVariants, $service);
+    }
+    $serviceVariantCap = 3;
+    if ($limit >= 250) $serviceVariantCap = 5;
+    if ($limit >= 500) $serviceVariantCap = 7;
+    if ($limit >= 1000) $serviceVariantCap = 9;
+    $serviceVariants = array_slice(array_values(array_unique($serviceVariants)), 0, $serviceVariantCap);
+
+    $locationVariants = array_merge([$location], buildLocationExpansions($location));
+    $locationVariantCap = defined('LOCATION_EXPANSION_MAX') ? max(3, (int)LOCATION_EXPANSION_MAX) : 12;
+    if ($limit >= 250) $locationVariantCap = max($locationVariantCap, 20);
+    if ($limit >= 500) $locationVariantCap = max($locationVariantCap, 28);
+    if ($limit >= 1000) $locationVariantCap = max($locationVariantCap, 36);
+    $locationVariants = array_slice(array_values(array_unique($locationVariants)), 0, $locationVariantCap);
+
+    $searchCombos = [];
+    foreach ($locationVariants as $locVariant) {
+        foreach ($serviceVariants as $serviceVariant) {
+            $comboKey = strtolower(trim($serviceVariant)) . '|' . strtolower(trim($locVariant));
+            if (!isset($searchCombos[$comboKey])) {
+                $searchCombos[$comboKey] = [
+                    'service' => $serviceVariant,
+                    'location' => $locVariant,
+                ];
+            }
+        }
+    }
+    $comboCap = 24;
+    if ($limit >= 250) $comboCap = 40;
+    if ($limit >= 500) $comboCap = 56;
+    if ($limit >= 1000) $comboCap = 72;
+    $searchCombos = array_slice(array_values($searchCombos), 0, $comboCap);
+
+    foreach ($searchCombos as $combo) {
         if (count($unique) >= $limit) {
             break;
         }
-        $remaining = $limit - count($unique);
 
-        // Prefer SerpAPI; only fall back to Serper if SerpAPI credits are exhausted
-        if ($hasSerpApi) {
-            try {
-                $addResults(searchSerpApi($service, $location, $group, $remaining));
-            } catch (Exception $e) {
-                if (isSerpApiCreditsError($e->getMessage()) && $hasSerper) {
-                    $addResults(searchSerper($service, $location, $group, $remaining));
-                } else {
-                    throw $e;
-                }
+        foreach ($queryGroups as $group) {
+            if (count($unique) >= $limit) {
+                break 2;
             }
-        } elseif ($hasSerper) {
-            $addResults(searchSerper($service, $location, $group, $remaining));
-        } elseif ($hasGoogleApi) {
-            $addResults(searchGoogle($service, $location, $group, $remaining));
-        }
+            $remaining = $limit - count($unique);
+            $comboService = $combo['service'];
+            $comboLocation = $combo['location'];
 
-        // Search Bing if API key is available
-        if ($hasBingApi) {
-            $addResults(searchBing($service, $location, $group, $remaining));
+            // Prefer SerpAPI; only fall back to Serper if SerpAPI credits are exhausted
+            if ($hasSerpApi) {
+                try {
+                    $addResults(searchSerpApi($comboService, $comboLocation, $group, $remaining));
+                } catch (Exception $e) {
+                    if (isSerpApiCreditsError($e->getMessage()) && $hasSerper) {
+                        $addResults(searchSerper($comboService, $comboLocation, $group, $remaining));
+                    } else {
+                        throw $e;
+                    }
+                }
+            } elseif ($hasSerper) {
+                $addResults(searchSerper($comboService, $comboLocation, $group, $remaining));
+            } elseif ($hasGoogleApi) {
+                $addResults(searchGoogle($comboService, $comboLocation, $group, $remaining));
+            }
+
+            // Search Bing if API key is available
+            if ($hasBingApi && count($unique) < $limit) {
+                $addResults(searchBing($comboService, $comboLocation, $group, $remaining));
+            }
         }
     }
 
@@ -178,12 +223,11 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50) {
     
     // For Agency Lead Finder, prioritize leads with both email and phone,
     // then backfill with partial-contact leads to hit the requested volume.
-    $targetCount = getSearchFillTargetCount($limit);
     $filtered = array_values(array_filter($enriched, function($result) {
         return !empty($result['email']) && !empty($result['phone']);
     }));
 
-    if (count($filtered) >= $targetCount || count($filtered) >= $limit) {
+    if (count($filtered) >= $limit) {
         return array_slice($filtered, 0, $limit);
     }
 

@@ -122,14 +122,17 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
 
     $enableExpansion = defined('ENABLE_LOCATION_EXPANSION') ? ENABLE_LOCATION_EXPANSION : true;
     $expansionMax = defined('LOCATION_EXPANSION_MAX') ? max(0, (int)LOCATION_EXPANSION_MAX) : 12;
+    if ($limit >= 250) {
+        $expansionMax = max($expansionMax, 28);
+    }
+    if ($limit >= 500) {
+        $expansionMax = max($expansionMax, 36);
+    }
     if ($limit >= 1000) {
-        $expansionMax = max($expansionMax, 30);
+        $expansionMax = max($expansionMax, 50);
     }
     if ($limit >= 2000) {
-        $expansionMax = max($expansionMax, 45);
-    }
-    if ($limit >= 250) {
-        $expansionMax = max($expansionMax, 18);
+        $expansionMax = max($expansionMax, 70);
     }
     $expandedLocations = $enableExpansion ? buildLocationExpansions($location) : [];
     if ($expansionMax > 0) {
@@ -229,15 +232,20 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         $emitEnrichment();
     }
 
-    if ($totalResults < $targetCount) {
+    if ($totalResults < $limit) {
         sendSSE('coverage', [
-            'message' => "Under target ({$totalResults}/{$targetCount}). Running broader query variants...",
+            'message' => "Under requested count ({$totalResults}/{$limit}). Running broader query variants...",
             'total' => $totalResults,
-            'target' => $targetCount,
+            'target' => $limit,
             'progress' => min(100, round(($totalResults / max(1, $limit)) * 100)),
         ]);
 
-        $queryVariants = buildSearchQueryVariants($service, !empty($searchedLocations) ? $searchedLocations : [$location]);
+        $queryVariants = buildSearchQueryVariants(
+            $service,
+            !empty($searchedLocations) ? $searchedLocations : [$location],
+            $limit,
+            $filtersActive
+        );
         foreach ($queryVariants as $variant) {
             if ($totalResults >= $limit) {
                 break;
@@ -300,7 +308,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
 /**
  * Build supplemental search query variants for top-up passes.
  */
-function buildSearchQueryVariants($service, $searchedLocations) {
+function buildSearchQueryVariants($service, $searchedLocations, $limit = 100, $filtersActive = false) {
     $service = trim((string)$service);
     if ($service === '') {
         return [];
@@ -358,6 +366,21 @@ function buildSearchQueryVariants($service, $searchedLocations) {
     }
 
     $maxVariants = defined('SEARCH_QUERY_VARIANT_MAX') ? max(1, (int)SEARCH_QUERY_VARIANT_MAX) : 24;
+    if ($limit >= 250) {
+        $maxVariants = max($maxVariants, 40);
+    }
+    if ($limit >= 500) {
+        $maxVariants = max($maxVariants, 60);
+    }
+    if ($limit >= 1000) {
+        $maxVariants = max($maxVariants, 90);
+    }
+    if ($limit >= 2000) {
+        $maxVariants = max($maxVariants, 120);
+    }
+    if ($filtersActive) {
+        $maxVariants = (int)ceil($maxVariants * 1.3);
+    }
     return array_slice(array_values($variants), 0, $maxVariants);
 }
 

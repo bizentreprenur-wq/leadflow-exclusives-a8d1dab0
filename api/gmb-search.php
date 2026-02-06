@@ -293,7 +293,7 @@ function searchSerpApiEngines($service, $location, $limit, $filters, $filtersAct
     $apiKey = SERPAPI_KEY;
     $allResults = [];
     $seenBusinesses = [];
-    $targetCount = $targetCount !== null ? (int)$targetCount : getSearchFillTargetCount($limit);
+    $targetCount = $targetCount !== null ? (int)$targetCount : getSearchFillTargetCount($limit); // kept for response telemetry compatibility
     
     // Search engines supported by SerpAPI
     $searchEngines = [
@@ -304,11 +304,17 @@ function searchSerpApiEngines($service, $location, $limit, $filters, $filtersAct
     
     $enableExpansion = defined('ENABLE_LOCATION_EXPANSION') ? ENABLE_LOCATION_EXPANSION : true;
     $expansionMax = defined('LOCATION_EXPANSION_MAX') ? max(0, (int)LOCATION_EXPANSION_MAX) : 5;
-    if ($limit >= 1000) {
+    if ($limit >= 250) {
         $expansionMax = max($expansionMax, 20);
     }
+    if ($limit >= 500) {
+        $expansionMax = max($expansionMax, 30);
+    }
+    if ($limit >= 1000) {
+        $expansionMax = max($expansionMax, 40);
+    }
     if ($limit >= 2000) {
-        $expansionMax = max($expansionMax, 35);
+        $expansionMax = max($expansionMax, 60);
     }
     $expandedLocations = $enableExpansion ? buildLocationExpansions($location) : [];
     if ($expansionMax > 0) {
@@ -382,16 +388,18 @@ function searchSerpApiEngines($service, $location, $limit, $filters, $filtersAct
         $collectFromQuery($query, $searchLocation);
     }
 
-    if (count($allResults) < $targetCount) {
-        $variants = buildSearchQueryVariantsForNonStream($service, !empty($searchedLocations) ? $searchedLocations : [$location]);
+    if (count($allResults) < $limit) {
+        $variants = buildSearchQueryVariantsForNonStream(
+            $service,
+            !empty($searchedLocations) ? $searchedLocations : [$location],
+            $limit,
+            $filtersActive
+        );
         foreach ($variants as $variant) {
             if (count($allResults) >= $limit) {
                 break;
             }
             $collectFromQuery($variant['query'], $variant['location']);
-            if (count($allResults) >= $targetCount) {
-                break;
-            }
         }
     }
     
@@ -401,7 +409,7 @@ function searchSerpApiEngines($service, $location, $limit, $filters, $filtersAct
 /**
  * Build supplemental search query variants for non-stream fallback.
  */
-function buildSearchQueryVariantsForNonStream($service, $searchedLocations) {
+function buildSearchQueryVariantsForNonStream($service, $searchedLocations, $limit = 100, $filtersActive = false) {
     $service = trim((string)$service);
     if ($service === '') {
         return [];
@@ -421,6 +429,11 @@ function buildSearchQueryVariantsForNonStream($service, $searchedLocations) {
         return [];
     }
 
+    $serviceVariants = expandServiceSynonyms($service);
+    if (empty($serviceVariants)) {
+        $serviceVariants = [$service];
+    }
+
     $templates = [
         'best %s in %s',
         '%s near %s',
@@ -430,23 +443,40 @@ function buildSearchQueryVariantsForNonStream($service, $searchedLocations) {
 
     $variants = [];
     foreach ($locations as $loc) {
-        foreach ($templates as $template) {
-            $query = sprintf($template, $service, $loc);
-            $query = preg_replace('/\s+/', ' ', trim($query));
-            if ($query === '') {
-                continue;
-            }
-            $key = strtolower($query);
-            if (!isset($variants[$key])) {
-                $variants[$key] = [
-                    'query' => $query,
-                    'location' => $loc,
-                ];
+        foreach ($serviceVariants as $serviceVariant) {
+            foreach ($templates as $template) {
+                $query = sprintf($template, $serviceVariant, $loc);
+                $query = preg_replace('/\s+/', ' ', trim($query));
+                if ($query === '') {
+                    continue;
+                }
+                $key = strtolower($query);
+                if (!isset($variants[$key])) {
+                    $variants[$key] = [
+                        'query' => $query,
+                        'location' => $loc,
+                    ];
+                }
             }
         }
     }
 
     $maxVariants = defined('SEARCH_QUERY_VARIANT_MAX') ? max(1, (int)SEARCH_QUERY_VARIANT_MAX) : 8;
+    if ($limit >= 250) {
+        $maxVariants = max($maxVariants, 30);
+    }
+    if ($limit >= 500) {
+        $maxVariants = max($maxVariants, 45);
+    }
+    if ($limit >= 1000) {
+        $maxVariants = max($maxVariants, 70);
+    }
+    if ($limit >= 2000) {
+        $maxVariants = max($maxVariants, 90);
+    }
+    if ($filtersActive) {
+        $maxVariants = (int)ceil($maxVariants * 1.25);
+    }
     return array_slice(array_values($variants), 0, $maxVariants);
 }
 
