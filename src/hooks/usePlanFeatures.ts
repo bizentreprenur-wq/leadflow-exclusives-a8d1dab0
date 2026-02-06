@@ -80,6 +80,12 @@ export interface PlanFeatures {
   // Explorer mode features
   socialMediaLookup?: boolean;
   wordpressDetection?: boolean;
+  
+  // AI Calling capabilities
+  aiCallingScripts: 'preview' | 'basic' | 'full' | 'advanced';
+  aiCallingOutbound: boolean;
+  aiCallingAutonomous: boolean;
+  aiCallingPhoneIncluded: boolean;
 }
 
 const PLAN_FEATURES: Record<PlanTier, PlanFeatures> = {
@@ -119,6 +125,11 @@ const PLAN_FEATURES: Record<PlanTier, PlanFeatures> = {
     // Explorer mode features
     socialMediaLookup: true,
     wordpressDetection: true,
+    // AI Calling
+    aiCallingScripts: 'preview',
+    aiCallingOutbound: false,
+    aiCallingAutonomous: false,
+    aiCallingPhoneIncluded: false,
   },
   basic: {
     tier: 'basic',
@@ -152,6 +163,11 @@ const PLAN_FEATURES: Record<PlanTier, PlanFeatures> = {
     whiteLabelReports: false,
     dedicatedManager: false,
     requiresOnboarding: false,
+    // AI Calling
+    aiCallingScripts: 'basic',
+    aiCallingOutbound: false,
+    aiCallingAutonomous: false,
+    aiCallingPhoneIncluded: false,
   },
   pro: {
     tier: 'pro',
@@ -185,6 +201,11 @@ const PLAN_FEATURES: Record<PlanTier, PlanFeatures> = {
     whiteLabelReports: false,
     dedicatedManager: false,
     requiresOnboarding: false,
+    // AI Calling - Pro enables outbound
+    aiCallingScripts: 'full',
+    aiCallingOutbound: true,
+    aiCallingAutonomous: false,
+    aiCallingPhoneIncluded: false,
   },
   autopilot: {
     tier: 'autopilot',
@@ -218,6 +239,11 @@ const PLAN_FEATURES: Record<PlanTier, PlanFeatures> = {
     whiteLabelReports: true, // KEY: White-label reports
     dedicatedManager: true,
     requiresOnboarding: true, // Needs onboarding wizard
+    // AI Calling - Autopilot gets full autonomous + phone included
+    aiCallingScripts: 'advanced',
+    aiCallingOutbound: true,
+    aiCallingAutonomous: true,
+    aiCallingPhoneIncluded: true,
   },
 };
 
