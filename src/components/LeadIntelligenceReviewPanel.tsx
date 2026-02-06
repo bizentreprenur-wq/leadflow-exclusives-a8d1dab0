@@ -24,8 +24,11 @@ import {
 } from '@/lib/leadContext';
 import { isSMTPConfigured } from '@/lib/emailService';
 import NicheIntelligencePanel from '@/components/NicheIntelligencePanel';
+import CompetitiveAnalysisPanel from '@/components/CompetitiveAnalysisPanel';
 import { NicheIntelligence } from '@/lib/types/nicheIntelligence';
+import { CompetitiveIntelligence } from '@/lib/types/competitiveIntelligence';
 import { generateNicheIntelligence, getCachedNicheIntelligence, cacheNicheIntelligence } from '@/lib/api/nicheIntelligence';
+import { generateCompetitiveIntelligence, getCachedCompetitiveIntelligence, cacheCompetitiveIntelligence } from '@/lib/api/competitiveIntelligence';
 
 interface LeadIntelligenceReviewPanelProps {
   onApplyStrategy?: (strategy: EmailStrategy) => void;
@@ -107,14 +110,21 @@ export default function LeadIntelligenceReviewPanel({
   
   // Show niche intelligence only for niche research mode with GMB search type
   const showNicheIntelligence = researchMode === 'niche' && searchType === 'gmb';
+  // Show competitive analysis for competitive research mode with GMB search type
+  const showCompetitiveAnalysis = researchMode === 'competitive' && searchType === 'gmb';
+  
   const [isExpanded, setIsExpanded] = useState(true);
   const [selectedStrategy, setSelectedStrategy] = useState<string | null>(null);
   const [smtpConfigured, setSMTPConfigured] = useState(false);
   const [intelligenceExpanded, setIntelligenceExpanded] = useState(false);
   const [showStrategies, setShowStrategies] = useState(false);
-  const [activeTab, setActiveTab] = useState<'leads' | 'niche'>(showNicheIntelligence ? 'niche' : 'leads');
+  const [activeTab, setActiveTab] = useState<'leads' | 'niche' | 'competitive'>(
+    showNicheIntelligence ? 'niche' : showCompetitiveAnalysis ? 'competitive' : 'leads'
+  );
   const [nicheIntelligence, setNicheIntelligence] = useState<NicheIntelligence | null>(null);
   const [nicheLoading, setNicheLoading] = useState(false);
+  const [competitiveIntelligence, setCompetitiveIntelligence] = useState<CompetitiveIntelligence | null>(null);
+  const [competitiveLoading, setCompetitiveLoading] = useState(false);
   
   // Check SMTP configuration status
   useEffect(() => {
@@ -164,6 +174,45 @@ export default function LeadIntelligenceReviewPanel({
     }
   }, [searchQuery, searchLocation, passedLeads, showNicheIntelligence]);
   
+  // Load competitive intelligence when search query changes (only for competitive research mode)
+  useEffect(() => {
+    if (!showCompetitiveAnalysis) return;
+    
+    if (searchQuery && searchQuery.length > 2) {
+      // Check cache first
+      const cached = getCachedCompetitiveIntelligence(searchQuery);
+      if (cached) {
+        setCompetitiveIntelligence(cached);
+        return;
+      }
+      
+      // Generate new competitive intelligence
+      const loadCompetitiveIntelligence = async () => {
+        setCompetitiveLoading(true);
+        try {
+          // Get myBusiness info from sessionStorage if available
+          let myBusiness = undefined;
+          try {
+            const stored = sessionStorage.getItem('bamlead_my_business_info');
+            if (stored) myBusiness = JSON.parse(stored);
+          } catch {}
+          
+          const response = await generateCompetitiveIntelligence(searchQuery, searchLocation, passedLeads || [], myBusiness);
+          if (response.success && response.data) {
+            setCompetitiveIntelligence(response.data);
+            cacheCompetitiveIntelligence(searchQuery, response.data);
+          }
+        } catch (error) {
+          console.error('Failed to load competitive intelligence:', error);
+        } finally {
+          setCompetitiveLoading(false);
+        }
+      };
+      
+      loadCompetitiveIntelligence();
+    }
+  }, [searchQuery, searchLocation, passedLeads, showCompetitiveAnalysis]);
+
   // Get lead analysis from passed props OR fall back to storage
   const leadAnalysis = useMemo(() => {
     // If leads passed as prop, use them directly
@@ -1050,8 +1099,103 @@ export default function LeadIntelligenceReviewPanel({
                   )}
                 </TabsContent>
               </Tabs>
+              ) : showCompetitiveAnalysis ? (
+                /* Competitive Analysis Mode - SWOT & Market Positioning */
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'leads' | 'niche' | 'competitive')} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsTrigger value="competitive" className="gap-2">
+                      <Target className="w-4 h-4" />
+                      SWOT & Competitive Analysis
+                    </TabsTrigger>
+                    <TabsTrigger value="leads" className="gap-2">
+                      <Users className="w-4 h-4" />
+                      Competitor Details
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  {/* Competitive Analysis Tab */}
+                  <TabsContent value="competitive" className="mt-0">
+                    <CompetitiveAnalysisPanel 
+                      data={competitiveIntelligence}
+                      loading={competitiveLoading}
+                      searchQuery={searchQuery}
+                    />
+                  </TabsContent>
+                
+                  {/* Competitor Details Tab */}
+                  <TabsContent value="leads" className="mt-0 space-y-6">
+                    {/* Quick Stats for Competitors */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="p-3 rounded-xl bg-background border border-border text-center">
+                        <div className="text-2xl font-bold text-destructive">{insights.hotLeads.length}</div>
+                        <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                          <Flame className="w-3 h-3" /> Strong Competitors
+                        </div>
+                      </div>
+                      <div className="p-3 rounded-xl bg-background border border-border text-center">
+                        <div className="text-2xl font-bold text-warning">{insights.warmLeads.length}</div>
+                        <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                          <ThermometerSun className="w-3 h-3" /> Challengers
+                        </div>
+                      </div>
+                      <div className="p-3 rounded-xl bg-background border border-border text-center">
+                        <div className="text-2xl font-bold text-accent">{insights.coldLeads.length}</div>
+                        <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                          <Snowflake className="w-3 h-3" /> Minor Players
+                        </div>
+                      </div>
+                      <div className="p-3 rounded-xl bg-background border border-border text-center">
+                        <div className="text-2xl font-bold text-primary">{insights.total}</div>
+                        <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                          <Users className="w-3 h-3" /> Total Analyzed
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Competitor List */}
+                    <ScrollArea className="h-[300px]">
+                      <div className="space-y-2">
+                        {leadAnalysis.slice(0, 20).map((lead, idx) => (
+                          <div 
+                            key={lead.id || idx}
+                            className={cn(
+                              "p-3 rounded-lg border transition-colors hover:bg-muted/50",
+                              lead.aiClassification === 'hot' && "border-destructive/30 bg-destructive/5",
+                              lead.aiClassification === 'warm' && "border-warning/30 bg-warning/5",
+                              lead.aiClassification === 'cold' && "border-muted"
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium truncate">{lead.businessName}</span>
+                                  <Badge variant={
+                                    lead.aiClassification === 'hot' ? 'destructive' :
+                                    lead.aiClassification === 'warm' ? 'default' : 'secondary'
+                                  } className="text-xs">
+                                    {lead.aiClassification === 'hot' ? 'Strong' :
+                                     lead.aiClassification === 'warm' ? 'Challenger' : 'Minor'}
+                                  </Badge>
+                                </div>
+                                {lead.website && (
+                                  <p className="text-xs text-muted-foreground truncate mt-0.5">{lead.website}</p>
+                                )}
+                              </div>
+                              {lead.leadScore && (
+                                <div className="text-right">
+                                  <div className="text-sm font-semibold">{lead.leadScore}%</div>
+                                  <div className="text-xs text-muted-foreground">threat</div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </TabsContent>
+                </Tabs>
               ) : (
-                /* Lead-Level Analysis Only (no tabs for non-niche research mode) */
+                /* Lead-Level Analysis Only (no tabs for Platform search mode) */
                 <div className="space-y-6">
                   {/* Quick Stats */}
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
