@@ -39,6 +39,8 @@ interface LeadIntelligenceReviewPanelProps {
   searchQuery?: string;
   /** Search location for niche intelligence */
   searchLocation?: string;
+  /** Research mode - 'niche' shows market intelligence, 'competitive' does not */
+  researchMode?: 'niche' | 'competitive';
   /** Optional leads array - if not provided, falls back to storage */
   leads?: Array<{
     id: string;
@@ -91,14 +93,26 @@ export default function LeadIntelligenceReviewPanel({
   onOpenTemplates,
   searchQuery = '',
   searchLocation = '',
+  researchMode: propResearchMode,
   leads: passedLeads
 }: LeadIntelligenceReviewPanelProps) {
+  // Get research mode from props or sessionStorage - only show niche intelligence for 'niche' mode
+  const researchMode = propResearchMode || (() => {
+    try {
+      return (sessionStorage.getItem('bamlead_research_mode') as 'niche' | 'competitive') || 'niche';
+    } catch {
+      return 'niche';
+    }
+  })();
+  
+  // Show niche intelligence only for niche research mode with GMB search type
+  const showNicheIntelligence = researchMode === 'niche' && searchType === 'gmb';
   const [isExpanded, setIsExpanded] = useState(true);
   const [selectedStrategy, setSelectedStrategy] = useState<string | null>(null);
   const [smtpConfigured, setSMTPConfigured] = useState(false);
   const [intelligenceExpanded, setIntelligenceExpanded] = useState(false);
   const [showStrategies, setShowStrategies] = useState(false);
-  const [activeTab, setActiveTab] = useState<'leads' | 'niche'>('niche');
+  const [activeTab, setActiveTab] = useState<'leads' | 'niche'>(showNicheIntelligence ? 'niche' : 'leads');
   const [nicheIntelligence, setNicheIntelligence] = useState<NicheIntelligence | null>(null);
   const [nicheLoading, setNicheLoading] = useState(false);
   
@@ -118,8 +132,10 @@ export default function LeadIntelligenceReviewPanel({
     }
   }, [selectedTemplate]);
   
-  // Load niche intelligence when search query changes
+  // Load niche intelligence when search query changes (only for niche research mode)
   useEffect(() => {
+    if (!showNicheIntelligence) return;
+    
     if (searchQuery && searchQuery.length > 2) {
       // Check cache first
       const cached = getCachedNicheIntelligence(searchQuery);
@@ -146,7 +162,7 @@ export default function LeadIntelligenceReviewPanel({
       
       loadNicheIntelligence();
     }
-  }, [searchQuery, searchLocation, passedLeads]);
+  }, [searchQuery, searchLocation, passedLeads, showNicheIntelligence]);
   
   // Get lead analysis from passed props OR fall back to storage
   const leadAnalysis = useMemo(() => {
@@ -872,38 +888,39 @@ export default function LeadIntelligenceReviewPanel({
           
           <CollapsibleContent>
             <CardContent className="space-y-6 pt-0">
-              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'leads' | 'niche')} className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-4">
-                  <TabsTrigger value="niche" className="gap-2">
-                    <TrendingUp className="w-4 h-4" />
-                    Niche & Market Intelligence
-                  </TabsTrigger>
-                  <TabsTrigger value="leads" className="gap-2">
-                    <Users className="w-4 h-4" />
-                    Lead-Level Analysis
-                  </TabsTrigger>
-                </TabsList>
-                
-                {/* Niche Intelligence Tab */}
-                <TabsContent value="niche" className="mt-0">
-                  <NicheIntelligencePanel 
-                    nicheIntelligence={nicheIntelligence}
-                    isLoading={nicheLoading}
-                    searchQuery={searchQuery}
-                    onRefresh={async () => {
-                      setNicheLoading(true);
-                      try {
-                        const response = await generateNicheIntelligence(searchQuery, searchLocation, passedLeads || []);
-                        if (response.success && response.data) {
-                          setNicheIntelligence(response.data);
-                          cacheNicheIntelligence(searchQuery, response.data);
+              {showNicheIntelligence ? (
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'leads' | 'niche')} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2 mb-4">
+                    <TabsTrigger value="niche" className="gap-2">
+                      <TrendingUp className="w-4 h-4" />
+                      Niche & Market Intelligence
+                    </TabsTrigger>
+                    <TabsTrigger value="leads" className="gap-2">
+                      <Users className="w-4 h-4" />
+                      Lead-Level Analysis
+                    </TabsTrigger>
+                  </TabsList>
+                  
+                  {/* Niche Intelligence Tab */}
+                  <TabsContent value="niche" className="mt-0">
+                    <NicheIntelligencePanel 
+                      nicheIntelligence={nicheIntelligence}
+                      isLoading={nicheLoading}
+                      searchQuery={searchQuery}
+                      onRefresh={async () => {
+                        setNicheLoading(true);
+                        try {
+                          const response = await generateNicheIntelligence(searchQuery, searchLocation, passedLeads || []);
+                          if (response.success && response.data) {
+                            setNicheIntelligence(response.data);
+                            cacheNicheIntelligence(searchQuery, response.data);
+                          }
+                        } finally {
+                          setNicheLoading(false);
                         }
-                      } finally {
-                        setNicheLoading(false);
-                      }
-                    }}
-                  />
-                </TabsContent>
+                      }}
+                    />
+                  </TabsContent>
                 
                 {/* Lead-Level Analysis Tab */}
                 <TabsContent value="leads" className="mt-0 space-y-6">
@@ -1033,6 +1050,95 @@ export default function LeadIntelligenceReviewPanel({
                   )}
                 </TabsContent>
               </Tabs>
+              ) : (
+                /* Lead-Level Analysis Only (no tabs for non-niche research mode) */
+                <div className="space-y-6">
+                  {/* Quick Stats */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    <div className="p-3 rounded-xl bg-background border border-border text-center">
+                      <div className="text-2xl font-bold text-destructive">{insights.hotLeads.length}</div>
+                      <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                        <Flame className="w-3 h-3" /> Hot
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-background border border-border text-center">
+                      <div className="text-2xl font-bold text-warning">{insights.warmLeads.length}</div>
+                      <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                        <ThermometerSun className="w-3 h-3" /> Warm
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-background border border-border text-center">
+                      <div className="text-2xl font-bold text-accent">{insights.coldLeads.length}</div>
+                      <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                        <Snowflake className="w-3 h-3" /> Cold
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-background border border-border text-center">
+                      <div className="text-2xl font-bold text-primary">{insights.total}</div>
+                      <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                        <Users className="w-3 h-3" /> Total
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-background border border-border text-center">
+                      <div className="text-2xl font-bold text-secondary-foreground">{insights.withEmail.length}</div>
+                      <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                        <Mail className="w-3 h-3" /> With Email
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-background border border-border text-center">
+                      <div className="text-2xl font-bold text-muted-foreground">{insights.withPhone.length}</div>
+                      <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                        <Phone className="w-3 h-3" /> With Phone
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* SMTP Status */}
+                  {!smtpConfigured && onOpenSettings && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-4 rounded-xl bg-warning/10 border border-warning/30"
+                    >
+                      <div className="flex items-center justify-between gap-4 flex-wrap">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-warning/20 flex items-center justify-center">
+                            <Server className="w-5 h-5 text-warning" />
+                          </div>
+                          <h4 className="font-semibold text-warning">
+                            Setup Your Mail Server
+                          </h4>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Connect your SMTP mail server to send emails to your {insights.total} leads.
+                          </p>
+                        </div>
+                        <Button 
+                          onClick={onOpenSettings}
+                          className="gap-2 bg-warning hover:bg-warning/90 text-warning-foreground flex-shrink-0"
+                        >
+                          <Settings className="w-4 h-4" />
+                          Configure SMTP
+                        </Button>
+                      </div>
+                    </motion.div>
+                  )}
+                  
+                  {/* SMTP Configured Success */}
+                  {smtpConfigured && (
+                    <div className="p-3 rounded-xl bg-accent/10 border border-accent/30">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
+                          <CheckCircle2 className="w-4 h-4 text-accent" />
+                        </div>
+                        <div className="flex-1">
+                          <span className="text-sm font-medium text-accent">Mail Server Connected</span>
+                          <span className="text-xs text-muted-foreground ml-2">Ready to send emails</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </CollapsibleContent>
         </Collapsible>
