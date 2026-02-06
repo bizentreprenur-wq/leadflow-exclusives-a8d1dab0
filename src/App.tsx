@@ -40,6 +40,7 @@ import DataTypes from "./pages/DataTypes";
 import UseCases from "./pages/UseCases";
 import ExampleSearches from "./pages/ExampleSearches";
 import Comparisons from "./pages/Comparisons";
+import PreSignup from "./pages/PreSignup";
 
 const queryClient = new QueryClient();
 
@@ -125,6 +126,7 @@ function AppInner() {
         <Route path="/use-cases" element={<UseCases />} />
         <Route path="/example-searches" element={<ExampleSearches />} />
         <Route path="/comparisons" element={<Comparisons />} />
+        <Route path="/presignup" element={<PreSignup />} />
         <Route
           path="/dashboard"
           element={
