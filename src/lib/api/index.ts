@@ -103,6 +103,23 @@ export {
 } from './aiLeadScoring';
 export type { ScoredLead, LeadPrioritization, LeadInsights, EmailAngle } from './aiLeadScoring';
 
+// Business Intelligence (12-category analysis)
+export { 
+  enrichLeadsWithIntelligence, 
+  getLeadIntelligence, 
+  deepAnalyzeLeads,
+  quickScoreLeadsBI 
+} from './businessIntelligence';
+export type { EnrichLeadsResponse, EnrichmentOptions } from './businessIntelligence';
+
+// Niche Intelligence (Market-level analysis)
+export { 
+  generateNicheIntelligence, 
+  getCachedNicheIntelligence, 
+  cacheNicheIntelligence 
+} from './nicheIntelligence';
+export type { NicheIntelligenceResponse } from './nicheIntelligence';
+
 // Search Leads (Persisted per customer)
 export {
   fetchSearchLeads,
@@ -127,5 +144,7 @@ export const API_CONFIG = {
     crmExport: '/crm-export.php',
     aiLeadScoring: '/ai-lead-scoring.php',
     googleCalendar: '/google-calendar-auth.php',
+    businessIntelligence: '/business-intelligence.php',
+    nicheIntelligence: '/niche-intelligence.php',
   },
 };

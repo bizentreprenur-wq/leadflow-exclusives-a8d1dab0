@@ -7,13 +7,14 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Brain, Lightbulb, Target, Globe, AlertTriangle, CheckCircle2,
   ChevronDown, ChevronUp, Flame, ThermometerSun, Snowflake,
   Smartphone, Zap, MessageSquare, TrendingUp, FileText,
   Mail, Sparkles, Eye, X, Phone, Server, Settings, ArrowRight,
   Search, Users, Send, ChevronRight, Rocket, Star, RefreshCw,
-  Shield, Clock, Award, Edit3, Wand2
+  Shield, Clock, Award, Edit3, Wand2, BarChart3, Package
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { 
@@ -22,6 +23,9 @@ import {
   generateEmailSuggestionsFromContext 
 } from '@/lib/leadContext';
 import { isSMTPConfigured } from '@/lib/emailService';
+import NicheIntelligencePanel from '@/components/NicheIntelligencePanel';
+import { NicheIntelligence } from '@/lib/types/nicheIntelligence';
+import { generateNicheIntelligence, getCachedNicheIntelligence, cacheNicheIntelligence } from '@/lib/api/nicheIntelligence';
 
 interface LeadIntelligenceReviewPanelProps {
   onApplyStrategy?: (strategy: EmailStrategy) => void;
@@ -31,6 +35,10 @@ interface LeadIntelligenceReviewPanelProps {
   onOpenCompose?: (strategy: EmailStrategy) => void;
   selectedTemplate?: { subject: string; body: string } | null;
   onOpenTemplates?: () => void;
+  /** Search query for niche intelligence */
+  searchQuery?: string;
+  /** Search location for niche intelligence */
+  searchLocation?: string;
   /** Optional leads array - if not provided, falls back to storage */
   leads?: Array<{
     id: string;
@@ -81,6 +89,8 @@ export default function LeadIntelligenceReviewPanel({
   onOpenCompose,
   selectedTemplate,
   onOpenTemplates,
+  searchQuery = '',
+  searchLocation = '',
   leads: passedLeads
 }: LeadIntelligenceReviewPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -88,6 +98,9 @@ export default function LeadIntelligenceReviewPanel({
   const [smtpConfigured, setSMTPConfigured] = useState(false);
   const [intelligenceExpanded, setIntelligenceExpanded] = useState(false);
   const [showStrategies, setShowStrategies] = useState(false);
+  const [activeTab, setActiveTab] = useState<'leads' | 'niche'>('niche');
+  const [nicheIntelligence, setNicheIntelligence] = useState<NicheIntelligence | null>(null);
+  const [nicheLoading, setNicheLoading] = useState(false);
   
   // Check SMTP configuration status
   useEffect(() => {
@@ -104,6 +117,36 @@ export default function LeadIntelligenceReviewPanel({
       setShowStrategies(true);
     }
   }, [selectedTemplate]);
+  
+  // Load niche intelligence when search query changes
+  useEffect(() => {
+    if (searchQuery && searchQuery.length > 2) {
+      // Check cache first
+      const cached = getCachedNicheIntelligence(searchQuery);
+      if (cached) {
+        setNicheIntelligence(cached);
+        return;
+      }
+      
+      // Generate new niche intelligence
+      const loadNicheIntelligence = async () => {
+        setNicheLoading(true);
+        try {
+          const response = await generateNicheIntelligence(searchQuery, searchLocation, passedLeads || []);
+          if (response.success && response.data) {
+            setNicheIntelligence(response.data);
+            cacheNicheIntelligence(searchQuery, response.data);
+          }
+        } catch (error) {
+          console.error('Failed to load niche intelligence:', error);
+        } finally {
+          setNicheLoading(false);
+        }
+      };
+      
+      loadNicheIntelligence();
+    }
+  }, [searchQuery, searchLocation, passedLeads]);
   
   // Get lead analysis from passed props OR fall back to storage
   const leadAnalysis = useMemo(() => {
@@ -796,25 +839,25 @@ export default function LeadIntelligenceReviewPanel({
         )}
       </AnimatePresence>
 
-      {/* Lead Intelligence Report - MOVED TO BOTTOM */}
-      <Card className="border border-border bg-card/50">
+      {/* Intelligence Report with Tabs */}
+      <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10">
         <Collapsible open={intelligenceExpanded} onOpenChange={setIntelligenceExpanded}>
           <CollapsibleTrigger asChild>
             <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                    <Brain className="w-5 h-5 text-muted-foreground" />
+                  <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                    <BarChart3 className="w-5 h-5 text-primary" />
                   </div>
                   <div>
                     <CardTitle className="text-base flex items-center gap-2">
-                      Lead Intelligence Report
-                      <Badge variant="secondary" className="text-xs">
-                        {insights.total} Leads Analyzed
+                      🧠 Complete Intelligence Report
+                      <Badge className="bg-primary/20 text-primary border-primary/30 text-xs">
+                        12 Categories
                       </Badge>
                     </CardTitle>
                     <CardDescription className="text-xs">
-                      Click to {intelligenceExpanded ? 'collapse' : 'expand'} detailed analysis from Step 2
+                      Niche trends, market analysis, products/services, and lead-level insights
                     </CardDescription>
                   </div>
                 </div>
@@ -829,130 +872,167 @@ export default function LeadIntelligenceReviewPanel({
           
           <CollapsibleContent>
             <CardContent className="space-y-6 pt-0">
-              {/* Quick Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                <div className="p-3 rounded-xl bg-background border border-border text-center">
-                  <div className="text-2xl font-bold text-red-400">{insights.hotLeads.length}</div>
-                  <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                    <Flame className="w-3 h-3" /> Hot
-                  </div>
-                </div>
-                <div className="p-3 rounded-xl bg-background border border-border text-center">
-                  <div className="text-2xl font-bold text-amber-400">{insights.warmLeads.length}</div>
-                  <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                    <ThermometerSun className="w-3 h-3" /> Warm
-                  </div>
-                </div>
-                <div className="p-3 rounded-xl bg-background border border-border text-center">
-                  <div className="text-2xl font-bold text-blue-400">{insights.coldLeads.length}</div>
-                  <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                    <Snowflake className="w-3 h-3" /> Cold
-                  </div>
-                </div>
-                <div className="p-3 rounded-xl bg-background border border-border text-center">
-                  <div className="text-2xl font-bold text-orange-400">{insights.noWebsite.length}</div>
-                  <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                    <Globe className="w-3 h-3" /> No Site
-                  </div>
-                </div>
-                <div className="p-3 rounded-xl bg-background border border-border text-center">
-                  <div className="text-2xl font-bold text-purple-400">{insights.needsUpgrade.length}</div>
-                  <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                    <AlertTriangle className="w-3 h-3" /> Upgrade
-                  </div>
-                </div>
-                <div className="p-3 rounded-xl bg-background border border-border text-center">
-                  <div className="text-2xl font-bold text-cyan-400">{insights.poorMobile.length}</div>
-                  <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                    <Smartphone className="w-3 h-3" /> Bad Mobile
-                  </div>
-                </div>
-              </div>
-              
-              {/* Top Pain Points & Issues */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Pain Points */}
-                {insights.topPainPoints.length > 0 && (
-                  <div className="p-4 rounded-xl bg-background border border-border">
-                    <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
-                      <Lightbulb className="w-4 h-4 text-amber-400" />
-                      Top Pain Points Detected
-                    </h4>
-                    <div className="space-y-2">
-                      {insights.topPainPoints.map((pp, i) => (
-                        <div key={i} className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground truncate flex-1">{pp.point}</span>
-                          <Badge variant="secondary" className="ml-2 text-xs">{pp.count} leads</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+              <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'leads' | 'niche')} className="w-full">
+                <TabsList className="grid w-full grid-cols-2 mb-4">
+                  <TabsTrigger value="niche" className="gap-2">
+                    <TrendingUp className="w-4 h-4" />
+                    Niche & Market Intelligence
+                  </TabsTrigger>
+                  <TabsTrigger value="leads" className="gap-2">
+                    <Users className="w-4 h-4" />
+                    Lead-Level Analysis
+                  </TabsTrigger>
+                </TabsList>
                 
-                {/* Website Issues */}
-                {insights.topIssues.length > 0 && (
-                  <div className="p-4 rounded-xl bg-background border border-border">
-                    <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-red-400" />
-                      Website Issues Found
-                    </h4>
-                    <div className="space-y-2">
-                      {insights.topIssues.map((issue, i) => (
-                        <div key={i} className="flex items-center justify-between">
-                          <span className="text-sm text-muted-foreground truncate flex-1">{issue.issue}</span>
-                          <Badge variant="secondary" className="ml-2 text-xs">{issue.count} sites</Badge>
+                {/* Niche Intelligence Tab */}
+                <TabsContent value="niche" className="mt-0">
+                  <NicheIntelligencePanel 
+                    nicheIntelligence={nicheIntelligence}
+                    isLoading={nicheLoading}
+                    searchQuery={searchQuery}
+                    onRefresh={async () => {
+                      setNicheLoading(true);
+                      try {
+                        const response = await generateNicheIntelligence(searchQuery, searchLocation, passedLeads || []);
+                        if (response.success && response.data) {
+                          setNicheIntelligence(response.data);
+                          cacheNicheIntelligence(searchQuery, response.data);
+                        }
+                      } finally {
+                        setNicheLoading(false);
+                      }
+                    }}
+                  />
+                </TabsContent>
+                
+                {/* Lead-Level Analysis Tab */}
+                <TabsContent value="leads" className="mt-0 space-y-6">
+                  {/* Quick Stats */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                    <div className="p-3 rounded-xl bg-background border border-border text-center">
+                      <div className="text-2xl font-bold text-destructive">{insights.hotLeads.length}</div>
+                      <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                        <Flame className="w-3 h-3" /> Hot
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-background border border-border text-center">
+                      <div className="text-2xl font-bold text-warning">{insights.warmLeads.length}</div>
+                      <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                        <ThermometerSun className="w-3 h-3" /> Warm
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-background border border-border text-center">
+                      <div className="text-2xl font-bold text-accent">{insights.coldLeads.length}</div>
+                      <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                        <Snowflake className="w-3 h-3" /> Cold
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-background border border-border text-center">
+                      <div className="text-2xl font-bold text-primary">{insights.noWebsite.length}</div>
+                      <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                        <Globe className="w-3 h-3" /> No Site
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-background border border-border text-center">
+                      <div className="text-2xl font-bold text-secondary-foreground">{insights.needsUpgrade.length}</div>
+                      <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                        <AlertTriangle className="w-3 h-3" /> Upgrade
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-background border border-border text-center">
+                      <div className="text-2xl font-bold text-muted-foreground">{insights.poorMobile.length}</div>
+                      <div className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                        <Smartphone className="w-3 h-3" /> Bad Mobile
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Top Pain Points & Issues */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Pain Points */}
+                    {insights.topPainPoints.length > 0 && (
+                      <div className="p-4 rounded-xl bg-background border border-border">
+                        <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                          <Lightbulb className="w-4 h-4 text-warning" />
+                          Top Pain Points Detected
+                        </h4>
+                        <div className="space-y-2">
+                          {insights.topPainPoints.map((pp, i) => (
+                            <div key={i} className="flex items-center justify-between">
+                              <span className="text-sm text-muted-foreground truncate flex-1">{pp.point}</span>
+                              <Badge variant="secondary" className="ml-2 text-xs">{pp.count} leads</Badge>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                    )}
+                    
+                    {/* Website Issues */}
+                    {insights.topIssues.length > 0 && (
+                      <div className="p-4 rounded-xl bg-background border border-border">
+                        <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4 text-destructive" />
+                          Website Issues Found
+                        </h4>
+                        <div className="space-y-2">
+                          {insights.topIssues.map((issue, i) => (
+                            <div key={i} className="flex items-center justify-between">
+                              <span className="text-sm text-muted-foreground truncate flex-1">{issue.issue}</span>
+                              <Badge variant="secondary" className="ml-2 text-xs">{issue.count} sites</Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-              
-              {/* Mail Server Setup Section */}
-              {!smtpConfigured && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="p-4 rounded-xl bg-amber-500/10 border-2 border-amber-500/30"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center flex-shrink-0">
-                      <Server className="w-6 h-6 text-amber-400" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-bold text-foreground flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 text-amber-400" />
-                        Setup Your Mail Server
-                      </h4>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Connect your SMTP mail server to send emails to your {insights.total} leads.
-                      </p>
-                    </div>
-                    <Button 
-                      onClick={onOpenSettings}
-                      className="gap-2 bg-amber-500 hover:bg-amber-600 text-white flex-shrink-0"
+                  
+                  {/* Mail Server Setup Section */}
+                  {!smtpConfigured && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-4 rounded-xl bg-warning/10 border-2 border-warning/30"
                     >
-                      <Settings className="w-4 h-4" />
-                      Configure SMTP
-                    </Button>
-                  </div>
-                </motion.div>
-              )}
-              
-              {/* SMTP Configured Success */}
-              {smtpConfigured && (
-                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-warning/20 flex items-center justify-center flex-shrink-0">
+                          <Server className="w-6 h-6 text-warning" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-bold text-foreground flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4 text-warning" />
+                            Setup Your Mail Server
+                          </h4>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Connect your SMTP mail server to send emails to your {insights.total} leads.
+                          </p>
+                        </div>
+                        <Button 
+                          onClick={onOpenSettings}
+                          className="gap-2 bg-warning hover:bg-warning/90 text-warning-foreground flex-shrink-0"
+                        >
+                          <Settings className="w-4 h-4" />
+                          Configure SMTP
+                        </Button>
+                      </div>
+                    </motion.div>
+                  )}
+                  
+                  {/* SMTP Configured Success */}
+                  {smtpConfigured && (
+                    <div className="p-3 rounded-xl bg-accent/10 border border-accent/30">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
+                          <CheckCircle2 className="w-4 h-4 text-accent" />
+                        </div>
+                        <div className="flex-1">
+                          <span className="text-sm font-medium text-accent">Mail Server Connected</span>
+                          <span className="text-xs text-muted-foreground ml-2">Ready to send emails</span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <span className="text-sm font-medium text-emerald-400">Mail Server Connected</span>
-                      <span className="text-xs text-muted-foreground ml-2">Ready to send emails</span>
-                    </div>
-                  </div>
-                </div>
-              )}
+                  )}
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </CollapsibleContent>
         </Collapsible>
