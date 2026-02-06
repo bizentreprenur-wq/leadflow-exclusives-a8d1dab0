@@ -64,6 +64,21 @@ const featureCategories = [
     ],
   },
   {
+    name: "AI Voice Calling",
+    icon: Phone,
+    features: [
+      { text: "AI Call Script Generation", free: "Preview", basic: true, pro: true, autopilot: "Advanced" },
+      { text: "Outbound AI Calling", free: false, basic: false, pro: true, autopilot: true },
+      { text: "Phone Number Setup", free: false, basic: false, pro: "1 Number", autopilot: "Included" },
+      { text: "Call Volume", free: false, basic: false, pro: "Limited", autopilot: "Higher Limits" },
+      { text: "Call Summaries & Outcomes", free: false, basic: false, pro: true, autopilot: true },
+      { text: "Autonomous Calling Mode", free: false, basic: false, pro: false, autopilot: true },
+      { text: "AI Script Adaptation (Live)", free: false, basic: false, pro: false, autopilot: true },
+      { text: "Auto Follow-Up After Calls", free: false, basic: false, pro: false, autopilot: true },
+      { text: "Lead Qualification & Tagging", free: false, basic: false, pro: false, autopilot: true },
+    ],
+  },
+  {
     name: "Website Analysis",
     icon: Globe,
     features: [
@@ -135,7 +150,7 @@ const tiers = [
       "3 Platform searches per day",
       "25 AI verification credits",
       "Social media lookup",
-      "WordPress detection",
+      "AI call script preview only",
     ],
   },
   {
@@ -151,7 +166,7 @@ const tiers = [
       "200 AI verification credits/month",
       "12-Category Business Intelligence",
       "AI Email Writer (you control)",
-      "CSV export & CRM trial",
+      "AI generates call scripts (you dial)",
     ],
   },
   {
@@ -168,8 +183,8 @@ const tiers = [
       "500 AI verification credits/month",
       "Smart Response Detection",
       "Auto Follow-Up Sequences",
-      "AI Resurrection Sequences",
-      "Team collaboration (3 users)",
+      "AI calls your leads (you supervise)",
+      "1 phone number required",
     ],
   },
   {
@@ -183,10 +198,10 @@ const tiers = [
     highlights: [
       "Unlimited searches",
       "2,000 AI verification credits",
-      "Fully Autonomous Sales Rep",
+      "Fully Autonomous AI Calling",
+      "AI handles calls → booked meetings",
       "Auto Proposal Delivery",
-      "White-Label Reports",
-      "Dedicated account manager",
+      "Phone number included",
     ],
   },
 ];
@@ -502,51 +517,120 @@ const Pricing = () => {
                 ))}
               </div>
 
-              {/* Add-ons Section */}
-              <div className="mt-8 space-y-4">
-                <h3 className="text-lg font-semibold text-foreground mb-4">Premium Add-ons</h3>
+              {/* AI Calling Explainer */}
+              <div className="mt-12 space-y-6">
+                <div className="text-center mb-8">
+                  <h3 className="font-display text-2xl font-bold text-foreground mb-2">AI Calling by Plan</h3>
+                  <p className="text-muted-foreground">How AI calling works at each level</p>
+                </div>
                 
-                {/* AI Calling Add-on */}
-                <div className="p-6 rounded-2xl border-2 border-emerald-500/30 bg-emerald-500/5">
-                  <div className="flex items-start gap-4">
-                    <div className="p-3 rounded-xl bg-emerald-500/10">
-                      <Phone className="w-6 h-6 text-emerald-500" />
+                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Free - No AI Calling */}
+                  <div className="p-5 rounded-2xl border border-border bg-card/50">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 rounded-lg bg-muted">
+                        <Phone className="w-5 h-5 text-muted-foreground" />
+                      </div>
+                      <span className="font-semibold text-foreground">Free</span>
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h4 className="font-bold text-foreground text-lg">AI Voice Calling</h4>
-                        <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-                          Add-on
-                        </Badge>
+                    <div className="text-sm text-muted-foreground mb-3">
+                      AI script preview only. No calling.
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <X className="w-3.5 h-3.5" />
+                      <span>Upgrade to enable</span>
+                    </div>
+                  </div>
+
+                  {/* Basic - Scripts Only */}
+                  <div className="p-5 rounded-2xl border border-border bg-card">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <Phone className="w-5 h-5 text-primary" />
                       </div>
-                      <div className="flex items-baseline gap-1 mb-2">
-                        <span className="text-3xl font-bold text-emerald-500">$24.99</span>
-                        <span className="text-muted-foreground">/month</span>
+                      <span className="font-semibold text-foreground">Basic</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground mb-3">
+                      AI prepares your call script. You make the call.
+                    </div>
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex items-center gap-2 text-foreground">
+                        <Check className="w-3.5 h-3.5 text-primary" />
+                        <span>AI-generated scripts</span>
                       </div>
-                      <p className="text-muted-foreground text-sm mb-3">
-                        AI-powered outbound calling with natural voice conversations. Automatically dial leads, 
-                        qualify prospects, and schedule callbacks. Works alongside any plan.
-                      </p>
-                      <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1.5">
-                          <Check className="w-3.5 h-3.5 text-emerald-500" />
-                          <span>Natural AI voice conversations</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <Check className="w-3.5 h-3.5 text-emerald-500" />
-                          <span>Bulk call queue</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <Check className="w-3.5 h-3.5 text-emerald-500" />
-                          <span>Call analytics dashboard</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <Check className="w-3.5 h-3.5 text-emerald-500" />
-                          <span>Callback scheduling</span>
-                        </div>
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <X className="w-3.5 h-3.5" />
+                        <span>No outbound AI calling</span>
                       </div>
                     </div>
                   </div>
+
+                  {/* Pro - AI Calls, You Supervise */}
+                  <div className="p-5 rounded-2xl border-2 border-primary/50 bg-primary/5">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 rounded-lg bg-primary/20">
+                        <Phone className="w-5 h-5 text-primary" />
+                      </div>
+                      <span className="font-semibold text-foreground">Pro</span>
+                      <Badge variant="secondary" className="text-xs">Popular</Badge>
+                    </div>
+                    <div className="text-sm text-muted-foreground mb-3">
+                      AI calls your leads using a dedicated business number.
+                    </div>
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex items-center gap-2 text-foreground">
+                        <Check className="w-3.5 h-3.5 text-primary" />
+                        <span>Outbound AI calling</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-foreground">
+                        <Check className="w-3.5 h-3.5 text-primary" />
+                        <span>1 phone number (own or $7/mo)</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-foreground">
+                        <Check className="w-3.5 h-3.5 text-primary" />
+                        <span>Call summaries & outcomes</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Autopilot - Fully Autonomous */}
+                  <div className="p-5 rounded-2xl border-2 border-amber-500/50 bg-amber-500/5">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 rounded-lg bg-amber-500/20">
+                        <Phone className="w-5 h-5 text-amber-500" />
+                      </div>
+                      <span className="font-semibold text-foreground">Autopilot</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground mb-3">
+                      AI handles calls from first contact to booked conversation.
+                    </div>
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex items-center gap-2 text-foreground">
+                        <Check className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Automatic outbound calling</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-foreground">
+                        <Check className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Phone number included</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-foreground">
+                        <Check className="w-3.5 h-3.5 text-amber-500" />
+                        <span>AI adapts scripts live</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-foreground">
+                        <Check className="w-3.5 h-3.5 text-amber-500" />
+                        <span>Lead qualification + tagging</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Phone Number Pricing Note */}
+                <div className="p-4 rounded-xl border border-border bg-secondary/30 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">Phone Number Options:</span> Use your own number (verified via API) or get a BamLead-provided number for <span className="text-primary font-medium">$7/month</span>. 
+                    Autopilot plan includes one phone number at no extra cost.
+                  </p>
                 </div>
 
                 {/* Note about Autopilot being included */}
