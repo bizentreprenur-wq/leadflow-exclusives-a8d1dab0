@@ -89,18 +89,72 @@ const PreSignup = () => {
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="text-center max-w-md"
+          className="text-center max-w-lg"
         >
-          <div className="w-24 h-24 mx-auto mb-6 rounded-full bg-primary/20 flex items-center justify-center">
-            <CheckCircle2 className="w-12 h-12 text-primary" />
+          {/* Mascot celebration */}
+          <motion.div
+            initial={{ y: -20 }}
+            animate={{ y: 0 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            className="mb-6"
+          >
+            <img src={mascot} alt="Bamlead Mascot" className="w-32 h-auto mx-auto" />
+          </motion.div>
+
+          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-primary/30 to-amber-400/30 flex items-center justify-center">
+            <CheckCircle2 className="w-10 h-10 text-primary" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground mb-4">You're on the list!</h1>
-          <p className="text-muted-foreground mb-8">
-            Thanks for your interest in Bamlead. We'll notify you as soon as early access is available.
+
+          <h1 className="text-4xl font-bold text-foreground mb-3">
+            🎉 Welcome to the Bamlead Family!
+          </h1>
+
+          <p className="text-xl text-primary font-semibold mb-4">
+            You're officially on our VIP list, {name || "future lead-gen pro"}!
           </p>
-          <Button onClick={() => setIsSubmitted(false)} variant="outline">
-            Back to signup
-          </Button>
+
+          <div className="bg-card/80 border border-primary/20 rounded-2xl p-6 mb-6 text-left space-y-4">
+            <p className="text-muted-foreground">
+              Thank you for believing in Bamlead! We're thrilled to have you join us on this journey to revolutionize lead generation.
+            </p>
+            
+            <div className="space-y-2">
+              <p className="text-foreground font-medium flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-amber-400" />
+                Here's what happens next:
+              </p>
+              <ul className="text-muted-foreground space-y-2 ml-7">
+                <li>✅ You'll receive a confirmation email shortly</li>
+                <li>✅ Be first to know when we launch</li>
+                <li>✅ Get exclusive early-bird pricing</li>
+                <li>✅ Priority access to new features</li>
+              </ul>
+            </div>
+
+            <p className="text-muted-foreground pt-2 border-t border-border">
+              Have questions? Reply to our email or reach out at{" "}
+              <a href="mailto:adrian@bamlead.com" className="text-primary hover:underline font-medium">
+                adrian@bamlead.com
+              </a>
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button onClick={() => setIsSubmitted(false)} variant="outline">
+              ← Back to Pre-Signup
+            </Button>
+            <Button 
+              onClick={() => window.location.href = '/'}
+              className="bg-gradient-to-r from-primary to-amber-500"
+            >
+              Explore Bamlead
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </div>
+
+          <p className="text-sm text-muted-foreground mt-6">
+            🚀 Get ready to generate leads on autopilot!
+          </p>
         </motion.div>
       </div>
     );
