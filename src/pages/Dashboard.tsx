@@ -1439,6 +1439,25 @@ export default function Dashboard() {
       const website = (lead.website || '').toLowerCase().trim();
       return [name, address, phone, website].filter(Boolean).join('|');
     };
+    const mergeLead = (existing: SearchResult, candidate: SearchResult): SearchResult => ({
+      ...existing,
+      ...candidate,
+      id: existing.id,
+      email: existing.email || candidate.email || candidate.enrichment?.emails?.[0],
+      phone: existing.phone || candidate.phone || candidate.enrichment?.phones?.[0],
+      website: existing.website || candidate.website,
+      address: existing.address || candidate.address,
+      enrichment: {
+        ...(existing.enrichment || {}),
+        ...(candidate.enrichment || {}),
+        emails: Array.from(new Set([...(existing.enrichment?.emails || []), ...(candidate.enrichment?.emails || [])])),
+        phones: Array.from(new Set([...(existing.enrichment?.phones || []), ...(candidate.enrichment?.phones || [])])),
+        socials: {
+          ...(existing.enrichment?.socials || {}),
+          ...(candidate.enrichment?.socials || {}),
+        },
+      },
+    });
     for (const lead of base) {
       seen.set(keyFor(lead), lead);
     }
@@ -1446,6 +1465,9 @@ export default function Dashboard() {
       const key = keyFor(lead);
       if (!seen.has(key)) {
         seen.set(key, lead);
+      } else {
+        const merged = mergeLead(seen.get(key) as SearchResult, lead);
+        seen.set(key, merged);
       }
     }
     return Array.from(seen.values());

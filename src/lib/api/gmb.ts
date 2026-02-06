@@ -109,6 +109,106 @@ function isMockLeadId(id: string | undefined): boolean {
   return !!id && id.startsWith('mock_');
 }
 
+function normalizeForMatch(value?: string): string {
+  return (value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeHost(url?: string): string {
+  if (!url) return '';
+  try {
+    const parsed = new URL(url.startsWith('http') ? url : `https://${url}`);
+    return parsed.hostname.toLowerCase().replace(/^www\./, '');
+  } catch {
+    return '';
+  }
+}
+
+function normalizePhone(phone?: string): string {
+  return (phone || '').replace(/\D+/g, '');
+}
+
+function isSameBusiness(a: GMBResult, b: GMBResult): boolean {
+  const aHost = normalizeHost(a.url);
+  const bHost = normalizeHost(b.url);
+  if (aHost && bHost && aHost === bHost) return true;
+
+  const aName = normalizeForMatch(a.name);
+  const bName = normalizeForMatch(b.name);
+  if (!aName || !bName || aName !== bName) return false;
+
+  const aPhone = normalizePhone(a.phone);
+  const bPhone = normalizePhone(b.phone);
+  if (aPhone && bPhone && aPhone === bPhone) return true;
+
+  const aAddress = normalizeForMatch(a.address);
+  const bAddress = normalizeForMatch(b.address);
+  if (aAddress && bAddress && aAddress === bAddress) return true;
+
+  return false;
+}
+
+function uniqueStrings(values: string[] = []): string[] {
+  return Array.from(new Set(values.filter(Boolean)));
+}
+
+function mergeLeadRecords(existing: GMBResult, incoming: GMBResult): GMBResult {
+  const mergedEnrichment =
+    existing.enrichment || incoming.enrichment
+      ? {
+          ...(existing.enrichment || {}),
+          ...(incoming.enrichment || {}),
+          emails: uniqueStrings([
+            ...((existing.enrichment?.emails || []) as string[]),
+            ...((incoming.enrichment?.emails || []) as string[]),
+          ]),
+          phones: uniqueStrings([
+            ...((existing.enrichment?.phones || []) as string[]),
+            ...((incoming.enrichment?.phones || []) as string[]),
+          ]),
+          socials: {
+            ...(existing.enrichment?.socials || {}),
+            ...(incoming.enrichment?.socials || {}),
+          },
+        }
+      : undefined;
+
+  const bestEmail =
+    existing.email ||
+    incoming.email ||
+    mergedEnrichment?.emails?.[0];
+
+  const bestPhone =
+    existing.phone ||
+    incoming.phone ||
+    mergedEnrichment?.phones?.[0];
+
+  return {
+    ...existing,
+    ...incoming,
+    id: existing.id, // Keep stable id once created
+    name: existing.name || incoming.name,
+    url: existing.url || incoming.url,
+    displayLink: existing.displayLink || incoming.displayLink,
+    snippet: existing.snippet || incoming.snippet,
+    address: existing.address || incoming.address,
+    rating: existing.rating ?? incoming.rating,
+    reviewCount: existing.reviewCount ?? incoming.reviewCount,
+    email: bestEmail,
+    phone: bestPhone,
+    sources: uniqueStrings([...(existing.sources || []), ...(incoming.sources || [])]),
+    enrichment: mergedEnrichment,
+    enrichmentStatus:
+      existing.enrichmentStatus === 'completed' || incoming.enrichmentStatus === 'completed'
+        ? 'completed'
+        : existing.enrichmentStatus || incoming.enrichmentStatus,
+    websiteAnalysis: existing.websiteAnalysis || incoming.websiteAnalysis,
+  };
+}
+
 // (Legacy) mock generator kept intentionally unused; we never fabricate leads.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function generateMockResults(service: string, location: string, count: number = 25): GMBResult[] {
@@ -493,16 +593,18 @@ async function searchGMBStreaming(
                     ));
                     return;
                   }
-                  allResults.push({
+                  const incomingLead: GMBResult = {
                     id: lead.id,
                     name: lead.name,
                     url: lead.url,
                     snippet: lead.snippet,
                     displayLink: lead.displayLink,
+                    email: lead.email || undefined,
                     phone: lead.phone,
                     address: lead.address,
                     rating: lead.rating,
                     reviewCount: lead.reviews,
+                    sources: lead.sources || [],
                     websiteAnalysis: lead.websiteAnalysis || {
                       hasWebsite: !!lead.url,
                       platform: null,
@@ -510,7 +612,21 @@ async function searchGMBStreaming(
                       issues: lead.url ? [] : ['No website found'],
                       mobileScore: null
                     }
-                  });
+                  };
+
+                  const idMatchIndex = allResults.findIndex((item) => item.id === incomingLead.id);
+                  if (idMatchIndex !== -1) {
+                    allResults[idMatchIndex] = mergeLeadRecords(allResults[idMatchIndex], incomingLead);
+                    continue;
+                  }
+
+                  const businessMatchIndex = allResults.findIndex((item) => isSameBusiness(item, incomingLead));
+                  if (businessMatchIndex !== -1) {
+                    allResults[businessMatchIndex] = mergeLeadRecords(allResults[businessMatchIndex], incomingLead);
+                    continue;
+                  }
+
+                  allResults.push(incomingLead);
                 }
                 
                 // Call progress callback with accumulated results
@@ -536,7 +652,7 @@ async function searchGMBStreaming(
                     // Update the lead in allResults
                     const leadIndex = allResults.findIndex(l => l.id === leadId);
                     if (leadIndex !== -1) {
-                      allResults[leadIndex] = {
+                      const enrichedLead = {
                         ...allResults[leadIndex],
                         enrichment: enrichmentData,
                         enrichmentStatus: 'completed',
@@ -544,6 +660,14 @@ async function searchGMBStreaming(
                         email: enrichmentData?.emails?.[0] || allResults[leadIndex].email,
                         phone: enrichmentData?.phones?.[0] || allResults[leadIndex].phone,
                       };
+                      allResults[leadIndex] = enrichedLead;
+
+                      // Backfill matching duplicates if one source has email/phone and another doesn't.
+                      for (let i = 0; i < allResults.length; i++) {
+                        if (i === leadIndex) continue;
+                        if (!isSameBusiness(allResults[i], enrichedLead)) continue;
+                        allResults[i] = mergeLeadRecords(allResults[i], enrichedLead);
+                      }
                     }
                     
                     // Call the enrichment callback
