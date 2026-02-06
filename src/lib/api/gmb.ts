@@ -655,7 +655,7 @@ async function searchGMBStreaming(
                       const enrichedLead = {
                         ...allResults[leadIndex],
                         enrichment: enrichmentData,
-                        enrichmentStatus: 'completed',
+                        enrichmentStatus: 'completed' as const,
                         // Also merge primary email/phone for easier access
                         email: enrichmentData?.emails?.[0] || allResults[leadIndex].email,
                         phone: enrichmentData?.phones?.[0] || allResults[leadIndex].phone,
