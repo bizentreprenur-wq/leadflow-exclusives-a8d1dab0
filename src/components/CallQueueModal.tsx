@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { useConversation } from '@elevenlabs/react';
+import { useCallingConversation } from '@/hooks/useCallingConversation';
 import {
   Dialog,
   DialogContent,
@@ -104,21 +104,12 @@ export default function CallQueueModal({
     setAgentId(saved);
   }, []);
 
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (conversation.status === 'connected') {
-      interval = setInterval(() => {
-        setCallDuration(prev => prev + 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, []);
 
   const currentLead = queue[currentIndex];
   const completedCount = queue.filter(l => l.status === 'completed' || l.status === 'skipped').length;
   const progress = queue.length > 0 ? (completedCount / queue.length) * 100 : 0;
 
-  const conversation = useConversation({
+  const conversation = useCallingConversation({
     onConnect: () => {
       setIsConnecting(false);
       callStartTimeRef.current = Date.now();
@@ -154,6 +145,16 @@ export default function CallQueueModal({
       toast.error('Failed to connect call');
     },
   });
+
+  useEffect(() => {
+    if (conversation.status !== 'connected') return;
+
+    const interval = window.setInterval(() => {
+      setCallDuration((prev) => prev + 1);
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [conversation.status]);
 
   const handleSaveAndNext = useCallback(async (outcome: CallOutcome) => {
     if (!agentId || !currentLead) return;
