@@ -219,7 +219,11 @@ export default function CallQueueModal({
       await navigator.mediaDevices.getUserMedia({ audio: true });
       await conversation.startSession({
         agentId: agentId,
-        connectionType: 'webrtc',
+        lead: currentLead ? {
+          id: parseInt(currentLead.id, 10) || undefined,
+          name: currentLead.name,
+          phone: currentLead.phone
+        } : undefined
       });
     } catch (error) {
       console.error('Failed to start call:', error);
