@@ -2,10 +2,11 @@
  * AI Calling Dashboard Card
  * Shows status and provides actions based on user's plan tier
  * 
- * States:
- * - Disabled (Free/Basic): Show upgrade CTA
- * - Phone Needed (Pro/Autopilot): Show add phone CTA
- * - Ready: Show calling interface
+ * PRICING STRUCTURE (2026):
+ * - Free: Script preview only
+ * - Basic ($49/mo): +$8/mo add-on for AI scripts generation
+ * - Pro ($99/mo): +$8/mo add-on for supervised AI calling
+ * - Autopilot ($249/mo): AI Calling + phone included
  */
 
 import { useState } from 'react';
@@ -15,16 +16,17 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Phone, 
   PhoneCall,
-  PhoneOff,
   Plus,
   ArrowUpRight,
   CheckCircle2,
   Sparkles,
   Lock,
   Mic,
-  Settings
+  Settings,
+  DollarSign,
+  Loader2
 } from 'lucide-react';
-import { useAICalling } from '@/hooks/useAICalling';
+import { useAICalling, AI_CALLING_ADDON_PRICE } from '@/hooks/useAICalling';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import PhoneNumberSetupModal from '@/components/PhoneNumberSetupModal';
 import { Link } from 'react-router-dom';
@@ -40,9 +42,35 @@ export default function AICallingCard({
   onStartCalling,
   compact = false 
 }: AICallingCardProps) {
-  const { status, statusMessage, capabilities, phoneSetup, isLoading, needsUpgrade, upgradeMessage } = useAICalling();
+  const { 
+    status, 
+    statusMessage, 
+    callingModeDescription,
+    capabilities, 
+    phoneSetup, 
+    isLoading, 
+    needsUpgrade,
+    needsAddon,
+    addon,
+    addonMessage,
+    purchaseAddon,
+    addonPrice
+  } = useAICalling();
   const { tier, tierInfo } = usePlanFeatures();
   const [showPhoneModal, setShowPhoneModal] = useState(false);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+
+  const handlePurchaseAddon = async () => {
+    setIsPurchasing(true);
+    try {
+      const result = await purchaseAddon();
+      if (result.success) {
+        setShowPhoneModal(true);
+      }
+    } finally {
+      setIsPurchasing(false);
+    }
+  };
 
   const getStatusBadge = () => {
     switch (status) {
@@ -53,11 +81,25 @@ export default function AICallingCard({
             Ready
           </Badge>
         );
+      case 'addon_needed':
+        return (
+          <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30 gap-1">
+            <DollarSign className="w-3 h-3" />
+            +${addonPrice}/mo
+          </Badge>
+        );
+      case 'phone_provisioning':
+        return (
+          <Badge className="bg-primary/20 text-primary border-primary/30 gap-1 animate-pulse">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            Setting Up
+          </Badge>
+        );
       case 'phone_needed':
         return (
           <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30 gap-1">
             <Phone className="w-3 h-3" />
-            Phone Needed
+            Configuring
           </Badge>
         );
       case 'calling':
@@ -83,17 +125,30 @@ export default function AICallingCard({
         <Link to="/pricing">
           <Button variant="outline" className="gap-2">
             <ArrowUpRight className="w-4 h-4" />
-            Upgrade to Enable
+            Upgrade Plan
           </Button>
         </Link>
       );
     }
 
-    if (status === 'phone_needed') {
+    if (needsAddon) {
       return (
-        <Button onClick={() => setShowPhoneModal(true)} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Add Phone Number
+        <Button onClick={handlePurchaseAddon} disabled={isPurchasing} className="gap-2">
+          {isPurchasing ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Plus className="w-4 h-4" />
+          )}
+          Add AI Calling (${addonPrice}/mo)
+        </Button>
+      );
+    }
+
+    if (status === 'phone_provisioning' || status === 'phone_needed') {
+      return (
+        <Button onClick={() => setShowPhoneModal(true)} variant="outline" className="gap-2">
+          <Settings className="w-4 h-4" />
+          View Setup Status
         </Button>
       );
     }
@@ -115,21 +170,6 @@ export default function AICallingCard({
     }
 
     return null;
-  };
-
-  const getTierDescription = () => {
-    switch (tier) {
-      case 'free':
-        return 'AI script preview only. Upgrade to enable AI calling.';
-      case 'basic':
-        return 'AI prepares your call script. You make the call.';
-      case 'pro':
-        return 'AI calls your leads using a dedicated business number.';
-      case 'autopilot':
-        return 'AI handles calls from first contact to booked conversation.';
-      default:
-        return '';
-    }
   };
 
   if (compact) {
@@ -165,7 +205,7 @@ export default function AICallingCard({
       <Card className={`border-2 ${
         status === 'ready' 
           ? 'border-emerald-500/30 shadow-[0_0_20px_-5px_rgba(16,185,129,0.2)]' 
-          : status === 'phone_needed'
+          : status === 'addon_needed'
           ? 'border-amber-500/30'
           : 'border-border'
       }`}>
@@ -175,7 +215,7 @@ export default function AICallingCard({
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
                 status === 'ready' 
                   ? 'bg-gradient-to-br from-emerald-500 to-teal-600' 
-                  : status === 'phone_needed'
+                  : status === 'addon_needed'
                   ? 'bg-gradient-to-br from-amber-500 to-orange-600'
                   : 'bg-muted'
               }`}>
@@ -187,7 +227,7 @@ export default function AICallingCard({
                   {getStatusBadge()}
                 </CardTitle>
                 <CardDescription className="mt-1">
-                  {getTierDescription()}
+                  {callingModeDescription}
                 </CardDescription>
               </div>
             </div>
@@ -202,15 +242,15 @@ export default function AICallingCard({
           <div className="grid grid-cols-2 gap-3">
             <div className={`flex items-center gap-2 text-sm ${capabilities.canViewScripts ? 'text-foreground' : 'text-muted-foreground'}`}>
               <CheckCircle2 className={`w-4 h-4 ${capabilities.canViewScripts ? 'text-primary' : 'text-muted-foreground/40'}`} />
-              <span>AI Script Generation</span>
+              <span>View Scripts</span>
             </div>
-            <div className={`flex items-center gap-2 text-sm ${capabilities.canEditScripts ? 'text-foreground' : 'text-muted-foreground'}`}>
-              <CheckCircle2 className={`w-4 h-4 ${capabilities.canEditScripts ? 'text-primary' : 'text-muted-foreground/40'}`} />
-              <span>Edit Scripts</span>
+            <div className={`flex items-center gap-2 text-sm ${capabilities.canGenerateScripts ? 'text-foreground' : 'text-muted-foreground'}`}>
+              <CheckCircle2 className={`w-4 h-4 ${capabilities.canGenerateScripts ? 'text-primary' : 'text-muted-foreground/40'}`} />
+              <span>AI Script Generation</span>
             </div>
             <div className={`flex items-center gap-2 text-sm ${capabilities.canMakeCalls ? 'text-foreground' : 'text-muted-foreground'}`}>
               <CheckCircle2 className={`w-4 h-4 ${capabilities.canMakeCalls ? 'text-primary' : 'text-muted-foreground/40'}`} />
-              <span>Outbound AI Calls</span>
+              <span>AI Outbound Calls</span>
             </div>
             <div className={`flex items-center gap-2 text-sm ${capabilities.canAutoCall ? 'text-foreground' : 'text-muted-foreground'}`}>
               <CheckCircle2 className={`w-4 h-4 ${capabilities.canAutoCall ? 'text-amber-500' : 'text-muted-foreground/40'}`} />
@@ -218,29 +258,51 @@ export default function AICallingCard({
             </div>
           </div>
 
-          {/* Phone Status */}
-          {(tier === 'pro' || tier === 'autopilot') && (
+          {/* Phone Status - Only for users with addon */}
+          {addon.status === 'active' && (
             <div className="p-3 rounded-lg bg-muted/50 border border-border">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Mic className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Phone Number</span>
+                  <span className="text-sm text-muted-foreground">AI Phone Number</span>
                 </div>
                 {phoneSetup.hasPhone ? (
                   <span className="font-mono text-sm text-foreground">{phoneSetup.phoneNumber}</span>
+                ) : phoneSetup.isProvisioning ? (
+                  <span className="text-sm text-amber-500 flex items-center gap-1">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Setting up...
+                  </span>
                 ) : (
-                  <span className="text-sm text-muted-foreground">Not configured</span>
+                  <span className="text-sm text-muted-foreground">Pending configuration</span>
                 )}
               </div>
             </div>
           )}
 
-          {/* Upgrade Message */}
-          {needsUpgrade && upgradeMessage && (
+          {/* Addon Message */}
+          {needsAddon && (
+            <div className="p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+              <div className="flex items-start gap-2">
+                <Sparkles className="w-4 h-4 text-amber-500 mt-0.5" />
+                <div className="text-sm">
+                  <p className="text-muted-foreground">{addonMessage}</p>
+                  {capabilities.addonIncluded && (
+                    <p className="text-amber-600 font-medium mt-1">Included with your plan!</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Upgrade Message for Free tier */}
+          {needsUpgrade && (
             <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
               <div className="flex items-start gap-2">
-                <Sparkles className="w-4 h-4 text-primary mt-0.5" />
-                <p className="text-sm text-muted-foreground">{upgradeMessage}</p>
+                <ArrowUpRight className="w-4 h-4 text-primary mt-0.5" />
+                <p className="text-sm text-muted-foreground">
+                  Upgrade to Basic or Pro to access AI Calling features
+                </p>
               </div>
             </div>
           )}

@@ -2,29 +2,39 @@
  * AI Calling Hook
  * Manages AI calling state, phone number setup, and tier-based access
  * 
+ * PRICING STRUCTURE (2026):
+ * - Free: Script preview only (can see what AI would say)
+ * - Basic ($49/mo): AI generates scripts, you dial manually (+$8/mo for AI phone)
+ * - Pro ($99/mo): AI calls your leads, you supervise (+$8/mo for AI phone)
+ * - Autopilot ($249/mo): Fully autonomous calling, AI phone INCLUDED
+ * 
  * V1 RULES:
  * - One phone number per customer
- * - Free: Script preview only
- * - Basic: AI generates scripts, no calling
- * - Pro: AI calls, customer supervises, 1 phone required
- * - Autopilot: Fully autonomous calling, phone included
+ * - BamLead provisions phone numbers via calling.io API
+ * - $8/month add-on for Free/Basic/Pro tiers
+ * - Autopilot includes phone number in subscription
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { usePlanFeatures, PlanTier } from '@/hooks/usePlanFeatures';
 import { getTelnyxConfig, saveTelnyxConfig, type TelnyxConfig } from '@/lib/api/telnyx';
 
-export type AICallingStatus = 'disabled' | 'phone_needed' | 'ready' | 'calling';
-export type PhoneNumberType = 'own' | 'bamlead';
+export type AICallingStatus = 'disabled' | 'addon_needed' | 'phone_provisioning' | 'phone_needed' | 'ready' | 'calling';
+export type PhoneNumberType = 'bamlead'; // Only BamLead-provisioned numbers in V1
+export type AICallingAddonStatus = 'not_purchased' | 'pending' | 'active';
+
+export const AI_CALLING_ADDON_PRICE = 8; // $8/month
 
 export interface AICallingCapabilities {
   canViewScripts: boolean;
   canEditScripts: boolean;
+  canGenerateScripts: boolean;
   canMakeCalls: boolean;
   canAutoCall: boolean;
-  requiresPhone: boolean;
+  requiresAddon: boolean;
+  addonIncluded: boolean;
   phoneIncluded: boolean;
-  callLimitType: 'none' | 'limited' | 'higher';
+  callLimitType: 'none' | 'manual_dial' | 'supervised' | 'autonomous';
   scriptGeneration: 'preview' | 'basic' | 'full' | 'advanced';
 }
 
@@ -33,52 +43,68 @@ export interface PhoneSetup {
   phoneNumber: string | null;
   phoneType: PhoneNumberType | null;
   isVerified: boolean;
+  isProvisioning: boolean;
+}
+
+export interface AICallingAddon {
+  status: AICallingAddonStatus;
+  purchasedAt: string | null;
+  phoneNumber: string | null;
 }
 
 const TIER_CAPABILITIES: Record<PlanTier, AICallingCapabilities> = {
   free: {
     canViewScripts: true,
     canEditScripts: false,
+    canGenerateScripts: false,
     canMakeCalls: false,
     canAutoCall: false,
-    requiresPhone: false,
+    requiresAddon: true,
+    addonIncluded: false,
     phoneIncluded: false,
     callLimitType: 'none',
     scriptGeneration: 'preview',
   },
   basic: {
     canViewScripts: true,
-    canEditScripts: false,
-    canMakeCalls: false,
+    canEditScripts: true, // Can edit after add-on purchase
+    canGenerateScripts: true, // AI generates, you dial
+    canMakeCalls: false, // Manual dial only
     canAutoCall: false,
-    requiresPhone: false,
+    requiresAddon: true, // Needs $8/mo add-on
+    addonIncluded: false,
     phoneIncluded: false,
-    callLimitType: 'none',
+    callLimitType: 'manual_dial',
     scriptGeneration: 'basic',
   },
   pro: {
     canViewScripts: true,
     canEditScripts: true,
-    canMakeCalls: true,
+    canGenerateScripts: true,
+    canMakeCalls: true, // AI makes calls, you supervise
     canAutoCall: false,
-    requiresPhone: true,
+    requiresAddon: true, // Needs $8/mo add-on
+    addonIncluded: false,
     phoneIncluded: false,
-    callLimitType: 'limited',
+    callLimitType: 'supervised',
     scriptGeneration: 'full',
   },
   autopilot: {
     canViewScripts: true,
     canEditScripts: true,
+    canGenerateScripts: true,
     canMakeCalls: true,
-    canAutoCall: true,
-    requiresPhone: true,
-    phoneIncluded: true,
-    callLimitType: 'higher',
+    canAutoCall: true, // Fully autonomous
+    requiresAddon: false, // Included!
+    addonIncluded: true,
+    phoneIncluded: true, // Phone number included
+    callLimitType: 'autonomous',
     scriptGeneration: 'advanced',
   },
 };
 
 const STORAGE_KEY = 'bamlead_phone_setup';
+const ADDON_STORAGE_KEY = 'bamlead_ai_calling_addon';
 
 export function useAICalling() {
   const { tier, isLoading: planLoading, isPro, isAutopilot } = usePlanFeatures();
@@ -89,25 +115,52 @@ export function useAICalling() {
     phoneNumber: null,
     phoneType: null,
     isVerified: false,
+    isProvisioning: false,
+  });
+  const [addon, setAddon] = useState<AICallingAddon>({
+    status: 'not_purchased',
+    purchasedAt: null,
+    phoneNumber: null,
   });
   
   // Get capabilities for current tier
   const capabilities = useMemo(() => TIER_CAPABILITIES[tier], [tier]);
   
+  // Check if addon is needed and not purchased
+  const needsAddonPurchase = capabilities.requiresAddon && addon.status === 'not_purchased';
+  
   // Determine current status
   const status = useMemo<AICallingStatus>(() => {
-    if (!capabilities.canMakeCalls) return 'disabled';
-    if (capabilities.requiresPhone && !phoneSetup.hasPhone) return 'phone_needed';
-    if (config?.enabled && phoneSetup.isVerified) return 'ready';
-    return 'disabled';
-  }, [capabilities, phoneSetup, config]);
+    // Free tier: preview only
+    if (tier === 'free') return 'disabled';
+    
+    // Autopilot: Check if phone is ready (auto-provisioned)
+    if (capabilities.addonIncluded) {
+      if (phoneSetup.isProvisioning) return 'phone_provisioning';
+      if (!phoneSetup.hasPhone) return 'phone_needed';
+      if (phoneSetup.isVerified) return 'ready';
+      return 'phone_needed';
+    }
+    
+    // Basic/Pro: Check addon first
+    if (capabilities.requiresAddon && addon.status !== 'active') {
+      return 'addon_needed';
+    }
+    
+    // Addon active but no phone yet
+    if (phoneSetup.isProvisioning) return 'phone_provisioning';
+    if (!phoneSetup.hasPhone) return 'phone_needed';
+    if (phoneSetup.isVerified) return 'ready';
+    
+    return 'phone_needed';
+  }, [capabilities, phoneSetup, addon, tier]);
   
   // Load config on mount
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        // Load Telnyx config
+        // Load Telnyx/calling.io config
         const result = await getTelnyxConfig();
         if (result.success && result.config) {
           setConfig(result.config);
@@ -117,22 +170,27 @@ export function useAICalling() {
             setPhoneSetup({
               hasPhone: true,
               phoneNumber: result.config.phone_number,
-              phoneType: 'own', // We'll enhance this later
+              phoneType: 'bamlead',
               isVerified: result.config.enabled,
+              isProvisioning: false,
             });
           }
         }
         
-        // Also check localStorage for cached phone type
+        // Load addon status from localStorage
         try {
-          const cached = localStorage.getItem(STORAGE_KEY);
-          if (cached) {
-            const parsed = JSON.parse(cached);
-            if (parsed.phoneType) {
-              setPhoneSetup(prev => ({ ...prev, phoneType: parsed.phoneType }));
-            }
+          const cachedAddon = localStorage.getItem(ADDON_STORAGE_KEY);
+          if (cachedAddon) {
+            const parsed = JSON.parse(cachedAddon);
+            setAddon(parsed);
           }
         } catch {}
+        
+        // For Autopilot, check if phone should be auto-provisioned
+        if (tier === 'autopilot' && !result?.config?.phone_number) {
+          // Mark as provisioning - BamLead will set this up
+          setPhoneSetup(prev => ({ ...prev, isProvisioning: true }));
+        }
       } catch (error) {
         console.error('Failed to load AI calling config:', error);
       } finally {
@@ -143,15 +201,77 @@ export function useAICalling() {
     if (!planLoading) {
       loadData();
     }
-  }, [planLoading]);
+  }, [planLoading, tier]);
   
-  // Save phone setup
+  // Purchase AI Calling addon ($8/mo)
+  const purchaseAddon = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
+    // In production, this would redirect to Stripe checkout for the $8/mo addon
+    // For now, we'll simulate the purchase flow
+    try {
+      const newAddon: AICallingAddon = {
+        status: 'pending',
+        purchasedAt: new Date().toISOString(),
+        phoneNumber: null,
+      };
+      setAddon(newAddon);
+      localStorage.setItem(ADDON_STORAGE_KEY, JSON.stringify(newAddon));
+      
+      // Simulate successful purchase (in production, this comes from webhook)
+      setTimeout(() => {
+        const activeAddon: AICallingAddon = {
+          status: 'active',
+          purchasedAt: new Date().toISOString(),
+          phoneNumber: null,
+        };
+        setAddon(activeAddon);
+        localStorage.setItem(ADDON_STORAGE_KEY, JSON.stringify(activeAddon));
+        
+        // Start phone provisioning
+        setPhoneSetup(prev => ({ ...prev, isProvisioning: true }));
+      }, 1500);
+      
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: 'Failed to purchase addon' };
+    }
+  }, []);
+  
+  // Request phone number provisioning from BamLead
+  const requestPhoneProvisioning = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
+    try {
+      setPhoneSetup(prev => ({ ...prev, isProvisioning: true }));
+      
+      // In production, this would call the backend to provision via calling.io API
+      // For now, simulate the provisioning process
+      setTimeout(() => {
+        const provisionedNumber = `+1${Math.floor(Math.random() * 9000000000 + 1000000000)}`;
+        
+        const newPhoneSetup: PhoneSetup = {
+          hasPhone: true,
+          phoneNumber: provisionedNumber,
+          phoneType: 'bamlead',
+          isVerified: true,
+          isProvisioning: false,
+        };
+        setPhoneSetup(newPhoneSetup);
+        
+        // Update addon with phone number
+        setAddon(prev => ({ ...prev, phoneNumber: provisionedNumber }));
+        localStorage.setItem(ADDON_STORAGE_KEY, JSON.stringify({ ...addon, phoneNumber: provisionedNumber }));
+      }, 3000);
+      
+      return { success: true };
+    } catch (error) {
+      setPhoneSetup(prev => ({ ...prev, isProvisioning: false }));
+      return { success: false, error: 'Failed to provision phone number' };
+    }
+  }, [addon]);
+  
+  // Save phone setup (for manual configuration by BamLead team)
   const savePhoneSetup = useCallback(async (
-    phoneNumber: string,
-    phoneType: PhoneNumberType
+    phoneNumber: string
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      // Update config with new phone number
       const newConfig: TelnyxConfig = {
         ...(config || {
           api_key: '',
@@ -170,14 +290,12 @@ export function useAICalling() {
         const newPhoneSetup: PhoneSetup = {
           hasPhone: true,
           phoneNumber,
-          phoneType,
-          isVerified: false, // Needs verification
+          phoneType: 'bamlead',
+          isVerified: false,
+          isProvisioning: false,
         };
         setPhoneSetup(newPhoneSetup);
         setConfig(newConfig);
-        
-        // Cache phone type
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ phoneType }));
         
         return { success: true };
       }
@@ -188,17 +306,15 @@ export function useAICalling() {
     }
   }, [config]);
   
-  // Verify phone number (API handshake)
+  // Verify phone number (after BamLead configures it)
   const verifyPhone = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
     if (!phoneSetup.phoneNumber) {
       return { success: false, error: 'No phone number to verify' };
     }
     
-    // In a real implementation, this would call the Telnyx API to verify
-    // For now, we'll simulate verification success
+    // In production, this verifies the calling.io connection
     setPhoneSetup(prev => ({ ...prev, isVerified: true }));
     
-    // Enable calling in config
     if (config) {
       const newConfig = { ...config, enabled: true };
       await saveTelnyxConfig(newConfig);
@@ -215,44 +331,70 @@ export function useAICalling() {
       phoneNumber: null,
       phoneType: null,
       isVerified: false,
+      isProvisioning: false,
     });
     localStorage.removeItem(STORAGE_KEY);
   }, []);
   
-  // Get upgrade message based on tier
-  const upgradeMessage = useMemo(() => {
+  // Get addon message based on tier
+  const addonMessage = useMemo(() => {
+    if (capabilities.addonIncluded) {
+      return 'AI Calling phone number is included with your Autopilot plan!';
+    }
+    
     switch (tier) {
       case 'free':
-        return 'Upgrade to Basic to generate AI call scripts, or Pro to enable AI calling.';
+        return `Upgrade to Basic or Pro, then add AI Calling for $${AI_CALLING_ADDON_PRICE}/mo`;
       case 'basic':
-        return 'Upgrade to Pro to enable AI outbound calling with your leads.';
+        return `Add AI Calling for $${AI_CALLING_ADDON_PRICE}/mo to generate call scripts and get your AI phone number`;
       case 'pro':
-        return 'Upgrade to Autopilot for fully autonomous calling with higher limits.';
+        return `Add AI Calling for $${AI_CALLING_ADDON_PRICE}/mo to enable supervised AI calls`;
       default:
         return '';
     }
-  }, [tier]);
+  }, [tier, capabilities]);
   
   // Get status message
   const statusMessage = useMemo(() => {
     switch (status) {
       case 'disabled':
-        if (tier === 'free') return 'AI script preview only';
-        if (tier === 'basic') return 'AI generates scripts. You make the call.';
-        return 'AI calling is disabled';
+        return 'AI script preview only';
+      case 'addon_needed':
+        return `Add AI Calling for $${AI_CALLING_ADDON_PRICE}/mo`;
+      case 'phone_provisioning':
+        return 'Setting up your AI phone number...';
       case 'phone_needed':
-        return 'Add a phone number to enable AI calling';
+        return 'BamLead is configuring your AI phone number';
       case 'ready':
         return 'AI calling is ready';
       case 'calling':
         return 'AI call in progress';
+      default:
+        return '';
     }
-  }, [status, tier]);
+  }, [status]);
+  
+  // Get tier-specific calling description
+  const callingModeDescription = useMemo(() => {
+    switch (tier) {
+      case 'free':
+        return 'Preview what AI would say (read-only)';
+      case 'basic':
+        return 'AI generates scripts, you dial manually';
+      case 'pro':
+        return 'AI makes calls, you supervise the conversation';
+      case 'autopilot':
+        return 'Fully autonomous AI calling with auto-booking';
+      default:
+        return '';
+    }
+  }, [tier]);
   
   return {
     // Status
     status,
     statusMessage,
+    callingModeDescription,
     isLoading: isLoading || planLoading,
     
     // Capabilities
@@ -261,8 +403,16 @@ export function useAICalling() {
     isPro,
     isAutopilot,
     
+    // Addon
+    addon,
+    addonMessage,
+    needsAddonPurchase,
+    purchaseAddon,
+    addonPrice: AI_CALLING_ADDON_PRICE,
+    
     // Phone setup
     phoneSetup,
+    requestPhoneProvisioning,
     savePhoneSetup,
     verifyPhone,
     clearPhoneSetup,
@@ -271,9 +421,9 @@ export function useAICalling() {
     config,
     
     // Helpers
-    upgradeMessage,
-    needsUpgrade: tier === 'free' || tier === 'basic',
-    needsPhone: capabilities.requiresPhone && !phoneSetup.hasPhone,
+    needsUpgrade: tier === 'free',
+    needsAddon: needsAddonPurchase,
+    needsPhone: addon.status === 'active' && !phoneSetup.hasPhone,
     isReady: status === 'ready',
   };
 }
