@@ -2,10 +2,16 @@
  * AI Script Preview Panel
  * Displays AI-generated call scripts based on search context and strategy
  * 
+ * INTEGRATION:
+ * - Uses aiCallingScriptGenerator for intelligent script generation
+ * - Pulls context from search type, AI strategy, email sequences
+ * - All sections are editable by customers with paid plans
+ * 
  * RULES:
- * - Free/Basic: Read-only preview
- * - Pro+: Editable
- * - Script auto-generates from search filters + AI strategy
+ * - Free: Read-only preview
+ * - Basic + Add-on: Full script generation, editable
+ * - Pro + Add-on: Full editing + context integration
+ * - Autopilot: Advanced generation with auto-context
  */
 
 import { useState, useEffect, useMemo } from 'react';
@@ -13,8 +19,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { 
   FileText, 
@@ -29,10 +37,25 @@ import {
   Clock,
   CheckCircle2,
   Loader2,
-  Lightbulb
+  Lightbulb,
+  Brain,
+  Mail,
+  Plus,
+  Trash2,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
-import { useAICalling } from '@/hooks/useAICalling';
+import { useAICalling, AI_CALLING_ADDON_PRICE } from '@/hooks/useAICalling';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
+import { 
+  generateCallScript, 
+  buildCallScriptContext, 
+  saveEditedScript, 
+  getSavedScript,
+  GeneratedCallScript,
+  CallScriptContext,
+  ScriptTone
+} from '@/lib/aiCallingScriptGenerator';
 
 interface AIScriptPreviewPanelProps {
   searchQuery?: string;
@@ -40,20 +63,11 @@ interface AIScriptPreviewPanelProps {
   selectedStrategy?: string;
   businessType?: string;
   leadName?: string;
-  onScriptChange?: (script: CallScript) => void;
+  businessName?: string;
+  onScriptChange?: (script: GeneratedCallScript) => void;
 }
 
-export interface CallScript {
-  greeting: string;
-  introduction: string;
-  valueProposition: string;
-  qualifyingQuestions: string[];
-  objectionHandlers: { objection: string; response: string }[];
-  closingStatement: string;
-  fallbackMessage: string;
-}
-
-const SCRIPT_TONES = [
+const SCRIPT_TONES: { value: ScriptTone; label: string; description: string }[] = [
   { value: 'professional', label: 'Professional', description: 'Formal and business-focused' },
   { value: 'friendly', label: 'Friendly', description: 'Warm and approachable' },
   { value: 'direct', label: 'Direct', description: 'Clear and to-the-point' },
@@ -66,151 +80,83 @@ export default function AIScriptPreviewPanel({
   selectedStrategy = '',
   businessType = '',
   leadName = '',
+  businessName = '',
   onScriptChange
 }: AIScriptPreviewPanelProps) {
-  const { capabilities } = useAICalling();
-  const { tier } = usePlanFeatures();
+  const { capabilities, addon, needsAddon } = useAICalling();
+  const { tier, isAutopilot } = usePlanFeatures();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [selectedTone, setSelectedTone] = useState('professional');
-  const [script, setScript] = useState<CallScript>({
-    greeting: '',
-    introduction: '',
-    valueProposition: '',
-    qualifyingQuestions: [],
-    objectionHandlers: [],
-    closingStatement: '',
-    fallbackMessage: ''
-  });
+  const [selectedTone, setSelectedTone] = useState<ScriptTone>('professional');
+  const [showContext, setShowContext] = useState(false);
+  const [script, setScript] = useState<GeneratedCallScript | null>(null);
+  const [context, setContext] = useState<CallScriptContext | null>(null);
+
+  // Determine if user can edit
+  const canEdit = capabilities.canEditScripts && (addon.status === 'active' || capabilities.addonIncluded);
+  const canGenerate = capabilities.canGenerateScripts && (addon.status === 'active' || capabilities.addonIncluded);
+  const isPreviewOnly = !canEdit;
+
+  // Build context from session data
+  useEffect(() => {
+    const ctx = buildCallScriptContext();
+    // Merge with props
+    ctx.searchQuery = searchQuery || ctx.searchQuery;
+    ctx.searchLocation = searchLocation || ctx.searchLocation;
+    ctx.leadName = leadName || ctx.leadName;
+    ctx.businessName = businessName || ctx.businessName;
+    ctx.businessType = businessType || ctx.businessType;
+    setContext(ctx);
+    
+    // Load saved script if exists
+    const saved = getSavedScript();
+    if (saved) {
+      setScript(saved);
+    }
+  }, [searchQuery, searchLocation, leadName, businessName, businessType]);
 
   // Generate script based on context
-  const generateScript = async () => {
+  const handleGenerateScript = async () => {
+    if (!canGenerate && tier !== 'free') {
+      toast.error('AI Calling add-on required for script generation');
+      return;
+    }
+
     setIsGenerating(true);
     
-    // Simulate AI generation (in production, this would call the backend)
+    // Build full context
+    const fullContext: CallScriptContext = {
+      ...context,
+      searchQuery: searchQuery || context?.searchQuery,
+      searchLocation: searchLocation || context?.searchLocation,
+      leadName: leadName || context?.leadName,
+      businessName: businessName || context?.businessName,
+      businessType: businessType || context?.businessType,
+      searchType: context?.searchType || null,
+    };
+
+    // Simulate AI generation delay
     setTimeout(() => {
-      const generatedScript = createContextualScript();
+      const generatedScript = generateCallScript(fullContext, selectedTone);
       setScript(generatedScript);
       onScriptChange?.(generatedScript);
       setIsGenerating(false);
-      toast.success('Script generated successfully!');
+      toast.success('Script generated from your search context!');
     }, 1500);
   };
 
-  // Create script based on search context
-  const createContextualScript = (): CallScript => {
-    const business = businessType || searchQuery || 'business';
-    const location = searchLocation || 'your area';
-    const strategy = selectedStrategy || 'general outreach';
-    const lead = leadName || 'there';
-
-    const toneStyles: Record<string, { greeting: string; style: string }> = {
-      professional: {
-        greeting: `Good ${getTimeOfDay()}, this is [Your Name] calling from [Your Company].`,
-        style: 'professional'
-      },
-      friendly: {
-        greeting: `Hi ${lead}! How are you doing today? This is [Your Name] from [Your Company].`,
-        style: 'friendly'
-      },
-      direct: {
-        greeting: `Hello, I'm [Your Name] from [Your Company]. I'll be brief.`,
-        style: 'direct'
-      },
-      conversational: {
-        greeting: `Hey ${lead}, this is [Your Name] over at [Your Company]. Got a quick minute?`,
-        style: 'conversational'
-      }
-    };
-
-    const tone = toneStyles[selectedTone] || toneStyles.professional;
-
-    return {
-      greeting: tone.greeting,
-      introduction: generateIntroduction(business, strategy, tone.style),
-      valueProposition: generateValueProp(business, location, tone.style),
-      qualifyingQuestions: generateQuestions(business, tone.style),
-      objectionHandlers: generateObjectionHandlers(tone.style),
-      closingStatement: generateClosing(tone.style),
-      fallbackMessage: `I understand you're busy. Could I send you some information via email and follow up later this week?`
-    };
-  };
-
-  const getTimeOfDay = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'morning';
-    if (hour < 17) return 'afternoon';
-    return 'evening';
-  };
-
-  const generateIntroduction = (business: string, strategy: string, style: string): string => {
-    const intros: Record<string, string> = {
-      professional: `I'm reaching out to ${business} owners in your area who are looking to grow their customer base.`,
-      friendly: `I've been chatting with a few ${business} owners lately and thought you might find this interesting!`,
-      direct: `We help ${business} businesses get more customers. I have 30 seconds to explain how.`,
-      conversational: `So I was doing some research on ${business} businesses and came across yours...`
-    };
-    return intros[style] || intros.professional;
-  };
-
-  const generateValueProp = (business: string, location: string, style: string): string => {
-    return `We've helped over 50 ${business} businesses in ${location} increase their leads by an average of 40% in the first 90 days. Our AI-powered system finds and qualifies leads automatically so you can focus on what you do best.`;
-  };
-
-  const generateQuestions = (business: string, style: string): string[] => {
-    return [
-      `What's your biggest challenge right now when it comes to finding new customers?`,
-      `On a scale of 1-10, how satisfied are you with your current lead generation efforts?`,
-      `If you could wave a magic wand, what would your ideal customer pipeline look like?`,
-      `Who handles marketing and lead follow-up for your ${business}?`
-    ];
-  };
-
-  const generateObjectionHandlers = (style: string): { objection: string; response: string }[] => {
-    return [
-      {
-        objection: "I'm not interested",
-        response: "I completely understand. Before I let you go, may I ask - is it the timing, or have you already solved this problem another way?"
-      },
-      {
-        objection: "We're already working with someone",
-        response: "That's great to hear! Out of curiosity, what do you like most about what they're doing? I'd love to know what's working in your market."
-      },
-      {
-        objection: "Send me some information",
-        response: "Absolutely! To make sure I send you the most relevant case studies, what's your biggest priority right now - more leads, better quality leads, or saving time?"
-      },
-      {
-        objection: "This isn't a good time",
-        response: "No problem at all. When would be a better time for a 5-minute call this week? I promise to be brief and bring real value."
-      }
-    ];
-  };
-
-  const generateClosing = (style: string): string => {
-    const closings: Record<string, string> = {
-      professional: `Based on what you've shared, I'd love to show you exactly how we can help. Would you have 15 minutes this week for a quick demo?`,
-      friendly: `This sounds like it could be a really good fit! Want to grab a virtual coffee this week and I can show you how it all works?`,
-      direct: `You're clearly a good fit. Let's book 15 minutes. When works for you?`,
-      conversational: `I think you'd really dig what we've built. How about we hop on a quick call later this week?`
-    };
-    return closings[style] || closings.professional;
-  };
-
-  // Auto-generate on mount if we have context
-  useEffect(() => {
-    if (searchQuery && !script.greeting) {
-      generateScript();
-    }
-  }, [searchQuery]);
-
   const handleSave = () => {
-    onScriptChange?.(script);
-    setIsEditing(false);
-    toast.success('Script saved!');
+    if (script) {
+      saveEditedScript(script);
+      onScriptChange?.(script);
+      setIsEditing(false);
+      toast.success('Script saved!');
+    }
   };
 
   const handleCopy = () => {
+    if (!script) return;
+    
     const fullScript = `
 GREETING:
 ${script.greeting}
@@ -238,8 +184,54 @@ ${script.fallbackMessage}
     toast.success('Script copied to clipboard!');
   };
 
-  const canEdit = capabilities.canEditScripts;
-  const isPreviewOnly = !canEdit;
+  // Add new question
+  const addQuestion = () => {
+    if (script) {
+      setScript({
+        ...script,
+        qualifyingQuestions: [...script.qualifyingQuestions, 'New question...']
+      });
+    }
+  };
+
+  // Remove question
+  const removeQuestion = (index: number) => {
+    if (script) {
+      setScript({
+        ...script,
+        qualifyingQuestions: script.qualifyingQuestions.filter((_, i) => i !== index)
+      });
+    }
+  };
+
+  // Update question
+  const updateQuestion = (index: number, value: string) => {
+    if (script) {
+      const updated = [...script.qualifyingQuestions];
+      updated[index] = value;
+      setScript({ ...script, qualifyingQuestions: updated });
+    }
+  };
+
+  // Add new objection handler
+  const addObjectionHandler = () => {
+    if (script) {
+      setScript({
+        ...script,
+        objectionHandlers: [...script.objectionHandlers, { objection: 'New objection', response: 'Your response...' }]
+      });
+    }
+  };
+
+  // Remove objection handler
+  const removeObjectionHandler = (index: number) => {
+    if (script) {
+      setScript({
+        ...script,
+        objectionHandlers: script.objectionHandlers.filter((_, i) => i !== index)
+      });
+    }
+  };
 
   return (
     <Card className="border-border">
@@ -267,8 +259,8 @@ ${script.fallbackMessage}
               </CardTitle>
               <CardDescription>
                 {isPreviewOnly 
-                  ? 'Upgrade to Pro to edit and customize scripts'
-                  : 'AI-generated script based on your search and strategy'
+                  ? `Add AI Calling ($${AI_CALLING_ADDON_PRICE}/mo) to edit and customize scripts`
+                  : 'AI-generated script based on your search, strategy, and email sequences'
                 }
               </CardDescription>
             </div>
@@ -278,7 +270,7 @@ ${script.fallbackMessage}
             <Button 
               variant="outline" 
               size="sm" 
-              onClick={generateScript}
+              onClick={handleGenerateScript}
               disabled={isGenerating}
               className="gap-2"
             >
@@ -287,12 +279,14 @@ ${script.fallbackMessage}
               ) : (
                 <RefreshCw className="w-4 h-4" />
               )}
-              Regenerate
+              {script ? 'Regenerate' : 'Generate'}
             </Button>
-            <Button variant="outline" size="sm" onClick={handleCopy} className="gap-2">
-              <Copy className="w-4 h-4" />
-              Copy
-            </Button>
+            {script && (
+              <Button variant="outline" size="sm" onClick={handleCopy} className="gap-2">
+                <Copy className="w-4 h-4" />
+                Copy
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -305,7 +299,7 @@ ${script.fallbackMessage}
               key={tone.value}
               onClick={() => {
                 setSelectedTone(tone.value);
-                if (script.greeting) generateScript();
+                if (script) handleGenerateScript();
               }}
               className={`px-3 py-1.5 rounded-full text-sm transition-all ${
                 selectedTone === tone.value
@@ -318,26 +312,71 @@ ${script.fallbackMessage}
           ))}
         </div>
 
-        {/* Context Info */}
-        {searchQuery && (
-          <div className="flex gap-4 text-sm text-muted-foreground">
-            {searchQuery && (
-              <div className="flex items-center gap-1.5">
-                <Target className="w-4 h-4" />
-                <span>{searchQuery}</span>
+        {/* Context Summary */}
+        {context && (
+          <div className="border rounded-lg overflow-hidden">
+            <button
+              onClick={() => setShowContext(!showContext)}
+              className="w-full flex items-center justify-between p-3 bg-muted/30 hover:bg-muted/50 transition-colors"
+            >
+              <div className="flex items-center gap-2 text-sm">
+                <Brain className="w-4 h-4 text-primary" />
+                <span className="font-medium">Script Generation Context</span>
+                {context.breadcrumbs && context.breadcrumbs.length > 0 && (
+                  <Badge variant="secondary" className="text-xs">
+                    {context.breadcrumbs.length} sources
+                  </Badge>
+                )}
               </div>
-            )}
-            {searchLocation && (
-              <div className="flex items-center gap-1.5">
-                <Clock className="w-4 h-4" />
-                <span>{searchLocation}</span>
+              {showContext ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+            
+            {showContext && (
+              <div className="p-3 space-y-3 text-sm">
+                {context.searchType && (
+                  <div className="flex items-center gap-2">
+                    <Target className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Search Type:</span>
+                    <span className="text-foreground font-medium">
+                      {context.searchType === 'gmb' ? 'Super AI Business Search' : 'Agency Lead Finder'}
+                    </span>
+                  </div>
+                )}
+                {context.searchQuery && (
+                  <div className="flex items-center gap-2">
+                    <Target className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Query:</span>
+                    <span className="text-foreground">{context.searchQuery}</span>
+                  </div>
+                )}
+                {context.selectedStrategy && (
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Strategy:</span>
+                    <span className="text-foreground">{context.selectedStrategy.name}</span>
+                  </div>
+                )}
+                {context.emailSequenceName && (
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Email Sequence:</span>
+                    <span className="text-foreground">{context.emailSequenceName}</span>
+                  </div>
+                )}
+                {context.painPoints && context.painPoints.length > 0 && (
+                  <div className="flex items-start gap-2">
+                    <Lightbulb className="w-4 h-4 text-amber-500 mt-0.5" />
+                    <span className="text-muted-foreground">Pain Points:</span>
+                    <span className="text-foreground">{context.painPoints.slice(0, 2).join(', ')}</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
         )}
 
         {/* Script Content */}
-        {script.greeting ? (
+        {script ? (
           <Tabs defaultValue="script" className="space-y-4">
             <TabsList>
               <TabsTrigger value="script">Full Script</TabsTrigger>
@@ -346,80 +385,122 @@ ${script.fallbackMessage}
             </TabsList>
 
             <TabsContent value="script" className="space-y-4">
-              {/* Greeting */}
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Greeting</Label>
-                {canEdit && isEditing ? (
-                  <Textarea
-                    value={script.greeting}
-                    onChange={(e) => setScript({ ...script, greeting: e.target.value })}
-                    className="min-h-[60px]"
-                  />
-                ) : (
-                  <p className="p-3 rounded-lg bg-muted/50 text-foreground text-sm">{script.greeting}</p>
-                )}
-              </div>
-
-              {/* Introduction */}
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Introduction</Label>
-                {canEdit && isEditing ? (
-                  <Textarea
-                    value={script.introduction}
-                    onChange={(e) => setScript({ ...script, introduction: e.target.value })}
-                    className="min-h-[80px]"
-                  />
-                ) : (
-                  <p className="p-3 rounded-lg bg-muted/50 text-foreground text-sm">{script.introduction}</p>
-                )}
-              </div>
-
-              {/* Value Proposition */}
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Value Proposition</Label>
-                {canEdit && isEditing ? (
-                  <Textarea
-                    value={script.valueProposition}
-                    onChange={(e) => setScript({ ...script, valueProposition: e.target.value })}
-                    className="min-h-[100px]"
-                  />
-                ) : (
-                  <p className="p-3 rounded-lg bg-primary/5 border border-primary/10 text-foreground text-sm">
-                    {script.valueProposition}
-                  </p>
-                )}
-              </div>
-
-              {/* Qualifying Questions */}
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Qualifying Questions</Label>
-                <div className="space-y-2">
-                  {script.qualifyingQuestions.map((q, i) => (
-                    <div key={i} className="flex items-start gap-2 p-2 rounded bg-muted/30">
-                      <span className="text-primary font-medium">{i + 1}.</span>
-                      <span className="text-sm text-foreground">{q}</span>
-                    </div>
-                  ))}
+              <ScrollArea className="max-h-[400px] pr-4">
+                {/* Greeting */}
+                <div className="space-y-2 mb-4">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Greeting</Label>
+                  {canEdit && isEditing ? (
+                    <Textarea
+                      value={script.greeting}
+                      onChange={(e) => setScript({ ...script, greeting: e.target.value })}
+                      className="min-h-[60px]"
+                    />
+                  ) : (
+                    <p className="p-3 rounded-lg bg-muted/50 text-foreground text-sm">{script.greeting}</p>
+                  )}
                 </div>
-              </div>
 
-              {/* Closing */}
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Closing Statement</Label>
-                {canEdit && isEditing ? (
-                  <Textarea
-                    value={script.closingStatement}
-                    onChange={(e) => setScript({ ...script, closingStatement: e.target.value })}
-                    className="min-h-[80px]"
-                  />
-                ) : (
-                  <p className="p-3 rounded-lg bg-muted/50 text-foreground text-sm">{script.closingStatement}</p>
-                )}
-              </div>
+                {/* Introduction */}
+                <div className="space-y-2 mb-4">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Introduction</Label>
+                  {canEdit && isEditing ? (
+                    <Textarea
+                      value={script.introduction}
+                      onChange={(e) => setScript({ ...script, introduction: e.target.value })}
+                      className="min-h-[80px]"
+                    />
+                  ) : (
+                    <p className="p-3 rounded-lg bg-muted/50 text-foreground text-sm">{script.introduction}</p>
+                  )}
+                </div>
+
+                {/* Value Proposition */}
+                <div className="space-y-2 mb-4">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Value Proposition</Label>
+                  {canEdit && isEditing ? (
+                    <Textarea
+                      value={script.valueProposition}
+                      onChange={(e) => setScript({ ...script, valueProposition: e.target.value })}
+                      className="min-h-[100px]"
+                    />
+                  ) : (
+                    <p className="p-3 rounded-lg bg-primary/5 border border-primary/10 text-foreground text-sm">
+                      {script.valueProposition}
+                    </p>
+                  )}
+                </div>
+
+                {/* Qualifying Questions */}
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">Qualifying Questions</Label>
+                    {canEdit && isEditing && (
+                      <Button variant="ghost" size="sm" onClick={addQuestion} className="gap-1 h-7 text-xs">
+                        <Plus className="w-3 h-3" />
+                        Add Question
+                      </Button>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    {script.qualifyingQuestions.map((q, i) => (
+                      <div key={i} className="flex items-start gap-2">
+                        <span className="text-primary font-medium mt-2.5">{i + 1}.</span>
+                        {canEdit && isEditing ? (
+                          <div className="flex-1 flex gap-2">
+                            <Input
+                              value={q}
+                              onChange={(e) => updateQuestion(i, e.target.value)}
+                              className="flex-1"
+                            />
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => removeQuestion(i)}
+                              className="h-9 w-9 text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ) : (
+                          <p className="flex-1 p-2 rounded bg-muted/30 text-sm text-foreground">{q}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Closing */}
+                <div className="space-y-2 mb-4">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Closing Statement</Label>
+                  {canEdit && isEditing ? (
+                    <Textarea
+                      value={script.closingStatement}
+                      onChange={(e) => setScript({ ...script, closingStatement: e.target.value })}
+                      className="min-h-[80px]"
+                    />
+                  ) : (
+                    <p className="p-3 rounded-lg bg-muted/50 text-foreground text-sm">{script.closingStatement}</p>
+                  )}
+                </div>
+
+                {/* Fallback */}
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Fallback Message</Label>
+                  {canEdit && isEditing ? (
+                    <Textarea
+                      value={script.fallbackMessage}
+                      onChange={(e) => setScript({ ...script, fallbackMessage: e.target.value })}
+                      className="min-h-[60px]"
+                    />
+                  ) : (
+                    <p className="p-3 rounded-lg bg-muted/50 text-foreground text-sm">{script.fallbackMessage}</p>
+                  )}
+                </div>
+              </ScrollArea>
 
               {/* Edit/Save Buttons */}
               {canEdit && (
-                <div className="flex justify-end gap-2 pt-2">
+                <div className="flex justify-end gap-2 pt-2 border-t">
                   {isEditing ? (
                     <>
                       <Button variant="outline" size="sm" onClick={() => setIsEditing(false)}>
@@ -441,18 +522,76 @@ ${script.fallbackMessage}
             </TabsContent>
 
             <TabsContent value="objections" className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Handle common objections with AI-suggested responses
+                </p>
+                {canEdit && isEditing && (
+                  <Button variant="outline" size="sm" onClick={addObjectionHandler} className="gap-1">
+                    <Plus className="w-3 h-3" />
+                    Add Handler
+                  </Button>
+                )}
+              </div>
+              
               {script.objectionHandlers.map((handler, i) => (
                 <div key={i} className="p-4 rounded-lg border bg-card">
-                  <div className="flex items-start gap-3 mb-3">
-                    <MessageSquare className="w-4 h-4 text-destructive mt-1" />
-                    <span className="font-medium text-foreground">"{handler.objection}"</span>
-                  </div>
-                  <div className="flex items-start gap-3 ml-7">
-                    <CheckCircle2 className="w-4 h-4 text-primary mt-1" />
-                    <span className="text-sm text-muted-foreground">{handler.response}</span>
-                  </div>
+                  {canEdit && isEditing ? (
+                    <div className="space-y-3">
+                      <div className="flex gap-2">
+                        <Input
+                          value={handler.objection}
+                          onChange={(e) => {
+                            const updated = [...script.objectionHandlers];
+                            updated[i] = { ...handler, objection: e.target.value };
+                            setScript({ ...script, objectionHandlers: updated });
+                          }}
+                          placeholder="Objection..."
+                          className="flex-1"
+                        />
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={() => removeObjectionHandler(i)}
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <Textarea
+                        value={handler.response}
+                        onChange={(e) => {
+                          const updated = [...script.objectionHandlers];
+                          updated[i] = { ...handler, response: e.target.value };
+                          setScript({ ...script, objectionHandlers: updated });
+                        }}
+                        placeholder="Your response..."
+                        className="min-h-[80px]"
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-start gap-3 mb-3">
+                        <MessageSquare className="w-4 h-4 text-destructive mt-1" />
+                        <span className="font-medium text-foreground">"{handler.objection}"</span>
+                      </div>
+                      <div className="flex items-start gap-3 ml-7">
+                        <CheckCircle2 className="w-4 h-4 text-primary mt-1" />
+                        <span className="text-sm text-muted-foreground">{handler.response}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               ))}
+              
+              {canEdit && !isEditing && (
+                <div className="flex justify-end pt-2">
+                  <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} className="gap-2">
+                    <Edit3 className="w-4 h-4" />
+                    Edit Handlers
+                  </Button>
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="tips" className="space-y-4">
@@ -470,6 +609,37 @@ ${script.fallbackMessage}
                   </div>
                 </div>
               </div>
+
+              {/* Script Metadata */}
+              {script && (
+                <div className="p-4 rounded-lg border bg-muted/30">
+                  <h4 className="font-medium text-foreground mb-3">Script Details</h4>
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Generated For:</span>
+                      <p className="text-foreground">{script.generatedFor}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Search Type:</span>
+                      <p className="text-foreground">{script.searchTypeContext}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Strategy:</span>
+                      <p className="text-foreground">{script.strategyUsed}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Tone:</span>
+                      <p className="text-foreground capitalize">{script.toneStyle}</p>
+                    </div>
+                    {script.emailSequenceReference && (
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Email Sequence:</span>
+                        <p className="text-foreground">{script.emailSequenceReference}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         ) : (
@@ -477,15 +647,23 @@ ${script.fallbackMessage}
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
               <FileText className="w-8 h-8 text-muted-foreground" />
             </div>
-            <p className="text-muted-foreground mb-4">No script generated yet</p>
-            <Button onClick={generateScript} disabled={isGenerating} className="gap-2">
+            <p className="text-muted-foreground mb-2">No script generated yet</p>
+            <p className="text-sm text-muted-foreground mb-4">
+              AI will use your search context, strategy, and email sequences to generate a personalized script
+            </p>
+            <Button onClick={handleGenerateScript} disabled={isGenerating || (!canGenerate && tier !== 'free')} className="gap-2">
               {isGenerating ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <Sparkles className="w-4 h-4" />
               )}
-              Generate Script
+              {tier === 'free' ? 'Preview Script' : 'Generate Script'}
             </Button>
+            {!canGenerate && tier !== 'free' && needsAddon && (
+              <p className="text-xs text-amber-500 mt-2">
+                Add AI Calling (${AI_CALLING_ADDON_PRICE}/mo) to generate full scripts
+              </p>
+            )}
           </div>
         )}
       </CardContent>

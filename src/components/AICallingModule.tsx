@@ -93,11 +93,15 @@ export default function AICallingModule({
   const { 
     status, 
     statusMessage, 
+    callingModeDescription,
     capabilities, 
     phoneSetup, 
     isLoading, 
-    needsUpgrade, 
-    upgradeMessage,
+    needsUpgrade,
+    needsAddon,
+    addonMessage,
+    addonPrice,
+    purchaseAddon,
     isReady 
   } = useAICalling();
   const { tier, tierInfo, isAutopilot, isPro } = usePlanFeatures();
@@ -431,22 +435,31 @@ export default function AICallingModule({
                 </div>
               )}
 
-              {/* Upgrade Prompt */}
-              {needsUpgrade && (
+              {/* Upgrade/Addon Prompt */}
+              {(needsUpgrade || needsAddon) && (
                 <div className="p-6 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5">
                   <div className="flex items-start gap-4">
                     <div className="p-3 rounded-xl bg-primary/10">
                       <Zap className="w-6 h-6 text-primary" />
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-semibold text-foreground mb-1">Unlock AI Calling</h4>
-                      <p className="text-sm text-muted-foreground mb-4">{upgradeMessage}</p>
-                      <Link to="/pricing">
-                        <Button className="gap-2">
-                          View Plans
+                      <h4 className="font-semibold text-foreground mb-1">
+                        {needsUpgrade ? 'Unlock AI Calling' : `Add AI Calling for $${addonPrice}/mo`}
+                      </h4>
+                      <p className="text-sm text-muted-foreground mb-4">{addonMessage}</p>
+                      {needsUpgrade ? (
+                        <Link to="/pricing">
+                          <Button className="gap-2">
+                            View Plans
+                            <ChevronRight className="w-4 h-4" />
+                          </Button>
+                        </Link>
+                      ) : (
+                        <Button onClick={purchaseAddon} className="gap-2">
+                          Add AI Calling
                           <ChevronRight className="w-4 h-4" />
                         </Button>
-                      </Link>
+                      )}
                     </div>
                   </div>
                 </div>
