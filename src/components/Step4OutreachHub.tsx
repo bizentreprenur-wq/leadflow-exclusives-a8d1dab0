@@ -603,7 +603,7 @@ export default function Step4OutreachHub({
                       <CheckCircle2 className="w-8 h-8 text-green-500" />
                     </div>
                     <h3 className="font-semibold text-green-600 mb-2">Voice Agent Configured!</h3>
-                    <p className="text-sm text-muted-foreground mb-4">Your ElevenLabs agent is connected and ready to make calls</p>
+                    <p className="text-sm text-muted-foreground mb-4">Your BamLead AI Voice Agent is ready to make calls</p>
                     <Button onClick={onOpenSettings} variant="outline" className="gap-2">
                       <Settings2 className="w-4 h-4" />
                       Manage Settings
@@ -615,7 +615,7 @@ export default function Step4OutreachHub({
                       <Phone className="w-8 h-8 text-amber-500" />
                     </div>
                     <h3 className="font-semibold text-amber-600 mb-2">Voice Agent Not Configured</h3>
-                    <p className="text-sm text-muted-foreground mb-4">Connect your ElevenLabs agent to enable AI-powered calls</p>
+                    <p className="text-sm text-muted-foreground mb-4">Set up your AI Voice Agent to enable AI-powered calls</p>
                     <div className="flex flex-col sm:flex-row gap-2 justify-center">
                       <Button 
                         onClick={() => setShowWizard(true)} 

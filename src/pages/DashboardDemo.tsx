@@ -804,18 +804,13 @@ Best regards,
                     <div className="w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center mx-auto mb-3 text-3xl">
                       1️⃣
                     </div>
-                    <h3 className="font-bold text-lg mb-2">Create ElevenLabs Agent</h3>
+                    <h3 className="font-bold text-lg mb-2">Subscribe to AI Calling</h3>
                     <p className="text-sm text-muted-foreground mb-3">
-                      Go to ElevenLabs.io, create a FREE account, then create a "Conversational AI Agent"
+                      Add the AI Calling add-on ($8/mo) to your BamLead plan, or upgrade to Autopilot for free calling
                     </p>
-                    <a 
-                      href="https://elevenlabs.io" 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline text-sm font-medium"
-                    >
-                      → Go to ElevenLabs
-                    </a>
+                    <Badge className="bg-blue-500/20 text-blue-600 border-blue-500/30">
+                      Included with Autopilot
+                    </Badge>
                   </div>
 
                   {/* Step 2 */}
@@ -881,7 +876,7 @@ Best regards,
                       <Button 
                         size="lg" 
                         className="bg-green-600 hover:bg-green-700 gap-2 opacity-90 group-hover:opacity-100"
-                        onClick={() => toast.info('💡 In the real dashboard, this connects to your ElevenLabs AI agent!')}
+                        onClick={() => toast.info('💡 In the real dashboard, this connects to your BamLead AI Voice Agent!')}
                       >
                         <Phone className="w-5 h-5" />
                         Call Now
@@ -926,7 +921,7 @@ Best regards,
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground mt-4 text-center">
-                  💡 You customize the script in your ElevenLabs agent settings
+                  💡 You customize the AI script directly in your BamLead dashboard
                 </p>
               </CardContent>
             </Card>
@@ -943,8 +938,8 @@ Best regards,
                     <a href="/auth">Sign In to Dashboard</a>
                   </Button>
                   <Button variant="outline" size="lg" className="text-white border-white hover:bg-white/10" asChild>
-                    <a href="https://elevenlabs.io" target="_blank" rel="noopener noreferrer">
-                      Create ElevenLabs Agent
+                    <a href="/pricing">
+                      View Pricing Plans
                     </a>
                   </Button>
                 </div>

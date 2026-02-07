@@ -121,11 +121,11 @@ const VoiceCallingSection = () => {
               <ol className="space-y-3 text-sm">
                 <li className="flex items-start gap-2">
                   <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center shrink-0">1</span>
-                  <span><strong>Connect ElevenLabs</strong> - Get a free account and create your AI agent</span>
+                  <span><strong>Subscribe to AI Calling</strong> - Add the $8/mo add-on to your plan</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center shrink-0">2</span>
-                  <span><strong>Paste Agent ID</strong> - Add it in Settings → Voice Agent</span>
+                  <span><strong>Get Your AI Phone Number</strong> - BamLead provisions your dedicated number</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center shrink-0">3</span>
