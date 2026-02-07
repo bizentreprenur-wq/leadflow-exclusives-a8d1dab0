@@ -85,7 +85,7 @@ export default function Step4OutreachHub({
   
   // Check if Voice Agent is configured and if we should show wizard
   useEffect(() => {
-    const savedAgentId = localStorage.getItem('elevenlabs_agent_id');
+    const savedAgentId = localStorage.getItem('bamlead_voice_agent_id');
     const wizardCompleted = localStorage.getItem('bamlead_voice_wizard_completed');
     const wizardSkipped = localStorage.getItem('bamlead_voice_wizard_skipped');
     
@@ -306,7 +306,7 @@ export default function Step4OutreachHub({
 
   const handleWizardComplete = () => {
     setShowWizard(false);
-    setAgentId(localStorage.getItem('elevenlabs_agent_id'));
+    setAgentId(localStorage.getItem('bamlead_voice_agent_id'));
     toast.success('🎉 You can now make AI calls to your leads!');
   };
 
@@ -402,7 +402,7 @@ export default function Step4OutreachHub({
             </div>
             <div>
               <h3 className="font-bold text-amber-600 dark:text-amber-400">Voice Agent Not Configured</h3>
-              <p className="text-sm text-muted-foreground">Set up your ElevenLabs AI agent to start making calls</p>
+              <p className="text-sm text-muted-foreground">Set up your AI Voice Agent to start making calls</p>
             </div>
           </div>
           <Button 
@@ -428,7 +428,7 @@ export default function Step4OutreachHub({
             </div>
             <div>
               <h3 className="font-bold text-green-600 dark:text-green-400">🎉 AI Voice Agent Ready!</h3>
-              <p className="text-sm text-muted-foreground">Your ElevenLabs agent is configured and ready to make calls</p>
+              <p className="text-sm text-muted-foreground">Your AI Voice Agent is configured and ready to make calls</p>
             </div>
           </div>
         </motion.div>

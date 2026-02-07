@@ -86,7 +86,7 @@ export default function VoiceAgentSetupWizard({ onComplete, onSkip }: VoiceAgent
     }
 
     setIsSaving(true);
-    localStorage.setItem('elevenlabs_agent_id', agentId);
+    localStorage.setItem('bamlead_voice_agent_id', agentId);
     localStorage.setItem('bamlead_voice_wizard_completed', 'true');
     
     setTimeout(() => {
@@ -203,17 +203,17 @@ export default function VoiceAgentSetupWizard({ onComplete, onSkip }: VoiceAgent
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Globe className="w-5 h-5 text-green-500" />
-                      Step 1: Create ElevenLabs Account
+                      Step 1: Get Started with AI Calling
                     </CardTitle>
                     <CardDescription>
-                      ElevenLabs provides the AI voice technology that powers your calls
+                      BamLead uses advanced AI voice technology to power your calls
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 p-6 rounded-xl border border-green-500/20">
                       <h3 className="font-semibold mb-3 flex items-center gap-2">
                         <Sparkles className="w-4 h-4 text-green-500" />
-                        Why ElevenLabs?
+                        Why BamLead AI Calling?
                       </h3>
                       <ul className="space-y-2 text-sm text-muted-foreground">
                         <li className="flex items-start gap-2">
@@ -230,22 +230,18 @@ export default function VoiceAgentSetupWizard({ onComplete, onSkip }: VoiceAgent
                         </li>
                         <li className="flex items-start gap-2">
                           <CheckCircle2 className="w-4 h-4 text-green-500 mt-0.5 shrink-0" />
-                          <span>Your billing - you control costs and usage</span>
+                          <span>Transparent pricing - you control costs and usage</span>
                         </li>
                       </ul>
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-4">
-                      <Button asChild className="flex-1 gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600">
-                        <a href="https://elevenlabs.io/app/sign-up" target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="w-4 h-4" />
-                          Create Free Account
-                        </a>
+                      <Button className="flex-1 gap-2 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600" onClick={nextStep}>
+                        <ArrowRight className="w-4 h-4" />
+                        Get Started
                       </Button>
-                      <Button asChild variant="outline" className="flex-1 gap-2">
-                        <a href="https://elevenlabs.io/app/sign-in" target="_blank" rel="noopener noreferrer">
-                          I Already Have an Account
-                        </a>
+                      <Button variant="outline" className="flex-1 gap-2" onClick={nextStep}>
+                        I Already Have an Agent ID
                       </Button>
                     </div>
                   </CardContent>
@@ -260,7 +256,7 @@ export default function VoiceAgentSetupWizard({ onComplete, onSkip }: VoiceAgent
                       Step 2: Create Conversational AI Agent
                     </CardTitle>
                     <CardDescription>
-                      Create your AI sales agent in the ElevenLabs dashboard
+                      Create your AI sales agent in your dashboard
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-6">
@@ -269,7 +265,7 @@ export default function VoiceAgentSetupWizard({ onComplete, onSkip }: VoiceAgent
                         <Badge className="mt-0.5 bg-blue-500/20 text-blue-600 border-blue-500/30">1</Badge>
                         <div>
                           <p className="font-medium">Go to Conversational AI</p>
-                          <p className="text-sm text-muted-foreground">In ElevenLabs dashboard, click "Conversational AI" in the left sidebar</p>
+                          <p className="text-sm text-muted-foreground">In your dashboard, click "Conversational AI" in the left sidebar</p>
                         </div>
                       </li>
                       <li className="flex items-start gap-3">
@@ -288,11 +284,9 @@ export default function VoiceAgentSetupWizard({ onComplete, onSkip }: VoiceAgent
                       </li>
                     </ol>
 
-                    <Button asChild className="w-full gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600">
-                      <a href="https://elevenlabs.io/app/conversational-ai" target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="w-4 h-4" />
-                        Open Conversational AI Dashboard
-                      </a>
+                    <Button onClick={nextStep} className="w-full gap-2 bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600">
+                      <ArrowRight className="w-4 h-4" />
+                      Continue to Script Setup
                     </Button>
                   </CardContent>
                 </Card>
@@ -329,7 +323,7 @@ export default function VoiceAgentSetupWizard({ onComplete, onSkip }: VoiceAgent
                       <h4 className="font-medium text-violet-700 dark:text-violet-300 mb-2">📋 How to use:</h4>
                       <ol className="text-sm text-violet-600 dark:text-violet-400 space-y-1">
                         <li>1. Copy the script above</li>
-                        <li>2. In ElevenLabs, go to your agent's "System Prompt"</li>
+                        <li>2. In your Voice Agent settings, go to "System Prompt"</li>
                         <li>3. Paste and customize with your company name</li>
                         <li>4. Choose a voice that fits your brand</li>
                       </ol>
@@ -402,7 +396,7 @@ export default function VoiceAgentSetupWizard({ onComplete, onSkip }: VoiceAgent
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="space-y-2">
-                      <label className="text-sm font-medium">ElevenLabs Agent ID</label>
+                      <label className="text-sm font-medium">Voice Agent ID</label>
                       <Input
                         value={agentId}
                         onChange={(e) => setAgentId(e.target.value)}

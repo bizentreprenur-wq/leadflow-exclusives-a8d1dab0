@@ -133,24 +133,22 @@ export default function VoiceAgentSetupGuide() {
             Step-by-Step Setup
           </CardTitle>
           <CardDescription>
-            Follow these steps to create your ElevenLabs voice agent
+            Follow these steps to create your AI voice agent
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-2">
           <Step
             number={1}
-            title="Create ElevenLabs Account"
-            description="Sign up for a free account to get started"
+            title="Get Started"
+            description="Sign up for a voice agent account to get started"
           >
             <div className="flex items-center gap-3">
-              <Button asChild className="gap-2">
-                <a href="https://elevenlabs.io" target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="w-4 h-4" />
-                  Go to ElevenLabs
-                </a>
+              <Button className="gap-2" onClick={() => {}}>
+                <Sparkles className="w-4 h-4" />
+                Get Started
               </Button>
               <Badge variant="outline" className="text-emerald-600 border-emerald-500/30">
-                Free: 10,000 chars/month
+                Free trial available
               </Badge>
             </div>
           </Step>
@@ -269,7 +267,7 @@ export default function VoiceAgentSetupGuide() {
                   <p className="text-sm font-medium text-amber-700 dark:text-amber-300">Important</p>
                   <p className="text-sm text-amber-600 dark:text-amber-400">
                     Go to your agent's <strong>Settings</strong> tab and toggle <strong>"Public"</strong> to ON. 
-                    This allows BamLead to connect without requiring authentication.
+                    This allows BamLead to connect to your voice agent.
                   </p>
                 </div>
               </div>
@@ -298,11 +296,11 @@ export default function VoiceAgentSetupGuide() {
         <CardContent>
           <Accordion type="single" collapsible className="w-full">
             <AccordionItem value="cost">
-              <AccordionTrigger>How much does ElevenLabs cost?</AccordionTrigger>
+              <AccordionTrigger>How much does AI calling cost?</AccordionTrigger>
               <AccordionContent>
-                ElevenLabs offers a free tier with 10,000 characters per month - enough for 
-                several test calls. Paid plans start at $5/month for 30,000 characters. 
-                You only pay for what you use.
+                BamLead offers flexible pricing based on your plan tier. 
+                Free tier gets script previews, Basic gets AI script generation, 
+                Pro includes supervised calling, and Autopilot provides fully autonomous calls.
               </AccordionContent>
             </AccordionItem>
 
@@ -311,7 +309,7 @@ export default function VoiceAgentSetupGuide() {
               <AccordionContent>
                 Absolutely! The system prompt we provided is just a starting point. You can 
                 modify it to match your product, ask different questions, or change the 
-                conversation flow entirely. Edit it directly in ElevenLabs.
+                conversation flow entirely. Edit it directly in your agent settings.
               </AccordionContent>
             </AccordionItem>
 
@@ -328,16 +326,16 @@ export default function VoiceAgentSetupGuide() {
             <AccordionItem value="data">
               <AccordionTrigger>Where is conversation data stored?</AccordionTrigger>
               <AccordionContent>
-                All voice processing happens through ElevenLabs' servers. They handle 
-                the AI conversation, and you can view transcripts in your ElevenLabs 
-                dashboard. BamLead doesn't store your conversation audio.
+                All voice processing happens through secure servers. 
+                BamLead handles the AI conversation, and you can view transcripts in your 
+                call logs dashboard. Audio is processed in real-time and not stored permanently.
               </AccordionContent>
             </AccordionItem>
 
             <AccordionItem value="languages">
               <AccordionTrigger>What languages are supported?</AccordionTrigger>
               <AccordionContent>
-                ElevenLabs supports 29+ languages including English, Spanish, French, 
+                BamLead AI calling supports 29+ languages including English, Spanish, French, 
                 German, Italian, Portuguese, Polish, and many more. You can configure 
                 your agent to speak in any supported language.
               </AccordionContent>
@@ -357,11 +355,9 @@ export default function VoiceAgentSetupGuide() {
               </p>
             </div>
             <div className="flex gap-3">
-              <Button variant="secondary" asChild className="gap-2">
-                <a href="https://elevenlabs.io" target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="w-4 h-4" />
-                  Create Agent
-                </a>
+              <Button variant="secondary" className="gap-2" onClick={() => {}}>
+                <Settings className="w-4 h-4" />
+                Configure Agent
               </Button>
             </div>
           </div>

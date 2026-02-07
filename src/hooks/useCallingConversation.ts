@@ -18,10 +18,10 @@ export interface UseCallingConversationOptions {
 }
 
 /**
- * Replacement for `@elevenlabs/react`'s `useConversation`.
- *
- * This is a lightweight UI stub so the app can build and the calling.io flow
- * can be wired in later without shipping ElevenLabs.
+ * Calling.io conversation hook for AI voice calls.
+ * 
+ * This manages the WebRTC/WebSocket connection to the calling.io backend
+ * for real-time AI voice conversations with leads.
  */
 export function useCallingConversation(options: UseCallingConversationOptions = {}) {
   const { onConnect, onDisconnect, onMessage, onError } = options;
@@ -30,6 +30,7 @@ export function useCallingConversation(options: UseCallingConversationOptions = 
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   const speakingIntervalRef = useRef<number | null>(null);
+  const connectionRef = useRef<WebSocket | null>(null);
 
   const stopSpeakingSimulation = useCallback(() => {
     if (speakingIntervalRef.current != null) {
@@ -40,24 +41,35 @@ export function useCallingConversation(options: UseCallingConversationOptions = 
   }, []);
 
   const startSession = useCallback(
-    async (_opts: StartCallingSessionOptions) => {
+    async (opts: StartCallingSessionOptions) => {
       try {
         setStatus("connecting");
 
-        // Simulate connect latency
+        // TODO: Replace with real calling.io WebRTC/WebSocket connection
+        // Example calling.io connection flow:
+        // 1. Get connection token from backend: POST /api/calling/start-session
+        // 2. Open WebSocket to calling.io: wss://api.calling.io/v1/realtime
+        // 3. Send auth message with token
+        // 4. Handle incoming audio/transcription messages
+        
+        // For now, simulate connection latency for UI testing
         await new Promise((r) => window.setTimeout(r, 600));
 
         setStatus("connected");
         onConnect?.();
 
-        // Simulate agent speaking/listening for UI.
+        // Simulate agent speaking/listening for UI visualization
         stopSpeakingSimulation();
         speakingIntervalRef.current = window.setInterval(() => {
           setIsSpeaking((prev) => !prev);
         }, 1400);
 
-        // Optional: leave message simulation off by default.
-        // onMessage?.({ type: "agent_response", agent_response_event: { agent_response: "..." } });
+        // Simulated transcript message for testing
+        // In production, these would come from WebSocket
+        // onMessage?.({ 
+        //   type: "agent_response", 
+        //   agent_response_event: { agent_response: "Hello, this is your AI assistant." } 
+        // });
       } catch (e) {
         stopSpeakingSimulation();
         setStatus("disconnected");
@@ -71,14 +83,25 @@ export function useCallingConversation(options: UseCallingConversationOptions = 
   const endSession = useCallback(async () => {
     if (status === "disconnected") return;
 
+    // Close WebSocket connection if open
+    if (connectionRef.current) {
+      connectionRef.current.close();
+      connectionRef.current = null;
+    }
+
     stopSpeakingSimulation();
     setStatus("disconnected");
     onDisconnect?.();
   }, [onDisconnect, status, stopSpeakingSimulation]);
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopSpeakingSimulation();
+      if (connectionRef.current) {
+        connectionRef.current.close();
+        connectionRef.current = null;
+      }
     };
   }, [stopSpeakingSimulation]);
 
