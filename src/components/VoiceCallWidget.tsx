@@ -2,7 +2,7 @@
  * Voice Call Widget
  * AI-powered voice calling interface using calling.io infrastructure
  * 
- * NOTE: ElevenLabs removed - using calling.io as hidden backend infrastructure
+ * NOTE: Using calling.io as hidden backend infrastructure
  * Customers only see BamLead branding
  */
 
