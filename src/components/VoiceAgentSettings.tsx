@@ -31,7 +31,7 @@ export default function VoiceAgentSettings({ onShowGuide, onBackToStep4 }: Voice
 
   // Load saved agent ID on mount
   useEffect(() => {
-    const saved = localStorage.getItem('elevenlabs_agent_id');
+    const saved = localStorage.getItem('bamlead_voice_agent_id');
     if (saved) {
       setAgentId(saved);
       setSavedAgentId(saved);
@@ -50,9 +50,9 @@ export default function VoiceAgentSettings({ onShowGuide, onBackToStep4 }: Voice
 
     // Save to localStorage
     if (agentId) {
-      localStorage.setItem('elevenlabs_agent_id', agentId);
+      localStorage.setItem('bamlead_voice_agent_id', agentId);
     } else {
-      localStorage.removeItem('elevenlabs_agent_id');
+      localStorage.removeItem('bamlead_voice_agent_id');
     }
     
     setSavedAgentId(agentId);
@@ -124,7 +124,7 @@ export default function VoiceAgentSettings({ onShowGuide, onBackToStep4 }: Voice
                 )}
               </CardTitle>
               <CardDescription>
-                Connect your ElevenLabs AI agent to make voice calls to leads
+                Configure your AI Voice Agent to make automated calls to leads
               </CardDescription>
             </div>
           </div>
@@ -141,11 +141,11 @@ export default function VoiceAgentSettings({ onShowGuide, onBackToStep4 }: Voice
       <CardContent className="space-y-6">
         {/* Agent ID Input */}
         <div className="space-y-2">
-          <Label htmlFor="agent-id">ElevenLabs Agent ID</Label>
+          <Label htmlFor="agent-id">Voice Agent ID</Label>
           <div className="flex gap-2">
             <Input
               id="agent-id"
-              placeholder="Enter your ElevenLabs Agent ID..."
+              placeholder="Enter your Voice Agent ID..."
               value={agentId}
               onChange={(e) => setAgentId(e.target.value)}
               className="flex-1 font-mono"
@@ -177,7 +177,7 @@ export default function VoiceAgentSettings({ onShowGuide, onBackToStep4 }: Voice
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Your Agent ID is found in the ElevenLabs Conversational AI dashboard
+            Your Agent ID is found in the BamLead Voice Agent settings
           </p>
         </div>
 
@@ -209,26 +209,23 @@ export default function VoiceAgentSettings({ onShowGuide, onBackToStep4 }: Voice
             How it works
           </h4>
           <ul className="space-y-1 text-sm text-violet-600 dark:text-violet-400">
-            <li>• Create your AI agent at ElevenLabs with your sales script</li>
+            <li>• Configure your AI voice agent with a custom sales script</li>
             <li>• Paste your Agent ID here to connect</li>
             <li>• Use the Voice Call widget to call leads directly from your browser</li>
-            <li>• Your ElevenLabs account handles all voice AI processing</li>
+            <li>• AI handles the conversation while you focus on closing deals</li>
           </ul>
         </div>
 
-        {/* ElevenLabs Link */}
+        {/* Upgrade CTA */}
         <div className="flex items-center justify-between p-4 rounded-lg border bg-card">
           <div>
-            <h4 className="font-medium">Don't have an ElevenLabs account?</h4>
+            <h4 className="font-medium">Need more calling features?</h4>
             <p className="text-sm text-muted-foreground">
-              Create a free account and get 10,000 characters/month
+              Upgrade to Pro for supervised AI calls or Autopilot for autonomous calling
             </p>
           </div>
-          <Button variant="outline" asChild className="gap-2">
-            <a href="https://elevenlabs.io" target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="w-4 h-4" />
-              Get Started
-            </a>
+          <Button variant="outline" className="gap-2">
+            View Plans
           </Button>
         </div>
 

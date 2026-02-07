@@ -100,7 +100,7 @@ export default function CallQueueModal({
   }, [open, leads]);
 
   useEffect(() => {
-    const saved = localStorage.getItem('elevenlabs_agent_id');
+    const saved = localStorage.getItem('bamlead_voice_agent_id');
     setAgentId(saved);
   }, []);
 
@@ -293,7 +293,7 @@ export default function CallQueueModal({
             <Phone className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
             <p className="font-medium">Voice Agent Not Configured</p>
             <p className="text-sm text-muted-foreground mb-4">
-              Set up your ElevenLabs agent to start calling
+              Set up your AI Voice Agent to start calling
             </p>
             <Button onClick={onOpenSettings} className="gap-2">
               <Settings className="w-4 h-4" />
