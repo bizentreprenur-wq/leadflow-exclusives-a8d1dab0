@@ -59,10 +59,12 @@ import {
   MessageSquare,
   Send,
   Settings2,
-  Plus
+  Plus,
+  Building2
 } from 'lucide-react';
 import { useAICalling, AI_CALLING_ADDON_PRICE } from '@/hooks/useAICalling';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
+import { useUserBranding } from '@/hooks/useUserBranding';
 import PhoneNumberSetupModal from '@/components/PhoneNumberSetupModal';
 import AIScriptPreviewPanel from '@/components/AIScriptPreviewPanel';
 import CallQueueModal from '@/components/CallQueueModal';
@@ -142,6 +144,7 @@ export default function Step4AICallingHub({
     addon
   } = useAICalling();
   const { tier, tierInfo, isAutopilot, isPro } = usePlanFeatures();
+  const { branding, isLoading: brandingLoading } = useUserBranding();
   
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -391,24 +394,63 @@ export default function Step4AICallingHub({
           </Button>
         </div>
 
-        {/* Header */}
+        {/* Header with Company Branding */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center space-y-2 py-6 px-8 bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 rounded-2xl border border-primary/30"
+          className="space-y-4 py-6 px-8 bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 rounded-2xl border border-primary/30"
         >
-          <div className="flex items-center justify-center gap-3">
-            <span className="text-4xl">📞</span>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-              STEP 4: AI Calling Hub
-            </h1>
-            <Badge className={`${tierInfo.bgColor} ${tierInfo.color} border-0`}>
-              {tierInfo.name}
-            </Badge>
+          {/* Company Branding Row */}
+          {(branding?.logo_url || branding?.company_name) && (
+            <div className="flex items-center justify-center gap-3 pb-4 border-b border-primary/20">
+              {branding.logo_url ? (
+                <img 
+                  src={branding.logo_url} 
+                  alt={branding.company_name || 'Company logo'} 
+                  className="h-10 w-auto object-contain"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                  <Building2 className="w-5 h-5 text-primary" />
+                </div>
+              )}
+              {branding.company_name && (
+                <span className="text-xl font-bold text-foreground">
+                  {branding.company_name}
+                </span>
+              )}
+              <Badge variant="outline" className="text-xs border-primary/30 text-primary">
+                AI Calling
+              </Badge>
+            </div>
+          )}
+          
+          {/* Main Header */}
+          <div className="text-center space-y-2">
+            <div className="flex items-center justify-center gap-3">
+              <span className="text-4xl">📞</span>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                STEP 4: AI Calling Hub
+              </h1>
+              <Badge className={`${tierInfo.bgColor} ${tierInfo.color} border-0`}>
+                {tierInfo.name}
+              </Badge>
+            </div>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              {callingModeDescription} • <span className="font-semibold text-foreground">{callableLeads.length} leads</span> ready to call
+            </p>
+            
+            {/* Phone Number Display */}
+            {phoneSetup.phoneNumber && (
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <Phone className="w-4 h-4 text-emerald-500" />
+                <span className="text-sm font-mono text-emerald-500">{phoneSetup.phoneNumber}</span>
+                <Badge className="bg-emerald-500/20 text-emerald-500 text-xs">
+                  {branding?.company_name ? `${branding.company_name} Line` : 'Your AI Line'}
+                </Badge>
+              </div>
+            )}
           </div>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            {callingModeDescription} • <span className="font-semibold text-foreground">{callableLeads.length} leads</span> ready to call
-          </p>
         </motion.div>
 
         {/* Main 4-Tab Interface */}
