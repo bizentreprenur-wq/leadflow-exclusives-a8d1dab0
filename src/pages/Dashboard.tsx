@@ -71,7 +71,7 @@ import SimpleLeadViewer from '@/components/SimpleLeadViewer';
 import EmailSetupFlow from '@/components/EmailSetupFlow';
 import CloudCRMIntegrationsPanel from '@/components/CloudCRMIntegrationsPanel';
 import CRMIntegrationModal from '@/components/CRMIntegrationModal';
-import Step4OutreachHub from '@/components/Step4OutreachHub';
+import Step4AICallingHub from '@/components/Step4AICallingHub';
 import AILeadScoringDashboard from '@/components/AILeadScoringDashboard';
 import ChromeExtensionPanel from '@/components/ChromeExtensionPanel';
 import UserManualDownload from '@/components/UserManualDownload';
@@ -2714,7 +2714,7 @@ export default function Dashboard() {
 
         return (
           <>
-            <Step4OutreachHub
+            <Step4AICallingHub
               leads={step4Leads}
               onBack={() => setCurrentStep(3)}
               onOpenSettings={() => {
@@ -2722,6 +2722,9 @@ export default function Dashboard() {
                 setActiveTab('settings');
               }}
               onOpenCRMModal={() => setShowCRMModal(true)}
+              searchType={searchType || 'gmb'}
+              searchQuery={query}
+              searchLocation={location}
             />
             
           </>
