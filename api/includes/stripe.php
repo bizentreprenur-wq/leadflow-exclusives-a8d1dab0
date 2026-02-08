@@ -234,6 +234,67 @@ function createCreditCheckoutSession($user, $packageId) {
 }
 
 /**
+ * Create a recurring subscription for add-ons like AI Calling ($8/mo)
+ */
+function createAddonCheckoutSession($user, $addonId) {
+    initStripe();
+
+    $addons = [
+        'ai_calling' => [
+            'price_cents' => 800, // $8/month
+            'name' => 'AI Calling Add-on',
+            'description' => 'AI phone number for automated calling',
+        ],
+    ];
+
+    $addon = $addons[$addonId] ?? null;
+    if (!$addon) {
+        throw new Exception('Invalid add-on');
+    }
+
+    $customer = getOrCreateStripeCustomer($user);
+    $baseMetadata = [
+        'user_id' => (string)$user['id'],
+        'purchase_type' => 'addon',
+        'addon_id' => $addonId,
+    ];
+
+    $successUrl = FRONTEND_URL
+        . '/dashboard?payment=success&type=addon'
+        . '&addon=' . urlencode($addonId)
+        . '&session_id={CHECKOUT_SESSION_ID}';
+
+    $session = \Stripe\Checkout\Session::create([
+        'customer' => $customer->id,
+        'payment_method_types' => ['card'],
+        'line_items' => [[
+            'price_data' => [
+                'currency' => 'usd',
+                'unit_amount' => $addon['price_cents'],
+                'recurring' => [
+                    'interval' => 'month',
+                ],
+                'product_data' => [
+                    'name' => $addon['name'],
+                    'description' => $addon['description'],
+                ],
+            ],
+            'quantity' => 1,
+        ]],
+        'mode' => 'subscription',
+        'success_url' => $successUrl,
+        'cancel_url' => FRONTEND_URL . '/dashboard?payment=canceled&type=addon',
+        'metadata' => $baseMetadata,
+        'subscription_data' => [
+            'metadata' => $baseMetadata,
+        ],
+        'allow_promotion_codes' => true,
+    ]);
+
+    return $session;
+}
+
+/**
  * Create customer portal session
  */
 function createPortalSession($user) {

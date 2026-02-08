@@ -4,6 +4,7 @@ const STRIPE_ENDPOINTS = {
   config: `${API_BASE_URL}/stripe.php?action=config`,
   createCheckout: `${API_BASE_URL}/stripe.php?action=create-checkout`,
   createCreditsCheckout: `${API_BASE_URL}/stripe.php?action=create-credits-checkout`,
+  createAddonCheckout: `${API_BASE_URL}/stripe.php?action=create-addon-checkout`,
   createPortal: `${API_BASE_URL}/stripe.php?action=create-portal`,
   subscription: `${API_BASE_URL}/stripe.php?action=subscription`,
   cancel: `${API_BASE_URL}/stripe.php?action=cancel`,
@@ -146,6 +147,29 @@ export async function createCreditsCheckoutSession(
     {
       method: 'POST',
       body: JSON.stringify({ package: packageId }),
+    }
+  );
+
+  return response;
+}
+
+export type AddonId = 'ai_calling';
+
+/**
+ * Create checkout session for add-on purchases (like AI Calling $8/mo)
+ */
+export async function createAddonCheckoutSession(
+  addonId: AddonId
+): Promise<{ checkout_url: string; session_id: string }> {
+  if (USE_MOCK_AUTH) {
+    throw new Error('Add-on checkout not available in demo mode. Configure Stripe to enable purchases.');
+  }
+
+  const response = await apiRequest<{ success: boolean; checkout_url: string; session_id: string }>(
+    STRIPE_ENDPOINTS.createAddonCheckout,
+    {
+      method: 'POST',
+      body: JSON.stringify({ addon: addonId }),
     }
   );
 

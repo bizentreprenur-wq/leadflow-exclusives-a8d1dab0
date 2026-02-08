@@ -21,6 +21,9 @@ switch ($action) {
     case 'create-credits-checkout':
         handleCreateCreditsCheckout();
         break;
+    case 'create-addon-checkout':
+        handleCreateAddonCheckout();
+        break;
     case 'create-portal':
         handleCreatePortal();
         break;
@@ -109,7 +112,36 @@ function handleCreateCreditsCheckout() {
         ]);
     } catch (Exception $e) {
         sendError($e->getMessage(), 500);
+}
+
+/**
+ * Create checkout session for add-on purchases (e.g., AI Calling $8/mo)
+ */
+function handleCreateAddonCheckout() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        sendError('Method not allowed', 405);
     }
+
+    $user = requireAuth();
+    $input = getJsonInput();
+    $addonId = sanitizeInput($input['addon'] ?? '', 20);
+
+    $validAddons = ['ai_calling'];
+    if (!in_array($addonId, $validAddons, true)) {
+        sendError('Invalid add-on', 400);
+    }
+
+    try {
+        $session = createAddonCheckoutSession($user, $addonId);
+        sendJson([
+            'success' => true,
+            'checkout_url' => $session->url,
+            'session_id' => $session->id,
+        ]);
+    } catch (Exception $e) {
+        sendError($e->getMessage(), 500);
+    }
+}
 }
 
 /**

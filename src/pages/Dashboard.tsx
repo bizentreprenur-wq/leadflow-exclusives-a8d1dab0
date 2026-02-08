@@ -254,6 +254,38 @@ export default function Dashboard() {
   const [aiSummary, setAiSummary] = useState<LeadSummary | null>(null);
   const [aiStrategies, setAiStrategies] = useState<Record<string, EmailStrategy> | null>(null);
   const [showAiGrouping, setShowAiGrouping] = useState(false);
+  
+  // AI Strategy & Email Sequence tracking for Step 4 script generation
+  const [selectedAIStrategy, setSelectedAIStrategy] = useState<string | null>(() => {
+    try {
+      const saved = localStorage.getItem('bamlead_selected_strategy');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.strategyId || parsed.strategy?.id || null;
+      }
+      return null;
+    } catch { return null; }
+  });
+  const [activeEmailSequences, setActiveEmailSequences] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('bamlead_active_sequence');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return [parsed.name || parsed.id].filter(Boolean);
+      }
+      return [];
+    } catch { return []; }
+  });
+  const [proposalType, setProposalType] = useState<string | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('bamlead_selected_documents');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.proposalType || null;
+      }
+      return null;
+    } catch { return null; }
+  });
 
   // Widget states
   const [showEmailWidget, setShowEmailWidget] = useState(false);
@@ -2689,6 +2721,12 @@ export default function Dashboard() {
               setActiveTab('settings');
             }}
             searchType={searchType}
+            onStrategySelect={(strategyId) => {
+              setSelectedAIStrategy(strategyId);
+            }}
+            onSequenceSelect={(sequenceNames) => {
+              setActiveEmailSequences(sequenceNames);
+            }}
           />
         );
 
@@ -2725,6 +2763,9 @@ export default function Dashboard() {
               searchType={searchType || 'gmb'}
               searchQuery={query}
               searchLocation={location}
+              selectedStrategy={selectedAIStrategy || undefined}
+              emailSequences={activeEmailSequences}
+              proposalType={proposalType || undefined}
             />
             
           </>

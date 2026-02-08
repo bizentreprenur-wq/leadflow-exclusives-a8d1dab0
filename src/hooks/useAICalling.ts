@@ -18,6 +18,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { usePlanFeatures, PlanTier } from '@/hooks/usePlanFeatures';
 import { getTelnyxConfig, saveTelnyxConfig, type TelnyxConfig } from '@/lib/api/telnyx';
+import { createAddonCheckoutSession } from '@/lib/api/stripe';
+import { toast } from 'sonner';
 
 export type AICallingStatus = 'disabled' | 'addon_needed' | 'phone_provisioning' | 'phone_needed' | 'ready' | 'calling';
 export type PhoneNumberType = 'bamlead'; // Only BamLead-provisioned numbers in V1
@@ -203,36 +205,42 @@ export function useAICalling() {
     }
   }, [planLoading, tier]);
   
-  // Purchase AI Calling addon ($8/mo)
+  // Purchase AI Calling addon ($8/mo) - redirects to Stripe checkout
   const purchaseAddon = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
-    // In production, this would redirect to Stripe checkout for the $8/mo addon
-    // For now, we'll simulate the purchase flow
     try {
-      const newAddon: AICallingAddon = {
+      // Set pending state
+      const pendingAddon: AICallingAddon = {
         status: 'pending',
-        purchasedAt: new Date().toISOString(),
+        purchasedAt: null,
         phoneNumber: null,
       };
-      setAddon(newAddon);
-      localStorage.setItem(ADDON_STORAGE_KEY, JSON.stringify(newAddon));
+      setAddon(pendingAddon);
       
-      // Simulate successful purchase (in production, this comes from webhook)
-      setTimeout(() => {
-        const activeAddon: AICallingAddon = {
-          status: 'active',
-          purchasedAt: new Date().toISOString(),
-          phoneNumber: null,
-        };
-        setAddon(activeAddon);
-        localStorage.setItem(ADDON_STORAGE_KEY, JSON.stringify(activeAddon));
-        
-        // Start phone provisioning
-        setPhoneSetup(prev => ({ ...prev, isProvisioning: true }));
-      }, 1500);
+      // Create Stripe checkout session for the addon
+      const result = await createAddonCheckoutSession('ai_calling');
       
-      return { success: true };
-    } catch (error) {
-      return { success: false, error: 'Failed to purchase addon' };
+      if (result.checkout_url) {
+        // Redirect to Stripe checkout
+        window.location.href = result.checkout_url;
+        return { success: true };
+      }
+      
+      // Restore state if no checkout URL
+      setAddon({
+        status: 'not_purchased',
+        purchasedAt: null,
+        phoneNumber: null,
+      });
+      return { success: false, error: 'Failed to create checkout session' };
+    } catch (error: any) {
+      // If demo mode or other error, show message
+      toast.error(error.message || 'Failed to start checkout');
+      setAddon({
+        status: 'not_purchased',
+        purchasedAt: null,
+        phoneNumber: null,
+      });
+      return { success: false, error: error.message || 'Failed to purchase addon' };
     }
   }, []);
   
