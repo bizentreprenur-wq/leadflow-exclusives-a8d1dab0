@@ -128,6 +128,27 @@ export {
 } from './searchLeads';
 export type { SearchLead, SearchLeadsResponse, SaveSearchLeadsResponse } from './searchLeads';
 
+// SMS Messaging (Autopilot tier)
+export {
+  sendSMS,
+  getSMSConversations,
+  getSMSMessages,
+  getAISMSReply,
+  markSMSRead,
+  getSMSStats,
+  getSMSTemplates,
+  scheduleSMS,
+  enableAutoSMS,
+  DEFAULT_SMS_TEMPLATES,
+} from './sms';
+export type { 
+  SMSMessage, 
+  SMSConversation, 
+  SMSTemplate, 
+  SMSSendRequest, 
+  SMSStats 
+} from './sms';
+
 // API Configuration
 export const API_CONFIG = {
   baseUrl: import.meta.env.VITE_API_URL || '',
@@ -146,5 +167,6 @@ export const API_CONFIG = {
     googleCalendar: '/google-calendar-auth.php',
     businessIntelligence: '/business-intelligence.php',
     nicheIntelligence: '/niche-intelligence.php',
+    sms: '/sms.php',
   },
 };

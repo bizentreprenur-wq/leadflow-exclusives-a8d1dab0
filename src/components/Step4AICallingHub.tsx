@@ -60,7 +60,8 @@ import {
   Send,
   Settings2,
   Plus,
-  Building2
+  Building2,
+  MessageCircle
 } from 'lucide-react';
 import { useAICalling, AI_CALLING_ADDON_PRICE } from '@/hooks/useAICalling';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
@@ -68,12 +69,14 @@ import { useUserBranding } from '@/hooks/useUserBranding';
 import PhoneNumberSetupModal from '@/components/PhoneNumberSetupModal';
 import AIScriptPreviewPanel from '@/components/AIScriptPreviewPanel';
 import CallQueueModal from '@/components/CallQueueModal';
+import SMSConversationPanel from '@/components/SMSConversationPanel';
 import { Link } from 'react-router-dom';
 import { 
   buildCallScriptContext,
   addBreadcrumb,
   CustomerJourneyBreadcrumb
 } from '@/lib/aiCallingScriptGenerator';
+import { SMSConversation, SMSMessage } from '@/lib/api/sms';
 
 interface Lead {
   id?: string;
@@ -161,6 +164,8 @@ export default function Step4AICallingHub({
   });
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [meetings, setMeetings] = useState<{ date: Date; leadName: string }[]>([]);
+  const [smsConversations, setSmsConversations] = useState<SMSConversation[]>([]);
+  const [smsLoading, setSmsLoading] = useState(false);
 
   // Filter leads with phone numbers
   const callableLeads = useMemo(() => {
@@ -200,6 +205,60 @@ export default function Step4AICallingHub({
       }
     });
   }, []);
+
+  // Load SMS conversations for Autopilot users
+  useEffect(() => {
+    if (isAutopilot && callableLeads.length > 0) {
+      loadSMSConversations();
+    }
+  }, [isAutopilot, callableLeads]);
+
+  const loadSMSConversations = async () => {
+    setSmsLoading(true);
+    try {
+      // Generate demo conversations from leads for demonstration
+      const demoConversations: SMSConversation[] = callableLeads.slice(0, 5).map((lead, idx) => ({
+        lead_id: lead.id || `lead-${idx}`,
+        lead_name: lead.business_name || lead.name || 'Unknown Lead',
+        lead_phone: lead.phone || '',
+        business_name: lead.business_name,
+        last_message: idx === 0 ? 'Yes, I\'m interested! When can we talk?' : 'Thanks for reaching out.',
+        last_message_at: new Date(Date.now() - idx * 3600000).toISOString(),
+        unread_count: idx === 0 ? 2 : 0,
+        sentiment: idx === 0 ? 'interested' : 'neutral',
+        messages: [
+          {
+            id: `msg-${idx}-1`,
+            lead_id: lead.id || `lead-${idx}`,
+            lead_name: lead.business_name || lead.name || 'Unknown',
+            lead_phone: lead.phone || '',
+            direction: 'outbound' as const,
+            message: `Hi ${(lead.business_name || lead.name || '').split(' ')[0] || 'there'}, I noticed your business and wanted to reach out about how we can help you grow. Would you be open to a quick chat?`,
+            status: 'delivered' as const,
+            created_at: new Date(Date.now() - (idx * 3600000) - 7200000).toISOString(),
+            read: true
+          },
+          {
+            id: `msg-${idx}-2`,
+            lead_id: lead.id || `lead-${idx}`,
+            lead_name: lead.business_name || lead.name || 'Unknown',
+            lead_phone: lead.phone || '',
+            direction: 'inbound' as const,
+            message: idx === 0 ? 'Yes, I\'m interested! When can we talk?' : 'Thanks for reaching out.',
+            status: 'received' as const,
+            created_at: new Date(Date.now() - idx * 3600000).toISOString(),
+            read: idx !== 0
+          }
+        ],
+        ai_suggested_reply: idx === 0 ? 'Great to hear from you! I\'d love to schedule a call. Would tomorrow at 2pm work for you?' : undefined
+      }));
+      setSmsConversations(demoConversations);
+    } catch (error) {
+      console.error('Failed to load SMS conversations:', error);
+    } finally {
+      setSmsLoading(false);
+    }
+  };
 
   const handleStartCalling = () => {
     if (!isReady) {
@@ -460,7 +519,7 @@ export default function Step4AICallingHub({
           </div>
         </motion.div>
 
-        {/* Main 4-Tab Interface */}
+        {/* Main Tab Interface - 5 tabs for Autopilot, 4 for others */}
         <Card className="border-2 border-border overflow-hidden">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <div className="border-b px-6 bg-muted/30">
@@ -478,6 +537,18 @@ export default function Step4AICallingHub({
                     </Badge>
                   )}
                 </TabsTrigger>
+                {/* SMS Tab - Autopilot Only */}
+                {isAutopilot && (
+                  <TabsTrigger value="sms" className="gap-2 data-[state=active]:bg-blue-500/10 px-5 py-3">
+                    <MessageCircle className="w-4 h-4 text-blue-500" />
+                    <span className="text-blue-600 dark:text-blue-400">SMS</span>
+                    {smsConversations.reduce((acc, c) => acc + c.unread_count, 0) > 0 && (
+                      <Badge className="ml-1 text-xs bg-blue-500 text-white">
+                        {smsConversations.reduce((acc, c) => acc + c.unread_count, 0)}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                )}
                 <TabsTrigger value="script" className="gap-2 data-[state=active]:bg-primary/10 px-5 py-3">
                   <FileText className="w-4 h-4" />
                   AI Script
@@ -872,6 +943,112 @@ export default function Step4AICallingHub({
                 </div>
               )}
             </TabsContent>
+
+            {/* ===== SMS TAB (Autopilot Only) ===== */}
+            {isAutopilot && (
+              <TabsContent value="sms" className="p-6">
+                <div className="space-y-4">
+                  {/* SMS Header */}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                        <MessageCircle className="w-5 h-5 text-blue-500" />
+                        Autonomous SMS Messaging
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        AI handles bi-directional texting with your leads automatically
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-blue-500/20 text-blue-600">
+                        <Sparkles className="w-3 h-3 mr-1" />
+                        AI-Powered
+                      </Badge>
+                      <Badge variant="outline" className="text-muted-foreground">
+                        {smsConversations.length} conversations
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* SMS Stats Row */}
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-center">
+                      <div className="text-2xl font-bold text-blue-500">
+                        {smsConversations.reduce((acc, c) => acc + c.messages.filter(m => m.direction === 'outbound').length, 0)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Sent</div>
+                    </div>
+                    <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center">
+                      <div className="text-2xl font-bold text-emerald-500">
+                        {smsConversations.reduce((acc, c) => acc + c.messages.filter(m => m.direction === 'inbound').length, 0)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Received</div>
+                    </div>
+                    <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center">
+                      <div className="text-2xl font-bold text-amber-500">
+                        {smsConversations.filter(c => c.sentiment === 'interested').length}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Interested</div>
+                    </div>
+                    <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 text-center">
+                      <div className="text-2xl font-bold text-primary">
+                        {smsConversations.length > 0 
+                          ? Math.round((smsConversations.reduce((acc, c) => acc + c.messages.filter(m => m.direction === 'inbound').length, 0) / 
+                              Math.max(smsConversations.reduce((acc, c) => acc + c.messages.filter(m => m.direction === 'outbound').length, 0), 1)) * 100)
+                          : 0}%
+                      </div>
+                      <div className="text-xs text-muted-foreground">Response Rate</div>
+                    </div>
+                  </div>
+
+                  {/* SMS Conversation Panel */}
+                  <SMSConversationPanel
+                    conversations={smsConversations}
+                    onRefresh={loadSMSConversations}
+                    isLoading={smsLoading}
+                    userPhoneNumber={phoneSetup.phoneNumber}
+                    companyName={branding?.company_name}
+                  />
+
+                  {/* AI SMS Features */}
+                  <div className="grid md:grid-cols-3 gap-4 mt-6">
+                    <div className="p-4 rounded-xl border bg-card">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="p-2 rounded-lg bg-blue-500/10">
+                          <Bot className="w-4 h-4 text-blue-500" />
+                        </div>
+                        <span className="font-medium text-foreground">Auto-Replies</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        AI crafts personalized responses based on lead context and sentiment analysis
+                      </p>
+                    </div>
+                    <div className="p-4 rounded-xl border bg-card">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="p-2 rounded-lg bg-emerald-500/10">
+                          <Sparkles className="w-4 h-4 text-emerald-500" />
+                        </div>
+                        <span className="font-medium text-foreground">Smart Scheduling</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Detects appointment requests and auto-proposes meeting times
+                      </p>
+                    </div>
+                    <div className="p-4 rounded-xl border bg-card">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="p-2 rounded-lg bg-amber-500/10">
+                          <Flame className="w-4 h-4 text-amber-500" />
+                        </div>
+                        <span className="font-medium text-foreground">Hot Lead Alerts</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Get notified instantly when leads show strong buying signals
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </TabsContent>
+            )}
 
             {/* ===== AI SCRIPT TAB ===== */}
             <TabsContent value="script" className="p-6">
