@@ -84,18 +84,10 @@ export default function Step4OutreachHub({
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   
-  // Check if Voice Agent is configured and if we should show wizard
+  // Check if Voice Agent is configured (do not auto-open wizard)
   useEffect(() => {
     const savedAgentId = localStorage.getItem('bamlead_voice_agent_id');
-    const wizardCompleted = localStorage.getItem('bamlead_voice_wizard_completed');
-    const wizardSkipped = localStorage.getItem('bamlead_voice_wizard_skipped');
-    
     setAgentId(savedAgentId);
-    
-    // Show wizard if: no agent configured AND wizard not completed AND not skipped
-    if (!savedAgentId && !wizardCompleted && !wizardSkipped) {
-      setShowWizard(true);
-    }
   }, []);
   const [selectedCRM, setSelectedCRM] = useState<string | null>(null);
   const [meetings, setMeetings] = useState<LocalMeeting[]>([]);
@@ -465,12 +457,8 @@ export default function Step4OutreachHub({
           whileHover={{ scale: 1.02 }}
           className="cursor-pointer"
           onClick={() => {
-            if (!agentId) {
-              // No agent configured - show setup wizard
-              setShowWizard(true);
-            } else {
-              setActiveTab('calls');
-            }
+            // Always show the AI Calling UI (setup happens inside the module)
+            setActiveTab('calls');
           }}
         >
           <Card className={`h-full border-2 transition-all ${activeTab === 'calls' ? 'border-green-500 bg-green-500/5' : 'border-border hover:border-primary/50'}`}>
@@ -485,7 +473,7 @@ export default function Step4OutreachHub({
                   {agentId ? 'Ready to call' : 'Setup required'}
                 </Badge>
                 <Badge className="bg-green-500/20 text-green-600 border-green-500/30">
-                  $19.99/mo
+                  +$8/mo add-on
                 </Badge>
               </div>
             </CardContent>
