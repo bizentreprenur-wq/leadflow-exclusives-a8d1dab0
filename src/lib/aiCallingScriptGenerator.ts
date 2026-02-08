@@ -451,3 +451,32 @@ export function clearSavedScript(userId?: string): void {
     localStorage.removeItem(key);
   } catch {}
 }
+
+/**
+ * Add a breadcrumb to track customer journey for script generation
+ */
+const BREADCRUMB_KEY = 'bamlead_journey_breadcrumbs';
+
+export function addBreadcrumb(breadcrumb: CustomerJourneyBreadcrumb): void {
+  try {
+    const existing = sessionStorage.getItem(BREADCRUMB_KEY);
+    const breadcrumbs: CustomerJourneyBreadcrumb[] = existing ? JSON.parse(existing) : [];
+    breadcrumbs.push(breadcrumb);
+    // Keep only last 20 breadcrumbs
+    const trimmed = breadcrumbs.slice(-20);
+    sessionStorage.setItem(BREADCRUMB_KEY, JSON.stringify(trimmed));
+  } catch {}
+}
+
+export function getBreadcrumbs(): CustomerJourneyBreadcrumb[] {
+  try {
+    const data = sessionStorage.getItem(BREADCRUMB_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function clearBreadcrumbs(): void {
+  sessionStorage.removeItem(BREADCRUMB_KEY);
+}
