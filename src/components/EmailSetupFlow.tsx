@@ -73,6 +73,10 @@ interface EmailSetupFlowProps {
   onOpenSettings: () => void;
   /** Search type context - 'gmb' for Super AI Business Search, 'platform' for Agency Lead Finder */
   searchType?: 'gmb' | 'platform' | null;
+  /** Callback when AI strategy is selected */
+  onStrategySelect?: (strategyId: string) => void;
+  /** Callback when email sequence is activated */
+  onSequenceSelect?: (sequenceNames: string[]) => void;
 }
 
 type SmartDripTab = 'mailbox' | 'intelligence' | 'preview' | 'crm' | 'ab-testing' | 'settings' | 'inbox';
@@ -83,6 +87,8 @@ export default function EmailSetupFlow({
   onComplete,
   onOpenSettings,
   searchType,
+  onStrategySelect,
+  onSequenceSelect,
 }: EmailSetupFlowProps) {
   const safeJsonParse = <T,>(value: string | null, fallback: T): T => {
     if (!value) return fallback;
