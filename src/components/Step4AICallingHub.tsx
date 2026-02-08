@@ -312,6 +312,9 @@ export default function Step4AICallingHub({
       icon: Eye,
       color: 'text-muted-foreground',
       bgColor: 'bg-muted/50',
+      borderColor: 'border-muted-foreground',
+      ringColor: 'ring-muted-foreground/30',
+      badgeColor: 'bg-muted-foreground text-muted',
       features: ['AI call script preview only', 'See what AI would say'],
       limitation: 'Upgrade to unlock'
     },
@@ -321,6 +324,9 @@ export default function Step4AICallingHub({
       icon: Edit3,
       color: 'text-blue-500',
       bgColor: 'bg-blue-500/10',
+      borderColor: 'border-blue-500',
+      ringColor: 'ring-blue-500/30',
+      badgeColor: 'bg-blue-500 text-white',
       features: ['AI generates call scripts', 'You dial manually'],
       addon: `+$${AI_CALLING_ADDON_PRICE}/mo`
     },
@@ -330,6 +336,9 @@ export default function Step4AICallingHub({
       icon: Bot,
       color: 'text-primary',
       bgColor: 'bg-primary/10',
+      borderColor: 'border-primary',
+      ringColor: 'ring-primary/30',
+      badgeColor: 'bg-primary text-primary-foreground',
       features: ['AI calls your leads', 'You supervise calls'],
       addon: `+$${AI_CALLING_ADDON_PRICE}/mo`
     },
@@ -339,6 +348,9 @@ export default function Step4AICallingHub({
       icon: Sparkles,
       color: 'text-amber-500',
       bgColor: 'bg-amber-500/10',
+      borderColor: 'border-amber-500',
+      ringColor: 'ring-amber-500/30',
+      badgeColor: 'bg-amber-500 text-white',
       features: ['Fully autonomous calling', 'AI texts back & forth', 'Phone included'],
       included: 'All included!'
     }
@@ -451,34 +463,34 @@ export default function Step4AICallingHub({
                         key={tierCap.tier}
                         className={`relative p-4 rounded-xl border-2 transition-all ${
                           isCurrentTier 
-                            ? `${tierCap.bgColor} border-primary ring-2 ring-primary/30` 
-                            : 'bg-card border-border opacity-60'
+                            ? `${tierCap.bgColor} ${tierCap.borderColor} ring-2 ${tierCap.ringColor}` 
+                            : 'bg-card border-border opacity-50 hover:opacity-70'
                         }`}
                       >
                         {isCurrentTier && (
-                          <Badge className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs">
+                          <Badge className={`absolute -top-2 -right-2 ${tierCap.badgeColor} text-xs`}>
                             Your Plan
                           </Badge>
                         )}
                         <div className="flex items-center gap-2 mb-3">
-                          <TierIcon className={`w-5 h-5 ${tierCap.color}`} />
-                          <span className={`font-semibold ${tierCap.color}`}>{tierCap.name}</span>
+                          <TierIcon className={`w-5 h-5 ${isCurrentTier ? tierCap.color : 'text-muted-foreground'}`} />
+                          <span className={`font-semibold ${isCurrentTier ? tierCap.color : 'text-muted-foreground'}`}>{tierCap.name}</span>
                         </div>
                         <ul className="space-y-2 text-xs">
                           {tierCap.features.map((feature, i) => (
                             <li key={i} className="flex items-start gap-2">
-                              <CheckCircle2 className={`w-3 h-3 mt-0.5 ${tierCap.color}`} />
-                              <span className="text-foreground">{feature}</span>
+                              <CheckCircle2 className={`w-3 h-3 mt-0.5 ${isCurrentTier ? tierCap.color : 'text-muted-foreground'}`} />
+                              <span className={isCurrentTier ? 'text-foreground' : 'text-muted-foreground'}>{feature}</span>
                             </li>
                           ))}
                         </ul>
                         {tierCap.addon && (
-                          <Badge variant="outline" className="mt-3 text-xs w-full justify-center">
+                          <Badge variant="outline" className={`mt-3 text-xs w-full justify-center ${isCurrentTier ? '' : 'opacity-70'}`}>
                             {tierCap.addon}
                           </Badge>
                         )}
                         {tierCap.included && (
-                          <Badge className="mt-3 bg-emerald-500/20 text-emerald-600 text-xs w-full justify-center">
+                          <Badge className={`mt-3 text-xs w-full justify-center ${isCurrentTier ? 'bg-emerald-500/20 text-emerald-500' : 'bg-muted text-muted-foreground'}`}>
                             {tierCap.included}
                           </Badge>
                         )}
