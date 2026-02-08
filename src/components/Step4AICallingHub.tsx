@@ -457,19 +457,41 @@ export default function Step4AICallingHub({
                   {tierCapabilities.map((tierCap) => {
                     const isCurrentTier = tier === tierCap.tier;
                     const TierIcon = tierCap.icon;
+                    const isUpgrade = !isCurrentTier && tierCap.tier !== 'free';
+                    const isDowngrade = !isCurrentTier && (
+                      (tier === 'autopilot' && tierCap.tier !== 'autopilot') ||
+                      (tier === 'pro' && (tierCap.tier === 'basic' || tierCap.tier === 'free')) ||
+                      (tier === 'basic' && tierCap.tier === 'free')
+                    );
+                    
+                    const handleTierClick = () => {
+                      if (isCurrentTier) return;
+                      if (isDowngrade) {
+                        toast.info('Contact support to downgrade your plan');
+                        return;
+                      }
+                      // Navigate to pricing for upgrade
+                      window.location.href = `/pricing?highlight=${tierCap.tier}`;
+                    };
                     
                     return (
                       <div 
                         key={tierCap.tier}
+                        onClick={!isCurrentTier ? handleTierClick : undefined}
                         className={`relative p-4 rounded-xl border-2 transition-all ${
                           isCurrentTier 
                             ? `${tierCap.bgColor} ${tierCap.borderColor} ring-2 ${tierCap.ringColor}` 
-                            : 'bg-card border-border opacity-50 hover:opacity-70'
+                            : 'bg-card border-border opacity-50 hover:opacity-80 cursor-pointer hover:border-muted-foreground'
                         }`}
                       >
                         {isCurrentTier && (
                           <Badge className={`absolute -top-2 -right-2 ${tierCap.badgeColor} text-xs`}>
                             Your Plan
+                          </Badge>
+                        )}
+                        {isUpgrade && !isDowngrade && (
+                          <Badge className="absolute -top-2 -right-2 bg-emerald-500 text-white text-xs">
+                            Upgrade
                           </Badge>
                         )}
                         <div className="flex items-center gap-2 mb-3">
