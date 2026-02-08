@@ -440,13 +440,20 @@ export default function Step4AICallingHub({
               {callingModeDescription} • <span className="font-semibold text-foreground">{callableLeads.length} leads</span> ready to call
             </p>
             
-            {/* Phone Number Display */}
+            {/* Unique Phone Number Display */}
             {phoneSetup.phoneNumber && (
-              <div className="flex items-center justify-center gap-2 mt-2">
-                <Phone className="w-4 h-4 text-emerald-500" />
-                <span className="text-sm font-mono text-emerald-500">{phoneSetup.phoneNumber}</span>
-                <Badge className="bg-emerald-500/20 text-emerald-500 text-xs">
-                  {branding?.company_name ? `${branding.company_name} Line` : 'Your AI Line'}
+              <div className="flex items-center justify-center gap-3 mt-3 p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/30">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                  <Phone className="w-5 h-5 text-emerald-500" />
+                </div>
+                <div className="text-left">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">
+                    {branding?.company_name ? `${branding.company_name}'s Dedicated Line` : 'Your Dedicated AI Line'}
+                  </p>
+                  <p className="text-lg font-mono font-bold text-emerald-500">{phoneSetup.phoneNumber}</p>
+                </div>
+                <Badge className="bg-emerald-500 text-white text-xs ml-2">
+                  Unique Number
                 </Badge>
               </div>
             )}
