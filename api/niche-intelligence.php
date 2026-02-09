@@ -64,6 +64,12 @@ function generateNicheIntelligence($searchQuery, $searchLocation, $leads, $indus
     // Aggregate lead data for market insights
     $aggregatedData = aggregateLeadData($leads);
     
+    // Compute digital maturity metrics (AGGREGATION ENGINE)
+    $digitalMaturity = computeDigitalMaturity($leads, $aggregatedData);
+    
+    // Generate market patterns from aggregated data
+    $marketPatterns = generateMarketPatterns($aggregatedData, $digitalMaturity, $industry);
+    
     return [
         'nicheId' => 'niche_' . uniqid(),
         'searchQuery' => $searchQuery,
@@ -81,6 +87,25 @@ function generateNicheIntelligence($searchQuery, $searchLocation, $leads, $indus
             'geographicScope' => 'local',
         ],
         
+        // MARKET OVERVIEW (aggregated - shown FIRST in UI)
+        'marketOverview' => [
+            'totalBusinessesFound' => $leadsCount,
+            'digitalMaturityScore' => $digitalMaturity['overallScore'],
+            'percentWithWebsite' => $digitalMaturity['percentWithWebsite'],
+            'percentOutdatedWebsite' => $digitalMaturity['percentOutdated'],
+            'percentNoWebsite' => $digitalMaturity['percentNoWebsite'],
+            'percentWithEmail' => $aggregatedData['totalLeads'] > 0 ? round(($aggregatedData['withEmail'] / $aggregatedData['totalLeads']) * 100) : 0,
+            'percentWithPhone' => $aggregatedData['totalLeads'] > 0 ? round(($aggregatedData['withPhone'] / $aggregatedData['totalLeads']) * 100) : 0,
+            'avgRating' => $aggregatedData['avgRating'],
+            'avgReviewCount' => $aggregatedData['avgReviews'],
+            'topCMSPlatforms' => $digitalMaturity['topCMS'],
+            'websiteQualityScore' => $digitalMaturity['avgWebsiteQuality'],
+            'ratingDistribution' => $aggregatedData['ratingDistribution'],
+        ],
+        
+        // MARKET PATTERNS (derived insights)
+        'marketPatterns' => $marketPatterns,
+        
         // Trend Analysis
         'trendAnalysis' => generateTrendAnalysis($industry, $searchLocation),
         
@@ -96,6 +121,213 @@ function generateNicheIntelligence($searchQuery, $searchLocation, $leads, $indus
         // AI Insights
         'aiNicheInsights' => generateAINicheInsights($industry, $aggregatedData),
     ];
+}
+
+/**
+ * Compute digital maturity metrics from lead data
+ * This is the AGGREGATION ENGINE that makes niche research valuable
+ */
+function computeDigitalMaturity($leads, $aggregatedData) {
+    $total = count($leads);
+    if ($total === 0) {
+        return [
+            'overallScore' => 0,
+            'percentWithWebsite' => 0,
+            'percentOutdated' => 0,
+            'percentNoWebsite' => 0,
+            'topCMS' => [],
+            'avgWebsiteQuality' => 0,
+            'platformBreakdown' => [],
+        ];
+    }
+    
+    $withWebsite = 0;
+    $noWebsite = 0;
+    $outdated = 0;
+    $cmsCounts = [];
+    $qualityScores = [];
+    $withAds = 0;
+    $withSocial = 0;
+    
+    foreach ($leads as $lead) {
+        $hasUrl = !empty($lead['url']) || !empty($lead['website']);
+        if ($hasUrl) {
+            $withWebsite++;
+        } else {
+            $noWebsite++;
+        }
+        
+        // Check website analysis if available
+        $wa = $lead['websiteAnalysis'] ?? null;
+        if ($wa) {
+            if (!empty($wa['needsUpgrade'])) {
+                $outdated++;
+            }
+            if (!empty($wa['platform'])) {
+                $platform = strtolower($wa['platform']);
+                $cmsCounts[$platform] = ($cmsCounts[$platform] ?? 0) + 1;
+            }
+            // Approximate quality score
+            $score = 50; // baseline
+            if (!empty($wa['hasWebsite'])) $score += 20;
+            if (empty($wa['needsUpgrade'])) $score += 15;
+            if (empty($wa['issues']) || count($wa['issues']) === 0) $score += 15;
+            $qualityScores[] = min(100, $score);
+        }
+        
+        // Check enrichment data
+        $enrichment = $lead['enrichment'] ?? null;
+        if ($enrichment) {
+            if (!empty($enrichment['socials']) && count($enrichment['socials']) > 0) {
+                $withSocial++;
+            }
+        }
+    }
+    
+    // Sort CMS by count
+    arsort($cmsCounts);
+    $topCMS = [];
+    foreach (array_slice($cmsCounts, 0, 5, true) as $platform => $count) {
+        $topCMS[] = [
+            'platform' => ucfirst($platform),
+            'count' => $count,
+            'percentage' => round(($count / $total) * 100),
+        ];
+    }
+    
+    // Calculate overall digital maturity score (0-100)
+    $websiteRate = $total > 0 ? ($withWebsite / $total) : 0;
+    $modernRate = $withWebsite > 0 ? (($withWebsite - $outdated) / $withWebsite) : 0;
+    $avgQuality = !empty($qualityScores) ? array_sum($qualityScores) / count($qualityScores) : 50;
+    
+    $overallScore = round(
+        ($websiteRate * 30) +  // 30% weight: having a website
+        ($modernRate * 25) +   // 25% weight: modern website  
+        (($avgQuality / 100) * 25) + // 25% weight: quality score
+        (min(1, $aggregatedData['avgRating'] / 5) * 20) // 20% weight: review presence
+    );
+    
+    return [
+        'overallScore' => min(100, max(0, $overallScore)),
+        'percentWithWebsite' => $total > 0 ? round(($withWebsite / $total) * 100) : 0,
+        'percentOutdated' => $total > 0 ? round(($outdated / $total) * 100) : 0,
+        'percentNoWebsite' => $total > 0 ? round(($noWebsite / $total) * 100) : 0,
+        'topCMS' => $topCMS,
+        'avgWebsiteQuality' => round($avgQuality),
+        'platformBreakdown' => $cmsCounts,
+        'withSocialMedia' => $total > 0 ? round(($withSocial / $total) * 100) : 0,
+    ];
+}
+
+/**
+ * Generate market pattern insights from aggregated data
+ * These are the "62% of mechanics in Houston lack a modern website" type insights
+ */
+function generateMarketPatterns($aggregatedData, $digitalMaturity, $industry) {
+    $patterns = [];
+    $total = $aggregatedData['totalLeads'];
+    $industryName = strtolower($industry['name'] ?? 'businesses');
+    
+    if ($total === 0) {
+        return $patterns;
+    }
+    
+    // Website presence pattern
+    $noWebPct = $digitalMaturity['percentNoWebsite'];
+    if ($noWebPct > 10) {
+        $patterns[] = [
+            'insight' => "{$noWebPct}% of {$industryName} in this area have no website",
+            'category' => 'digital_gap',
+            'impact' => $noWebPct > 30 ? 'critical' : ($noWebPct > 15 ? 'high' : 'medium'),
+            'opportunity' => 'Large addressable market for web design and digital presence services',
+        ];
+    }
+    
+    // Outdated website pattern
+    $outdatedPct = $digitalMaturity['percentOutdated'];
+    if ($outdatedPct > 15) {
+        $patterns[] = [
+            'insight' => "{$outdatedPct}% are using outdated or template-based websites",
+            'category' => 'modernization',
+            'impact' => $outdatedPct > 40 ? 'critical' : 'high',
+            'opportunity' => 'Website redesign and modernization services in high demand',
+        ];
+    }
+    
+    // Social media adoption
+    $socialPct = $digitalMaturity['withSocialMedia'];
+    if ($socialPct < 50) {
+        $patterns[] = [
+            'insight' => "Only {$socialPct}% have active social media profiles",
+            'category' => 'social_gap',
+            'impact' => 'medium',
+            'opportunity' => 'Social media management and content creation opportunities',
+        ];
+    }
+    
+    // Review landscape
+    $avgRating = $aggregatedData['avgRating'];
+    $avgReviews = $aggregatedData['avgReviews'];
+    if ($avgReviews < 20) {
+        $patterns[] = [
+            'insight' => "Average review count is only {$avgReviews} — most competitors underinvest in reputation",
+            'category' => 'reputation',
+            'impact' => 'high',
+            'opportunity' => 'Review generation and reputation management services',
+        ];
+    }
+    if ($avgRating > 0 && $avgRating < 4.0) {
+        $patterns[] = [
+            'insight' => "Average rating is {$avgRating}/5.0 — quality gaps exist across the market",
+            'category' => 'quality',
+            'impact' => 'medium',
+            'opportunity' => 'Service quality differentiation opportunity',
+        ];
+    }
+    
+    // CMS concentration
+    if (!empty($digitalMaturity['topCMS'])) {
+        $topPlatform = $digitalMaturity['topCMS'][0];
+        if ($topPlatform['percentage'] > 25) {
+            $patterns[] = [
+                'insight' => "{$topPlatform['percentage']}% use {$topPlatform['platform']} — dominant platform in this niche",
+                'category' => 'technology',
+                'impact' => 'low',
+                'opportunity' => "Specialization in {$topPlatform['platform']} migration or optimization",
+            ];
+        }
+    }
+    
+    // Digital maturity score insight
+    $maturityScore = $digitalMaturity['overallScore'];
+    if ($maturityScore < 40) {
+        $patterns[] = [
+            'insight' => "Digital maturity score is {$maturityScore}/100 — this niche is digitally underserved",
+            'category' => 'maturity',
+            'impact' => 'critical',
+            'opportunity' => 'Massive opportunity for digital transformation services',
+        ];
+    } elseif ($maturityScore < 60) {
+        $patterns[] = [
+            'insight' => "Digital maturity score is {$maturityScore}/100 — moderate adoption with room for growth",
+            'category' => 'maturity',
+            'impact' => 'medium',
+            'opportunity' => 'Targeted digital upgrades and optimization services',
+        ];
+    }
+    
+    // Email availability
+    $emailPct = $aggregatedData['totalLeads'] > 0 ? round(($aggregatedData['withEmail'] / $aggregatedData['totalLeads']) * 100) : 0;
+    if ($emailPct < 30) {
+        $patterns[] = [
+            'insight' => "Only {$emailPct}% have publicly accessible email addresses",
+            'category' => 'accessibility',
+            'impact' => 'medium',
+            'opportunity' => 'Many businesses in this niche are hard to reach digitally',
+        ];
+    }
+    
+    return $patterns;
 }
 
 /**

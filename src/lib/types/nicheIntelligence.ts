@@ -17,6 +17,12 @@ export interface NicheIntelligence {
   // Core niche identification
   nicheIdentification: NicheIdentification;
   
+  // MARKET OVERVIEW (aggregated stats - shown FIRST)
+  marketOverview?: NicheMarketOverview;
+  
+  // MARKET PATTERNS (derived insights)
+  marketPatterns?: MarketPattern[];
+  
   // Trend analysis
   trendAnalysis: TrendAnalysis;
   
@@ -31,6 +37,38 @@ export interface NicheIntelligence {
   
   // AI-generated insights
   aiNicheInsights: AINicheInsights;
+}
+
+// ============================================================================
+// Market Overview (Aggregated from all businesses)
+// ============================================================================
+
+export interface NicheMarketOverview {
+  totalBusinessesFound: number;
+  digitalMaturityScore: number; // 0-100
+  percentWithWebsite: number;
+  percentOutdatedWebsite: number;
+  percentNoWebsite: number;
+  percentWithEmail: number;
+  percentWithPhone: number;
+  avgRating: number;
+  avgReviewCount: number;
+  topCMSPlatforms: CMSPlatform[];
+  websiteQualityScore: number;
+  ratingDistribution: Record<number, number>;
+}
+
+export interface CMSPlatform {
+  platform: string;
+  count: number;
+  percentage: number;
+}
+
+export interface MarketPattern {
+  insight: string;
+  category: string; // digital_gap, modernization, social_gap, reputation, quality, technology, maturity, accessibility
+  impact: 'critical' | 'high' | 'medium' | 'low';
+  opportunity: string;
 }
 
 // ============================================================================
