@@ -1,17 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { 
-  startCallingSession, 
-  endCallingSession, 
   initiateCall as apiInitiateCall,
   hangupCall as apiHangupCall,
-  type CallSession,
-  type CallingMessage,
+  getCallStatus,
+  getCallTranscript,
   type TranscriptEntry
 } from "@/lib/api/calling";
 
 export type CallingConversationStatus = "disconnected" | "connecting" | "connected";
-
-export type CallingConnectionType = "webrtc" | "websocket";
 
 export interface StartCallingSessionOptions {
   agentId?: string;
@@ -27,257 +23,158 @@ export interface StartCallingSessionOptions {
 export interface UseCallingConversationOptions {
   onConnect?: () => void;
   onDisconnect?: () => void;
-  onMessage?: (message: CallingMessage) => void;
   onTranscript?: (entry: TranscriptEntry) => void;
   onError?: (error: unknown) => void;
 }
 
 /**
- * Calling.io conversation hook for AI voice calls.
+ * Telnyx AI Calling conversation hook.
  * 
- * This manages the WebSocket connection to the calling.io backend
- * for real-time AI voice conversations with leads.
+ * Instead of WebSocket, this polls the backend for call status and transcript
+ * since Telnyx handles the AI conversation server-side via gather_using_ai.
  */
 export function useCallingConversation(options: UseCallingConversationOptions = {}) {
-  const { onConnect, onDisconnect, onMessage, onTranscript, onError } = options;
+  const { onConnect, onDisconnect, onTranscript, onError } = options;
 
   const [status, setStatus] = useState<CallingConversationStatus>("disconnected");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [currentCallId, setCurrentCallId] = useState<string | null>(null);
-  const [sessionToken, setSessionToken] = useState<string | null>(null);
 
-  const wsRef = useRef<WebSocket | null>(null);
-  const speakingIntervalRef = useRef<number | null>(null);
-  const reconnectAttempts = useRef(0);
-  const maxReconnectAttempts = 3;
+  const pollingRef = useRef<number | null>(null);
 
-  const stopSpeakingSimulation = useCallback(() => {
-    if (speakingIntervalRef.current != null) {
-      window.clearInterval(speakingIntervalRef.current);
-      speakingIntervalRef.current = null;
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current != null) {
+      window.clearInterval(pollingRef.current);
+      pollingRef.current = null;
     }
-    setIsSpeaking(false);
   }, []);
 
-  const handleWebSocketMessage = useCallback((event: MessageEvent) => {
-    try {
-      const message: CallingMessage = JSON.parse(event.data);
-      
-      switch (message.type) {
-        case 'auth_success':
-          setStatus("connected");
-          onConnect?.();
-          break;
-          
-        case 'auth_error':
-          setStatus("disconnected");
-          onError?.(new Error(message.data?.message || 'Authentication failed'));
-          break;
-          
-        case 'call_answered':
-          // Call has been answered by the lead
-          break;
-          
-        case 'agent_speaking':
-          setIsSpeaking(true);
-          break;
-          
-        case 'agent_listening':
-          setIsSpeaking(false);
-          break;
-          
-        case 'transcript_update':
-          if (message.data?.entry) {
-            const entry: TranscriptEntry = {
-              role: message.data.entry.role,
-              text: message.data.entry.text,
-              timestamp: message.data.entry.timestamp || Date.now()
-            };
-            setTranscript(prev => [...prev, entry]);
-            onTranscript?.(entry);
+  // Poll for call status and transcript updates
+  const startPolling = useCallback((callControlId: string) => {
+    stopPolling();
+    
+    pollingRef.current = window.setInterval(async () => {
+      try {
+        const [statusResult, transcriptResult] = await Promise.all([
+          getCallStatus(callControlId),
+          getCallTranscript(callControlId)
+        ]);
+
+        if (statusResult.success && statusResult.status) {
+          if (statusResult.status === 'ended') {
+            stopPolling();
+            setStatus("disconnected");
+            setIsSpeaking(false);
+            onDisconnect?.();
+            return;
           }
-          break;
-          
-        case 'call_ended':
-          stopSpeakingSimulation();
-          setStatus("disconnected");
-          onDisconnect?.();
-          break;
-          
-        case 'error':
-          onError?.(new Error(message.data?.message || 'Unknown error'));
-          break;
+          setIsSpeaking(statusResult.status === 'speaking');
+        }
+
+        if (transcriptResult.success && transcriptResult.transcript) {
+          const newTranscript = transcriptResult.transcript;
+          setTranscript(prev => {
+            if (newTranscript.length > prev.length) {
+              // Notify about new entries
+              for (let i = prev.length; i < newTranscript.length; i++) {
+                onTranscript?.(newTranscript[i]);
+              }
+              return newTranscript;
+            }
+            return prev;
+          });
+        }
+      } catch (e) {
+        console.error('Polling error:', e);
       }
-      
-      onMessage?.(message);
-    } catch (e) {
-      console.error('Failed to parse WebSocket message:', e);
-    }
-  }, [onConnect, onDisconnect, onError, onMessage, onTranscript, stopSpeakingSimulation]);
-
-  const connectWebSocket = useCallback((session: CallSession) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.close();
-    }
-
-    const ws = new WebSocket(session.websocket_url);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      // Authenticate with the session token
-      ws.send(JSON.stringify({
-        type: 'auth',
-        token: session.token,
-        agent_id: session.agent_id
-      }));
-    };
-
-    ws.onmessage = handleWebSocketMessage;
-
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      onError?.(error);
-    };
-
-    ws.onclose = (event) => {
-      if (status === "connected" && reconnectAttempts.current < maxReconnectAttempts) {
-        reconnectAttempts.current++;
-        console.log(`WebSocket closed, attempting reconnect (${reconnectAttempts.current}/${maxReconnectAttempts})`);
-        setTimeout(() => connectWebSocket(session), 1000 * reconnectAttempts.current);
-      } else {
-        stopSpeakingSimulation();
-        setStatus("disconnected");
-        onDisconnect?.();
-      }
-    };
-
-    return ws;
-  }, [handleWebSocketMessage, onDisconnect, onError, status, stopSpeakingSimulation]);
+    }, 2000); // Poll every 2 seconds
+  }, [stopPolling, onDisconnect, onTranscript]);
 
   const startSession = useCallback(
     async (opts: StartCallingSessionOptions) => {
+      if (!opts.lead?.phone) {
+        throw new Error('Phone number required to start a call');
+      }
+
       try {
         setStatus("connecting");
         setTranscript([]);
-        reconnectAttempts.current = 0;
 
-        // Get session credentials from backend
-        const result = await startCallingSession(opts.script, opts.lead);
-        
-        if (!result.success || !result.session) {
-          throw new Error(result.error || 'Failed to start session');
+        const result = await apiInitiateCall({
+          destination_number: opts.lead.phone,
+          lead_id: opts.lead.id,
+          lead_name: opts.lead.name,
+        });
+
+        if (!result.success || !result.call_control_id) {
+          throw new Error(result.error || 'Failed to initiate call');
         }
 
-        setSessionToken(result.session.token);
+        setCurrentCallId(result.call_control_id);
+        setStatus("connected");
+        onConnect?.();
 
-        // If this is a simulated session (no real calling.io API key configured)
-        if (result.simulated) {
-          console.log('Running in simulated mode - no real calling.io connection');
-          
-          // Simulate connection for UI testing
-          await new Promise((r) => window.setTimeout(r, 600));
-          setStatus("connected");
-          onConnect?.();
+        // Start polling for status and transcript
+        startPolling(result.call_control_id);
 
-          // Simulate speaking/listening animation
-          stopSpeakingSimulation();
-          speakingIntervalRef.current = window.setInterval(() => {
-            setIsSpeaking((prev) => !prev);
-          }, 1400);
-
-          return;
-        }
-
-        // Connect to real calling.io WebSocket
-        connectWebSocket(result.session);
-        
       } catch (e) {
-        stopSpeakingSimulation();
+        stopPolling();
         setStatus("disconnected");
         onError?.(e);
         throw e;
       }
     },
-    [connectWebSocket, onConnect, onError, stopSpeakingSimulation]
+    [onConnect, onError, startPolling, stopPolling]
   );
 
   const endSession = useCallback(async () => {
     if (status === "disconnected") return;
 
-    // End session on backend
-    if (sessionToken) {
-      await endCallingSession(sessionToken);
-      setSessionToken(null);
-    }
-
-    // Close WebSocket connection
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-    }
-
-    // Hangup any active call
     if (currentCallId) {
       await apiHangupCall(currentCallId);
       setCurrentCallId(null);
     }
 
-    stopSpeakingSimulation();
+    stopPolling();
     setStatus("disconnected");
+    setIsSpeaking(false);
     setTranscript([]);
     onDisconnect?.();
-  }, [currentCallId, onDisconnect, sessionToken, status, stopSpeakingSimulation]);
+  }, [currentCallId, onDisconnect, status, stopPolling]);
 
   const initiateCall = useCallback(async (phoneNumber: string, lead?: StartCallingSessionOptions['lead']) => {
-    if (status !== "connected") {
-      throw new Error('Not connected to calling service');
-    }
-
     const result = await apiInitiateCall({
       destination_number: phoneNumber,
-      lead: lead ? {
-        id: lead.id,
-        name: lead.name,
-        company: lead.company
-      } : undefined
+      lead_id: lead?.id,
+      lead_name: lead?.name,
     });
 
-    if (!result.success || !result.call) {
+    if (!result.success || !result.call_control_id) {
       throw new Error(result.error || 'Failed to initiate call');
     }
 
-    setCurrentCallId(result.call.id);
+    setCurrentCallId(result.call_control_id);
+    startPolling(result.call_control_id);
 
-    // If simulated, start speaking animation
-    if (result.simulated) {
-      stopSpeakingSimulation();
-      speakingIntervalRef.current = window.setInterval(() => {
-        setIsSpeaking((prev) => !prev);
-      }, 1400);
-    }
-
-    return result.call;
-  }, [status, stopSpeakingSimulation]);
+    return { id: result.call_control_id, call_leg_id: result.call_leg_id };
+  }, [startPolling]);
 
   const hangupCall = useCallback(async () => {
     if (!currentCallId) return;
 
     await apiHangupCall(currentCallId);
     setCurrentCallId(null);
-    stopSpeakingSimulation();
-  }, [currentCallId, stopSpeakingSimulation]);
+    stopPolling();
+    setIsSpeaking(false);
+  }, [currentCallId, stopPolling]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      stopSpeakingSimulation();
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
+      stopPolling();
     };
-  }, [stopSpeakingSimulation]);
+  }, [stopPolling]);
 
   return useMemo(
     () => ({
