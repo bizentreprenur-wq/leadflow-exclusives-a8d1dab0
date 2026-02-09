@@ -372,11 +372,12 @@ export default function Step4AICallingHub({
       tier: 'free',
       name: 'Free',
       icon: Eye,
-      color: 'text-muted-foreground',
-      bgColor: 'bg-muted/50',
-      borderColor: 'border-muted-foreground',
-      ringColor: 'ring-muted-foreground/30',
-      badgeColor: 'bg-muted-foreground text-muted',
+      color: 'text-slate-400',
+      bgColor: 'bg-gradient-to-br from-slate-500/15 via-slate-400/10 to-slate-600/15',
+      borderColor: 'border-slate-400/50',
+      ringColor: 'ring-slate-400/30',
+      badgeColor: 'bg-slate-500 text-white',
+      glowClass: 'shadow-sm',
       features: ['AI call script preview only', 'See what AI would say'],
       limitation: 'Upgrade to unlock'
     },
@@ -384,11 +385,12 @@ export default function Step4AICallingHub({
       tier: 'basic',
       name: 'Basic',
       icon: Edit3,
-      color: 'text-blue-500',
-      bgColor: 'bg-blue-500/10',
-      borderColor: 'border-blue-500',
-      ringColor: 'ring-blue-500/30',
+      color: 'text-blue-400',
+      bgColor: 'bg-gradient-to-br from-blue-500/20 via-blue-400/10 to-indigo-500/15',
+      borderColor: 'border-blue-400/60',
+      ringColor: 'ring-blue-400/40',
       badgeColor: 'bg-blue-500 text-white',
+      glowClass: 'shadow-md shadow-blue-500/20',
       features: ['AI generates call scripts', 'You dial manually'],
       addon: `+$${AI_CALLING_ADDON_PRICE}/mo`
     },
@@ -397,10 +399,11 @@ export default function Step4AICallingHub({
       name: 'Pro',
       icon: Bot,
       color: 'text-primary',
-      bgColor: 'bg-primary/10',
-      borderColor: 'border-primary',
-      ringColor: 'ring-primary/30',
+      bgColor: 'bg-gradient-to-br from-primary/25 via-emerald-500/15 to-cyan-500/20',
+      borderColor: 'border-primary/60',
+      ringColor: 'ring-primary/40',
       badgeColor: 'bg-primary text-primary-foreground',
+      glowClass: 'shadow-md shadow-primary/25',
       features: ['AI calls your leads', 'You supervise calls'],
       addon: `+$${AI_CALLING_ADDON_PRICE}/mo`
     },
@@ -408,11 +411,12 @@ export default function Step4AICallingHub({
       tier: 'autopilot',
       name: 'Autopilot',
       icon: Sparkles,
-      color: 'text-amber-500',
-      bgColor: 'bg-amber-500/10',
-      borderColor: 'border-amber-500',
-      ringColor: 'ring-amber-500/30',
-      badgeColor: 'bg-amber-500 text-white',
+      color: 'text-amber-400',
+      bgColor: 'bg-gradient-to-br from-amber-500/25 via-orange-500/15 to-yellow-500/20',
+      borderColor: 'border-amber-400/60',
+      ringColor: 'ring-amber-400/40',
+      badgeColor: 'bg-gradient-to-r from-amber-500 to-orange-500 text-white',
+      glowClass: 'shadow-lg shadow-amber-500/30',
       features: ['Fully autonomous calling', 'AI texts back & forth', 'Phone included'],
       included: 'All included!'
     }
@@ -598,10 +602,10 @@ export default function Step4AICallingHub({
                       <div 
                         key={tierCap.tier}
                         onClick={!isCurrentTier ? handleTierClick : undefined}
-                        className={`relative p-4 rounded-xl border-2 transition-all ${
+                        className={`relative p-4 rounded-xl border-2 transition-all duration-300 ${
                           isCurrentTier 
-                            ? `${tierCap.bgColor} ${tierCap.borderColor} ring-2 ${tierCap.ringColor}` 
-                            : 'bg-card border-border opacity-50 hover:opacity-80 cursor-pointer hover:border-muted-foreground'
+                            ? `${tierCap.bgColor} ${tierCap.borderColor} ring-2 ${tierCap.ringColor} ${tierCap.glowClass}` 
+                            : 'bg-card/50 border-border/50 opacity-60 hover:opacity-90 cursor-pointer hover:border-muted-foreground hover:scale-[1.02]'
                         }`}
                       >
                         {isCurrentTier && (
