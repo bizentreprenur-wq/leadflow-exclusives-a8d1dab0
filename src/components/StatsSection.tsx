@@ -1,10 +1,10 @@
 import { forwardRef } from 'react';
 
 const stats = [
-  { value: "10", label: "AI Research Categories" },
-  { value: "100+", label: "Data Points Analyzed" },
-  { value: "Real-Time", label: "Website Analysis" },
-  { value: "3", label: "Export Formats (PDF/Excel/Drive)" },
+  { value: "2,000+", label: "Leads Per Search" },
+  { value: "25+", label: "Industries with Synonym AI" },
+  { value: "SWOT", label: "Competitive & Buyer Matching" },
+  { value: "3-in-1", label: "Email · Voice · Autopilot" },
 ];
 
 const StatsSection = forwardRef<HTMLElement>((props, ref) => {
