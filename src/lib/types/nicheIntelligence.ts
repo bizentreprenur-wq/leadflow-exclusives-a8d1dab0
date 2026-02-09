@@ -14,29 +14,29 @@ export interface NicheIntelligence {
   searchLocation: string;
   analyzedAt: string;
   
-  // Core niche identification
   nicheIdentification: NicheIdentification;
-  
-  // MARKET OVERVIEW (aggregated stats - shown FIRST)
   marketOverview?: NicheMarketOverview;
-  
-  // MARKET PATTERNS (derived insights)
   marketPatterns?: MarketPattern[];
-  
-  // Trend analysis
   trendAnalysis: TrendAnalysis;
-  
-  // Market dynamics
   marketAnalysis: MarketAnalysis;
-  
-  // Standard products & services
   productsAndServices: ProductsAndServices;
-  
-  // Competitive landscape summary
   competitiveLandscape: CompetitiveLandscape;
-  
-  // AI-generated insights
   aiNicheInsights: AINicheInsights;
+  
+  // Business sample with intelligence tags (NOT leads)
+  businessSample?: BusinessSampleEntry[];
+}
+
+export type IntelligenceTag = 'Digitally Strong' | 'Digitally Weak' | 'Traditional' | 'Growth-oriented';
+
+export interface BusinessSampleEntry {
+  name: string;
+  website?: string;
+  rating?: number;
+  reviewCount?: number;
+  platform?: string;
+  tags: IntelligenceTag[];
+  digitalMaturityScore: number; // 0-100
 }
 
 // ============================================================================

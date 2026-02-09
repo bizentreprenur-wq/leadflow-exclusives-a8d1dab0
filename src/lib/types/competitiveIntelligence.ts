@@ -14,26 +14,49 @@ export interface CompetitiveIntelligence {
   searchLocation: string;
   analyzedAt: string;
   
-  // My business info (if provided)
   myBusiness?: MyBusinessInfo;
-  
-  // Market Overview
   marketOverview: MarketOverview;
-  
-  // SWOT Analysis
   swotAnalysis: SWOTAnalysis;
-  
-  // Core Competencies & Differentiators
   coreCompetencies: CoreCompetencies;
-  
-  // Competitor Comparison
   competitorComparison: CompetitorComparison;
-  
-  // Market Position Analysis
   marketPositioning: MarketPositioning;
-  
-  // AI Strategic Recommendations
   aiStrategicInsights: AIStrategicInsights;
+  
+  // Buyer Matching (product fit scoring)
+  buyerMatching?: BuyerMatching;
+}
+
+// ============================================================================
+// Buyer Matching (Product Fit Scoring)
+// ============================================================================
+
+export interface BuyerMatching {
+  productName: string;
+  totalAnalyzed: number;
+  potentialBuyers: PotentialBuyer[];
+  summary: BuyerMatchingSummary;
+  recommendedApproach: string;
+}
+
+export interface PotentialBuyer {
+  name: string;
+  website?: string;
+  phone?: string;
+  email?: string;
+  fitScore: number;
+  fitTier: 'high-fit' | 'medium-fit' | 'low-fit';
+  fitReasons: string[];
+  missingCapabilities: string[];
+  rating?: number;
+  reviewCount?: number;
+}
+
+export interface BuyerMatchingSummary {
+  highFitCount: number;
+  mediumFitCount: number;
+  lowFitCount: number;
+  avgFitScore: number;
+  topOpportunity: string;
 }
 
 // ============================================================================
