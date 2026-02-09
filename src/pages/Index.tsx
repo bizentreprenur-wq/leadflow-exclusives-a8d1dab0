@@ -22,6 +22,7 @@ import ROICalculatorSection from "@/components/ROICalculatorSection";
 import AIEmailAssistantDemo from "@/components/AIEmailAssistantDemo";
 import SuperAIFeaturesSection from "@/components/SuperAIFeaturesSection";
 import AIAutopilotCampaignPromo from "@/components/AIAutopilotCampaignPromo";
+import SynonymExpansionDemo from "@/components/SynonymExpansionDemo";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
@@ -50,6 +51,7 @@ const Index = () => {
           </div>
         </section>
         <SuperAIFeaturesSection />
+        <SynonymExpansionDemo />
         <HowItWorksSection />
         <AgentCardsSection />
         <VoiceCallingSection />

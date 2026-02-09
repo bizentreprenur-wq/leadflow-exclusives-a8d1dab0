@@ -22,7 +22,9 @@ const featureCategories = [
     features: [
       { text: "GMB (Google Maps) Search", free: "5/day", basic: "30/day", pro: "200/day", autopilot: "Unlimited" },
       { text: "Platform Search (16 platforms)", free: "3/day", basic: "30/day", pro: "200/day", autopilot: "Unlimited" },
-      { text: "Super AI Business Search", free: false, basic: true, pro: true, autopilot: true },
+      { text: "Super AI Business Search (Option A)", free: false, basic: true, pro: true, autopilot: true },
+      { text: "Agency Lead Finder (Option B)", free: false, basic: true, pro: true, autopilot: true },
+      { text: "Synonym AI Expansion (2,000+ leads)", free: false, basic: true, pro: true, autopilot: true },
       { text: "Reverse Lead Discovery", free: false, basic: false, pro: true, autopilot: true },
     ],
   },
@@ -31,7 +33,11 @@ const featureCategories = [
     icon: Brain,
     features: [
       { text: "AI Lead Verification Credits", free: "25/mo", basic: "200/mo", pro: "500/mo", autopilot: "2,000/mo" },
+      { text: "Niche Intelligence & Market Research", free: false, basic: true, pro: true, autopilot: true },
+      { text: "SWOT Analysis & Competitive Benchmarking", free: false, basic: false, pro: true, autopilot: true },
+      { text: "Buyer Matching (Product-Fit Scoring)", free: false, basic: false, pro: true, autopilot: true },
       { text: "12-Category Business Intelligence", free: false, basic: true, pro: true, autopilot: true },
+      { text: "Digital Maturity Tags & Scoring", free: false, basic: true, pro: true, autopilot: true },
       { text: "AI Lead Scoring & Classification", free: false, basic: true, pro: true, autopilot: true },
       { text: "Smart Response Detection", free: false, basic: false, pro: true, autopilot: true },
       { text: "Buyer Intent Detection", free: false, basic: false, pro: true, autopilot: true },
@@ -458,11 +464,11 @@ const Pricing = () => {
           <div className="container px-4">
             <div className="max-w-6xl mx-auto">
               <div className="text-center mb-12">
-                <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">
+              <h2 className="font-display text-3xl md:text-4xl font-bold text-foreground mb-4">
                   Everything Included in Bamlead
                 </h2>
                 <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                  Compare all features across plans. Bamlead is a complete lead generation platform with 50+ features.
+                  Niche Intelligence, SWOT Analysis, Buyer Matching, Synonym AI Expansion, Agency Lead Finder, AI Autopilot & 50+ more features across every plan.
                 </p>
               </div>
 

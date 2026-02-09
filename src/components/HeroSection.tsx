@@ -10,8 +10,8 @@ const HeroSection = () => {
   const { t } = useLanguage();
 
   const secretFeatures = [
-    { icon: Brain, label: "Market Intelligence Engine", color: "text-primary" },
-    { icon: Eye, label: "SWOT & Buyer Matching", color: "text-accent" },
+    { icon: Brain, label: "Market Intelligence & SWOT", color: "text-primary" },
+    { icon: Target, label: "Agency Lead Finder", color: "text-violet-400" },
     { icon: Zap, label: "2,000+ Leads via Synonym AI", color: "text-amber-400" },
     { icon: Target, label: "AI Email, Voice & Autopilot", color: "text-emerald-400" },
   ];
@@ -54,7 +54,7 @@ const HeroSection = () => {
                 <span className="font-semibold tracking-wide">🤖 AI-POWERED MARKET INTELLIGENCE PLATFORM</span>
               </Badge>
               <p className="text-sm text-muted-foreground mt-2 font-medium">
-                Niche Research · Competitive Analysis · Buyer Matching · AI Outreach
+                Niche Research · Competitive Analysis · Agency Lead Finder · AI Outreach
               </p>
             </motion.div>
 
@@ -81,7 +81,7 @@ const HeroSection = () => {
               variants={itemVariants}
               className="text-lg md:text-xl text-muted-foreground max-w-xl leading-relaxed"
             >
-              The only platform that combines <span className="text-primary font-medium">niche market intelligence</span>, <span className="text-accent font-medium">SWOT & competitive analysis</span>, and <span className="text-amber-400 font-medium">AI-powered buyer matching</span> — then lets you reach prospects with <span className="text-emerald-400 font-medium">AI email, voice calling, and autopilot campaigns</span>. Discover up to <span className="text-violet-400 font-medium">2,000+ businesses</span> per search with smart keyword expansion across <span className="text-blue-400 font-medium">25+ industries</span>.
+              <span className="text-primary font-medium">Two powerful search modes:</span> Use <span className="text-primary font-medium">Super AI Business Search</span> for niche intelligence, SWOT & buyer matching — or <span className="text-violet-400 font-medium">Agency Lead Finder</span> to discover clients who need website design, SMMA, SaaS, marketing & more. Then reach them with <span className="text-emerald-400 font-medium">AI email, voice calling & autopilot campaigns</span>. Up to <span className="text-amber-400 font-medium">2,000+ leads</span> per search across <span className="text-blue-400 font-medium">25+ industries</span>.
             </motion.p>
 
             {/* Secret Features Pills */}
