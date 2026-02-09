@@ -10,10 +10,10 @@ const HeroSection = () => {
   const { t } = useLanguage();
 
   const secretFeatures = [
-    { icon: Brain, label: "10 AI Research Categories", color: "text-primary" },
-    { icon: Eye, label: "100+ Data Points", color: "text-accent" },
-    { icon: Zap, label: "Real-Time Analysis", color: "text-amber-400" },
-    { icon: Target, label: "Export PDF/Excel/Drive", color: "text-emerald-400" },
+    { icon: Brain, label: "Market Intelligence Engine", color: "text-primary" },
+    { icon: Eye, label: "SWOT & Buyer Matching", color: "text-accent" },
+    { icon: Zap, label: "2,000+ Leads via Synonym AI", color: "text-amber-400" },
+    { icon: Target, label: "AI Email, Voice & Autopilot", color: "text-emerald-400" },
   ];
 
   const containerVariants = {
@@ -51,10 +51,10 @@ const HeroSection = () => {
             <motion.div variants={itemVariants}>
               <Badge className="bg-gradient-to-r from-primary/20 to-accent/20 text-primary border border-primary/30 px-4 py-2 backdrop-blur-sm">
                 <Sparkles className="h-3.5 w-3.5 mr-2 animate-pulse" />
-                <span className="font-semibold tracking-wide">🤖 SUPER AI BUSINESS INTELLIGENCE</span>
+                <span className="font-semibold tracking-wide">🤖 AI-POWERED MARKET INTELLIGENCE PLATFORM</span>
               </Badge>
               <p className="text-sm text-muted-foreground mt-2 font-medium">
-                Advanced Business Insights Beyond Basic Lead Lists
+                Niche Research · Competitive Analysis · Buyer Matching · AI Outreach
               </p>
             </motion.div>
 
@@ -64,15 +64,15 @@ const HeroSection = () => {
               className="text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-display font-bold leading-[1.05] tracking-tight"
             >
               <span className="bg-gradient-to-r from-primary via-primary to-accent bg-clip-text text-transparent">
-                Find any business.
+                Understand any market.
               </span>
               <br />
               <span className="text-foreground">
-                Know everything.
+                Outsmart competitors.
               </span>
               <br />
               <span className="bg-gradient-to-r from-accent via-primary to-accent bg-clip-text text-transparent">
-                Close the deal.
+                Close the right deals.
               </span>
             </motion.h1>
 
@@ -81,7 +81,7 @@ const HeroSection = () => {
               variants={itemVariants}
               className="text-lg md:text-xl text-muted-foreground max-w-xl leading-relaxed"
             >
-              The most advanced AI-powered business search with <span className="text-primary font-medium">10 research categories</span>, <span className="text-accent font-medium">100+ data points</span>, and <span className="text-amber-400 font-medium">real-time website analysis</span>. Export full intelligence reports as <span className="text-emerald-400 font-medium">PDF, Excel, or Google Drive</span>. Built for <span className="text-violet-400 font-medium">agencies</span>, <span className="text-emerald-400 font-medium">sales teams</span>, and <span className="text-blue-400 font-medium">serious professionals</span>.
+              The only platform that combines <span className="text-primary font-medium">niche market intelligence</span>, <span className="text-accent font-medium">SWOT & competitive analysis</span>, and <span className="text-amber-400 font-medium">AI-powered buyer matching</span> — then lets you reach prospects with <span className="text-emerald-400 font-medium">AI email, voice calling, and autopilot campaigns</span>. Discover up to <span className="text-violet-400 font-medium">2,000+ businesses</span> per search with smart keyword expansion across <span className="text-blue-400 font-medium">25+ industries</span>.
             </motion.p>
 
             {/* Secret Features Pills */}
@@ -132,7 +132,7 @@ const HeroSection = () => {
                 ))}
               </div>
               <p className="text-sm text-muted-foreground">
-                <span className="text-primary font-semibold">2,847+</span> sales teams & agencies using Super AI Business Search
+                <span className="text-primary font-semibold">2,847+</span> agencies & sales teams using BamLead for market intelligence & outreach
               </p>
             </motion.div>
           </div>

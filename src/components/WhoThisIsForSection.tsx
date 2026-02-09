@@ -52,10 +52,10 @@ const WhoThisIsForSection = () => {
               Who This Is For
             </p>
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-6">
-              Built for digital professionals
+              Built for intelligence-driven professionals
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Two powerful searches designed for different use cases. Find the right businesses with AI-powered insights.
+              Two powerful modes: research your market with niche intelligence & SWOT analysis, or find service clients with AI-powered lead discovery. Both include AI email, voice calling, and autopilot outreach.
             </p>
           </div>
 
@@ -74,8 +74,8 @@ const WhoThisIsForSection = () => {
             <TabsContent value="search-a">
               <div className="mb-6 text-center">
                 <h3 className="text-xl font-bold text-foreground mb-2">Super AI Business Search</h3>
-                <p className="text-sm font-semibold text-primary mb-1">Advanced Business Insights Beyond Basic Lead Lists</p>
-                <p className="text-sm text-muted-foreground">Deep research & competitive intelligence for serious B2B professionals</p>
+                <p className="text-sm font-semibold text-primary mb-1">Market Intelligence · SWOT · Buyer Matching</p>
+                <p className="text-sm text-muted-foreground">Niche research, competitive analysis, and AI-driven buyer identification for B2B professionals</p>
               </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 {searchAProfessionals.map((audience, index) => (
@@ -100,10 +100,10 @@ const WhoThisIsForSection = () => {
               </div>
               <div className="text-center p-6 rounded-xl border border-primary/20 bg-gradient-to-r from-primary/5 to-emerald-500/5">
                 <p className="text-lg font-semibold text-foreground mb-1">
-                  10 AI Research Categories • 100+ Data Points
+                  Niche Intelligence • SWOT • Buyer Matching • 2,000+ Leads
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Unique business offerings, improvement areas, competitive gaps, and actionable intelligence
+                  Digital maturity scoring, market patterns, competitive gaps, and AI-powered outreach via email, voice & autopilot
                 </p>
               </div>
             </TabsContent>
@@ -112,8 +112,8 @@ const WhoThisIsForSection = () => {
             <TabsContent value="search-b">
               <div className="mb-6 text-center">
                 <h3 className="text-xl font-bold text-foreground mb-2">Agency Lead Finder</h3>
-                <p className="text-sm font-semibold text-violet-400 mb-1">Find Clients Who Need Your Services</p>
-                <p className="text-sm text-muted-foreground">ROI-focused lead discovery for service-based agencies</p>
+                <p className="text-sm font-semibold text-violet-400 mb-1">SSE Streaming · Smart Synonym Search · Contact Discovery</p>
+                <p className="text-sm text-muted-foreground">Real-time progressive lead delivery with emails, phones, and website audits for service agencies</p>
               </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                 {searchBProfessionals.map((audience, index) => (

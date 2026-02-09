@@ -233,21 +233,21 @@ const SuperAIFeaturesSection = () => {
           </motion.div>
           
           <motion.p variants={itemVariants} className="text-primary font-semibold text-lg mb-3">
-            Advanced Business Insights Beyond Basic Lead Lists
+            Market Intelligence · SWOT Analysis · Buyer Matching · AI Outreach
           </motion.p>
           
           <motion.h2 variants={itemVariants} className="text-3xl md:text-4xl lg:text-5xl font-display font-bold text-foreground mb-4">
             10 AI Research Categories
             <br />
-            <span className="text-primary">100+ Data Points</span>
+            <span className="text-primary">2,000+ Leads Per Search</span>
           </motion.h2>
           
           <motion.p variants={itemVariants} className="text-lg text-muted-foreground max-w-3xl mx-auto mb-4">
-            Bamlead doesn't just find businesses — it explains <span className="text-primary font-semibold">who to target, why now, what to say, and how to win</span> using AI-driven intelligence. Get unique business offerings, improvement areas, and competitive gaps that basic searches can't provide.
+            BamLead doesn't just find businesses — it builds <span className="text-primary font-semibold">complete market intelligence reports</span> with digital maturity scoring, competitive SWOT analysis, and AI-powered buyer matching. Then it lets you <span className="text-amber-400 font-semibold">reach them via email, voice, or fully autonomous AI campaigns</span>.
           </motion.p>
 
           <motion.p variants={itemVariants} className="text-base text-foreground/80 max-w-2xl mx-auto">
-            If your job involves <span className="text-accent font-semibold">finding, fixing, funding, selling to, or scaling businesses</span> — this is the search you need.
+            Search any keyword and BamLead <span className="text-accent font-semibold">auto-expands across 25+ industry synonym maps</span> to deliver maximum coverage — turning "mechanic" into 15+ targeted searches.
           </motion.p>
         </motion.div>
 
