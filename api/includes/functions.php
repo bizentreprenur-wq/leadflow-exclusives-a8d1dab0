@@ -352,6 +352,7 @@ function getNearbyCityShards($cityInput, $stateInput, $radiusMiles = 40) {
 
 /**
  * Expand common service synonyms to increase query coverage.
+ * Comprehensive synonym map for 25+ industries to maximize lead volume.
  */
 function expandServiceSynonyms($service) {
     $clean = preg_replace('/\s+/', ' ', trim((string)$service));
@@ -363,26 +364,187 @@ function expandServiceSynonyms($service) {
     $variants = [$clean];
     $synonyms = [];
 
-    if (preg_match('/\bdental\b|\bdentist\b/', $normalized)) {
-        $synonyms = array_merge($synonyms, [
-            'dentist',
-            'dental clinic',
-            'dental clinics',
-            'dental office',
-            'dental practice',
-            'family dentist',
-            'cosmetic dentist',
-            'pediatric dentist',
-            'emergency dentist',
-        ]);
+    // Comprehensive synonym map — each keyword triggers related search terms
+    $synonymMap = [
+        // Auto / Mechanic
+        '/\bmechanic\b|\bauto repair\b|\bcar repair\b|\bautomotive\b|\bauto shop\b/' => [
+            'auto mechanic', 'automotive mechanic', 'car technician', 'automotive technician',
+            'vehicle technician', 'service technician', 'master technician', 'auto repair technician',
+            'engine technician', 'drivetrain specialist', 'diagnostic technician', 'diesel mechanic',
+            'auto repair specialist', 'automotive service professional', 'certified mechanic',
+            'auto repair shop', 'car repair shop', 'auto service center', 'vehicle repair',
+        ],
+        // Dental
+        '/\bdental\b|\bdentist\b/' => [
+            'dentist', 'dental clinic', 'dental office', 'family dentist', 'cosmetic dentist',
+            'dental surgeon', 'orthodontist', 'endodontist', 'pediatric dentist',
+            'dental practice', 'emergency dentist', 'dental care', 'oral surgeon',
+            'dental hygienist', 'implant dentist', 'denture clinic',
+        ],
+        // Plumbing
+        '/\bplumber\b|\bplumbing\b/' => [
+            'plumbing company', 'plumbing contractor', 'drain specialist', 'pipe repair',
+            'emergency plumber', 'residential plumber', 'commercial plumber', 'plumbing service',
+            'sewer repair', 'water heater repair', 'leak detection', 'plumbing repair',
+            'drain cleaning', 'pipe fitting', 'backflow prevention',
+        ],
+        // Legal / Lawyer
+        '/\blawyer\b|\battorney\b|\blaw firm\b|\blegal\b/' => [
+            'attorney', 'law firm', 'legal services', 'legal counsel', 'law office',
+            'trial lawyer', 'litigation attorney', 'family lawyer', 'divorce attorney',
+            'personal injury lawyer', 'criminal defense attorney', 'estate planning attorney',
+            'business lawyer', 'immigration lawyer', 'bankruptcy attorney', 'real estate attorney',
+        ],
+        // HVAC
+        '/\bhvac\b|\bair conditioning\b|\bheating\b|\bac repair\b|\bfurnace\b/' => [
+            'hvac contractor', 'heating and cooling', 'ac repair', 'furnace repair',
+            'air conditioning service', 'hvac technician', 'hvac company', 'duct cleaning',
+            'heat pump repair', 'central air', 'hvac installation', 'cooling system repair',
+            'thermostat installation', 'air quality specialist',
+        ],
+        // Roofing
+        '/\broof\b|\broofing\b|\broofer\b/' => [
+            'roofing contractor', 'roof repair', 'roofing company', 'roof replacement',
+            'commercial roofing', 'residential roofer', 'roof inspection', 'shingle repair',
+            'metal roofing', 'flat roof repair', 'storm damage repair', 'gutter installation',
+            'roof leak repair', 'roofing specialist',
+        ],
+        // Electrician
+        '/\belectrician\b|\belectrical\b/' => [
+            'electrical contractor', 'electrician', 'electrical repair', 'wiring specialist',
+            'commercial electrician', 'residential electrician', 'emergency electrician',
+            'electrical service', 'panel upgrade', 'lighting installation', 'electrical company',
+        ],
+        // Real Estate
+        '/\brealtor\b|\breal estate\b|\brealty\b/' => [
+            'real estate agent', 'realtor', 'real estate broker', 'property agent',
+            'real estate company', 'home sales agent', 'listing agent', 'buyer agent',
+            'commercial real estate', 'real estate office', 'property management',
+        ],
+        // Restaurant / Food
+        '/\brestaurant\b|\bdining\b|\bcafe\b|\beatery\b/' => [
+            'restaurant', 'dining', 'cafe', 'bistro', 'eatery', 'diner',
+            'food service', 'catering', 'bar and grill', 'pizzeria', 'steakhouse',
+            'food truck', 'fast food', 'family restaurant',
+        ],
+        // Medical / Doctor
+        '/\bdoctor\b|\bphysician\b|\bmedical\b|\bclinic\b|\bhealthcare\b/' => [
+            'doctor', 'physician', 'medical clinic', 'healthcare provider', 'family doctor',
+            'general practitioner', 'internal medicine', 'urgent care', 'medical center',
+            'primary care physician', 'walk-in clinic', 'health clinic',
+        ],
+        // Landscaping
+        '/\blandscap\b|\blawn\b|\bgarden\b/' => [
+            'landscaping company', 'lawn care', 'lawn service', 'landscape design',
+            'landscaper', 'lawn maintenance', 'garden service', 'tree service',
+            'yard maintenance', 'hardscaping', 'irrigation service', 'outdoor living',
+        ],
+        // Insurance
+        '/\binsurance\b/' => [
+            'insurance agent', 'insurance broker', 'insurance company', 'insurance agency',
+            'auto insurance', 'home insurance', 'life insurance', 'health insurance',
+            'commercial insurance', 'insurance provider',
+        ],
+        // Accounting / CPA
+        '/\baccountant\b|\bcpa\b|\baccounting\b|\bbookkeep\b|\btax prep\b/' => [
+            'accountant', 'cpa', 'certified public accountant', 'bookkeeper',
+            'tax preparation', 'accounting firm', 'tax accountant', 'payroll services',
+            'financial advisor', 'tax consultant', 'accounting services',
+        ],
+        // Construction
+        '/\bconstruction\b|\bcontractor\b|\bbuilder\b|\bgeneral contractor\b/' => [
+            'construction company', 'general contractor', 'home builder', 'building contractor',
+            'remodeling contractor', 'renovation contractor', 'commercial construction',
+            'residential construction', 'home improvement contractor',
+        ],
+        // Cleaning
+        '/\bcleaning\b|\bcleaner\b|\bjanitorial\b|\bmaid\b/' => [
+            'cleaning service', 'house cleaning', 'commercial cleaning', 'janitorial service',
+            'maid service', 'carpet cleaning', 'office cleaning', 'deep cleaning',
+            'window cleaning', 'pressure washing',
+        ],
+        // Photography
+        '/\bphotograph\b/' => [
+            'photographer', 'photography studio', 'wedding photographer', 'portrait photographer',
+            'commercial photographer', 'event photographer', 'photo studio',
+        ],
+        // Fitness / Gym
+        '/\bgym\b|\bfitness\b|\bpersonal train\b/' => [
+            'gym', 'fitness center', 'personal trainer', 'health club', 'CrossFit',
+            'yoga studio', 'pilates studio', 'fitness studio', 'workout gym',
+        ],
+        // Veterinary
+        '/\bvet\b|\bveterinar\b|\banimal\b|\bpet\b/' => [
+            'veterinarian', 'vet clinic', 'animal hospital', 'pet clinic',
+            'veterinary hospital', 'emergency vet', 'animal care', 'pet hospital',
+        ],
+        // Moving
+        '/\bmoving\b|\bmover\b/' => [
+            'moving company', 'movers', 'relocation service', 'local movers',
+            'long distance movers', 'packing service', 'moving and storage',
+        ],
+        // Pest Control
+        '/\bpest\b|\bexterminator\b/' => [
+            'pest control', 'exterminator', 'termite control', 'pest management',
+            'rodent control', 'bed bug treatment', 'wildlife removal',
+        ],
+        // Marketing / Digital Agency
+        '/\bmarketing\b|\bseo\b|\bdigital agency\b|\badvertising\b/' => [
+            'marketing agency', 'digital marketing', 'seo company', 'advertising agency',
+            'social media marketing', 'ppc agency', 'content marketing', 'web marketing',
+            'branding agency', 'online marketing', 'digital agency',
+        ],
+        // Web Design
+        '/\bweb design\b|\bweb develop\b|\bwebsite\b/' => [
+            'web design company', 'web developer', 'website designer', 'web development agency',
+            'website development', 'web agency', 'website builder', 'frontend developer',
+        ],
+        // Salon / Beauty
+        '/\bsalon\b|\bbeauty\b|\bhair\b|\bnail\b|\bbarber\b/' => [
+            'hair salon', 'beauty salon', 'barber shop', 'nail salon', 'spa',
+            'hair stylist', 'beauty parlor', 'day spa', 'beauty studio',
+        ],
+        // Towing
+        '/\btow\b|\btowing\b/' => [
+            'towing service', 'tow truck', 'roadside assistance', 'emergency towing',
+            'auto towing', 'flatbed towing', 'vehicle recovery',
+        ],
+        // Painting
+        '/\bpainter\b|\bpainting\b/' => [
+            'painting contractor', 'house painter', 'commercial painter', 'painting company',
+            'interior painting', 'exterior painting', 'residential painter',
+        ],
+        // Chiropractor
+        '/\bchiropract\b/' => [
+            'chiropractor', 'chiropractic clinic', 'chiropractic care', 'spine specialist',
+            'chiropractic office', 'back pain doctor',
+        ],
+        // Pharmacy
+        '/\bpharmac\b/' => [
+            'pharmacy', 'drugstore', 'compounding pharmacy', 'retail pharmacy',
+            'specialty pharmacy',
+        ],
+        // Auto Body
+        '/\bauto body\b|\bcollision\b|\bbody shop\b/' => [
+            'auto body shop', 'collision repair', 'body shop', 'paint and body',
+            'dent repair', 'auto body repair', 'collision center',
+        ],
+    ];
+
+    foreach ($synonymMap as $pattern => $terms) {
+        if (preg_match($pattern, $normalized)) {
+            $synonyms = array_merge($synonyms, $terms);
+        }
     }
 
-    if (preg_match('/\borthodont\b/', $normalized)) {
-        $synonyms = array_merge($synonyms, [
-            'orthodontist',
-            'orthodontics',
-            'braces',
-        ]);
+    // If no specific match, try generic expansion
+    if (empty($synonyms)) {
+        // Add basic variants
+        $synonyms[] = "$clean service";
+        $synonyms[] = "$clean company";
+        $synonyms[] = "$clean near me";
+        $synonyms[] = "best $clean";
+        $synonyms[] = "local $clean";
     }
 
     foreach ($synonyms as $synonym) {

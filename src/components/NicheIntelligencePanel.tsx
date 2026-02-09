@@ -12,7 +12,8 @@ import {
   Target, Lightbulb, ChevronDown, ChevronUp, Sparkles, 
   BarChart3, Calendar, Zap, AlertTriangle, CheckCircle2,
   Building2, ShoppingBag, LineChart, Award, MessageSquare,
-  ArrowUpRight, Clock, Star, Briefcase, FileText, RefreshCw
+  ArrowUpRight, Clock, Star, Briefcase, FileText, RefreshCw,
+  Globe, Monitor, Wifi, PieChart, Eye
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { NicheIntelligence, NicheTrend, ServiceOffering, CustomerSegment } from '@/lib/types/nicheIntelligence';
@@ -74,7 +75,9 @@ export default function NicheIntelligencePanel({
     marketAnalysis, 
     productsAndServices, 
     competitiveLandscape,
-    aiNicheInsights 
+    aiNicheInsights,
+    marketOverview,
+    marketPatterns,
   } = nicheIntelligence;
 
   const getTrendIcon = (trend: 'growing' | 'stable' | 'declining') => {
@@ -104,7 +107,7 @@ export default function NicheIntelligencePanel({
 
   return (
     <div className="space-y-6">
-      {/* Header Card */}
+      {/* Header Card with Market Overview */}
       <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-background border-primary/20">
         <CardHeader className="pb-4">
           <div className="flex items-start justify-between">
@@ -137,39 +140,135 @@ export default function NicheIntelligencePanel({
             )}
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <CardContent className="space-y-4">
+          {/* Digital Maturity Score + Key Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+            {/* Digital Maturity Score */}
+            <div className="col-span-2 md:col-span-1 p-4 rounded-xl bg-gradient-to-br from-primary/20 to-emerald-500/10 border border-primary/20 text-center">
+              <Monitor className="w-5 h-5 mx-auto mb-2 text-primary" />
+              <p className="text-3xl font-bold text-foreground">
+                {marketOverview?.digitalMaturityScore ?? competitiveLandscape.totalCompetitorsInArea}
+              </p>
+              <p className="text-xs text-muted-foreground font-medium">
+                {marketOverview ? 'Digital Maturity' : 'Businesses Found'}
+              </p>
+              {marketOverview && (
+                <Progress value={marketOverview.digitalMaturityScore} className="mt-2 h-1.5" />
+              )}
+            </div>
+            
             <div className="text-center p-3 rounded-lg bg-background/50 border border-border">
               <Building2 className="w-5 h-5 mx-auto mb-2 text-primary" />
               <p className="text-2xl font-bold text-foreground">
-                {competitiveLandscape.totalCompetitorsInArea}
+                {marketOverview?.totalBusinessesFound ?? competitiveLandscape.totalCompetitorsInArea}
               </p>
-              <p className="text-xs text-muted-foreground">Competitors Found</p>
+              <p className="text-xs text-muted-foreground">Total Found</p>
+            </div>
+            <div className="text-center p-3 rounded-lg bg-background/50 border border-border">
+              <Globe className="w-5 h-5 mx-auto mb-2 text-blue-400" />
+              <p className="text-2xl font-bold text-foreground">
+                {marketOverview?.percentWithWebsite ?? (competitiveLandscape.totalCompetitorsInArea > 0 ? '—' : '0')}%
+              </p>
+              <p className="text-xs text-muted-foreground">Have Website</p>
             </div>
             <div className="text-center p-3 rounded-lg bg-background/50 border border-border">
               <Star className="w-5 h-5 mx-auto mb-2 text-amber-400" />
               <p className="text-2xl font-bold text-foreground">
-                {competitiveLandscape.averageRating.toFixed(1)}
+                {(marketOverview?.avgRating ?? competitiveLandscape.averageRating).toFixed(1)}
               </p>
               <p className="text-xs text-muted-foreground">Avg Rating</p>
             </div>
             <div className="text-center p-3 rounded-lg bg-background/50 border border-border">
               <MessageSquare className="w-5 h-5 mx-auto mb-2 text-blue-400" />
               <p className="text-2xl font-bold text-foreground">
-                {competitiveLandscape.averageReviewCount}
+                {marketOverview?.avgReviewCount ?? competitiveLandscape.averageReviewCount}
               </p>
               <p className="text-xs text-muted-foreground">Avg Reviews</p>
             </div>
-            <div className="text-center p-3 rounded-lg bg-background/50 border border-border">
-              <Target className="w-5 h-5 mx-auto mb-2 text-emerald-400" />
-              <p className="text-2xl font-bold text-foreground capitalize">
-                {marketAnalysis.competitiveIntensity}
-              </p>
-              <p className="text-xs text-muted-foreground">Competition</p>
-            </div>
           </div>
+
+          {/* Additional Aggregated Metrics */}
+          {marketOverview && (
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+              <MetricBadge label="No Website" value={`${marketOverview.percentNoWebsite}%`} impact={marketOverview.percentNoWebsite > 20 ? 'critical' : 'medium'} />
+              <MetricBadge label="Outdated Sites" value={`${marketOverview.percentOutdatedWebsite}%`} impact={marketOverview.percentOutdatedWebsite > 30 ? 'critical' : 'medium'} />
+              <MetricBadge label="Has Email" value={`${marketOverview.percentWithEmail}%`} impact={marketOverview.percentWithEmail < 30 ? 'low' : 'high'} />
+              <MetricBadge label="Has Phone" value={`${marketOverview.percentWithPhone}%`} impact={marketOverview.percentWithPhone < 50 ? 'low' : 'high'} />
+              <MetricBadge label="Site Quality" value={`${marketOverview.websiteQualityScore}/100`} impact={marketOverview.websiteQualityScore < 50 ? 'critical' : 'medium'} />
+              <MetricBadge label="Competition" value={marketAnalysis.competitiveIntensity} impact={marketAnalysis.competitiveIntensity === 'high' ? 'critical' : 'medium'} />
+            </div>
+          )}
+
+          {/* Top CMS Platforms */}
+          {marketOverview?.topCMSPlatforms && marketOverview.topCMSPlatforms.length > 0 && (
+            <div className="p-3 rounded-lg bg-muted/30 border border-border">
+              <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wider flex items-center gap-1.5">
+                <PieChart className="w-3.5 h-3.5" /> Top Website Platforms
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {marketOverview.topCMSPlatforms.map((cms, idx) => (
+                  <Badge key={idx} variant="outline" className="text-xs">
+                    {cms.platform}: {cms.percentage}% ({cms.count})
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* MARKET PATTERNS — Derived Insights */}
+      {marketPatterns && marketPatterns.length > 0 && (
+        <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-emerald-500/5">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-emerald-500/20 flex items-center justify-center">
+                <Eye className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Market Patterns & Insights</CardTitle>
+                <CardDescription>Key findings from analyzing {marketOverview?.totalBusinessesFound ?? 0} businesses</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {marketPatterns.map((pattern, idx) => (
+              <div 
+                key={idx}
+                className={cn(
+                  "p-3 rounded-lg border flex items-start gap-3",
+                  pattern.impact === 'critical' ? "bg-red-500/5 border-red-500/20" :
+                  pattern.impact === 'high' ? "bg-amber-500/5 border-amber-500/20" :
+                  "bg-muted/30 border-border"
+                )}
+              >
+                <div className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
+                  pattern.impact === 'critical' ? "bg-red-500/20" :
+                  pattern.impact === 'high' ? "bg-amber-500/20" : "bg-primary/20"
+                )}>
+                  {pattern.category === 'digital_gap' ? <Globe className="w-4 h-4 text-primary" /> :
+                   pattern.category === 'modernization' ? <Monitor className="w-4 h-4 text-amber-400" /> :
+                   pattern.category === 'reputation' ? <Star className="w-4 h-4 text-amber-400" /> :
+                   <Lightbulb className="w-4 h-4 text-primary" />}
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium text-foreground text-sm">{pattern.insight}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{pattern.opportunity}</p>
+                  <Badge variant="outline" className={cn(
+                    "text-xs mt-2",
+                    pattern.impact === 'critical' ? "border-red-400/50 text-red-400" :
+                    pattern.impact === 'high' ? "border-amber-400/50 text-amber-400" :
+                    "border-slate-400/50 text-slate-400"
+                  )}>
+                    {pattern.impact} impact
+                  </Badge>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* AI Executive Summary */}
       <Card className="border-2 border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-orange-500/5">
@@ -670,6 +769,22 @@ export default function NicheIntelligencePanel({
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+// Helper component for metric badges in market overview
+function MetricBadge({ label, value, impact }: { label: string; value: string; impact: 'critical' | 'high' | 'medium' | 'low' }) {
+  return (
+    <div className={cn(
+      "text-center p-2 rounded-lg border text-xs",
+      impact === 'critical' ? "bg-red-500/10 border-red-500/20" :
+      impact === 'high' ? "bg-emerald-500/10 border-emerald-500/20" :
+      impact === 'low' ? "bg-slate-500/10 border-slate-500/20" :
+      "bg-amber-500/10 border-amber-500/20"
+    )}>
+      <p className="font-bold text-foreground">{value}</p>
+      <p className="text-muted-foreground text-[10px]">{label}</p>
     </div>
   );
 }

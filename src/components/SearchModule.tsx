@@ -233,7 +233,7 @@ const SearchModule = () => {
           Choose Your Search Method
         </h2>
         <p className="text-muted-foreground">
-          Enter your search criteria, then click the search type you want to use
+          <strong>Option A:</strong> Understand the market &amp; build strategy · <strong>Option B:</strong> Find businesses needing your services
         </p>
       </div>
 
@@ -285,16 +285,16 @@ const SearchModule = () => {
                 Super AI Business Search
               </h3>
               <p className="text-sm font-semibold text-primary">
-                Advanced Business Insights Beyond Basic Lead Lists
+                Market Intelligence &amp; Competitive Strategy
               </p>
               <p className="text-xs text-muted-foreground">
-                Deep Research & Competitive Intelligence
+                Understand the market, identify gaps, and build your competitive strategy
               </p>
             </div>
           </div>
 
           <p className="text-sm text-muted-foreground mb-3">
-            <span className="font-semibold text-primary">Top-Class AI Analysis.</span> Get unique business offerings, improvement recommendations, competitive gaps, and actionable intelligence that basic searches can't provide.
+            <span className="font-semibold text-primary">Market Intelligence Engine.</span> Aggregate niche data, discover digital maturity gaps, competitive patterns, and strategic opportunities — not just a list of businesses.
           </p>
 
           {/* Basic Data Included */}
