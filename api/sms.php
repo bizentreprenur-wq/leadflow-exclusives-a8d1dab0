@@ -19,19 +19,23 @@ require_once __DIR__ . '/includes/database.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/security.php';
 require_once __DIR__ . '/includes/ratelimit.php';
+require_once __DIR__ . '/includes/functions.php';
 
 header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+setCorsHeaders();
+handlePreflight();
 
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
+$action = $_GET['action'] ?? '';
+$db = getDB();
+
+// Public webhook endpoint (no auth required)
+if ($action === 'webhook') {
+    handleSMSWebhook($db);
+    exit();
 }
 
 // Authenticate user
-$user = authenticate();
+$user = authenticateRequest();
 if (!$user) {
     http_response_code(401);
     echo json_encode(['success' => false, 'error' => 'Unauthorized']);
@@ -39,7 +43,6 @@ if (!$user) {
 }
 
 $userId = $user['id'];
-$action = $_GET['action'] ?? '';
 
 // Check if user has Autopilot plan (required for SMS)
 function checkAutopilotAccess($pdo, $userId) {
@@ -55,8 +58,7 @@ function checkAutopilotAccess($pdo, $userId) {
 }
 
 try {
-    $pdo = getDbConnection();
-    
+    $pdo = $db;
     // Verify Autopilot access for all SMS actions
     if (!checkAutopilotAccess($pdo, $userId)) {
         http_response_code(403);
@@ -140,33 +142,65 @@ function handleSendSMS($pdo, $userId) {
         return;
     }
     
-    // Get user's phone number from calling config
-    $stmt = $pdo->prepare("SELECT phone_number FROM calling_config WHERE user_id = ? AND provisioned = 1");
+    // Get user's Telnyx config (phone number + API key)
+    $stmt = $pdo->prepare("SELECT api_key, phone_number FROM telnyx_config WHERE user_id = ? AND enabled = 1");
     $stmt->execute([$userId]);
     $config = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    if (!$config || empty($config['phone_number'])) {
+    if (!$config || empty($config['phone_number']) || empty($config['api_key'])) {
         http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'No phone number provisioned. Please set up AI Calling first.']);
+        echo json_encode(['success' => false, 'error' => 'No Telnyx phone number configured. Please set up AI Calling first.']);
         return;
     }
     
-    // TODO: Integrate with calling.io SMS API
-    // For now, store the message and simulate sending
-    
-    $messageId = uniqid('sms_');
-    
-    // Store the message
-    $stmt = $pdo->prepare("
-        INSERT INTO sms_messages (id, user_id, lead_id, lead_phone, lead_name, business_name, direction, message, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, 'outbound', ?, 'sent', NOW())
-    ");
-    $stmt->execute([$messageId, $userId, $leadId, $leadPhone, $leadName, $businessName, $message]);
-    
-    echo json_encode([
-        'success' => true,
-        'message_id' => $messageId
+    // Send SMS via Telnyx Messaging API
+    $ch = curl_init('https://api.telnyx.com/v2/messages');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode([
+            'from' => $config['phone_number'],
+            'to' => $leadPhone,
+            'text' => $message,
+            'type' => 'SMS',
+            'webhook_url' => (defined('FRONTEND_URL') ? FRONTEND_URL : 'https://bamlead.com') . '/api/sms.php?action=webhook',
+            'webhook_failover_url' => (defined('FRONTEND_URL') ? FRONTEND_URL : 'https://bamlead.com') . '/api/sms.php?action=webhook'
+        ]),
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . $config['api_key'],
+            'Content-Type: application/json'
+        ],
+        CURLOPT_TIMEOUT => 15
     ]);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    $responseData = json_decode($response, true);
+    
+    if ($httpCode === 200 || $httpCode === 201 || $httpCode === 202) {
+        $externalId = $responseData['data']['id'] ?? uniqid('sms_');
+        
+        // Store the message
+        $stmt = $pdo->prepare("
+            INSERT INTO sms_messages (id, user_id, lead_id, lead_phone, lead_name, business_name, direction, message, status, external_id, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, 'outbound', ?, 'sent', ?, NOW())
+        ");
+        $stmt->execute([uniqid('sms_'), $userId, $leadId, $leadPhone, $leadName, $businessName, $message, $externalId]);
+        
+        echo json_encode([
+            'success' => true,
+            'message_id' => $externalId
+        ]);
+    } else {
+        $errorMsg = $responseData['errors'][0]['detail'] ?? 'Failed to send SMS';
+        error_log("Telnyx SMS send failed ($httpCode): $response");
+        echo json_encode([
+            'success' => false,
+            'error' => $errorMsg
+        ]);
+    }
 }
 
 /**
@@ -510,8 +544,133 @@ function generateAISuggestion($lastMessage, $leadName, $context = []) {
 }
 
 /**
- * Sanitize input
+ * Handle inbound SMS webhook from Telnyx
  */
-function sanitize_input($input) {
-    return htmlspecialchars(strip_tags(trim($input)), ENT_QUOTES, 'UTF-8');
+function handleSMSWebhook($db) {
+    $input = json_decode(file_get_contents('php://input'), true);
+    
+    if (!$input || !isset($input['data'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid webhook payload']);
+        return;
+    }
+    
+    $eventType = $input['data']['event_type'] ?? '';
+    $payload = $input['data']['payload'] ?? [];
+    
+    error_log("Telnyx SMS webhook: $eventType - " . json_encode($payload));
+    
+    switch ($eventType) {
+        case 'message.received':
+            // Inbound SMS from a lead
+            $fromNumber = $payload['from']['phone_number'] ?? '';
+            $toNumber = $payload['to'][0]['phone_number'] ?? '';
+            $messageText = $payload['text'] ?? '';
+            $externalId = $payload['id'] ?? uniqid('sms_in_');
+            
+            if (empty($fromNumber) || empty($messageText)) break;
+            
+            // Find the user who owns this Telnyx number
+            $stmt = $db->prepare("SELECT user_id FROM telnyx_config WHERE phone_number = ?");
+            $stmt->execute([$toNumber]);
+            $config = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$config) {
+                error_log("SMS webhook: No user found for number $toNumber");
+                break;
+            }
+            
+            $userId = $config['user_id'];
+            
+            // Try to find the lead by phone number
+            $stmt = $db->prepare("
+                SELECT lead_id, lead_name FROM sms_messages 
+                WHERE user_id = ? AND lead_phone = ? 
+                ORDER BY created_at DESC LIMIT 1
+            ");
+            $stmt->execute([$userId, $fromNumber]);
+            $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            $leadId = $existing['lead_id'] ?? null;
+            $leadName = $existing['lead_name'] ?? '';
+            
+            // Store inbound message
+            $stmt = $db->prepare("
+                INSERT INTO sms_messages (id, user_id, lead_id, lead_phone, lead_name, direction, message, status, external_id, `read`, created_at)
+                VALUES (?, ?, ?, ?, ?, 'inbound', ?, 'received', ?, 0, NOW())
+            ");
+            $stmt->execute([uniqid('sms_'), $userId, $leadId, $fromNumber, $leadName, $messageText, $externalId]);
+            
+            // Check if auto-SMS is enabled for this lead
+            if ($leadId) {
+                $stmt = $db->prepare("SELECT id FROM sms_auto_enabled WHERE user_id = ? AND lead_id = ?");
+                $stmt->execute([$userId, $leadId]);
+                if ($stmt->fetch()) {
+                    // Auto-reply with AI suggestion
+                    $aiReply = generateAISuggestion($messageText, $leadName);
+                    
+                    // Get API key to send reply
+                    $stmt = $db->prepare("SELECT api_key, phone_number FROM telnyx_config WHERE user_id = ?");
+                    $stmt->execute([$userId]);
+                    $telnyxConfig = $stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($telnyxConfig && $telnyxConfig['api_key']) {
+                        // Send auto-reply via Telnyx
+                        $ch = curl_init('https://api.telnyx.com/v2/messages');
+                        curl_setopt_array($ch, [
+                            CURLOPT_RETURNTRANSFER => true,
+                            CURLOPT_POST => true,
+                            CURLOPT_POSTFIELDS => json_encode([
+                                'from' => $telnyxConfig['phone_number'],
+                                'to' => $fromNumber,
+                                'text' => $aiReply,
+                                'type' => 'SMS'
+                            ]),
+                            CURLOPT_HTTPHEADER => [
+                                'Authorization: Bearer ' . $telnyxConfig['api_key'],
+                                'Content-Type: application/json'
+                            ],
+                            CURLOPT_TIMEOUT => 15
+                        ]);
+                        
+                        $response = curl_exec($ch);
+                        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                        curl_close($ch);
+                        
+                        if ($httpCode === 200 || $httpCode === 201 || $httpCode === 202) {
+                            $responseData = json_decode($response, true);
+                            $replyId = $responseData['data']['id'] ?? uniqid('sms_auto_');
+                            
+                            $stmt = $db->prepare("
+                                INSERT INTO sms_messages (id, user_id, lead_id, lead_phone, lead_name, direction, message, status, external_id, created_at)
+                                VALUES (?, ?, ?, ?, ?, 'outbound', ?, 'sent', ?, NOW())
+                            ");
+                            $stmt->execute([uniqid('sms_'), $userId, $leadId, $fromNumber, $leadName, $aiReply, $replyId]);
+                        }
+                    }
+                }
+            }
+            break;
+            
+        case 'message.sent':
+        case 'message.delivered':
+            // Update delivery status
+            $externalId = $payload['id'] ?? '';
+            $status = ($eventType === 'message.delivered') ? 'delivered' : 'sent';
+            if ($externalId) {
+                $stmt = $db->prepare("UPDATE sms_messages SET status = ?, delivered_at = NOW() WHERE external_id = ?");
+                $stmt->execute([$status, $externalId]);
+            }
+            break;
+            
+        case 'message.failed':
+            $externalId = $payload['id'] ?? '';
+            if ($externalId) {
+                $stmt = $db->prepare("UPDATE sms_messages SET status = 'failed' WHERE external_id = ?");
+                $stmt->execute([$externalId]);
+            }
+            break;
+    }
+    
+    echo json_encode(['success' => true]);
 }
