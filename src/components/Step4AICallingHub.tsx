@@ -457,7 +457,7 @@ export default function Step4AICallingHub({
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="space-y-4 py-6 px-8 bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 rounded-2xl border border-primary/30"
+          className="space-y-4 py-6 px-8 bg-gradient-to-r from-primary/20 via-emerald-500/15 to-primary/20 rounded-2xl border border-primary/40 shadow-lg shadow-primary/10"
         >
           {/* Company Branding Row */}
           {(branding?.logo_url || branding?.company_name) && (
@@ -520,9 +520,9 @@ export default function Step4AICallingHub({
         </motion.div>
 
         {/* Main Tab Interface - 5 tabs for Autopilot, 4 for others */}
-        <Card className="border-2 border-border overflow-hidden">
+        <Card className="border-2 border-primary/20 overflow-hidden shadow-md">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <div className="border-b px-6 bg-muted/30">
+            <div className="border-b px-6 bg-gradient-to-r from-muted/40 via-primary/5 to-muted/40">
               <TabsList className="h-14 bg-transparent gap-2">
                 <TabsTrigger value="overview" className="gap-2 data-[state=active]:bg-primary/10 px-5 py-3">
                   <BarChart3 className="w-4 h-4" />
@@ -650,29 +650,29 @@ export default function Step4AICallingHub({
                     Live Call Stats
                   </h3>
                   <div className="grid grid-cols-6 gap-4">
-                    <div className="p-4 rounded-xl bg-card border text-center">
+                    <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 text-center shadow-sm">
                       <div className="text-2xl font-bold text-foreground">{callStats.total}</div>
                       <div className="text-xs text-muted-foreground">Total</div>
                     </div>
-                    <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-center">
-                      <div className="text-2xl font-bold text-emerald-500">{callStats.answered}</div>
+                    <div className="p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-center shadow-sm shadow-emerald-500/10">
+                      <div className="text-2xl font-bold text-emerald-400">{callStats.answered}</div>
                       <div className="text-xs text-muted-foreground">Answered</div>
                     </div>
-                    <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center">
-                      <div className="text-2xl font-bold text-amber-500">{callStats.noAnswer}</div>
+                    <div className="p-4 rounded-xl bg-amber-500/15 border border-amber-500/30 text-center shadow-sm shadow-amber-500/10">
+                      <div className="text-2xl font-bold text-amber-400">{callStats.noAnswer}</div>
                       <div className="text-xs text-muted-foreground">No Answer</div>
                     </div>
-                    <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 text-center">
+                    <div className="p-4 rounded-xl bg-primary/15 border border-primary/30 text-center shadow-sm shadow-primary/10">
                       <div className="text-2xl font-bold text-primary">{callStats.interested}</div>
                       <div className="text-xs text-muted-foreground">Interested</div>
                     </div>
-                    <div className="p-4 rounded-xl bg-card border text-center">
-                      <div className="text-2xl font-bold text-foreground">{callStats.avgDuration}s</div>
+                    <div className="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-center shadow-sm">
+                      <div className="text-2xl font-bold text-cyan-400">{callStats.avgDuration}s</div>
                       <div className="text-xs text-muted-foreground">Avg Duration</div>
                     </div>
                     {isAutopilot && (
-                      <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 text-center">
-                        <div className="text-2xl font-bold text-blue-500">{callStats.smsReplies}</div>
+                      <div className="p-4 rounded-xl bg-blue-500/15 border border-blue-500/30 text-center shadow-sm shadow-blue-500/10">
+                        <div className="text-2xl font-bold text-blue-400">{callStats.smsReplies}</div>
                         <div className="text-xs text-muted-foreground">SMS Replies</div>
                       </div>
                     )}
