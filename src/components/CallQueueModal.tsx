@@ -124,20 +124,12 @@ export default function CallQueueModal({
         setShowOutcomeSelector(true);
       }
     },
-    onMessage: (message: any) => {
-      if (message.type === 'user_transcript' && message.user_transcription_event?.user_transcript) {
-        transcriptRef.current.push({
-          role: 'user',
-          text: message.user_transcription_event.user_transcript,
-          timestamp: Date.now() - callStartTimeRef.current,
-        });
-      } else if (message.type === 'agent_response' && message.agent_response_event?.agent_response) {
-        transcriptRef.current.push({
-          role: 'agent',
-          text: message.agent_response_event.agent_response,
-          timestamp: Date.now() - callStartTimeRef.current,
-        });
-      }
+    onTranscript: (entry) => {
+      transcriptRef.current.push({
+        role: entry.role,
+        text: entry.text,
+        timestamp: entry.timestamp,
+      });
     },
     onError: (error) => {
       console.error('Call error:', error);

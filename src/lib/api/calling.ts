@@ -1,47 +1,35 @@
 /**
- * Calling.io API Client
- * Handles AI voice calling configuration and real-time call operations
+ * Telnyx AI Calling API Client
+ * Handles AI voice calling via Telnyx's native gather_using_ai
+ * Cost: ~$0.007/min (cheapest option — TTS + STT + LLM included)
  */
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://bamlead.com/api';
 
 export interface CallingConfig {
-  agent_id: string;
+  api_key: string;
+  connection_id: string;
   phone_number: string;
-  voice_id: string;
-  language: string;
+  voice: string;
   greeting_message: string;
   system_prompt: string;
   enabled: boolean;
-  provisioned: boolean;
-  addon_active: boolean;
-}
-
-export interface CallSession {
-  token: string;
-  websocket_url: string;
-  ice_servers: RTCIceServer[];
-  agent_id: string;
-  expires_at: number;
 }
 
 export interface CallRequest {
   destination_number: string;
+  lead_id?: number;
+  lead_name?: string;
   script?: string;
-  lead?: {
-    id?: number;
-    name?: string;
-    company?: string;
-    industry?: string;
-  };
 }
 
 export interface ActiveCall {
-  id: string;
-  call_log_id: number;
-  session_token: string;
-  websocket_url: string;
-  status: 'initiating' | 'ringing' | 'connected' | 'ended';
+  call_control_id: string;
+  call_leg_id: string;
+  status: 'initiated' | 'ringing' | 'answered' | 'speaking' | 'listening' | 'ended';
+  destination_number: string;
+  lead_name?: string;
+  duration_seconds?: number;
 }
 
 export interface CallLog {
@@ -52,7 +40,7 @@ export interface CallLog {
   agent_id: string;
   duration_seconds: number;
   outcome: string;
-  notes: string | null;
+  transcript: TranscriptEntry[] | null;
   created_at: string;
 }
 
@@ -70,16 +58,13 @@ function getAuthHeaders(): HeadersInit {
   };
 }
 
-/**
- * Get the current calling.io configuration
- */
+/** Get user's Telnyx calling configuration */
 export async function getCallingConfig(): Promise<{ success: boolean; config?: CallingConfig | null; error?: string }> {
   try {
-    const response = await fetch(`${API_BASE}/calling.php?action=get_config`, {
+    const response = await fetch(`${API_BASE}/telnyx.php?action=get_config`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
-    
     return await response.json();
   } catch (error) {
     console.error('Failed to get calling config:', error);
@@ -87,17 +72,14 @@ export async function getCallingConfig(): Promise<{ success: boolean; config?: C
   }
 }
 
-/**
- * Save calling.io configuration
- */
+/** Save Telnyx calling configuration */
 export async function saveCallingConfig(config: Partial<CallingConfig>): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(`${API_BASE}/calling.php?action=save_config`, {
+    const response = await fetch(`${API_BASE}/telnyx.php?action=save_config`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(config),
     });
-    
     return await response.json();
   } catch (error) {
     console.error('Failed to save calling config:', error);
@@ -105,85 +87,48 @@ export async function saveCallingConfig(config: Partial<CallingConfig>): Promise
   }
 }
 
-/**
- * Provision a phone number via calling.io
- */
-export async function provisionPhoneNumber(countryCode: string = 'US', areaCode?: string): Promise<{ 
-  success: boolean; 
-  phone_number?: string; 
-  error?: string 
-}> {
+/** Test Telnyx API connection */
+export async function testCallingConnection(apiKey?: string): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
-    const response = await fetch(`${API_BASE}/calling.php?action=provision_number`, {
+    const response = await fetch(`${API_BASE}/telnyx.php?action=test_connection`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ country_code: countryCode, area_code: areaCode }),
+      body: JSON.stringify({ api_key: apiKey }),
     });
-    
     return await response.json();
   } catch (error) {
-    console.error('Failed to provision phone number:', error);
+    console.error('Failed to test connection:', error);
     return { success: false, error: 'Network error' };
   }
 }
 
-/**
- * Start a real-time voice session
- */
-export async function startCallingSession(script?: string, lead?: CallRequest['lead']): Promise<{ 
-  success: boolean; 
-  session?: CallSession; 
-  simulated?: boolean;
-  error?: string 
-}> {
+/** Get phone numbers from Telnyx account */
+export async function getPhoneNumbers(): Promise<{ success: boolean; phone_numbers?: string[]; error?: string }> {
   try {
-    const response = await fetch(`${API_BASE}/calling.php?action=start_session`, {
-      method: 'POST',
+    const response = await fetch(`${API_BASE}/telnyx.php?action=get_phone_numbers`, {
+      method: 'GET',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ script, lead }),
     });
-    
     return await response.json();
   } catch (error) {
-    console.error('Failed to start calling session:', error);
+    console.error('Failed to get phone numbers:', error);
     return { success: false, error: 'Network error' };
   }
 }
 
-/**
- * End a real-time session
- */
-export async function endCallingSession(sessionToken: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    const response = await fetch(`${API_BASE}/calling.php?action=end_session`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ session_token: sessionToken }),
-    });
-    
-    return await response.json();
-  } catch (error) {
-    console.error('Failed to end calling session:', error);
-    return { success: false, error: 'Network error' };
-  }
-}
-
-/**
- * Initiate an outbound call
- */
+/** Initiate an outbound AI call via Telnyx */
 export async function initiateCall(request: CallRequest): Promise<{ 
   success: boolean; 
-  call?: ActiveCall;
-  simulated?: boolean;
+  call_control_id?: string;
+  call_leg_id?: string;
   error?: string 
 }> {
   try {
-    const response = await fetch(`${API_BASE}/calling.php?action=initiate_call`, {
+    const response = await fetch(`${API_BASE}/telnyx.php?action=initiate_call`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(request),
     });
-    
     return await response.json();
   } catch (error) {
     console.error('Failed to initiate call:', error);
@@ -191,17 +136,14 @@ export async function initiateCall(request: CallRequest): Promise<{
   }
 }
 
-/**
- * Hang up an active call
- */
-export async function hangupCall(callId: string): Promise<{ success: boolean; error?: string }> {
+/** Hang up an active call */
+export async function hangupCall(callControlId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(`${API_BASE}/calling.php?action=hangup_call`, {
+    const response = await fetch(`${API_BASE}/telnyx.php?action=hangup_call`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ call_id: callId }),
+      body: JSON.stringify({ call_control_id: callControlId }),
     });
-    
     return await response.json();
   } catch (error) {
     console.error('Failed to hangup call:', error);
@@ -209,21 +151,18 @@ export async function hangupCall(callId: string): Promise<{ success: boolean; er
   }
 }
 
-/**
- * Get call status
- */
-export async function getCallStatus(callId: string): Promise<{ 
+/** Get call status */
+export async function getCallStatus(callControlId: string): Promise<{ 
   success: boolean; 
   status?: string;
   duration_seconds?: number;
   error?: string 
 }> {
   try {
-    const response = await fetch(`${API_BASE}/calling.php?action=call_status&call_id=${callId}`, {
+    const response = await fetch(`${API_BASE}/telnyx.php?action=call_status&call_control_id=${callControlId}`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
-    
     return await response.json();
   } catch (error) {
     console.error('Failed to get call status:', error);
@@ -231,36 +170,25 @@ export async function getCallStatus(callId: string): Promise<{
   }
 }
 
-/**
- * Save call log
- */
-export async function saveCallLog(log: {
-  lead_id?: number;
-  lead_name?: string;
-  lead_phone?: string;
-  agent_id?: string;
-  duration_seconds: number;
-  outcome: string;
-  notes?: string;
+/** Get live transcript for an active call */
+export async function getCallTranscript(callControlId: string): Promise<{ 
+  success: boolean; 
   transcript?: TranscriptEntry[];
-}): Promise<{ success: boolean; call_log_id?: number; error?: string }> {
+  error?: string 
+}> {
   try {
-    const response = await fetch(`${API_BASE}/calling.php?action=save_call_log`, {
-      method: 'POST',
+    const response = await fetch(`${API_BASE}/telnyx.php?action=get_transcript&call_control_id=${callControlId}`, {
+      method: 'GET',
       headers: getAuthHeaders(),
-      body: JSON.stringify(log),
     });
-    
     return await response.json();
   } catch (error) {
-    console.error('Failed to save call log:', error);
+    console.error('Failed to get transcript:', error);
     return { success: false, error: 'Network error' };
   }
 }
 
-/**
- * Get call logs
- */
+/** Get call logs */
 export async function getCallLogs(limit: number = 50, offset: number = 0): Promise<{ 
   success: boolean; 
   logs?: CallLog[];
@@ -272,7 +200,6 @@ export async function getCallLogs(limit: number = 50, offset: number = 0): Promi
       method: 'GET',
       headers: getAuthHeaders(),
     });
-    
     return await response.json();
   } catch (error) {
     console.error('Failed to get call logs:', error);
@@ -280,9 +207,7 @@ export async function getCallLogs(limit: number = 50, offset: number = 0): Promi
   }
 }
 
-/**
- * Check if user has AI Calling add-on
- */
+/** Check if user has AI Calling add-on */
 export async function checkCallingAddon(): Promise<{ 
   success: boolean; 
   has_addon?: boolean;
@@ -296,7 +221,6 @@ export async function checkCallingAddon(): Promise<{
       method: 'GET',
       headers: getAuthHeaders(),
     });
-    
     return await response.json();
   } catch (error) {
     console.error('Failed to check calling addon:', error);
@@ -304,9 +228,7 @@ export async function checkCallingAddon(): Promise<{
   }
 }
 
-/**
- * Purchase AI Calling add-on
- */
+/** Purchase AI Calling add-on ($8/mo) */
 export async function purchaseCallingAddon(): Promise<{ 
   success: boolean; 
   addon_active?: boolean;
@@ -317,31 +239,9 @@ export async function purchaseCallingAddon(): Promise<{
       method: 'POST',
       headers: getAuthHeaders(),
     });
-    
     return await response.json();
   } catch (error) {
     console.error('Failed to purchase calling addon:', error);
     return { success: false, error: 'Network error' };
   }
-}
-
-/**
- * WebSocket message types from calling.io
- */
-export type CallingMessageType = 
-  | 'auth_success'
-  | 'auth_error'
-  | 'call_started'
-  | 'call_ringing'
-  | 'call_answered'
-  | 'call_ended'
-  | 'agent_speaking'
-  | 'agent_listening'
-  | 'transcript_update'
-  | 'error';
-
-export interface CallingMessage {
-  type: CallingMessageType;
-  data?: any;
-  timestamp?: number;
 }

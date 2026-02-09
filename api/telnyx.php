@@ -535,15 +535,65 @@ function handleWebhook($db) {
             break;
             
         case 'call.transcription':
-            // Handle real-time transcription
+            // Handle real-time transcription (fallback mode)
             $transcript = $payload['transcription_data']['transcript'] ?? '';
             if ($transcript && $callControlId) {
                 appendTranscript($db, $callControlId, 'user', $transcript);
-                // Process with AI and respond
-                if ($userId) {
-                    processAIResponse($db, $userId, $callControlId, $transcript);
-                }
             }
+            break;
+
+        case 'call.ai_gather.partial_results':
+            // Real-time updates from Telnyx AI conversation
+            $messageHistory = $payload['message_history'] ?? [];
+            if ($messageHistory && $callControlId) {
+                // Store the latest message history as transcript
+                $transcript = [];
+                foreach ($messageHistory as $msg) {
+                    $transcript[] = [
+                        'role' => ($msg['role'] === 'assistant') ? 'agent' : 'user',
+                        'text' => $msg['content'] ?? '',
+                        'timestamp' => time()
+                    ];
+                }
+                $stmt = $db->prepare("UPDATE telnyx_active_calls SET transcript = ? WHERE call_control_id = ?");
+                $stmt->execute([json_encode($transcript), $callControlId]);
+            }
+            updateCallStatus($db, $callControlId, 'speaking');
+            break;
+
+        case 'call.ai_gather.message_history_updated':
+            // Updated message history from AI conversation
+            $messageHistory = $payload['message_history'] ?? [];
+            if ($messageHistory && $callControlId) {
+                $transcript = [];
+                foreach ($messageHistory as $msg) {
+                    $transcript[] = [
+                        'role' => ($msg['role'] === 'assistant') ? 'agent' : 'user',
+                        'text' => $msg['content'] ?? '',
+                        'timestamp' => time()
+                    ];
+                }
+                $stmt = $db->prepare("UPDATE telnyx_active_calls SET transcript = ? WHERE call_control_id = ?");
+                $stmt->execute([json_encode($transcript), $callControlId]);
+            }
+            break;
+
+        case 'call.ai_gather.ended':
+            // AI conversation completed — save final results
+            $messageHistory = $payload['message_history'] ?? [];
+            if ($messageHistory && $callControlId) {
+                $transcript = [];
+                foreach ($messageHistory as $msg) {
+                    $transcript[] = [
+                        'role' => ($msg['role'] === 'assistant') ? 'agent' : 'user',
+                        'text' => $msg['content'] ?? '',
+                        'timestamp' => time()
+                    ];
+                }
+                $stmt = $db->prepare("UPDATE telnyx_active_calls SET transcript = ? WHERE call_control_id = ?");
+                $stmt->execute([json_encode($transcript), $callControlId]);
+            }
+            updateCallStatus($db, $callControlId, 'listening');
             break;
             
         case 'call.speak.ended':
@@ -597,7 +647,8 @@ function appendTranscript($db, $callControlId, $role, $text) {
 }
 
 /**
- * Start AI conversation with greeting
+ * Start AI conversation using Telnyx's native gather_using_ai
+ * This handles TTS + STT + LLM in one API call — cheapest option
  */
 function startAIConversation($db, $userId, $callControlId) {
     // Get user config
@@ -606,92 +657,77 @@ function startAIConversation($db, $userId, $callControlId) {
     $config = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$config) return;
-    
-    // Start transcription
-    $ch = curl_init("https://api.telnyx.com/v2/calls/{$callControlId}/actions/transcription_start");
+
+    // Get lead context from active call
+    $stmt = $db->prepare("SELECT lead_name, destination_number FROM telnyx_active_calls WHERE call_control_id = ?");
+    $stmt->execute([$callControlId]);
+    $callInfo = $stmt->fetch(PDO::FETCH_ASSOC);
+    $leadName = $callInfo['lead_name'] ?? 'the contact';
+
+    // Build system instructions from user config + lead context
+    $systemPrompt = $config['system_prompt'] ?: 'You are a professional AI sales assistant. Be friendly, concise, and helpful.';
+    $greeting = $config['greeting_message'] ?: "Hi, this is an AI assistant calling on behalf of a business. How can I help you today?";
+
+    // Use Telnyx gather_using_ai — handles TTS, STT, and LLM natively
+    $gatherPayload = [
+        'assistant' => [
+            'instructions' => $systemPrompt . "\n\nYou are calling " . $leadName . ". Start with this greeting: " . $greeting,
+            'greeting' => $greeting,
+        ],
+        'voice' => $config['voice'] ?: 'Telnyx.Kokoro',
+        'language' => 'en',
+        'send_partial_results' => true,
+        'send_message_history_updates' => true,
+        'client_state' => base64_encode(json_encode([
+            'user_id' => $userId,
+            'mode' => 'ai_calling'
+        ]))
+    ];
+
+    $ch = curl_init("https://api.telnyx.com/v2/calls/{$callControlId}/actions/gather_using_ai");
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode(['language' => 'en']),
+        CURLOPT_POSTFIELDS => json_encode($gatherPayload),
         CURLOPT_HTTPHEADER => [
             'Authorization: Bearer ' . $config['api_key'],
-            'Content-Type: application/json'
-        ]
-    ]);
-    curl_exec($ch);
-    curl_close($ch);
-    
-    // Speak the greeting
-    speakText($config['api_key'], $callControlId, $config['greeting_message'], $config['voice']);
-    appendTranscript($db, $callControlId, 'agent', $config['greeting_message']);
-    updateCallStatus($db, $callControlId, 'speaking');
-}
-
-/**
- * Process user speech and generate AI response
- */
-function processAIResponse($db, $userId, $callControlId, $userText) {
-    // Get user config
-    $stmt = $db->prepare("SELECT * FROM telnyx_config WHERE user_id = ?");
-    $stmt->execute([$userId]);
-    $config = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$config) return;
-    
-    // Get conversation history
-    $stmt = $db->prepare("SELECT transcript FROM telnyx_active_calls WHERE call_control_id = ?");
-    $stmt->execute([$callControlId]);
-    $call = $stmt->fetch(PDO::FETCH_ASSOC);
-    $transcript = $call['transcript'] ? json_decode($call['transcript'], true) : [];
-    
-    // Build messages for OpenAI
-    $messages = [
-        ['role' => 'system', 'content' => $config['system_prompt']]
-    ];
-    
-    foreach ($transcript as $entry) {
-        $messages[] = [
-            'role' => $entry['role'] === 'agent' ? 'assistant' : 'user',
-            'content' => $entry['text']
-        ];
-    }
-    
-    // Call OpenAI for response
-    $openaiKey = defined('OPENAI_API_KEY') ? OPENAI_API_KEY : '';
-    if (!$openaiKey) {
-        error_log("OpenAI API key not configured");
-        return;
-    }
-    
-    $ch = curl_init('https://api.openai.com/v1/chat/completions');
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode([
-            'model' => 'gpt-4o-mini',
-            'messages' => $messages,
-            'max_tokens' => 150,
-            'temperature' => 0.7
-        ]),
-        CURLOPT_HTTPHEADER => [
-            'Authorization: Bearer ' . $openaiKey,
             'Content-Type: application/json'
         ],
         CURLOPT_TIMEOUT => 30
     ]);
-    
+
     $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-    
-    $data = json_decode($response, true);
-    $aiResponse = $data['choices'][0]['message']['content'] ?? '';
-    
-    if ($aiResponse) {
-        // Speak the response
-        speakText($config['api_key'], $callControlId, $aiResponse, $config['voice']);
-        appendTranscript($db, $callControlId, 'agent', $aiResponse);
+
+    if ($httpCode === 200 || $httpCode === 201) {
+        $data = json_decode($response, true);
+        $conversationId = $data['data']['conversation_id'] ?? '';
+        
+        // Store conversation ID for tracking
+        $stmt = $db->prepare("UPDATE telnyx_active_calls SET status = 'speaking' WHERE call_control_id = ?");
+        $stmt->execute([$callControlId]);
+        
+        appendTranscript($db, $callControlId, 'agent', $greeting);
+        error_log("Telnyx AI Gather started: conversation_id=$conversationId");
+    } else {
+        error_log("Telnyx AI Gather failed ($httpCode): $response");
+        // Fallback: just speak the greeting without AI
+        speakText($config['api_key'], $callControlId, $greeting, $config['voice'] ?: 'Telnyx.Kokoro');
+        appendTranscript($db, $callControlId, 'agent', $greeting);
         updateCallStatus($db, $callControlId, 'speaking');
     }
+}
+
+/**
+ * processAIResponse is no longer needed — Telnyx gather_using_ai handles
+ * the entire conversation loop (STT + LLM + TTS) natively.
+ * Keeping as a fallback for manual transcription mode.
+ */
+function processAIResponse($db, $userId, $callControlId, $userText) {
+    // Fallback: if gather_using_ai isn't active, just log the transcript
+    error_log("Fallback processAIResponse called for $callControlId: $userText");
+    appendTranscript($db, $callControlId, 'user', $userText);
 }
 
 /**

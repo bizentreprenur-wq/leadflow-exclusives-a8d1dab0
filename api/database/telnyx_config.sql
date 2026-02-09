@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS telnyx_config (
     api_key VARCHAR(255) NULL,
     connection_id VARCHAR(255) NULL,
     phone_number VARCHAR(50) NULL,
-    voice VARCHAR(100) DEFAULT 'Polly.Brian',
+    voice VARCHAR(100) DEFAULT 'Telnyx.Kokoro',
     greeting_message TEXT NULL,
     system_prompt TEXT NULL,
     enabled TINYINT(1) DEFAULT 0,
