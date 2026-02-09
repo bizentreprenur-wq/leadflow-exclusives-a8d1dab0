@@ -40,7 +40,13 @@ try {
     $industry = detectCompetitiveIndustry($searchQuery);
     
     // Generate competitive intelligence
+    $userProduct = $input['userProduct'] ?? null;
     $competitiveIntelligence = generateCompetitiveIntelligence($searchQuery, $searchLocation, $leads, $myBusiness, $industry);
+    
+    // Add buyer matching if user product info is provided
+    if ($userProduct) {
+        $competitiveIntelligence['buyerMatching'] = generateBuyerMatching($leads, $userProduct, $industry);
+    }
     
     sendJson([
         'success' => true,
@@ -741,5 +747,140 @@ function generateAIStrategicInsights($industry, $aggregatedData, $myBusiness) {
             'pricingSensitivity' => 'medium',
             'competitorsToDisplace' => ['DIY solutions', 'Generalist agencies', 'Previous bad experiences'],
         ],
+    ];
+}
+
+/**
+ * Generate Buyer Matching - Product Fit Scoring
+ * Identifies companies that may want the user's product based on capability gaps
+ */
+function generateBuyerMatching($leads, $userProduct, $industry) {
+    $productName = $userProduct['name'] ?? 'Your Product';
+    $productCapabilities = $userProduct['capabilities'] ?? [];
+    $productDescription = $userProduct['description'] ?? '';
+    
+    $potentialBuyers = [];
+    $fitScores = [];
+    
+    foreach ($leads as $lead) {
+        $fitScore = 0;
+        $fitReasons = [];
+        $missingCapabilities = [];
+        
+        $hasWebsite = !empty($lead['url']) || !empty($lead['website']);
+        $websiteAnalysis = $lead['websiteAnalysis'] ?? null;
+        $platform = $websiteAnalysis['platform'] ?? null;
+        $needsUpgrade = $websiteAnalysis['needsUpgrade'] ?? false;
+        $issues = $websiteAnalysis['issues'] ?? [];
+        
+        // Score based on digital gaps
+        if (!$hasWebsite) {
+            $fitScore += 30;
+            $fitReasons[] = 'No website — needs digital presence';
+            $missingCapabilities[] = 'Website';
+        } elseif ($needsUpgrade) {
+            $fitScore += 20;
+            $fitReasons[] = "Uses {$platform} — may need upgrade";
+            $missingCapabilities[] = 'Modern website';
+        }
+        
+        if (!empty($issues)) {
+            $fitScore += min(15, count($issues) * 5);
+            $fitReasons[] = count($issues) . ' website issues detected';
+        }
+        
+        // Score based on review/rating gaps
+        $rating = $lead['rating'] ?? null;
+        $reviews = $lead['reviews'] ?? $lead['reviewCount'] ?? 0;
+        
+        if ($rating !== null && $rating < 3.5) {
+            $fitScore += 10;
+            $fitReasons[] = 'Low rating (' . round($rating, 1) . ') — reputation management opportunity';
+            $missingCapabilities[] = 'Reputation management';
+        }
+        
+        if ($reviews < 10) {
+            $fitScore += 8;
+            $fitReasons[] = 'Few reviews — needs visibility boost';
+            $missingCapabilities[] = 'Review generation';
+        }
+        
+        // Score based on product capability matching
+        foreach ($productCapabilities as $capability) {
+            $capLower = strtolower($capability);
+            $matched = false;
+            
+            if (strpos($capLower, 'seo') !== false && !$hasWebsite) {
+                $fitScore += 15;
+                $fitReasons[] = "Needs SEO — no online presence";
+                $matched = true;
+            }
+            if (strpos($capLower, 'website') !== false && ($needsUpgrade || !$hasWebsite)) {
+                $fitScore += 15;
+                $fitReasons[] = "Needs website services";
+                $matched = true;
+            }
+            if (strpos($capLower, 'marketing') !== false && $reviews < 20) {
+                $fitScore += 10;
+                $fitReasons[] = "Low visibility — marketing services needed";
+                $matched = true;
+            }
+            if (strpos($capLower, 'social') !== false) {
+                $fitScore += 5;
+                $fitReasons[] = "May need social media management";
+                $matched = true;
+            }
+            
+            if (!$matched) {
+                $missingCapabilities[] = $capability;
+            }
+        }
+        
+        // Cap fit score at 100
+        $fitScore = min(100, $fitScore);
+        
+        if ($fitScore >= 20) {
+            $tier = 'low-fit';
+            if ($fitScore >= 70) $tier = 'high-fit';
+            elseif ($fitScore >= 40) $tier = 'medium-fit';
+            
+            $potentialBuyers[] = [
+                'name' => $lead['name'] ?? 'Unknown',
+                'website' => $lead['url'] ?? $lead['website'] ?? null,
+                'phone' => $lead['phone'] ?? null,
+                'email' => $lead['email'] ?? null,
+                'fitScore' => $fitScore,
+                'fitTier' => $tier,
+                'fitReasons' => array_unique(array_slice($fitReasons, 0, 5)),
+                'missingCapabilities' => array_unique(array_slice($missingCapabilities, 0, 5)),
+                'rating' => $rating,
+                'reviewCount' => $reviews,
+            ];
+        }
+        
+        $fitScores[] = $fitScore;
+    }
+    
+    // Sort by fit score descending
+    usort($potentialBuyers, function($a, $b) {
+        return $b['fitScore'] - $a['fitScore'];
+    });
+    
+    $avgFitScore = count($fitScores) > 0 ? round(array_sum($fitScores) / count($fitScores)) : 0;
+    $highFit = count(array_filter($potentialBuyers, function($b) { return $b['fitTier'] === 'high-fit'; }));
+    $medFit = count(array_filter($potentialBuyers, function($b) { return $b['fitTier'] === 'medium-fit'; }));
+    
+    return [
+        'productName' => $productName,
+        'totalAnalyzed' => count($leads),
+        'potentialBuyers' => array_slice($potentialBuyers, 0, 50),
+        'summary' => [
+            'highFitCount' => $highFit,
+            'mediumFitCount' => $medFit,
+            'lowFitCount' => count($potentialBuyers) - $highFit - $medFit,
+            'avgFitScore' => $avgFitScore,
+            'topOpportunity' => !empty($potentialBuyers) ? $potentialBuyers[0]['fitReasons'][0] ?? '' : '',
+        ],
+        'recommendedApproach' => "Focus on the {$highFit} high-fit prospects first. These businesses lack capabilities that {$productName} provides, making them ideal targets for outreach.",
     ];
 }

@@ -1,6 +1,12 @@
 import { API_BASE_URL, getAuthHeaders } from './config';
 import { CompetitiveIntelligence, MyBusinessInfo } from '@/lib/types/competitiveIntelligence';
 
+export interface UserProduct {
+  name: string;
+  description?: string;
+  capabilities?: string[];
+}
+
 export interface CompetitiveIntelligenceResponse {
   success: boolean;
   data?: CompetitiveIntelligence;
@@ -10,13 +16,14 @@ export interface CompetitiveIntelligenceResponse {
 
 /**
  * Generate competitive intelligence analysis
- * Includes: SWOT Analysis, Core Competencies, Market Positioning
+ * Includes: SWOT Analysis, Core Competencies, Market Positioning, Buyer Matching
  */
 export async function generateCompetitiveIntelligence(
   searchQuery: string,
   searchLocation: string,
   leads: any[] = [],
-  myBusiness?: MyBusinessInfo
+  myBusiness?: MyBusinessInfo,
+  userProduct?: UserProduct
 ): Promise<CompetitiveIntelligenceResponse> {
   if (!API_BASE_URL) {
     throw new Error('API not configured');
@@ -31,6 +38,7 @@ export async function generateCompetitiveIntelligence(
         searchLocation,
         leads,
         myBusiness,
+        userProduct,
       }),
     });
 

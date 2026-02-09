@@ -15,7 +15,7 @@ import {
   PieChart, Compass, Flag, Swords, Heart, DollarSign
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { CompetitiveIntelligence, SWOTItem, CompetitorProfile } from '@/lib/types/competitiveIntelligence';
+import { CompetitiveIntelligence, SWOTItem, CompetitorProfile, PotentialBuyer } from '@/lib/types/competitiveIntelligence';
 
 interface CompetitiveAnalysisPanelProps {
   data: CompetitiveIntelligence | null;
@@ -71,7 +71,7 @@ export default function CompetitiveAnalysisPanel({
     );
   }
 
-  const { swotAnalysis, coreCompetencies, competitorComparison, marketPositioning, aiStrategicInsights, marketOverview } = data;
+  const { swotAnalysis, coreCompetencies, competitorComparison, marketPositioning, aiStrategicInsights, marketOverview, buyerMatching } = data;
 
   return (
     <div className="space-y-6">
@@ -116,7 +116,7 @@ export default function CompetitiveAnalysisPanel({
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-4 w-full bg-muted/50">
+        <TabsList className={cn("grid w-full bg-muted/50", buyerMatching ? "grid-cols-5" : "grid-cols-4")}>
           <TabsTrigger value="overview" className="text-xs sm:text-sm">
             <Eye className="w-4 h-4 mr-1.5 hidden sm:inline" />
             Overview
@@ -129,6 +129,12 @@ export default function CompetitiveAnalysisPanel({
             <Users className="w-4 h-4 mr-1.5 hidden sm:inline" />
             Competitors
           </TabsTrigger>
+          {buyerMatching && (
+            <TabsTrigger value="buyers" className="text-xs sm:text-sm">
+              <Target className="w-4 h-4 mr-1.5 hidden sm:inline" />
+              Buyers
+            </TabsTrigger>
+          )}
           <TabsTrigger value="strategy" className="text-xs sm:text-sm">
             <Rocket className="w-4 h-4 mr-1.5 hidden sm:inline" />
             Strategy
@@ -390,6 +396,61 @@ export default function CompetitiveAnalysisPanel({
             </Card>
           )}
         </TabsContent>
+
+        {/* Buyer Matching Tab */}
+        {buyerMatching && (
+          <TabsContent value="buyers" className="mt-4 space-y-4">
+            {/* Buyer Matching Summary */}
+            <Card className="bg-gradient-to-br from-emerald-950/30 to-blue-950/20 border-emerald-500/20">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Target className="w-5 h-5 text-emerald-400" />
+                  Potential Buyers for "{buyerMatching.productName}"
+                </CardTitle>
+                <CardDescription>
+                  {buyerMatching.totalAnalyzed} businesses analyzed — {buyerMatching.summary.highFitCount} high-fit, {buyerMatching.summary.mediumFitCount} medium-fit
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                  <div className="text-center p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                    <p className="text-2xl font-bold text-emerald-400">{buyerMatching.summary.highFitCount}</p>
+                    <p className="text-xs text-muted-foreground">High Fit</p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                    <p className="text-2xl font-bold text-blue-400">{buyerMatching.summary.mediumFitCount}</p>
+                    <p className="text-xs text-muted-foreground">Medium Fit</p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-slate-500/10 border border-slate-500/20">
+                    <p className="text-2xl font-bold text-slate-400">{buyerMatching.summary.lowFitCount}</p>
+                    <p className="text-xs text-muted-foreground">Low Fit</p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                    <p className="text-2xl font-bold text-amber-400">{buyerMatching.summary.avgFitScore}</p>
+                    <p className="text-xs text-muted-foreground">Avg Fit Score</p>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">{buyerMatching.recommendedApproach}</p>
+              </CardContent>
+            </Card>
+
+            {/* Potential Buyers List */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Strategic Targets</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="max-h-[500px]">
+                  <div className="space-y-3">
+                    {buyerMatching.potentialBuyers.map((buyer, idx) => (
+                      <BuyerCard key={idx} buyer={buyer} />
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         {/* Strategy Tab */}
         <TabsContent value="strategy" className="mt-4 space-y-4">
@@ -773,6 +834,54 @@ function CompetitorCard({ competitor, isLeader = false }: { competitor: Competit
             <span className="text-muted-foreground">Strategy:</span>{' '}
             <span className="text-primary">{competitor.competitiveStrategy}</span>
           </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BuyerCard({ buyer }: { buyer: PotentialBuyer }) {
+  const fitColors = {
+    'high-fit': 'bg-emerald-500/10 border-emerald-500/20',
+    'medium-fit': 'bg-blue-500/10 border-blue-500/20',
+    'low-fit': 'bg-slate-500/10 border-slate-500/20',
+  };
+  const fitBadgeColors = {
+    'high-fit': 'bg-emerald-500/20 text-emerald-400',
+    'medium-fit': 'bg-blue-500/20 text-blue-400',
+    'low-fit': 'bg-slate-500/20 text-slate-400',
+  };
+
+  return (
+    <div className={cn("p-3 rounded-lg border", fitColors[buyer.fitTier])}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="font-medium">{buyer.name}</span>
+        <div className="flex items-center gap-2">
+          <Badge className={cn("text-xs", fitBadgeColors[buyer.fitTier])}>
+            {buyer.fitScore}% fit
+          </Badge>
+          <Badge variant="outline" className="text-xs capitalize">
+            {buyer.fitTier.replace('-', ' ')}
+          </Badge>
+        </div>
+      </div>
+      {buyer.fitReasons.length > 0 && (
+        <div className="space-y-1 mb-2">
+          {buyer.fitReasons.slice(0, 3).map((reason, idx) => (
+            <p key={idx} className="text-xs text-muted-foreground flex items-start gap-1.5">
+              <Target className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
+              {reason}
+            </p>
+          ))}
+        </div>
+      )}
+      {buyer.missingCapabilities.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {buyer.missingCapabilities.slice(0, 4).map((cap, idx) => (
+            <Badge key={idx} variant="outline" className="text-xs">
+              Needs: {cap}
+            </Badge>
+          ))}
         </div>
       )}
     </div>

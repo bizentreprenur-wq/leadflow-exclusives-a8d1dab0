@@ -16,7 +16,7 @@ import {
   Globe, Monitor, Wifi, PieChart, Eye
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { NicheIntelligence, NicheTrend, ServiceOffering, CustomerSegment } from '@/lib/types/nicheIntelligence';
+import { NicheIntelligence, NicheTrend, ServiceOffering, CustomerSegment, BusinessSampleEntry, IntelligenceTag } from '@/lib/types/nicheIntelligence';
 
 interface NicheIntelligencePanelProps {
   nicheIntelligence: NicheIntelligence | null;
@@ -78,6 +78,7 @@ export default function NicheIntelligencePanel({
     aiNicheInsights,
     marketOverview,
     marketPatterns,
+    businessSample,
   } = nicheIntelligence;
 
   const getTrendIcon = (trend: 'growing' | 'stable' | 'declining') => {
@@ -269,6 +270,54 @@ export default function NicheIntelligencePanel({
           </CardContent>
         </Card>
       )}
+
+      {/* Business Sample with Intelligence Tags */}
+      {businessSample && businessSample.length > 0 && (
+        <Card className="border border-border">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                <Building2 className="w-5 h-5 text-blue-400" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Business Sample</CardTitle>
+                <CardDescription>Representative companies with intelligence classification (not leads)</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="max-h-[400px]">
+              <div className="space-y-2">
+                {businessSample.map((biz, idx) => (
+                  <div key={idx} className="p-3 rounded-lg bg-muted/30 border border-border flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-foreground truncate">{biz.name}</p>
+                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                        {biz.platform && <span>{biz.platform}</span>}
+                        {biz.rating && <span>⭐ {biz.rating.toFixed(1)}</span>}
+                        {biz.reviewCount !== undefined && <span>({biz.reviewCount} reviews)</span>}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-1 shrink-0">
+                      {biz.tags.map((tag, tagIdx) => (
+                        <Badge key={tagIdx} variant="outline" className={cn("text-xs",
+                          tag === 'Digitally Strong' ? "border-emerald-400/50 text-emerald-400 bg-emerald-400/10" :
+                          tag === 'Digitally Weak' ? "border-red-400/50 text-red-400 bg-red-400/10" :
+                          tag === 'Traditional' ? "border-slate-400/50 text-slate-400 bg-slate-400/10" :
+                          "border-blue-400/50 text-blue-400 bg-blue-400/10"
+                        )}>
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
+
 
       {/* AI Executive Summary */}
       <Card className="border-2 border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-orange-500/5">
