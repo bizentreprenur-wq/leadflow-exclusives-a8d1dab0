@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS sms_messages (
     message TEXT NOT NULL,
     status ENUM('pending', 'sent', 'delivered', 'failed', 'received') DEFAULT 'pending',
     `read` TINYINT(1) DEFAULT 0,
-    external_id VARCHAR(100) NULL COMMENT 'ID from calling.io/SMS provider',
+    external_id VARCHAR(100) NULL COMMENT 'Message ID from Telnyx Messaging API',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     delivered_at TIMESTAMP NULL,
     
