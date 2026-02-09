@@ -120,7 +120,87 @@ function generateNicheIntelligence($searchQuery, $searchLocation, $leads, $indus
         
         // AI Insights
         'aiNicheInsights' => generateAINicheInsights($industry, $aggregatedData),
+        
+        // Business Sample with Intelligence Tags (NOT leads)
+        'businessSample' => computeBusinessSample($leads, $digitalMaturity),
     ];
+}
+
+/**
+ * Compute business sample entries with intelligence tags
+ * Classifies each lead as Digitally Strong, Digitally Weak, Traditional, or Growth-oriented
+ * Returns up to 100 representative businesses for display
+ */
+function computeBusinessSample($leads, $digitalMaturity) {
+    $sample = [];
+    $total = count($leads);
+    if ($total === 0) return $sample;
+    
+    // Cap at 100 representative businesses
+    $sampleLeads = $total > 100 ? array_slice($leads, 0, 100) : $leads;
+    
+    foreach ($sampleLeads as $lead) {
+        $score = 50; // baseline
+        $tags = [];
+        
+        $hasWebsite = !empty($lead['url']) || !empty($lead['website']);
+        $wa = $lead['websiteAnalysis'] ?? null;
+        $enrichment = $lead['enrichment'] ?? null;
+        $rating = floatval($lead['rating'] ?? 0);
+        $reviews = intval($lead['reviews'] ?? $lead['reviewCount'] ?? 0);
+        $platform = $wa['platform'] ?? null;
+        
+        // Score components
+        if ($hasWebsite) $score += 15;
+        if ($wa && empty($wa['needsUpgrade'])) $score += 15;
+        if ($wa && !empty($wa['needsUpgrade'])) $score -= 10;
+        if ($enrichment && !empty($enrichment['socials']) && count($enrichment['socials']) > 0) $score += 10;
+        if (!empty($lead['email'])) $score += 5;
+        if ($reviews > 50) $score += 10;
+        elseif ($reviews > 20) $score += 5;
+        if ($rating >= 4.5) $score += 5;
+        
+        $score = max(0, min(100, $score));
+        
+        // Assign intelligence tags based on score and signals
+        if ($score >= 75) {
+            $tags[] = 'Digitally Strong';
+        } elseif ($score < 40) {
+            $tags[] = 'Digitally Weak';
+        }
+        
+        // Traditional: no website OR uses outdated platform, low social
+        if (!$hasWebsite || ($wa && !empty($wa['needsUpgrade']) && $score < 50)) {
+            $tags[] = 'Traditional';
+        }
+        
+        // Growth-oriented: has website + high reviews + moderate-to-good digital
+        if ($hasWebsite && $reviews > 30 && $score >= 50 && $score < 85) {
+            $tags[] = 'Growth-oriented';
+        }
+        
+        // Ensure at least one tag
+        if (empty($tags)) {
+            $tags[] = $score >= 50 ? 'Growth-oriented' : 'Traditional';
+        }
+        
+        $sample[] = [
+            'name' => $lead['name'] ?? $lead['title'] ?? 'Unknown Business',
+            'website' => $lead['url'] ?? $lead['website'] ?? null,
+            'rating' => $rating > 0 ? $rating : null,
+            'reviewCount' => $reviews > 0 ? $reviews : null,
+            'platform' => $platform,
+            'tags' => $tags,
+            'digitalMaturityScore' => $score,
+        ];
+    }
+    
+    // Sort: Digitally Strong first, then Growth-oriented, Traditional, Digitally Weak
+    usort($sample, function($a, $b) {
+        return $b['digitalMaturityScore'] - $a['digitalMaturityScore'];
+    });
+    
+    return $sample;
 }
 
 /**
