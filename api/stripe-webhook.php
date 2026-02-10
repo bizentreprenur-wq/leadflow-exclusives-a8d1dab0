@@ -103,6 +103,13 @@ function handleCheckoutCompleted($session) {
         return;
     }
 
+    // Handle AI Calling add-on checkout
+    if ($purchaseType === 'addon' || ($session->metadata->addon_type ?? '') === 'ai_calling') {
+        activateAICallingAddon($userId);
+        error_log("AI Calling addon activated for user: $userId");
+        return;
+    }
+
     // Subscription updates are handled by customer.subscription.created/updated events
     error_log("Subscription checkout completed for user: $userId");
 }
@@ -152,14 +159,16 @@ function recordCreditCheckoutPayment($session, $userId) {
 /**
  * Handle subscription created or updated
  * Also marks user as having used their trial to prevent future trial abuse
+ * Detects AI Calling addon subscriptions and activates them
  */
 function handleSubscriptionUpdated($subscription) {
     syncSubscriptionFromStripe($subscription);
     
-    // Mark user as having used their trial (prevents repeat trials after cancellation)
     $userId = $subscription->metadata->user_id ?? null;
     if ($userId) {
         $db = getDB();
+        
+        // Mark trial as used
         $db->update(
             "UPDATE users SET 
                 had_trial = 1,
@@ -167,6 +176,20 @@ function handleSubscriptionUpdated($subscription) {
              WHERE id = ?",
             [$userId]
         );
+        
+        // Check if this is an AI Calling addon subscription
+        $addonType = $subscription->metadata->addon_type ?? '';
+        if ($addonType === 'ai_calling' && $subscription->status === 'active') {
+            activateAICallingAddon($userId);
+            error_log("AI Calling addon activated via subscription for user: $userId");
+        }
+        
+        // Auto-activate addon for Autopilot plan
+        $plan = $subscription->metadata->plan ?? '';
+        if ($plan === 'autopilot' && $subscription->status === 'active') {
+            activateAICallingAddon($userId);
+            error_log("AI Calling auto-activated for Autopilot user: $userId");
+        }
     }
     
     error_log("Subscription synced: " . $subscription->id);
@@ -174,6 +197,7 @@ function handleSubscriptionUpdated($subscription) {
 
 /**
  * Handle subscription deleted/canceled
+ * Also deactivates AI Calling addon if it was an addon subscription
  */
 function handleSubscriptionDeleted($subscription) {
     $db = getDB();
@@ -183,7 +207,6 @@ function handleSubscriptionDeleted($subscription) {
         [$subscription->id]
     );
     
-    // Get user ID from subscription metadata
     $userId = $subscription->metadata->user_id ?? null;
     
     if ($userId) {
@@ -191,10 +214,45 @@ function handleSubscriptionDeleted($subscription) {
             "UPDATE users SET subscription_status = 'cancelled' WHERE id = ?",
             [$userId]
         );
+        
+        // Deactivate AI Calling addon if this was the addon subscription
+        $addonType = $subscription->metadata->addon_type ?? '';
+        if ($addonType === 'ai_calling') {
+            $db->update(
+                "UPDATE calling_config SET addon_active = 0, updated_at = NOW() WHERE user_id = ?",
+                [$userId]
+            );
+            error_log("AI Calling addon deactivated for user: $userId");
+        }
     }
     
     error_log("Subscription canceled: " . $subscription->id);
 }
+
+/**
+ * Activate AI Calling add-on for a user
+ * Sets addon_active=1 in calling_config table
+ */
+function activateAICallingAddon($userId) {
+    $db = getDB();
+    
+    // Check if calling_config row exists
+    $existing = $db->fetchOne("SELECT id FROM calling_config WHERE user_id = ?", [$userId]);
+    
+    if ($existing) {
+        $db->update(
+            "UPDATE calling_config SET addon_active = 1, updated_at = NOW() WHERE user_id = ?",
+            [$userId]
+        );
+    } else {
+        $db->insert(
+            "INSERT INTO calling_config (user_id, addon_active, enabled) VALUES (?, 1, 0)",
+            [$userId]
+        );
+    }
+}
+
+
 
 /**
  * Handle successful invoice payment

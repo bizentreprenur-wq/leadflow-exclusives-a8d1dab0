@@ -150,7 +150,8 @@ export default function Step4AICallingHub({
   const { tier, tierInfo, isAutopilot, isPro } = usePlanFeatures();
   const { branding, isLoading: brandingLoading } = useUserBranding();
   const [isProvisioningNumber, setIsProvisioningNumber] = useState(false);
-  
+  const [showAreaCodePicker, setShowAreaCodePicker] = useState(false);
+  const [selectedAreaCode, setSelectedAreaCode] = useState('');
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [isCallingActive, setIsCallingActive] = useState(false);
@@ -791,28 +792,86 @@ export default function Step4AICallingHub({
                       )}
                       
                       {/* Addon active or Autopilot, but no phone yet → Get My Number */}
-                      {(status === 'phone_needed' || status === 'phone_provisioning') && tier !== 'free' && (
+                      {(status === 'phone_needed' || status === 'phone_provisioning') && tier !== 'free' && !showAreaCodePicker && (
                         <Button 
-                          onClick={async () => {
-                            setIsProvisioningNumber(true);
-                            await requestPhoneProvisioning();
-                            setIsProvisioningNumber(false);
-                          }}
+                          onClick={() => setShowAreaCodePicker(true)}
                           disabled={isProvisioningNumber || phoneSetup.isProvisioning}
                           className="gap-2 bg-emerald-600 hover:bg-emerald-700"
                         >
-                          {(isProvisioningNumber || phoneSetup.isProvisioning) ? (
-                            <>
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              Provisioning Your Number...
-                            </>
-                          ) : (
-                            <>
-                              <Phone className="w-4 h-4" />
-                              🎯 Get My Number
-                            </>
-                          )}
+                          <Phone className="w-4 h-4" />
+                          🎯 Get My Number
                         </Button>
+                      )}
+
+                      {/* Area Code Picker */}
+                      {showAreaCodePicker && !phoneSetup.hasPhone && (
+                        <div className="w-full p-4 rounded-xl border-2 border-emerald-500/30 bg-emerald-500/5 space-y-3">
+                          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                            <Phone className="w-4 h-4 text-emerald-500" />
+                            Choose Your Area Code (optional)
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Enter a US area code for a local number, or leave blank for any available number.
+                          </p>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              maxLength={3}
+                              placeholder="e.g. 212, 310, 415"
+                              value={selectedAreaCode}
+                              onChange={(e) => setSelectedAreaCode(e.target.value.replace(/\D/g, '').slice(0, 3))}
+                              className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                            />
+                            <Button
+                              onClick={async () => {
+                                setIsProvisioningNumber(true);
+                                await requestPhoneProvisioning({
+                                  country_code: 'US',
+                                  area_code: selectedAreaCode || undefined
+                                });
+                                setIsProvisioningNumber(false);
+                                setShowAreaCodePicker(false);
+                              }}
+                              disabled={isProvisioningNumber || phoneSetup.isProvisioning}
+                              className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+                            >
+                              {(isProvisioningNumber || phoneSetup.isProvisioning) ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  Provisioning...
+                                </>
+                              ) : (
+                                <>
+                                  <Sparkles className="w-4 h-4" />
+                                  Get Number
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setShowAreaCodePicker(false)}
+                              className="text-muted-foreground"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {['212', '310', '415', '305', '312', '713', '404', '206'].map(code => (
+                              <button
+                                key={code}
+                                onClick={() => setSelectedAreaCode(code)}
+                                className={`px-2 py-1 rounded text-xs font-mono border transition-colors ${
+                                  selectedAreaCode === code 
+                                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-600' 
+                                    : 'border-border text-muted-foreground hover:border-emerald-500/30 hover:text-foreground'
+                                }`}
+                              >
+                                {code}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       )}
                       
                       {/* Show provisioned number */}
