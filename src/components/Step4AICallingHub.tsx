@@ -77,6 +77,7 @@ import {
   CustomerJourneyBreadcrumb
 } from '@/lib/aiCallingScriptGenerator';
 import { SMSConversation, SMSMessage } from '@/lib/api/sms';
+import { releaseNumber } from '@/lib/api/calling';
 import { formatPhoneWithCountry, formatPhoneDisplay, isValidUSPhone, toE164 } from '@/lib/phoneUtils';
 
 interface Lead {
@@ -157,6 +158,8 @@ export default function Step4AICallingHub({
   const [portNumber, setPortNumber] = useState('');
   const [portName, setPortName] = useState('');
   const [isPortSubmitting, setIsPortSubmitting] = useState(false);
+  const [isReleasingNumber, setIsReleasingNumber] = useState(false);
+  const [showReleaseConfirm, setShowReleaseConfirm] = useState(false);
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [isCallingActive, setIsCallingActive] = useState(false);
@@ -1022,12 +1025,64 @@ export default function Step4AICallingHub({
                         </div>
                       )}
                       
-                      {/* Show provisioned number */}
+                      {/* Show provisioned number with release option */}
                       {phoneSetup.hasPhone && phoneSetup.phoneNumber && (
-                        <Badge className="bg-emerald-500/20 text-emerald-600 gap-1 text-sm py-1.5 px-3">
-                          <Phone className="w-3 h-3" />
-                          {formatPhoneWithCountry(phoneSetup.phoneNumber)}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-emerald-500/20 text-emerald-600 gap-1 text-sm py-1.5 px-3">
+                            <Phone className="w-3 h-3" />
+                            {formatPhoneWithCountry(phoneSetup.phoneNumber)}
+                          </Badge>
+                          
+                          {!showReleaseConfirm ? (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => setShowReleaseConfirm(true)}
+                              className="text-muted-foreground hover:text-destructive text-xs gap-1"
+                            >
+                              <XCircle className="w-3 h-3" />
+                              Release
+                            </Button>
+                          ) : (
+                            <div className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
+                              <span className="text-xs text-destructive font-medium">Release this number?</span>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={async () => {
+                                  setIsReleasingNumber(true);
+                                  try {
+                                    const result = await releaseNumber();
+                                    if (result.success) {
+                                      toast.success('Phone number released! You can now get a new one.');
+                                      setShowReleaseConfirm(false);
+                                      setShowAreaCodePicker(false);
+                                      window.location.reload();
+                                    } else {
+                                      toast.error(result.error || 'Failed to release number');
+                                    }
+                                  } catch {
+                                    toast.error('Network error releasing number');
+                                  } finally {
+                                    setIsReleasingNumber(false);
+                                  }
+                                }}
+                                disabled={isReleasingNumber}
+                                className="text-xs h-7 px-2"
+                              >
+                                {isReleasingNumber ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes, Release'}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setShowReleaseConfirm(false)}
+                                className="text-xs h-7 px-2"
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          )}
+                        </div>
                       )}
                       
                       {/* Ready → Start calling */}
