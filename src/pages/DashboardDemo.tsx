@@ -774,7 +774,7 @@ Best regards,
           );
         })()}
 
-        {/* Step 4: Voice Calling - Callin.io-inspired Hub */}
+        {/* Step 4: Voice Calling Hub */}
         {currentStep === 4 && (
           <Step4AICallingHub
             leads={leads.filter(l => selectedLeads.includes(l.id)).map(l => ({

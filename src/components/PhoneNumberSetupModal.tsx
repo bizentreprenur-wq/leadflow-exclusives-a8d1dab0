@@ -3,7 +3,7 @@
  * Shows phone provisioning flow after AI Calling add-on purchase
  * 
  * V1 WORKFLOW:
- * - BamLead provisions phone numbers via calling.io API
+ * - BamLead provisions phone numbers via Telnyx API
  * - Customers don't connect their own numbers in V1
  * - Autopilot: Phone included, auto-provisioned
  * - Basic/Pro + $8/mo add-on: Phone provisioned after purchase
@@ -151,7 +151,7 @@ export default function PhoneNumberSetupModal({
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-primary" />
-                    Connected to calling.io infrastructure
+                    Connected to voice infrastructure
                   </li>
                 </ul>
               </div>
@@ -216,7 +216,7 @@ export default function PhoneNumberSetupModal({
               <div className="space-y-3 text-sm">
                 <div className={`flex items-center gap-2 ${progress >= 20 ? 'text-foreground' : 'text-muted-foreground'}`}>
                   <CheckCircle2 className={`w-4 h-4 ${progress >= 20 ? 'text-primary' : 'text-muted-foreground/40'}`} />
-                  Connecting to calling.io
+                  Connecting to voice service
                 </div>
                 <div className={`flex items-center gap-2 ${progress >= 40 ? 'text-foreground' : 'text-muted-foreground'}`}>
                   <CheckCircle2 className={`w-4 h-4 ${progress >= 40 ? 'text-primary' : 'text-muted-foreground/40'}`} />
