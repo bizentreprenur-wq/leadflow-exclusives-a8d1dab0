@@ -804,26 +804,55 @@ function matchesSearchFilters($business, $filters) {
         if ($phone === '') return false;
     }
 
-    if (!empty($filters['noWebsite'])) {
-        if ($hasWebsite) return false;
-    }
+    $qualityFiltersSelected = !empty($filters['noWebsite']) || !empty($filters['notMobile']) || !empty($filters['outdated']);
+    if ($qualityFiltersSelected) {
+        $qualityMatch = false;
 
-    if (!empty($filters['notMobile'])) {
-        if ($mobileScore !== null && $mobileScore !== '' && $mobileScore >= 50) {
+        if (!empty($filters['noWebsite']) && !$hasWebsite) {
+            $qualityMatch = true;
+        }
+
+        if (!empty($filters['notMobile'])) {
+            $notMobile = true;
+            if ($mobileScore !== null && $mobileScore !== '') {
+                $notMobile = ((float)$mobileScore) < 50;
+            }
+            if ($notMobile) {
+                $qualityMatch = true;
+            }
+        }
+
+        if (!empty($filters['outdated']) && ($needsUpgrade || !empty($issues))) {
+            $qualityMatch = true;
+        }
+
+        if (!$qualityMatch) {
             return false;
         }
     }
 
-    if (!empty($filters['outdated'])) {
-        if (!$needsUpgrade && empty($issues)) return false;
-    }
-
     $platforms = $filters['platforms'] ?? [];
     if (!empty($platforms)) {
-        if (!empty($filters['platformMode']) && in_array('gmb', $platforms, true)) {
+        $normalizePlatform = function ($value) {
+            $value = strtolower(trim((string)$value));
+            return str_replace([' ', '.', '-', '_'], '', $value);
+        };
+        $platformToken = $normalizePlatform($platform);
+        $normalizedPlatforms = array_values(array_unique(array_map($normalizePlatform, $platforms)));
+
+        if (!empty($filters['platformMode']) && in_array('gmb', $normalizedPlatforms, true)) {
             return true;
         }
-        $matchesPlatform = $platform !== '' && in_array($platform, $platforms, true);
+        $matchesPlatform = false;
+        if ($platformToken !== '') {
+            if (in_array($platformToken, $normalizedPlatforms, true)) {
+                $matchesPlatform = true;
+            } elseif ($platformToken === 'wordpresscom' && in_array('wordpress', $normalizedPlatforms, true)) {
+                $matchesPlatform = true;
+            } elseif ($platformToken === 'godaddysites' && in_array('godaddy', $normalizedPlatforms, true)) {
+                $matchesPlatform = true;
+            }
+        }
         if (!empty($filters['platformMode'])) {
             $url = trim((string)($business['url'] ?? ''));
             $include = !$hasWebsite || $needsUpgrade || !empty($issues) || $matchesPlatform || $url === '';

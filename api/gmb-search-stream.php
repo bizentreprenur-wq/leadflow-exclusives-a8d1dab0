@@ -1087,13 +1087,13 @@ function streamSerperSearchInto(
         }
         
         if (empty($business['name'])) continue;
+        $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
         if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
         
         $dedupeKey = buildBusinessDedupeKey($business, $location);
         if (isset($seenBusinesses[$dedupeKey])) continue;
         
         $seenBusinesses[$dedupeKey] = count($allResults);
-        $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
         $allResults[] = $business;
         $totalResults++;
         
@@ -1145,13 +1145,13 @@ function streamSerperSearchInto(
             ];
             
             if (empty($business['name'])) continue;
+            $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
             if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
             
             $dedupeKey = buildBusinessDedupeKey($business, $location);
             if (isset($seenBusinesses[$dedupeKey])) continue;
             
             $seenBusinesses[$dedupeKey] = count($allResults);
-            $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
             $allResults[] = $business;
             $totalResults++;
 

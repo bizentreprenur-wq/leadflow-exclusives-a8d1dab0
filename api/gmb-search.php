@@ -204,9 +204,8 @@ function searchSerperPlaces($service, $location, $limit, $filters, $filtersActiv
         ];
         
         if (empty($business['name'])) continue;
-        if (!matchesSearchFilters($business, $filters)) continue;
-        
         $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
+        if (!matchesSearchFilters($business, $filters)) continue;
         $results[] = $business;
     }
     
@@ -267,9 +266,8 @@ function searchSerperOrganic($service, $location, $limit, $filters) {
         ];
         
         if (empty($business['name'])) continue;
-        if (!matchesSearchFilters($business, $filters)) continue;
-        
         $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
+        if (!matchesSearchFilters($business, $filters)) continue;
         $results[] = $business;
     }
     
@@ -713,6 +711,17 @@ function normalizeBusinessResultNonStream($item, $engine, $sourceName) {
  * Only analyzes the URL structure to avoid timeouts
  */
 function quickWebsiteCheck($url) {
+    if (empty($url)) {
+        return [
+            'hasWebsite' => false,
+            'platform' => null,
+            'needsUpgrade' => true,
+            'issues' => ['No website found'],
+            'mobileScore' => null,
+            'loadTime' => null
+        ];
+    }
+
     $host = parse_url($url, PHP_URL_HOST) ?? '';
     $hostLower = strtolower($host);
     
