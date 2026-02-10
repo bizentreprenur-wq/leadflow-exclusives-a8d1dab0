@@ -76,14 +76,37 @@ const PipelineStep = ({ step, index, isVisible }: { step: any; index: number; is
       transition={{ duration: 0.6, delay: 0.3 + index * 0.15 }}
       className="relative group"
     >
-      {/* Connector line */}
+      {/* Glowing connector */}
       {index < 3 && (
-        <motion.div
-          initial={{ scaleX: 0 }}
-          animate={isVisible ? { scaleX: 1 } : {}}
-          transition={{ duration: 0.5, delay: 0.8 + index * 0.2 }}
-          className="hidden lg:block absolute top-12 -right-3 w-6 h-0.5 bg-gradient-to-r from-muted-foreground/40 to-transparent z-20 origin-left"
-        />
+        <div className="hidden lg:flex absolute top-12 -right-4 w-8 items-center z-20">
+          <motion.div
+            initial={{ scaleX: 0, opacity: 0 }}
+            animate={isVisible ? { scaleX: 1, opacity: 1 } : {}}
+            transition={{ duration: 0.6, delay: 1.0 + index * 0.25 }}
+            className="w-full h-[2px] origin-left relative"
+          >
+            {/* Base line */}
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/60 to-primary/20 rounded-full" />
+            {/* Glow */}
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/40 to-transparent rounded-full blur-sm" />
+            {/* Traveling particle */}
+            <motion.div
+              initial={{ x: "0%" }}
+              animate={isVisible ? { x: ["0%", "100%", "0%"] } : {}}
+              transition={{ duration: 2.5, delay: 1.5 + index * 0.3, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_hsl(173_80%_50%_/_0.8)]"
+            />
+          </motion.div>
+          {/* Arrow tip */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={isVisible ? { opacity: 1 } : {}}
+            transition={{ duration: 0.3, delay: 1.3 + index * 0.25 }}
+            className="text-primary/60 -ml-0.5"
+          >
+            <svg width="6" height="10" viewBox="0 0 6 10" fill="none"><path d="M1 1L5 5L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          </motion.div>
+        </div>
       )}
 
       <div
