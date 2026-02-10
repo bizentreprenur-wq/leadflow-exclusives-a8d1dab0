@@ -175,9 +175,14 @@ export default function Step4AICallingHub({
   const [smsConversations, setSmsConversations] = useState<SMSConversation[]>([]);
   const [smsLoading, setSmsLoading] = useState(false);
 
-  // Filter leads with phone numbers
+  // Filter leads with valid phone numbers (E.164 compatible)
   const callableLeads = useMemo(() => {
-    return leads.filter(lead => lead.phone && lead.phone.length >= 10);
+    return leads.filter(lead => {
+      if (!lead.phone) return false;
+      const digits = lead.phone.replace(/\D/g, '');
+      // Must be a valid US phone (10 digits or 11 starting with 1) or international (11+ digits)
+      return digits.length >= 10 && isValidUSPhone(lead.phone) || digits.length > 11;
+    });
   }, [leads]);
 
   // Leads with email (for reference)
@@ -185,13 +190,13 @@ export default function Step4AICallingHub({
     return leads.filter(lead => lead.email);
   }, [leads]);
 
-  // Initialize call queue from leads
+  // Initialize call queue from leads with E.164 formatted numbers
   useEffect(() => {
     if (callableLeads.length > 0 && callQueue.length === 0) {
       setCallQueue(callableLeads.map(lead => ({
         id: lead.id || `lead-${Math.random()}`,
         name: lead.business_name || lead.name || 'Unknown',
-        phone: lead.phone!,
+        phone: toE164(lead.phone!),
         business: lead.business_name,
         status: 'pending' as const,
         smsReplies: []
@@ -280,9 +285,19 @@ export default function Step4AICallingHub({
       return;
     }
 
-    if (callQueue.filter(c => c.status === 'pending').length === 0) {
+    const pendingCalls = callQueue.filter(c => c.status === 'pending');
+    if (pendingCalls.length === 0) {
       toast.error('No leads in queue to call');
       return;
+    }
+
+    // Validate all pending numbers are E.164 formatted
+    const invalidNumbers = pendingCalls.filter(c => !c.phone.startsWith('+') || c.phone.replace(/\D/g, '').length < 11);
+    if (invalidNumbers.length > 0) {
+      toast.warning(`${invalidNumbers.length} lead(s) have invalid phone numbers and will be skipped`);
+      setCallQueue(prev => prev.map(c => 
+        invalidNumbers.some(inv => inv.id === c.id) ? { ...c, status: 'failed' as const, outcome: 'Invalid Number' } : c
+      ));
     }
 
     setIsCallingActive(true);
@@ -295,9 +310,9 @@ export default function Step4AICallingHub({
     toast.info('AI calling paused');
   };
 
-  // Simulate a call (in production, uses calling.io API)
+  // Simulate a call (in production, uses Telnyx API)
   const simulateCall = () => {
-    const pendingCalls = callQueue.filter(c => c.status === 'pending');
+    const pendingCalls = callQueue.filter(c => c.status === 'pending' && c.phone.startsWith('+') && c.phone.replace(/\D/g, '').length >= 11);
     if (pendingCalls.length === 0 || !isCallingActive) {
       setIsCallingActive(false);
       return;
