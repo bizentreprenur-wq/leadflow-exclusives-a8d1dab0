@@ -6,13 +6,13 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'https://bamlead.com/api';
 
 export interface TelnyxConfig {
-  api_key: string;
-  connection_id: string;
   phone_number: string;
   voice: string;
   greeting_message: string;
   system_prompt: string;
   enabled: boolean;
+  provisioned: boolean;
+  provision_status: 'none' | 'pending' | 'active' | 'failed' | 'released';
 }
 
 export interface CallRequest {
@@ -79,14 +79,13 @@ export async function saveTelnyxConfig(config: TelnyxConfig): Promise<{ success:
 }
 
 /**
- * Test Telnyx connection
+ * Test Telnyx connection (uses global server key)
  */
-export async function testTelnyxConnection(config: TelnyxConfig): Promise<{ success: boolean; message?: string; error?: string }> {
+export async function testTelnyxConnection(): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
     const response = await fetch(`${API_BASE}/telnyx.php?action=test_connection`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ api_key: config.api_key }),
     });
     
     return await response.json();
@@ -97,18 +96,131 @@ export async function testTelnyxConnection(config: TelnyxConfig): Promise<{ succ
 }
 
 /**
- * Get phone numbers from Telnyx account
+ * Provision a phone number for the user
  */
-export async function getTelnyxPhoneNumbers(): Promise<{ success: boolean; phone_numbers?: string[]; error?: string }> {
+export async function provisionPhoneNumber(areaCode?: string, countryCode = 'US'): Promise<{ 
+  success: boolean; 
+  phone_number?: string;
+  status?: string;
+  error?: string;
+  requires_addon?: boolean;
+}> {
   try {
-    const response = await fetch(`${API_BASE}/telnyx.php?action=get_phone_numbers`, {
+    const response = await fetch(`${API_BASE}/telnyx.php?action=provision_number`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ area_code: areaCode, country_code: countryCode }),
+    });
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to provision number:', error);
+    return { success: false, error: 'Network error' };
+  }
+}
+
+/**
+ * Release a provisioned phone number
+ */
+export async function releasePhoneNumber(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch(`${API_BASE}/telnyx.php?action=release_number`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to release number:', error);
+    return { success: false, error: 'Network error' };
+  }
+}
+
+/**
+ * Check if user has AI Calling add-on
+ */
+export async function checkCallingAddon(): Promise<{ 
+  success: boolean; 
+  has_addon?: boolean;
+  included_with_plan?: boolean;
+  plan?: string;
+  addon_price?: number;
+  error?: string;
+}> {
+  try {
+    const response = await fetch(`${API_BASE}/telnyx.php?action=check_addon`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
     
     return await response.json();
   } catch (error) {
-    console.error('Failed to get Telnyx phone numbers:', error);
+    console.error('Failed to check addon:', error);
+    return { success: false, error: 'Network error' };
+  }
+}
+
+/**
+ * Purchase AI Calling add-on ($8/mo)
+ */
+export async function purchaseCallingAddon(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch(`${API_BASE}/telnyx.php?action=purchase_addon`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    });
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to purchase addon:', error);
+    return { success: false, error: 'Network error' };
+  }
+}
+
+/**
+ * Save a call log
+ */
+export async function saveCallLog(data: {
+  lead_id?: number;
+  lead_name?: string;
+  lead_phone?: string;
+  duration_seconds?: number;
+  outcome?: string;
+  notes?: string;
+  transcript?: TranscriptEntry[];
+}): Promise<{ success: boolean; call_log_id?: number; error?: string }> {
+  try {
+    const response = await fetch(`${API_BASE}/telnyx.php?action=save_call_log`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(data),
+    });
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to save call log:', error);
+    return { success: false, error: 'Network error' };
+  }
+}
+
+/**
+ * Get call logs
+ */
+export async function getCallLogs(limit = 50, offset = 0): Promise<{ 
+  success: boolean; 
+  logs?: any[];
+  total?: number;
+  error?: string;
+}> {
+  try {
+    const response = await fetch(`${API_BASE}/telnyx.php?action=get_call_logs&limit=${limit}&offset=${offset}`, {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to get call logs:', error);
     return { success: false, error: 'Network error' };
   }
 }

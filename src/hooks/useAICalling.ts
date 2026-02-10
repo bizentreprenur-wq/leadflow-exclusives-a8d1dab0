@@ -291,12 +291,12 @@ export function useAICalling() {
     try {
       const newConfig: TelnyxConfig = {
         ...(config || {
-          api_key: '',
-          connection_id: '',
-          voice: 'Polly.Matthew',
+          voice: 'Telnyx.Kokoro',
           greeting_message: '',
           system_prompt: '',
           enabled: false,
+          provisioned: false,
+          provision_status: 'none' as const,
         }),
         phone_number: phoneNumber,
       };

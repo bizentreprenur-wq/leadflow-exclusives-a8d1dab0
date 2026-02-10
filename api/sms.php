@@ -142,32 +142,47 @@ function handleSendSMS($pdo, $userId) {
         return;
     }
     
-    // Get user's Telnyx config (phone number + API key)
-    $stmt = $pdo->prepare("SELECT api_key, phone_number FROM telnyx_config WHERE user_id = ? AND enabled = 1");
+    // Get user's Telnyx config (phone number)
+    $stmt = $pdo->prepare("SELECT phone_number FROM telnyx_config WHERE user_id = ? AND enabled = 1");
     $stmt->execute([$userId]);
     $config = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    if (!$config || empty($config['phone_number']) || empty($config['api_key'])) {
+    if (!$config || empty($config['phone_number'])) {
         http_response_code(400);
         echo json_encode(['success' => false, 'error' => 'No Telnyx phone number configured. Please set up AI Calling first.']);
         return;
     }
     
+    // Use global TELNYX_API_KEY from config.php
+    $telnyxApiKey = defined('TELNYX_API_KEY') ? TELNYX_API_KEY : '';
+    if (!$telnyxApiKey) {
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'TELNYX_API_KEY not configured on server']);
+        return;
+    }
+    
+    $messagingProfileId = defined('TELNYX_MESSAGING_PROFILE_ID') ? TELNYX_MESSAGING_PROFILE_ID : null;
+    
     // Send SMS via Telnyx Messaging API
+    $smsPayload = [
+        'from' => $config['phone_number'],
+        'to' => $leadPhone,
+        'text' => $message,
+        'type' => 'SMS',
+        'webhook_url' => (defined('FRONTEND_URL') ? FRONTEND_URL : 'https://bamlead.com') . '/api/sms.php?action=webhook',
+        'webhook_failover_url' => (defined('FRONTEND_URL') ? FRONTEND_URL : 'https://bamlead.com') . '/api/sms.php?action=webhook'
+    ];
+    if ($messagingProfileId) {
+        $smsPayload['messaging_profile_id'] = $messagingProfileId;
+    }
+    
     $ch = curl_init('https://api.telnyx.com/v2/messages');
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode([
-            'from' => $config['phone_number'],
-            'to' => $leadPhone,
-            'text' => $message,
-            'type' => 'SMS',
-            'webhook_url' => (defined('FRONTEND_URL') ? FRONTEND_URL : 'https://bamlead.com') . '/api/sms.php?action=webhook',
-            'webhook_failover_url' => (defined('FRONTEND_URL') ? FRONTEND_URL : 'https://bamlead.com') . '/api/sms.php?action=webhook'
-        ]),
+        CURLOPT_POSTFIELDS => json_encode($smsPayload),
         CURLOPT_HTTPHEADER => [
-            'Authorization: Bearer ' . $config['api_key'],
+            'Authorization: Bearer ' . $telnyxApiKey,
             'Content-Type: application/json'
         ],
         CURLOPT_TIMEOUT => 15
@@ -609,12 +624,13 @@ function handleSMSWebhook($db) {
                     // Auto-reply with AI suggestion
                     $aiReply = generateAISuggestion($messageText, $leadName);
                     
-                    // Get API key to send reply
-                    $stmt = $db->prepare("SELECT api_key, phone_number FROM telnyx_config WHERE user_id = ?");
+                    // Get user's phone number and use global API key
+                    $stmt = $db->prepare("SELECT phone_number FROM telnyx_config WHERE user_id = ?");
                     $stmt->execute([$userId]);
                     $telnyxConfig = $stmt->fetch(PDO::FETCH_ASSOC);
+                    $globalApiKey = defined('TELNYX_API_KEY') ? TELNYX_API_KEY : '';
                     
-                    if ($telnyxConfig && $telnyxConfig['api_key']) {
+                    if ($telnyxConfig && $telnyxConfig['phone_number'] && $globalApiKey) {
                         // Send auto-reply via Telnyx
                         $ch = curl_init('https://api.telnyx.com/v2/messages');
                         curl_setopt_array($ch, [
@@ -627,7 +643,7 @@ function handleSMSWebhook($db) {
                                 'type' => 'SMS'
                             ]),
                             CURLOPT_HTTPHEADER => [
-                                'Authorization: Bearer ' . $telnyxConfig['api_key'],
+                                'Authorization: Bearer ' . $globalApiKey,
                                 'Content-Type: application/json'
                             ],
                             CURLOPT_TIMEOUT => 15
