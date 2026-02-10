@@ -1,6 +1,7 @@
 /**
  * Telnyx Voice Provider Settings Panel
- * Configure Telnyx API credentials and phone numbers for AI calling
+ * Configure voice settings and AI scripts for AI calling
+ * API key and Connection ID are managed server-side (global config)
  */
 
 import { useState, useEffect } from 'react';
@@ -21,22 +22,15 @@ import {
   ExternalLink,
   Loader2,
   TestTube,
-  Settings,
-  Key,
   PhoneCall,
-  Mic,
   Volume2,
   Brain,
   AlertCircle,
-  RefreshCw,
-  Plus,
-  Trash2
 } from 'lucide-react';
 import { 
   getTelnyxConfig, 
   saveTelnyxConfig, 
   testTelnyxConnection,
-  getTelnyxPhoneNumbers,
   type TelnyxConfig 
 } from '@/lib/api/telnyx';
 
@@ -46,13 +40,13 @@ interface TelnyxVoiceSettingsProps {
 
 export default function TelnyxVoiceSettings({ onBackToStep4 }: TelnyxVoiceSettingsProps) {
   const [config, setConfig] = useState<TelnyxConfig>({
-    api_key: '',
-    connection_id: '',
     phone_number: '',
-    voice: 'Polly.Brian',
+    voice: 'Telnyx.Kokoro',
     greeting_message: 'Hello! This is an AI assistant calling on behalf of our company. How can I help you today?',
     system_prompt: 'You are a helpful sales assistant. Be friendly, professional, and concise. Your goal is to qualify leads and schedule appointments.',
-    enabled: false
+    enabled: false,
+    provisioned: false,
+    provision_status: 'none'
   });
   const [savedConfig, setSavedConfig] = useState<TelnyxConfig | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -60,23 +54,18 @@ export default function TelnyxVoiceSettings({ onBackToStep4 }: TelnyxVoiceSettin
   const [isLoading, setIsLoading] = useState(true);
   const [testStatus, setTestStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState('');
-  const [phoneNumbers, setPhoneNumbers] = useState<string[]>([]);
-  const [isLoadingNumbers, setIsLoadingNumbers] = useState(false);
 
   // Available Telnyx TTS voices
   const voiceOptions = [
+    { value: 'Telnyx.Kokoro', label: 'Kokoro (Default - Natural)' },
     { value: 'Polly.Brian', label: 'Brian (British Male)' },
     { value: 'Polly.Amy', label: 'Amy (British Female)' },
     { value: 'Polly.Matthew', label: 'Matthew (US Male)' },
     { value: 'Polly.Joanna', label: 'Joanna (US Female)' },
     { value: 'Polly.Joey', label: 'Joey (US Male)' },
     { value: 'Polly.Salli', label: 'Salli (US Female)' },
-    { value: 'Polly.Ivy', label: 'Ivy (US Child Female)' },
-    { value: 'Polly.Kendra', label: 'Kendra (US Female)' },
-    { value: 'Polly.Kimberly', label: 'Kimberly (US Female)' },
   ];
 
-  // Load saved config on mount
   useEffect(() => {
     loadConfig();
   }, []);
@@ -96,37 +85,13 @@ export default function TelnyxVoiceSettings({ onBackToStep4 }: TelnyxVoiceSettin
     }
   };
 
-  const loadPhoneNumbers = async () => {
-    if (!config.api_key) {
-      toast.error('Please enter your API key first');
-      return;
-    }
-    
-    setIsLoadingNumbers(true);
-    try {
-      const result = await getTelnyxPhoneNumbers();
-      if (result.success && result.phone_numbers) {
-        setPhoneNumbers(result.phone_numbers);
-        toast.success(`Found ${result.phone_numbers.length} phone numbers`);
-      } else {
-        toast.error(result.error || 'Failed to load phone numbers');
-      }
-    } catch (error) {
-      toast.error('Failed to load phone numbers from Telnyx');
-    } finally {
-      setIsLoadingNumbers(false);
-    }
-  };
-
   const handleSave = async () => {
     setIsSaving(true);
-    
     try {
       const result = await saveTelnyxConfig(config);
-      
       if (result.success) {
         setSavedConfig(config);
-        toast.success('Telnyx configuration saved successfully!', {
+        toast.success('Voice configuration saved!', {
           action: onBackToStep4 ? {
             label: '📞 Start Calling',
             onClick: onBackToStep4
@@ -143,18 +108,11 @@ export default function TelnyxVoiceSettings({ onBackToStep4 }: TelnyxVoiceSettin
   };
 
   const handleTest = async () => {
-    if (!config.api_key) {
-      toast.error('Please enter your API key first');
-      return;
-    }
-
     setIsTesting(true);
     setTestStatus('idle');
     setTestMessage('');
-
     try {
-      const result = await testTelnyxConnection(config);
-      
+      const result = await testTelnyxConnection();
       if (result.success) {
         setTestStatus('success');
         setTestMessage(result.message || 'Connection successful!');
@@ -173,7 +131,7 @@ export default function TelnyxVoiceSettings({ onBackToStep4 }: TelnyxVoiceSettin
     }
   };
 
-  const isConfigured = savedConfig?.api_key && savedConfig?.enabled;
+  const isConfigured = savedConfig?.enabled && savedConfig?.provisioned;
   const hasChanges = JSON.stringify(config) !== JSON.stringify(savedConfig);
 
   if (isLoading) {
@@ -196,7 +154,7 @@ export default function TelnyxVoiceSettings({ onBackToStep4 }: TelnyxVoiceSettin
             </div>
             <div>
               <CardTitle className="flex items-center gap-3 text-xl">
-                Telnyx Voice Provider
+                BamLead Voice Settings
                 {isConfigured ? (
                   <Badge className="bg-emerald-500/20 text-emerald-600 border-emerald-500/30 gap-1">
                     <CheckCircle2 className="w-3 h-3" />
@@ -210,7 +168,7 @@ export default function TelnyxVoiceSettings({ onBackToStep4 }: TelnyxVoiceSettin
                 )}
               </CardTitle>
               <CardDescription className="mt-1">
-                Configure Telnyx for AI-powered outbound voice calls with built-in STT/TTS
+                Configure your AI voice agent settings. API credentials are managed server-side.
               </CardDescription>
             </div>
           </div>
@@ -218,12 +176,8 @@ export default function TelnyxVoiceSettings({ onBackToStep4 }: TelnyxVoiceSettin
       </CardHeader>
       
       <CardContent className="pt-6">
-        <Tabs defaultValue="credentials" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="credentials" className="gap-2">
-              <Key className="w-4 h-4" />
-              Credentials
-            </TabsTrigger>
+        <Tabs defaultValue="voice" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="voice" className="gap-2">
               <Volume2 className="w-4 h-4" />
               Voice Settings
@@ -234,14 +188,14 @@ export default function TelnyxVoiceSettings({ onBackToStep4 }: TelnyxVoiceSettin
             </TabsTrigger>
           </TabsList>
 
-          {/* Credentials Tab */}
-          <TabsContent value="credentials" className="space-y-6">
+          {/* Voice Settings Tab */}
+          <TabsContent value="voice" className="space-y-6">
             {/* Enable Toggle */}
             <div className="flex items-center justify-between p-4 rounded-lg border bg-card">
               <div className="space-y-0.5">
-                <Label className="text-base font-medium">Enable Telnyx Calling</Label>
+                <Label className="text-base font-medium">Enable AI Calling</Label>
                 <p className="text-sm text-muted-foreground">
-                  Turn on AI voice calling via Telnyx
+                  Turn on AI-powered outbound voice calls
                 </p>
               </div>
               <Switch
@@ -250,138 +204,24 @@ export default function TelnyxVoiceSettings({ onBackToStep4 }: TelnyxVoiceSettin
               />
             </div>
 
-            {/* API Key */}
-            <div className="space-y-2">
-              <Label htmlFor="api-key">Telnyx API Key</Label>
-              <Input
-                id="api-key"
-                type="password"
-                placeholder="KEY_..."
-                value={config.api_key}
-                onChange={(e) => setConfig({ ...config, api_key: e.target.value })}
-                className="font-mono"
-              />
-              <p className="text-xs text-muted-foreground">
-                Find your API key at{' '}
-                <a 
-                  href="https://portal.telnyx.com/#/app/api-keys" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  Telnyx Portal → API Keys
-                </a>
-              </p>
-            </div>
-
-            {/* Connection ID */}
-            <div className="space-y-2">
-              <Label htmlFor="connection-id">Connection ID (SIP Connection)</Label>
-              <Input
-                id="connection-id"
-                placeholder="Enter your Telnyx Connection ID"
-                value={config.connection_id}
-                onChange={(e) => setConfig({ ...config, connection_id: e.target.value })}
-                className="font-mono"
-              />
-              <p className="text-xs text-muted-foreground">
-                Create a SIP connection at{' '}
-                <a 
-                  href="https://portal.telnyx.com/#/app/connections" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline"
-                >
-                  Telnyx Portal → Voice → SIP Connections
-                </a>
-              </p>
-            </div>
-
-            {/* Phone Number */}
-            <div className="space-y-2">
-              <Label htmlFor="phone-number">Outbound Phone Number</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="phone-number"
-                  placeholder="+1XXXXXXXXXX"
-                  value={config.phone_number}
-                  onChange={(e) => setConfig({ ...config, phone_number: e.target.value })}
-                  className="font-mono flex-1"
-                />
-                <Button
-                  variant="outline"
-                  onClick={loadPhoneNumbers}
-                  disabled={!config.api_key || isLoadingNumbers}
-                  className="gap-2"
-                >
-                  {isLoadingNumbers ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="w-4 h-4" />
-                  )}
-                  Load
-                </Button>
-              </div>
-              {phoneNumbers.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {phoneNumbers.map((num) => (
-                    <Badge 
-                      key={num}
-                      variant="outline" 
-                      className="cursor-pointer hover:bg-primary hover:text-primary-foreground"
-                      onClick={() => setConfig({ ...config, phone_number: num })}
-                    >
-                      {num}
-                    </Badge>
-                  ))}
+            {/* Phone Number (read-only, provisioned via Hub) */}
+            {config.phone_number && (
+              <div className="space-y-2">
+                <Label>Your Phone Number</Label>
+                <div className="flex items-center gap-2 p-3 rounded-lg border bg-muted/50">
+                  <Phone className="w-4 h-4 text-emerald-500" />
+                  <span className="font-mono font-medium">{config.phone_number}</span>
+                  <Badge variant="outline" className="ml-auto text-xs">
+                    {config.provision_status}
+                  </Badge>
                 </div>
-              )}
-              <p className="text-xs text-muted-foreground">
-                The phone number calls will originate from
-              </p>
-            </div>
-
-            {/* Test Connection */}
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={handleTest}
-                disabled={!config.api_key || isTesting}
-                className="gap-2"
-              >
-                {isTesting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <TestTube className="w-4 h-4" />
-                )}
-                Test Connection
-              </Button>
-            </div>
-
-            {/* Test Status */}
-            {testStatus !== 'idle' && (
-              <div className={`p-4 rounded-lg flex items-start gap-3 ${
-                testStatus === 'success' 
-                  ? 'bg-primary/10 text-primary border border-primary/20' 
-                  : 'bg-destructive/10 text-destructive border border-destructive/20'
-              }`}>
-                {testStatus === 'success' ? (
-                  <CheckCircle2 className="w-5 h-5 mt-0.5" />
-                ) : (
-                  <AlertCircle className="w-5 h-5 mt-0.5" />
-                )}
-                <div>
-                  <p className="font-medium">
-                    {testStatus === 'success' ? 'Connection Successful' : 'Connection Failed'}
-                  </p>
-                  <p className="text-sm opacity-80">{testMessage}</p>
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  Managed via the AI Calling Hub. To change, release and provision a new number.
+                </p>
               </div>
             )}
-          </TabsContent>
 
-          {/* Voice Settings Tab */}
-          <TabsContent value="voice" className="space-y-6">
+            {/* Voice Selection */}
             <div className="space-y-2">
               <Label htmlFor="voice">TTS Voice</Label>
               <select
@@ -396,11 +236,9 @@ export default function TelnyxVoiceSettings({ onBackToStep4 }: TelnyxVoiceSettin
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-muted-foreground">
-                Select the voice for your AI agent
-              </p>
             </div>
 
+            {/* Greeting Message */}
             <div className="space-y-2">
               <Label htmlFor="greeting">Greeting Message</Label>
               <Textarea
@@ -428,6 +266,43 @@ export default function TelnyxVoiceSettings({ onBackToStep4 }: TelnyxVoiceSettin
                 Voice: {voiceOptions.find(v => v.value === config.voice)?.label}
               </p>
             </div>
+
+            {/* Test Server Connection */}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={handleTest}
+                disabled={isTesting}
+                className="gap-2"
+              >
+                {isTesting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <TestTube className="w-4 h-4" />
+                )}
+                Test Server Connection
+              </Button>
+            </div>
+
+            {testStatus !== 'idle' && (
+              <div className={`p-4 rounded-lg flex items-start gap-3 ${
+                testStatus === 'success' 
+                  ? 'bg-primary/10 text-primary border border-primary/20' 
+                  : 'bg-destructive/10 text-destructive border border-destructive/20'
+              }`}>
+                {testStatus === 'success' ? (
+                  <CheckCircle2 className="w-5 h-5 mt-0.5" />
+                ) : (
+                  <AlertCircle className="w-5 h-5 mt-0.5" />
+                )}
+                <div>
+                  <p className="font-medium">
+                    {testStatus === 'success' ? 'Connection Successful' : 'Connection Failed'}
+                  </p>
+                  <p className="text-sm opacity-80">{testMessage}</p>
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           {/* AI Script Tab */}
@@ -447,7 +322,6 @@ export default function TelnyxVoiceSettings({ onBackToStep4 }: TelnyxVoiceSettin
               </p>
             </div>
 
-            {/* AI Behavior Tips */}
             <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
               <h4 className="font-medium flex items-center gap-2 mb-3 text-primary">
                 <Brain className="w-4 h-4" />
@@ -495,30 +369,14 @@ export default function TelnyxVoiceSettings({ onBackToStep4 }: TelnyxVoiceSettin
         <div className="mt-6 bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-4">
           <h4 className="font-medium text-emerald-700 dark:text-emerald-300 flex items-center gap-2 mb-2">
             <Phone className="w-4 h-4" />
-            About Telnyx AI Calling
+            About BamLead Voice (Powered by Telnyx)
           </h4>
           <ul className="space-y-1 text-sm text-emerald-600 dark:text-emerald-400">
             <li>• <strong>Cost-effective:</strong> ~$0.007/min for calls + ~$1/mo per number</li>
-            <li>• <strong>Built-in AI:</strong> Native STT and TTS, no external voice provider needed</li>
-            <li>• <strong>LLM Integration:</strong> Connects to OpenAI for intelligent conversations</li>
-            <li>• <strong>Call Recording:</strong> Optional call recording and transcription</li>
+            <li>• <strong>Built-in AI:</strong> Native STT and TTS via Kokoro voice</li>
+            <li>• <strong>Smart Conversations:</strong> gather_using_ai for natural dialogue</li>
+            <li>• <strong>Auto-provisioning:</strong> Get a phone number instantly from the AI Calling Hub</li>
           </ul>
-        </div>
-
-        {/* Telnyx Link */}
-        <div className="mt-4 flex items-center justify-between p-4 rounded-lg border bg-card">
-          <div>
-            <h4 className="font-medium">Need a Telnyx account?</h4>
-            <p className="text-sm text-muted-foreground">
-              Sign up and get $10 free credit to test calls
-            </p>
-          </div>
-          <Button variant="outline" asChild className="gap-2">
-            <a href="https://telnyx.com/sign-up" target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="w-4 h-4" />
-              Get Started
-            </a>
-          </Button>
         </div>
       </CardContent>
     </Card>

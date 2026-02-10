@@ -63,6 +63,18 @@ try {
         case 'get_transcript':
             handleGetTranscript($db, $user);
             break;
+        case 'check_addon':
+            handleCheckAddon($db, $user);
+            break;
+        case 'purchase_addon':
+            handlePurchaseAddon($db, $user);
+            break;
+        case 'save_call_log':
+            handleSaveCallLog($db, $user);
+            break;
+        case 'get_call_logs':
+            handleGetCallLogs($db, $user);
+            break;
         default:
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Invalid action']);
@@ -839,5 +851,131 @@ function saveCallToLogs($db, $callControlId) {
         $duration,
         $outcome,
         $call['transcript']
+    ]);
+}
+
+/**
+ * Check if user has AI Calling add-on
+ */
+function handleCheckAddon($db, $user) {
+    $stmt = $db->prepare("SELECT plan FROM subscriptions WHERE user_id = ? AND status = 'active'");
+    $stmt->execute([$user['id']]);
+    $subscription = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    $isAutopilot = $subscription && $subscription['plan'] === 'autopilot';
+    
+    if ($isAutopilot) {
+        echo json_encode([
+            'success' => true,
+            'has_addon' => true,
+            'included_with_plan' => true,
+            'plan' => 'autopilot'
+        ]);
+        return;
+    }
+    
+    $stmt = $db->prepare("SELECT addon_active FROM calling_config WHERE user_id = ?");
+    $stmt->execute([$user['id']]);
+    $config = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    echo json_encode([
+        'success' => true,
+        'has_addon' => $config && $config['addon_active'],
+        'included_with_plan' => false,
+        'plan' => $subscription['plan'] ?? 'free',
+        'addon_price' => 8.00
+    ]);
+}
+
+/**
+ * Purchase AI Calling add-on ($8/mo)
+ */
+function handlePurchaseAddon($db, $user) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+        return;
+    }
+    
+    $stmt = $db->prepare("SELECT id FROM calling_config WHERE user_id = ?");
+    $stmt->execute([$user['id']]);
+    $exists = $stmt->fetch();
+    
+    if ($exists) {
+        $stmt = $db->prepare("UPDATE calling_config SET addon_active = 1, updated_at = NOW() WHERE user_id = ?");
+        $stmt->execute([$user['id']]);
+    } else {
+        $stmt = $db->prepare("INSERT INTO calling_config (user_id, addon_active) VALUES (?, 1)");
+        $stmt->execute([$user['id']]);
+    }
+    
+    echo json_encode([
+        'success' => true,
+        'message' => 'AI Calling add-on activated',
+        'addon_active' => true
+    ]);
+}
+
+/**
+ * Save a call log
+ */
+function handleSaveCallLog($db, $user) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+        return;
+    }
+    
+    $input = json_decode(file_get_contents('php://input'), true);
+    
+    $stmt = $db->prepare("
+        INSERT INTO call_logs 
+        (user_id, lead_id, lead_name, lead_phone, agent_id, duration_seconds, outcome, notes, transcript, created_at)
+        VALUES (?, ?, ?, ?, 'telnyx', ?, ?, ?, ?, NOW())
+    ");
+    $stmt->execute([
+        $user['id'],
+        $input['lead_id'] ?? null,
+        $input['lead_name'] ?? null,
+        $input['lead_phone'] ?? null,
+        $input['duration_seconds'] ?? 0,
+        $input['outcome'] ?? 'completed',
+        $input['notes'] ?? null,
+        isset($input['transcript']) ? json_encode($input['transcript']) : null
+    ]);
+    
+    echo json_encode([
+        'success' => true,
+        'call_log_id' => $db->lastInsertId()
+    ]);
+}
+
+/**
+ * Get call logs for user
+ */
+function handleGetCallLogs($db, $user) {
+    $limit = min(intval($_GET['limit'] ?? 50), 100);
+    $offset = max(intval($_GET['offset'] ?? 0), 0);
+    
+    $stmt = $db->prepare("
+        SELECT id, lead_id, lead_name, lead_phone, agent_id, duration_seconds, outcome, notes, created_at
+        FROM call_logs 
+        WHERE user_id = ?
+        ORDER BY created_at DESC
+        LIMIT ? OFFSET ?
+    ");
+    $stmt->execute([$user['id'], $limit, $offset]);
+    $logs = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    $stmt = $db->prepare("SELECT COUNT(*) FROM call_logs WHERE user_id = ?");
+    $stmt->execute([$user['id']]);
+    $total = $stmt->fetchColumn();
+    
+    echo json_encode([
+        'success' => true,
+        'logs' => $logs,
+        'total' => intval($total),
+        'limit' => $limit,
+        'offset' => $offset
     ]);
 }
