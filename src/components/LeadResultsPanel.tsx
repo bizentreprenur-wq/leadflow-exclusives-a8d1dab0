@@ -458,58 +458,6 @@ export default function LeadResultsPanel({
             </Button>
           </div>
           
-          {/* Website Quality Filters */}
-          <div className="flex flex-wrap gap-2 items-center">
-            <span className="text-xs font-medium text-muted-foreground">Quick Filters:</span>
-            <button
-              onClick={() => {
-                setFilterHasWebsite(filterHasWebsite === 'no' ? 'all' : 'no');
-                setActiveTab('no-website');
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${
-                filterHasWebsite === 'no'
-                  ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400'
-                  : 'border-border hover:border-emerald-500/50 text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <XCircle className="w-3 h-3" />
-              No Website ({stats.withoutWebsite})
-            </button>
-            <button
-              onClick={() => setFilterNotMobile(!filterNotMobile)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${
-                filterNotMobile
-                  ? 'bg-orange-500/20 border-orange-500 text-orange-400'
-                  : 'border-border hover:border-orange-500/50 text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Smartphone className="w-3 h-3" />
-              Not Mobile Friendly ({stats.notMobileCompliant})
-            </button>
-            <button
-              onClick={() => setFilterOutdated(!filterOutdated)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center gap-1.5 ${
-                filterOutdated
-                  ? 'bg-red-500/20 border-red-500 text-red-400'
-                  : 'border-border hover:border-red-500/50 text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <AlertTriangle className="w-3 h-3" />
-              Outdated Standards ({stats.outdatedStandards})
-            </button>
-            {(filterHasWebsite !== 'all' || filterNotMobile || filterOutdated) && (
-              <button
-                onClick={() => {
-                  setFilterHasWebsite('all');
-                  setFilterNotMobile(false);
-                  setFilterOutdated(false);
-                }}
-                className="px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
-              >
-                Clear filters
-              </button>
-            )}
-          </div>
         </div>
 
         {/* Tabs for different views */}
