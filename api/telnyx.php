@@ -1,7 +1,8 @@
 <?php
 /**
  * Telnyx Voice API Endpoint
- * Handles configuration, call initiation, and call control
+ * Uses a SINGLE global TELNYX_API_KEY from config.php
+ * Handles config, auto-provisioning, call initiation, and webhooks
  */
 
 require_once __DIR__ . '/includes/database.php';
@@ -38,35 +39,30 @@ try {
         case 'get_config':
             handleGetConfig($db, $user);
             break;
-            
         case 'save_config':
             handleSaveConfig($db, $user);
             break;
-            
         case 'test_connection':
-            handleTestConnection($user);
+            handleTestConnection();
             break;
-            
-        case 'get_phone_numbers':
-            handleGetPhoneNumbers($db, $user);
+        case 'provision_number':
+            handleProvisionNumber($db, $user);
             break;
-            
+        case 'release_number':
+            handleReleaseNumber($db, $user);
+            break;
         case 'initiate_call':
             handleInitiateCall($db, $user);
             break;
-            
         case 'hangup_call':
             handleHangupCall($db, $user);
             break;
-            
         case 'call_status':
             handleCallStatus($db, $user);
             break;
-            
         case 'get_transcript':
             handleGetTranscript($db, $user);
             break;
-            
         default:
             http_response_code(400);
             echo json_encode(['success' => false, 'error' => 'Invalid action']);
@@ -77,8 +73,52 @@ try {
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 }
 
+// ─── Helper: get global Telnyx API key ───
+function getTelnyxApiKey() {
+    if (!defined('TELNYX_API_KEY') || !TELNYX_API_KEY) {
+        throw new Exception('TELNYX_API_KEY not configured on server');
+    }
+    return TELNYX_API_KEY;
+}
+
+function getTelnyxConnectionId() {
+    if (!defined('TELNYX_CONNECTION_ID') || !TELNYX_CONNECTION_ID) {
+        throw new Exception('TELNYX_CONNECTION_ID not configured on server');
+    }
+    return TELNYX_CONNECTION_ID;
+}
+
+// ─── Telnyx API helper ───
+function telnyxRequest($method, $endpoint, $body = null) {
+    $apiKey = getTelnyxApiKey();
+    $url = 'https://api.telnyx.com/v2' . $endpoint;
+    
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . $apiKey,
+            'Content-Type: application/json'
+        ],
+        CURLOPT_TIMEOUT => 30
+    ]);
+    
+    if ($method === 'POST') {
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body ?? []));
+    } elseif ($method === 'DELETE') {
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'DELETE');
+    }
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    return ['code' => $httpCode, 'data' => json_decode($response, true), 'raw' => $response];
+}
+
 /**
- * Get user's Telnyx configuration
+ * Get user's Telnyx configuration (no API key exposed)
  */
 function handleGetConfig($db, $user) {
     $stmt = $db->prepare("SELECT * FROM telnyx_config WHERE user_id = ?");
@@ -86,31 +126,25 @@ function handleGetConfig($db, $user) {
     $config = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if ($config) {
-        // Don't send the full API key back, just mask it
-        $maskedKey = $config['api_key'] ? '****' . substr($config['api_key'], -4) : '';
-        
         echo json_encode([
             'success' => true,
             'config' => [
-                'api_key' => $maskedKey,
-                'connection_id' => $config['connection_id'] ?? '',
                 'phone_number' => $config['phone_number'] ?? '',
-                'voice' => $config['voice'] ?? 'Polly.Brian',
+                'voice' => $config['voice'] ?? 'Telnyx.Kokoro',
                 'greeting_message' => $config['greeting_message'] ?? '',
                 'system_prompt' => $config['system_prompt'] ?? '',
-                'enabled' => (bool)$config['enabled']
+                'enabled' => (bool)$config['enabled'],
+                'provisioned' => (bool)$config['provisioned'],
+                'provision_status' => $config['provision_status'] ?? 'none'
             ]
         ]);
     } else {
-        echo json_encode([
-            'success' => true,
-            'config' => null
-        ]);
+        echo json_encode(['success' => true, 'config' => null]);
     }
 }
 
 /**
- * Save Telnyx configuration
+ * Save voice agent settings (greeting, prompt, voice — no API key)
  */
 function handleSaveConfig($db, $user) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -121,23 +155,13 @@ function handleSaveConfig($db, $user) {
     
     $input = json_decode(file_get_contents('php://input'), true);
     
-    // Check if config exists
-    $stmt = $db->prepare("SELECT id, api_key FROM telnyx_config WHERE user_id = ?");
+    $stmt = $db->prepare("SELECT id FROM telnyx_config WHERE user_id = ?");
     $stmt->execute([$user['id']]);
     $existing = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    // Only update API key if a new one is provided (not masked)
-    $apiKey = $input['api_key'] ?? '';
-    if (strpos($apiKey, '****') === 0 && $existing) {
-        $apiKey = $existing['api_key']; // Keep existing key
-    }
     
     if ($existing) {
         $stmt = $db->prepare("
             UPDATE telnyx_config SET 
-                api_key = ?,
-                connection_id = ?,
-                phone_number = ?,
                 voice = ?,
                 greeting_message = ?,
                 system_prompt = ?,
@@ -146,10 +170,7 @@ function handleSaveConfig($db, $user) {
             WHERE user_id = ?
         ");
         $stmt->execute([
-            $apiKey,
-            $input['connection_id'] ?? '',
-            $input['phone_number'] ?? '',
-            $input['voice'] ?? 'Polly.Brian',
+            $input['voice'] ?? 'Telnyx.Kokoro',
             $input['greeting_message'] ?? '',
             $input['system_prompt'] ?? '',
             $input['enabled'] ? 1 : 0,
@@ -158,15 +179,12 @@ function handleSaveConfig($db, $user) {
     } else {
         $stmt = $db->prepare("
             INSERT INTO telnyx_config 
-            (user_id, api_key, connection_id, phone_number, voice, greeting_message, system_prompt, enabled)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (user_id, voice, greeting_message, system_prompt, enabled)
+            VALUES (?, ?, ?, ?, ?)
         ");
         $stmt->execute([
             $user['id'],
-            $apiKey,
-            $input['connection_id'] ?? '',
-            $input['phone_number'] ?? '',
-            $input['voice'] ?? 'Polly.Brian',
+            $input['voice'] ?? 'Telnyx.Kokoro',
             $input['greeting_message'] ?? '',
             $input['system_prompt'] ?? '',
             $input['enabled'] ? 1 : 0
@@ -177,9 +195,40 @@ function handleSaveConfig($db, $user) {
 }
 
 /**
- * Test Telnyx API connection
+ * Test Telnyx API connection (uses global key)
  */
-function handleTestConnection($user) {
+function handleTestConnection() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+        return;
+    }
+    
+    try {
+        $result = telnyxRequest('GET', '/balance');
+        
+        if ($result['code'] === 200) {
+            $balance = $result['data']['data']['balance'] ?? 'N/A';
+            echo json_encode([
+                'success' => true,
+                'message' => "Connected! Account balance: $" . number_format($balance, 2)
+            ]);
+        } else {
+            echo json_encode([
+                'success' => false,
+                'error' => 'Connection failed (HTTP ' . $result['code'] . ')'
+            ]);
+        }
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+}
+
+/**
+ * Auto-provision a phone number for a customer
+ * Flow: Search available numbers → Order one → Assign to user
+ */
+function handleProvisionNumber($db, $user) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         http_response_code(405);
         echo json_encode(['success' => false, 'error' => 'Method not allowed']);
@@ -187,101 +236,162 @@ function handleTestConnection($user) {
     }
     
     $input = json_decode(file_get_contents('php://input'), true);
-    $apiKey = $input['api_key'] ?? '';
     
-    if (!$apiKey || strpos($apiKey, '****') === 0) {
-        // If masked key, fetch from database
-        global $db;
-        $stmt = $db->prepare("SELECT api_key FROM telnyx_config WHERE user_id = ?");
-        $stmt->execute([$user['id']]);
-        $config = $stmt->fetch(PDO::FETCH_ASSOC);
-        $apiKey = $config['api_key'] ?? '';
-    }
+    // Check if user already has a number
+    $stmt = $db->prepare("SELECT phone_number, provision_status FROM telnyx_config WHERE user_id = ? AND provision_status = 'active'");
+    $stmt->execute([$user['id']]);
+    $existing = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    if (!$apiKey) {
-        echo json_encode(['success' => false, 'error' => 'No API key provided']);
-        return;
-    }
-    
-    // Test the API key by fetching account info
-    $ch = curl_init('https://api.telnyx.com/v2/balance');
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_HTTPHEADER => [
-            'Authorization: Bearer ' . $apiKey,
-            'Content-Type: application/json'
-        ],
-        CURLOPT_TIMEOUT => 10
-    ]);
-    
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    
-    if ($httpCode === 200) {
-        $data = json_decode($response, true);
-        $balance = $data['data']['balance'] ?? 'N/A';
+    if ($existing && $existing['phone_number']) {
         echo json_encode([
             'success' => true,
-            'message' => "Connected! Account balance: $" . number_format($balance, 2)
+            'phone_number' => $existing['phone_number'],
+            'message' => 'You already have a provisioned number'
         ]);
-    } else {
-        echo json_encode([
-            'success' => false,
-            'error' => 'Invalid API key or connection failed (HTTP ' . $httpCode . ')'
-        ]);
-    }
-}
-
-/**
- * Get phone numbers from Telnyx account
- */
-function handleGetPhoneNumbers($db, $user) {
-    $stmt = $db->prepare("SELECT api_key FROM telnyx_config WHERE user_id = ?");
-    $stmt->execute([$user['id']]);
-    $config = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$config || !$config['api_key']) {
-        echo json_encode(['success' => false, 'error' => 'No API key configured']);
         return;
     }
     
-    $ch = curl_init('https://api.telnyx.com/v2/phone_numbers');
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_HTTPHEADER => [
-            'Authorization: Bearer ' . $config['api_key'],
-            'Content-Type: application/json'
-        ],
-        CURLOPT_TIMEOUT => 15
-    ]);
+    // TODO: Verify the user has paid the $8/mo add-on or has Autopilot plan
+    // For now, allow provisioning (Stripe webhook will gate this in production)
     
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    
-    if ($httpCode === 200) {
-        $data = json_decode($response, true);
-        $phoneNumbers = [];
+    try {
+        $countryCode = $input['country_code'] ?? 'US';
+        $areaCode = $input['area_code'] ?? null;
         
-        foreach ($data['data'] ?? [] as $number) {
-            $phoneNumbers[] = $number['phone_number'];
+        // Step 1: Search for available phone numbers
+        $searchParams = '?filter[country_code]=' . $countryCode . '&filter[limit]=5&filter[features][]=voice&filter[features][]=sms';
+        if ($areaCode) {
+            $searchParams .= '&filter[national_destination_code]=' . $areaCode;
+        }
+        
+        $searchResult = telnyxRequest('GET', '/available_phone_numbers' . $searchParams);
+        
+        if ($searchResult['code'] !== 200 || empty($searchResult['data']['data'])) {
+            echo json_encode(['success' => false, 'error' => 'No phone numbers available in that area. Try a different area code.']);
+            return;
+        }
+        
+        // Pick the first available number
+        $availableNumber = $searchResult['data']['data'][0];
+        $phoneNumber = $availableNumber['phone_number'];
+        
+        // Step 2: Create a number order
+        $orderResult = telnyxRequest('POST', '/number_orders', [
+            'phone_numbers' => [
+                ['phone_number' => $phoneNumber]
+            ],
+            'connection_id' => getTelnyxConnectionId(),
+            'messaging_profile_id' => defined('TELNYX_MESSAGING_PROFILE_ID') ? TELNYX_MESSAGING_PROFILE_ID : null
+        ]);
+        
+        if ($orderResult['code'] !== 200 && $orderResult['code'] !== 201) {
+            $errorMsg = $orderResult['data']['errors'][0]['detail'] ?? 'Failed to order phone number';
+            echo json_encode(['success' => false, 'error' => $errorMsg]);
+            return;
+        }
+        
+        $orderData = $orderResult['data']['data'] ?? [];
+        $phoneNumberId = $orderData['phone_numbers'][0]['id'] ?? '';
+        $orderStatus = $orderData['status'] ?? 'pending';
+        
+        // Step 3: Store in database
+        $stmt = $db->prepare("SELECT id FROM telnyx_config WHERE user_id = ?");
+        $stmt->execute([$user['id']]);
+        $existingConfig = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($existingConfig) {
+            $stmt = $db->prepare("
+                UPDATE telnyx_config SET 
+                    phone_number = ?,
+                    phone_number_id = ?,
+                    provisioned = 1,
+                    provision_status = ?,
+                    provisioned_at = NOW(),
+                    enabled = 1,
+                    updated_at = NOW()
+                WHERE user_id = ?
+            ");
+            $stmt->execute([
+                $phoneNumber,
+                $phoneNumberId,
+                ($orderStatus === 'success') ? 'active' : 'pending',
+                $user['id']
+            ]);
+        } else {
+            $stmt = $db->prepare("
+                INSERT INTO telnyx_config 
+                (user_id, phone_number, phone_number_id, provisioned, provision_status, provisioned_at, enabled)
+                VALUES (?, ?, ?, 1, ?, NOW(), 1)
+            ");
+            $stmt->execute([
+                $user['id'],
+                $phoneNumber,
+                $phoneNumberId,
+                ($orderStatus === 'success') ? 'active' : 'pending'
+            ]);
         }
         
         echo json_encode([
             'success' => true,
-            'phone_numbers' => $phoneNumbers
+            'phone_number' => $phoneNumber,
+            'status' => $orderStatus,
+            'message' => 'Phone number provisioned successfully!'
         ]);
-    } else {
-        echo json_encode([
-            'success' => false,
-            'error' => 'Failed to fetch phone numbers'
-        ]);
+        
+    } catch (Exception $e) {
+        // Mark as failed
+        $stmt = $db->prepare("
+            UPDATE telnyx_config SET provision_status = 'failed', updated_at = NOW() WHERE user_id = ?
+        ");
+        $stmt->execute([$user['id']]);
+        
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
     }
 }
 
 /**
- * Initiate an outbound call
+ * Release a provisioned phone number
+ */
+function handleReleaseNumber($db, $user) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+        return;
+    }
+    
+    $stmt = $db->prepare("SELECT phone_number_id FROM telnyx_config WHERE user_id = ? AND provision_status = 'active'");
+    $stmt->execute([$user['id']]);
+    $config = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$config || !$config['phone_number_id']) {
+        echo json_encode(['success' => false, 'error' => 'No active phone number to release']);
+        return;
+    }
+    
+    try {
+        // Release the number via Telnyx API
+        $result = telnyxRequest('DELETE', '/phone_numbers/' . $config['phone_number_id']);
+        
+        $stmt = $db->prepare("
+            UPDATE telnyx_config SET 
+                phone_number = NULL,
+                phone_number_id = NULL,
+                provisioned = 0,
+                provision_status = 'released',
+                enabled = 0,
+                updated_at = NOW()
+            WHERE user_id = ?
+        ");
+        $stmt->execute([$user['id']]);
+        
+        echo json_encode(['success' => true, 'message' => 'Phone number released']);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+    }
+}
+
+/**
+ * Initiate an outbound call (uses global API key)
  */
 function handleInitiateCall($db, $user) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -299,22 +409,20 @@ function handleInitiateCall($db, $user) {
         return;
     }
     
-    // Get user's Telnyx config
-    $stmt = $db->prepare("SELECT * FROM telnyx_config WHERE user_id = ? AND enabled = 1");
+    // Get user's config (for their phone number and voice settings)
+    $stmt = $db->prepare("SELECT * FROM telnyx_config WHERE user_id = ? AND enabled = 1 AND provision_status = 'active'");
     $stmt->execute([$user['id']]);
     $config = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    if (!$config) {
-        echo json_encode(['success' => false, 'error' => 'Telnyx not configured or disabled']);
+    if (!$config || !$config['phone_number']) {
+        echo json_encode(['success' => false, 'error' => 'No phone number provisioned. Activate AI Calling first.']);
         return;
     }
     
-    // Webhook URL for call events
     $webhookUrl = FRONTEND_URL . '/api/telnyx.php?action=webhook&user_id=' . $user['id'];
     
-    // Create the call via Telnyx API
     $callData = [
-        'connection_id' => $config['connection_id'],
+        'connection_id' => getTelnyxConnectionId(),
         'to' => $destinationNumber,
         'from' => $config['phone_number'],
         'webhook_url' => $webhookUrl,
@@ -327,28 +435,12 @@ function handleInitiateCall($db, $user) {
         ]))
     ];
     
-    $ch = curl_init('https://api.telnyx.com/v2/calls');
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode($callData),
-        CURLOPT_HTTPHEADER => [
-            'Authorization: Bearer ' . $config['api_key'],
-            'Content-Type: application/json'
-        ],
-        CURLOPT_TIMEOUT => 30
-    ]);
+    $result = telnyxRequest('POST', '/calls', $callData);
     
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    
-    if ($httpCode === 200 || $httpCode === 201) {
-        $data = json_decode($response, true);
-        $callControlId = $data['data']['call_control_id'] ?? '';
-        $callLegId = $data['data']['call_leg_id'] ?? '';
+    if ($result['code'] === 200 || $result['code'] === 201) {
+        $callControlId = $result['data']['data']['call_control_id'] ?? '';
+        $callLegId = $result['data']['data']['call_leg_id'] ?? '';
         
-        // Store the active call
         $stmt = $db->prepare("
             INSERT INTO telnyx_active_calls 
             (user_id, call_control_id, call_leg_id, destination_number, lead_id, lead_name, status, started_at)
@@ -369,11 +461,8 @@ function handleInitiateCall($db, $user) {
             'call_leg_id' => $callLegId
         ]);
     } else {
-        $error = json_decode($response, true);
-        echo json_encode([
-            'success' => false,
-            'error' => $error['errors'][0]['detail'] ?? 'Failed to initiate call'
-        ]);
+        $error = $result['data']['errors'][0]['detail'] ?? 'Failed to initiate call';
+        echo json_encode(['success' => false, 'error' => $error]);
     }
 }
 
@@ -396,37 +485,12 @@ function handleHangupCall($db, $user) {
         return;
     }
     
-    // Get user's API key
-    $stmt = $db->prepare("SELECT api_key FROM telnyx_config WHERE user_id = ?");
-    $stmt->execute([$user['id']]);
-    $config = $stmt->fetch(PDO::FETCH_ASSOC);
+    $result = telnyxRequest('POST', "/calls/{$callControlId}/actions/hangup");
     
-    if (!$config) {
-        echo json_encode(['success' => false, 'error' => 'Telnyx not configured']);
-        return;
-    }
-    
-    $ch = curl_init("https://api.telnyx.com/v2/calls/{$callControlId}/actions/hangup");
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode([]),
-        CURLOPT_HTTPHEADER => [
-            'Authorization: Bearer ' . $config['api_key'],
-            'Content-Type: application/json'
-        ],
-        CURLOPT_TIMEOUT => 10
-    ]);
-    
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    
-    // Update call status
     $stmt = $db->prepare("UPDATE telnyx_active_calls SET status = 'ended', ended_at = NOW() WHERE call_control_id = ?");
     $stmt->execute([$callControlId]);
     
-    echo json_encode(['success' => $httpCode === 200]);
+    echo json_encode(['success' => $result['code'] === 200]);
 }
 
 /**
@@ -506,10 +570,8 @@ function handleWebhook($db) {
     $payload = $input['data']['payload'] ?? [];
     $callControlId = $payload['call_control_id'] ?? '';
     
-    // Log the webhook for debugging
     error_log("Telnyx webhook: $eventType - " . json_encode($payload));
     
-    // Decode client state if present
     $clientState = [];
     if (!empty($payload['client_state'])) {
         $clientState = json_decode(base64_decode($payload['client_state']), true) ?? [];
@@ -528,14 +590,12 @@ function handleWebhook($db) {
             
         case 'call.answered':
             updateCallStatus($db, $callControlId, 'answered');
-            // Start the AI conversation
             if ($userId) {
                 startAIConversation($db, $userId, $callControlId);
             }
             break;
             
         case 'call.transcription':
-            // Handle real-time transcription (fallback mode)
             $transcript = $payload['transcription_data']['transcript'] ?? '';
             if ($transcript && $callControlId) {
                 appendTranscript($db, $callControlId, 'user', $transcript);
@@ -543,10 +603,8 @@ function handleWebhook($db) {
             break;
 
         case 'call.ai_gather.partial_results':
-            // Real-time updates from Telnyx AI conversation
             $messageHistory = $payload['message_history'] ?? [];
             if ($messageHistory && $callControlId) {
-                // Store the latest message history as transcript
                 $transcript = [];
                 foreach ($messageHistory as $msg) {
                     $transcript[] = [
@@ -562,7 +620,6 @@ function handleWebhook($db) {
             break;
 
         case 'call.ai_gather.message_history_updated':
-            // Updated message history from AI conversation
             $messageHistory = $payload['message_history'] ?? [];
             if ($messageHistory && $callControlId) {
                 $transcript = [];
@@ -579,7 +636,6 @@ function handleWebhook($db) {
             break;
 
         case 'call.ai_gather.ended':
-            // AI conversation completed — save final results
             $messageHistory = $payload['message_history'] ?? [];
             if ($messageHistory && $callControlId) {
                 $transcript = [];
@@ -603,7 +659,6 @@ function handleWebhook($db) {
         case 'call.hangup':
         case 'call.machine.detection.ended':
             updateCallStatus($db, $callControlId, 'ended');
-            // Save to call logs
             if ($callControlId) {
                 saveCallToLogs($db, $callControlId);
             }
@@ -630,7 +685,6 @@ function updateCallStatus($db, $callControlId, $status) {
  * Append to call transcript
  */
 function appendTranscript($db, $callControlId, $role, $text) {
-    // Get current transcript
     $stmt = $db->prepare("SELECT transcript FROM telnyx_active_calls WHERE call_control_id = ?");
     $stmt->execute([$callControlId]);
     $call = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -648,27 +702,22 @@ function appendTranscript($db, $callControlId, $role, $text) {
 
 /**
  * Start AI conversation using Telnyx's native gather_using_ai
- * This handles TTS + STT + LLM in one API call — cheapest option
  */
 function startAIConversation($db, $userId, $callControlId) {
-    // Get user config
     $stmt = $db->prepare("SELECT * FROM telnyx_config WHERE user_id = ?");
     $stmt->execute([$userId]);
     $config = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$config) return;
 
-    // Get lead context from active call
     $stmt = $db->prepare("SELECT lead_name, destination_number FROM telnyx_active_calls WHERE call_control_id = ?");
     $stmt->execute([$callControlId]);
     $callInfo = $stmt->fetch(PDO::FETCH_ASSOC);
     $leadName = $callInfo['lead_name'] ?? 'the contact';
 
-    // Build system instructions from user config + lead context
     $systemPrompt = $config['system_prompt'] ?: 'You are a professional AI sales assistant. Be friendly, concise, and helpful.';
     $greeting = $config['greeting_message'] ?: "Hi, this is an AI assistant calling on behalf of a business. How can I help you today?";
 
-    // Use Telnyx gather_using_ai — handles TTS, STT, and LLM natively
     $gatherPayload = [
         'assistant' => [
             'instructions' => $systemPrompt . "\n\nYou are calling " . $leadName . ". Start with this greeting: " . $greeting,
@@ -684,74 +733,34 @@ function startAIConversation($db, $userId, $callControlId) {
         ]))
     ];
 
-    $ch = curl_init("https://api.telnyx.com/v2/calls/{$callControlId}/actions/gather_using_ai");
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode($gatherPayload),
-        CURLOPT_HTTPHEADER => [
-            'Authorization: Bearer ' . $config['api_key'],
-            'Content-Type: application/json'
-        ],
-        CURLOPT_TIMEOUT => 30
-    ]);
+    $result = telnyxRequest('POST', "/calls/{$callControlId}/actions/gather_using_ai", $gatherPayload);
 
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-
-    if ($httpCode === 200 || $httpCode === 201) {
-        $data = json_decode($response, true);
-        $conversationId = $data['data']['conversation_id'] ?? '';
+    if ($result['code'] === 200 || $result['code'] === 201) {
+        $conversationId = $result['data']['data']['conversation_id'] ?? '';
         
-        // Store conversation ID for tracking
         $stmt = $db->prepare("UPDATE telnyx_active_calls SET status = 'speaking' WHERE call_control_id = ?");
         $stmt->execute([$callControlId]);
         
         appendTranscript($db, $callControlId, 'agent', $greeting);
         error_log("Telnyx AI Gather started: conversation_id=$conversationId");
     } else {
-        error_log("Telnyx AI Gather failed ($httpCode): $response");
-        // Fallback: just speak the greeting without AI
-        speakText($config['api_key'], $callControlId, $greeting, $config['voice'] ?: 'Telnyx.Kokoro');
+        error_log("Telnyx AI Gather failed ({$result['code']}): {$result['raw']}");
+        // Fallback: just speak the greeting
+        speakText($callControlId, $greeting, $config['voice'] ?: 'Telnyx.Kokoro');
         appendTranscript($db, $callControlId, 'agent', $greeting);
         updateCallStatus($db, $callControlId, 'speaking');
     }
 }
 
 /**
- * processAIResponse is no longer needed — Telnyx gather_using_ai handles
- * the entire conversation loop (STT + LLM + TTS) natively.
- * Keeping as a fallback for manual transcription mode.
+ * Use Telnyx TTS to speak text (uses global key)
  */
-function processAIResponse($db, $userId, $callControlId, $userText) {
-    // Fallback: if gather_using_ai isn't active, just log the transcript
-    error_log("Fallback processAIResponse called for $callControlId: $userText");
-    appendTranscript($db, $callControlId, 'user', $userText);
-}
-
-/**
- * Use Telnyx TTS to speak text
- */
-function speakText($apiKey, $callControlId, $text, $voice = 'Polly.Brian') {
-    $ch = curl_init("https://api.telnyx.com/v2/calls/{$callControlId}/actions/speak");
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode([
-            'payload' => $text,
-            'voice' => $voice,
-            'language' => 'en-US'
-        ]),
-        CURLOPT_HTTPHEADER => [
-            'Authorization: Bearer ' . $apiKey,
-            'Content-Type: application/json'
-        ],
-        CURLOPT_TIMEOUT => 10
+function speakText($callControlId, $text, $voice = 'Telnyx.Kokoro') {
+    telnyxRequest('POST', "/calls/{$callControlId}/actions/speak", [
+        'payload' => $text,
+        'voice' => $voice,
+        'language' => 'en-US'
     ]);
-    
-    curl_exec($ch);
-    curl_close($ch);
 }
 
 /**
@@ -771,12 +780,8 @@ function saveCallToLogs($db, $callControlId) {
         $duration = $end->getTimestamp() - $start->getTimestamp();
     }
     
-    // Determine outcome based on transcript
     $transcript = $call['transcript'] ? json_decode($call['transcript'], true) : [];
-    $outcome = 'completed';
-    if (count($transcript) === 0) {
-        $outcome = 'no_answer';
-    }
+    $outcome = count($transcript) === 0 ? 'no_answer' : 'completed';
     
     $stmt = $db->prepare("
         INSERT INTO call_logs (user_id, lead_id, lead_name, lead_phone, agent_id, duration_seconds, outcome, transcript)
