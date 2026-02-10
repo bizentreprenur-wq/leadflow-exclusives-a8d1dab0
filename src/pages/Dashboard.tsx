@@ -315,29 +315,11 @@ export default function Dashboard() {
   const [outreachMode, setOutreachMode] = useState<'email' | 'verify'>('email');
   
   // Search filter options - persist in localStorage
-  const [filterNoWebsite, setFilterNoWebsite] = useState(() => {
-    try { return localStorage.getItem('bamlead_filter_no_website') === 'true'; } catch { return false; }
-  });
-  const [filterNotMobile, setFilterNotMobile] = useState(() => {
-    try { return localStorage.getItem('bamlead_filter_not_mobile') === 'true'; } catch { return false; }
-  });
-  const [filterOutdated, setFilterOutdated] = useState(() => {
-    try { return localStorage.getItem('bamlead_filter_outdated') === 'true'; } catch { return false; }
-  });
   const [phoneLeadsOnly, setPhoneLeadsOnly] = useState(() => {
     try { return localStorage.getItem('bamlead_filter_phone_only') === 'true'; } catch { return false; }
   });
 
   // Persist filter settings to localStorage
-  useEffect(() => {
-    localStorage.setItem('bamlead_filter_no_website', filterNoWebsite.toString());
-  }, [filterNoWebsite]);
-  useEffect(() => {
-    localStorage.setItem('bamlead_filter_not_mobile', filterNotMobile.toString());
-  }, [filterNotMobile]);
-  useEffect(() => {
-    localStorage.setItem('bamlead_filter_outdated', filterOutdated.toString());
-  }, [filterOutdated]);
   useEffect(() => {
     localStorage.setItem('bamlead_filter_phone_only', phoneLeadsOnly.toString());
   }, [phoneLeadsOnly]);
@@ -1110,17 +1092,14 @@ export default function Dashboard() {
     let latestMergedResults: SearchResult[] = startingResults;
     const backendFilters = {
       phoneOnly: phoneLeadsOnly,
-      noWebsite: filterNoWebsite,
-      notMobile: filterNotMobile,
-      outdated: filterOutdated,
+      noWebsite: false,
+      notMobile: false,
+      outdated: false,
       platforms: searchType === 'platform' ? selectedPlatforms : [],
       platformMode: searchType === 'platform',
     };
     const backendFiltersActive =
       backendFilters.phoneOnly ||
-      backendFilters.noWebsite ||
-      backendFilters.notMobile ||
-      backendFilters.outdated ||
       (backendFilters.platforms && backendFilters.platforms.length > 0);
     setLastRequestedLimit(requestedLimit);
     // Backend handles over-fetching, location expansion, and query variants to hit requested volume.
@@ -1290,40 +1269,6 @@ export default function Dashboard() {
         }
       }
 
-      // Apply "No Website" filter if enabled
-      if (filterNoWebsite && !backendFiltersActive) {
-        const beforeCount = finalResults.length;
-        finalResults = finalResults.filter(r => {
-          const website = r.website?.trim();
-          return !website || r.websiteAnalysis?.hasWebsite === false;
-        });
-        console.log(`[BamLead] No-website filter applied: ${beforeCount} → ${finalResults.length}`);
-      }
-
-      // Apply "Not Mobile Compliant" filter if enabled
-      if (filterNotMobile && !backendFiltersActive) {
-        const beforeCount = finalResults.length;
-        finalResults = finalResults.filter(r => {
-          const mobileScore = r.websiteAnalysis?.mobileScore;
-          // Include if no mobile score (unknown) or score < 50
-          return mobileScore === null || mobileScore === undefined || mobileScore < 50;
-        });
-        console.log(`[BamLead] Not-mobile filter applied: ${beforeCount} → ${finalResults.length}`);
-      }
-
-      // Apply "Outdated Standards" filter if enabled
-      if (filterOutdated && !backendFiltersActive) {
-        const beforeCount = finalResults.length;
-        finalResults = finalResults.filter(r => {
-          // Check for outdated indicators
-          const issues = r.websiteAnalysis?.issues || [];
-          const needsUpgrade = r.websiteAnalysis?.needsUpgrade === true;
-          const hasIssues = issues.length > 0;
-          return needsUpgrade || hasIssues;
-        });
-        console.log(`[BamLead] Outdated filter applied: ${beforeCount} → ${finalResults.length}`);
-      }
-
       // If we over-fetched to satisfy filters, cap to the user-requested limit
       if (finalResults.length > requestedLimit) {
         finalResults = finalResults.slice(0, requestedLimit);
@@ -1331,9 +1276,6 @@ export default function Dashboard() {
 
       // Calculate filter summary for user feedback
       const activeFilters: string[] = [];
-      if (filterNoWebsite) activeFilters.push('No Website');
-      if (filterNotMobile) activeFilters.push('Mobile Issues');
-      if (filterOutdated) activeFilters.push('Outdated');
       if (phoneLeadsOnly) activeFilters.push('Phone Required');
 
       // Show result summary with context about what was found vs requested
@@ -1703,9 +1645,6 @@ export default function Dashboard() {
     setLastRequestedLimit(null);
     
     // Reset filters to default (off)
-    setFilterNoWebsite(false);
-    setFilterNotMobile(false);
-    setFilterOutdated(false);
     setPhoneLeadsOnly(false);
     
     // Clear restored indicator
@@ -2312,60 +2251,7 @@ export default function Dashboard() {
                       </div>
                     )}
 
-                    {/* Website Quality Filters - only for platform search */}
-                    {searchType === 'platform' && (
-                      <div className="p-4 rounded-lg border-2 border-violet-500/30 bg-violet-500/5">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Globe className="w-4 h-4 text-violet-400" />
-                          <span className="font-medium text-violet-400">Website Quality Filters</span>
-                        </div>
-                        <div className="space-y-2">
-                          <label className="flex items-center gap-3 cursor-pointer group">
-                            <Checkbox
-                              checked={filterNoWebsite}
-                              onCheckedChange={(checked) => setFilterNoWebsite(checked === true)}
-                              className="border-emerald-500 data-[state=checked]:bg-emerald-500"
-                            />
-                            <XCircle className="w-4 h-4 text-emerald-500" />
-                            <div>
-                              <span className="text-sm text-foreground group-hover:text-primary">No Website</span>
-                              <p className="text-xs text-muted-foreground">High opportunity — businesses without any website</p>
-                            </div>
-                          </label>
-                          <label className="flex items-center gap-3 cursor-pointer group">
-                            <Checkbox
-                              checked={filterNotMobile}
-                              onCheckedChange={(checked) => setFilterNotMobile(checked === true)}
-                              className="border-orange-500 data-[state=checked]:bg-orange-500"
-                            />
-                            <Smartphone className="w-4 h-4 text-orange-500" />
-                            <div>
-                              <span className="text-sm text-foreground group-hover:text-primary">Not Mobile Compliant</span>
-                              <p className="text-xs text-muted-foreground">Websites with mobile score below 50%</p>
-                            </div>
-                          </label>
-                          <label className="flex items-center gap-3 cursor-pointer group">
-                            <Checkbox
-                              checked={filterOutdated}
-                              onCheckedChange={(checked) => setFilterOutdated(checked === true)}
-                              className="border-red-500 data-[state=checked]:bg-red-500"
-                            />
-                            <AlertTriangle className="w-4 h-4 text-red-500" />
-                            <div>
-                              <span className="text-sm text-foreground group-hover:text-primary">Outdated Standards</span>
-                              <p className="text-xs text-muted-foreground">Slow load times, missing SSL, or UX issues</p>
-                            </div>
-                          </label>
-                        </div>
-                        {(filterNoWebsite || filterNotMobile || filterOutdated) && (
-                          <div className="mt-3 p-2 rounded-lg bg-violet-500/10 border border-violet-500/20">
-                            <p className="text-xs text-violet-400">
-                              ✓ {[filterNoWebsite && 'No Website', filterNotMobile && 'Mobile Issues', filterOutdated && 'Outdated'].filter(Boolean).join(' + ')} filter active
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    {/* Website Quality data is now shown in Step 2 spreadsheet */}
 
                     {/* Results Limit Selector */}
                     <div>

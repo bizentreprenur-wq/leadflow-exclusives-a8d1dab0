@@ -893,6 +893,8 @@ export default function LeadSpreadsheetViewer({
                   <TableHead className="min-w-[180px]">Recommended Approach</TableHead>
                   <TableHead className="min-w-[100px]">Conv. %</TableHead>
                   <TableHead className="min-w-[150px]">Website</TableHead>
+                  <TableHead className="min-w-[100px]">Mobile</TableHead>
+                  <TableHead className="min-w-[120px]">Site Quality</TableHead>
                   <TableHead className="w-20">Rating</TableHead>
                   <TableHead className="w-24 text-center">Call</TableHead>
                 </TableRow>
@@ -1012,6 +1014,42 @@ export default function LeadSpreadsheetViewer({
                       ) : (
                         <Badge className="bg-purple-500/20 text-purple-600 border-purple-500/30 text-xs">
                           No website - HOT PROSPECT
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {lead.websiteAnalysis?.mobileScore != null ? (
+                        <Badge className={`text-xs ${
+                          lead.websiteAnalysis.mobileScore < 50 
+                            ? 'bg-red-500/20 text-red-600 border-red-500/30' 
+                            : lead.websiteAnalysis.mobileScore < 80 
+                              ? 'bg-orange-500/20 text-orange-600 border-orange-500/30'
+                              : 'bg-emerald-500/20 text-emerald-600 border-emerald-500/30'
+                        }`}>
+                          {lead.websiteAnalysis.mobileScore}%
+                        </Badge>
+                      ) : !lead.website ? (
+                        <span className="text-muted-foreground text-xs">N/A</span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {!lead.website || lead.websiteAnalysis?.hasWebsite === false ? (
+                        <Badge className="bg-emerald-500/20 text-emerald-600 border-emerald-500/30 text-xs gap-1">
+                          🔥 No Site
+                        </Badge>
+                      ) : lead.websiteAnalysis?.needsUpgrade ? (
+                        <Badge className="bg-red-500/20 text-red-600 border-red-500/30 text-xs gap-1">
+                          <AlertTriangle className="w-3 h-3" /> Outdated
+                        </Badge>
+                      ) : (lead.websiteAnalysis?.issues?.length || 0) > 0 ? (
+                        <Badge className="bg-orange-500/20 text-orange-600 border-orange-500/30 text-xs gap-1">
+                          {lead.websiteAnalysis!.issues!.length} issues
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-emerald-500/20 text-emerald-600 border-emerald-500/30 text-xs">
+                          ✓ Good
                         </Badge>
                       )}
                     </TableCell>
