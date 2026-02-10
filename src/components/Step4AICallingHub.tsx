@@ -143,11 +143,13 @@ export default function Step4AICallingHub({
     needsAddon,
     addonMessage,
     purchaseAddon,
+    requestPhoneProvisioning,
     isReady,
     addon
   } = useAICalling();
   const { tier, tierInfo, isAutopilot, isPro } = usePlanFeatures();
   const { branding, isLoading: brandingLoading } = useUserBranding();
+  const [isProvisioningNumber, setIsProvisioningNumber] = useState(false);
   
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
@@ -769,14 +771,8 @@ export default function Step4AICallingHub({
                     </h4>
                     <p className="text-sm text-muted-foreground mb-4">{addonMessage}</p>
                     
-                    <div className="flex flex-wrap gap-2">
-                      {status === 'addon_needed' && tier !== 'free' && (
-                        <Button onClick={purchaseAddon} className="gap-2 bg-amber-500 hover:bg-amber-600">
-                          <Zap className="w-4 h-4" />
-                          Subscribe to AI Calling
-                        </Button>
-                      )}
-                      
+                    <div className="flex flex-wrap gap-2 items-center">
+                      {/* Free tier → upgrade */}
                       {tier === 'free' && (
                         <Link to="/pricing">
                           <Button className="gap-2">
@@ -785,14 +781,49 @@ export default function Step4AICallingHub({
                           </Button>
                         </Link>
                       )}
+
+                      {/* Needs addon purchase (Basic/Pro) */}
+                      {status === 'addon_needed' && tier !== 'free' && (
+                        <Button onClick={purchaseAddon} className="gap-2 bg-amber-500 hover:bg-amber-600">
+                          <Zap className="w-4 h-4" />
+                          Subscribe to AI Calling — ${AI_CALLING_ADDON_PRICE}/mo
+                        </Button>
+                      )}
                       
+                      {/* Addon active or Autopilot, but no phone yet → Get My Number */}
+                      {(status === 'phone_needed' || status === 'phone_provisioning') && tier !== 'free' && (
+                        <Button 
+                          onClick={async () => {
+                            setIsProvisioningNumber(true);
+                            await requestPhoneProvisioning();
+                            setIsProvisioningNumber(false);
+                          }}
+                          disabled={isProvisioningNumber || phoneSetup.isProvisioning}
+                          className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+                        >
+                          {(isProvisioningNumber || phoneSetup.isProvisioning) ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Provisioning Your Number...
+                            </>
+                          ) : (
+                            <>
+                              <Phone className="w-4 h-4" />
+                              🎯 Get My Number
+                            </>
+                          )}
+                        </Button>
+                      )}
+                      
+                      {/* Show provisioned number */}
                       {phoneSetup.hasPhone && phoneSetup.phoneNumber && (
-                        <Badge className="bg-emerald-500/20 text-emerald-600 gap-1">
+                        <Badge className="bg-emerald-500/20 text-emerald-600 gap-1 text-sm py-1.5 px-3">
                           <Phone className="w-3 h-3" />
                           {phoneSetup.phoneNumber}
                         </Badge>
                       )}
                       
+                      {/* Ready → Start calling */}
                       {isReady && !isCallingActive && callQueue.filter(c => c.status === 'pending').length > 0 && (
                         <Button onClick={handleStartCalling} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
                           <Play className="w-4 h-4" />
@@ -800,6 +831,7 @@ export default function Step4AICallingHub({
                         </Button>
                       )}
                       
+                      {/* Active → Stop */}
                       {isCallingActive && (
                         <Button onClick={handleStopCalling} variant="destructive" className="gap-2">
                           <Square className="w-4 h-4" />

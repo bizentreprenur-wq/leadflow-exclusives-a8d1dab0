@@ -18,6 +18,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { usePlanFeatures, PlanTier } from '@/hooks/usePlanFeatures';
 import { getTelnyxConfig, saveTelnyxConfig, type TelnyxConfig } from '@/lib/api/telnyx';
+import { provisionNumber as apiProvisionNumber } from '@/lib/api/calling';
 import { createAddonCheckoutSession } from '@/lib/api/stripe';
 import { toast } from 'sonner';
 
@@ -244,33 +245,41 @@ export function useAICalling() {
     }
   }, []);
   
-  // Request phone number provisioning from BamLead
-  const requestPhoneProvisioning = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
+  // Request phone number provisioning via Telnyx API
+  const requestPhoneProvisioning = useCallback(async (options?: { country_code?: string; area_code?: string }): Promise<{ success: boolean; error?: string }> => {
     try {
       setPhoneSetup(prev => ({ ...prev, isProvisioning: true }));
       
-      // In production, this would call the backend to provision via calling.io API
-      // For now, simulate the provisioning process
-      setTimeout(() => {
-        const provisionedNumber = `+1${Math.floor(Math.random() * 9000000000 + 1000000000)}`;
-        
+      const result = await apiProvisionNumber(options);
+      
+      if (result.success && result.phone_number) {
         const newPhoneSetup: PhoneSetup = {
           hasPhone: true,
-          phoneNumber: provisionedNumber,
+          phoneNumber: result.phone_number,
           phoneType: 'bamlead',
           isVerified: true,
           isProvisioning: false,
         };
         setPhoneSetup(newPhoneSetup);
-        
-        // Update addon with phone number
-        setAddon(prev => ({ ...prev, phoneNumber: provisionedNumber }));
-        localStorage.setItem(ADDON_STORAGE_KEY, JSON.stringify({ ...addon, phoneNumber: provisionedNumber }));
-      }, 3000);
+        setAddon(prev => ({ ...prev, status: 'active', phoneNumber: result.phone_number! }));
+        localStorage.setItem(ADDON_STORAGE_KEY, JSON.stringify({ ...addon, status: 'active', phoneNumber: result.phone_number }));
+        toast.success(`Phone number provisioned: ${result.phone_number}`);
+        return { success: true };
+      }
       
-      return { success: true };
-    } catch (error) {
       setPhoneSetup(prev => ({ ...prev, isProvisioning: false }));
+      
+      // Handle 402 - needs addon purchase
+      if (result.error?.includes('add-on')) {
+        toast.error('Purchase the AI Calling add-on first');
+        return { success: false, error: result.error };
+      }
+      
+      toast.error(result.error || 'Failed to provision number');
+      return { success: false, error: result.error || 'Provisioning failed' };
+    } catch (error: any) {
+      setPhoneSetup(prev => ({ ...prev, isProvisioning: false }));
+      toast.error('Failed to provision phone number');
       return { success: false, error: 'Failed to provision phone number' };
     }
   }, [addon]);
