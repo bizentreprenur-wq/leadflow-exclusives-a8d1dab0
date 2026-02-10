@@ -1,7 +1,7 @@
 /**
  * Step 4 AI Calling Hub
- * Clean card-based SaaS aesthetic with rounded sections, generous spacing,
- * soft gradients, and polished phone/call interface styling.
+ * Sidebar-based layout with clear navigation between AI Calling sections.
+ * Inspired by professional calling platforms with organized left panel.
  */
 
 import { useState, useEffect, useMemo } from 'react';
@@ -9,10 +9,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Calendar } from '@/components/ui/calendar';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import {
   Phone, PhoneCall, PhoneMissed, Play, Pause, Square, CheckCircle2, XCircle,
@@ -20,7 +20,8 @@ import {
   ChevronRight, AlertCircle, Bot, Eye, Edit3, Volume2, TrendingUp, Flame,
   Info, Calendar as CalendarIcon, Database, ArrowLeft, Home, MessageSquare,
   Send, Settings2, Plus, Building2, MessageCircle, Headphones, Activity,
-  Signal, Mic
+  Signal, Mic, Rocket, BookOpen, HelpCircle, PhoneForwarded, LayoutDashboard,
+  History, Brain, ChevronDown
 } from 'lucide-react';
 import { useAICalling, AI_CALLING_ADDON_PRICE } from '@/hooks/useAICalling';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
@@ -89,14 +90,25 @@ function StatPill({ value, label, icon: Icon, accent = 'primary' }: { value: str
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c} p-5 text-center`}
+      className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c} p-4 text-center`}
     >
-      <Icon className={`w-5 h-5 mx-auto mb-2 opacity-60`} />
-      <div className="text-3xl font-bold text-foreground tracking-tight">{value}</div>
-      <div className="text-xs text-muted-foreground mt-1 uppercase tracking-wider font-medium">{label}</div>
+      <Icon className="w-4 h-4 mx-auto mb-1.5 opacity-60" />
+      <div className="text-2xl font-bold text-foreground tracking-tight">{value}</div>
+      <div className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider font-medium">{label}</div>
     </motion.div>
   );
 }
+
+/* ── Sidebar navigation items ── */
+type SidebarSection = {
+  id: string;
+  label: string;
+  icon: React.ElementType;
+  badge?: string | number;
+  badgeColor?: string;
+  group: 'main' | 'calling' | 'tools';
+  requiresAutopilot?: boolean;
+};
 
 export default function Step4AICallingHub({
   leads, onBack, onOpenSettings, onOpenCRMModal,
@@ -116,7 +128,7 @@ export default function Step4AICallingHub({
   const [isReleasingNumber, setIsReleasingNumber] = useState(false);
   const [showReleaseConfirm, setShowReleaseConfirm] = useState(false);
   const [showPhoneModal, setShowPhoneModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeSection, setActiveSection] = useState('getting-started');
   const [isCallingActive, setIsCallingActive] = useState(false);
   const [callQueue, setCallQueue] = useState<CallQueueItem[]>([]);
   const [callStats, setCallStats] = useState({ total: 0, completed: 0, answered: 0, noAnswer: 0, interested: 0, avgDuration: 0, smsReplies: 0 });
@@ -124,6 +136,7 @@ export default function Step4AICallingHub({
   const [meetings, setMeetings] = useState<{ date: Date; leadName: string }[]>([]);
   const [smsConversations, setSmsConversations] = useState<SMSConversation[]>([]);
   const [smsLoading, setSmsLoading] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const callableLeads = useMemo(() => {
     return leads.filter(lead => {
@@ -238,19 +251,31 @@ export default function Step4AICallingHub({
     }
   };
 
-  const tierCapabilities = useMemo(() => [
-    { tier: 'free', name: 'Free', icon: Eye, accent: 'slate', features: ['AI call script preview only', 'See what AI would say'], limitation: 'Upgrade to unlock' },
-    { tier: 'basic', name: 'Basic · $49', icon: Edit3, accent: 'blue', features: ['AI generates call scripts', 'You dial manually'], addon: `+$${AI_CALLING_ADDON_PRICE}/mo` },
-    { tier: 'pro', name: 'Pro · $99', icon: Bot, accent: 'teal', features: ['AI calls your leads', 'You supervise calls'], addon: `+$${AI_CALLING_ADDON_PRICE}/mo` },
-    { tier: 'autopilot', name: 'Autopilot · $249', icon: Sparkles, accent: 'amber', features: ['Fully autonomous calling', 'AI texts back & forth', 'Phone included'], included: 'All included!' },
-  ], []);
-
   const handleScheduleMeeting = (lead: Lead) => {
     if (!selectedDate) { toast.error('Please select a date first'); return; }
     const leadName = lead.business_name || lead.name || 'Unknown';
     setMeetings(prev => [...prev, { date: selectedDate, leadName }]);
     toast.success(`Meeting scheduled with ${leadName}`);
   };
+
+  // Build sidebar navigation
+  const pendingCount = callQueue.filter(c => c.status === 'pending').length;
+  const unreadSMS = smsConversations.reduce((acc, c) => acc + c.unread_count, 0);
+  const hotLeads = callQueue.filter(c => c.outcome === 'Interested').length;
+
+  const sidebarItems: SidebarSection[] = useMemo(() => [
+    { id: 'getting-started', label: 'Getting Started', icon: BookOpen, group: 'main' },
+    { id: 'overview', label: 'Dashboard', icon: LayoutDashboard, group: 'main' },
+    { id: 'phone-setup', label: 'Phone Setup', icon: Signal, group: 'calling', badge: phoneSetup.hasPhone ? undefined : '!', badgeColor: 'bg-amber-500' },
+    { id: 'queue', label: 'Call Queue', icon: Headphones, group: 'calling', badge: pendingCount > 0 ? pendingCount : undefined, badgeColor: 'bg-primary' },
+    { id: 'script', label: 'AI Script', icon: Brain, group: 'calling' },
+    { id: 'results', label: 'Call Results', icon: Target, group: 'calling', badge: hotLeads > 0 ? `🔥 ${hotLeads}` : undefined, badgeColor: 'bg-orange-500' },
+    { id: 'sms', label: 'SMS Messaging', icon: MessageCircle, group: 'calling', badge: unreadSMS > 0 ? unreadSMS : undefined, badgeColor: 'bg-blue-500', requiresAutopilot: true },
+    { id: 'schedule', label: 'Calendar', icon: CalendarIcon, group: 'tools' },
+    { id: 'crm', label: 'Save to CRM', icon: Database, group: 'tools' },
+  ], [pendingCount, unreadSMS, hotLeads, phoneSetup.hasPhone]);
+
+  const filteredItems = sidebarItems.filter(item => !item.requiresAutopilot || isAutopilot);
 
   if (isLoading) {
     return (
@@ -267,297 +292,379 @@ export default function Step4AICallingHub({
     );
   }
 
+  const renderSidebarItem = (item: SidebarSection) => {
+    const isActive = activeSection === item.id;
+    return (
+      <button
+        key={item.id}
+        onClick={() => setActiveSection(item.id)}
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
+          isActive
+            ? 'bg-primary/15 text-primary border border-primary/25'
+            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+        }`}
+      >
+        <item.icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-primary' : ''}`} />
+        {!sidebarCollapsed && (
+          <>
+            <span className="flex-1 text-left truncate">{item.label}</span>
+            {item.badge && (
+              <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold text-white ${item.badgeColor || 'bg-primary'}`}>
+                {item.badge}
+              </span>
+            )}
+            {item.id === 'sms' && (
+              <Badge className="rounded-full text-[9px] px-1.5 py-0 bg-amber-500/15 text-amber-500 border-0">AI</Badge>
+            )}
+          </>
+        )}
+      </button>
+    );
+  };
+
   return (
     <>
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* ── TOP NAV ── */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" onClick={onBack} className="gap-1.5 text-muted-foreground hover:text-foreground rounded-xl">
-              <ArrowLeft className="w-4 h-4" /> Back
-            </Button>
-            <span className="text-muted-foreground/40">|</span>
-            <Button variant="ghost" size="sm" onClick={() => window.location.href = '/'} className="gap-1.5 text-muted-foreground hover:text-foreground rounded-xl">
-              <Home className="w-4 h-4" /> Home
+      <div className="flex h-[calc(100vh-120px)] max-w-[1400px] mx-auto gap-0">
+        {/* ── LEFT SIDEBAR ── */}
+        <div className={`shrink-0 ${sidebarCollapsed ? 'w-16' : 'w-64'} border-r border-border/50 bg-card/30 flex flex-col transition-all duration-300`}>
+          {/* Sidebar Header */}
+          <div className="p-4 border-b border-border/50">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-emerald-500 flex items-center justify-center shrink-0">
+                <Phone className="w-4 h-4 text-white" />
+              </div>
+              {!sidebarCollapsed && (
+                <div className="min-w-0">
+                  <h2 className="font-bold text-foreground text-sm truncate">AI Calling</h2>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {branding?.company_name || 'BamLead Voice'}
+                  </p>
+                </div>
+              )}
+            </div>
+            {/* Back / Home buttons */}
+            {!sidebarCollapsed && (
+              <div className="flex items-center gap-1 mt-3">
+                <Button variant="ghost" size="sm" onClick={onBack} className="gap-1 text-xs text-muted-foreground hover:text-foreground h-7 px-2 rounded-lg">
+                  <ArrowLeft className="w-3 h-3" /> Back
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => window.location.href = '/'} className="gap-1 text-xs text-muted-foreground hover:text-foreground h-7 px-2 rounded-lg">
+                  <Home className="w-3 h-3" /> Home
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Phone Status */}
+          {!sidebarCollapsed && phoneSetup.hasPhone && phoneSetup.phoneNumber && (
+            <div className="px-4 py-3 border-b border-border/50">
+              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <Phone className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <span className="text-xs font-mono font-semibold text-emerald-400 truncate">{formatPhoneWithCountry(phoneSetup.phoneNumber)}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Tier Badge */}
+          {!sidebarCollapsed && (
+            <div className="px-4 py-2">
+              <Badge className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold bg-primary/15 text-primary border-0 w-full justify-center">
+                {tierInfo.name} Plan
+              </Badge>
+            </div>
+          )}
+
+          {/* Navigation */}
+          <ScrollArea className="flex-1 px-3 py-2">
+            <div className="space-y-1">
+              {/* Main */}
+              <div className="mb-3">
+                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/60 px-3 mb-2">Main</p>}
+                {filteredItems.filter(i => i.group === 'main').map(renderSidebarItem)}
+              </div>
+
+              <Separator className="my-2 opacity-50" />
+
+              {/* AI Calling */}
+              <div className="mb-3">
+                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/60 px-3 mb-2">AI Calling</p>}
+                {filteredItems.filter(i => i.group === 'calling').map(renderSidebarItem)}
+              </div>
+
+              <Separator className="my-2 opacity-50" />
+
+              {/* Tools */}
+              <div>
+                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/60 px-3 mb-2">Tools</p>}
+                {filteredItems.filter(i => i.group === 'tools').map(renderSidebarItem)}
+              </div>
+            </div>
+          </ScrollArea>
+
+          {/* Sidebar Footer */}
+          <div className="p-3 border-t border-border/50">
+            <Button variant="ghost" size="sm" onClick={onOpenSettings} className="w-full gap-2 justify-start text-xs text-muted-foreground hover:text-foreground rounded-xl">
+              <Settings2 className="w-4 h-4" /> {!sidebarCollapsed && 'Settings'}
             </Button>
           </div>
-          <Button variant="outline" size="sm" onClick={onOpenSettings} className="gap-1.5 rounded-xl">
-            <Settings2 className="w-4 h-4" /> Settings
-          </Button>
         </div>
 
-        {/* ── HERO HEADER ── */}
-        <motion.div
-          initial={{ opacity: 0, y: -16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [.16,1,.3,1] }}
-          className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-background via-primary/[0.04] to-background p-8 md:p-10"
-        >
-          {/* Decorative circles */}
-          <div className="absolute -right-20 -top-20 w-64 h-64 rounded-full bg-primary/[0.06] blur-3xl pointer-events-none" />
-          <div className="absolute -left-16 -bottom-16 w-48 h-48 rounded-full bg-accent/[0.06] blur-3xl pointer-events-none" />
-
-          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            {/* Left: Branding + Title */}
-            <div className="space-y-3">
-              {(branding?.logo_url || branding?.company_name) && (
-                <div className="flex items-center gap-2.5 mb-1">
-                  {branding.logo_url ? (
-                    <img src={branding.logo_url} alt={branding.company_name || ''} className="h-8 w-auto object-contain rounded-lg" />
-                  ) : (
-                    <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center"><Building2 className="w-4 h-4 text-primary" /></div>
-                  )}
-                  {branding.company_name && <span className="text-sm font-semibold text-foreground">{branding.company_name}</span>}
-                </div>
-              )}
-              <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-foreground">
-                AI Calling Hub
-              </h1>
-              <p className="text-base text-muted-foreground max-w-lg leading-relaxed">
-                {callingModeDescription}
-              </p>
-              <div className="flex items-center gap-3 flex-wrap">
-                <Badge className="rounded-full px-3 py-1 text-xs font-semibold bg-primary/15 text-primary border-0">
-                  {tierInfo.name}
-                </Badge>
-                <Badge variant="outline" className="rounded-full px-3 py-1 text-xs">
-                  {callableLeads.length} leads ready
-                </Badge>
-                {isCallingActive && (
-                  <Badge className="rounded-full px-3 py-1 text-xs bg-emerald-500/15 text-emerald-500 border-0 gap-1.5 animate-pulse">
-                    <Activity className="w-3 h-3" /> Live
-                  </Badge>
-                )}
-              </div>
-            </div>
-
-            {/* Right: Phone number card */}
-            {phoneSetup.phoneNumber && (
+        {/* ── MAIN CONTENT ── */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-6 md:p-8 max-w-5xl">
+            <AnimatePresence mode="wait">
               <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center gap-4 p-5 rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.06]"
+                key={activeSection}
+                initial={{ opacity: 0, x: 12 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -12 }}
+                transition={{ duration: 0.2 }}
               >
-                <div className="w-12 h-12 rounded-xl bg-emerald-500/15 flex items-center justify-center">
-                  <Phone className="w-6 h-6 text-emerald-500" />
-                </div>
-                <div>
-                  <p className="text-[11px] text-muted-foreground uppercase tracking-widest font-medium">
-                    {branding?.company_name ? `${branding.company_name}'s Line` : 'Your AI Line'}
-                  </p>
-                  <p className="text-xl font-mono font-bold text-emerald-400 tracking-wide">{formatPhoneWithCountry(phoneSetup.phoneNumber)}</p>
-                </div>
-              </motion.div>
-            )}
-          </div>
-        </motion.div>
+                {/* ════════ GETTING STARTED ════════ */}
+                {activeSection === 'getting-started' && (
+                  <div className="space-y-6">
+                    <div>
+                      <h1 className="text-2xl font-bold text-foreground mb-1">Welcome to AI Calling 👋</h1>
+                      <p className="text-muted-foreground">Follow these steps to start making AI-powered calls to your leads.</p>
+                    </div>
 
-        {/* ── MAIN TABS ── */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <div className="flex items-center justify-center">
-            <TabsList className="h-12 rounded-2xl bg-muted/60 border border-border/50 p-1 gap-1">
-              <TabsTrigger value="overview" className="rounded-xl px-5 py-2.5 text-sm font-medium gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                <BarChart3 className="w-4 h-4" /> Overview
-              </TabsTrigger>
-              <TabsTrigger value="queue" className="rounded-xl px-5 py-2.5 text-sm font-medium gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                <Headphones className="w-4 h-4" /> Call Queue
-                {callQueue.filter(c => c.status === 'pending').length > 0 && (
-                  <span className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-primary/20 text-primary text-[10px] font-bold">
-                    {callQueue.filter(c => c.status === 'pending').length}
-                  </span>
+                    {/* Status Banner */}
+                    <div className={`rounded-2xl border p-5 ${
+                      status === 'ready' ? 'border-emerald-500/25 bg-emerald-500/[0.05]' :
+                      status === 'addon_needed' ? 'border-amber-500/25 bg-amber-500/[0.05]' :
+                      'border-primary/20 bg-primary/[0.04]'
+                    }`}>
+                      <div className="flex items-start gap-4">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                          status === 'ready' ? 'bg-emerald-500/15' : status === 'addon_needed' ? 'bg-amber-500/15' : 'bg-primary/15'
+                        }`}>
+                          {status === 'ready' ? <CheckCircle2 className="w-6 h-6 text-emerald-500" /> :
+                           status === 'addon_needed' ? <AlertCircle className="w-6 h-6 text-amber-500" /> :
+                           <Zap className="w-6 h-6 text-primary" />}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-foreground">
+                            {status === 'ready' ? '✅ AI Calling is Ready!' : status === 'addon_needed' ? `Activate AI Calling — $${AI_CALLING_ADDON_PRICE}/mo` : 'Setup Required'}
+                          </h3>
+                          <p className="text-sm text-muted-foreground mt-0.5">{addonMessage}</p>
+                          {status === 'addon_needed' && tier !== 'free' && (
+                            <Button onClick={purchaseAddon} size="sm" className="gap-2 mt-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white">
+                              <Zap className="w-4 h-4" /> Subscribe — ${AI_CALLING_ADDON_PRICE}/mo
+                            </Button>
+                          )}
+                          {tier === 'free' && (
+                            <Link to="/pricing"><Button size="sm" className="gap-2 mt-3 rounded-xl">View Plans <ChevronRight className="w-4 h-4" /></Button></Link>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Step-by-step guide */}
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">How it works</h3>
+                      {[
+                        { step: 1, title: 'Get Your Phone Number', desc: 'Provision a local business number or port your existing one. This is the number your leads will see when you call.', icon: Signal, action: () => setActiveSection('phone-setup'), actionLabel: 'Set Up Number', done: phoneSetup.hasPhone },
+                        { step: 2, title: 'Review Your Call Queue', desc: 'Your leads with valid phone numbers are automatically queued. Review and prioritize who to call first.', icon: Headphones, action: () => setActiveSection('queue'), actionLabel: 'View Queue', done: callQueue.length > 0 },
+                        { step: 3, title: 'Customize AI Script', desc: 'The AI generates a personalized call script based on your search context. Review and tweak it before calling.', icon: Brain, action: () => setActiveSection('script'), actionLabel: 'Preview Script', done: false },
+                        { step: 4, title: 'Start AI Calling', desc: 'Hit "Start Calling" and let the AI handle conversations. It will greet, pitch, handle objections, and log outcomes automatically.', icon: PhoneCall, action: () => setActiveSection('queue'), actionLabel: 'Start Calling', done: callStats.total > 0 },
+                        { step: 5, title: 'Review Results & Follow Up', desc: 'Check call results, identify hot leads, and schedule follow-ups. Autopilot users get automatic SMS follow-ups.', icon: Target, action: () => setActiveSection('results'), actionLabel: 'View Results', done: false },
+                      ].map((s) => (
+                        <div key={s.step} className={`flex items-start gap-4 p-4 rounded-2xl border transition-all ${s.done ? 'border-emerald-500/20 bg-emerald-500/[0.03]' : 'border-border/50 bg-card/30'}`}>
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${s.done ? 'bg-emerald-500/15' : 'bg-muted/60'}`}>
+                            {s.done ? <CheckCircle2 className="w-5 h-5 text-emerald-500" /> : <span className="text-sm font-bold text-muted-foreground">{s.step}</span>}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-foreground text-sm">{s.title}</h4>
+                            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{s.desc}</p>
+                          </div>
+                          <Button variant="outline" size="sm" onClick={s.action} className="gap-1.5 rounded-xl text-xs shrink-0">
+                            <s.icon className="w-3.5 h-3.5" /> {s.actionLabel}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Tier Capabilities */}
+                    <div>
+                      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Your Plan Capabilities</h3>
+                      <div className="grid md:grid-cols-2 gap-3">
+                        {[
+                          { tier: 'basic', name: 'Basic · $49', icon: Edit3, features: ['AI generates call scripts', 'You dial manually'], addon: `+$${AI_CALLING_ADDON_PRICE}/mo` },
+                          { tier: 'pro', name: 'Pro · $99', icon: Bot, features: ['AI calls your leads', 'You supervise calls'], addon: `+$${AI_CALLING_ADDON_PRICE}/mo` },
+                          { tier: 'autopilot', name: 'Autopilot · $249', icon: Sparkles, features: ['Fully autonomous calling', 'AI texts back & forth', 'Phone included'], included: 'All included!' },
+                        ].map((tc) => {
+                          const isCurrentTier = tier === tc.tier;
+                          return (
+                            <div key={tc.tier} className={`rounded-2xl border p-4 ${isCurrentTier ? 'border-primary/30 bg-primary/[0.05] ring-1 ring-primary/20' : 'border-border/40 opacity-50'}`}>
+                              <div className="flex items-center gap-2 mb-2">
+                                <tc.icon className="w-4 h-4 text-primary" />
+                                <span className="font-semibold text-sm">{tc.name}</span>
+                                {isCurrentTier && <Badge className="text-[9px] bg-foreground text-background rounded-full px-2">Current</Badge>}
+                              </div>
+                              <ul className="space-y-1">
+                                {tc.features.map((f, i) => (
+                                  <li key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <CheckCircle2 className="w-3 h-3 text-primary shrink-0" /> {f}
+                                  </li>
+                                ))}
+                              </ul>
+                              {tc.addon && <div className="mt-2 text-center text-[10px] font-medium rounded-lg py-1 bg-muted/50">{tc.addon}</div>}
+                              {tc.included && <div className="mt-2 text-center text-[10px] font-bold rounded-lg py-1 bg-emerald-500/15 text-emerald-500">{tc.included}</div>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Quick Stats */}
+                    <div className="grid grid-cols-3 gap-3">
+                      <StatPill value={callableLeads.length} label="Callable Leads" icon={Phone} accent="emerald" />
+                      <StatPill value={emailableLeads.length} label="Have Email" icon={MessageSquare} accent="blue" />
+                      <StatPill value={leads.length} label="Total Leads" icon={Users} accent="primary" />
+                    </div>
+                  </div>
                 )}
-              </TabsTrigger>
-              {isAutopilot && (
-                <TabsTrigger value="sms" className="rounded-xl px-5 py-2.5 text-sm font-medium gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                  <MessageCircle className="w-4 h-4" /> SMS
-                  {smsConversations.reduce((acc, c) => acc + c.unread_count, 0) > 0 && (
-                    <span className="ml-1 inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-500/20 text-blue-500 text-[10px] font-bold">
-                      {smsConversations.reduce((acc, c) => acc + c.unread_count, 0)}
-                    </span>
-                  )}
-                </TabsTrigger>
-              )}
-              <TabsTrigger value="script" className="rounded-xl px-5 py-2.5 text-sm font-medium gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                <FileText className="w-4 h-4" /> AI Script
-              </TabsTrigger>
-              <TabsTrigger value="results" className="rounded-xl px-5 py-2.5 text-sm font-medium gap-2 data-[state=active]:bg-background data-[state=active]:shadow-sm">
-                <Target className="w-4 h-4" /> Results
-              </TabsTrigger>
-            </TabsList>
-          </div>
 
-          {/* ════════ OVERVIEW ════════ */}
-          <TabsContent value="overview" className="space-y-8">
-            {/* Tier Capability Cards — horizontal glass cards */}
-            <div>
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-5">Capabilities by Plan</h3>
-              <div className="grid md:grid-cols-4 gap-4">
-                {tierCapabilities.map((tc) => {
-                  const isCurrentTier = tier === tc.tier;
-                  const TierIcon = tc.icon;
-                  const accentMap: Record<string, string> = {
-                    slate: 'border-muted-foreground/20',
-                    blue: 'border-blue-500/30',
-                    teal: 'border-primary/30',
-                    amber: 'border-amber-500/30',
-                  };
-                  const activeBg: Record<string, string> = {
-                    slate: 'bg-muted/50',
-                    blue: 'bg-blue-500/[0.07]',
-                    teal: 'bg-primary/[0.07]',
-                    amber: 'bg-amber-500/[0.07]',
-                  };
-                  const iconColor: Record<string, string> = {
-                    slate: 'text-muted-foreground',
-                    blue: 'text-blue-400',
-                    teal: 'text-primary',
-                    amber: 'text-amber-400',
-                  };
-                  
-                  return (
-                    <motion.div
-                      key={tc.tier}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      whileHover={!isCurrentTier ? { scale: 1.02 } : {}}
-                      onClick={!isCurrentTier ? () => window.location.href = `/pricing?highlight=${tc.tier}` : undefined}
-                      className={`relative rounded-2xl border p-5 transition-all duration-300 cursor-pointer ${
-                        isCurrentTier
-                          ? `${accentMap[tc.accent]} ${activeBg[tc.accent]} ring-2 ring-offset-2 ring-offset-background ${tc.accent === 'amber' ? 'ring-amber-500/40' : tc.accent === 'teal' ? 'ring-primary/40' : tc.accent === 'blue' ? 'ring-blue-500/40' : 'ring-muted-foreground/20'}`
-                          : 'border-border/50 bg-card/30 opacity-50 hover:opacity-80'
-                      }`}
-                    >
-                      {isCurrentTier && (
-                        <Badge className="absolute -top-2.5 right-3 rounded-full text-[10px] px-2.5 py-0.5 bg-foreground text-background font-semibold">
-                          Current
-                        </Badge>
-                      )}
-                      <div className="flex items-center gap-2 mb-4">
-                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${isCurrentTier ? activeBg[tc.accent] : 'bg-muted/50'}`}>
-                          <TierIcon className={`w-4.5 h-4.5 ${isCurrentTier ? iconColor[tc.accent] : 'text-muted-foreground'}`} />
+                {/* ════════ DASHBOARD / OVERVIEW ════════ */}
+                {activeSection === 'overview' && (
+                  <div className="space-y-6">
+                    <div>
+                      <h1 className="text-2xl font-bold text-foreground mb-1">Dashboard</h1>
+                      <p className="text-muted-foreground text-sm">Real-time overview of your AI calling activity.</p>
+                    </div>
+
+                    {/* Live Stats */}
+                    <div className={`grid ${isAutopilot ? 'grid-cols-3 md:grid-cols-6' : 'grid-cols-3 md:grid-cols-5'} gap-3`}>
+                      <StatPill value={callStats.total} label="Total" icon={Phone} accent="primary" />
+                      <StatPill value={callStats.answered} label="Answered" icon={CheckCircle2} accent="emerald" />
+                      <StatPill value={callStats.noAnswer} label="Missed" icon={PhoneMissed} accent="amber" />
+                      <StatPill value={callStats.interested} label="Interested" icon={Flame} accent="primary" />
+                      <StatPill value={`${callStats.avgDuration}s`} label="Avg Duration" icon={Clock} accent="cyan" />
+                      {isAutopilot && <StatPill value={callStats.smsReplies} label="SMS Replies" icon={MessageSquare} accent="blue" />}
+                    </div>
+
+                    {/* Active Call Banner */}
+                    {isCallingActive && (
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-primary/25 bg-primary/[0.05] p-5">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2.5">
+                            <Mic className="w-5 h-5 text-primary animate-pulse" />
+                            <span className="font-semibold text-foreground">AI Calling in Progress</span>
+                          </div>
+                          <Button onClick={handleStopCalling} variant="destructive" size="sm" className="gap-1.5 rounded-xl">
+                            <Square className="w-3 h-3" /> Stop
+                          </Button>
                         </div>
-                        <span className={`font-bold text-sm ${isCurrentTier ? 'text-foreground' : 'text-muted-foreground'}`}>{tc.name}</span>
+                        <Progress value={(callQueue.filter(c => c.status !== 'pending').length / callQueue.length) * 100} className="h-2 rounded-full" />
+                        <p className="text-xs text-muted-foreground mt-2">{callQueue.filter(c => c.status !== 'pending').length} / {callQueue.length} calls processed</p>
+                      </motion.div>
+                    )}
+
+                    {/* Quick Actions */}
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="rounded-2xl border border-border/50 bg-card/30 p-5 space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                            <Headphones className="w-5 h-5 text-emerald-400" />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-sm text-foreground">Call Queue</h4>
+                            <p className="text-xs text-muted-foreground">{pendingCount} leads waiting</p>
+                          </div>
+                        </div>
+                        <Button onClick={() => setActiveSection('queue')} variant="outline" className="w-full gap-2 rounded-xl">
+                          <Headphones className="w-4 h-4" /> Open Call Queue
+                        </Button>
                       </div>
-                      <ul className="space-y-2">
-                        {tc.features.map((f, i) => (
-                          <li key={i} className="flex items-start gap-2 text-xs">
-                            <CheckCircle2 className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${isCurrentTier ? iconColor[tc.accent] : 'text-muted-foreground/50'}`} />
-                            <span className={isCurrentTier ? 'text-foreground' : 'text-muted-foreground'}>{f}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      {tc.addon && (
-                        <div className={`mt-4 text-center text-[11px] font-medium rounded-lg py-1.5 ${isCurrentTier ? 'bg-foreground/5 text-foreground' : 'bg-muted text-muted-foreground'}`}>
-                          {tc.addon}
+                      <div className="rounded-2xl border border-border/50 bg-card/30 p-5 space-y-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                            <Flame className="w-5 h-5 text-orange-400" />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-sm text-foreground">Hot Leads</h4>
+                            <p className="text-xs text-muted-foreground">{hotLeads} interested</p>
+                          </div>
                         </div>
-                      )}
-                      {tc.included && (
-                        <div className="mt-4 text-center text-[11px] font-bold rounded-lg py-1.5 bg-emerald-500/15 text-emerald-500">
-                          {tc.included}
-                        </div>
-                      )}
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Live Stats — pill-style */}
-            {(isPro || isAutopilot) && (
-              <div>
-                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-5">Live Stats</h3>
-                <div className={`grid ${isAutopilot ? 'grid-cols-3 md:grid-cols-6' : 'grid-cols-3 md:grid-cols-5'} gap-3`}>
-                  <StatPill value={callStats.total} label="Total" icon={Phone} accent="primary" />
-                  <StatPill value={callStats.answered} label="Answered" icon={CheckCircle2} accent="emerald" />
-                  <StatPill value={callStats.noAnswer} label="Missed" icon={PhoneMissed} accent="amber" />
-                  <StatPill value={callStats.interested} label="Interested" icon={Flame} accent="primary" />
-                  <StatPill value={`${callStats.avgDuration}s`} label="Avg Duration" icon={Clock} accent="cyan" />
-                  {isAutopilot && <StatPill value={callStats.smsReplies} label="SMS Replies" icon={MessageSquare} accent="blue" />}
-                </div>
-              </div>
-            )}
-
-            {/* Quick Actions Row */}
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Schedule */}
-              <div className="rounded-2xl border border-border/60 bg-card/50 p-6 space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                    <CalendarIcon className="w-5 h-5 text-blue-400" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-foreground text-sm">Quick Schedule</h4>
-                    <p className="text-xs text-muted-foreground">Book follow-up meetings</p>
-                  </div>
-                </div>
-                <div className="flex justify-center">
-                  <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} className="rounded-xl border" />
-                </div>
-                <div className="text-center text-xs text-muted-foreground">{meetings.length} meetings scheduled</div>
-              </div>
-
-              {/* CRM */}
-              <div className="rounded-2xl border border-border/60 bg-card/50 p-6 space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                    <Database className="w-5 h-5 text-purple-400" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-foreground text-sm">Save to CRM</h4>
-                    <p className="text-xs text-muted-foreground">Export leads to your CRM</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  {CRM_OPTIONS.map((crm) => (
-                    <Button key={crm.id} variant="outline" className="h-auto py-3.5 flex flex-col items-center gap-1.5 rounded-xl hover:border-purple-500/40" onClick={onOpenCRMModal}>
-                      <span className="text-xl">{crm.icon}</span>
-                      <span className="text-xs font-medium">{crm.name}</span>
-                    </Button>
-                  ))}
-                </div>
-                <div className="text-center text-xs text-muted-foreground">11 CRMs available</div>
-              </div>
-            </div>
-
-            {/* Status / Action Card */}
-            <div className={`rounded-2xl border p-6 ${
-              status === 'ready' ? 'border-emerald-500/25 bg-emerald-500/[0.04]' :
-              status === 'addon_needed' ? 'border-amber-500/25 bg-amber-500/[0.04]' :
-              'border-primary/20 bg-primary/[0.03]'
-            }`}>
-              <div className="flex items-start gap-4">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
-                  status === 'ready' ? 'bg-emerald-500/15' : status === 'addon_needed' ? 'bg-amber-500/15' : 'bg-primary/15'
-                }`}>
-                  {status === 'ready' ? <CheckCircle2 className="w-6 h-6 text-emerald-500" /> :
-                   status === 'addon_needed' ? <AlertCircle className="w-6 h-6 text-amber-500" /> :
-                   <Zap className="w-6 h-6 text-primary" />}
-                </div>
-                <div className="flex-1 space-y-3">
-                  <div>
-                    <h4 className="font-bold text-foreground">
-                      {status === 'ready' ? 'AI Calling Ready!' : status === 'addon_needed' ? `Add AI Calling — $${AI_CALLING_ADDON_PRICE}/mo` : 'Get Started with AI Calling'}
-                    </h4>
-                    <p className="text-sm text-muted-foreground mt-0.5">{addonMessage}</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2 items-center">
-                    {tier === 'free' && (
-                      <Link to="/pricing"><Button className="gap-2 rounded-xl">View Plans <ChevronRight className="w-4 h-4" /></Button></Link>
-                    )}
-                    {status === 'addon_needed' && tier !== 'free' && (
-                      <Button onClick={purchaseAddon} className="gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white"><Zap className="w-4 h-4" /> Subscribe — ${AI_CALLING_ADDON_PRICE}/mo</Button>
-                    )}
-                    {(status === 'phone_needed' || status === 'phone_provisioning') && tier !== 'free' && !showAreaCodePicker && (
-                      <div className="flex gap-2">
-                        <Button onClick={() => { setProvisionMode('new'); setShowAreaCodePicker(true); }} disabled={isProvisioningNumber || phoneSetup.isProvisioning} className="gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700"><Phone className="w-4 h-4" /> Get My Number</Button>
-                        <Button variant="outline" onClick={() => { setProvisionMode('port'); setShowAreaCodePicker(true); }} className="gap-2 rounded-xl"><ArrowLeft className="w-4 h-4" /> Port Existing</Button>
+                        <Button onClick={() => setActiveSection('results')} variant="outline" className="w-full gap-2 rounded-xl">
+                          <Target className="w-4 h-4" /> View Results
+                        </Button>
                       </div>
-                    )}
-                    {showAreaCodePicker && (
-                      <div className="w-full mt-2 space-y-3 p-4 rounded-2xl bg-card border border-border">
+                    </div>
+                  </div>
+                )}
+
+                {/* ════════ PHONE SETUP ════════ */}
+                {activeSection === 'phone-setup' && (
+                  <div className="space-y-6">
+                    <div>
+                      <h1 className="text-2xl font-bold text-foreground mb-1">Phone Setup</h1>
+                      <p className="text-muted-foreground text-sm">Provision or port a business phone number for AI calling.</p>
+                    </div>
+
+                    {phoneSetup.hasPhone && phoneSetup.phoneNumber ? (
+                      <div className="space-y-4">
+                        <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.05] p-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 flex items-center justify-center">
+                              <Phone className="w-7 h-7 text-emerald-500" />
+                            </div>
+                            <div>
+                              <p className="text-[11px] text-muted-foreground uppercase tracking-widest font-medium">Your AI Phone Line</p>
+                              <p className="text-2xl font-mono font-bold text-emerald-400 tracking-wide">{formatPhoneWithCountry(phoneSetup.phoneNumber)}</p>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 mt-4">
+                            <Badge className="bg-emerald-500/15 text-emerald-500 rounded-full border-0 gap-1">
+                              <CheckCircle2 className="w-3 h-3" /> Active
+                            </Badge>
+                          </div>
+                        </div>
+                        {/* Release Number */}
+                        <div className="rounded-2xl border border-border/50 p-4">
+                          <h4 className="font-semibold text-sm text-foreground mb-2">Manage Number</h4>
+                          {!showReleaseConfirm ? (
+                            <Button variant="outline" size="sm" onClick={() => setShowReleaseConfirm(true)} className="text-muted-foreground hover:text-destructive gap-1.5 rounded-xl">
+                              <XCircle className="w-3.5 h-3.5" /> Release Number
+                            </Button>
+                          ) : (
+                            <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/20">
+                              <span className="text-sm text-destructive font-medium">Are you sure? This cannot be undone.</span>
+                              <Button size="sm" variant="destructive" className="rounded-lg" onClick={async () => {
+                                setIsReleasingNumber(true);
+                                try { const result = await releaseNumber(); if (result.success) { toast.success('Number released!'); setShowReleaseConfirm(false); window.location.reload(); } else toast.error(result.error || 'Failed'); }
+                                catch { toast.error('Network error'); } finally { setIsReleasingNumber(false); }
+                              }} disabled={isReleasingNumber}>{isReleasingNumber ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes, Release'}</Button>
+                              <Button size="sm" variant="ghost" onClick={() => setShowReleaseConfirm(false)}>Cancel</Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {/* Mode selection */}
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <div
+                            onClick={() => setProvisionMode('new')}
+                            className={`cursor-pointer rounded-2xl border p-5 transition-all ${provisionMode === 'new' ? 'border-primary/30 bg-primary/[0.05] ring-1 ring-primary/20' : 'border-border/50 hover:border-primary/20'}`}
+                          >
+                            <Signal className="w-6 h-6 text-primary mb-3" />
+                            <h4 className="font-semibold text-foreground">Get New Number</h4>
+                            <p className="text-xs text-muted-foreground mt-1">Choose an area code and get a local number instantly.</p>
+                          </div>
+                          <div
+                            onClick={() => setProvisionMode('port')}
+                            className={`cursor-pointer rounded-2xl border p-5 transition-all ${provisionMode === 'port' ? 'border-primary/30 bg-primary/[0.05] ring-1 ring-primary/20' : 'border-border/50 hover:border-primary/20'}`}
+                          >
+                            <PhoneForwarded className="w-6 h-6 text-primary mb-3" />
+                            <h4 className="font-semibold text-foreground">Port Existing Number</h4>
+                            <p className="text-xs text-muted-foreground mt-1">Transfer your existing business number. Takes 1-3 days.</p>
+                          </div>
+                        </div>
+
                         {provisionMode === 'new' ? (
-                          <>
-                            <div className="flex items-center gap-2 mb-2"><Signal className="w-4 h-4 text-primary" /><span className="font-semibold text-sm text-foreground">Choose Area Code</span></div>
+                          <div className="rounded-2xl border border-border/50 bg-card/30 p-5 space-y-4">
+                            <div className="flex items-center gap-2"><Signal className="w-4 h-4 text-primary" /><span className="font-semibold text-sm">Choose Area Code</span></div>
                             <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
                               {[
                                 { code: '212', city: 'NYC' }, { code: '310', city: 'LA' }, { code: '312', city: 'Chicago' },
@@ -575,25 +682,25 @@ export default function Step4AICallingHub({
                               setIsProvisioningNumber(true);
                               try {
                                 const result = await requestPhoneProvisioning({ area_code: selectedAreaCode });
-                                if (result.success) { toast.success('Phone number provisioned!'); setShowAreaCodePicker(false); window.location.reload(); }
+                                if (result.success) { toast.success('Phone number provisioned!'); window.location.reload(); }
                                 else toast.error(result.error || 'Provisioning failed');
                               } catch { toast.error('Network error'); }
                               finally { setIsProvisioningNumber(false); }
                             }} className="w-full gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700">
                               {isProvisioningNumber ? <><Loader2 className="w-4 h-4 animate-spin" /> Provisioning…</> : <><Phone className="w-4 h-4" /> Get Number ({selectedAreaCode || '…'})</>}
                             </Button>
-                          </>
+                          </div>
                         ) : (
-                          <>
-                            <div className="flex items-center gap-2 mb-2"><ArrowLeft className="w-4 h-4 text-primary" /><span className="font-semibold text-sm text-foreground">Port Your Number</span></div>
-                            <div className="space-y-2">
-                              <input type="tel" placeholder="+1 (555) 123-4567" value={portNumber} onChange={(e) => setPortNumber(e.target.value)} className="w-full px-3 py-2 rounded-xl border bg-background text-foreground text-sm" />
-                              <input type="text" placeholder="Account holder name" value={portName} onChange={(e) => setPortName(e.target.value)} className="w-full px-3 py-2 rounded-xl border bg-background text-foreground text-sm" />
+                          <div className="rounded-2xl border border-border/50 bg-card/30 p-5 space-y-4">
+                            <div className="flex items-center gap-2"><PhoneForwarded className="w-4 h-4 text-primary" /><span className="font-semibold text-sm">Port Your Number</span></div>
+                            <div className="space-y-3">
+                              <input type="tel" placeholder="+1 (555) 123-4567" value={portNumber} onChange={(e) => setPortNumber(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border bg-background text-foreground text-sm" />
+                              <input type="text" placeholder="Account holder name" value={portName} onChange={(e) => setPortName(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border bg-background text-foreground text-sm" />
                             </div>
                             <Button onClick={async () => {
                               if (!portNumber || !portName) { toast.error('Fill in all fields'); return; }
                               setIsPortSubmitting(true);
-                              try { toast.success('Port request submitted! We\'ll notify you when ready.'); setShowAreaCodePicker(false); }
+                              try { toast.success('Port request submitted! We\'ll notify you when ready.'); }
                               catch { toast.error('Failed to submit'); }
                               finally { setIsPortSubmitting(false); }
                             }} disabled={isPortSubmitting || !portNumber || !portName} className="w-full gap-2 rounded-xl">
@@ -604,302 +711,301 @@ export default function Step4AICallingHub({
                               <p>⏱️ <strong>Timeline:</strong> 1–3 business days.</p>
                               <p>📞 <strong>During porting:</strong> No downtime.</p>
                             </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ════════ CALL QUEUE ════════ */}
+                {activeSection === 'queue' && (
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h1 className="text-2xl font-bold text-foreground mb-1">Call Queue</h1>
+                        <p className="text-muted-foreground text-sm">{callableLeads.length} leads with valid phone numbers ready to call.</p>
+                      </div>
+                      <div className="flex gap-2">
+                        {isReady && !isCallingActive && pendingCount > 0 && (
+                          <Button onClick={handleStartCalling} className="gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700">
+                            <Play className="w-4 h-4" /> Start Calling ({pendingCount})
+                          </Button>
+                        )}
+                        {isCallingActive && (
+                          <>
+                            <Button onClick={() => setIsCallingActive(false)} variant="outline" className="gap-2 rounded-xl"><Pause className="w-4 h-4" /> Pause</Button>
+                            <Button onClick={handleStopCalling} variant="destructive" className="gap-2 rounded-xl"><Square className="w-4 h-4" /> Stop</Button>
                           </>
                         )}
-                        <Button variant="ghost" size="sm" onClick={() => setShowAreaCodePicker(false)} className="text-muted-foreground w-full rounded-xl">Cancel</Button>
                       </div>
-                    )}
-                    {phoneSetup.hasPhone && phoneSetup.phoneNumber && (
-                      <div className="flex items-center gap-2">
-                        <Badge className="bg-emerald-500/15 text-emerald-500 gap-1 text-sm py-1.5 px-3 rounded-full border-0">
-                          <Phone className="w-3 h-3" /> {formatPhoneWithCountry(phoneSetup.phoneNumber)}
-                        </Badge>
-                        {!showReleaseConfirm ? (
-                          <Button variant="ghost" size="sm" onClick={() => setShowReleaseConfirm(true)} className="text-muted-foreground hover:text-destructive text-xs gap-1 rounded-xl">
-                            <XCircle className="w-3 h-3" /> Release
-                          </Button>
-                        ) : (
-                          <div className="flex items-center gap-2 p-2 rounded-xl bg-destructive/10 border border-destructive/20">
-                            <span className="text-xs text-destructive font-medium">Release?</span>
-                            <Button size="sm" variant="destructive" className="text-xs h-7 px-2 rounded-lg" onClick={async () => {
-                              setIsReleasingNumber(true);
-                              try { const result = await releaseNumber(); if (result.success) { toast.success('Number released!'); setShowReleaseConfirm(false); setShowAreaCodePicker(false); window.location.reload(); } else toast.error(result.error || 'Failed'); }
-                              catch { toast.error('Network error'); } finally { setIsReleasingNumber(false); }
-                            }} disabled={isReleasingNumber}>{isReleasingNumber ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Yes'}</Button>
-                            <Button size="sm" variant="ghost" onClick={() => setShowReleaseConfirm(false)} className="text-xs h-7 px-2">No</Button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {isReady && !isCallingActive && callQueue.filter(c => c.status === 'pending').length > 0 && (
-                      <Button onClick={handleStartCalling} className="gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700"><Play className="w-4 h-4" /> Start Calling ({callQueue.filter(c => c.status === 'pending').length})</Button>
-                    )}
+                    </div>
+
+                    {/* Progress */}
                     {isCallingActive && (
-                      <Button onClick={handleStopCalling} variant="destructive" className="gap-2 rounded-xl"><Square className="w-4 h-4" /> Stop</Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* ════════ CALL QUEUE ════════ */}
-          <TabsContent value="queue" className="space-y-5">
-            {callQueue.length > 0 ? (
-              <>
-                {/* Progress */}
-                {isCallingActive && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-primary/20 bg-primary/[0.04] p-5">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center">
-                          <Mic className="w-4 h-4 text-primary animate-pulse" />
-                        </div>
-                        <span className="text-sm font-semibold text-foreground">AI Calling in Progress</span>
-                      </div>
-                      <span className="text-sm font-mono text-muted-foreground">{callQueue.filter(c => c.status !== 'pending').length}/{callQueue.length}</span>
-                    </div>
-                    <Progress value={(callQueue.filter(c => c.status !== 'pending').length / callQueue.length) * 100} className="h-2 rounded-full" />
-                  </motion.div>
-                )}
-
-                {/* Status counters */}
-                <div className="grid grid-cols-4 gap-3">
-                  {[
-                    { label: 'Pending', count: callQueue.filter(c => c.status === 'pending').length, color: 'text-muted-foreground', bg: 'bg-muted/50' },
-                    { label: 'Calling', count: callQueue.filter(c => c.status === 'calling').length, color: 'text-primary', bg: 'bg-primary/10' },
-                    { label: 'Completed', count: callQueue.filter(c => c.status === 'completed').length, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-                    { label: 'Failed', count: callQueue.filter(c => c.status === 'no_answer' || c.status === 'failed').length, color: 'text-amber-500', bg: 'bg-amber-500/10' },
-                  ].map(s => (
-                    <div key={s.label} className={`rounded-2xl border p-4 text-center ${s.bg}`}>
-                      <div className={`text-2xl font-bold ${s.color}`}>{s.count}</div>
-                      <div className="text-[11px] text-muted-foreground mt-0.5 font-medium uppercase tracking-wider">{s.label}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Queue list */}
-                <ScrollArea className="h-[420px] rounded-2xl border bg-card/30">
-                  <div className="divide-y divide-border/50">
-                    {callQueue.map((call) => (
-                      <motion.div
-                        key={call.id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className={`flex items-center justify-between px-5 py-4 transition-colors ${
-                          call.status === 'calling' ? 'bg-primary/[0.06]' :
-                          call.status === 'completed' ? 'bg-emerald-500/[0.03]' :
-                          'hover:bg-muted/30'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3.5">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                            call.status === 'calling' ? 'bg-primary/15' : 'bg-muted/60'
-                          }`}>
-                            {getCallStatusIcon(call.status)}
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-primary/20 bg-primary/[0.04] p-5">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2.5">
+                            <Mic className="w-4 h-4 text-primary animate-pulse" />
+                            <span className="text-sm font-semibold text-foreground">AI Calling in Progress</span>
                           </div>
-                          <div>
-                            <p className="font-semibold text-sm text-foreground">{call.name}</p>
-                            <p className="text-xs text-muted-foreground font-mono">{formatPhoneDisplay(call.phone)}</p>
-                          </div>
+                          <span className="text-sm font-mono text-muted-foreground">{callQueue.filter(c => c.status !== 'pending').length}/{callQueue.length}</span>
                         </div>
-                        <div className="flex items-center gap-2.5">
-                          {call.smsReplies && call.smsReplies.length > 0 && (
-                            <Badge variant="outline" className="rounded-full text-[10px] gap-1 text-blue-500 border-blue-500/30">
-                              <MessageSquare className="w-3 h-3" /> {call.smsReplies.length}
-                            </Badge>
-                          )}
-                          {call.outcome && (
-                            <Badge className={`rounded-full text-[10px] border-0 ${call.outcome === 'Interested' ? 'bg-emerald-500/15 text-emerald-500' : 'bg-muted text-muted-foreground'}`}>
-                              {call.outcome}
-                            </Badge>
-                          )}
-                          {call.duration && <span className="text-xs text-muted-foreground font-mono">{call.duration}s</span>}
-                          {call.status === 'calling' && (
-                            <div className="flex items-center gap-1.5 text-xs text-primary font-medium">
-                              <Volume2 className="w-3.5 h-3.5 animate-pulse" /> Live
-                            </div>
-                          )}
-                        </div>
+                        <Progress value={(callQueue.filter(c => c.status !== 'pending').length / callQueue.length) * 100} className="h-2 rounded-full" />
                       </motion.div>
-                    ))}
-                  </div>
-                </ScrollArea>
-
-                {/* Actions */}
-                {isReady && (
-                  <div className="flex justify-end gap-2">
-                    {!isCallingActive && callQueue.filter(c => c.status === 'pending').length > 0 && (
-                      <Button onClick={handleStartCalling} className="gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700"><Play className="w-4 h-4" /> Start AI Calling</Button>
                     )}
-                    {isCallingActive && (
-                      <>
-                        <Button onClick={() => setIsCallingActive(false)} variant="outline" className="gap-2 rounded-xl"><Pause className="w-4 h-4" /> Pause</Button>
-                        <Button onClick={handleStopCalling} variant="destructive" className="gap-2 rounded-xl"><Square className="w-4 h-4" /> Stop</Button>
-                      </>
-                    )}
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="py-16 text-center">
-                <div className="mx-auto w-16 h-16 rounded-2xl bg-muted/60 flex items-center justify-center mb-4">
-                  <Users className="w-8 h-8 text-muted-foreground" />
-                </div>
-                <p className="font-semibold text-foreground mb-1">No leads with phone numbers</p>
-                <p className="text-sm text-muted-foreground">Go back to Step 1 and search with phone filter enabled</p>
-              </div>
-            )}
-          </TabsContent>
 
-          {/* ════════ SMS (Autopilot) ════════ */}
-          {isAutopilot && (
-            <TabsContent value="sms" className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                    <MessageCircle className="w-5 h-5 text-blue-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-foreground">Autonomous SMS</h3>
-                    <p className="text-xs text-muted-foreground">AI handles bi-directional texting automatically</p>
-                  </div>
-                </div>
-                <Badge className="rounded-full bg-blue-500/15 text-blue-500 border-0 gap-1"><Sparkles className="w-3 h-3" /> AI-Powered</Badge>
-              </div>
-
-              <div className="grid grid-cols-4 gap-3">
-                <StatPill value={smsConversations.reduce((a, c) => a + c.messages.filter(m => m.direction === 'outbound').length, 0)} label="Sent" icon={Send} accent="blue" />
-                <StatPill value={smsConversations.reduce((a, c) => a + c.messages.filter(m => m.direction === 'inbound').length, 0)} label="Received" icon={MessageSquare} accent="emerald" />
-                <StatPill value={smsConversations.filter(c => c.sentiment === 'interested').length} label="Interested" icon={Flame} accent="amber" />
-                <StatPill value={smsConversations.length > 0 ? `${Math.round((smsConversations.reduce((a, c) => a + c.messages.filter(m => m.direction === 'inbound').length, 0) / Math.max(smsConversations.reduce((a, c) => a + c.messages.filter(m => m.direction === 'outbound').length, 0), 1)) * 100)}%` : '0%'} label="Response" icon={TrendingUp} accent="primary" />
-              </div>
-
-              <SMSConversationPanel conversations={smsConversations} onRefresh={loadSMSConversations} isLoading={smsLoading} userPhoneNumber={phoneSetup.phoneNumber} companyName={branding?.company_name} />
-
-              <div className="grid md:grid-cols-3 gap-4">
-                {[
-                  { icon: Bot, color: 'blue', title: 'Auto-Replies', desc: 'AI crafts personalized responses based on lead context and sentiment' },
-                  { icon: Sparkles, color: 'emerald', title: 'Smart Scheduling', desc: 'Detects appointment requests and auto-proposes meeting times' },
-                  { icon: Flame, color: 'amber', title: 'Hot Lead Alerts', desc: 'Get notified when leads show strong buying signals' },
-                ].map((feat) => (
-                  <div key={feat.title} className="rounded-2xl border bg-card/50 p-5">
-                    <div className="flex items-center gap-2.5 mb-2">
-                      <div className={`w-9 h-9 rounded-xl bg-${feat.color}-500/10 flex items-center justify-center`}>
-                        <feat.icon className={`w-4 h-4 text-${feat.color}-400`} />
-                      </div>
-                      <span className="font-semibold text-sm text-foreground">{feat.title}</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{feat.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </TabsContent>
-          )}
-
-          {/* ════════ AI SCRIPT ════════ */}
-          <TabsContent value="script">
-            <div className="rounded-2xl border bg-card/30 p-6">
-              <AIScriptPreviewPanel searchQuery={searchQuery} searchLocation={searchLocation} selectedStrategy={selectedStrategy} />
-            </div>
-          </TabsContent>
-
-          {/* ════════ RESULTS ════════ */}
-          <TabsContent value="results" className="space-y-6">
-            {callStats.total > 0 ? (
-              <>
-                <div className="grid md:grid-cols-3 gap-5">
-                  {[
-                    { icon: CheckCircle2, color: 'emerald', title: 'Success Rate', value: `${callStats.total > 0 ? Math.round((callStats.answered / callStats.total) * 100) : 0}%`, sub: `${callStats.answered} answered / ${callStats.total} total` },
-                    { icon: Target, color: 'primary', title: 'Interest Rate', value: `${callStats.answered > 0 ? Math.round((callStats.interested / callStats.answered) * 100) : 0}%`, sub: `${callStats.interested} interested` },
-                    { icon: MessageSquare, color: 'blue', title: 'SMS Replies', value: callStats.smsReplies, sub: isAutopilot ? 'Lead responses' : 'Autopilot only' },
-                  ].map((card) => (
-                    <div key={card.title} className="rounded-2xl border bg-card/50 p-6">
-                      <div className="flex items-center gap-3 mb-5">
-                        <div className={`w-10 h-10 rounded-xl bg-${card.color === 'primary' ? 'primary' : card.color + '-500'}/10 flex items-center justify-center`}>
-                          <card.icon className={`w-5 h-5 ${card.color === 'primary' ? 'text-primary' : `text-${card.color}-500`}`} />
-                        </div>
-                        <span className="font-semibold text-sm text-foreground">{card.title}</span>
-                      </div>
-                      <div className={`text-4xl font-extrabold tracking-tight ${card.color === 'primary' ? 'text-primary' : `text-${card.color}-400`}`}>{card.value}</div>
-                      <p className="text-xs text-muted-foreground mt-1">{card.sub}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Hot Leads */}
-                {callQueue.filter(c => c.outcome === 'Interested').length > 0 && (
-                  <div className="rounded-2xl border overflow-hidden">
-                    <div className="px-5 py-4 border-b bg-emerald-500/[0.04] flex items-center gap-2">
-                      <Flame className="w-5 h-5 text-orange-500" />
-                      <h4 className="font-bold text-foreground text-sm">Hot Leads — Ready to Close</h4>
-                    </div>
-                    <div className="divide-y divide-border/50">
-                      {callQueue.filter(c => c.outcome === 'Interested').map(lead => (
-                        <div key={lead.id} className="flex items-center justify-between px-5 py-4 hover:bg-muted/20 transition-colors">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                              <Flame className="w-5 h-5 text-orange-400" />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-sm text-foreground">{lead.name}</p>
-                              <p className="text-xs text-muted-foreground font-mono">{formatPhoneDisplay(lead.phone)}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {lead.smsReplies && lead.smsReplies.length > 0 && (
-                              <Badge variant="outline" className="rounded-full text-[10px] text-blue-500 border-blue-500/30 gap-1"><MessageSquare className="w-3 h-3" /> {lead.smsReplies.filter(s => s.from === 'lead').length}</Badge>
-                            )}
-                            <Badge className="rounded-full bg-emerald-500/15 text-emerald-500 border-0 text-[10px]">Interested</Badge>
-                            <Button size="sm" variant="outline" className="gap-1.5 rounded-xl text-xs"><Phone className="w-3 h-3" /> Call Back</Button>
-                          </div>
+                    {/* Status counters */}
+                    <div className="grid grid-cols-4 gap-3">
+                      {[
+                        { label: 'Pending', count: callQueue.filter(c => c.status === 'pending').length, color: 'text-muted-foreground', bg: 'bg-muted/50' },
+                        { label: 'Calling', count: callQueue.filter(c => c.status === 'calling').length, color: 'text-primary', bg: 'bg-primary/10' },
+                        { label: 'Completed', count: callQueue.filter(c => c.status === 'completed').length, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+                        { label: 'Failed', count: callQueue.filter(c => c.status === 'no_answer' || c.status === 'failed').length, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+                      ].map(s => (
+                        <div key={s.label} className={`rounded-2xl border p-4 text-center ${s.bg}`}>
+                          <div className={`text-2xl font-bold ${s.color}`}>{s.count}</div>
+                          <div className="text-[11px] text-muted-foreground mt-0.5 font-medium uppercase tracking-wider">{s.label}</div>
                         </div>
                       ))}
                     </div>
+
+                    {/* Queue list */}
+                    {callQueue.length > 0 ? (
+                      <ScrollArea className="h-[420px] rounded-2xl border bg-card/30">
+                        <div className="divide-y divide-border/50">
+                          {callQueue.map((call) => (
+                            <motion.div
+                              key={call.id}
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              className={`flex items-center justify-between px-5 py-4 transition-colors ${
+                                call.status === 'calling' ? 'bg-primary/[0.06]' :
+                                call.status === 'completed' ? 'bg-emerald-500/[0.03]' :
+                                'hover:bg-muted/30'
+                              }`}
+                            >
+                              <div className="flex items-center gap-3.5">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${call.status === 'calling' ? 'bg-primary/15' : 'bg-muted/60'}`}>
+                                  {getCallStatusIcon(call.status)}
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-sm text-foreground">{call.name}</p>
+                                  <p className="text-xs text-muted-foreground font-mono">{formatPhoneDisplay(call.phone)}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2.5">
+                                {call.smsReplies && call.smsReplies.length > 0 && (
+                                  <Badge variant="outline" className="rounded-full text-[10px] gap-1 text-blue-500 border-blue-500/30">
+                                    <MessageSquare className="w-3 h-3" /> {call.smsReplies.length}
+                                  </Badge>
+                                )}
+                                {call.outcome && (
+                                  <Badge className={`rounded-full text-[10px] border-0 ${call.outcome === 'Interested' ? 'bg-emerald-500/15 text-emerald-500' : 'bg-muted text-muted-foreground'}`}>
+                                    {call.outcome}
+                                  </Badge>
+                                )}
+                                {call.duration && <span className="text-xs text-muted-foreground font-mono">{call.duration}s</span>}
+                                {call.status === 'calling' && (
+                                  <div className="flex items-center gap-1.5 text-xs text-primary font-medium">
+                                    <Volume2 className="w-3.5 h-3.5 animate-pulse" /> Live
+                                  </div>
+                                )}
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    ) : (
+                      <div className="py-16 text-center rounded-2xl border bg-card/30">
+                        <Users className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
+                        <p className="font-semibold text-foreground mb-1">No leads with phone numbers</p>
+                        <p className="text-sm text-muted-foreground">Go back to Step 1 and search with phone filter enabled</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                {/* SMS Conversations in Results */}
-                {isAutopilot && callQueue.some(c => c.smsReplies && c.smsReplies.length > 0) && (
-                  <div className="rounded-2xl border overflow-hidden">
-                    <div className="px-5 py-4 border-b bg-blue-500/[0.04] flex items-center gap-2">
-                      <MessageSquare className="w-5 h-5 text-blue-400" />
-                      <h4 className="font-bold text-foreground text-sm">SMS Conversations</h4>
+                {/* ════════ AI SCRIPT ════════ */}
+                {activeSection === 'script' && (
+                  <div className="space-y-5">
+                    <div>
+                      <h1 className="text-2xl font-bold text-foreground mb-1">AI Call Script</h1>
+                      <p className="text-muted-foreground text-sm">Preview and customize what the AI will say to your leads.</p>
                     </div>
-                    <ScrollArea className="h-[300px]">
-                      <div className="divide-y divide-border/50">
-                        {callQueue.filter(c => c.smsReplies && c.smsReplies.length > 0).map(lead => (
-                          <div key={lead.id} className="p-5">
-                            <p className="font-semibold text-sm text-foreground mb-3">{lead.name}</p>
-                            <div className="space-y-2">
-                              {lead.smsReplies?.map((sms, i) => (
-                                <div key={i} className={`p-3 rounded-xl text-sm ${sms.from === 'ai' ? 'bg-primary/[0.06] ml-6' : 'bg-muted/50 mr-6'}`}>
-                                  <span className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">{sms.from === 'ai' ? '🤖 AI' : '👤 Lead'}</span>
-                                  <p className="text-foreground mt-0.5">{sms.message}</p>
+                    <div className="rounded-2xl border bg-card/30 p-6">
+                      <AIScriptPreviewPanel searchQuery={searchQuery} searchLocation={searchLocation} selectedStrategy={selectedStrategy} />
+                    </div>
+                  </div>
+                )}
+
+                {/* ════════ RESULTS ════════ */}
+                {activeSection === 'results' && (
+                  <div className="space-y-6">
+                    <div>
+                      <h1 className="text-2xl font-bold text-foreground mb-1">Call Results</h1>
+                      <p className="text-muted-foreground text-sm">Analytics and outcomes from your AI calling campaigns.</p>
+                    </div>
+
+                    {callStats.total > 0 ? (
+                      <>
+                        <div className="grid md:grid-cols-3 gap-5">
+                          {[
+                            { icon: CheckCircle2, color: 'emerald', title: 'Success Rate', value: `${callStats.total > 0 ? Math.round((callStats.answered / callStats.total) * 100) : 0}%`, sub: `${callStats.answered} answered / ${callStats.total} total` },
+                            { icon: Target, color: 'primary', title: 'Interest Rate', value: `${callStats.answered > 0 ? Math.round((callStats.interested / callStats.answered) * 100) : 0}%`, sub: `${callStats.interested} interested` },
+                            { icon: MessageSquare, color: 'blue', title: 'SMS Replies', value: callStats.smsReplies, sub: isAutopilot ? 'Lead responses' : 'Autopilot only' },
+                          ].map((card) => (
+                            <div key={card.title} className="rounded-2xl border bg-card/50 p-6">
+                              <div className="flex items-center gap-3 mb-5">
+                                <div className={`w-10 h-10 rounded-xl bg-${card.color === 'primary' ? 'primary' : card.color + '-500'}/10 flex items-center justify-center`}>
+                                  <card.icon className={`w-5 h-5 ${card.color === 'primary' ? 'text-primary' : `text-${card.color}-500`}`} />
+                                </div>
+                                <span className="font-semibold text-sm text-foreground">{card.title}</span>
+                              </div>
+                              <div className={`text-4xl font-extrabold tracking-tight ${card.color === 'primary' ? 'text-primary' : `text-${card.color}-400`}`}>{card.value}</div>
+                              <p className="text-xs text-muted-foreground mt-1">{card.sub}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Hot Leads */}
+                        {callQueue.filter(c => c.outcome === 'Interested').length > 0 && (
+                          <div className="rounded-2xl border overflow-hidden">
+                            <div className="px-5 py-4 border-b bg-emerald-500/[0.04] flex items-center gap-2">
+                              <Flame className="w-5 h-5 text-orange-500" />
+                              <h4 className="font-bold text-foreground text-sm">Hot Leads — Ready to Close</h4>
+                            </div>
+                            <div className="divide-y divide-border/50">
+                              {callQueue.filter(c => c.outcome === 'Interested').map(lead => (
+                                <div key={lead.id} className="flex items-center justify-between px-5 py-4 hover:bg-muted/20 transition-colors">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                                      <Flame className="w-5 h-5 text-orange-400" />
+                                    </div>
+                                    <div>
+                                      <p className="font-semibold text-sm text-foreground">{lead.name}</p>
+                                      <p className="text-xs text-muted-foreground font-mono">{formatPhoneDisplay(lead.phone)}</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Badge className="rounded-full bg-emerald-500/15 text-emerald-500 border-0 text-[10px]">Interested</Badge>
+                                    <Button size="sm" variant="outline" className="gap-1.5 rounded-xl text-xs"><Phone className="w-3 h-3" /> Call Back</Button>
+                                  </div>
                                 </div>
                               ))}
                             </div>
                           </div>
-                        ))}
+                        )}
+                      </>
+                    ) : (
+                      <div className="py-16 text-center rounded-2xl border bg-card/30">
+                        <BarChart3 className="w-10 h-10 mx-auto mb-3 text-muted-foreground" />
+                        <p className="font-semibold text-foreground mb-1">No call data yet</p>
+                        <p className="text-sm text-muted-foreground">Start calling leads to see analytics here.</p>
+                        <Button onClick={() => setActiveSection('queue')} variant="outline" className="mt-4 gap-2 rounded-xl">
+                          <Headphones className="w-4 h-4" /> Go to Call Queue
+                        </Button>
                       </div>
-                    </ScrollArea>
+                    )}
                   </div>
                 )}
-              </>
-            ) : (
-              <div className="py-16 text-center">
-                <div className="mx-auto w-16 h-16 rounded-2xl bg-muted/60 flex items-center justify-center mb-4">
-                  <BarChart3 className="w-8 h-8 text-muted-foreground" />
-                </div>
-                <p className="font-semibold text-foreground mb-1">No results yet</p>
-                <p className="text-sm text-muted-foreground">Start calling to see analytics here</p>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
 
-      <PhoneNumberSetupModal open={showPhoneModal} onOpenChange={setShowPhoneModal} />
+                {/* ════════ SMS ════════ */}
+                {activeSection === 'sms' && isAutopilot && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h1 className="text-2xl font-bold text-foreground mb-1">SMS Messaging</h1>
+                        <p className="text-muted-foreground text-sm">AI-powered bi-directional text messaging with your leads.</p>
+                      </div>
+                      <Badge className="rounded-full bg-amber-500/15 text-amber-500 border-0 gap-1"><Sparkles className="w-3 h-3" /> Autopilot</Badge>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-3">
+                      <StatPill value={smsConversations.reduce((a, c) => a + c.messages.filter(m => m.direction === 'outbound').length, 0)} label="Sent" icon={Send} accent="blue" />
+                      <StatPill value={smsConversations.reduce((a, c) => a + c.messages.filter(m => m.direction === 'inbound').length, 0)} label="Received" icon={MessageSquare} accent="emerald" />
+                      <StatPill value={smsConversations.filter(c => c.sentiment === 'interested').length} label="Interested" icon={Flame} accent="amber" />
+                      <StatPill value={smsConversations.length > 0 ? `${Math.round((smsConversations.reduce((a, c) => a + c.messages.filter(m => m.direction === 'inbound').length, 0) / Math.max(smsConversations.reduce((a, c) => a + c.messages.filter(m => m.direction === 'outbound').length, 0), 1)) * 100)}%` : '0%'} label="Response" icon={TrendingUp} accent="primary" />
+                    </div>
+
+                    <SMSConversationPanel conversations={smsConversations} onRefresh={loadSMSConversations} isLoading={smsLoading} userPhoneNumber={phoneSetup.phoneNumber} companyName={branding?.company_name} />
+                  </div>
+                )}
+
+                {/* ════════ CALENDAR ════════ */}
+                {activeSection === 'schedule' && (
+                  <div className="space-y-6">
+                    <div>
+                      <h1 className="text-2xl font-bold text-foreground mb-1">Calendar</h1>
+                      <p className="text-muted-foreground text-sm">Schedule follow-up meetings with your leads.</p>
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-6">
+                      <div className="rounded-2xl border border-border/50 bg-card/30 p-6 space-y-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
+                            <CalendarIcon className="w-5 h-5 text-blue-400" />
+                          </div>
+                          <h4 className="font-semibold text-foreground text-sm">Select Date</h4>
+                        </div>
+                        <div className="flex justify-center">
+                          <Calendar mode="single" selected={selectedDate} onSelect={setSelectedDate} className="rounded-xl border" />
+                        </div>
+                        <div className="text-center text-xs text-muted-foreground">{meetings.length} meetings scheduled</div>
+                      </div>
+                      <div className="rounded-2xl border border-border/50 bg-card/30 p-6 space-y-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
+                            <Users className="w-5 h-5 text-purple-400" />
+                          </div>
+                          <h4 className="font-semibold text-foreground text-sm">Quick Schedule</h4>
+                        </div>
+                        <ScrollArea className="h-[300px]">
+                          <div className="space-y-2">
+                            {callableLeads.slice(0, 10).map((lead, idx) => (
+                              <div key={idx} className="flex items-center justify-between p-3 rounded-xl border border-border/50 hover:bg-muted/30">
+                                <div>
+                                  <p className="font-medium text-sm">{lead.business_name || lead.name || 'Unknown'}</p>
+                                  <p className="text-xs text-muted-foreground">{lead.phone}</p>
+                                </div>
+                                <Button size="sm" variant="outline" onClick={() => handleScheduleMeeting(lead)} disabled={!selectedDate} className="gap-1 rounded-lg text-xs">
+                                  <CalendarIcon className="w-3 h-3" /> Book
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </ScrollArea>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ════════ CRM ════════ */}
+                {activeSection === 'crm' && (
+                  <div className="space-y-6">
+                    <div>
+                      <h1 className="text-2xl font-bold text-foreground mb-1">Save to CRM</h1>
+                      <p className="text-muted-foreground text-sm">Export your {leads.length} leads to your favorite CRM.</p>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {CRM_OPTIONS.map((crm) => (
+                        <Button key={crm.id} variant="outline" className="h-auto py-4 flex flex-col items-center gap-2 rounded-xl hover:border-primary/40" onClick={onOpenCRMModal}>
+                          <span className="text-2xl">{crm.icon}</span>
+                          <span className="text-xs font-medium">{crm.name}</span>
+                        </Button>
+                      ))}
+                    </div>
+                    <div className="text-center">
+                      <Button onClick={onOpenCRMModal} className="gap-2 rounded-xl">
+                        <Database className="w-4 h-4" /> View All 11 CRMs
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </div>
+      </div>
     </>
   );
 }
