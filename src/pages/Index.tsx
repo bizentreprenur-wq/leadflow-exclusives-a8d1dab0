@@ -6,6 +6,7 @@ import LeadGenSection from "@/components/LeadGenSection";
 import EmailOutreachSection from "@/components/EmailOutreachSection";
 import HowItWorksSection from "@/components/HowItWorksSection";
 import WhoThisIsForSection from "@/components/WhoThisIsForSection";
+import WhatIsBamleadSection from "@/components/WhatIsBamleadSection";
 import WhyItWorksSection from "@/components/WhyItWorksSection";
 import FAQSection from "@/components/FAQSection";
 import CTASection from "@/components/CTASection";
@@ -53,6 +54,7 @@ const Index = () => {
         <SuperAIFeaturesSection />
         <SynonymExpansionDemo />
         <HowItWorksSection />
+        <WhatIsBamleadSection />
         <AgentCardsSection />
         <VoiceCallingSection />
         <WhenAIActivatesSection />
