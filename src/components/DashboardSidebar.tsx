@@ -70,7 +70,7 @@ const mainWorkflow = [
   },
 ];
 
-const otherTools = [
+const aiCallingTools = [
   {
     id: 'voice-calling',
     title: 'Voice Calling',
@@ -84,6 +84,9 @@ const otherTools = [
     icon: History,
     description: 'View call logs',
   },
+];
+
+const emailTools = [
   {
     id: 'sequences',
     title: 'Sequences',
@@ -103,6 +106,9 @@ const otherTools = [
     icon: FileText,
     description: 'Pre-built templates',
   },
+];
+
+const generalTools = [
   {
     id: 'subscription',
     title: 'Subscription',
@@ -187,6 +193,9 @@ const resourceTools = [
 ];
 
 export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: DashboardSidebarProps) {
+  const isAICallingActive = aiCallingTools.some(t => t.id === activeTab);
+  const isEmailActive = emailTools.some(t => t.id === activeTab);
+
   const { user } = useAuth();
   const location = useLocation();
   const { state, toggleSidebar } = useSidebar();
@@ -299,15 +308,93 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
 
         <SidebarSeparator />
 
-        {/* Other Tools */}
+        {/* AI Calling Section */}
         <SidebarGroup>
-          <SidebarGroupLabel>
-            <Mail className="w-3 h-3 mr-2" />
-            Tools
+          <SidebarGroupLabel className={isAICallingActive ? 'text-amber-400' : ''}>
+            <Phone className={`w-3 h-3 mr-2 ${isAICallingActive ? 'text-amber-400' : ''}`} />
+            AI Calling
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {otherTools.map((tool) => (
+              {aiCallingTools.map((tool) => (
+                <SidebarMenuItem key={tool.id}>
+                  <SidebarMenuButton
+                    isActive={activeTab === tool.id}
+                    tooltip={tool.title}
+                    onClick={() => onTabChange(tool.id)}
+                    className={isAICallingActive && activeTab === tool.id
+                      ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/30'
+                      : isAICallingActive
+                      ? 'hover:bg-amber-500/10'
+                      : ''
+                    }
+                  >
+                    <tool.icon className={`w-4 h-4 ${activeTab === tool.id && isAICallingActive ? 'text-amber-400' : ''}`} />
+                    <span>{tool.title}</span>
+                    {'badge' in tool && tool.badge && (
+                      <Badge variant="secondary" className={`ml-auto text-[10px] px-1.5 py-0 ${
+                        isAICallingActive ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-primary/10 text-primary'
+                      }`}>
+                        {tool.badge}
+                      </Badge>
+                    )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        {/* Drip Feed Email Section */}
+        <SidebarGroup>
+          <SidebarGroupLabel className={isEmailActive ? 'text-primary' : ''}>
+            <Mail className={`w-3 h-3 mr-2 ${isEmailActive ? 'text-primary' : ''}`} />
+            Drip Feed Email
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {emailTools.map((tool) => (
+                <SidebarMenuItem key={tool.id}>
+                  <SidebarMenuButton
+                    isActive={activeTab === tool.id}
+                    tooltip={tool.title}
+                    onClick={() => onTabChange(tool.id)}
+                    className={isEmailActive && activeTab === tool.id
+                      ? 'bg-primary/20 text-primary hover:bg-primary/30 border border-primary/30'
+                      : isEmailActive
+                      ? 'hover:bg-primary/10'
+                      : ''
+                    }
+                  >
+                    <tool.icon className={`w-4 h-4 ${activeTab === tool.id && isEmailActive ? 'text-primary' : ''}`} />
+                    <span>{tool.title}</span>
+                    {'badge' in tool && tool.badge && (
+                      <Badge variant="secondary" className={`ml-auto text-[10px] px-1.5 py-0 ${
+                        isEmailActive ? 'bg-primary/20 text-primary border-primary/30' : 'bg-primary/10 text-primary'
+                      }`}>
+                        {tool.badge}
+                      </Badge>
+                    )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        {/* General */}
+        <SidebarGroup>
+          <SidebarGroupLabel>
+            <Settings className="w-3 h-3 mr-2" />
+            General
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {generalTools.map((tool) => (
                 <SidebarMenuItem key={tool.id}>
                   <SidebarMenuButton
                     isActive={activeTab === tool.id}
@@ -316,11 +403,6 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
                   >
                     <tool.icon className="w-4 h-4" />
                     <span>{tool.title}</span>
-                    {'badge' in tool && tool.badge && (
-                      <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0 bg-primary/10 text-primary">
-                        {tool.badge}
-                      </Badge>
-                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
