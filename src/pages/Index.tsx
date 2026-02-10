@@ -24,6 +24,7 @@ import AIEmailAssistantDemo from "@/components/AIEmailAssistantDemo";
 import SuperAIFeaturesSection from "@/components/SuperAIFeaturesSection";
 import AIAutopilotCampaignPromo from "@/components/AIAutopilotCampaignPromo";
 import SynonymExpansionDemo from "@/components/SynonymExpansionDemo";
+import IntelligenceJourneySection from "@/components/IntelligenceJourneySection";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 
@@ -37,7 +38,7 @@ const Index = () => {
         
         {/* AI Autopilot Campaign Promo - Prominent placement */}
         <AIAutopilotCampaignPromo />
-        
+        <IntelligenceJourneySection />
         <section className="container px-4 py-8">
           <div className="rounded-2xl border border-border bg-card p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
