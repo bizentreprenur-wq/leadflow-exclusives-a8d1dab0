@@ -149,21 +149,39 @@ const PipelineStep = ({ step, index, isVisible }: { step: any; index: number; is
               className="overflow-hidden"
             >
               <div className="pt-4 mt-4 border-t border-border space-y-3">
-                {step.expandedContent.map((item: { label: string; desc: string }, i: number) => (
-                  <motion.div
-                    key={item.label}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.08 }}
-                    className="flex items-start gap-2"
-                  >
-                    <CheckCircle2 className={`w-4 h-4 mt-0.5 shrink-0 ${step.checkColor}`} />
-                    <div>
-                      <span className="text-sm font-semibold text-foreground">{item.label}</span>
-                      <p className="text-xs text-muted-foreground">{item.desc}</p>
-                    </div>
-                  </motion.div>
-                ))}
+                {step.expandedContent.map((item: { label: string; desc: string }, i: number) => {
+                  // Tier-based color coding
+                  const isBasic = item.label.includes("Basic");
+                  const isPro = item.label.includes("Pro");
+                  const isAutopilot = item.label.includes("Autopilot");
+                  const tierBadge = isBasic ? "bg-secondary text-muted-foreground" 
+                    : isPro ? "bg-primary/20 text-primary" 
+                    : isAutopilot ? "bg-amber-500/20 text-amber-400" 
+                    : "";
+
+                  return (
+                    <motion.div
+                      key={item.label}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.08 }}
+                      className={`flex items-start gap-2 rounded-lg p-2 ${isAutopilot ? "bg-amber-500/5 border border-amber-500/10" : isPro ? "bg-primary/5 border border-primary/10" : isBasic ? "bg-secondary/50 border border-border" : ""}`}
+                    >
+                      <CheckCircle2 className={`w-4 h-4 mt-0.5 shrink-0 ${isAutopilot ? "text-amber-400" : isPro ? "text-primary" : step.checkColor}`} />
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-foreground">{item.label}</span>
+                          {tierBadge && (
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${tierBadge}`}>
+                              {isAutopilot ? "★ AUTONOMOUS" : isPro ? "CO-PILOT" : "MANUAL"}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">{item.desc}</p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
                 {index < 3 && (
                   <div className="flex items-center gap-1 pt-2 text-xs font-medium text-primary">
                     <span>Feeds into next step</span>
@@ -241,33 +259,33 @@ const IntelligenceJourneySection = () => {
     {
       step: "Step 3",
       title: "AI Strategy & Email Outreach",
-      description: "The AI 'Brain' maps lead intelligence to personalized strategies, then auto-configures 7-step autonomous drip sequences.",
-      details: ["AI Strategy Engine", "Template Gallery", "7-Step Sequences", "Sentiment Detection"],
+      description: "AI-Recommended Sequences adapt to your plan — from manual editing to fully autonomous selection and execution.",
+      details: ["AI Strategy Engine", "Template Gallery", "7-Step Sequences", "Tier-Based Autonomy"],
       icon: Mail,
       color: "from-emerald-500 to-teal-500",
       glowColor: "shadow-[0_0_30px_hsl(158_64%_50%_/_0.3)]",
       checkColor: "text-emerald-400",
       expandedContent: [
-        { label: "AI Strategy Engine (The Brain)", desc: "Generates campaign purpose statements, match scores, expected response rates, and personalized openers for each lead group." },
-        { label: "6 Specialized Scenarios", desc: "No Website Rescue, Review Booster, Visibility Booster, Hot Lead Accelerator, Outdated Site Modernization, Market Presence Audit." },
-        { label: "7-Step Autonomous Sequences", desc: "Auto-pause when positive sentiment or inquisitive responses are detected — preventing over-communication." },
-        { label: "PreDone Documents", desc: "Search-type-exclusive proposals and contracts auto-attached to outreach — niche-selling or service-selling, never mixed." },
+        { label: "Basic ($49/mo) — Manual Mode", desc: "AI writes and drip-feeds emails, but you choose every sequence, edit templates, and click 'Send.' Fewer automated sequences — you stay in full control." },
+        { label: "Pro ($99/mo) — Co-Pilot Mode", desc: "BamLead prompts you with AI-Recommended Sequences ('Best Match,' 'Recommended,' 'AI Pick'). Accept the suggestion or edit it — you approve the first email, then AI auto-sends follow-ups." },
+        { label: "Autopilot ($249/mo) — Agentic Mode", desc: "AI intelligently selects the best sequence, strategy, and timing for each lead — fully autonomous. It handles response sentiment, auto-pauses on positive replies, and delivers PreDone proposals." },
+        { label: "6 Specialized Scenarios", desc: "No Website Rescue, Review Booster, Visibility Booster, Hot Lead Accelerator, Outdated Site Modernization, Market Presence Audit — all mapped by lead intelligence." },
       ],
     },
     {
       step: "Step 4",
       title: "AI Calling Hub",
-      description: "Context-aware AI voice agents call leads using intelligence from every prior step — scripts, pain points, and strategies.",
-      details: ["Telnyx Voice AI", "Dynamic Script Gen", "Call Queue & Analytics", "SMS Follow-Up"],
+      description: "Voice outreach scales with your plan — from manual dialing to fully autonomous AI conversations.",
+      details: ["Telnyx Voice AI", "Dynamic Script Gen", "Tier-Based Calling", "SMS Follow-Up"],
       icon: Phone,
       color: "from-violet-500 to-purple-500",
       glowColor: "shadow-[0_0_30px_hsl(270_60%_50%_/_0.3)]",
       checkColor: "text-violet-400",
       expandedContent: [
-        { label: "Contextual Script Generation", desc: "Scripts synthesize search context, intelligence reports, AI strategies, email sequences, and PreDone documents into personalized talking points." },
-        { label: "Dual-Mode Communication", desc: "Automated AI-driven conversations with eventual handoff to manual human calling when needed." },
-        { label: "Phone Number Provisioning", desc: "One unique local number per user — provision by area code (with city labels like 212 NYC), port, or release." },
-        { label: "SMS + Call Analytics", desc: "Bi-directional SMS chat, call recordings, outcome tracking, and hot lead identification from call results." },
+        { label: "Basic ($49/mo) — Manual Dialing", desc: "AI generates scripts from lead intelligence, but you dial and talk. Preview-only scripts. $8/mo add-on for phone number." },
+        { label: "Pro ($99/mo) — Supervised Calling", desc: "AI recommends call order and scripts. You approve before each call. Co-pilot handles follow-up SMS. $8/mo add-on for phone number." },
+        { label: "Autopilot ($249/mo) — Fully Autonomous", desc: "AI selects leads, generates context-aware scripts, dials, converses, and logs outcomes — phone number included at no extra cost." },
+        { label: "Contextual Intelligence", desc: "Every call script synthesizes search context, intelligence reports, AI strategies, email sequences, and PreDone documents into personalized talking points." },
       ],
     },
   ];
