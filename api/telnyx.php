@@ -251,8 +251,52 @@ function handleProvisionNumber($db, $user) {
         return;
     }
     
-    // TODO: Verify the user has paid the $8/mo add-on or has Autopilot plan
-    // For now, allow provisioning (Stripe webhook will gate this in production)
+    // Verify payment: Autopilot gets it free, others need $8/mo add-on
+    $stmt = $db->prepare("SELECT plan, status FROM subscriptions WHERE user_id = ? AND status = 'active' ORDER BY created_at DESC LIMIT 1");
+    $stmt->execute([$user['id']]);
+    $subscription = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    $isAutopilot = $subscription && $subscription['plan'] === 'autopilot';
+    
+    if (!$isAutopilot) {
+        // Check calling_config for addon_active OR check Stripe for active AI Calling subscription
+        $addonActive = false;
+        
+        // Method 1: Check calling_config table
+        $stmt = $db->prepare("SELECT addon_active FROM calling_config WHERE user_id = ?");
+        $stmt->execute([$user['id']]);
+        $callingConfig = $stmt->fetch(PDO::FETCH_ASSOC);
+        if ($callingConfig && $callingConfig['addon_active']) {
+            $addonActive = true;
+        }
+        
+        // Method 2: Check Stripe for ai_calling addon subscription
+        if (!$addonActive && defined('STRIPE_SECRET_KEY') && STRIPE_SECRET_KEY) {
+            require_once __DIR__ . '/includes/stripe.php';
+            $stripeAddon = checkStripeAddonActive($user['id'], 'ai_calling');
+            if ($stripeAddon) {
+                $addonActive = true;
+                // Cache the result in calling_config
+                $stmt = $db->prepare("SELECT id FROM calling_config WHERE user_id = ?");
+                $stmt->execute([$user['id']]);
+                if ($stmt->fetch()) {
+                    $db->prepare("UPDATE calling_config SET addon_active = 1 WHERE user_id = ?")->execute([$user['id']]);
+                } else {
+                    $db->prepare("INSERT INTO calling_config (user_id, addon_active) VALUES (?, 1)")->execute([$user['id']]);
+                }
+            }
+        }
+        
+        if (!$addonActive) {
+            http_response_code(402);
+            echo json_encode([
+                'success' => false,
+                'error' => 'AI Calling add-on ($8/mo) required. Purchase the add-on first.',
+                'requires_addon' => true
+            ]);
+            return;
+        }
+    }
     
     try {
         $countryCode = $input['country_code'] ?? 'US';
