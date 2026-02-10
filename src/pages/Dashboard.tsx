@@ -123,6 +123,12 @@ interface SearchResult {
     scrapedAt?: string;
   };
   enrichmentStatus?: 'pending' | 'processing' | 'completed' | 'failed';
+  // Social profiles
+  facebookUrl?: string;
+  linkedinUrl?: string;
+  instagramUrl?: string;
+  youtubeUrl?: string;
+  tiktokUrl?: string;
 }
 
 // Step configuration - 4 simple steps
@@ -658,12 +664,28 @@ export default function Dashboard() {
           const cacheKey = `social_contacts_${lead.name}_${lead.address || ''}`;
           sessionStorage.setItem(cacheKey, JSON.stringify(result));
           
-          // If we found contacts, update the lead's email if missing
-          if (result.success && result.contacts.emails.length > 0 && !lead.email) {
-            const foundEmail = result.contacts.emails[0];
-            setSearchResults((prev) =>
-              prev.map((item) => (item.id === lead.id ? { ...item, email: foundEmail } : item))
-            );
+          // Populate social profile URLs and missing email on each lead
+          if (result.success) {
+            const profiles = result.contacts.profiles || {};
+            const updates: Partial<SearchResult> = {};
+            
+            // Map social profiles to lead fields
+            if (profiles.facebook?.url) updates.facebookUrl = profiles.facebook.url;
+            if (profiles.linkedin?.url) updates.linkedinUrl = profiles.linkedin.url;
+            if (profiles.instagram?.url) updates.instagramUrl = profiles.instagram.url;
+            if (profiles.youtube?.url) updates.youtubeUrl = profiles.youtube.url;
+            if (profiles.tiktok?.url) updates.tiktokUrl = profiles.tiktok.url;
+            
+            // Also populate email if missing
+            if (!lead.email && result.contacts.emails.length > 0) {
+              updates.email = result.contacts.emails[0];
+            }
+            
+            if (Object.keys(updates).length > 0) {
+              setSearchResults((prev) =>
+                prev.map((item) => (item.id === lead.id ? { ...item, ...updates } : item))
+              );
+            }
           }
         } catch (error) {
           console.warn('[BamLead] Social enrichment failed for lead:', lead.id, error);
