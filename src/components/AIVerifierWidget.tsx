@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -48,7 +48,8 @@ interface AIVerifierWidgetProps {
 
 // AI-powered analysis simulation
 const analyzeLeadWithAI = async (lead: Lead): Promise<VerifiedLead> => {
-  await new Promise(r => setTimeout(r, 800 + Math.random() * 600));
+  // Keep a small delay for UX realism while remaining responsive.
+  await new Promise(r => setTimeout(r, 180 + Math.random() * 220));
   
   const emailValid = Math.random() > 0.15;
   const leadScore = Math.floor(60 + Math.random() * 40);
@@ -106,6 +107,7 @@ export default function AIVerifierWidget({ isOpen, onClose, leads, onComplete, o
   const [currentLead, setCurrentLead] = useState<string>('');
   const [verifiedLeads, setVerifiedLeads] = useState<VerifiedLead[]>([]);
   const [selectedLead, setSelectedLead] = useState<VerifiedLead | null>(null);
+  const runIdRef = useRef(0);
 
   useEffect(() => {
     if (isOpen && leads.length > 0 && !verificationComplete && !isVerifying) {
@@ -113,26 +115,73 @@ export default function AIVerifierWidget({ isOpen, onClose, leads, onComplete, o
     }
   }, [isOpen, leads]);
 
+  useEffect(() => {
+    if (!isOpen) {
+      // Invalidate in-flight verification work when modal closes.
+      runIdRef.current += 1;
+      setIsVerifying(false);
+      setCurrentLead('');
+    }
+  }, [isOpen]);
+
   const startVerification = async () => {
+    const runId = ++runIdRef.current;
     setIsVerifying(true);
     setProgress(0);
     setVerifiedLeads([]);
+    setVerificationComplete(false);
+    setSelectedLead(null);
 
-    const results: VerifiedLead[] = [];
-    
-    for (let i = 0; i < leads.length; i++) {
-      setCurrentLead(leads[i].name);
-      const verified = await analyzeLeadWithAI(leads[i]);
-      results.push(verified);
-      setVerifiedLeads([...results]);
-      setProgress(((i + 1) / leads.length) * 100);
+    const total = leads.length;
+    if (total === 0) {
+      setIsVerifying(false);
+      return;
     }
+
+    const maxWorkers = Math.min(4, total);
+    const results: Array<VerifiedLead | undefined> = new Array(total);
+    let nextIndex = 0;
+    let completed = 0;
+    let lastUiCommit = 0;
+
+    const commitProgress = (force = false) => {
+      const now = Date.now();
+      if (!force && now - lastUiCommit < 100) return;
+      lastUiCommit = now;
+      if (runIdRef.current !== runId) return;
+      setProgress((completed / total) * 100);
+      // Reduce render churn by committing in small batches.
+      setVerifiedLeads(results.filter(Boolean) as VerifiedLead[]);
+    };
+
+    const worker = async () => {
+      while (true) {
+        if (runIdRef.current !== runId) return;
+        const index = nextIndex++;
+        if (index >= total) return;
+        const lead = leads[index];
+        if (runIdRef.current !== runId) return;
+        setCurrentLead(lead.name);
+        const verified = await analyzeLeadWithAI(lead);
+        if (runIdRef.current !== runId) return;
+        results[index] = verified;
+        completed += 1;
+        commitProgress(completed === total);
+      }
+    };
+
+    await Promise.all(Array.from({ length: maxWorkers }, () => worker()));
+    if (runIdRef.current !== runId) return;
+
+    const finalized = results.filter(Boolean) as VerifiedLead[];
+    setVerifiedLeads(finalized);
+    setProgress(100);
 
     setIsVerifying(false);
     setVerificationComplete(true);
-    setSelectedLead(results[0] || null);
-    onComplete(results);
-    toast.success(`✅ Verified ${results.length} leads with AI insights!`);
+    setSelectedLead(finalized[0] || null);
+    onComplete(finalized);
+    toast.success(`✅ Verified ${finalized.length} leads with AI insights!`);
   };
 
   const highPriorityLeads = verifiedLeads.filter(l => l.conversionProbability === 'high');
