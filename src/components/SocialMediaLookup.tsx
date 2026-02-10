@@ -388,9 +388,6 @@ export default function SocialMediaLookup({
                                enrichment?.socials?.[platformKey] ||
                                enrichment?.socials?.[platform.name];
             
-            // Determine if we've finished checking (scraped or enriched)
-            const hasBeenChecked = wasPreScraped || (socialContacts !== null);
-            
             return (
               <Tooltip key={platform.name}>
                 <TooltipTrigger asChild>
@@ -400,9 +397,8 @@ export default function SocialMediaLookup({
                     className={cn(
                       'inline-flex items-center justify-center rounded-full transition-all duration-200',
                       sizeClasses[size],
-                      hasBeenChecked && !hasProfile
-                        ? 'bg-muted/50 text-muted-foreground/40 cursor-default'
-                        : cn(platform.bgColor, platform.color, 'hover:scale-110'),
+                      cn(platform.bgColor, platform.color, 'hover:scale-110'),
+                      hasProfile && 'ring-1 ring-primary/40',
                       resolvingPlatform === platform.name.toLowerCase() && 'opacity-60 cursor-wait',
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background'
                     )}
@@ -421,9 +417,7 @@ export default function SocialMediaLookup({
                   <p className="text-sm font-medium">
                     {resolvingPlatform === platform.name.toLowerCase()
                       ? `Resolving ${platform.name} profile...`
-                      : hasBeenChecked && !hasProfile
-                        ? `No ${platform.name} found`
-                        : hasProfile
+                      : hasProfile
                           ? `View ${platform.name} profile`
                           : `Find on ${platform.name}`
                     }
