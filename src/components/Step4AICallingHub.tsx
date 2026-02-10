@@ -330,7 +330,7 @@ export default function Step4AICallingHub({
           {/* Sidebar Header */}
           <div className="p-4 border-b border-border/50">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-emerald-500 flex items-center justify-center shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shrink-0 shadow-md shadow-amber-500/20">
                 <Phone className="w-4 h-4 text-white" />
               </div>
               {!sidebarCollapsed && (
@@ -423,9 +423,17 @@ export default function Step4AICallingHub({
                 {/* ════════ GETTING STARTED ════════ */}
                 {activeSection === 'getting-started' && (
                   <div className="space-y-6">
-                    <div>
-                      <h1 className="text-2xl font-bold text-foreground mb-1">Welcome to AI Calling 👋</h1>
-                      <p className="text-muted-foreground">Follow these steps to start making AI-powered calls to your leads.</p>
+                    {/* Hero Welcome Banner */}
+                    <div className="rounded-3xl bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-primary/10 border border-amber-500/25 p-6">
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
+                          <Phone className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                          <h1 className="text-2xl font-bold text-foreground">Welcome to AI Calling ✨</h1>
+                          <p className="text-sm text-muted-foreground">Follow these steps to start making AI-powered calls to your leads.</p>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Status Banner */}
@@ -487,29 +495,35 @@ export default function Step4AICallingHub({
                     {/* Tier Capabilities */}
                     <div>
                       <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Your Plan Capabilities</h3>
-                      <div className="grid md:grid-cols-2 gap-3">
+                      <div className="grid md:grid-cols-3 gap-3">
                         {[
-                          { tier: 'basic', name: 'Basic · $49', icon: Edit3, features: ['AI generates call scripts', 'You dial manually'], addon: `+$${AI_CALLING_ADDON_PRICE}/mo` },
-                          { tier: 'pro', name: 'Pro · $99', icon: Bot, features: ['AI calls your leads', 'You supervise calls'], addon: `+$${AI_CALLING_ADDON_PRICE}/mo` },
                           { tier: 'autopilot', name: 'Autopilot · $249', icon: Sparkles, features: ['Fully autonomous calling', 'AI texts back & forth', 'Phone included'], included: 'All included!' },
+                          { tier: 'pro', name: 'Pro · $99', icon: Bot, features: ['AI calls your leads', 'You supervise calls'], addon: `+$${AI_CALLING_ADDON_PRICE}/mo` },
+                          { tier: 'basic', name: 'Basic · $49', icon: Edit3, features: ['AI generates call scripts', 'You dial manually'], addon: `+$${AI_CALLING_ADDON_PRICE}/mo` },
                         ].map((tc) => {
                           const isCurrentTier = tier === tc.tier;
+                          const isAutopilotTier = tc.tier === 'autopilot';
                           return (
-                            <div key={tc.tier} className={`rounded-2xl border p-4 ${isCurrentTier ? 'border-primary/30 bg-primary/[0.05] ring-1 ring-primary/20' : 'border-border/40 opacity-50'}`}>
+                            <div key={tc.tier} className={`rounded-2xl border p-4 ${
+                              isCurrentTier && isAutopilotTier ? 'border-amber-500/40 bg-gradient-to-br from-amber-500/10 to-orange-500/5 ring-1 ring-amber-500/25' :
+                              isCurrentTier ? 'border-primary/30 bg-primary/[0.05] ring-1 ring-primary/20' :
+                              isAutopilotTier ? 'border-amber-500/20 bg-amber-500/[0.03]' :
+                              'border-border/40 opacity-50'
+                            }`}>
                               <div className="flex items-center gap-2 mb-2">
-                                <tc.icon className="w-4 h-4 text-primary" />
+                                <tc.icon className={`w-4 h-4 ${isAutopilotTier ? 'text-amber-500' : 'text-primary'}`} />
                                 <span className="font-semibold text-sm">{tc.name}</span>
-                                {isCurrentTier && <Badge className="text-[9px] bg-foreground text-background rounded-full px-2">Current</Badge>}
+                                {isCurrentTier && <Badge className={`text-[9px] rounded-full px-2 ${isAutopilotTier ? 'bg-amber-500 text-white border-0' : 'bg-foreground text-background'}`}>Current</Badge>}
                               </div>
                               <ul className="space-y-1">
                                 {tc.features.map((f, i) => (
                                   <li key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <CheckCircle2 className="w-3 h-3 text-primary shrink-0" /> {f}
+                                    <CheckCircle2 className={`w-3 h-3 shrink-0 ${isAutopilotTier ? 'text-amber-500' : 'text-primary'}`} /> {f}
                                   </li>
                                 ))}
                               </ul>
                               {tc.addon && <div className="mt-2 text-center text-[10px] font-medium rounded-lg py-1 bg-muted/50">{tc.addon}</div>}
-                              {tc.included && <div className="mt-2 text-center text-[10px] font-bold rounded-lg py-1 bg-emerald-500/15 text-emerald-500">{tc.included}</div>}
+                              {tc.included && <div className="mt-2 text-center text-[10px] font-bold rounded-lg py-1 bg-amber-500/15 text-amber-500 border border-amber-500/20">{tc.included}</div>}
                             </div>
                           );
                         })}
