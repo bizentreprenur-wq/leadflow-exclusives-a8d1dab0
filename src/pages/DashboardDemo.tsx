@@ -27,6 +27,7 @@ import {
   Inbox
 } from "lucide-react";
 import { SocialFinderButton } from "@/components/SocialProfileFinder";
+import Step4AICallingHub from "@/components/Step4AICallingHub";
 import EmailHelpOverlay from "@/components/EmailHelpOverlay";
 import HighConvertingTemplateGallery from "@/components/HighConvertingTemplateGallery";
 import LeadSpreadsheetViewer from "@/components/LeadSpreadsheetViewer";
@@ -773,179 +774,24 @@ Best regards,
           );
         })()}
 
-        {/* Step 4: Voice Calling - FULL EXPERIENCE */}
+        {/* Step 4: Voice Calling - Callin.io-inspired Hub */}
         {currentStep === 4 && (
-          <div className="space-y-6">
-            {/* Big Header */}
-            <div className="text-center py-8 bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-2xl border-2 border-green-500/30">
-              <div className="text-7xl mb-4">📞</div>
-              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-                STEP 4: AI Voice Calls
-              </h2>
-              <p className="text-lg text-muted-foreground max-w-xl mx-auto">
-                Call {selectedLeads.length} leads with AI that sounds 100% human!
-              </p>
-            </div>
-
-            {/* Back Button */}
-            <Button variant="outline" onClick={() => setCurrentStep(3)} className="gap-2">
-              ← Back to Emails
-            </Button>
-
-            {/* HOW IT WORKS - Step by Step */}
-            <Card className="border-2 border-primary/30 bg-primary/5">
-              <CardHeader>
-                <CardTitle className="text-center text-2xl">🎯 How Voice Calling Works</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-3 gap-6">
-                  {/* Step 1 */}
-                  <div className="text-center p-4 bg-background rounded-xl border">
-                    <div className="w-16 h-16 rounded-full bg-blue-500/20 flex items-center justify-center mx-auto mb-3 text-3xl">
-                      1️⃣
-                    </div>
-                    <h3 className="font-bold text-lg mb-2">Subscribe to AI Calling</h3>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Add the AI Calling add-on ($8/mo) to your BamLead plan, or upgrade to Autopilot for free calling
-                    </p>
-                    <Badge className="bg-blue-500/20 text-blue-600 border-blue-500/30">
-                      Included with Autopilot
-                    </Badge>
-                  </div>
-
-                  {/* Step 2 */}
-                  <div className="text-center p-4 bg-background rounded-xl border">
-                    <div className="w-16 h-16 rounded-full bg-amber-500/20 flex items-center justify-center mx-auto mb-3 text-3xl">
-                      2️⃣
-                    </div>
-                    <h3 className="font-bold text-lg mb-2">Make Agent Public</h3>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      In your agent settings, toggle "Public" to ON. Then copy the "Agent ID"
-                    </p>
-                    <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30">
-                      Important Step!
-                    </Badge>
-                  </div>
-
-                  {/* Step 3 */}
-                  <div className="text-center p-4 bg-background rounded-xl border">
-                    <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-3 text-3xl">
-                      3️⃣
-                    </div>
-                    <h3 className="font-bold text-lg mb-2">Paste in Settings</h3>
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Go to BamLead Settings → Voice Agent, paste your Agent ID, save, and start calling!
-                    </p>
-                    <Badge className="bg-green-500/20 text-green-600 border-green-500/30">
-                      ✅ Ready to Call!
-                    </Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Call Queue */}
-            <Card className="border-green-500/30">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-xl">
-                  <Phone className="w-6 h-6 text-green-500" />
-                  Your Call Queue ({selectedLeads.length} leads with phone numbers)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {leads.filter(l => selectedLeads.includes(l.id)).slice(0, 8).map((lead, index) => (
-                    <div 
-                      key={lead.id}
-                      className="flex items-center justify-between p-4 rounded-xl border-2 border-border bg-card hover:border-green-500/50 transition-all group"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-green-600 font-bold">
-                          {index + 1}
-                        </div>
-                        <div>
-                          <p className="font-semibold text-lg">{lead.name}</p>
-                          <p className="text-sm text-muted-foreground flex items-center gap-2">
-                            <Phone className="w-3 h-3" />
-                            {lead.phone}
-                            <span className="mx-2">•</span>
-                            📍 {lead.address.split(',')[1]}
-                          </p>
-                        </div>
-                      </div>
-                      <Button 
-                        size="lg" 
-                        className="bg-green-600 hover:bg-green-700 gap-2 opacity-90 group-hover:opacity-100"
-                        onClick={() => toast.info('💡 In the real dashboard, this connects to your BamLead AI Voice Agent!')}
-                      >
-                        <Phone className="w-5 h-5" />
-                        Call Now
-                      </Button>
-                    </div>
-                  ))}
-                  {selectedLeads.length > 8 && (
-                    <div className="text-center py-4 border-2 border-dashed border-border rounded-xl">
-                      <p className="text-muted-foreground">+ {selectedLeads.length - 8} more leads ready to call</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* What AI Says */}
-            <Card className="border-violet-500/30 bg-violet-500/5">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  🎙️ What Your AI Agent Will Say (Example)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4 text-sm">
-                  <div className="flex gap-3 items-start">
-                    <Badge className="shrink-0 bg-violet-500">AI</Badge>
-                    <p className="bg-violet-500/10 p-3 rounded-lg rounded-tl-none">
-                      "Hi! I'm calling from [Your Business]. I noticed your company might benefit from our services. Do you have 2 minutes to chat?"
-                    </p>
-                  </div>
-                  <div className="flex gap-3 items-start justify-end">
-                    <p className="bg-muted p-3 rounded-lg rounded-tr-none text-right">
-                      "Sure, what's this about?"
-                    </p>
-                    <Badge variant="secondary" className="shrink-0">Lead</Badge>
-                  </div>
-                  <div className="flex gap-3 items-start">
-                    <Badge className="shrink-0 bg-violet-500">AI</Badge>
-                    <p className="bg-violet-500/10 p-3 rounded-lg rounded-tl-none">
-                      "Great! I'm reaching out to help businesses like yours get more customers. What's your biggest challenge with marketing right now?"
-                    </p>
-                  </div>
-                </div>
-                <p className="text-xs text-muted-foreground mt-4 text-center">
-                  💡 You customize the AI script directly in your BamLead dashboard
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Demo CTA */}
-            <Card className="bg-gradient-to-r from-green-500 to-emerald-600 text-white border-0">
-              <CardContent className="py-8 text-center">
-                <h3 className="text-2xl font-bold mb-2">Ready to Start Calling?</h3>
-                <p className="text-green-100 mb-6">
-                  Sign in to access the full voice calling features
-                </p>
-                <div className="flex justify-center gap-4">
-                  <Button variant="secondary" size="lg" asChild>
-                    <a href="/auth">Sign In to Dashboard</a>
-                  </Button>
-                  <Button variant="outline" size="lg" className="text-white border-white hover:bg-white/10" asChild>
-                    <a href="/pricing">
-                      View Pricing Plans
-                    </a>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <Step4AICallingHub
+            leads={leads.filter(l => selectedLeads.includes(l.id)).map(l => ({
+              id: String(l.id),
+              email: l.email || undefined,
+              business_name: l.name,
+              name: l.name,
+              phone: l.phone,
+              website: l.website,
+            }))}
+            onBack={() => setCurrentStep(3)}
+            onOpenSettings={() => toast.info('Settings would open here')}
+            onOpenCRMModal={() => toast.info('CRM modal would open here')}
+            searchType="gmb"
+            searchQuery={searchQuery}
+            searchLocation={searchLocation}
+          />
         )}
 
         {/* Step 5: AI Mailbox - Full Experience */}
