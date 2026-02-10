@@ -267,6 +267,7 @@ export default function SocialMediaLookup({
       const platformKey = normalizePlatformKey(platform.name);
       if (resolvingPlatform === platformKey) return;
 
+      let newWindow: Window | null = null;
       try {
         setResolvingPlatform(platformKey);
         const knownProfileUrl = getProfileForPlatform(platform.name)?.url ?? null;
@@ -275,14 +276,14 @@ export default function SocialMediaLookup({
           return;
         }
 
-        const pendingWindow = window.open('', '_blank');
-        if (!pendingWindow) {
+        newWindow = window.open('', '_blank');
+        if (!newWindow) {
           toast.error('Popup blocked. Please allow popups for this site.');
           return;
         }
 
-        pendingWindow.document.title = `Opening ${platform.name} profile...`;
-        pendingWindow.document.body.innerHTML = `
+        newWindow.document.title = `Opening ${platform.name} profile...`;
+        newWindow.document.body.innerHTML = `
           <div style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#020b1f;color:#dbeafe;font-family:Inter,system-ui,sans-serif;">
             <div style="text-align:center;max-width:460px;padding:28px 24px;border:1px solid rgba(56,189,248,.25);border-radius:14px;background:rgba(2,20,43,.8);">
               <div style="width:34px;height:34px;margin:0 auto 14px;border:3px solid rgba(56,189,248,.2);border-top-color:#22d3ee;border-radius:999px;animation:spin 0.9s linear infinite;"></div>
@@ -301,14 +302,14 @@ export default function SocialMediaLookup({
         }
 
         if (exactUrl && isLikelyExactProfileUrl(platform.name, exactUrl)) {
-          pendingWindow.location.replace(exactUrl);
+          newWindow.location.replace(exactUrl);
           return;
         }
 
-        pendingWindow.close();
+        newWindow.close();
         toast.info(`No exact ${platform.name} profile found for this lead yet.`);
       } catch (error) {
-        pendingWindow.close();
+        newWindow?.close();
         toast.error(`Could not resolve ${platform.name} profile URL`);
       } finally {
         setResolvingPlatform(null);
