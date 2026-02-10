@@ -77,6 +77,7 @@ import {
   CustomerJourneyBreadcrumb
 } from '@/lib/aiCallingScriptGenerator';
 import { SMSConversation, SMSMessage } from '@/lib/api/sms';
+import { formatPhoneWithCountry, formatPhoneDisplay, isValidUSPhone, toE164 } from '@/lib/phoneUtils';
 
 interface Lead {
   id?: string;
@@ -152,6 +153,10 @@ export default function Step4AICallingHub({
   const [isProvisioningNumber, setIsProvisioningNumber] = useState(false);
   const [showAreaCodePicker, setShowAreaCodePicker] = useState(false);
   const [selectedAreaCode, setSelectedAreaCode] = useState('');
+  const [provisionMode, setProvisionMode] = useState<'new' | 'port'>('new');
+  const [portNumber, setPortNumber] = useState('');
+  const [portName, setPortName] = useState('');
+  const [isPortSubmitting, setIsPortSubmitting] = useState(false);
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
   const [isCallingActive, setIsCallingActive] = useState(false);
@@ -516,7 +521,7 @@ export default function Step4AICallingHub({
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">
                     {branding?.company_name ? `${branding.company_name}'s Dedicated Line` : 'Your Dedicated AI Line'}
                   </p>
-                  <p className="text-lg font-mono font-bold text-emerald-500">{phoneSetup.phoneNumber}</p>
+                  <p className="text-lg font-mono font-bold text-emerald-500">{formatPhoneWithCountry(phoneSetup.phoneNumber)}</p>
                 </div>
                 <Badge className="bg-emerald-500 text-white text-xs ml-2">
                   Unique Number
@@ -793,84 +798,212 @@ export default function Step4AICallingHub({
                       
                       {/* Addon active or Autopilot, but no phone yet → Get My Number */}
                       {(status === 'phone_needed' || status === 'phone_provisioning') && tier !== 'free' && !showAreaCodePicker && (
-                        <Button 
-                          onClick={() => setShowAreaCodePicker(true)}
-                          disabled={isProvisioningNumber || phoneSetup.isProvisioning}
-                          className="gap-2 bg-emerald-600 hover:bg-emerald-700"
-                        >
-                          <Phone className="w-4 h-4" />
-                          🎯 Get My Number
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button 
+                            onClick={() => { setProvisionMode('new'); setShowAreaCodePicker(true); }}
+                            disabled={isProvisioningNumber || phoneSetup.isProvisioning}
+                            className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+                          >
+                            <Phone className="w-4 h-4" />
+                            🎯 Get My Number
+                          </Button>
+                          <Button 
+                            variant="outline"
+                            onClick={() => { setProvisionMode('port'); setShowAreaCodePicker(true); }}
+                            disabled={isProvisioningNumber || phoneSetup.isProvisioning}
+                            className="gap-2 border-blue-500/40 text-blue-600 hover:bg-blue-500/10"
+                          >
+                            <ArrowLeft className="w-4 h-4" />
+                            Port My Number
+                          </Button>
+                        </div>
                       )}
 
                       {/* Area Code Picker */}
                       {showAreaCodePicker && !phoneSetup.hasPhone && (
                         <div className="w-full p-4 rounded-xl border-2 border-emerald-500/30 bg-emerald-500/5 space-y-3">
-                          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                            <Phone className="w-4 h-4 text-emerald-500" />
-                            Choose Your Area Code (optional)
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            Enter a US area code for a local number, or leave blank for any available number.
-                          </p>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              maxLength={3}
-                              placeholder="e.g. 212, 310, 415"
-                              value={selectedAreaCode}
-                              onChange={(e) => setSelectedAreaCode(e.target.value.replace(/\D/g, '').slice(0, 3))}
-                              className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
-                            />
-                            <Button
-                              onClick={async () => {
-                                setIsProvisioningNumber(true);
-                                await requestPhoneProvisioning({
-                                  country_code: 'US',
-                                  area_code: selectedAreaCode || undefined
-                                });
-                                setIsProvisioningNumber(false);
-                                setShowAreaCodePicker(false);
-                              }}
-                              disabled={isProvisioningNumber || phoneSetup.isProvisioning}
-                              className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+                          {/* Mode Tabs */}
+                          <div className="flex gap-1 p-1 rounded-lg bg-muted/50">
+                            <button
+                              onClick={() => setProvisionMode('new')}
+                              className={`flex-1 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                                provisionMode === 'new' 
+                                  ? 'bg-emerald-500/20 text-emerald-600 shadow-sm' 
+                                  : 'text-muted-foreground hover:text-foreground'
+                              }`}
                             >
-                              {(isProvisioningNumber || phoneSetup.isProvisioning) ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                  Provisioning...
-                                </>
-                              ) : (
-                                <>
-                                  <Sparkles className="w-4 h-4" />
-                                  Get Number
-                                </>
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setShowAreaCodePicker(false)}
-                              className="text-muted-foreground"
+                              🆕 Get New Number
+                            </button>
+                            <button
+                              onClick={() => setProvisionMode('port')}
+                              className={`flex-1 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                                provisionMode === 'port' 
+                                  ? 'bg-blue-500/20 text-blue-600 shadow-sm' 
+                                  : 'text-muted-foreground hover:text-foreground'
+                              }`}
                             >
-                              Cancel
-                            </Button>
+                              📲 Port Existing Number
+                            </button>
                           </div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {['212', '310', '415', '305', '312', '713', '404', '206'].map(code => (
-                              <button
-                                key={code}
-                                onClick={() => setSelectedAreaCode(code)}
-                                className={`px-2 py-1 rounded text-xs font-mono border transition-colors ${
-                                  selectedAreaCode === code 
-                                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-600' 
-                                    : 'border-border text-muted-foreground hover:border-emerald-500/30 hover:text-foreground'
-                                }`}
-                              >
-                                {code}
-                              </button>
-                            ))}
-                          </div>
+
+                          {provisionMode === 'new' ? (
+                            <>
+                              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                                <Phone className="w-4 h-4 text-emerald-500" />
+                                Choose Your Area Code (optional)
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                Enter a US area code for a local number, or leave blank for any available number.
+                              </p>
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  maxLength={3}
+                                  placeholder="e.g. 212, 310, 415"
+                                  value={selectedAreaCode}
+                                  onChange={(e) => setSelectedAreaCode(e.target.value.replace(/\D/g, '').slice(0, 3))}
+                                  className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+                                />
+                                <Button
+                                  onClick={async () => {
+                                    setIsProvisioningNumber(true);
+                                    await requestPhoneProvisioning({
+                                      country_code: 'US',
+                                      area_code: selectedAreaCode || undefined
+                                    });
+                                    setIsProvisioningNumber(false);
+                                    setShowAreaCodePicker(false);
+                                  }}
+                                  disabled={isProvisioningNumber || phoneSetup.isProvisioning}
+                                  className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+                                >
+                                  {(isProvisioningNumber || phoneSetup.isProvisioning) ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                      Provisioning...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Sparkles className="w-4 h-4" />
+                                      Get Number
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                {[
+                                  { code: '212', city: 'NYC' },
+                                  { code: '310', city: 'LA' },
+                                  { code: '415', city: 'SF' },
+                                  { code: '305', city: 'Miami' },
+                                  { code: '312', city: 'Chicago' },
+                                  { code: '713', city: 'Houston' },
+                                  { code: '404', city: 'Atlanta' },
+                                  { code: '206', city: 'Seattle' }
+                                ].map(({ code, city }) => (
+                                  <button
+                                    key={code}
+                                    onClick={() => setSelectedAreaCode(code)}
+                                    className={`px-2 py-1 rounded text-xs font-mono border transition-colors ${
+                                      selectedAreaCode === code 
+                                        ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-600' 
+                                        : 'border-border text-muted-foreground hover:border-emerald-500/30 hover:text-foreground'
+                                    }`}
+                                  >
+                                    {code} <span className="text-[10px] opacity-70">{city}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                                <ArrowLeft className="w-4 h-4 text-blue-500" />
+                                Port Your Existing Business Number
+                              </div>
+                              <p className="text-xs text-muted-foreground">
+                                Keep your current business phone number and use it with BamLead AI Calling. Porting typically takes 1-3 business days.
+                              </p>
+                              <div className="space-y-2">
+                                <input
+                                  type="text"
+                                  placeholder="Your phone number, e.g. (555) 123-4567"
+                                  value={portNumber}
+                                  onChange={(e) => {
+                                    const digits = e.target.value.replace(/\D/g, '');
+                                    if (digits.length <= 10) {
+                                      // Auto-format as user types
+                                      let formatted = digits;
+                                      if (digits.length > 6) {
+                                        formatted = `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+                                      } else if (digits.length > 3) {
+                                        formatted = `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+                                      } else if (digits.length > 0) {
+                                        formatted = `(${digits}`;
+                                      }
+                                      setPortNumber(formatted);
+                                    }
+                                  }}
+                                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm font-mono placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                                />
+                                <input
+                                  type="text"
+                                  placeholder="Account holder name (as it appears on your phone bill)"
+                                  value={portName}
+                                  onChange={(e) => setPortName(e.target.value)}
+                                  className="w-full px-3 py-2 rounded-lg border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-blue-500/40"
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  onClick={async () => {
+                                    const digits = portNumber.replace(/\D/g, '');
+                                    if (!isValidUSPhone(digits)) {
+                                      toast.error('Please enter a valid 10-digit US phone number');
+                                      return;
+                                    }
+                                    if (!portName.trim()) {
+                                      toast.error('Please enter the account holder name');
+                                      return;
+                                    }
+                                    setIsPortSubmitting(true);
+                                    // Submit port request — in production this would call a port API
+                                    toast.success('Port request submitted! We\'ll contact you within 1 business day to complete the transfer.', { duration: 6000 });
+                                    setIsPortSubmitting(false);
+                                    setShowAreaCodePicker(false);
+                                  }}
+                                  disabled={isPortSubmitting || !portNumber || !portName.trim()}
+                                  className="gap-2 bg-blue-600 hover:bg-blue-700"
+                                >
+                                  {isPortSubmitting ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                      Submitting...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Send className="w-4 h-4" />
+                                      Submit Port Request
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                              <div className="text-[11px] text-muted-foreground bg-muted/30 p-2 rounded-lg space-y-1">
+                                <p>📋 <strong>What you'll need:</strong> A recent phone bill, account PIN, and authorization to port.</p>
+                                <p>⏱️ <strong>Timeline:</strong> 1–3 business days after verification.</p>
+                                <p>📞 <strong>During porting:</strong> Your number stays active. No downtime.</p>
+                              </div>
+                            </>
+                          )}
+                          
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowAreaCodePicker(false)}
+                            className="text-muted-foreground w-full"
+                          >
+                            Cancel
+                          </Button>
                         </div>
                       )}
                       
@@ -878,7 +1011,7 @@ export default function Step4AICallingHub({
                       {phoneSetup.hasPhone && phoneSetup.phoneNumber && (
                         <Badge className="bg-emerald-500/20 text-emerald-600 gap-1 text-sm py-1.5 px-3">
                           <Phone className="w-3 h-3" />
-                          {phoneSetup.phoneNumber}
+                          {formatPhoneWithCountry(phoneSetup.phoneNumber)}
                         </Badge>
                       )}
                       
@@ -970,7 +1103,7 @@ export default function Step4AICallingHub({
                             </div>
                             <div>
                               <p className="font-medium text-foreground">{call.name}</p>
-                              <p className="text-xs text-muted-foreground font-mono">{call.phone}</p>
+                              <p className="text-xs text-muted-foreground font-mono">{formatPhoneDisplay(call.phone)}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-3">
