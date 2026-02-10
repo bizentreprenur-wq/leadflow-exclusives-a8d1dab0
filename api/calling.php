@@ -1,9 +1,9 @@
 <?php
 /**
- * Calling.io Voice API Endpoint
+ * Voice Calling API Endpoint
  * Handles AI voice agent configuration, call initiation, and real-time conversation
  * 
- * This integrates with calling.io for AI-powered outbound voice calls
+ * Uses Telnyx for AI-powered outbound voice calls
  */
 
 require_once __DIR__ . '/includes/database.php';
@@ -16,8 +16,8 @@ header('Content-Type: application/json');
 setCorsHeaders();
 handlePreflight();
 
-// Calling.io API base URL
-define('CALLING_IO_API_BASE', 'https://api.calling.io/v1');
+$action = $_GET['action'] ?? '';
+$db = getDB();
 
 $action = $_GET['action'] ?? '';
 $db = getDB();
@@ -93,13 +93,13 @@ try {
             echo json_encode(['success' => false, 'error' => 'Invalid action']);
     }
 } catch (Exception $e) {
-    error_log("Calling.io API Error: " . $e->getMessage());
+    error_log("Voice Calling API Error: " . $e->getMessage());
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 }
 
 /**
- * Get user's calling.io configuration
+ * Get user's calling configuration
  */
 function handleGetConfig($db, $user) {
     $stmt = $db->prepare("SELECT * FROM calling_config WHERE user_id = ?");
@@ -130,7 +130,7 @@ function handleGetConfig($db, $user) {
 }
 
 /**
- * Save calling.io configuration
+ * Save calling configuration
  */
 function handleSaveConfig($db, $user) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -188,7 +188,7 @@ function handleSaveConfig($db, $user) {
 }
 
 /**
- * Provision a phone number for the user via calling.io API
+ * Provision a phone number for the user via Telnyx API
  */
 function handleProvisionNumber($db, $user) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -236,8 +236,8 @@ function handleProvisionNumber($db, $user) {
         }
     }
     
-    // Call calling.io API to provision number
-    $callingApiKey = defined('CALLING_IO_API_KEY') ? CALLING_IO_API_KEY : '';
+    // Call Telnyx API to provision number
+    $callingApiKey = defined('TELNYX_API_KEY') ? TELNYX_API_KEY : '';
     
     if (!$callingApiKey) {
         // Simulate provisioning for development/demo
@@ -264,8 +264,8 @@ function handleProvisionNumber($db, $user) {
         return;
     }
     
-    // Real API call to calling.io
-    $ch = curl_init(CALLING_IO_API_BASE . '/phone-numbers/provision');
+    // Real API call to Telnyx
+    $ch = curl_init('https://api.telnyx.com/v2/available_phone_numbers?filter[country_code]=' . $countryCode . ($areaCode ? '&filter[national_destination_code]=' . $areaCode : '') . '&filter[limit]=5&filter[features][]=voice&filter[features][]=sms');
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
@@ -345,7 +345,7 @@ function handleStartSession($db, $user) {
         return;
     }
     
-    $callingApiKey = defined('CALLING_IO_API_KEY') ? CALLING_IO_API_KEY : '';
+    $callingApiKey = defined('TELNYX_API_KEY') ? TELNYX_API_KEY : '';
     
     if (!$callingApiKey) {
         // Return simulated session for development
@@ -355,7 +355,7 @@ function handleStartSession($db, $user) {
             'success' => true,
             'session' => [
                 'token' => $sessionToken,
-                'websocket_url' => 'wss://api.calling.io/v1/realtime',
+                'websocket_url' => 'wss://api.telnyx.com/v2/calls',
                 'ice_servers' => [
                     ['urls' => 'stun:stun.l.google.com:19302'],
                     ['urls' => 'stun:stun1.l.google.com:19302']
@@ -368,8 +368,8 @@ function handleStartSession($db, $user) {
         return;
     }
     
-    // Real API call to calling.io to create session
-    $ch = curl_init(CALLING_IO_API_BASE . '/sessions');
+    // Real API call to Telnyx to create session
+    $ch = curl_init('https://api.telnyx.com/v2/calls');
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
@@ -400,7 +400,7 @@ function handleStartSession($db, $user) {
             'success' => true,
             'session' => [
                 'token' => $data['session_token'] ?? '',
-                'websocket_url' => $data['websocket_url'] ?? 'wss://api.calling.io/v1/realtime',
+                'websocket_url' => $data['websocket_url'] ?? 'wss://api.telnyx.com/v2/calls',
                 'ice_servers' => $data['ice_servers'] ?? [],
                 'agent_id' => $data['agent_id'] ?? $config['agent_id'],
                 'expires_at' => $data['expires_at'] ?? time() + 3600
@@ -428,7 +428,7 @@ function handleEndSession($db, $user) {
     $input = json_decode(file_get_contents('php://input'), true);
     $sessionToken = $input['session_token'] ?? '';
     
-    $callingApiKey = defined('CALLING_IO_API_KEY') ? CALLING_IO_API_KEY : '';
+    $callingApiKey = defined('TELNYX_API_KEY') ? TELNYX_API_KEY : '';
     
     if (!$callingApiKey) {
         // Simulated end
@@ -436,7 +436,7 @@ function handleEndSession($db, $user) {
         return;
     }
     
-    $ch = curl_init(CALLING_IO_API_BASE . '/sessions/' . $sessionToken . '/end');
+    $ch = curl_init('https://api.telnyx.com/v2/calls/' . $sessionToken . '/actions/hangup');
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
@@ -454,7 +454,7 @@ function handleEndSession($db, $user) {
 }
 
 /**
- * Initiate an outbound call via calling.io
+ * Initiate an outbound call via Telnyx
  */
 function handleInitiateCall($db, $user) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -484,7 +484,7 @@ function handleInitiateCall($db, $user) {
         return;
     }
     
-    $callingApiKey = defined('CALLING_IO_API_KEY') ? CALLING_IO_API_KEY : '';
+    $callingApiKey = defined('TELNYX_API_KEY') ? TELNYX_API_KEY : '';
     
     if (!$callingApiKey) {
         // Simulated call for development
@@ -514,7 +514,7 @@ function handleInitiateCall($db, $user) {
                 'id' => $callId,
                 'call_log_id' => $callLogId,
                 'session_token' => $sessionToken,
-                'websocket_url' => 'wss://api.calling.io/v1/realtime',
+                'websocket_url' => 'wss://api.telnyx.com/v2/calls',
                 'status' => 'initiating'
             ],
             'simulated' => true
@@ -522,8 +522,8 @@ function handleInitiateCall($db, $user) {
         return;
     }
     
-    // Real API call to calling.io
-    $ch = curl_init(CALLING_IO_API_BASE . '/calls');
+    // Real API call to Telnyx
+    $ch = curl_init('https://api.telnyx.com/v2/calls');
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
@@ -575,7 +575,7 @@ function handleInitiateCall($db, $user) {
                 'id' => $data['call_id'] ?? '',
                 'call_log_id' => $callLogId,
                 'session_token' => $data['session_token'] ?? '',
-                'websocket_url' => $data['websocket_url'] ?? 'wss://api.calling.io/v1/realtime',
+                'websocket_url' => $data['websocket_url'] ?? 'wss://api.telnyx.com/v2/calls',
                 'status' => $data['status'] ?? 'initiating'
             ]
         ]);
@@ -601,14 +601,14 @@ function handleHangupCall($db, $user) {
     $input = json_decode(file_get_contents('php://input'), true);
     $callId = $input['call_id'] ?? '';
     
-    $callingApiKey = defined('CALLING_IO_API_KEY') ? CALLING_IO_API_KEY : '';
+    $callingApiKey = defined('TELNYX_API_KEY') ? TELNYX_API_KEY : '';
     
     if (!$callingApiKey) {
         echo json_encode(['success' => true, 'message' => 'Call ended']);
         return;
     }
     
-    $ch = curl_init(CALLING_IO_API_BASE . '/calls/' . $callId . '/hangup');
+    $ch = curl_init('https://api.telnyx.com/v2/calls/' . $callId . '/actions/hangup');
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
@@ -631,7 +631,7 @@ function handleHangupCall($db, $user) {
 function handleCallStatus($db, $user) {
     $callId = $_GET['call_id'] ?? '';
     
-    $callingApiKey = defined('CALLING_IO_API_KEY') ? CALLING_IO_API_KEY : '';
+    $callingApiKey = defined('TELNYX_API_KEY') ? TELNYX_API_KEY : '';
     
     if (!$callingApiKey) {
         // Simulated status
@@ -644,7 +644,7 @@ function handleCallStatus($db, $user) {
         return;
     }
     
-    $ch = curl_init(CALLING_IO_API_BASE . '/calls/' . $callId . '/status');
+    $ch = curl_init('https://api.telnyx.com/v2/calls/' . $callId);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_HTTPHEADER => [
@@ -805,7 +805,7 @@ function handlePurchaseAddon($db, $user) {
 }
 
 /**
- * Handle calling.io webhook events
+ * Handle Telnyx webhook events
  */
 function handleWebhook($db) {
     $input = json_decode(file_get_contents('php://input'), true);
@@ -820,7 +820,7 @@ function handleWebhook($db) {
     $callId = $input['call_id'] ?? '';
     $userId = $_GET['user_id'] ?? null;
     
-    error_log("Calling.io webhook: " . $event . " for call " . $callId);
+    error_log("Telnyx webhook: " . $event . " for call " . $callId);
     
     switch ($event) {
         case 'call.started':

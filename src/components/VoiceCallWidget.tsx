@@ -1,8 +1,8 @@
 /**
  * Voice Call Widget
- * AI-powered voice calling interface using calling.io infrastructure
+ * AI-powered voice calling interface using Telnyx infrastructure
  * 
- * NOTE: Using calling.io as hidden backend infrastructure
+ * NOTE: Using Telnyx as backend infrastructure
  * Customers only see BamLead branding
  */
 
@@ -113,7 +113,7 @@ export default function VoiceCallWidget({
     transcriptRef.current = [];
 
     try {
-      // Simulate connection (in production, this would call the calling.io API)
+      // Simulate connection (in production, this would call the Telnyx API)
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       setIsConnected(true);

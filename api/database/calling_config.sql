@@ -1,4 +1,4 @@
--- Calling.io Configuration Table
+-- Voice Calling Configuration Table
 -- Run this migration on your MySQL database
 
 CREATE TABLE IF NOT EXISTS calling_config (

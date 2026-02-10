@@ -1,5 +1,5 @@
 /**
- * Step 4 AI Calling Hub — Callin.io-inspired redesign
+ * Step 4 AI Calling Hub
  * Clean card-based SaaS aesthetic with rounded sections, generous spacing,
  * soft gradients, and polished phone/call interface styling.
  */
@@ -75,7 +75,7 @@ const CRM_OPTIONS = [
   { id: 'pipedrive', name: 'Pipedrive', icon: '🟢', color: 'from-green-500 to-green-600' },
 ];
 
-/* ── Callin.io-style stat pill ── */
+/* ── Stat pill ── */
 function StatPill({ value, label, icon: Icon, accent = 'primary' }: { value: string | number; label: string; icon: React.ElementType; accent?: string }) {
   const colorMap: Record<string, string> = {
     primary: 'from-primary/15 to-primary/5 border-primary/25 text-primary',
@@ -286,7 +286,7 @@ export default function Step4AICallingHub({
           </Button>
         </div>
 
-        {/* ── HERO HEADER — Callin.io style ── */}
+        {/* ── HERO HEADER ── */}
         <motion.div
           initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -352,7 +352,7 @@ export default function Step4AICallingHub({
           </div>
         </motion.div>
 
-        {/* ── MAIN TABS — pill-style like Callin.io ── */}
+        {/* ── MAIN TABS ── */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="flex items-center justify-center">
             <TabsList className="h-12 rounded-2xl bg-muted/60 border border-border/50 p-1 gap-1">

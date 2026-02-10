@@ -10,7 +10,7 @@
  * 
  * V1 RULES:
  * - One phone number per customer
- * - BamLead provisions phone numbers via calling.io API
+ * - BamLead provisions phone numbers via Telnyx API
  * - $8/month add-on for Free/Basic/Pro tiers
  * - Autopilot includes phone number in subscription
  */
@@ -163,7 +163,7 @@ export function useAICalling() {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        // Load Telnyx/calling.io config
+        // Load Telnyx config
         const result = await getTelnyxConfig();
         if (result.success && result.config) {
           setConfig(result.config);
@@ -329,7 +329,7 @@ export function useAICalling() {
       return { success: false, error: 'No phone number to verify' };
     }
     
-    // In production, this verifies the calling.io connection
+    // In production, this verifies the Telnyx connection
     setPhoneSetup(prev => ({ ...prev, isVerified: true }));
     
     if (config) {
