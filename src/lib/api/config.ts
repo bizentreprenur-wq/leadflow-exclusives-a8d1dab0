@@ -94,6 +94,7 @@ export const SEARCH_ENDPOINTS = {
   analyze: `${API_BASE_URL}/analyze-website.php`,
   scrapeContacts: `${API_BASE_URL}/scrape-website-contacts.php`,
   scrapeSocialContacts: `${API_BASE_URL}/scrape-social-contacts.php`,
+  socialSearchPreview: `${API_BASE_URL}/social-search-preview.php`,
 };
 
 // Helper to get auth headers

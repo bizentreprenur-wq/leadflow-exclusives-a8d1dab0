@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { ExternalLink, Mail, Phone, Loader2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { scrapeSocialContacts, SocialContactsResult } from '@/lib/api/socialContacts';
+import { fetchSocialSearchPreview } from '@/lib/api/socialSearchPreview';
 import { toast } from 'sonner';
 
 interface SocialMediaLookupProps {
@@ -106,9 +107,8 @@ export default function SocialMediaLookup({
   onContactsFound,
   enrichment,
 }: SocialMediaLookupProps) {
-  const [openPlatform, setOpenPlatform] = useState<typeof socialPlatforms[0] | null>(null);
-  const [searchUrl, setSearchUrl] = useState('');
   const [isScrapingContacts, setIsScrapingContacts] = useState(false);
+  const [resolvingPlatform, setResolvingPlatform] = useState<string | null>(null);
   const [socialContacts, setSocialContacts] = useState<SocialContactsResult | null>(null);
   const [showContactsPanel, setShowContactsPanel] = useState(false);
   const [wasPreScraped, setWasPreScraped] = useState(false);
@@ -205,12 +205,117 @@ export default function SocialMediaLookup({
     }
   };
 
+  const normalizePlatformKey = (platformName: string): string => {
+    return platformName.trim().toLowerCase();
+  };
+
+  const isLikelyExactProfileUrl = (platformName: string, url: string): boolean => {
+    const platform = normalizePlatformKey(platformName);
+    try {
+      const parsed = new URL(url.startsWith('http') ? url : `https://${url}`);
+      const path = parsed.pathname.toLowerCase();
+      const query = parsed.search.toLowerCase();
+      const joined = `${path}${query}`;
+
+      if (platform === 'facebook') {
+        if (joined.includes('/search') || joined.includes('/groups') || joined.includes('/events')) return false;
+        if (path === '/' || path === '') return false;
+        if (path.includes('/profile.php') && query.includes('id=')) return true;
+        return /^\/[a-z0-9.\-_]+\/?$/i.test(path);
+      }
+
+      if (platform === 'linkedin') {
+        if (joined.includes('/search')) return false;
+        return /^\/(company|in)\/[a-z0-9\-_]+\/?$/i.test(path);
+      }
+
+      if (platform === 'tiktok') {
+        return path.startsWith('/@');
+      }
+
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const getProfileForPlatform = (platformName: string): { url: string; title?: string; snippet?: string } | null => {
+    const platformKey = normalizePlatformKey(platformName);
+    const fromContacts =
+      socialContacts?.contacts?.profiles?.[platformKey] ||
+      socialContacts?.contacts?.profiles?.[platformName];
+
+    if (fromContacts?.url && isLikelyExactProfileUrl(platformName, fromContacts.url)) {
+      return fromContacts;
+    }
+
+    const fromEnrichment =
+      enrichment?.socials?.[platformKey] ||
+      enrichment?.socials?.[platformName];
+
+    if (fromEnrichment && isLikelyExactProfileUrl(platformName, fromEnrichment)) {
+      return { url: fromEnrichment };
+    }
+
+    return null;
+  };
+
   const handleClick = (platform: typeof socialPlatforms[0], e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    const url = platform.getSearchUrl(businessName, location);
-    setSearchUrl(url);
-    setOpenPlatform(platform);
+    const openExactProfile = async () => {
+      const platformKey = normalizePlatformKey(platform.name);
+      if (resolvingPlatform === platformKey) return;
+
+      try {
+        setResolvingPlatform(platformKey);
+        const knownProfileUrl = getProfileForPlatform(platform.name)?.url ?? null;
+        if (knownProfileUrl) {
+          window.open(knownProfileUrl, '_blank', 'noopener,noreferrer');
+          return;
+        }
+
+        const pendingWindow = window.open('', '_blank');
+        if (!pendingWindow) {
+          toast.error('Popup blocked. Please allow popups for this site.');
+          return;
+        }
+
+        pendingWindow.document.title = `Opening ${platform.name} profile...`;
+        pendingWindow.document.body.innerHTML = `
+          <div style="margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#020b1f;color:#dbeafe;font-family:Inter,system-ui,sans-serif;">
+            <div style="text-align:center;max-width:460px;padding:28px 24px;border:1px solid rgba(56,189,248,.25);border-radius:14px;background:rgba(2,20,43,.8);">
+              <div style="width:34px;height:34px;margin:0 auto 14px;border:3px solid rgba(56,189,248,.2);border-top-color:#22d3ee;border-radius:999px;animation:spin 0.9s linear infinite;"></div>
+              <div style="font-size:18px;font-weight:600;margin-bottom:8px;">Resolving exact ${platform.name} profile URL...</div>
+              <div style="font-size:13px;opacity:.85;">Fetching best match for ${businessName}. This should take a few seconds.</div>
+            </div>
+          </div>
+          <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+        `;
+
+        let exactUrl = null;
+
+        if (!exactUrl) {
+          const resolved = await fetchSocialSearchPreview(businessName, location, platformKey);
+          exactUrl = resolved.exactProfileUrl ?? null;
+        }
+
+        if (exactUrl && isLikelyExactProfileUrl(platform.name, exactUrl)) {
+          pendingWindow.location.replace(exactUrl);
+          return;
+        }
+
+        pendingWindow.close();
+        toast.info(`No exact ${platform.name} profile found for this lead yet.`);
+      } catch (error) {
+        pendingWindow.close();
+        toast.error(`Could not resolve ${platform.name} profile URL`);
+      } finally {
+        setResolvingPlatform(null);
+      }
+    };
+
+    void openExactProfile();
   };
 
   const hasContacts = socialContacts?.contacts && 
@@ -290,26 +395,36 @@ export default function SocialMediaLookup({
                 <TooltipTrigger asChild>
                   <button
                     onClick={(e) => handleClick(platform, e)}
+                    disabled={resolvingPlatform === platform.name.toLowerCase()}
                     className={cn(
                       'inline-flex items-center justify-center rounded-full transition-all duration-200',
                       sizeClasses[size],
                       hasBeenChecked && !hasProfile
                         ? 'bg-muted/50 text-muted-foreground/40 cursor-default'
                         : cn(platform.bgColor, platform.color, 'hover:scale-110'),
+                      resolvingPlatform === platform.name.toLowerCase() && 'opacity-60 cursor-wait',
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background'
                     )}
                     aria-label={`Find ${businessName} on ${platform.name}`}
                   >
-                    <span className={iconSize[size]}>{platform.icon}</span>
+                    <span className={iconSize[size]}>
+                      {resolvingPlatform === platform.name.toLowerCase() ? (
+                        <Loader2 className="w-full h-full animate-spin" />
+                      ) : (
+                        platform.icon
+                      )}
+                    </span>
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="top" className="bg-popover border-border">
                   <p className="text-sm font-medium">
-                    {hasBeenChecked && !hasProfile 
-                      ? `No ${platform.name} found` 
-                      : hasProfile 
-                        ? `View ${platform.name} profile`
-                        : `Find on ${platform.name}`
+                    {resolvingPlatform === platform.name.toLowerCase()
+                      ? `Resolving ${platform.name} profile...`
+                      : hasBeenChecked && !hasProfile
+                        ? `No ${platform.name} found`
+                        : hasProfile
+                          ? `View ${platform.name} profile`
+                          : `Find on ${platform.name}`
                     }
                   </p>
                 </TooltipContent>
@@ -461,81 +576,8 @@ export default function SocialMediaLookup({
         </DialogContent>
       </Dialog>
 
-      {/* In-app social search dialog */}
-      <Dialog open={!!openPlatform} onOpenChange={(open) => !open && setOpenPlatform(null)}>
-        <DialogContent className="w-[min(98vw,90rem)] h-[95vh] max-w-none p-0 overflow-hidden">
-          <DialogHeader className="p-4 pb-0">
-            <DialogTitle className="flex items-center gap-2">
-              {openPlatform && (
-                <span className={cn('w-5 h-5', openPlatform.color)}>
-                  {openPlatform.icon}
-                </span>
-              )}
-              {businessName} on {openPlatform?.name}
-            </DialogTitle>
-            <DialogDescription className="flex items-center justify-between gap-3">
-              <span className="truncate text-xs">{searchUrl}</span>
-              <Button asChild size="sm" variant="outline" className="shrink-0 gap-2">
-                <a href={searchUrl} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="h-4 w-4" />
-                  Open in New Tab
-                </a>
-              </Button>
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="flex-1 w-full border-t border-border bg-muted/20 overflow-hidden">
-            {/* Platforms that block iframes: Facebook, TikTok, LinkedIn */}
-            {openPlatform && ['Facebook', 'TikTok', 'LinkedIn'].includes(openPlatform.name) ? (
-              <div className="h-full w-full flex items-center justify-center p-8">
-                <div className="max-w-md text-center space-y-6">
-                  <div className={cn(
-                    'w-20 h-20 mx-auto rounded-2xl flex items-center justify-center',
-                    openPlatform.bgColor
-                  )}>
-                    <span className={cn('w-10 h-10', openPlatform.color)}>
-                      {openPlatform.icon}
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-foreground mb-2">
-                      Open {openPlatform.name} to view profile
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      {openPlatform.name} doesn't allow embedding for privacy reasons. 
-                      Click the button below to search for <span className="font-medium text-foreground">{businessName}</span> directly on {openPlatform.name}.
-                    </p>
-                  </div>
-                  <Button asChild size="lg" className={cn('gap-2 font-semibold', openPlatform.bgColor)}>
-                    <a href={searchUrl} target="_blank" rel="noopener noreferrer">
-                      <span className={cn('w-5 h-5', openPlatform.color)}>
-                        {openPlatform.icon}
-                      </span>
-                      Open {openPlatform.name}
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  </Button>
-                  <p className="text-xs text-muted-foreground">
-                    A new tab will open with your search results
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <iframe
-                title={`${businessName} ${openPlatform?.name} search`}
-                src={searchUrl}
-                className="h-full w-full"
-                loading="lazy"
-                referrerPolicy="no-referrer"
-              />
-            )}
-          </div>
-
-          <div className="p-3 border-t border-border text-xs text-muted-foreground">
-            If the preview is blank, the site blocks in-app previews—use "Open in New Tab" to search.
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* In-app social preview dialog intentionally disabled.
+          Social icons now open a new tab immediately for better UX. */}
     </>
   );
 }

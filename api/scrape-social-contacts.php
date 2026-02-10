@@ -105,6 +105,9 @@ foreach ($platforms as $platformKey => $platform) {
                 if (!empty($serperData['organic'])) {
                     foreach ($serperData['organic'] as $result) {
                         $link = $result['link'] ?? '';
+                        if (!isLikelyProfileLink($platformKey, $link)) {
+                            continue;
+                        }
                         // Check if this is a real profile link
                         foreach ($platform['profile_patterns'] as $pattern) {
                             if (preg_match($pattern, $link, $matches)) {
@@ -322,4 +325,30 @@ function scrapePublicProfilePage($url, $platform) {
     $result['phones'] = array_values(array_unique($result['phones']));
     
     return $result;
+}
+
+function isLikelyProfileLink($platform, $url) {
+    $path = strtolower((string)parse_url((string)$url, PHP_URL_PATH));
+    $query = strtolower((string)parse_url((string)$url, PHP_URL_QUERY));
+    $joined = trim($path . ' ' . $query);
+
+    if ($platform === 'facebook') {
+        $blocked = ['/search', '/groups', '/events', '/watch', '/marketplace', '/reel', '/share'];
+        foreach ($blocked as $fragment) {
+            if (strpos($joined, $fragment) !== false) {
+                return false;
+            }
+        }
+    }
+
+    if ($platform === 'linkedin') {
+        $blocked = ['/search', '/feed', '/jobs', '/learning', '/school', '/pulse'];
+        foreach ($blocked as $fragment) {
+            if (strpos($joined, $fragment) !== false) {
+                return false;
+            }
+        }
+    }
+
+    return true;
 }
