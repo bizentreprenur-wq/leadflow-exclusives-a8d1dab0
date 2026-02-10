@@ -7,13 +7,13 @@
 const API_BASE = import.meta.env.VITE_API_URL || 'https://bamlead.com/api';
 
 export interface CallingConfig {
-  api_key: string;
-  connection_id: string;
   phone_number: string;
   voice: string;
   greeting_message: string;
   system_prompt: string;
   enabled: boolean;
+  provisioned: boolean;
+  provision_status: 'none' | 'pending' | 'active' | 'failed' | 'released';
 }
 
 export interface CallRequest {
@@ -58,7 +58,7 @@ function getAuthHeaders(): HeadersInit {
   };
 }
 
-/** Get user's Telnyx calling configuration */
+/** Get user's calling configuration */
 export async function getCallingConfig(): Promise<{ success: boolean; config?: CallingConfig | null; error?: string }> {
   try {
     const response = await fetch(`${API_BASE}/telnyx.php?action=get_config`, {
@@ -72,7 +72,7 @@ export async function getCallingConfig(): Promise<{ success: boolean; config?: C
   }
 }
 
-/** Save Telnyx calling configuration */
+/** Save voice agent settings */
 export async function saveCallingConfig(config: Partial<CallingConfig>): Promise<{ success: boolean; error?: string }> {
   try {
     const response = await fetch(`${API_BASE}/telnyx.php?action=save_config`, {
@@ -87,13 +87,12 @@ export async function saveCallingConfig(config: Partial<CallingConfig>): Promise
   }
 }
 
-/** Test Telnyx API connection */
-export async function testCallingConnection(apiKey?: string): Promise<{ success: boolean; message?: string; error?: string }> {
+/** Test Telnyx connection (uses server-side global key) */
+export async function testCallingConnection(): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
     const response = await fetch(`${API_BASE}/telnyx.php?action=test_connection`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ api_key: apiKey }),
     });
     return await response.json();
   } catch (error) {
@@ -102,16 +101,37 @@ export async function testCallingConnection(apiKey?: string): Promise<{ success:
   }
 }
 
-/** Get phone numbers from Telnyx account */
-export async function getPhoneNumbers(): Promise<{ success: boolean; phone_numbers?: string[]; error?: string }> {
+/** Auto-provision a phone number for the customer */
+export async function provisionNumber(options?: { country_code?: string; area_code?: string }): Promise<{ 
+  success: boolean; 
+  phone_number?: string;
+  status?: string;
+  message?: string;
+  error?: string 
+}> {
   try {
-    const response = await fetch(`${API_BASE}/telnyx.php?action=get_phone_numbers`, {
-      method: 'GET',
+    const response = await fetch(`${API_BASE}/telnyx.php?action=provision_number`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(options || {}),
+    });
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to provision number:', error);
+    return { success: false, error: 'Network error' };
+  }
+}
+
+/** Release a provisioned phone number */
+export async function releaseNumber(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const response = await fetch(`${API_BASE}/telnyx.php?action=release_number`, {
+      method: 'POST',
       headers: getAuthHeaders(),
     });
     return await response.json();
   } catch (error) {
-    console.error('Failed to get phone numbers:', error);
+    console.error('Failed to release number:', error);
     return { success: false, error: 'Network error' };
   }
 }
