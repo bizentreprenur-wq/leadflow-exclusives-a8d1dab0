@@ -956,6 +956,14 @@ export default function SimpleLeadViewer({
           </Button>
           <Button 
             size="sm" 
+            className="gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
+            onClick={handleProceedToCall}
+          >
+            <Phone className="w-4 h-4" />
+            Call Leads
+          </Button>
+          <Button 
+            size="sm" 
             className="gap-2 bg-gradient-to-r from-primary to-primary/80"
             onClick={handleProceedToEmail}
           >
