@@ -141,6 +141,20 @@ async function searchPlatformsStreaming(
         const decoder = new TextDecoder();
         let buffer = '';
         let currentEvent: string | null = null;
+        
+        // Throttle onProgress to batch UI updates (fire at most every 300ms)
+        let progressTimer: ReturnType<typeof setTimeout> | null = null;
+        let lastProgress = 0;
+        const flushProgress = () => {
+          progressTimer = null;
+          if (onProgress) onProgress([...allResults], lastProgress);
+        };
+        const throttledProgress = (progress: number) => {
+          lastProgress = progress;
+          if (!progressTimer) {
+            progressTimer = setTimeout(flushProgress, 300);
+          }
+        };
 
         while (true) {
           const { done, value } = await reader.read();
@@ -211,13 +225,13 @@ async function searchPlatformsStreaming(
                   }
                 }
 
-                if (onProgress) {
-                  onProgress([...allResults], data.progress || 0);
-                }
+                // Throttled — UI updates in bulk
+                throttledProgress(data.progress || 0);
               }
 
               if (eventType === 'complete') {
                 clearTimeout(timeoutId);
+                if (progressTimer) { clearTimeout(progressTimer); progressTimer = null; }
                 if (onProgress) onProgress([...allResults], 100);
                 try { await reader.cancel(); } catch {}
                 finish({

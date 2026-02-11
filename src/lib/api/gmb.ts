@@ -500,6 +500,22 @@ async function searchGMBStreaming(
         let receivedAnyEvent = false;
         let receivedComplete = false;
         
+        // Throttle onProgress to batch UI updates (fire at most every 300ms)
+        let progressTimer: ReturnType<typeof setTimeout> | null = null;
+        let lastProgress = 0;
+        const flushProgress = () => {
+          progressTimer = null;
+          if (onProgress) {
+            onProgress([...allResults], lastProgress);
+          }
+        };
+        const throttledProgress = (progress: number) => {
+          lastProgress = progress;
+          if (!progressTimer) {
+            progressTimer = setTimeout(flushProgress, 300);
+          }
+        };
+        
         while (true) {
           const { done, value } = await reader.read();
           
@@ -630,12 +646,12 @@ async function searchGMBStreaming(
                   allResults.push(incomingLead);
                 }
                 
-                // Call progress callback with accumulated results
-                if (onProgress) {
-                  onProgress([...allResults], data.progress || 0);
-                }
+                // Throttled progress — UI updates in bulk, not per-lead
+                throttledProgress(data.progress || 0);
                 
-                console.log(`[GMB API] Stream: ${allResults.length} leads, ${data.progress}%`);
+                if (allResults.length % 50 === 0) {
+                  console.log(`[GMB API] Stream: ${allResults.length} leads, ${data.progress}%`);
+                }
               } else if (eventType === 'start') {
                 // Capture enrichment session info from start event
                 if (data.enrichmentEnabled) {
@@ -683,10 +699,8 @@ async function searchGMBStreaming(
                     onEnrichment(leadId, enrichmentData);
                   }
                   
-                  // Update progress with enriched data
-                  if (onProgress) {
-                    onProgress([...allResults], data.progress || 0);
-                  }
+                  // Throttled progress for enrichment updates too
+                  throttledProgress(data.progress || 0);
                   
                   console.log(`[GMB API] Enrichment: ${data.results.length} leads enriched`);
                 }
@@ -699,6 +713,8 @@ async function searchGMBStreaming(
                   enrichmentEnabled = data.enrichmentEnabled ?? enrichmentEnabled;
                 }
                 
+                // Flush any pending throttled progress, then send final 100%
+                if (progressTimer) { clearTimeout(progressTimer); progressTimer = null; }
                 if (onProgress) {
                   onProgress([...allResults], 100);
                 }
