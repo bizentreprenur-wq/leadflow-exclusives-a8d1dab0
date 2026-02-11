@@ -446,7 +446,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                             'displayLink' => parse_url($item['link'] ?? '', PHP_URL_HOST) ?? '',
                             'address' => '',
                             'phone' => extractPhoneFromText($item['snippet'] ?? ''),
-                            'email' => extractEmailFromText($item['snippet'] ?? ''),
+                            'email' => extractEmailFromText($item['snippet'] ?? '') ?: inlineExtractEmail($item['link'] ?? ''),
                             'rating' => null,
                             'reviews' => null,
                             'source' => 'Serper Organic',
@@ -514,7 +514,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                         'displayLink' => parse_url($item['link'] ?? '', PHP_URL_HOST) ?? '',
                         'address' => '',
                         'phone' => extractPhoneFromText($item['snippet'] ?? ''),
-                        'email' => extractEmailFromText($item['snippet'] ?? ''),
+                        'email' => extractEmailFromText($item['snippet'] ?? '') ?: inlineExtractEmail($item['link'] ?? ''),
                         'rating' => null,
                         'reviews' => null,
                         'source' => 'Directory',
@@ -1049,11 +1049,19 @@ function extractEmailFromText($text) {
 function inlineExtractEmail($url) {
     if (empty($url)) return null;
 
-    // Skip for high-volume searches — inline scraping blocks the SSE stream
-    // for 2-3s per lead, causing server timeouts before reaching target volume.
-    // Background Firecrawl enrichment handles email extraction asynchronously.
+    // For high-volume searches, we still want SOME leads to arrive with emails.
+    // Track how many inline extractions we've done and cap it to avoid blocking
+    // the SSE stream for too long. First ~150 leads get inline emails; the rest
+    // rely on Firecrawl background enrichment.
     if (isset($GLOBALS['_bamlead_search_limit']) && $GLOBALS['_bamlead_search_limit'] >= 500) {
-        return null;
+        if (!isset($GLOBALS['_bamlead_inline_email_count'])) {
+            $GLOBALS['_bamlead_inline_email_count'] = 0;
+        }
+        $maxInline = 150; // Extract emails for first ~150 leads even on large searches
+        if ($GLOBALS['_bamlead_inline_email_count'] >= $maxInline) {
+            return null;
+        }
+        $GLOBALS['_bamlead_inline_email_count']++;
     }
     
     // Normalize URL
@@ -1676,7 +1684,7 @@ function streamSerperSearchInto(
                     'displayLink' => parse_url($item['link'] ?? '', PHP_URL_HOST) ?? '',
                     'address' => '',
                     'phone' => extractPhoneFromText($item['snippet'] ?? ''),
-                    'email' => extractEmailFromText($item['snippet'] ?? ''),
+                    'email' => extractEmailFromText($item['snippet'] ?? '') ?: inlineExtractEmail($item['link'] ?? ''),
                     'rating' => null,
                     'reviews' => null,
                     'source' => 'Serper Organic',
