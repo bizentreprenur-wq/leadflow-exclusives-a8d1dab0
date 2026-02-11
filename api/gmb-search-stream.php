@@ -246,78 +246,117 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
     };
 
     // ---- PRIMARY SEARCH LOOP ----
-    // For high-volume searches, avoid running Places/Maps for every expanded
-    // location shard — it bottlenecks and can cause the stream to end early.
+    // ⚡ SPEED: Fire Places queries for ALL locations in parallel via curl_multi
+    // instead of sequential per-location calls
     $placesLocationsToSearch = $locationsToSearch;
     if ($limit >= 500) {
         $placesLocationCap = $limit >= 2000 ? 20 : ($limit >= 1000 ? 14 : 8);
         $placesLocationsToSearch = array_slice($locationsToSearch, 0, min($placesLocationCap, count($locationsToSearch)));
     }
 
-    // For each location, search with base query AND a small set of synonym variants
+    // Build ALL queries upfront (base + synonyms per location)
+    $allPrimaryQueries = [];
     foreach ($placesLocationsToSearch as $locationIndex => $searchLocation) {
-        if ($totalResults >= $limit) {
-            break;
+        $allPrimaryQueries[] = [
+            'query' => "$service in $searchLocation",
+            'location' => $searchLocation,
+            'type' => 'base',
+        ];
+        if ($limit >= 500 && !empty($synonymSubset)) {
+            foreach ($synonymSubset as $synonym) {
+                $allPrimaryQueries[] = [
+                    'query' => "$synonym in $searchLocation",
+                    'location' => $searchLocation,
+                    'type' => 'synonym',
+                ];
+            }
         }
+    }
 
-        $searchedLocations[] = $searchLocation;
-        if ($locationIndex > 0) {
-            sendSSE('expansion_start', [
-                'location' => $searchLocation,
-                'remaining' => $limit - $totalResults
+    // ⚡ Fire ALL primary queries in parallel batches via curl_multi (Places endpoint)
+    $primaryBatchSize = 20; // 20 concurrent Places queries
+    $primaryBatches = array_chunk($allPrimaryQueries, $primaryBatchSize);
+
+    foreach ($primaryBatches as $batchIdx => $batch) {
+        if ($totalResults >= $limit) break;
+
+        $queryStrings = array_map(fn($q) => $q['query'], $batch);
+        $batchResults = parallelSerperSearch($queryStrings, 'places', $primaryBatchSize);
+
+        $leadBuffer = [];
+        foreach ($batchResults as $resultIdx => $places) {
+            if ($totalResults >= $limit) break;
+            if (empty($places)) continue;
+
+            $batchLocation = $batch[$resultIdx]['location'] ?? $location;
+            if (!in_array($batchLocation, $searchedLocations)) {
+                $searchedLocations[] = $batchLocation;
+            }
+
+            foreach ($places as $item) {
+                if ($totalResults >= $limit) break;
+
+                $business = [
+                    'id' => generateId('srpr_'),
+                    'name' => $item['title'] ?? '',
+                    'url' => $item['website'] ?? '',
+                    'snippet' => $item['description'] ?? ($item['type'] ?? ''),
+                    'displayLink' => parse_url($item['website'] ?? '', PHP_URL_HOST) ?? '',
+                    'address' => $item['address'] ?? '',
+                    'phone' => $item['phone'] ?? ($item['phoneNumber'] ?? ''),
+                    'email' => extractEmailFromText($item['description'] ?? ''),
+                    'rating' => $item['rating'] ?? null,
+                    'reviews' => $item['reviews'] ?? ($item['ratingCount'] ?? null),
+                    'source' => 'Serper Places',
+                    'sources' => ['Serper Places'],
+                ];
+
+                if (empty($business['name'])) continue;
+                $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
+                if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
+
+                $dedupeKey = buildBusinessDedupeKey($business, $batchLocation);
+                if (isset($seenBusinesses[$dedupeKey])) continue;
+
+                $seenBusinesses[$dedupeKey] = count($allResults);
+                $allResults[] = $business;
+                $totalResults++;
+                $leadBuffer[] = $business;
+
+                if ($enableEnrichment && !empty($business['url'])) {
+                    queueFirecrawlEnrichment($business['id'], $business['url'], $enrichmentSessionId, $enrichmentSearchType);
+                }
+
+                // Batch SSE: send every 25 leads
+                if (count($leadBuffer) >= 25) {
+                    $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
+                    sendSSE('results', [
+                        'leads' => $leadBuffer,
+                        'total' => $totalResults,
+                        'progress' => $progress,
+                        'source' => 'Serper Places'
+                    ]);
+                    $leadBuffer = [];
+                }
+            }
+        }
+        // Flush remaining
+        if (!empty($leadBuffer)) {
+            $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
+            sendSSE('results', [
+                'leads' => $leadBuffer,
+                'total' => $totalResults,
+                'progress' => $progress,
+                'source' => 'Serper Places'
             ]);
         }
 
-        // 1) Base query for this location
-        streamSerperSearchInto(
-            $service,
-            $searchLocation,
-            $limit,
-            $filters,
-            $filtersActive,
-            $filterMultiplier,
-            $allResults,
-            $seenBusinesses,
-            $totalResults,
-            $enrichmentSessionId,
-            $enableEnrichment,
-            $enrichmentSearchType,
-            false
-        );
-
         $emitEnrichment();
 
-        // 2) Limited synonym variants for this same location
-        if ($limit >= 500 && $totalResults < $limit && !empty($synonymSubset)) {
-            foreach ($synonymSubset as $synonym) {
-                if ($totalResults >= $limit) break;
-
-                $synonymQuery = "$synonym in $searchLocation";
-                sendSSE('status', [
-                    'message' => "Expanding: $synonym in $searchLocation ({$totalResults}/{$limit})",
-                    'progress' => min(95, round(($totalResults / max(1, $limit)) * 100)),
-                ]);
-
-                streamSerperSearchInto(
-                    $synonym,
-                    $searchLocation,
-                    $limit,
-                    $filters,
-                    $filtersActive,
-                    $filterMultiplier,
-                    $allResults,
-                    $seenBusinesses,
-                    $totalResults,
-                    $enrichmentSessionId,
-                    $enableEnrichment,
-                    $enrichmentSearchType,
-                    false,
-                    $synonymQuery
-                );
-
-                $emitEnrichment();
-            }
-        }
+        sendSSE('status', [
+            'message' => "Parallel Places batch " . ($batchIdx + 1) . "/" . count($primaryBatches) . " ({$totalResults}/{$limit} found)",
+            'progress' => min(95, round(($totalResults / max(1, $limit)) * 100)),
+        ]);
     }
 
     // ---- GRID PARALLEL SEARCH (Step A + B) ----
@@ -504,7 +543,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         }
         $organicQueryList = array_values($organicQueryMap);
 
-        $batchSize = 8;
+        $batchSize = 15; // ⚡ Increased from 8 for faster parallel organic fetching
         $queryBatches = array_chunk($organicQueryList, $batchSize);
 
         for ($orgPage = 1; $orgPage <= $maxOrgPages; $orgPage++) {
@@ -1126,11 +1165,8 @@ function normalizeBusinessResult($item, $engine, $sourceName) {
         $phone = extractPhoneFromText($snippet);
     }
 
-    // INLINE EMAIL EXTRACTION: For small searches only.
-    // On large searches, this blocks the stream and causes timeouts; background Firecrawl enrichment fills emails later.
-    if (empty($email) && !empty($websiteUrl) && (!isset($GLOBALS['_bamlead_search_limit']) || (int)$GLOBALS['_bamlead_search_limit'] < 200)) {
-        $email = inlineExtractEmail($websiteUrl);
-    }
+    // ⚡ SPEED: Inline email extraction REMOVED — all email discovery now deferred
+    // to BamLead Scraper (post-discovery enrichment) for maximum stream speed.
     
     return [
         'id' => generateId(strtolower(substr($engine, 0, 3)) . '_'),
@@ -1670,6 +1706,7 @@ function streamSerperSearchInto(
         'progress' => 30
     ]);
     
+    $placesBatch = [];
     foreach ($places as $index => $item) {
         if (count($allResults) >= $limit) break;
         
@@ -1713,6 +1750,7 @@ function streamSerperSearchInto(
         $seenBusinesses[$dedupeKey] = count($allResults);
         $allResults[] = $business;
         $totalResults++;
+        $placesBatch[] = $business;
         
         // Queue for Firecrawl enrichment
         $needsEnrichment = empty($business['email']) || empty($business['phone']);
@@ -1720,17 +1758,29 @@ function streamSerperSearchInto(
             queueFirecrawlEnrichment($business['id'], $business['url'], $enrichmentSessionId, $enrichmentSearchType);
         }
         
-        // Stream each result (frontend expects "results" with "leads")
+        // ⚡ Batch SSE: send every 25 leads at once (was 1-at-a-time)
+        if (count($placesBatch) >= 25) {
+            $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
+            sendSSE('results', [
+                'leads' => $placesBatch,
+                'total' => $totalResults,
+                'progress' => $progress,
+                'source' => $business['source'] ?? 'Serper'
+            ]);
+            $placesBatch = [];
+            $emitEnrichment();
+        }
+    }
+    // Flush remaining places batch
+    if (!empty($placesBatch)) {
         $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
         sendSSE('results', [
-            'leads' => [$business],
+            'leads' => $placesBatch,
             'total' => $totalResults,
             'progress' => $progress,
-            'source' => $business['source'] ?? 'Serper'
+            'source' => 'Serper Places'
         ]);
-
         $emitEnrichment();
-        
     }
     
     // If we need more results, try Maps search
@@ -1744,6 +1794,7 @@ function streamSerperSearchInto(
         $mapsData = json_decode($mapsResponse['response'] ?? '', true);
         $mapsPlaces = $mapsData['places'] ?? [];
         
+        $mapsBatch = [];
         foreach ($mapsPlaces as $item) {
             if (count($allResults) >= $limit) break;
             
@@ -1771,20 +1822,35 @@ function streamSerperSearchInto(
             $seenBusinesses[$dedupeKey] = count($allResults);
             $allResults[] = $business;
             $totalResults++;
+            $mapsBatch[] = $business;
 
             $needsEnrichment = empty($business['email']) || empty($business['phone']);
             if ($enableEnrichment && $needsEnrichment && !empty($business['url'])) {
                 queueFirecrawlEnrichment($business['id'], $business['url'], $enrichmentSessionId, $enrichmentSearchType);
             }
             
+            // ⚡ Batch SSE: send every 25 leads at once
+            if (count($mapsBatch) >= 25) {
+                $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
+                sendSSE('results', [
+                    'leads' => $mapsBatch,
+                    'total' => $totalResults,
+                    'progress' => $progress,
+                    'source' => 'Serper Maps'
+                ]);
+                $mapsBatch = [];
+                $emitEnrichment();
+            }
+        }
+        // Flush remaining maps batch
+        if (!empty($mapsBatch)) {
             $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
             sendSSE('results', [
-                'leads' => [$business],
+                'leads' => $mapsBatch,
                 'total' => $totalResults,
                 'progress' => $progress,
-                'source' => $business['source'] ?? 'Serper Maps'
+                'source' => 'Serper Maps'
             ]);
-
             $emitEnrichment();
         }
     }

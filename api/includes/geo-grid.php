@@ -110,9 +110,9 @@ function parallelSerperSearch(array $queries, string $type = 'places', int $conc
 
         curl_multi_close($mh);
 
-        // Brief pause between batches to respect rate limits
+        // ⚡ Minimal pause between batches — Serper handles high concurrency well
         if ($batchIndex < count($batches) - 1) {
-            usleep(100000); // 100ms
+            usleep(25000); // 25ms (was 100ms)
         }
     }
 
