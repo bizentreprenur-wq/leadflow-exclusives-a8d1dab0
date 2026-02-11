@@ -1407,6 +1407,12 @@ export default function Dashboard() {
         setShowReportModal(false);
       }
 
+      // Start email enrichment immediately so leads get emails ASAP
+      // (Don't wait until after the AI pipeline — customers need emails right away)
+      if (scoredResults.length > 0) {
+        startEmailEnrichment(scoredResults as SearchResult[]);
+      }
+
       // Start AI analysis in background (non-blocking)
       // NOTE: analyze-leads.php is a protected endpoint (requires real JWT).
       // In Demo Mode or when a mock token is present, skip calling it to avoid 401 spam.

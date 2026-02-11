@@ -366,16 +366,16 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
             'progress' => min(98, round(($totalResults / max(1, $limit)) * 100)),
         ]);
 
-        $organicVariants = array_slice($serviceVariants, 0, min(8, count($serviceVariants)));
-        $organicLocations = array_slice($searchedLocations, 0, min(5, count($searchedLocations)));
+        $organicVariants = array_slice($serviceVariants, 0, min(15, count($serviceVariants)));
+        $organicLocations = array_slice($searchedLocations, 0, min(10, count($searchedLocations)));
 
         foreach ($organicLocations as $orgLoc) {
             if ($totalResults >= $limit) break;
             foreach ($organicVariants as $orgVariant) {
                 if ($totalResults >= $limit) break;
 
-                // Paginate Serper organic search (up to 5 pages of 100 results each)
-                for ($page = 1; $page <= 5; $page++) {
+                // Paginate Serper organic search (up to 8 pages of 100 results each for deep coverage)
+                for ($page = 1; $page <= 8; $page++) {
                     if ($totalResults >= $limit) break;
 
                     $organicResults = fetchSerperOrganicPage("$orgVariant in $orgLoc", $page, 100);
@@ -393,7 +393,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                             'displayLink' => parse_url($item['link'] ?? '', PHP_URL_HOST) ?? '',
                             'address' => '',
                             'phone' => extractPhoneFromText($item['snippet'] ?? ''),
-                            'email' => extractEmailFromText($item['snippet'] ?? ''),
+                            'email' => extractEmailFromText($item['snippet'] ?? '') ?: inlineExtractEmail($item['link'] ?? ''),
                             'rating' => null,
                             'reviews' => null,
                             'source' => 'Serper Organic',
@@ -463,7 +463,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                         'displayLink' => parse_url($item['link'] ?? '', PHP_URL_HOST) ?? '',
                         'address' => '',
                         'phone' => extractPhoneFromText($item['snippet'] ?? ''),
-                        'email' => extractEmailFromText($item['snippet'] ?? ''),
+                        'email' => extractEmailFromText($item['snippet'] ?? '') ?: inlineExtractEmail($item['link'] ?? ''),
                         'rating' => null,
                         'reviews' => null,
                         'source' => 'Directory',
@@ -563,6 +563,16 @@ function buildSearchQueryVariants($service, $searchedLocations, $limit = 100, $f
         '%s businesses in %s',
         '%s providers in %s',
         '%s services in %s',
+        'affordable %s in %s',
+        'professional %s in %s',
+        '%s contractors in %s',
+        'licensed %s in %s',
+        'trusted %s in %s',
+        '%s specialists in %s',
+        'emergency %s in %s',
+        '%s reviews %s',
+        'top rated %s in %s',
+        '%s near me %s',
     ];
 
     $variants = [];
@@ -596,7 +606,10 @@ function buildSearchQueryVariants($service, $searchedLocations, $limit = 100, $f
         $maxVariants = max($maxVariants, 90);
     }
     if ($limit >= 2000) {
-        $maxVariants = max($maxVariants, 120);
+        $maxVariants = max($maxVariants, 200);
+    }
+    if ($limit >= 5000) {
+        $maxVariants = max($maxVariants, 400);
     }
     if ($filtersActive) {
         $maxVariants = (int)ceil($maxVariants * 1.3);
@@ -934,6 +947,13 @@ function normalizeBusinessResult($item, $engine, $sourceName) {
     if (empty($phone) && !empty($snippet)) {
         $phone = extractPhoneFromText($snippet);
     }
+
+    // INLINE EMAIL EXTRACTION: If we have a website URL but no email,
+    // attempt a fast cached contact scrape to get the email immediately.
+    // This ensures leads arrive WITH emails instead of waiting for post-search enrichment.
+    if (empty($email) && !empty($websiteUrl)) {
+        $email = inlineExtractEmail($websiteUrl);
+    }
     
     return [
         'id' => generateId(strtolower(substr($engine, 0, 3)) . '_'),
@@ -967,6 +987,85 @@ function extractEmailFromText($text) {
         }
         return $email;
     }
+    return null;
+}
+
+/**
+ * Fast inline email extraction from a website URL.
+ * Uses cache first, then does a quick homepage + /contact scrape (2-3s max).
+ * This runs during the search stream so leads arrive WITH emails.
+ */
+function inlineExtractEmail($url) {
+    if (empty($url)) return null;
+    
+    // Normalize URL
+    if (!preg_match('/^https?:\/\//', $url)) {
+        $url = 'https://' . $url;
+    }
+    
+    // Check cache first (instant)
+    $cacheKey = "scrape_contacts_" . md5($url);
+    $cached = getCache($cacheKey);
+    if ($cached !== null && !empty($cached['emails'])) {
+        return $cached['emails'][0] ?? null;
+    }
+    
+    // Also check Firecrawl cache
+    $fcCacheKey = "firecrawl_" . md5($url . 'gmb');
+    $fcCached = getCache($fcCacheKey);
+    if ($fcCached !== null && !empty($fcCached['emails'])) {
+        return $fcCached['emails'][0] ?? null;
+    }
+    
+    // Quick scrape: only homepage + /contact page (2s timeout for speed)
+    try {
+        $parsed = parse_url($url);
+        if (!$parsed || empty($parsed['host'])) return null;
+        
+        $scheme = $parsed['scheme'] ?? 'https';
+        $host = $parsed['host'];
+        $baseUrl = "{$scheme}://{$host}";
+        
+        // Try homepage first (many businesses list email in footer)
+        $result = curlRequest($baseUrl, [
+            CURLOPT_TIMEOUT => 3,
+            CURLOPT_CONNECTTIMEOUT => 2,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 2,
+            CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        ], 3);
+        
+        if ($result['httpCode'] === 200 && !empty($result['response'])) {
+            $emails = extractEmails($result['response']);
+            if (!empty($emails)) {
+                // Cache the result
+                setCache($cacheKey, ['emails' => $emails, 'phones' => [], 'hasWebsite' => true], 86400);
+                return $emails[0];
+            }
+            
+            // Try /contact page
+            $contactResult = curlRequest($baseUrl . '/contact', [
+                CURLOPT_TIMEOUT => 2,
+                CURLOPT_CONNECTTIMEOUT => 2,
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS => 2,
+                CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            ], 2);
+            
+            if ($contactResult['httpCode'] === 200 && !empty($contactResult['response'])) {
+                $contactEmails = extractEmails($contactResult['response']);
+                if (!empty($contactEmails)) {
+                    setCache($cacheKey, ['emails' => $contactEmails, 'phones' => [], 'hasWebsite' => true], 86400);
+                    return $contactEmails[0];
+                }
+            }
+        }
+    } catch (Exception $e) {
+        // Silently fail — email extraction is best-effort
+    }
+    
     return null;
 }
 
