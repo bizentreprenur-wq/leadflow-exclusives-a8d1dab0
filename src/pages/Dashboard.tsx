@@ -558,8 +558,8 @@ export default function Dashboard() {
     setEmailEnrichCompleted(0);
     toast.info(`🔍 BamLead Scraper: Enriching ${candidates.length} leads (emails + social in one pass)...`);
 
-    // Process in batches of 25 using the unified scraper (max supported)
-    const batchSize = 25;
+    // Process in large batches for maximum speed
+    const batchSize = 100;
     for (let i = 0; i < candidates.length && socialEnrichRunId.current === runId; i += batchSize) {
       const batch = candidates.slice(i, i + batchSize);
       
@@ -628,10 +628,7 @@ export default function Dashboard() {
         setEmailEnrichCompleted((prev) => prev + batch.length);
       }
 
-      // Minimal delay between batches for speed
-      if (i + batchSize < candidates.length) {
-        await new Promise((r) => setTimeout(r, 50));
-      }
+      // No delay — fire batches as fast as possible
     }
 
     if (socialEnrichRunId.current === runId) {
