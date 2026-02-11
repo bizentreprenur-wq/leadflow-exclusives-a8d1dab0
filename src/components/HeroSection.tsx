@@ -49,8 +49,8 @@ const HeroSection = () => {
           <div className="space-y-8">
             {/* Secret Badge */}
             <motion.div variants={itemVariants}>
-              <Badge className="bg-gradient-to-r from-primary/20 to-accent/20 text-primary border border-primary/30 px-4 py-2 backdrop-blur-sm">
-                <Sparkles className="h-3.5 w-3.5 mr-2 animate-pulse" />
+              <Badge className="bg-gradient-to-r from-primary/20 to-accent/20 text-foreground border border-primary/30 px-4 py-2 backdrop-blur-sm">
+                <Sparkles className="h-3.5 w-3.5 mr-2 animate-pulse text-primary" />
                 <span className="font-semibold tracking-wide">🤖 AI-POWERED MARKET INTELLIGENCE PLATFORM</span>
               </Badge>
               <p className="text-sm text-muted-foreground mt-2 font-medium">
