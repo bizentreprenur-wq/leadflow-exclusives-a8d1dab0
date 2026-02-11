@@ -67,6 +67,7 @@ const mainWorkflow = [
     icon: Search,
     description: 'Step-by-step workflow',
     highlight: true,
+    iconColor: 'text-primary',
   },
 ];
 
@@ -77,12 +78,14 @@ const aiCallingTools = [
     icon: Phone,
     description: 'AI voice calls',
     badge: 'New',
+    iconColor: 'text-amber-400',
   },
   {
     id: 'call-history',
     title: 'Call History',
     icon: History,
     description: 'View call logs',
+    iconColor: 'text-orange-400',
   },
 ];
 
@@ -92,6 +95,7 @@ const emailTools = [
     title: 'Sequences',
     icon: Zap,
     description: 'Multi-channel flows',
+    iconColor: 'text-cyan-400',
   },
   {
     id: 'auto-followup',
@@ -99,12 +103,14 @@ const emailTools = [
     icon: RefreshCw,
     description: 'Smart re-engagement',
     badge: 'AI',
+    iconColor: 'text-sky-400',
   },
   {
     id: 'templates',
     title: 'Email Templates',
     icon: FileText,
     description: 'Pre-built templates',
+    iconColor: 'text-teal-400',
   },
 ];
 
@@ -114,12 +120,14 @@ const generalTools = [
     title: 'Subscription',
     icon: CreditCard,
     description: 'Manage your plan',
+    iconColor: 'text-violet-400',
   },
   {
     id: 'settings',
     title: 'Settings',
     icon: Settings,
     description: 'Integrations & account',
+    iconColor: 'text-slate-400',
   },
 ];
 
@@ -329,7 +337,7 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
                       : ''
                     }
                   >
-                    <tool.icon className={`w-4 h-4 ${activeTab === tool.id && isAICallingActive ? 'text-amber-400' : ''}`} />
+                    <tool.icon className={`w-4 h-4 ${activeTab === tool.id && isAICallingActive ? 'text-amber-400' : (tool.iconColor || '')}`} />
                     <span>{tool.title}</span>
                     {'badge' in tool && tool.badge && (
                       <Badge variant="secondary" className={`ml-auto text-[10px] px-1.5 py-0 ${
@@ -368,7 +376,7 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
                       : ''
                     }
                   >
-                    <tool.icon className={`w-4 h-4 ${activeTab === tool.id && isEmailActive ? 'text-primary' : ''}`} />
+                    <tool.icon className={`w-4 h-4 ${activeTab === tool.id && isEmailActive ? 'text-primary' : (tool.iconColor || '')}`} />
                     <span>{tool.title}</span>
                     {'badge' in tool && tool.badge && (
                       <Badge variant="secondary" className={`ml-auto text-[10px] px-1.5 py-0 ${
@@ -401,7 +409,7 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
                     tooltip={tool.title}
                     onClick={() => onTabChange(tool.id)}
                   >
-                    <tool.icon className="w-4 h-4" />
+                    <tool.icon className={`w-4 h-4 ${tool.iconColor || ''}`} />
                     <span>{tool.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
