@@ -10,6 +10,7 @@ require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/ratelimit.php';
 require_once __DIR__ . '/includes/firecrawl.php';
+require_once __DIR__ . '/includes/geo-grid.php';
 
 // SSE headers
 header('Content-Type: text/event-stream');
@@ -316,6 +317,98 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
 
                 $emitEnrichment();
             }
+        }
+    }
+
+    // ---- GRID PARALLEL SEARCH (Step A + B) ----
+    // Fire 50-150 location-specific queries simultaneously via curl_multi
+    // This is the highest-throughput phase: covers neighborhoods, suburbs, and distance rings
+    if ($totalResults < $limit && $limit >= 200) {
+        $gridQueries = generateSearchGrid($service, $location, $limit - $totalResults);
+
+        if (!empty($gridQueries)) {
+            $gridCount = count($gridQueries);
+            sendSSE('coverage', [
+                'message' => "🔥 Grid parallel search: firing {$gridCount} tile queries simultaneously...",
+                'total' => $totalResults,
+                'target' => $limit,
+                'gridTiles' => $gridCount,
+                'progress' => min(95, round(($totalResults / max(1, $limit)) * 100)),
+            ]);
+
+            // Fire ALL queries in parallel (30 concurrent connections)
+            $gridResultBatches = parallelSerperSearch($gridQueries, 'places', 30);
+
+            $gridBatch = [];
+            foreach ($gridResultBatches as $places) {
+                if ($totalResults >= $limit) break;
+                if (empty($places)) continue;
+
+                foreach ($places as $item) {
+                    if ($totalResults >= $limit) break;
+
+                    $business = [
+                        'id' => generateId('grid_'),
+                        'name' => $item['title'] ?? '',
+                        'url' => $item['website'] ?? '',
+                        'snippet' => $item['description'] ?? ($item['type'] ?? ''),
+                        'displayLink' => parse_url($item['website'] ?? '', PHP_URL_HOST) ?? '',
+                        'address' => $item['address'] ?? '',
+                        'phone' => $item['phone'] ?? '',
+                        'email' => extractEmailFromText($item['description'] ?? ''),
+                        'rating' => $item['rating'] ?? null,
+                        'reviews' => $item['reviews'] ?? null,
+                        'source' => 'Grid Search',
+                        'sources' => ['Grid Search'],
+                    ];
+
+                    if (empty($business['name'])) continue;
+                    $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
+                    if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
+
+                    $dedupeKey = buildBusinessDedupeKey($business, $location);
+                    if (isset($seenBusinesses[$dedupeKey])) continue;
+
+                    $seenBusinesses[$dedupeKey] = count($allResults);
+                    $allResults[] = $business;
+                    $totalResults++;
+                    $gridBatch[] = $business;
+
+                    if ($enableEnrichment && !empty($business['url'])) {
+                        queueFirecrawlEnrichment($business['id'], $business['url'], $enrichmentSessionId, $enrichmentSearchType);
+                    }
+
+                    // Batch SSE: send every 25 leads at once
+                    if (count($gridBatch) >= 25) {
+                        $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
+                        sendSSE('results', [
+                            'leads' => $gridBatch,
+                            'total' => $totalResults,
+                            'progress' => $progress,
+                            'source' => 'Grid Search'
+                        ]);
+                        $gridBatch = [];
+                    }
+                }
+            }
+
+            // Flush remaining
+            if (!empty($gridBatch)) {
+                $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
+                sendSSE('results', [
+                    'leads' => $gridBatch,
+                    'total' => $totalResults,
+                    'progress' => $progress,
+                    'source' => 'Grid Search'
+                ]);
+            }
+
+            $emitEnrichment();
+
+            sendSSE('status', [
+                'message' => "Grid search complete: {$totalResults} total leads ({$gridCount} tiles searched in parallel)",
+                'progress' => min(98, round(($totalResults / max(1, $limit)) * 100)),
+            ]);
         }
     }
 
