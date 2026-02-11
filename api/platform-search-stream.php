@@ -107,10 +107,11 @@ function streamPlatformSearch($service, $location, $platforms, $limit) {
     } elseif (!in_array($service, $serviceVariants, true)) {
         array_unshift($serviceVariants, $service);
     }
-    $serviceVariantCap = 3;
-    if ($limit >= 250) $serviceVariantCap = 5;
-    if ($limit >= 500) $serviceVariantCap = 7;
-    if ($limit >= 1000) $serviceVariantCap = 9;
+    $serviceVariantCap = 5;
+    if ($limit >= 250) $serviceVariantCap = 10;
+    if ($limit >= 500) $serviceVariantCap = 15;
+    if ($limit >= 1000) $serviceVariantCap = 20;
+    if ($limit >= 2000) $serviceVariantCap = 30;
     $serviceVariants = array_slice(array_values(array_unique($serviceVariants)), 0, $serviceVariantCap);
 
     // Location expansion
@@ -133,9 +134,11 @@ function streamPlatformSearch($service, $location, $platforms, $limit) {
             }
         }
     }
-    $comboCap = 24;
-    if ($limit >= 250) $comboCap = 40;
-    if ($limit >= 500) $comboCap = 56;
+    $comboCap = 30;
+    if ($limit >= 250) $comboCap = 60;
+    if ($limit >= 500) $comboCap = 90;
+    if ($limit >= 1000) $comboCap = 140;
+    if ($limit >= 2000) $comboCap = 200;
     $searchCombos = array_slice(array_values($searchCombos), 0, $comboCap);
 
     sendSSEMsg('start', [
@@ -510,6 +513,19 @@ function buildPlatformQueries($platforms) {
         'customhtml' => 'inurl:".html" OR inurl:".htm"',
         'customphp' => 'inurl:".php"',
         'gmb' => 'site:google.com/maps OR site:maps.google.com OR "google.com/maps/place"',
+        // Free business directories
+        'yelp' => 'site:yelp.com',
+        'bbb' => 'site:bbb.org',
+        'yellowpages' => 'site:yellowpages.com',
+        'manta' => 'site:manta.com',
+        'angi' => 'site:angi.com OR site:angieslist.com',
+        'thumbtack' => 'site:thumbtack.com',
+        'homeadvisor' => 'site:homeadvisor.com',
+        'mapquest' => 'site:mapquest.com',
+        'superpages' => 'site:superpages.com',
+        'citysearch' => 'site:citysearch.com',
+        'foursquare' => 'site:foursquare.com',
+        'chamberofcommerce' => 'site:chamberofcommerce.com',
     ];
     foreach ($platforms as $platform) {
         $key = strtolower($platform);
