@@ -78,21 +78,21 @@ const CRM_OPTIONS = [
 
 /* ── Stat pill ── */
 function StatPill({ value, label, icon: Icon, accent = 'primary' }: { value: string | number; label: string; icon: React.ElementType; accent?: string }) {
-  const colorMap: Record<string, string> = {
-    primary: 'from-primary/15 to-primary/5 border-primary/25 text-primary',
-    emerald: 'from-emerald-500/15 to-emerald-500/5 border-emerald-500/25 text-emerald-400',
-    amber: 'from-amber-500/15 to-amber-500/5 border-amber-500/25 text-amber-400',
-    blue: 'from-blue-500/15 to-blue-500/5 border-blue-500/25 text-blue-400',
-    cyan: 'from-cyan-500/15 to-cyan-500/5 border-cyan-500/25 text-cyan-400',
+  const colorMap: Record<string, { bg: string; icon: string }> = {
+    primary: { bg: 'from-primary/15 to-primary/5 border-primary/25', icon: 'text-primary' },
+    emerald: { bg: 'from-emerald-500/15 to-emerald-500/5 border-emerald-500/25', icon: 'text-emerald-400' },
+    amber: { bg: 'from-amber-500/15 to-amber-500/5 border-amber-500/25', icon: 'text-amber-400' },
+    blue: { bg: 'from-blue-500/15 to-blue-500/5 border-blue-500/25', icon: 'text-blue-400' },
+    cyan: { bg: 'from-cyan-500/15 to-cyan-500/5 border-cyan-500/25', icon: 'text-cyan-400' },
   };
   const c = colorMap[accent] || colorMap.primary;
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c} p-4 text-center`}
+      className={`relative overflow-hidden rounded-2xl border bg-gradient-to-br ${c.bg} p-4 text-center`}
     >
-      <Icon className="w-4 h-4 mx-auto mb-1.5 opacity-60" />
+      <Icon className={`w-4 h-4 mx-auto mb-1.5 ${c.icon}`} />
       <div className="text-2xl font-bold text-foreground tracking-tight">{value}</div>
       <div className="text-[10px] text-muted-foreground mt-0.5 uppercase tracking-wider font-medium">{label}</div>
     </motion.div>
@@ -108,6 +108,7 @@ type SidebarSection = {
   badgeColor?: string;
   group: 'main' | 'calling' | 'tools';
   requiresAutopilot?: boolean;
+  iconColor?: string;
 };
 
 export default function Step4AICallingHub({
@@ -333,15 +334,15 @@ export default function Step4AICallingHub({
   const hotLeads = callQueue.filter(c => c.outcome === 'Interested').length;
 
   const sidebarItems: SidebarSection[] = useMemo(() => [
-    { id: 'getting-started', label: 'Getting Started', icon: BookOpen, group: 'main' },
-    { id: 'overview', label: 'Dashboard', icon: LayoutDashboard, group: 'main' },
-    { id: 'phone-setup', label: 'Phone Setup', icon: Signal, group: 'calling', badge: phoneSetup.hasPhone ? undefined : '!', badgeColor: 'bg-amber-500' },
-    { id: 'queue', label: 'Call Queue', icon: Headphones, group: 'calling', badge: pendingCount > 0 ? pendingCount : undefined, badgeColor: 'bg-primary' },
-    { id: 'script', label: 'AI Script', icon: Brain, group: 'calling' },
-    { id: 'results', label: 'Call Results', icon: Target, group: 'calling', badge: hotLeads > 0 ? `🔥 ${hotLeads}` : undefined, badgeColor: 'bg-orange-500' },
-    { id: 'sms', label: 'SMS Messaging', icon: MessageCircle, group: 'calling', badge: unreadSMS > 0 ? unreadSMS : undefined, badgeColor: 'bg-blue-500', requiresAutopilot: true },
-    { id: 'schedule', label: 'Calendar', icon: CalendarIcon, group: 'tools' },
-    { id: 'crm', label: 'Save to CRM', icon: Database, group: 'tools' },
+    { id: 'getting-started', label: 'Getting Started', icon: BookOpen, group: 'main', iconColor: 'text-sky-400' },
+    { id: 'overview', label: 'Dashboard', icon: LayoutDashboard, group: 'main', iconColor: 'text-amber-400' },
+    { id: 'phone-setup', label: 'Phone Setup', icon: Signal, group: 'calling', badge: phoneSetup.hasPhone ? undefined : '!', badgeColor: 'bg-amber-500', iconColor: 'text-emerald-400' },
+    { id: 'queue', label: 'Call Queue', icon: Headphones, group: 'calling', badge: pendingCount > 0 ? pendingCount : undefined, badgeColor: 'bg-primary', iconColor: 'text-violet-400' },
+    { id: 'script', label: 'AI Script', icon: Brain, group: 'calling', iconColor: 'text-orange-400' },
+    { id: 'results', label: 'Call Results', icon: Target, group: 'calling', badge: hotLeads > 0 ? `🔥 ${hotLeads}` : undefined, badgeColor: 'bg-orange-500', iconColor: 'text-rose-400' },
+    { id: 'sms', label: 'SMS Messaging', icon: MessageCircle, group: 'calling', badge: unreadSMS > 0 ? unreadSMS : undefined, badgeColor: 'bg-blue-500', requiresAutopilot: true, iconColor: 'text-cyan-400' },
+    { id: 'schedule', label: 'Calendar', icon: CalendarIcon, group: 'tools', iconColor: 'text-pink-400' },
+    { id: 'crm', label: 'Save to CRM', icon: Database, group: 'tools', iconColor: 'text-yellow-400' },
   ], [pendingCount, unreadSMS, hotLeads, phoneSetup.hasPhone]);
 
   const filteredItems = sidebarItems.filter(item => !item.requiresAutopilot || isAutopilot);
@@ -373,7 +374,7 @@ export default function Step4AICallingHub({
             : 'text-white hover:text-white hover:bg-white/10'
         }`}
       >
-        <item.icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-amber-400' : 'text-white/80'}`} />
+        <item.icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-amber-400' : (item.iconColor || 'text-white/80')}`} />
         {!sidebarCollapsed && (
           <>
             <span className="flex-1 text-left truncate">{item.label}</span>
