@@ -4,7 +4,7 @@
  * Inspired by professional calling platforms with organized left panel.
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,7 @@ import SMSConversationPanel from '@/components/SMSConversationPanel';
 import { Link } from 'react-router-dom';
 import { buildCallScriptContext, addBreadcrumb, CustomerJourneyBreadcrumb } from '@/lib/aiCallingScriptGenerator';
 import { SMSConversation, SMSMessage } from '@/lib/api/sms';
-import { releaseNumber } from '@/lib/api/calling';
+import { releaseNumber, initiateCall as apiInitiateCall, hangupCall as apiHangupCall, getCallStatus } from '@/lib/api/calling';
 import { formatPhoneWithCountry, formatPhoneDisplay, isValidUSPhone, toE164 } from '@/lib/phoneUtils';
 
 interface Lead {
@@ -132,6 +132,8 @@ export default function Step4AICallingHub({
   const [isCallingActive, setIsCallingActive] = useState(false);
   const [callQueue, setCallQueue] = useState<CallQueueItem[]>([]);
   const [callStats, setCallStats] = useState({ total: 0, completed: 0, answered: 0, noAnswer: 0, interested: 0, avgDuration: 0, smsReplies: 0 });
+  const activeCallSidRef = useRef<string | null>(null);
+  const callingActiveRef = useRef(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [meetings, setMeetings] = useState<{ date: Date; leadName: string }[]>([]);
   const [smsConversations, setSmsConversations] = useState<SMSConversation[]>([]);
@@ -199,7 +201,83 @@ export default function Step4AICallingHub({
     finally { setSmsLoading(false); }
   };
 
-  const handleStartCalling = () => {
+  const processNextCall = useCallback(async () => {
+    if (!callingActiveRef.current) return;
+
+    const pendingCalls = callQueue.filter(c => c.status === 'pending' && c.phone.startsWith('+') && c.phone.replace(/\D/g, '').length >= 11);
+    if (pendingCalls.length === 0) {
+      setIsCallingActive(false);
+      callingActiveRef.current = false;
+      toast.info('All calls completed');
+      return;
+    }
+
+    const currentCall = pendingCalls[0];
+    setCallQueue(prev => prev.map(c => c.id === currentCall.id ? { ...c, status: 'calling' as const } : c));
+
+    try {
+      const result = await apiInitiateCall({
+        destination_number: currentCall.phone,
+        lead_id: typeof currentCall.id === 'number' ? currentCall.id : undefined,
+        lead_name: currentCall.name,
+      });
+
+      if (!result.success || !result.call_sid) {
+        setCallQueue(prev => prev.map(c => c.id === currentCall.id ? { ...c, status: 'failed' as const, outcome: result.error || 'Call failed' } : c));
+        setCallStats(prev => ({ ...prev, total: prev.total + 1 }));
+        if (callingActiveRef.current) setTimeout(() => processNextCall(), 2000);
+        return;
+      }
+
+      activeCallSidRef.current = result.call_sid;
+
+      // Poll for call completion
+      const pollInterval = setInterval(async () => {
+        try {
+          const statusResult = await getCallStatus(result.call_sid!);
+          if (!statusResult.success) return;
+
+          const endStatuses = ['completed', 'busy', 'no-answer', 'failed', 'canceled'];
+          if (statusResult.status && endStatuses.includes(statusResult.status)) {
+            clearInterval(pollInterval);
+            activeCallSidRef.current = null;
+
+            const isAnswered = statusResult.status === 'completed';
+            const duration = statusResult.duration_seconds || 0;
+
+            setCallQueue(prev => prev.map(c => c.id === currentCall.id ? {
+              ...c,
+              status: isAnswered ? 'completed' as const : statusResult.status === 'no-answer' ? 'no_answer' as const : 'failed' as const,
+              outcome: isAnswered ? (duration > 30 ? 'Interested' : 'Callback') : statusResult.status === 'no-answer' ? 'No Answer' : 'Failed',
+              duration,
+            } : c));
+
+            setCallStats(prev => ({
+              total: prev.total + 1,
+              completed: prev.completed + (isAnswered ? 1 : 0),
+              answered: prev.answered + (isAnswered ? 1 : 0),
+              noAnswer: prev.noAnswer + (statusResult.status === 'no-answer' ? 1 : 0),
+              interested: prev.interested + (isAnswered && duration > 30 ? 1 : 0),
+              avgDuration: prev.total > 0 ? Math.floor((prev.avgDuration * prev.total + duration) / (prev.total + 1)) : duration,
+              smsReplies: prev.smsReplies,
+            }));
+
+            if (callingActiveRef.current) setTimeout(() => processNextCall(), 2000);
+          }
+        } catch (e) {
+          console.error('Poll error:', e);
+        }
+      }, 3000);
+
+    } catch (e) {
+      console.error('Call initiation error:', e);
+      setCallQueue(prev => prev.map(c => c.id === currentCall.id ? { ...c, status: 'failed' as const, outcome: 'Network Error' } : c));
+      setCallStats(prev => ({ ...prev, total: prev.total + 1 }));
+      if (callingActiveRef.current) setTimeout(() => processNextCall(), 2000);
+    }
+  }, [callQueue]);
+
+  const handleStartCalling = useCallback(() => {
     if (!isReady) {
       if (needsUpgrade) toast.error('Upgrade your plan to enable AI calling');
       else if (needsAddon) toast.error('Purchase AI Calling add-on first');
@@ -214,32 +292,23 @@ export default function Step4AICallingHub({
       setCallQueue(prev => prev.map(c => invalidNumbers.some(inv => inv.id === c.id) ? { ...c, status: 'failed' as const, outcome: 'Invalid Number' } : c));
     }
     setIsCallingActive(true);
-    simulateCall();
-    toast.success('AI calling started');
-  };
+    callingActiveRef.current = true;
+    processNextCall();
+    toast.success('Twilio AI calling started');
+  }, [isReady, needsUpgrade, needsAddon, status, callQueue, processNextCall]);
 
-  const handleStopCalling = () => { setIsCallingActive(false); toast.info('AI calling paused'); };
-
-  const simulateCall = () => {
-    const pendingCalls = callQueue.filter(c => c.status === 'pending' && c.phone.startsWith('+') && c.phone.replace(/\D/g, '').length >= 11);
-    if (pendingCalls.length === 0 || !isCallingActive) { setIsCallingActive(false); return; }
-    const currentCall = pendingCalls[0];
-    setCallQueue(prev => prev.map(c => c.id === currentCall.id ? { ...c, status: 'calling' as const } : c));
-    const duration = Math.floor(Math.random() * 12000) + 3000;
-    setTimeout(() => {
-      const outcomes = ['completed', 'no_answer', 'completed', 'completed', 'failed'] as const;
-      const outcome = outcomes[Math.floor(Math.random() * outcomes.length)];
-      const interested = outcome === 'completed' && Math.random() > 0.6;
-      const smsReplies: CallQueueItem['smsReplies'] = [];
-      if (isAutopilot && outcome === 'completed' && Math.random() > 0.5) {
-        smsReplies.push({ from: 'ai', message: `Hi! Following up on our call. Would you like to schedule a meeting?`, timestamp: new Date().toISOString() });
-        if (Math.random() > 0.4) smsReplies.push({ from: 'lead', message: `Yes, that sounds good. What times work?`, timestamp: new Date(Date.now() + 60000).toISOString() });
-      }
-      setCallQueue(prev => prev.map(c => c.id === currentCall.id ? { ...c, status: outcome, outcome: interested ? 'Interested' : outcome === 'completed' ? 'Callback' : undefined, duration: Math.floor(duration / 1000), smsReplies } : c));
-      setCallStats(prev => ({ total: prev.total + 1, completed: prev.completed + (outcome === 'completed' ? 1 : 0), answered: prev.answered + (outcome === 'completed' ? 1 : 0), noAnswer: prev.noAnswer + (outcome === 'no_answer' ? 1 : 0), interested: prev.interested + (interested ? 1 : 0), avgDuration: Math.floor((prev.avgDuration * prev.total + duration / 1000) / (prev.total + 1)), smsReplies: prev.smsReplies + smsReplies.filter(s => s.from === 'lead').length }));
-      if (isCallingActive) setTimeout(simulateCall, 1500);
-    }, duration);
-  };
+  const handleStopCalling = useCallback(async () => {
+    setIsCallingActive(false);
+    callingActiveRef.current = false;
+    // Hang up any active call
+    if (activeCallSidRef.current) {
+      try {
+        await apiHangupCall(activeCallSidRef.current);
+      } catch (e) { console.error('Hangup error:', e); }
+      activeCallSidRef.current = null;
+    }
+    toast.info('AI calling stopped');
+  }, []);
 
   const getCallStatusIcon = (callStatus: CallQueueItem['status']) => {
     switch (callStatus) {
