@@ -1967,18 +1967,18 @@ export default function LeadDocumentViewer({
                     )}
                   </div>
                   <div>
-                    <h1 className="text-xl font-extrabold text-foreground">
+                    <h1 className="text-xl font-extrabold text-gray-900 dark:text-white">
                       {researchMode === 'competitive' ? 'Competitive Analysis Report' : 'Lead Intelligence Report'}
                     </h1>
-                    <p className="text-sm font-extrabold text-foreground drop-shadow-sm">
-                      Leads for: <span className="text-primary">{searchQuery}</span> in <span className="text-primary">{location}</span>
+                    <p className="text-sm font-extrabold text-gray-800 dark:text-gray-100">
+                      Leads for: <span className="text-purple-700 dark:text-purple-400">{searchQuery}</span> in <span className="text-purple-700 dark:text-purple-400">{location}</span>
                       {researchMode === 'competitive' && myBusinessInfo?.name && (
-                        <span className="ml-2 font-extrabold text-foreground">
+                        <span className="ml-2 font-extrabold text-gray-800 dark:text-gray-100">
                           vs {myBusinessInfo.name}
                         </span>
                       )}
                     </p>
-                    <p className="text-muted-foreground text-sm">
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">
                       {reportDate}
                     </p>
                   </div>
