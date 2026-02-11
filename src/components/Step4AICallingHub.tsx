@@ -31,6 +31,7 @@ import AIScriptPreviewPanel from '@/components/AIScriptPreviewPanel';
 import CallQueueModal from '@/components/CallQueueModal';
 import SMSConversationPanel from '@/components/SMSConversationPanel';
 import { Link } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import { buildCallScriptContext, addBreadcrumb, CustomerJourneyBreadcrumb } from '@/lib/aiCallingScriptGenerator';
 import { SMSConversation, SMSMessage } from '@/lib/api/sms';
 import { releaseNumber, initiateCall as apiInitiateCall, hangupCall as apiHangupCall, getCallStatus } from '@/lib/api/calling';
@@ -118,6 +119,7 @@ export default function Step4AICallingHub({
 }: Step4AICallingHubProps) {
   const { status, statusMessage, callingModeDescription, capabilities, phoneSetup, isLoading, needsUpgrade, needsAddon, addonMessage, purchaseAddon, requestPhoneProvisioning, isReady, addon } = useAICalling();
   const { tier, tierInfo, isAutopilot, isPro } = usePlanFeatures();
+  const { user } = useAuth();
   const { branding, isLoading: brandingLoading } = useUserBranding();
   const [isProvisioningNumber, setIsProvisioningNumber] = useState(false);
   const [showAreaCodePicker, setShowAreaCodePicker] = useState(false);
@@ -633,7 +635,7 @@ export default function Step4AICallingHub({
                     {/* Greeting Header */}
                     <div className="flex items-center justify-between">
                       <div>
-                        <h1 className="text-2xl font-bold text-foreground">{greeting}, {branding?.company_name || 'there'}</h1>
+                        <h1 className="text-2xl font-bold text-foreground">{greeting}, {user?.name || branding?.company_name || 'there'}</h1>
                         <p className="text-muted-foreground text-sm">Track your call performance and key metrics</p>
                       </div>
                       <div className="flex items-center gap-2">
