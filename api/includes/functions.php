@@ -287,10 +287,11 @@ function getNearbyCityShards($cityInput, $stateInput, $radiusMiles = 40) {
 
     $metroMap = [
         'houston,tx' => [
-            15 => ['Pasadena, TX', 'Bellaire, TX', 'South Houston, TX', 'West University Place, TX', 'Galena Park, TX', 'Jacinto City, TX'],
-            25 => ['Pearland, TX', 'Sugar Land, TX', 'Missouri City, TX', 'Katy, TX', 'Stafford, TX', 'Friendswood, TX', 'Deer Park, TX', 'La Porte, TX', 'Channelview, TX'],
-            40 => ['League City, TX', 'Baytown, TX', 'Cypress, TX', 'Spring, TX', 'The Woodlands, TX', 'Tomball, TX', 'Humble, TX', 'Atascocita, TX', 'Kingwood, TX', 'Richmond, TX', 'Rosenberg, TX', 'Conroe, TX', 'Webster, TX', 'Clear Lake, TX', 'Alvin, TX', 'Dickinson, TX', 'Texas City, TX', 'Seabrook, TX', 'Magnolia, TX', 'Fulshear, TX', 'Brookshire, TX', 'Manvel, TX', 'Fresno, TX', 'Rosharon, TX'],
-            60 => ['Galveston, TX', 'Angleton, TX', 'Lake Jackson, TX', 'Clute, TX', 'Huntsville, TX', 'Navasota, TX', 'Brenham, TX', 'Columbus, TX', 'Wharton, TX', 'El Campo, TX', 'Bay City, TX', 'Needville, TX', 'Hempstead, TX', 'Prairie View, TX', 'Willis, TX', 'New Caney, TX', 'Porter, TX', 'Splendora, TX', 'Dayton, TX', 'Liberty, TX', 'Mont Belvieu, TX', 'Crosby, TX'],
+            10 => ['Bellaire, TX', 'West University Place, TX', 'Southside Place, TX', 'River Oaks, TX', 'Memorial, TX', 'The Heights, TX', 'Montrose, TX', 'Midtown, TX', 'East End, TX', 'Garden Oaks, TX', 'Oak Forest, TX', 'Sunnyside, TX'],
+            15 => ['Pasadena, TX', 'South Houston, TX', 'Galena Park, TX', 'Jacinto City, TX', 'Hunters Creek Village, TX', 'Piney Point Village, TX', 'Bunker Hill Village, TX', 'Hedwig Village, TX', 'Spring Valley Village, TX', 'Hilshire Village, TX', 'Jersey Village, TX', 'Meadows Place, TX'],
+            25 => ['Pearland, TX', 'Sugar Land, TX', 'Missouri City, TX', 'Katy, TX', 'Stafford, TX', 'Friendswood, TX', 'Deer Park, TX', 'La Porte, TX', 'Channelview, TX', 'Highlands, TX', 'Sheldon, TX', 'Cinco Ranch, TX', 'Greatwood, TX', 'Sienna, TX'],
+            40 => ['League City, TX', 'Baytown, TX', 'Cypress, TX', 'Spring, TX', 'Klein, TX', 'The Woodlands, TX', 'Tomball, TX', 'Humble, TX', 'Atascocita, TX', 'Kingwood, TX', 'Richmond, TX', 'Rosenberg, TX', 'Conroe, TX', 'Webster, TX', 'Clear Lake, TX', 'Clear Lake Shores, TX', 'Alvin, TX', 'Dickinson, TX', 'Texas City, TX', 'Seabrook, TX', 'Kemah, TX', 'El Lago, TX', 'Nassau Bay, TX', 'Magnolia, TX', 'Fulshear, TX', 'Brookshire, TX', 'Manvel, TX', 'Iowa Colony, TX', 'Fresno, TX', 'Rosharon, TX', 'Oak Ridge North, TX', 'Shenandoah, TX', 'Bridgeland, TX', 'La Marque, TX', 'Santa Fe, TX'],
+            60 => ['Galveston, TX', 'Angleton, TX', 'Lake Jackson, TX', 'Clute, TX', 'Huntsville, TX', 'Navasota, TX', 'Brenham, TX', 'Columbus, TX', 'Wharton, TX', 'El Campo, TX', 'Bay City, TX', 'Needville, TX', 'Hempstead, TX', 'Prairie View, TX', 'Waller, TX', 'Hockley, TX', 'Pattison, TX', 'Willis, TX', 'New Caney, TX', 'Porter, TX', 'Splendora, TX', 'Dayton, TX', 'Liberty, TX', 'Mont Belvieu, TX', 'Crosby, TX'],
         ],
         'dallas,tx' => [
             15 => ['Irving, TX', 'Grand Prairie, TX', 'Mesquite, TX', 'University Park, TX', 'Highland Park, TX', 'Farmers Branch, TX'],
@@ -312,6 +313,13 @@ function getNearbyCityShards($cityInput, $stateInput, $radiusMiles = 40) {
             15 => ['Glendale, CA', 'Pasadena, CA', 'Burbank, CA', 'West Hollywood, CA', 'Beverly Hills, CA', 'Culver City, CA', 'Alhambra, CA'],
             25 => ['Long Beach, CA', 'Santa Monica, CA', 'Inglewood, CA', 'Torrance, CA', 'Compton, CA', 'Downey, CA', 'Norwalk, CA', 'Whittier, CA', 'El Monte, CA', 'Arcadia, CA', 'Monrovia, CA'],
             40 => ['Anaheim, CA', 'Irvine, CA', 'Santa Ana, CA', 'Pomona, CA', 'Ontario, CA', 'Rancho Cucamonga, CA', 'Fullerton, CA', 'Costa Mesa, CA', 'Huntington Beach, CA', 'Garden Grove, CA', 'Thousand Oaks, CA', 'Simi Valley, CA', 'Ventura, CA', 'Oxnard, CA', 'Palmdale, CA', 'Lancaster, CA', 'San Bernardino, CA', 'Riverside, CA', 'Corona, CA'],
+        ],
+        'san francisco,ca' => [
+            10 => ['Daly City, CA', 'South San Francisco, CA', 'Brisbane, CA'],
+            15 => ['Oakland, CA', 'Berkeley, CA', 'Emeryville, CA', 'Alameda, CA', 'San Leandro, CA', 'San Bruno, CA', 'Pacifica, CA', 'Millbrae, CA'],
+            25 => ['San Mateo, CA', 'Redwood City, CA', 'Burlingame, CA', 'Foster City, CA', 'Hayward, CA', 'Fremont, CA', 'Union City, CA', 'Newark, CA', 'Richmond, CA', 'El Cerrito, CA', 'Albany, CA', 'Sausalito, CA', 'Mill Valley, CA', 'San Rafael, CA', 'Novato, CA', 'Tiburon, CA'],
+            40 => ['Palo Alto, CA', 'Mountain View, CA', 'Sunnyvale, CA', 'Santa Clara, CA', 'San Jose, CA', 'Cupertino, CA', 'Los Gatos, CA', 'Campbell, CA', 'Milpitas, CA', 'Pleasanton, CA', 'Livermore, CA', 'Dublin, CA', 'Walnut Creek, CA', 'Concord, CA', 'Antioch, CA', 'Pittsburg, CA', 'Danville, CA', 'San Ramon, CA', 'Orinda, CA', 'Lafayette, CA', 'Moraga, CA'],
+            60 => ['Santa Rosa, CA', 'Petaluma, CA', 'Napa, CA', 'Vallejo, CA', 'Benicia, CA', 'Fairfield, CA', 'Vacaville, CA', 'Half Moon Bay, CA', 'Santa Cruz, CA', 'Scotts Valley, CA', 'Gilroy, CA', 'Morgan Hill, CA'],
         ],
         'miami,fl' => [
             15 => ['Hialeah, FL', 'Miami Beach, FL', 'Coral Gables, FL', 'Sweetwater, FL', 'Virginia Gardens, FL'],
@@ -347,6 +355,36 @@ function getNearbyCityShards($cityInput, $stateInput, $radiusMiles = 40) {
             15 => ['Bellevue, WA', 'Renton, WA', 'Tukwila, WA'],
             25 => ['Kirkland, WA', 'Redmond, WA', 'Kent, WA', 'Federal Way, WA', 'Burien, WA', 'SeaTac, WA'],
             40 => ['Tacoma, WA', 'Everett, WA', 'Lynnwood, WA', 'Edmonds, WA', 'Shoreline, WA', 'Bothell, WA', 'Woodinville, WA', 'Issaquah, WA', 'Sammamish, WA', 'Auburn, WA', 'Puyallup, WA', 'Lakewood, WA', 'Olympia, WA', 'Marysville, WA'],
+        ],
+        'philadelphia,pa' => [
+            10 => ['Camden, NJ', 'Chester, PA', 'Darby, PA'],
+            15 => ['Upper Darby, PA', 'Drexel Hill, PA', 'Norristown, PA', 'Conshohocken, PA', 'Bala Cynwyd, PA', 'Ardmore, PA', 'Bryn Mawr, PA', 'Havertown, PA', 'Springfield, PA', 'Media, PA'],
+            25 => ['King of Prussia, PA', 'Plymouth Meeting, PA', 'Blue Bell, PA', 'Lansdale, PA', 'Ambler, PA', 'Willow Grove, PA', 'Abington, PA', 'Cheltenham, PA', 'Jenkintown, PA', 'Wyndmoor, PA', 'Cherry Hill, NJ', 'Collingswood, NJ', 'Haddonfield, NJ', 'Moorestown, NJ', 'Mount Laurel, NJ', 'Marlton, NJ'],
+            40 => ['West Chester, PA', 'Exton, PA', 'Downingtown, PA', 'Coatesville, PA', 'Phoenixville, PA', 'Pottstown, PA', 'Doylestown, PA', 'Chalfont, PA', 'Quakertown, PA', 'Levittown, PA', 'Bensalem, PA', 'Bristol, PA', 'Trenton, NJ', 'Princeton, NJ', 'Voorhees, NJ', 'Vineland, NJ', 'Wilmington, DE', 'Newark, DE'],
+        ],
+        'boston,ma' => [
+            10 => ['Cambridge, MA', 'Somerville, MA', 'Brookline, MA', 'Watertown, MA'],
+            15 => ['Newton, MA', 'Medford, MA', 'Malden, MA', 'Everett, MA', 'Chelsea, MA', 'Revere, MA', 'Waltham, MA', 'Arlington, MA', 'Belmont, MA', 'Quincy, MA'],
+            25 => ['Framingham, MA', 'Natick, MA', 'Needham, MA', 'Wellesley, MA', 'Lexington, MA', 'Winchester, MA', 'Woburn, MA', 'Burlington, MA', 'Reading, MA', 'Stoneham, MA', 'Melrose, MA', 'Braintree, MA', 'Weymouth, MA', 'Hingham, MA', 'Milton, MA', 'Dedham, MA'],
+            40 => ['Worcester, MA', 'Lowell, MA', 'Lawrence, MA', 'Haverhill, MA', 'Salem, MA', 'Beverly, MA', 'Gloucester, MA', 'Plymouth, MA', 'Taunton, MA', 'Brockton, MA', 'Fall River, MA', 'New Bedford, MA', 'Providence, RI', 'Cranston, RI', 'Warwick, RI', 'Pawtucket, RI', 'Nashua, NH', 'Manchester, NH'],
+        ],
+        'detroit,mi' => [
+            10 => ['Dearborn, MI', 'Hamtramck, MI', 'Highland Park, MI'],
+            15 => ['Southfield, MI', 'Royal Oak, MI', 'Ferndale, MI', 'Berkley, MI', 'Oak Park, MI', 'Redford, MI', 'Allen Park, MI', 'Lincoln Park, MI', 'Wyandotte, MI'],
+            25 => ['Troy, MI', 'Sterling Heights, MI', 'Warren, MI', 'Livonia, MI', 'Westland, MI', 'Canton, MI', 'Plymouth, MI', 'Novi, MI', 'Farmington Hills, MI', 'Bloomfield Hills, MI', 'Birmingham, MI', 'Clawson, MI', 'Madison Heights, MI', 'Roseville, MI', 'St. Clair Shores, MI'],
+            40 => ['Ann Arbor, MI', 'Ypsilanti, MI', 'Pontiac, MI', 'Auburn Hills, MI', 'Rochester Hills, MI', 'Shelby Township, MI', 'Macomb, MI', 'Clinton Township, MI', 'Taylor, MI', 'Romulus, MI', 'Inkster, MI', 'Garden City, MI', 'Dearborn Heights, MI', 'Flat Rock, MI', 'Trenton, MI', 'Grosse Pointe, MI'],
+        ],
+        'minneapolis,mn' => [
+            10 => ['St. Paul, MN', 'Richfield, MN', 'Columbia Heights, MN'],
+            15 => ['Edina, MN', 'St. Louis Park, MN', 'Golden Valley, MN', 'Robbinsdale, MN', 'Crystal, MN', 'New Hope, MN', 'Hopkins, MN', 'Minnetonka, MN', 'Bloomington, MN', 'Roseville, MN'],
+            25 => ['Plymouth, MN', 'Maple Grove, MN', 'Brooklyn Park, MN', 'Brooklyn Center, MN', 'Fridley, MN', 'Coon Rapids, MN', 'Blaine, MN', 'Burnsville, MN', 'Eagan, MN', 'Apple Valley, MN', 'Lakeville, MN', 'Savage, MN', 'Prior Lake, MN', 'Eden Prairie, MN', 'Chanhassen, MN', 'Shakopee, MN'],
+            40 => ['Woodbury, MN', 'Cottage Grove, MN', 'Stillwater, MN', 'Forest Lake, MN', 'Anoka, MN', 'Andover, MN', 'Ramsey, MN', 'Elk River, MN', 'Rogers, MN', 'Wayzata, MN', 'Excelsior, MN', 'Chaska, MN', 'Hastings, MN', 'Red Wing, MN', 'Northfield, MN', 'Faribault, MN'],
+        ],
+        'las vegas,nv' => [
+            10 => ['North Las Vegas, NV', 'Paradise, NV', 'Spring Valley, NV'],
+            15 => ['Henderson, NV', 'Summerlin, NV', 'Enterprise, NV', 'Whitney, NV', 'Sunrise Manor, NV', 'Winchester, NV'],
+            25 => ['Green Valley, NV', 'Anthem, NV', 'Aliante, NV', 'Centennial Hills, NV', 'Mountains Edge, NV', 'Southern Highlands, NV', 'Skye Canyon, NV', 'Providence, NV', 'Inspirada, NV', 'Cadence, NV'],
+            40 => ['Boulder City, NV', 'Mesquite, NV', 'Pahrump, NV', 'Primm, NV', 'Jean, NV', 'Laughlin, NV', 'Moapa Valley, NV', 'Indian Springs, NV', 'Nellis AFB, NV', 'Logandale, NV'],
         ],
     ];
 
