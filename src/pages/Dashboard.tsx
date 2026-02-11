@@ -54,6 +54,7 @@ import { searchPlatforms, PlatformResult } from '@/lib/api/platforms';
 import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } from '@/lib/api/leadAnalysis';
 import { quickScoreLeads } from '@/lib/api/aiLeadScoring';
 import { scrapeSocialContacts } from '@/lib/api/socialContacts';
+import { bamleadScrapeBatch } from '@/lib/api/bamleadScraper';
 import { HIGH_CONVERTING_TEMPLATES } from '@/lib/highConvertingTemplates';
 import { generateMechanicLeads, injectTestLeads } from '@/lib/testMechanicLeads';
 import { fetchSearchLeads, saveSearchLeads, deleteSearchLeads, SearchLead } from '@/lib/api/searchLeads';
@@ -628,7 +629,7 @@ export default function Dashboard() {
     }
   };
 
-  // Start social contact enrichment for all leads (runs during AI pipeline)
+  // Start unified BamLead enrichment for all leads (website + social in parallel)
   const startSocialEnrichment = async (leads: SearchResult[]) => {
     const runId = ++socialEnrichRunId.current;
     
@@ -642,67 +643,93 @@ export default function Dashboard() {
       setIsSocialEnriching(false);
       setSocialEnrichTotal(0);
       setSocialEnrichCompleted(0);
-      console.log('[BamLead] Social enrichment: All leads already cached');
+      console.log('[BamLead] Enrichment: All leads already cached');
       return;
     }
 
     setIsSocialEnriching(true);
     setSocialEnrichTotal(candidates.length);
     setSocialEnrichCompleted(0);
-    toast.info(`🔍 Scraping social contacts for ${candidates.length} leads...`);
+    toast.info(`🔍 BamLead Scraper: Enriching ${candidates.length} leads (website + social)...`);
 
-    const queue = [...candidates];
-    const concurrency = 3; // Lower concurrency to avoid rate limits
+    // Process in batches of 15 using the unified scraper
+    const batchSize = 15;
+    for (let i = 0; i < candidates.length && socialEnrichRunId.current === runId; i += batchSize) {
+      const batch = candidates.slice(i, i + batchSize);
+      
+      try {
+        const batchResults = await bamleadScrapeBatch(
+          batch.map((lead) => ({
+            url: lead.website || '',
+            name: lead.name,
+            location: lead.address,
+          }))
+        );
 
-    const worker = async () => {
-      while (queue.length > 0 && socialEnrichRunId.current === runId) {
-        const lead = queue.shift();
-        if (!lead) continue;
+        // Apply results to leads
+        setSearchResults((prev) =>
+          prev.map((item) => {
+            const key = item.website || item.name;
+            const result = batchResults[key];
+            if (!result || !result.success) return item;
 
-        try {
-          const result = await scrapeSocialContacts(lead.name, lead.address);
-          
-          // Cache the result in sessionStorage
-          const cacheKey = `social_contacts_${lead.name}_${lead.address || ''}`;
-          sessionStorage.setItem(cacheKey, JSON.stringify(result));
-          
-          // Populate social profile URLs and missing email on each lead
-          if (result.success) {
-            const profiles = result.contacts.profiles || {};
             const updates: Partial<SearchResult> = {};
-            
-            // Map social profiles to lead fields
-            if (profiles.facebook?.url) updates.facebookUrl = profiles.facebook.url;
-            if (profiles.linkedin?.url) updates.linkedinUrl = profiles.linkedin.url;
-            if (profiles.instagram?.url) updates.instagramUrl = profiles.instagram.url;
-            if (profiles.youtube?.url) updates.youtubeUrl = profiles.youtube.url;
-            if (profiles.tiktok?.url) updates.tiktokUrl = profiles.tiktok.url;
-            
-            // Also populate email if missing
-            if (!lead.email && result.contacts.emails.length > 0) {
-              updates.email = result.contacts.emails[0];
-            }
-            
-            if (Object.keys(updates).length > 0) {
-              setSearchResults((prev) =>
-                prev.map((item) => (item.id === lead.id ? { ...item, ...updates } : item))
-              );
-            }
-          }
-        } catch (error) {
-          console.warn('[BamLead] Social enrichment failed for lead:', lead.id, error);
-        } finally {
-          setSocialEnrichCompleted((prev) => prev + 1);
-        }
-      }
-    };
 
-    await Promise.all(Array.from({ length: concurrency }, () => worker()));
+            // Cache the result
+            const cacheKey = `social_contacts_${item.name}_${item.address || ''}`;
+            sessionStorage.setItem(cacheKey, JSON.stringify({
+              success: true,
+              contacts: {
+                emails: result.emails,
+                phones: result.phones,
+                profiles: result.profiles,
+                sources: result.sources,
+              },
+            }));
+
+            // Map social profiles
+            if (result.profiles?.facebook?.url) updates.facebookUrl = result.profiles.facebook.url;
+            if (result.profiles?.linkedin?.url) updates.linkedinUrl = result.profiles.linkedin.url;
+            if (result.profiles?.instagram?.url) updates.instagramUrl = result.profiles.instagram.url;
+            // yelp profile stored in cache but not on lead interface
+
+            // Fill missing email
+            if (!item.email && result.emails.length > 0) {
+              updates.email = result.emails[0];
+            }
+
+            // Fill missing phone
+            if (!item.phone && result.phones.length > 0) {
+              updates.phone = result.phones[0];
+            }
+
+            // Update enrichment data
+            if (result.emails.length > 0 || result.phones.length > 0) {
+              updates.enrichment = {
+                ...(item.enrichment || {}),
+                emails: Array.from(new Set([...(item.enrichment?.emails || []), ...result.emails])),
+              };
+              updates.enrichmentStatus = 'completed' as const;
+            }
+
+            return Object.keys(updates).length > 0 ? { ...item, ...updates } : item;
+          })
+        );
+      } catch (error) {
+        console.warn('[BamLead] Batch enrichment failed:', error);
+      } finally {
+        setSocialEnrichCompleted((prev) => prev + batch.length);
+      }
+
+      // Small delay between batches
+      if (i + batchSize < candidates.length) {
+        await new Promise((r) => setTimeout(r, 300));
+      }
+    }
 
     if (socialEnrichRunId.current === runId) {
       setIsSocialEnriching(false);
-      const cachedCount = candidates.length;
-      toast.success(`✨ Social contacts scraped for ${cachedCount} leads. Click sparkle icons to view.`);
+      toast.success(`✨ BamLead Scraper complete for ${candidates.length} leads.`);
     }
   };
 
