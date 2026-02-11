@@ -160,6 +160,10 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
     // Pick top N synonyms (skip first which is the original)
     $synonymSubset = array_slice($serviceVariants, 1, $synonymsPerLocation);
 
+    $locationCount = count($locationsToSearch);
+    $variantCount = 1 + count($synonymSubset); // base + synonyms
+    $estimatedQueries = $locationCount * $variantCount;
+
     sendSSE('start', [
         'query' => "$service in $location",
         'limit' => $limit,
@@ -170,7 +174,10 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         'synonymVariants' => count($serviceVariants),
         'filtersActive' => $filtersActive,
         'enrichmentEnabled' => $enableEnrichment,
-        'enrichmentSessionId' => $enrichmentSessionId
+        'enrichmentSessionId' => $enrichmentSessionId,
+        'locationCount' => $locationCount,
+        'variantCount' => $variantCount,
+        'estimatedQueries' => $estimatedQueries
     ]);
 
     $enrichmentLastPolled = 0;

@@ -287,7 +287,7 @@ function generateMockResults(service: string, location: string, count: number = 
 }
 
 // Callback for progressive loading
-export type ProgressCallback = (results: GMBResult[], progress: number) => void;
+export type ProgressCallback = (results: GMBResult[], progress: number, meta?: { locationCount?: number; variantCount?: number; estimatedQueries?: number }) => void;
 
 export interface GMBSearchFilters {
   phoneOnly?: boolean;
@@ -641,6 +641,14 @@ async function searchGMBStreaming(
                   enrichmentEnabled = true;
                   enrichmentSessionId = data.enrichmentSessionId;
                   console.log(`[GMB API] Enrichment enabled, session: ${enrichmentSessionId}`);
+                }
+                // Emit coverage metadata to progress callback
+                if (onProgress && (data.locationCount || data.variantCount || data.estimatedQueries)) {
+                  onProgress([], 0, {
+                    locationCount: data.locationCount,
+                    variantCount: data.variantCount,
+                    estimatedQueries: data.estimatedQueries,
+                  });
                 }
               } else if (eventType === 'enrichment') {
                 // Handle enrichment results streaming in

@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Download, Sparkles, Zap } from 'lucide-react';
+import { Download, Sparkles, Zap, MapPin, Search } from 'lucide-react';
 
 interface StreamingLeadsIndicatorProps {
   currentCount: number;
   isStreaming: boolean;
   progress: number;
   requestedCount?: number;
+  locationCount?: number;
+  variantCount?: number;
+  estimatedQueries?: number;
 }
 
 export default function StreamingLeadsIndicator({
@@ -13,6 +16,9 @@ export default function StreamingLeadsIndicator({
   isStreaming,
   progress,
   requestedCount,
+  locationCount,
+  variantCount,
+  estimatedQueries,
 }: StreamingLeadsIndicatorProps) {
   const [displayCount, setDisplayCount] = useState(0);
   const [prevCount, setPrevCount] = useState(0);
@@ -23,7 +29,7 @@ export default function StreamingLeadsIndicator({
     if (currentCount > displayCount) {
       setIsAnimating(true);
       const diff = currentCount - displayCount;
-      const step = Math.ceil(diff / 10); // Animate in ~10 steps
+      const step = Math.ceil(diff / 10);
       const timer = setInterval(() => {
         setDisplayCount(prev => {
           const next = Math.min(prev + step, currentCount);
@@ -41,12 +47,8 @@ export default function StreamingLeadsIndicator({
     }
   }, [currentCount]);
 
-  // Track when new batch arrives
   useEffect(() => {
-    if (currentCount > prevCount && prevCount > 0) {
-      // New batch arrived!
-      setPrevCount(currentCount);
-    } else if (currentCount > prevCount) {
+    if (currentCount > prevCount) {
       setPrevCount(currentCount);
     }
   }, [currentCount, prevCount]);
@@ -55,13 +57,10 @@ export default function StreamingLeadsIndicator({
 
   return (
     <div className="relative overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-emerald-500/10">
-      {/* Animated background shimmer */}
       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent animate-shimmer" />
       
       <div className="relative flex items-center justify-between p-4">
-        {/* Left: Animation and text */}
         <div className="flex items-center gap-4">
-          {/* Animated download icon */}
           <div className="relative">
             <div className={`w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center ${isStreaming ? 'animate-pulse' : ''}`}>
               <Download className={`w-6 h-6 text-primary ${isStreaming ? 'animate-bounce' : ''}`} />
@@ -73,7 +72,6 @@ export default function StreamingLeadsIndicator({
             )}
           </div>
 
-          {/* Text content */}
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-lg font-bold text-foreground">
@@ -102,7 +100,6 @@ export default function StreamingLeadsIndicator({
           </div>
         </div>
 
-        {/* Center: Live counter */}
         <div className="flex items-center gap-6">
           <div className={`flex flex-col items-center transition-transform duration-200 ${isAnimating ? 'scale-110' : 'scale-100'}`}>
             <div className="flex items-baseline gap-1">
@@ -123,30 +120,14 @@ export default function StreamingLeadsIndicator({
             </div>
           )}
 
-          {/* Progress circle */}
           {isStreaming && (
             <div className="relative w-14 h-14">
               <svg className="w-full h-full transform -rotate-90">
-                <circle
-                  cx="28"
-                  cy="28"
-                  r="24"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  fill="none"
-                  className="text-muted/30"
-                />
-                <circle
-                  cx="28"
-                  cy="28"
-                  r="24"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  fill="none"
+                <circle cx="28" cy="28" r="24" stroke="currentColor" strokeWidth="4" fill="none" className="text-muted/30" />
+                <circle cx="28" cy="28" r="24" stroke="currentColor" strokeWidth="4" fill="none"
                   strokeDasharray={`${2 * Math.PI * 24}`}
                   strokeDashoffset={`${2 * Math.PI * 24 * (1 - progress / 100)}`}
-                  className="text-primary transition-all duration-300"
-                  strokeLinecap="round"
+                  className="text-primary transition-all duration-300" strokeLinecap="round"
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
@@ -156,7 +137,6 @@ export default function StreamingLeadsIndicator({
           )}
         </div>
 
-        {/* Right: Status dots */}
         <div className="flex items-center gap-3">
           {isStreaming ? (
             <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/20 border border-emerald-500/40">
@@ -175,7 +155,28 @@ export default function StreamingLeadsIndicator({
         </div>
       </div>
 
-      {/* Bottom progress bar */}
+      {/* Coverage Indicator Bar */}
+      {isStreaming && locationCount && variantCount && estimatedQueries && (
+        <div className="relative mx-4 mb-3 p-2.5 rounded-lg bg-muted/20 border border-muted/30">
+          <div className="flex items-center justify-between text-xs">
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <MapPin className="w-3.5 h-3.5 text-primary" />
+                <span className="font-semibold text-foreground">{locationCount}</span> locations
+              </span>
+              <span className="text-muted-foreground">×</span>
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <Search className="w-3.5 h-3.5 text-primary" />
+                <span className="font-semibold text-foreground">{variantCount}</span> variants
+              </span>
+              <span className="text-muted-foreground">=</span>
+              <span className="font-bold text-primary text-sm">{estimatedQueries} queries</span>
+            </div>
+            <span className="text-muted-foreground font-medium">Deep Search Active</span>
+          </div>
+        </div>
+      )}
+
       {isStreaming && (
         <div className="h-1 bg-muted/30">
           <div 

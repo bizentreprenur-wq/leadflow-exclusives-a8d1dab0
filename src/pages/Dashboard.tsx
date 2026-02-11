@@ -197,6 +197,7 @@ export default function Dashboard() {
   const [location, setLocation] = useState(() => sessionStorage.getItem('bamlead_location') || '');
   const [isSearching, setIsSearching] = useState(false);
   const [searchProgress, setSearchProgress] = useState(0);
+  const [searchCoverageMeta, setSearchCoverageMeta] = useState<{ locationCount?: number; variantCount?: number; estimatedQueries?: number } | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const getResultsMap = () => {
     try {
@@ -1080,6 +1081,7 @@ export default function Dashboard() {
 
     setIsSearching(true);
     setSearchProgress(0);
+    setSearchCoverageMeta(null);
     if (!append) {
       setSearchResults([]); // Clear previous results
       setSelectedLeads([]); // Clear previous selections
@@ -1139,9 +1141,10 @@ export default function Dashboard() {
       let finalResults: SearchResult[] = [];
       
       // Progress callback for streaming results
-      const handleProgress = (partialResults: any[], progress: number) => {
+      const handleProgress = (partialResults: any[], progress: number, meta?: { locationCount?: number; variantCount?: number; estimatedQueries?: number }) => {
         console.log('[BamLead] Search progress:', progress, 'results:', partialResults.length);
         setSearchProgress(progress);
+        if (meta) setSearchCoverageMeta(meta);
         const mapped = partialResults.map((r: any, index: number) => ({
           id: r.id || `result-${index}`,
           name: r.name || 'Unknown Business',
@@ -2443,6 +2446,9 @@ export default function Dashboard() {
                               isStreaming={isSearching}
                               progress={searchProgress}
                               requestedCount={lastRequestedLimit ?? searchLimit}
+                              locationCount={searchCoverageMeta?.locationCount}
+                              variantCount={searchCoverageMeta?.variantCount}
+                              estimatedQueries={searchCoverageMeta?.estimatedQueries}
                             />
                           </div>
                         )}
