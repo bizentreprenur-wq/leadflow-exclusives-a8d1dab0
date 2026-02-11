@@ -21,7 +21,7 @@ import {
   Info, Calendar as CalendarIcon, Database, ArrowLeft, Home, MessageSquare,
   Send, Settings2, Plus, Building2, MessageCircle, Headphones, Activity,
   Signal, Mic, Rocket, BookOpen, HelpCircle, PhoneForwarded, LayoutDashboard,
-  History, Brain, ChevronDown
+  History, Brain, ChevronDown, RotateCcw
 } from 'lucide-react';
 import { useAICalling, AI_CALLING_ADDON_PRICE } from '@/hooks/useAICalling';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
@@ -609,21 +609,40 @@ export default function Step4AICallingHub({
                 )}
 
                 {/* ════════ DASHBOARD / OVERVIEW ════════ */}
-                {activeSection === 'overview' && (
-                  <div className="space-y-6">
-                    <div>
-                      <h1 className="text-2xl font-bold text-foreground mb-1">Dashboard</h1>
-                      <p className="text-muted-foreground text-sm">Real-time overview of your AI calling activity.</p>
-                    </div>
+                {activeSection === 'overview' && (() => {
+                  const totalDurationMins = Math.floor(callStats.avgDuration * callStats.total / 60);
+                  const totalDurationSecs = (callStats.avgDuration * callStats.total) % 60;
+                  const avgMins = Math.floor(callStats.avgDuration / 60);
+                  const avgSecs = callStats.avgDuration % 60;
+                  const successRate = callStats.total > 0 ? Math.round((callStats.interested / callStats.total) * 100) : 0;
+                  const amdRate = callStats.total > 0 ? Math.round((callStats.noAnswer / callStats.total) * 100) : 0;
+                  const greeting = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening';
 
-                    {/* Live Stats */}
-                    <div className={`grid ${isAutopilot ? 'grid-cols-3 md:grid-cols-6' : 'grid-cols-3 md:grid-cols-5'} gap-3`}>
-                      <StatPill value={callStats.total} label="Total" icon={Phone} accent="primary" />
-                      <StatPill value={callStats.answered} label="Answered" icon={CheckCircle2} accent="emerald" />
-                      <StatPill value={callStats.noAnswer} label="Missed" icon={PhoneMissed} accent="amber" />
-                      <StatPill value={callStats.interested} label="Interested" icon={Flame} accent="primary" />
-                      <StatPill value={`${callStats.avgDuration}s`} label="Avg Duration" icon={Clock} accent="cyan" />
-                      {isAutopilot && <StatPill value={callStats.smsReplies} label="SMS Replies" icon={MessageSquare} accent="blue" />}
+                  const statCards = [
+                    { label: 'TOTAL CALLS', value: `${callStats.total}`, icon: Phone, borderColor: 'border-l-blue-500', iconBg: 'bg-blue-500/10', iconColor: 'text-blue-500', change: '+0%', changeUp: true },
+                    { label: 'AVERAGE CALL DURATION', value: `${avgMins} min ${avgSecs} sec`, icon: Clock, borderColor: 'border-l-emerald-500', iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-500', change: '+0%', changeUp: true },
+                    { label: 'TOTAL USAGE', value: `${totalDurationMins} min ${totalDurationSecs} sec`, icon: Clock, borderColor: 'border-l-teal-500', iconBg: 'bg-teal-500/10', iconColor: 'text-teal-500', change: '+0%', changeUp: true },
+                    { label: 'TOTAL APPOINTMENTS', value: `${meetings.length}`, icon: CalendarIcon, borderColor: 'border-l-amber-500', iconBg: 'bg-amber-500/10', iconColor: 'text-amber-500', change: '+0%', changeUp: true },
+                    { label: 'AMD DETECTION RATE', value: `${amdRate}%`, icon: Target, borderColor: 'border-l-rose-500', iconBg: 'bg-rose-500/10', iconColor: 'text-rose-500', change: '+0%', changeUp: true },
+                    { label: 'SUCCESS RATE', value: `${successRate}%`, icon: TrendingUp, borderColor: 'border-l-primary', iconBg: 'bg-primary/10', iconColor: 'text-primary', change: successRate > 0 ? `${successRate}%` : 'Below average', changeUp: successRate > 0 },
+                  ];
+
+                  return (
+                  <div className="space-y-6">
+                    {/* Greeting Header */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h1 className="text-2xl font-bold text-foreground">{greeting}, {branding?.company_name || 'there'}</h1>
+                        <p className="text-muted-foreground text-sm">Track your call performance and key metrics</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button variant="outline" size="sm" className="gap-2 rounded-xl text-xs">
+                          Last 7 Days <ChevronDown className="w-3 h-3" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="rounded-xl h-8 w-8" onClick={() => {}}>
+                          <RotateCcw className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
 
                     {/* Active Call Banner */}
@@ -643,9 +662,87 @@ export default function Step4AICallingHub({
                       </motion.div>
                     )}
 
+                    {/* 6 Stat Cards - 3x2 grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {statCards.map((card, idx) => (
+                        <motion.div
+                          key={card.label}
+                          initial={{ opacity: 0, y: 12 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: idx * 0.05 }}
+                          className={`rounded-2xl border border-border/50 bg-card p-5 border-l-4 ${card.borderColor}`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">{card.label}</p>
+                              <p className="text-2xl font-bold text-foreground">{card.value}</p>
+                            </div>
+                            <div className={`w-10 h-10 rounded-xl ${card.iconBg} flex items-center justify-center`}>
+                              <card.icon className={`w-5 h-5 ${card.iconColor}`} />
+                            </div>
+                          </div>
+                          <div className={`flex items-center gap-1 mt-3 text-xs font-medium ${card.changeUp ? 'text-emerald-500' : 'text-rose-500'}`}>
+                            {card.changeUp ? <TrendingUp className="w-3 h-3" /> : <TrendingUp className="w-3 h-3 rotate-180" />}
+                            <span>{card.change} from previous period</span>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+
+                    {/* Call Volume Section */}
+                    <div className="rounded-2xl border border-border/50 bg-card p-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-muted/60 flex items-center justify-center">
+                            <BarChart3 className="w-5 h-5 text-muted-foreground" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-foreground">Call Volume</h3>
+                            <p className="text-xs text-muted-foreground">Call activity over time</p>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="gap-1 text-xs rounded-full">
+                          <TrendingUp className="w-3 h-3 text-emerald-500" /> {callStats.total > 0 ? `+${callStats.total}` : '0%'}
+                        </Badge>
+                      </div>
+
+                      {/* Sub-metrics row */}
+                      <div className="grid grid-cols-3 gap-3 mb-4">
+                        <div className="rounded-xl bg-muted/30 border border-border/30 p-3 flex items-center gap-2">
+                          <Phone className="w-4 h-4 text-blue-500" />
+                          <div>
+                            <p className="text-xs text-muted-foreground">Total</p>
+                            <p className="text-sm font-bold text-foreground">{callStats.total}</p>
+                          </div>
+                        </div>
+                        <div className="rounded-xl bg-muted/30 border border-border/30 p-3 flex items-center gap-2">
+                          <Activity className="w-4 h-4 text-emerald-500" />
+                          <div>
+                            <p className="text-xs text-muted-foreground">Average Per Day</p>
+                            <p className="text-sm font-bold text-foreground">{callStats.total > 0 ? (callStats.total / 7).toFixed(1) : '0'}</p>
+                          </div>
+                        </div>
+                        <div className="rounded-xl bg-muted/30 border border-border/30 p-3 flex items-center gap-2">
+                          <Rocket className="w-4 h-4 text-amber-500" />
+                          <div>
+                            <p className="text-xs text-muted-foreground">Peak Day</p>
+                            <p className="text-sm font-bold text-foreground">{callStats.total > 0 ? callStats.total : '—'}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Empty state / placeholder chart area */}
+                      <div className="h-40 rounded-xl bg-muted/20 border border-dashed border-border/40 flex items-center justify-center">
+                        <div className="text-center">
+                          <BarChart3 className="w-8 h-8 mx-auto text-muted-foreground/40 mb-2" />
+                          <p className="text-sm text-muted-foreground">Start making calls to see activity trends</p>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Quick Actions */}
                     <div className="grid md:grid-cols-2 gap-4">
-                      <div className="rounded-2xl border border-border/50 bg-card/30 p-5 space-y-3">
+                      <div className="rounded-2xl border border-border/50 bg-card p-5 space-y-3">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
                             <Headphones className="w-5 h-5 text-emerald-400" />
@@ -659,7 +756,7 @@ export default function Step4AICallingHub({
                           <Headphones className="w-4 h-4" /> Open Call Queue
                         </Button>
                       </div>
-                      <div className="rounded-2xl border border-border/50 bg-card/30 p-5 space-y-3">
+                      <div className="rounded-2xl border border-border/50 bg-card p-5 space-y-3">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
                             <Flame className="w-5 h-5 text-orange-400" />
@@ -675,7 +772,8 @@ export default function Step4AICallingHub({
                       </div>
                     </div>
                   </div>
-                )}
+                  );
+                })()}
 
                 {/* ════════ PHONE SETUP ════════ */}
                 {activeSection === 'phone-setup' && (
