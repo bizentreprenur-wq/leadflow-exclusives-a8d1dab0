@@ -150,7 +150,7 @@ function buildLocationExpansions($location) {
         }
 
         $enableRadiusExpansion = defined('ENABLE_RADIUS_LOCATION_EXPANSION') ? (bool)ENABLE_RADIUS_LOCATION_EXPANSION : true;
-        $radiusMiles = defined('LOCATION_EXPANSION_RADIUS_MILES') ? max(5, (int)LOCATION_EXPANSION_RADIUS_MILES) : 40;
+        $radiusMiles = defined('LOCATION_EXPANSION_RADIUS_MILES') ? max(5, (int)LOCATION_EXPANSION_RADIUS_MILES) : 60;
         if ($enableRadiusExpansion) {
             $nearbyCityShards = getNearbyCityShards($city, $state, $radiusMiles);
             foreach ($nearbyCityShards as $nearbyCity) {
@@ -287,44 +287,66 @@ function getNearbyCityShards($cityInput, $stateInput, $radiusMiles = 40) {
 
     $metroMap = [
         'houston,tx' => [
-            15 => ['Pasadena, TX', 'Bellaire, TX', 'South Houston, TX'],
-            25 => ['Pearland, TX', 'Sugar Land, TX', 'Missouri City, TX', 'Katy, TX'],
-            40 => ['League City, TX', 'Baytown, TX', 'Cypress, TX', 'Spring, TX', 'The Woodlands, TX', 'Tomball, TX'],
+            15 => ['Pasadena, TX', 'Bellaire, TX', 'South Houston, TX', 'West University Place, TX', 'Galena Park, TX', 'Jacinto City, TX'],
+            25 => ['Pearland, TX', 'Sugar Land, TX', 'Missouri City, TX', 'Katy, TX', 'Stafford, TX', 'Friendswood, TX', 'Deer Park, TX', 'La Porte, TX', 'Channelview, TX'],
+            40 => ['League City, TX', 'Baytown, TX', 'Cypress, TX', 'Spring, TX', 'The Woodlands, TX', 'Tomball, TX', 'Humble, TX', 'Atascocita, TX', 'Kingwood, TX', 'Richmond, TX', 'Rosenberg, TX', 'Conroe, TX', 'Webster, TX', 'Clear Lake, TX', 'Alvin, TX', 'Dickinson, TX', 'Texas City, TX', 'Seabrook, TX', 'Magnolia, TX', 'Fulshear, TX', 'Brookshire, TX', 'Manvel, TX', 'Fresno, TX', 'Rosharon, TX'],
+            60 => ['Galveston, TX', 'Angleton, TX', 'Lake Jackson, TX', 'Clute, TX', 'Huntsville, TX', 'Navasota, TX', 'Brenham, TX', 'Columbus, TX', 'Wharton, TX', 'El Campo, TX', 'Bay City, TX', 'Needville, TX', 'Hempstead, TX', 'Prairie View, TX', 'Willis, TX', 'New Caney, TX', 'Porter, TX', 'Splendora, TX', 'Dayton, TX', 'Liberty, TX', 'Mont Belvieu, TX', 'Crosby, TX'],
         ],
         'dallas,tx' => [
-            15 => ['Irving, TX', 'Grand Prairie, TX', 'Mesquite, TX'],
-            25 => ['Plano, TX', 'Garland, TX', 'Richardson, TX', 'Arlington, TX'],
-            40 => ['Frisco, TX', 'McKinney, TX', 'Carrollton, TX', 'Lewisville, TX', 'Denton, TX', 'Fort Worth, TX'],
+            15 => ['Irving, TX', 'Grand Prairie, TX', 'Mesquite, TX', 'University Park, TX', 'Highland Park, TX', 'Farmers Branch, TX'],
+            25 => ['Plano, TX', 'Garland, TX', 'Richardson, TX', 'Arlington, TX', 'Addison, TX', 'Coppell, TX', 'Duncanville, TX', 'DeSoto, TX', 'Cedar Hill, TX', 'Lancaster, TX'],
+            40 => ['Frisco, TX', 'McKinney, TX', 'Carrollton, TX', 'Lewisville, TX', 'Denton, TX', 'Fort Worth, TX', 'Allen, TX', 'Wylie, TX', 'Rowlett, TX', 'Rockwall, TX', 'Sachse, TX', 'Murphy, TX', 'The Colony, TX', 'Little Elm, TX', 'Prosper, TX', 'Celina, TX', 'Mansfield, TX', 'Euless, TX', 'Bedford, TX', 'Hurst, TX', 'Grapevine, TX', 'Southlake, TX', 'Keller, TX', 'North Richland Hills, TX', 'Colleyville, TX', 'Flower Mound, TX', 'Highland Village, TX'],
+            60 => ['Weatherford, TX', 'Cleburne, TX', 'Midlothian, TX', 'Waxahachie, TX', 'Ennis, TX', 'Corsicana, TX', 'Greenville, TX', 'Sherman, TX', 'Gainesville, TX', 'Mineral Wells, TX', 'Granbury, TX', 'Stephenville, TX'],
         ],
         'austin,tx' => [
-            15 => ['Round Rock, TX', 'Pflugerville, TX'],
-            25 => ['Cedar Park, TX', 'Leander, TX', 'Georgetown, TX'],
-            40 => ['San Marcos, TX', 'Kyle, TX', 'Buda, TX'],
+            15 => ['Round Rock, TX', 'Pflugerville, TX', 'West Lake Hills, TX', 'Rollingwood, TX'],
+            25 => ['Cedar Park, TX', 'Leander, TX', 'Georgetown, TX', 'Hutto, TX', 'Manor, TX', 'Lakeway, TX', 'Bee Cave, TX'],
+            40 => ['San Marcos, TX', 'Kyle, TX', 'Buda, TX', 'Dripping Springs, TX', 'Bastrop, TX', 'Taylor, TX', 'Elgin, TX', 'Liberty Hill, TX', 'Jarrell, TX', 'Florence, TX', 'Lockhart, TX', 'Wimberley, TX'],
         ],
         'san antonio,tx' => [
-            15 => ['Balcones Heights, TX', 'Alamo Heights, TX'],
-            25 => ['Schertz, TX', 'Live Oak, TX', 'Converse, TX'],
-            40 => ['New Braunfels, TX', 'Boerne, TX', 'Seguin, TX'],
+            15 => ['Balcones Heights, TX', 'Alamo Heights, TX', 'Terrell Hills, TX', 'Olmos Park, TX', 'Castle Hills, TX'],
+            25 => ['Schertz, TX', 'Live Oak, TX', 'Converse, TX', 'Universal City, TX', 'Selma, TX', 'Windcrest, TX', 'Leon Valley, TX', 'Kirby, TX'],
+            40 => ['New Braunfels, TX', 'Boerne, TX', 'Seguin, TX', 'Helotes, TX', 'Fair Oaks Ranch, TX', 'Cibolo, TX', 'Garden Ridge, TX', 'Bulverde, TX', 'Canyon Lake, TX'],
         ],
         'los angeles,ca' => [
-            15 => ['Glendale, CA', 'Pasadena, CA', 'Burbank, CA'],
-            25 => ['Long Beach, CA', 'Santa Monica, CA', 'Inglewood, CA'],
-            40 => ['Anaheim, CA', 'Irvine, CA', 'Santa Ana, CA', 'Pomona, CA'],
+            15 => ['Glendale, CA', 'Pasadena, CA', 'Burbank, CA', 'West Hollywood, CA', 'Beverly Hills, CA', 'Culver City, CA', 'Alhambra, CA'],
+            25 => ['Long Beach, CA', 'Santa Monica, CA', 'Inglewood, CA', 'Torrance, CA', 'Compton, CA', 'Downey, CA', 'Norwalk, CA', 'Whittier, CA', 'El Monte, CA', 'Arcadia, CA', 'Monrovia, CA'],
+            40 => ['Anaheim, CA', 'Irvine, CA', 'Santa Ana, CA', 'Pomona, CA', 'Ontario, CA', 'Rancho Cucamonga, CA', 'Fullerton, CA', 'Costa Mesa, CA', 'Huntington Beach, CA', 'Garden Grove, CA', 'Thousand Oaks, CA', 'Simi Valley, CA', 'Ventura, CA', 'Oxnard, CA', 'Palmdale, CA', 'Lancaster, CA', 'San Bernardino, CA', 'Riverside, CA', 'Corona, CA'],
         ],
         'miami,fl' => [
-            15 => ['Hialeah, FL', 'Miami Beach, FL'],
-            25 => ['Coral Gables, FL', 'Doral, FL', 'North Miami, FL'],
-            40 => ['Fort Lauderdale, FL', 'Hollywood, FL', 'Pembroke Pines, FL'],
+            15 => ['Hialeah, FL', 'Miami Beach, FL', 'Coral Gables, FL', 'Sweetwater, FL', 'Virginia Gardens, FL'],
+            25 => ['Doral, FL', 'North Miami, FL', 'North Miami Beach, FL', 'Aventura, FL', 'Opa-locka, FL', 'Miami Springs, FL', 'Homestead, FL', 'Miami Gardens, FL', 'Hialeah Gardens, FL'],
+            40 => ['Fort Lauderdale, FL', 'Hollywood, FL', 'Pembroke Pines, FL', 'Miramar, FL', 'Davie, FL', 'Plantation, FL', 'Sunrise, FL', 'Weston, FL', 'Boca Raton, FL', 'Pompano Beach, FL', 'Deerfield Beach, FL', 'Hallandale Beach, FL', 'Coral Springs, FL', 'Margate, FL', 'Coconut Creek, FL'],
         ],
         'chicago,il' => [
-            15 => ['Evanston, IL', 'Oak Park, IL', 'Cicero, IL'],
-            25 => ['Skokie, IL', 'Berwyn, IL', 'Naperville, IL'],
-            40 => ['Aurora, IL', 'Elgin, IL', 'Joliet, IL'],
+            15 => ['Evanston, IL', 'Oak Park, IL', 'Cicero, IL', 'Berwyn, IL', 'Forest Park, IL', 'Maywood, IL'],
+            25 => ['Skokie, IL', 'Naperville, IL', 'Schaumburg, IL', 'Des Plaines, IL', 'Park Ridge, IL', 'Niles, IL', 'Morton Grove, IL', 'Wilmette, IL', 'Lincolnwood, IL'],
+            40 => ['Aurora, IL', 'Elgin, IL', 'Joliet, IL', 'Arlington Heights, IL', 'Palatine, IL', 'Buffalo Grove, IL', 'Wheaton, IL', 'Downers Grove, IL', 'Bolingbrook, IL', 'Tinley Park, IL', 'Orland Park, IL', 'Oak Lawn, IL', 'Lombard, IL', 'Addison, IL', 'Carol Stream, IL', 'Waukegan, IL', 'Lake Forest, IL', 'Highland Park, IL'],
         ],
         'new york,ny' => [
-            15 => ['Jersey City, NJ', 'Newark, NJ', 'Yonkers, NY'],
-            25 => ['Paterson, NJ', 'Elizabeth, NJ', 'Stamford, CT'],
-            40 => ['New Rochelle, NY', 'White Plains, NY', 'Bridgeport, CT'],
+            15 => ['Jersey City, NJ', 'Newark, NJ', 'Yonkers, NY', 'Hoboken, NJ', 'Bayonne, NJ'],
+            25 => ['Paterson, NJ', 'Elizabeth, NJ', 'Stamford, CT', 'Mount Vernon, NY', 'New Rochelle, NY', 'White Plains, NY', 'Passaic, NJ', 'Clifton, NJ', 'East Orange, NJ'],
+            40 => ['Bridgeport, CT', 'Norwalk, CT', 'Hempstead, NY', 'Freeport, NY', 'Valley Stream, NY', 'Garden City, NY', 'Mineola, NY', 'Great Neck, NY', 'Hackensack, NJ', 'Paramus, NJ', 'Fort Lee, NJ', 'Teaneck, NJ', 'Englewood, NJ', 'Bergenfield, NJ', 'Lodi, NJ'],
+        ],
+        'phoenix,az' => [
+            15 => ['Scottsdale, AZ', 'Tempe, AZ', 'Mesa, AZ'],
+            25 => ['Chandler, AZ', 'Gilbert, AZ', 'Glendale, AZ', 'Peoria, AZ'],
+            40 => ['Surprise, AZ', 'Goodyear, AZ', 'Avondale, AZ', 'Buckeye, AZ', 'Cave Creek, AZ', 'Fountain Hills, AZ', 'Apache Junction, AZ', 'Queen Creek, AZ', 'Maricopa, AZ', 'Casa Grande, AZ'],
+        ],
+        'atlanta,ga' => [
+            15 => ['Decatur, GA', 'East Point, GA', 'College Park, GA'],
+            25 => ['Sandy Springs, GA', 'Roswell, GA', 'Brookhaven, GA', 'Dunwoody, GA', 'Smyrna, GA', 'Marietta, GA'],
+            40 => ['Alpharetta, GA', 'Johns Creek, GA', 'Kennesaw, GA', 'Lawrenceville, GA', 'Duluth, GA', 'Suwanee, GA', 'Peachtree City, GA', 'Fayetteville, GA', 'McDonough, GA', 'Conyers, GA', 'Covington, GA', 'Douglasville, GA', 'Cartersville, GA', 'Newnan, GA'],
+        ],
+        'denver,co' => [
+            15 => ['Aurora, CO', 'Lakewood, CO', 'Englewood, CO'],
+            25 => ['Westminster, CO', 'Arvada, CO', 'Thornton, CO', 'Broomfield, CO', 'Centennial, CO', 'Littleton, CO'],
+            40 => ['Boulder, CO', 'Longmont, CO', 'Parker, CO', 'Castle Rock, CO', 'Highlands Ranch, CO', 'Golden, CO', 'Brighton, CO', 'Commerce City, CO', 'Northglenn, CO', 'Federal Heights, CO', 'Wheat Ridge, CO', 'Erie, CO', 'Louisville, CO', 'Lafayette, CO'],
+        ],
+        'seattle,wa' => [
+            15 => ['Bellevue, WA', 'Renton, WA', 'Tukwila, WA'],
+            25 => ['Kirkland, WA', 'Redmond, WA', 'Kent, WA', 'Federal Way, WA', 'Burien, WA', 'SeaTac, WA'],
+            40 => ['Tacoma, WA', 'Everett, WA', 'Lynnwood, WA', 'Edmonds, WA', 'Shoreline, WA', 'Bothell, WA', 'Woodinville, WA', 'Issaquah, WA', 'Sammamish, WA', 'Auburn, WA', 'Puyallup, WA', 'Lakewood, WA', 'Olympia, WA', 'Marysville, WA'],
         ],
     ];
 
