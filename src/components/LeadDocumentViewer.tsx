@@ -1914,7 +1914,12 @@ export default function LeadDocumentViewer({
                 <Brain className="w-8 h-8 text-white" />
               </div>
               <h2 className="text-xl font-bold text-gray-900 mb-2">Analyzing Your Leads</h2>
-              <p className="text-gray-600 mb-6">Our AI is processing {leads.length} leads to identify opportunities, pain points, and optimal contact strategies...</p>
+              <p className="text-gray-600 mb-2">
+                Our AI is processing {leads.length} leads to identify opportunities, pain points, and optimal contact strategies...
+              </p>
+              <p className="text-sm font-semibold text-foreground mb-6">
+                Our AI is analyzing the data to get you the best results.
+              </p>
               <Progress value={Math.min(loadingProgress, 100)} className="h-2 mb-3" />
               <div className="flex items-center justify-center gap-6 text-sm text-gray-500">
                 <span className={loadingProgress > 20 ? 'text-green-600' : ''}>
@@ -1950,13 +1955,16 @@ export default function LeadDocumentViewer({
                     <h1 className="text-xl font-bold text-gray-900">
                       {researchMode === 'competitive' ? 'Competitive Analysis Report' : 'Lead Intelligence Report'}
                     </h1>
-                    <p className="text-gray-500 text-sm">
-                      {reportDate} • {searchQuery} in {location}
+                    <p className="text-sm font-bold text-foreground">
+                      Leads for: {searchQuery} in {location}
                       {researchMode === 'competitive' && myBusinessInfo?.name && (
-                        <span className="ml-2 text-amber-600 font-medium">
+                        <span className="ml-2 font-bold text-foreground">
                           vs {myBusinessInfo.name}
                         </span>
                       )}
+                    </p>
+                    <p className="text-muted-foreground text-sm">
+                      {reportDate}
                     </p>
                   </div>
                 </div>
