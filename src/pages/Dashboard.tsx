@@ -47,13 +47,12 @@ import PaymentMethodModal from '@/components/PaymentMethodModal';
 import EmailVerificationRequired from '@/components/EmailVerificationRequired';
 import bamMascot from '@/assets/bamlead-mascot.png';
 import { LeadForEmail } from '@/lib/api/email';
-import { searchGMB, GMBResult, scrapeWebsiteContactsBatch } from '@/lib/api/gmb';
+import { searchGMB, GMBResult } from '@/lib/api/gmb';
 import type { EnrichmentCallback } from '@/lib/api/gmb';
 import { useSMTPConfig } from '@/hooks/useSMTPConfig';
 import { searchPlatforms, PlatformResult } from '@/lib/api/platforms';
 import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } from '@/lib/api/leadAnalysis';
 import { quickScoreLeads } from '@/lib/api/aiLeadScoring';
-import { bamleadScrape } from '@/lib/api/bamleadScraper';
 import { bamleadScrapeBatch } from '@/lib/api/bamleadScraper';
 import { HIGH_CONVERTING_TEMPLATES } from '@/lib/highConvertingTemplates';
 import { generateMechanicLeads, injectTestLeads } from '@/lib/testMechanicLeads';
@@ -527,133 +526,40 @@ export default function Dashboard() {
     try { return localStorage.getItem('bamlead_search_timestamp'); } catch { return null; }
   });
 
-  const startEmailEnrichment = async (leads: SearchResult[]) => {
-    const runId = ++emailEnrichRunId.current;
-    const normalizeWebsiteUrl = (value: string): string => {
-      const trimmed = (value || '').trim();
-      if (!trimmed) return '';
-      const withScheme = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
-      try {
-        const parsed = new URL(withScheme);
-        const pathname = parsed.pathname === '/' ? '' : parsed.pathname.replace(/\/+$/, '');
-        return `${parsed.protocol}//${parsed.hostname.toLowerCase()}${pathname}`;
-      } catch {
-        return withScheme;
-      }
-    };
-
-    const firstValidEmail = (emails: string[] = []): string => {
-      return (emails.find((value) => (value || '').trim().length > 0) || '').trim();
-    };
-
-    const candidates = leads.filter((lead) => {
-      if (lead.email || (lead.enrichment?.emails?.length ?? 0) > 0) return false;
-      const website = (lead.website || '').trim();
-      return website.length > 0;
-    });
-
-    if (candidates.length === 0) {
-      setIsEmailEnriching(false);
-      setEmailEnrichTotal(0);
-      setEmailEnrichCompleted(0);
-      return;
-    }
-
-    setIsEmailEnriching(true);
-    setEmailEnrichTotal(candidates.length);
-    setEmailEnrichCompleted(0);
-    toast.info(`Enriching emails for ${candidates.length} leads...`);
-
-    const leadByRequestUrl = new Map<string, string[]>();
-    for (const lead of candidates) {
-      const requestUrl = normalizeWebsiteUrl(lead.website || '');
-      if (!requestUrl) continue;
-      const existing = leadByRequestUrl.get(requestUrl) || [];
-      existing.push(lead.id);
-      leadByRequestUrl.set(requestUrl, existing);
-    }
-
-    const requestUrls = Array.from(leadByRequestUrl.keys());
-    const batchSize = 15; // BamLead unified scraper supports up to 15
-    let processed = 0;
-    let updatedCount = 0;
-
-    for (let i = 0; i < requestUrls.length && emailEnrichRunId.current === runId; i += batchSize) {
-      const batchUrls = requestUrls.slice(i, i + batchSize);
-      try {
-        const batchResults = await scrapeWebsiteContactsBatch(batchUrls);
-        const leadToEmail = new Map<string, string>();
-
-        for (const requestUrl of batchUrls) {
-          const result = batchResults[requestUrl];
-          const email = firstValidEmail(result?.emails || []);
-          if (!email) continue;
-          const matchingLeadIds = leadByRequestUrl.get(requestUrl) || [];
-          matchingLeadIds.forEach((leadId) => leadToEmail.set(leadId, email));
-        }
-
-        if (leadToEmail.size > 0) {
-          updatedCount += leadToEmail.size;
-          setSearchResults((prev) =>
-            prev.map((item) => {
-              const enrichedEmail = leadToEmail.get(item.id);
-              if (!enrichedEmail) return item;
-              const mergedEnrichment = {
-                ...(item.enrichment || {}),
-                emails: Array.from(new Set([...(item.enrichment?.emails || []), enrichedEmail])),
-              };
-              return {
-                ...item,
-                email: item.email || enrichedEmail,
-                enrichment: mergedEnrichment,
-                enrichmentStatus: 'completed' as const,
-              };
-            })
-          );
-        }
-      } catch (error) {
-        console.warn('[BamLead] Batch email enrichment failed:', error);
-      } finally {
-        processed += batchUrls.length;
-        setEmailEnrichCompleted(Math.min(processed, candidates.length));
-      }
-    }
-
-    if (emailEnrichRunId.current === runId) {
-      setIsEmailEnriching(false);
-      if (updatedCount > 0) {
-        toast.success(`Email enrichment complete. Added ${updatedCount} email(s).`);
-      } else {
-        toast.info('Email enrichment complete. No new emails were found.');
-      }
-    }
-  };
-
-  // Start unified BamLead enrichment for all leads (website + social in parallel)
-  const startSocialEnrichment = async (leads: SearchResult[]) => {
+  // Unified BamLead enrichment — emails + phones + social in ONE pass
+  const startUnifiedEnrichment = async (leads: SearchResult[]) => {
     const runId = ++socialEnrichRunId.current;
+    emailEnrichRunId.current++;
     
-    // Only process leads without cached social data
+    // Only process leads without cached data AND without emails
     const candidates = leads.filter((lead) => {
       const cacheKey = `social_contacts_${lead.name}_${lead.address || ''}`;
-      return !sessionStorage.getItem(cacheKey);
+      const hasCachedData = !!sessionStorage.getItem(cacheKey);
+      const hasEmail = !!(lead.email || (lead.enrichment?.emails?.length ?? 0) > 0);
+      return !hasCachedData || !hasEmail;
     });
 
     if (candidates.length === 0) {
       setIsSocialEnriching(false);
+      setIsEmailEnriching(false);
       setSocialEnrichTotal(0);
       setSocialEnrichCompleted(0);
-      console.log('[BamLead] Enrichment: All leads already cached');
+      setEmailEnrichTotal(0);
+      setEmailEnrichCompleted(0);
+      console.log('[BamLead] Enrichment: All leads already enriched');
       return;
     }
 
     setIsSocialEnriching(true);
+    setIsEmailEnriching(true);
     setSocialEnrichTotal(candidates.length);
     setSocialEnrichCompleted(0);
-    toast.info(`🔍 BamLead Scraper: Enriching ${candidates.length} leads (website + social)...`);
+    setEmailEnrichTotal(candidates.length);
+    setEmailEnrichCompleted(0);
+    toast.info(`🔍 BamLead Scraper: Enriching ${candidates.length} leads (emails + social in one pass)...`);
 
-    // Process in batches of 15 using the unified scraper
-    const batchSize = 15;
+    // Process in batches of 25 using the unified scraper (max supported)
+    const batchSize = 25;
     for (let i = 0; i < candidates.length && socialEnrichRunId.current === runId; i += batchSize) {
       const batch = candidates.slice(i, i + batchSize);
       
@@ -719,16 +625,18 @@ export default function Dashboard() {
         console.warn('[BamLead] Batch enrichment failed:', error);
       } finally {
         setSocialEnrichCompleted((prev) => prev + batch.length);
+        setEmailEnrichCompleted((prev) => prev + batch.length);
       }
 
-      // Small delay between batches
+      // Minimal delay between batches for speed
       if (i + batchSize < candidates.length) {
-        await new Promise((r) => setTimeout(r, 300));
+        await new Promise((r) => setTimeout(r, 100));
       }
     }
 
     if (socialEnrichRunId.current === runId) {
       setIsSocialEnriching(false);
+      setIsEmailEnriching(false);
       toast.success(`✨ BamLead Scraper complete for ${candidates.length} leads.`);
     }
   };
@@ -1438,7 +1346,7 @@ export default function Dashboard() {
       // Start email enrichment immediately so leads get emails ASAP
       // (Don't wait until after the AI pipeline — customers need emails right away)
       if (scoredResults.length > 0) {
-        startEmailEnrichment(scoredResults as SearchResult[]);
+      startUnifiedEnrichment(scoredResults as SearchResult[]);
       }
 
       // Start AI analysis in background (non-blocking)
@@ -3293,9 +3201,8 @@ export default function Dashboard() {
               setShowAIPipeline(false);
               setAdvanceToStep2AfterReport(true);
               setShowReportModal(true);
-              // Run both email and social enrichment in parallel
-              startEmailEnrichment(enhancedLeads as SearchResult[]);
-              startSocialEnrichment(enhancedLeads as SearchResult[]);
+              // Run unified enrichment (emails + social in one pass)
+              startUnifiedEnrichment(enhancedLeads as SearchResult[]);
               toast.success('🎉 All 8 AI agents complete! Your leads are supercharged.');
             }}
             onProgressUpdate={(progress, agentName) => {
