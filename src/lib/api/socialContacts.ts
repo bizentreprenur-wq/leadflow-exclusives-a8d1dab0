@@ -1,11 +1,11 @@
 /**
  * Social Media Contact Scraping API
  * 
- * Scrapes public social media profiles for contact information
- * without logging into accounts - only reads publicly visible data.
+ * Now powered by BamLead Unified Scraper for faster parallel results.
+ * Legacy scrape-social-contacts.php is fully replaced.
  */
 
-import { SEARCH_ENDPOINTS, getAuthHeaders } from './config';
+import { bamleadScrape, bamleadScrapeBatch, BamleadScrapeResult } from './bamleadScraper';
 
 export interface SocialProfile {
   url: string;
@@ -28,62 +28,31 @@ export interface SocialContactsResult {
   error?: string;
 }
 
+function toSocialResult(businessName: string, location: string, data: BamleadScrapeResult): SocialContactsResult {
+  return {
+    success: data.success,
+    cached: data.cached ?? false,
+    business_name: businessName,
+    location,
+    contacts: {
+      emails: data.emails,
+      phones: data.phones,
+      profiles: data.profiles as Record<string, SocialProfile>,
+      sources: data.sources,
+    },
+    error: data.error,
+  };
+}
+
 /**
- * Scrape social media profiles for a business to find contact information
- * 
- * @param businessName - The business name to search for
- * @param location - Optional location to narrow down results
- * @returns Contact information found across social platforms
+ * Scrape social media profiles for a business using BamLead Unified Scraper
  */
 export async function scrapeSocialContacts(
   businessName: string,
   location?: string
 ): Promise<SocialContactsResult> {
-  try {
-    const response = await fetch(SEARCH_ENDPOINTS.scrapeSocialContacts, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({
-        business_name: businessName,
-        location: location || '',
-      }),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return {
-        success: false,
-        cached: false,
-        business_name: businessName,
-        location: location || '',
-        contacts: {
-          emails: [],
-          phones: [],
-          profiles: {},
-          sources: [],
-        },
-        error: data.error || 'Failed to scrape social contacts',
-      };
-    }
-
-    return data as SocialContactsResult;
-  } catch (error) {
-    console.error('Social contacts scrape error:', error);
-    return {
-      success: false,
-      cached: false,
-      business_name: businessName,
-      location: location || '',
-      contacts: {
-        emails: [],
-        phones: [],
-        profiles: {},
-        sources: [],
-      },
-      error: error instanceof Error ? error.message : 'Network error',
-    };
-  }
+  const result = await bamleadScrape('', businessName, location);
+  return toSocialResult(businessName, location || '', result);
 }
 
 /**
@@ -92,22 +61,25 @@ export async function scrapeSocialContacts(
 export async function scrapeSocialContactsBatch(
   businesses: Array<{ name: string; location?: string }>
 ): Promise<SocialContactsResult[]> {
-  // Process in batches of 3 to avoid overwhelming the API
-  const batchSize = 3;
-  const results: SocialContactsResult[] = [];
+  if (!businesses.length) return [];
 
-  for (let i = 0; i < businesses.length; i += batchSize) {
-    const batch = businesses.slice(i, i + batchSize);
-    const batchResults = await Promise.all(
-      batch.map((b) => scrapeSocialContacts(b.name, b.location))
-    );
-    results.push(...batchResults);
+  const batchResults = await bamleadScrapeBatch(
+    businesses.map(b => ({ url: '', name: b.name, location: b.location }))
+  );
 
-    // Small delay between batches
-    if (i + batchSize < businesses.length) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
+  return businesses.map(b => {
+    const key = b.name || '';
+    const data = batchResults[key];
+    if (data) {
+      return toSocialResult(b.name, b.location || '', data);
     }
-  }
-
-  return results;
+    return {
+      success: false,
+      cached: false,
+      business_name: b.name,
+      location: b.location || '',
+      contacts: { emails: [], phones: [], profiles: {}, sources: [] },
+      error: 'Not found in batch results',
+    };
+  });
 }

@@ -92,8 +92,6 @@ export const SEARCH_ENDPOINTS = {
   platform: `${API_BASE_URL}/platform-search.php`,
   verify: `${API_BASE_URL}/verify-lead.php`,
   analyze: `${API_BASE_URL}/analyze-website.php`,
-  scrapeContacts: `${API_BASE_URL}/scrape-website-contacts.php`,
-  scrapeSocialContacts: `${API_BASE_URL}/scrape-social-contacts.php`,
   bamleadScraper: `${API_BASE_URL}/bamlead-scraper.php`,
   socialSearchPreview: `${API_BASE_URL}/social-search-preview.php`,
 };

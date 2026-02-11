@@ -925,8 +925,8 @@ export interface WebsiteContactsResponse {
 }
 
 /**
- * Scrape a website for contact information (email, phone)
- * Checks homepage, footer, and common contact pages
+ * Scrape a website for contact information using BamLead Unified Scraper
+ * Replaces legacy scrape-website-contacts.php with faster parallel engine
  */
 export async function scrapeWebsiteContacts(url: string): Promise<WebsiteContactsResponse> {
   if (!url) {
@@ -934,7 +934,7 @@ export async function scrapeWebsiteContacts(url: string): Promise<WebsiteContact
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/scrape-website-contacts.php`, {
+    const response = await fetch(`${API_BASE_URL}/bamlead-scraper.php`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({ url }),
@@ -952,12 +952,12 @@ export async function scrapeWebsiteContacts(url: string): Promise<WebsiteContact
       emails: data.emails ?? [],
       phones: data.phones ?? [],
       hasWebsite: data.hasWebsite ?? false,
-      pagesChecked: data.pagesChecked,
+      pagesChecked: data.sources,
       cached: data.cached,
       error: data.error,
     };
   } catch (error) {
-    console.error('[GMB API] Error scraping website contacts:', error);
+    console.error('[BamLead Scraper] Error scraping contacts:', error);
     return {
       success: false,
       emails: [],
@@ -969,7 +969,7 @@ export async function scrapeWebsiteContacts(url: string): Promise<WebsiteContact
 }
 
 /**
- * Batch scrape multiple websites for contact information
+ * Batch scrape multiple websites using BamLead Unified Scraper (up to 15)
  */
 export async function scrapeWebsiteContactsBatch(urls: string[]): Promise<Record<string, WebsiteContactsResponse>> {
   if (!urls || urls.length === 0) {
@@ -977,32 +977,29 @@ export async function scrapeWebsiteContactsBatch(urls: string[]): Promise<Record
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL}/scrape-website-contacts.php`, {
+    const response = await fetch(`${API_BASE_URL}/bamlead-scraper.php`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({ urls }),
     });
 
     if (!response.ok) {
-      const text = await response.text();
-      console.error('[GMB API] Batch scrape failed:', text);
+      console.error('[BamLead Scraper] Batch scrape failed:', response.status);
       return {};
     }
 
     const data = await response.json();
     return data.results ?? {};
   } catch (error) {
-    console.error('[GMB API] Error batch scraping website contacts:', error);
+    console.error('[BamLead Scraper] Error batch scraping:', error);
     return {};
   }
 }
 
 /**
- * Enrich a single lead with website-scraped contact information
- * Returns the lead with email/phone populated if found
+ * Enrich a single lead with BamLead Unified Scraper
  */
 export async function enrichLeadWithWebsiteContacts(lead: GMBResult): Promise<GMBResult> {
-  // Skip if no website or already has email
   if (!lead.url || lead.email) {
     return lead;
   }
@@ -1025,22 +1022,19 @@ export async function enrichLeadWithWebsiteContacts(lead: GMBResult): Promise<GM
 }
 
 /**
- * Enrich multiple leads with website-scraped contact information
- * Uses batch endpoint for efficiency
+ * Enrich multiple leads with BamLead Unified Scraper (batch mode, up to 15 per batch)
  */
 export async function enrichLeadsWithWebsiteContacts(
   leads: GMBResult[],
   onProgress?: (enriched: number, total: number) => void
 ): Promise<GMBResult[]> {
-  // Filter leads that have a URL but no email
   const leadsNeedingEnrichment = leads.filter(lead => lead.url && !lead.email);
   
   if (leadsNeedingEnrichment.length === 0) {
     return leads;
   }
 
-  // Process in batches of 10
-  const batchSize = 10;
+  const batchSize = 15; // BamLead scraper supports up to 15
   const enrichedMap: Record<string, WebsiteContactsResponse> = {};
   let processed = 0;
 
@@ -1057,7 +1051,6 @@ export async function enrichLeadsWithWebsiteContacts(
     }
   }
 
-  // Apply enrichment to leads
   return leads.map(lead => {
     if (!lead.url || lead.email) {
       return lead;
