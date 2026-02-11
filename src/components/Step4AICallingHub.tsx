@@ -369,20 +369,16 @@ export default function Step4AICallingHub({
         onClick={() => setActiveSection(item.id)}
         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
           isActive
-            ? item.group === 'tools'
-              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
-              : 'bg-primary/15 text-primary border border-primary/25'
-            : item.group === 'tools'
-              ? 'text-emerald-400/80 hover:text-emerald-300 hover:bg-emerald-500/10'
-              : 'text-white hover:text-white hover:bg-white/10'
+            ? 'bg-amber-500/15 text-amber-400 border border-amber-500/25'
+            : 'text-white hover:text-white hover:bg-white/10'
         }`}
       >
-        <item.icon className={`w-4 h-4 shrink-0 ${isActive ? (item.group === 'tools' ? 'text-emerald-400' : 'text-primary') : item.group === 'tools' ? 'text-emerald-400/80' : 'text-white/80'}`} />
+        <item.icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-amber-400' : 'text-white/80'}`} />
         {!sidebarCollapsed && (
           <>
             <span className="flex-1 text-left truncate">{item.label}</span>
             {item.badge && (
-              <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold text-white ${item.badgeColor || 'bg-primary'}`}>
+              <span className={`inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold text-white ${item.badgeColor || 'bg-amber-500'}`}>
                 {item.badge}
               </span>
             )}
@@ -399,7 +395,7 @@ export default function Step4AICallingHub({
     <>
       <div className="flex h-[calc(100vh-120px)] max-w-[1400px] mx-auto gap-0">
         {/* ── LEFT SIDEBAR ── */}
-        <div className={`shrink-0 ${sidebarCollapsed ? 'w-16' : 'w-64'} border-r border-border/50 bg-card/30 flex flex-col transition-all duration-300`}>
+        <div className={`shrink-0 ${sidebarCollapsed ? 'w-16' : 'w-64'} border-r border-amber-500/20 bg-gradient-to-b from-amber-950/20 via-card/40 to-card/30 flex flex-col transition-all duration-300`}>
           {/* Sidebar Header */}
           <div className="p-4 border-b border-border/50">
             <div className="flex items-center gap-3">
@@ -441,7 +437,7 @@ export default function Step4AICallingHub({
           {/* Tier Badge */}
           {!sidebarCollapsed && (
             <div className="px-4 py-2">
-              <Badge className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold bg-primary/15 text-primary border-0 w-full justify-center">
+              <Badge className="rounded-full px-2.5 py-0.5 text-[10px] font-semibold bg-amber-500/15 text-amber-400 border-0 w-full justify-center">
                 {tierInfo.name} Plan
               </Badge>
             </div>
@@ -452,7 +448,7 @@ export default function Step4AICallingHub({
             <div className="space-y-1">
               {/* Main */}
               <div className="mb-3">
-                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-white/40 px-3 mb-2">Main</p>}
+                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-amber-400/40 px-3 mb-2">Main</p>}
                 {filteredItems.filter(i => i.group === 'main').map(renderSidebarItem)}
               </div>
 
@@ -460,7 +456,7 @@ export default function Step4AICallingHub({
 
               {/* AI Calling */}
               <div className="mb-3">
-                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-white/40 px-3 mb-2">AI Calling</p>}
+                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-amber-400/40 px-3 mb-2">AI Calling</p>}
                 {filteredItems.filter(i => i.group === 'calling').map(renderSidebarItem)}
               </div>
 
@@ -468,7 +464,7 @@ export default function Step4AICallingHub({
 
               {/* Tools */}
               <div>
-                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-emerald-400/40 px-3 mb-2">Tools</p>}
+                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-amber-400/40 px-3 mb-2">Tools</p>}
                 {filteredItems.filter(i => i.group === 'tools').map(renderSidebarItem)}
               </div>
             </div>
@@ -605,9 +601,9 @@ export default function Step4AICallingHub({
 
                     {/* Quick Stats */}
                     <div className="grid grid-cols-3 gap-3">
-                      <StatPill value={callableLeads.length} label="Callable Leads" icon={Phone} accent="emerald" />
-                      <StatPill value={emailableLeads.length} label="Have Email" icon={MessageSquare} accent="blue" />
-                      <StatPill value={leads.length} label="Total Leads" icon={Users} accent="primary" />
+                      <StatPill value={callableLeads.length} label="Callable Leads" icon={Phone} accent="amber" />
+                      <StatPill value={emailableLeads.length} label="Have Email" icon={MessageSquare} accent="amber" />
+                      <StatPill value={leads.length} label="Total Leads" icon={Users} accent="amber" />
                     </div>
                   </div>
                 )}
@@ -622,13 +618,13 @@ export default function Step4AICallingHub({
                   const amdRate = callStats.total > 0 ? Math.round((callStats.noAnswer / callStats.total) * 100) : 0;
                   const greeting = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening';
 
-                  const statCards = [
-                    { label: 'TOTAL CALLS', value: `${callStats.total}`, icon: Phone, borderColor: 'border-l-blue-500', iconBg: 'bg-blue-500/10', iconColor: 'text-blue-500', change: '+0%', changeUp: true },
-                    { label: 'AVERAGE CALL DURATION', value: `${avgMins} min ${avgSecs} sec`, icon: Clock, borderColor: 'border-l-emerald-500', iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-500', change: '+0%', changeUp: true },
-                    { label: 'TOTAL USAGE', value: `${totalDurationMins} min ${totalDurationSecs} sec`, icon: Clock, borderColor: 'border-l-teal-500', iconBg: 'bg-teal-500/10', iconColor: 'text-teal-500', change: '+0%', changeUp: true },
-                    { label: 'TOTAL APPOINTMENTS', value: `${meetings.length}`, icon: CalendarIcon, borderColor: 'border-l-amber-500', iconBg: 'bg-amber-500/10', iconColor: 'text-amber-500', change: '+0%', changeUp: true },
+                    const statCards = [
+                    { label: 'TOTAL CALLS', value: `${callStats.total}`, icon: Phone, borderColor: 'border-l-amber-500', iconBg: 'bg-amber-500/10', iconColor: 'text-amber-500', change: '+0%', changeUp: true },
+                    { label: 'AVERAGE CALL DURATION', value: `${avgMins} min ${avgSecs} sec`, icon: Clock, borderColor: 'border-l-yellow-500', iconBg: 'bg-yellow-500/10', iconColor: 'text-yellow-500', change: '+0%', changeUp: true },
+                    { label: 'TOTAL USAGE', value: `${totalDurationMins} min ${totalDurationSecs} sec`, icon: Clock, borderColor: 'border-l-amber-400', iconBg: 'bg-amber-400/10', iconColor: 'text-amber-400', change: '+0%', changeUp: true },
+                    { label: 'TOTAL APPOINTMENTS', value: `${meetings.length}`, icon: CalendarIcon, borderColor: 'border-l-orange-500', iconBg: 'bg-orange-500/10', iconColor: 'text-orange-500', change: '+0%', changeUp: true },
                     { label: 'AMD DETECTION RATE', value: `${amdRate}%`, icon: Target, borderColor: 'border-l-rose-500', iconBg: 'bg-rose-500/10', iconColor: 'text-rose-500', change: '+0%', changeUp: true },
-                    { label: 'SUCCESS RATE', value: `${successRate}%`, icon: TrendingUp, borderColor: 'border-l-primary', iconBg: 'bg-primary/10', iconColor: 'text-primary', change: successRate > 0 ? `${successRate}%` : 'Below average', changeUp: successRate > 0 },
+                    { label: 'SUCCESS RATE', value: `${successRate}%`, icon: TrendingUp, borderColor: 'border-l-amber-300', iconBg: 'bg-amber-300/10', iconColor: 'text-amber-300', change: successRate > 0 ? `${successRate}%` : 'Below average', changeUp: successRate > 0 },
                   ];
 
                   return (
@@ -685,7 +681,7 @@ export default function Step4AICallingHub({
                               <card.icon className={`w-5 h-5 ${card.iconColor}`} />
                             </div>
                           </div>
-                          <div className={`flex items-center gap-1 mt-3 text-xs font-medium ${card.changeUp ? 'text-emerald-500' : 'text-rose-500'}`}>
+                          <div className={`flex items-center gap-1 mt-3 text-xs font-medium ${card.changeUp ? 'text-amber-400' : 'text-rose-500'}`}>
                             {card.changeUp ? <TrendingUp className="w-3 h-3" /> : <TrendingUp className="w-3 h-3 rotate-180" />}
                             <span>{card.change} from previous period</span>
                           </div>
@@ -706,7 +702,7 @@ export default function Step4AICallingHub({
                           </div>
                         </div>
                         <Badge variant="outline" className="gap-1 text-xs rounded-full">
-                          <TrendingUp className="w-3 h-3 text-emerald-500" /> {callStats.total > 0 ? `+${callStats.total}` : '0%'}
+                          <TrendingUp className="w-3 h-3 text-amber-400" /> {callStats.total > 0 ? `+${callStats.total}` : '0%'}
                         </Badge>
                       </div>
 
@@ -720,7 +716,7 @@ export default function Step4AICallingHub({
                           </div>
                         </div>
                         <div className="rounded-xl bg-muted/30 border border-border/30 p-3 flex items-center gap-2">
-                          <Activity className="w-4 h-4 text-emerald-500" />
+                          <Activity className="w-4 h-4 text-amber-400" />
                           <div>
                             <p className="text-xs text-muted-foreground">Average Per Day</p>
                             <p className="text-sm font-bold text-foreground">{callStats.total > 0 ? (callStats.total / 7).toFixed(1) : '0'}</p>

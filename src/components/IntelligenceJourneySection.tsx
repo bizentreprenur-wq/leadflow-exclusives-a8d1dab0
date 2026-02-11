@@ -278,9 +278,9 @@ const IntelligenceJourneySection = () => {
       description: "Voice outreach scales with your plan — from manual dialing to fully autonomous AI conversations.",
       details: ["Twilio Voice AI", "Dynamic Script Gen", "Tier-Based Calling", "SMS Follow-Up"],
       icon: Phone,
-      color: "from-violet-500 to-purple-500",
-      glowColor: "shadow-[0_0_30px_hsl(270_60%_50%_/_0.3)]",
-      checkColor: "text-violet-400",
+      color: "from-amber-500 to-yellow-500",
+      glowColor: "shadow-[0_0_30px_hsl(45_93%_50%_/_0.3)]",
+      checkColor: "text-amber-400",
       expandedContent: [
         { label: "Basic ($49/mo) — Manual Dialing", desc: "AI generates scripts from lead intelligence, but you dial and talk. Preview-only scripts. $8/mo add-on for phone number." },
         { label: "Pro ($99/mo) — Supervised Calling", desc: "AI recommends call order and scripts. You approve before each call. Co-pilot handles follow-up SMS. $8/mo add-on for phone number." },
