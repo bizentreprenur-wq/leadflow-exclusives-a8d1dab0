@@ -860,7 +860,7 @@ export default function AITourGuide() {
       </div>
 
       {/* Tour Panel */}
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-xl px-4">
+      <div className="fixed bottom-4 left-4 z-50 w-full max-w-md">
         <div className="bg-card rounded-2xl border border-border shadow-elevated overflow-hidden">
           {/* Progress bar */}
           <div className="h-1.5 bg-secondary">
