@@ -432,6 +432,35 @@ function expandServiceSynonyms($service) {
             'doctor', 'physician', 'medical clinic', 'healthcare provider', 'family doctor',
             'general practitioner', 'internal medicine', 'urgent care', 'medical center',
             'primary care physician', 'walk-in clinic', 'health clinic',
+            'concierge doctor', 'telemedicine doctor', 'holistic medicine', 'functional medicine',
+            'integrative medicine', 'direct primary care', 'preventive medicine',
+        ],
+        // Therapy / Counseling
+        '/\btherap\b|\bcounsel\b|\bpsycholog\b|\bmental health\b/' => [
+            'therapist', 'counselor', 'psychologist', 'mental health counselor',
+            'marriage counselor', 'family therapist', 'behavioral therapist',
+            'cognitive behavioral therapy', 'psychotherapist', 'licensed therapist',
+            'anxiety therapist', 'depression counselor', 'trauma therapist',
+            'substance abuse counselor', 'addiction therapist', 'grief counselor',
+        ],
+        // Physical Therapy
+        '/\bphysical therap\b|\brehab\b|\bpt clinic\b/' => [
+            'physical therapist', 'physical therapy clinic', 'rehabilitation center',
+            'sports physical therapy', 'occupational therapist', 'orthopedic rehab',
+            'post surgery rehabilitation', 'pelvic floor therapy', 'aquatic therapy',
+            'hand therapy', 'vestibular therapy', 'geriatric physical therapy',
+        ],
+        // Massage
+        '/\bmassage\b/' => [
+            'massage therapist', 'massage therapy', 'sports massage', 'deep tissue massage',
+            'Swedish massage', 'therapeutic massage', 'prenatal massage', 'hot stone massage',
+            'myofascial release', 'trigger point therapy', 'lymphatic drainage massage',
+        ],
+        // Optometry / Eye Care
+        '/\boptometr\b|\beye doctor\b|\beye care\b|\bophthalmolog\b/' => [
+            'optometrist', 'eye doctor', 'eye care center', 'ophthalmologist',
+            'vision center', 'optical shop', 'lasik surgeon', 'pediatric eye doctor',
+            'contact lens specialist', 'eye exam', 'vision therapy',
         ],
         // Landscaping
         '/\blandscap\b|\blawn\b|\bgarden\b/' => [
@@ -514,10 +543,19 @@ function expandServiceSynonyms($service) {
             'painting contractor', 'house painter', 'commercial painter', 'painting company',
             'interior painting', 'exterior painting', 'residential painter',
         ],
-        // Chiropractor
-        '/\bchiropract\b/' => [
+        // Chiropractor / Spinal Care
+        '/\bchiropract\b|\bspinal\b|\bback doctor\b|\bspine specialist\b/' => [
             'chiropractor', 'chiropractic clinic', 'chiropractic care', 'spine specialist',
-            'chiropractic office', 'back pain doctor',
+            'chiropractic office', 'back pain doctor', 'spinal specialist', 'spinal care provider',
+            'musculoskeletal therapist', 'manual therapist', 'orthopedic specialist',
+            'neck and back specialist', 'physical medicine doctor', 'sports chiropractor',
+            'pediatric chiropractor', 'chiropractic wellness center', 'spinal decompression',
+            'chiropractic adjustment', 'holistic chiropractor', 'integrative chiropractor',
+            'chiropractic rehabilitation', 'posture correction specialist', 'sciatica treatment',
+            'herniated disc treatment', 'whiplash treatment', 'spinal alignment',
+            'neuromuscular therapy', 'soft tissue therapy', 'spinal manipulation',
+            'pain management clinic', 'back pain relief', 'neck pain treatment',
+            'sports injury chiropractor', 'prenatal chiropractor', 'family chiropractor',
         ],
         // Pharmacy
         '/\bpharmac\b/' => [
@@ -537,7 +575,7 @@ function expandServiceSynonyms($service) {
         }
     }
 
-    // If no specific match, try generic expansion
+    // If no specific match, try generic expansion with directory-style queries
     if (empty($synonyms)) {
         // Add basic variants
         $synonyms[] = "$clean service";
@@ -545,7 +583,27 @@ function expandServiceSynonyms($service) {
         $synonyms[] = "$clean near me";
         $synonyms[] = "best $clean";
         $synonyms[] = "local $clean";
+        $synonyms[] = "top rated $clean";
+        $synonyms[] = "$clean provider";
+        $synonyms[] = "$clean specialist";
+        $synonyms[] = "affordable $clean";
+        $synonyms[] = "professional $clean";
     }
+
+    // Always add free directory source queries for maximum coverage
+    $directorySynonyms = [
+        "$clean site:yelp.com",
+        "$clean site:bbb.org",
+        "$clean site:yellowpages.com",
+        "$clean site:manta.com",
+        "$clean site:angi.com",
+        "$clean site:thumbtack.com",
+        "$clean site:homeadvisor.com",
+        "$clean site:mapquest.com",
+        "$clean site:superpages.com",
+        "$clean site:citysearch.com",
+    ];
+    $synonyms = array_merge($synonyms, $directorySynonyms);
 
     foreach ($synonyms as $synonym) {
         $synonym = preg_replace('/\s+/', ' ', trim($synonym));
