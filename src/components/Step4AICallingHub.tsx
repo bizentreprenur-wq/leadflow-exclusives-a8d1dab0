@@ -369,11 +369,15 @@ export default function Step4AICallingHub({
         onClick={() => setActiveSection(item.id)}
         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
           isActive
-            ? 'bg-primary/15 text-primary border border-primary/25'
-            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+            ? item.group === 'tools'
+              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
+              : 'bg-primary/15 text-primary border border-primary/25'
+            : item.group === 'tools'
+              ? 'text-emerald-400/80 hover:text-emerald-300 hover:bg-emerald-500/10'
+              : 'text-white hover:text-white hover:bg-white/10'
         }`}
       >
-        <item.icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-primary' : ''}`} />
+        <item.icon className={`w-4 h-4 shrink-0 ${isActive ? (item.group === 'tools' ? 'text-emerald-400' : 'text-primary') : item.group === 'tools' ? 'text-emerald-400/80' : 'text-white/80'}`} />
         {!sidebarCollapsed && (
           <>
             <span className="flex-1 text-left truncate">{item.label}</span>
@@ -448,7 +452,7 @@ export default function Step4AICallingHub({
             <div className="space-y-1">
               {/* Main */}
               <div className="mb-3">
-                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/60 px-3 mb-2">Main</p>}
+                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-white/40 px-3 mb-2">Main</p>}
                 {filteredItems.filter(i => i.group === 'main').map(renderSidebarItem)}
               </div>
 
@@ -456,7 +460,7 @@ export default function Step4AICallingHub({
 
               {/* AI Calling */}
               <div className="mb-3">
-                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/60 px-3 mb-2">AI Calling</p>}
+                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-white/40 px-3 mb-2">AI Calling</p>}
                 {filteredItems.filter(i => i.group === 'calling').map(renderSidebarItem)}
               </div>
 
@@ -464,7 +468,7 @@ export default function Step4AICallingHub({
 
               {/* Tools */}
               <div>
-                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/60 px-3 mb-2">Tools</p>}
+                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-emerald-400/40 px-3 mb-2">Tools</p>}
                 {filteredItems.filter(i => i.group === 'tools').map(renderSidebarItem)}
               </div>
             </div>
