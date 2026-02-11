@@ -24,6 +24,12 @@ export interface CompetitiveIntelligence {
   
   // Buyer Matching (product fit scoring)
   buyerMatching?: BuyerMatching;
+  
+  // NEW: Deep competitor analysis
+  websiteComparison?: WebsiteComparison;
+  socialMediaBenchmark?: SocialMediaBenchmark;
+  productServiceGap?: ProductServiceGap;
+  aiSuccessPlan?: AISuccessPlan;
 }
 
 // ============================================================================
@@ -373,6 +379,220 @@ export interface B2BSellerInsights {
   sellingApproach: string;
   pricingSensitivity: 'high' | 'medium' | 'low';
   competitorsToDisplace: string[];
+}
+
+// ============================================================================
+// Factory function
+// ============================================================================
+
+// ============================================================================
+// Website Comparison
+// ============================================================================
+
+export interface WebsiteComparison {
+  yourWebsite?: WebsiteProfile;
+  competitorWebsites: WebsiteProfile[];
+  industryBenchmarks: WebsiteBenchmark[];
+  recommendations: string[];
+}
+
+export interface WebsiteProfile {
+  name: string;
+  url?: string;
+  platform?: string;
+  hasMobileOptimization: boolean;
+  hasSSL: boolean;
+  hasBlog: boolean;
+  hasOnlineBooking: boolean;
+  hasChatWidget: boolean;
+  hasTestimonials: boolean;
+  hasPricing: boolean;
+  hasPortfolio: boolean;
+  socialLinks: string[];
+  missingFeatures: string[];
+  score: number;
+}
+
+export interface WebsiteBenchmark {
+  feature: string;
+  yourStatus: 'has' | 'missing' | 'partial';
+  competitorAdoption: number; // percentage
+  priority: 'critical' | 'high' | 'medium' | 'low';
+  recommendation: string;
+}
+
+// ============================================================================
+// Social Media Benchmark
+// ============================================================================
+
+export interface SocialMediaBenchmark {
+  platforms: SocialPlatformAnalysis[];
+  competitorPresence: CompetitorSocialPresence[];
+  gaps: SocialGap[];
+  contentStrategy: ContentStrategyRecommendation[];
+  overallScore: number;
+}
+
+export interface SocialPlatformAnalysis {
+  platform: string;
+  icon: string;
+  yourPresence: boolean;
+  competitorsOnPlatform: number;
+  competitorPercentage: number;
+  importance: 'critical' | 'high' | 'medium' | 'low';
+  recommendation: string;
+}
+
+export interface CompetitorSocialPresence {
+  name: string;
+  platforms: string[];
+  estimatedFollowing: string;
+  contentFrequency: string;
+  engagement: 'high' | 'medium' | 'low';
+}
+
+export interface SocialGap {
+  platform: string;
+  gap: string;
+  competitorsLeveraging: number;
+  potentialImpact: string;
+}
+
+export interface ContentStrategyRecommendation {
+  type: string;
+  description: string;
+  frequency: string;
+  expectedImpact: string;
+  examples: string[];
+}
+
+// ============================================================================
+// Product & Service Gap Analysis
+// ============================================================================
+
+export interface ProductServiceGap {
+  yourServices: string[];
+  competitorOfferings: CompetitorOffering[];
+  serviceGaps: ServiceGap[];
+  pricingInsights: PricingInsight[];
+  upsellOpportunities: UpsellOpportunity[];
+  marketDemand: MarketDemandItem[];
+}
+
+export interface CompetitorOffering {
+  competitorName: string;
+  services: string[];
+  uniqueOfferings: string[];
+  pricingModel: string;
+  valueAdds: string[];
+}
+
+export interface ServiceGap {
+  service: string;
+  competitorsOffering: number;
+  competitorPercentage: number;
+  demandLevel: 'high' | 'medium' | 'low';
+  revenueImpact: 'high' | 'medium' | 'low';
+  implementationDifficulty: 'easy' | 'moderate' | 'hard';
+  recommendation: string;
+}
+
+export interface PricingInsight {
+  service: string;
+  marketLow: string;
+  marketAverage: string;
+  marketHigh: string;
+  yourPosition?: string;
+  recommendation: string;
+}
+
+export interface UpsellOpportunity {
+  opportunity: string;
+  description: string;
+  targetCustomers: string;
+  estimatedRevenue: string;
+  competitorsDoingThis: number;
+}
+
+export interface MarketDemandItem {
+  service: string;
+  demandTrend: 'growing' | 'stable' | 'declining';
+  searchVolume: string;
+  competitorSaturation: 'low' | 'medium' | 'high';
+  opportunity: string;
+}
+
+// ============================================================================
+// AI Comprehensive Success Plan
+// ============================================================================
+
+export interface AISuccessPlan {
+  overallGrade: string;
+  executiveBrief: string;
+  
+  // Website improvements
+  websiteActions: SuccessAction[];
+  
+  // Social media improvements
+  socialActions: SuccessAction[];
+  
+  // Product/service improvements
+  productActions: SuccessAction[];
+  
+  // Marketing improvements
+  marketingActions: SuccessAction[];
+  
+  // Operations improvements
+  operationsActions: SuccessAction[];
+  
+  // Revenue growth strategies
+  revenueActions: SuccessAction[];
+  
+  // 30-60-90 day plan
+  thirtyDayPlan: MilestonePlan;
+  sixtyDayPlan: MilestonePlan;
+  ninetyDayPlan: MilestonePlan;
+  
+  // Competitive moat building
+  moatStrategies: MoatStrategy[];
+  
+  // Cost optimization
+  costOptimizations: CostOptimization[];
+}
+
+export interface SuccessAction {
+  action: string;
+  description: string;
+  priority: 'critical' | 'high' | 'medium' | 'low';
+  effort: 'low' | 'medium' | 'high';
+  impact: 'low' | 'medium' | 'high';
+  timeline: string;
+  competitorsDoingThis: string;
+  estimatedROI: string;
+}
+
+export interface MilestonePlan {
+  label: string;
+  goals: string[];
+  actions: string[];
+  expectedOutcomes: string[];
+  kpis: string[];
+}
+
+export interface MoatStrategy {
+  strategy: string;
+  description: string;
+  competitiveAdvantage: string;
+  timeToImplement: string;
+  defensibility: 'strong' | 'moderate' | 'weak';
+}
+
+export interface CostOptimization {
+  area: string;
+  currentApproach: string;
+  competitorApproach: string;
+  savings: string;
+  recommendation: string;
 }
 
 // ============================================================================
