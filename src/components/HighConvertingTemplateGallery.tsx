@@ -820,10 +820,11 @@ export default function HighConvertingTemplateGallery({
                     className="flex-1 text-[10px] h-7 px-2 bg-emerald-600 hover:bg-emerald-700 text-white"
                     onClick={(e) => {
                       e.stopPropagation();
-                      openPreview(template);
+                      setVisualEditorTemplate(template);
+                      setShowVisualEditor(true);
                     }}
                   >
-                    <Eye className="w-3 h-3 mr-0.5" />
+                    <Palette className="w-3 h-3 mr-0.5" />
                     Edit
                   </Button>
                   {onSelectTemplate && (
@@ -1377,17 +1378,6 @@ Best regards,
                     </p>
                   </div>
                   <div className="flex items-center gap-2 mr-8">
-                    {/* Quick Edit toggle for basic editing */}
-                    <Button
-                      size="sm"
-                      onClick={() => setIsEditing(!isEditing)}
-                      variant="outline"
-                      className="gap-2"
-                    >
-                      {isEditing ? <Eye className="w-4 h-4" /> : <Type className="w-4 h-4" />}
-                      {isEditing ? "Preview" : "Quick Edit"}
-                    </Button>
-                    {/* Visual Editor for full customization */}
                     <Button
                       size="sm"
                       onClick={() => {
@@ -1398,7 +1388,7 @@ Best regards,
                       className="gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white"
                     >
                       <Palette className="w-4 h-4" />
-                      Visual Editor
+                      Edit Template
                     </Button>
                   </div>
                 </div>
@@ -1559,10 +1549,6 @@ Best regards,
                         <Copy className="w-4 h-4 mr-2" />
                         Copy HTML
                       </Button>
-                      <Button variant="outline" onClick={() => setIsEditing(true)} className="gap-2">
-                        <Type className="w-4 h-4" />
-                        Quick Edit
-                      </Button>
                       <Button 
                         onClick={() => {
                           setVisualEditorTemplate(previewTemplate);
@@ -1572,7 +1558,7 @@ Best regards,
                         className="gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
                       >
                         <Palette className="w-4 h-4" />
-                        Visual Editor
+                        Edit Template
                       </Button>
                       {onSelectTemplate && (
                         <Button
