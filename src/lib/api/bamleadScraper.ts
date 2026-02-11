@@ -169,7 +169,7 @@ export async function bamleadScrapeBatch(
  */
 export async function bamleadScrapeSequential(
   businesses: Array<{ url: string; name?: string; location?: string }>,
-  batchSize = 25,
+  batchSize = 100,
   onProgress?: (completed: number, total: number) => void
 ): Promise<BamleadScrapeResult[]> {
   const results: BamleadScrapeResult[] = [];
@@ -196,10 +196,7 @@ export async function bamleadScrapeSequential(
 
     onProgress?.(Math.min(i + batchSize, businesses.length), businesses.length);
 
-    // Minimal delay between batches
-    if (i + batchSize < businesses.length) {
-      await new Promise((r) => setTimeout(r, 50));
-    }
+    // No delay — maximum throughput
   }
 
   return results;
