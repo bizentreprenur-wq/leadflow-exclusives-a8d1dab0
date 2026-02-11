@@ -240,8 +240,8 @@ function processEnrichmentQueue() {
     $sessionId = $_GET['session_id'] ?? '';
     $pdo = getDbConnection();
     
-    $batchSize = defined('ENRICHMENT_BATCH_SIZE') ? ENRICHMENT_BATCH_SIZE : 8;
-    $maxSeconds = defined('ENRICHMENT_PROCESS_MAX_SECONDS') ? max(5, (int)ENRICHMENT_PROCESS_MAX_SECONDS) : 20;
+    $batchSize = defined('ENRICHMENT_BATCH_SIZE') ? ENRICHMENT_BATCH_SIZE : 12;
+    $maxSeconds = defined('ENRICHMENT_PROCESS_MAX_SECONDS') ? max(5, (int)ENRICHMENT_PROCESS_MAX_SECONDS) : 45;
     
     $processed = 0;
     $failed = 0;
@@ -304,13 +304,16 @@ function processEnrichmentQueue() {
                 $retryCount = ($item['retry_count'] ?? 0) + 1;
                 
                 if ($retryCount < $maxRetries && isRetryableError($e->getMessage())) {
-                    // Queue for retry
+                    // Queue for retry with exponential backoff
                     $updateStmt = $pdo->prepare("
                         UPDATE enrichment_queue 
                         SET status = 'pending', retry_count = ?, error_message = ?, started_at = NULL
                         WHERE id = ?
                     ");
                     $updateStmt->execute([$retryCount, $e->getMessage(), $item['id']]);
+                    // Exponential backoff: 1s, 2s, 4s, 8s max
+                    $backoffMs = min(8000, (int)(pow(2, $retryCount) * 500));
+                    usleep($backoffMs * 1000);
                 } else {
                     // Mark as failed
                     $updateStmt = $pdo->prepare("
@@ -323,8 +326,8 @@ function processEnrichmentQueue() {
                 }
             }
             
-            // Small delay to respect rate limits
-            $delay = defined('FIRECRAWL_RETRY_DELAY_MS') ? FIRECRAWL_RETRY_DELAY_MS : 1000;
+            // Small delay to respect rate limits (reduced for throughput)
+            $delay = defined('FIRECRAWL_RETRY_DELAY_MS') ? FIRECRAWL_RETRY_DELAY_MS : 500;
             if ($delay > 0) {
                 usleep($delay * 1000);
             }
