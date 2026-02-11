@@ -62,7 +62,7 @@ function queueFirecrawlEnrichment($leadId, $url, $sessionId, $searchType = 'gmb'
  * Process pending enrichment items and return results
  * Called periodically during SSE streaming
  */
-function processEnrichmentBatch($sessionId, $batchSize = 3) {
+function processEnrichmentBatch($sessionId, $batchSize = 5) {
     $apiKey = defined('FIRECRAWL_API_KEY') ? FIRECRAWL_API_KEY : '';
     
     if (empty($apiKey) || $apiKey === 'YOUR_FIRECRAWL_API_KEY_HERE') {
@@ -118,15 +118,20 @@ function processEnrichmentBatch($sessionId, $batchSize = 3) {
                 
             } catch (Exception $e) {
                 $retryable = isRetryableFirecrawlError($e->getMessage());
+                $retryCount = ($item['retry_count'] ?? 0) + 1;
                 
-                if ($retryable) {
-                    // Reset to pending for retry
+                if ($retryable && $retryCount < 5) {
+                    // Exponential backoff: schedule_after = now + 2^retry seconds
                     $updateStmt = $pdo->prepare("
                         UPDATE enrichment_queue 
-                        SET status = 'pending', retry_count = retry_count + 1, error_message = ?
+                        SET status = 'pending', retry_count = ?, error_message = ?,
+                            started_at = NULL
                         WHERE id = ?
                     ");
-                    $updateStmt->execute([$e->getMessage(), $item['id']]);
+                    $updateStmt->execute([$retryCount, $e->getMessage(), $item['id']]);
+                    // Sleep with exponential backoff before next item
+                    $backoffMs = min(8000, (int)(pow(2, $retryCount) * 500));
+                    usleep($backoffMs * 1000);
                 } else {
                     // Mark as failed
                     $updateStmt = $pdo->prepare("

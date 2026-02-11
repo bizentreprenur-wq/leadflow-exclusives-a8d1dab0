@@ -5,6 +5,7 @@
  */
 
 import { API_BASE_URL, USE_MOCK_AUTH, getAuthHeaders } from './config';
+import { getEnrichmentStatus, triggerProcessing } from './firecrawl';
 
 const USE_MOCK_DATA = !API_BASE_URL;
 
@@ -708,6 +709,13 @@ async function searchGMBStreaming(
                 }
                 clearTimeout(timeoutId);
                 clearTimeout(initialTimeoutId);
+
+                // Start post-stream enrichment polling to keep triggering the backend
+                // processor and merging new email/phone results into leads.
+                if (enrichmentEnabled && enrichmentSessionId && onEnrichment) {
+                  startEnrichmentPolling(enrichmentSessionId, allResults, onEnrichment, onProgress);
+                }
+
                 finish({
                   success: true,
                   data: allResults,
@@ -753,6 +761,89 @@ async function searchGMBStreaming(
         fail(error);
       });
   });
+}
+
+/**
+ * Post-stream enrichment polling.
+ * After the SSE stream ends, the backend enrichment queue may still have
+ * pending items. This function keeps triggering the processor and dispatches
+ * a custom event with status updates so the UI can show progress.
+ */
+function startEnrichmentPolling(
+  sessionId: string,
+  allResults: GMBResult[],
+  onEnrichment: EnrichmentCallback,
+  onProgress?: ProgressCallback
+) {
+  let stopped = false;
+  const POLL_MS = 3000;
+  const MAX_DURATION_MS = 10 * 60 * 1000; // 10 minutes max
+  const start = Date.now();
+
+  const poll = async () => {
+    if (stopped) return;
+    if (Date.now() - start > MAX_DURATION_MS) {
+      stopped = true;
+      window.dispatchEvent(new CustomEvent('enrichment-status', { detail: { isComplete: true, sessionId } }));
+      return;
+    }
+
+    try {
+      // Trigger the processor
+      triggerProcessing(sessionId);
+
+      // Fetch status
+      const status = await getEnrichmentStatus(sessionId);
+      if (!status) {
+        setTimeout(poll, POLL_MS);
+        return;
+      }
+
+      // Dispatch status event for the UI panel
+      window.dispatchEvent(new CustomEvent('enrichment-status', {
+        detail: {
+          sessionId,
+          ...status.status,
+          progress: status.progress,
+          isComplete: status.isComplete,
+          emailsFound: Object.values(status.results).filter(r => r.hasEmail).length,
+          phonesFound: Object.values(status.results).filter(r => r.hasPhone).length,
+          socialsFound: Object.values(status.results).filter(r => r.hasSocials).length,
+        }
+      }));
+
+      // Merge new results into allResults & call callbacks
+      for (const [leadId, enrichmentData] of Object.entries(status.results)) {
+        const idx = allResults.findIndex(l => l.id === leadId);
+        if (idx !== -1 && allResults[idx].enrichmentStatus !== 'completed') {
+          allResults[idx] = {
+            ...allResults[idx],
+            enrichment: enrichmentData,
+            enrichmentStatus: 'completed',
+            email: enrichmentData.emails?.[0] || allResults[idx].email,
+            phone: enrichmentData.phones?.[0] || allResults[idx].phone,
+          };
+          onEnrichment(leadId, enrichmentData);
+        }
+      }
+
+      if (Object.keys(status.results).length > 0 && onProgress) {
+        onProgress([...allResults], 100);
+      }
+
+      if (status.isComplete) {
+        stopped = true;
+        return;
+      }
+    } catch (e) {
+      console.warn('[GMB API] Enrichment poll error:', e);
+    }
+
+    setTimeout(poll, POLL_MS);
+  };
+
+  // Start after a short delay
+  setTimeout(poll, 2000);
 }
 
 /**
