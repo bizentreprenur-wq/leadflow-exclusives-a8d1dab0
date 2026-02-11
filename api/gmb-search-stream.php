@@ -446,7 +446,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                             'displayLink' => parse_url($item['link'] ?? '', PHP_URL_HOST) ?? '',
                             'address' => '',
                             'phone' => extractPhoneFromText($item['snippet'] ?? ''),
-                            'email' => extractEmailFromText($item['snippet'] ?? '') ?: inlineExtractEmail($item['link'] ?? ''),
+                            'email' => extractEmailFromText($item['snippet'] ?? ''),
                             'rating' => null,
                             'reviews' => null,
                             'source' => 'Serper Organic',
@@ -514,7 +514,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                         'displayLink' => parse_url($item['link'] ?? '', PHP_URL_HOST) ?? '',
                         'address' => '',
                         'phone' => extractPhoneFromText($item['snippet'] ?? ''),
-                        'email' => extractEmailFromText($item['snippet'] ?? '') ?: inlineExtractEmail($item['link'] ?? ''),
+                        'email' => extractEmailFromText($item['snippet'] ?? ''),
                         'rating' => null,
                         'reviews' => null,
                         'source' => 'Directory',
@@ -999,10 +999,9 @@ function normalizeBusinessResult($item, $engine, $sourceName) {
         $phone = extractPhoneFromText($snippet);
     }
 
-    // INLINE EMAIL EXTRACTION: If we have a website URL but no email,
-    // attempt a fast cached contact scrape to get the email immediately.
-    // This ensures leads arrive WITH emails instead of waiting for post-search enrichment.
-    if (empty($email) && !empty($websiteUrl)) {
+    // INLINE EMAIL EXTRACTION: For small searches only.
+    // On large searches, this blocks the stream and causes timeouts; background Firecrawl enrichment fills emails later.
+    if (empty($email) && !empty($websiteUrl) && (!isset($GLOBALS['_bamlead_search_limit']) || (int)$GLOBALS['_bamlead_search_limit'] < 200)) {
         $email = inlineExtractEmail($websiteUrl);
     }
     
@@ -1521,9 +1520,14 @@ function streamSerperSearchInto(
             $placesError = $parseSerperError($placesResponse);
             $mapsError = $parseSerperError($mapsResponse);
             $combinedError = $lastOrganicError ?: "{$placesError}; {$mapsError}";
-            sendSSEError($combinedError);
+            // Non-fatal: a single shard can fail on shared hosts. Continue the global search.
+            sendSSE('source_error', [
+                'error' => $combinedError,
+                'engine' => 'Serper',
+                'query' => $query,
+                'location' => $location,
+            ]);
             return;
-        } else {
             if (DEBUG_MODE) {
                 $placesError = $parseSerperError($placesResponse);
                 error_log("[Serper] Places failed but Maps is available. Continuing with Maps only. {$placesError}");
@@ -1658,10 +1662,10 @@ function streamSerperSearchInto(
         }
     }
 
-    // ORGANIC BOOST: Run organic search for every location query to dramatically
-    // increase volume. Places returns ~20 results, organic returns ~100 per page.
-    // This is the primary volume driver for high-volume searches.
-    if ($totalResults < $limit) {
+    // ORGANIC BOOST: For small searches only.
+    // For high-volume searches, we rely on the dedicated deep organic pass (batched + parallel)
+    // later in the pipeline to avoid repeated per-location pagination that can time out on shared hosts.
+    if ($totalResults < $limit && $limit < 500) {
         $organicPages = 1;
         if ($limit >= 500) $organicPages = 3;
         if ($limit >= 1000) $organicPages = 5;
@@ -1684,7 +1688,9 @@ function streamSerperSearchInto(
                     'displayLink' => parse_url($item['link'] ?? '', PHP_URL_HOST) ?? '',
                     'address' => '',
                     'phone' => extractPhoneFromText($item['snippet'] ?? ''),
-                    'email' => extractEmailFromText($item['snippet'] ?? '') ?: inlineExtractEmail($item['link'] ?? ''),
+                    // Inline website scraping here kills throughput on big searches.
+                    // Any real emails should come from background enrichment.
+                    'email' => extractEmailFromText($item['snippet'] ?? ''),
                     'rating' => null,
                     'reviews' => null,
                     'source' => 'Serper Organic',
