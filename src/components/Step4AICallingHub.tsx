@@ -619,12 +619,12 @@ export default function Step4AICallingHub({
                   const greeting = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening';
 
                     const statCards = [
-                    { label: 'TOTAL CALLS', value: `${callStats.total}`, icon: Phone, borderColor: 'border-l-amber-500', iconBg: 'bg-amber-500/10', iconColor: 'text-amber-500', change: '+0%', changeUp: true },
-                    { label: 'AVERAGE CALL DURATION', value: `${avgMins} min ${avgSecs} sec`, icon: Clock, borderColor: 'border-l-yellow-500', iconBg: 'bg-yellow-500/10', iconColor: 'text-yellow-500', change: '+0%', changeUp: true },
-                    { label: 'TOTAL USAGE', value: `${totalDurationMins} min ${totalDurationSecs} sec`, icon: Clock, borderColor: 'border-l-amber-400', iconBg: 'bg-amber-400/10', iconColor: 'text-amber-400', change: '+0%', changeUp: true },
-                    { label: 'TOTAL APPOINTMENTS', value: `${meetings.length}`, icon: CalendarIcon, borderColor: 'border-l-orange-500', iconBg: 'bg-orange-500/10', iconColor: 'text-orange-500', change: '+0%', changeUp: true },
-                    { label: 'AMD DETECTION RATE', value: `${amdRate}%`, icon: Target, borderColor: 'border-l-rose-500', iconBg: 'bg-rose-500/10', iconColor: 'text-rose-500', change: '+0%', changeUp: true },
-                    { label: 'SUCCESS RATE', value: `${successRate}%`, icon: TrendingUp, borderColor: 'border-l-amber-300', iconBg: 'bg-amber-300/10', iconColor: 'text-amber-300', change: successRate > 0 ? `${successRate}%` : 'Below average', changeUp: successRate > 0 },
+                    { label: 'TOTAL CALLS', value: `${callStats.total}`, icon: Phone, cardBg: 'bg-gradient-to-br from-amber-500 to-amber-600', iconBg: 'bg-white/20', iconColor: 'text-white', change: '+0%', changeUp: true },
+                    { label: 'AVERAGE CALL DURATION', value: `${avgMins} min ${avgSecs} sec`, icon: Clock, cardBg: 'bg-gradient-to-br from-violet-500 to-violet-600', iconBg: 'bg-white/20', iconColor: 'text-white', change: '+0%', changeUp: true },
+                    { label: 'TOTAL USAGE', value: `${totalDurationMins} min ${totalDurationSecs} sec`, icon: Clock, cardBg: 'bg-gradient-to-br from-cyan-500 to-cyan-600', iconBg: 'bg-white/20', iconColor: 'text-white', change: '+0%', changeUp: true },
+                    { label: 'TOTAL APPOINTMENTS', value: `${meetings.length}`, icon: CalendarIcon, cardBg: 'bg-gradient-to-br from-orange-500 to-orange-600', iconBg: 'bg-white/20', iconColor: 'text-white', change: '+0%', changeUp: true },
+                    { label: 'AMD DETECTION RATE', value: `${amdRate}%`, icon: Target, cardBg: 'bg-gradient-to-br from-rose-500 to-rose-600', iconBg: 'bg-white/20', iconColor: 'text-white', change: '+0%', changeUp: true },
+                    { label: 'SUCCESS RATE', value: `${successRate}%`, icon: TrendingUp, cardBg: 'bg-gradient-to-br from-emerald-500 to-emerald-600', iconBg: 'bg-white/20', iconColor: 'text-white', change: successRate > 0 ? `${successRate}%` : 'Below average', changeUp: successRate > 0 },
                   ];
 
                   return (
@@ -670,18 +670,18 @@ export default function Step4AICallingHub({
                           initial={{ opacity: 0, y: 12 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: idx * 0.05 }}
-                          className={`rounded-2xl border border-border/50 bg-card p-5 border-l-4 ${card.borderColor}`}
+                          className={`rounded-2xl p-5 shadow-lg ${card.cardBg}`}
                         >
                           <div className="flex items-start justify-between">
                             <div>
-                              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">{card.label}</p>
-                              <p className="text-2xl font-bold text-foreground">{card.value}</p>
+                              <p className="text-[11px] font-semibold text-white/70 uppercase tracking-wider mb-2">{card.label}</p>
+                              <p className="text-2xl font-bold text-white">{card.value}</p>
                             </div>
                             <div className={`w-10 h-10 rounded-xl ${card.iconBg} flex items-center justify-center`}>
                               <card.icon className={`w-5 h-5 ${card.iconColor}`} />
                             </div>
                           </div>
-                          <div className={`flex items-center gap-1 mt-3 text-xs font-medium ${card.changeUp ? 'text-amber-400' : 'text-rose-500'}`}>
+                          <div className={`flex items-center gap-1 mt-3 text-xs font-medium text-white/60`}>
                             {card.changeUp ? <TrendingUp className="w-3 h-3" /> : <TrendingUp className="w-3 h-3 rotate-180" />}
                             <span>{card.change} from previous period</span>
                           </div>
