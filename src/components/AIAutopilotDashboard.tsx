@@ -196,6 +196,101 @@ export default function AIAutopilotDashboard({
     }
   };
 
+  // Readiness checklist component for empty state
+  const ReadinessChecklist = ({ searchType: st }: { searchType?: 'gmb' | 'platform' | null }) => {
+    const hasLeads = autopilotLeads.length > 0;
+    const hasSMTP = !!localStorage.getItem('bamlead_smtp_config');
+    const hasTemplate = !!(campaign?.template?.subject);
+    const hasTrial = canUseAutopilot;
+
+    const checks = [
+      {
+        label: 'Subscription or Trial Active',
+        ok: hasTrial,
+        icon: <Crown className="w-4 h-4" />,
+        fix: 'Go to Pricing',
+        action: () => window.location.href = '/pricing',
+      },
+      {
+        label: 'Leads Loaded (Search or Demo)',
+        ok: hasLeads,
+        icon: <Users className="w-4 h-4" />,
+        fix: 'Go to Search (Step 1)',
+        action: () => {
+          const el = document.querySelector('[data-step="1"]') as HTMLElement;
+          el?.click();
+        },
+      },
+      {
+        label: 'SMTP / Email Configured',
+        ok: hasSMTP,
+        icon: <Mail className="w-4 h-4" />,
+        fix: 'Set Up SMTP (Step 3)',
+        action: () => {
+          const el = document.querySelector('[data-step="3"]') as HTMLElement;
+          el?.click();
+        },
+      },
+      {
+        label: 'Email Template Selected',
+        ok: hasTemplate,
+        icon: <FileText className="w-4 h-4" />,
+        fix: 'Choose Template (Step 3)',
+        action: () => {
+          const el = document.querySelector('[data-step="3"]') as HTMLElement;
+          el?.click();
+        },
+      },
+    ];
+
+    const allReady = checks.every(c => c.ok);
+
+    return (
+      <div className="py-8 px-4">
+        <div className="max-w-md mx-auto">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center mx-auto mb-4">
+              <Bot className="w-8 h-8 text-amber-400" />
+            </div>
+            <h3 className="text-lg font-bold text-foreground mb-1">AI Autopilot Readiness</h3>
+            <p className="text-sm text-muted-foreground">
+              {allReady ? 'All set! Launch your campaign from the Email Composer.' : 'Complete these steps to launch AI Autopilot:'}
+            </p>
+          </div>
+          <div className="space-y-3">
+            {checks.map((check, i) => (
+              <div
+                key={i}
+                className={cn(
+                  "flex items-center gap-3 p-3 rounded-xl border transition-all",
+                  check.ok
+                    ? "border-emerald-500/30 bg-emerald-500/5"
+                    : "border-red-500/30 bg-red-500/5"
+                )}
+              >
+                <div className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
+                  check.ok ? "bg-emerald-500/20 text-emerald-400" : "bg-red-500/20 text-red-400"
+                )}>
+                  {check.ok ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+                </div>
+                <span className={cn("flex-1 text-sm font-medium", check.ok ? "text-emerald-400" : "text-foreground")}>
+                  {check.label}
+                </span>
+                {!check.ok && (
+                  <Button size="sm" variant="outline" className="text-xs h-7 gap-1 border-amber-500/30 text-amber-400 hover:bg-amber-500/10" onClick={check.action}>
+                    {check.icon}
+                    {check.fix}
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6 relative">
       {/* Expired Overlay */}
@@ -539,11 +634,7 @@ export default function AIAutopilotDashboard({
           </AnimatePresence>
 
           {filteredLeads.length === 0 && (
-            <div className="text-center py-12">
-              <Bot className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
-              <p className="text-muted-foreground">No leads in this category</p>
-              <p className="text-sm text-muted-foreground/70">Start an AI Autopilot campaign to see leads here</p>
-            </div>
+            <ReadinessChecklist searchType={searchType} />
           )}
         </div>
       </ScrollArea>
