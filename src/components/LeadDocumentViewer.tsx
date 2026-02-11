@@ -958,10 +958,13 @@ export default function LeadDocumentViewer({
     doc.setTextColor(59, 130, 246);
     doc.text('BamLead Intelligence Report', pageWidth / 2, 20, { align: 'center' });
 
+    doc.setFontSize(14);
+    doc.setTextColor(0);
+    doc.text(`Leads for: ${searchQuery} in ${location}`, pageWidth / 2, 30, { align: 'center' });
+
     doc.setFontSize(12);
     doc.setTextColor(100);
-    doc.text(`${searchQuery} in ${location}`, pageWidth / 2, 28, { align: 'center' });
-    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 34, { align: 'center' });
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 37, { align: 'center' });
 
     // Summary
     doc.setFontSize(14);
@@ -1049,9 +1052,21 @@ export default function LeadDocumentViewer({
       return row;
     });
 
-    const ws = XLSX.utils.json_to_sheet(data);
+    // Add a summary/header sheet with lead type info
+    const summaryData = [
+      { 'Field': 'Report', 'Value': 'BamLead Intelligence Report' },
+      { 'Field': 'Leads For', 'Value': `${searchQuery} in ${location}` },
+      { 'Field': 'Generated', 'Value': new Date().toLocaleDateString() },
+      { 'Field': 'Total Leads', 'Value': analyzedLeads.length },
+      { 'Field': 'Hot Leads', 'Value': hotLeads.length },
+      { 'Field': 'Warm Leads', 'Value': warmLeads.length },
+      { 'Field': 'Cold Leads', 'Value': coldLeads.length },
+    ];
+    const summaryWs = XLSX.utils.json_to_sheet(summaryData);
     const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary');
 
+    const ws = XLSX.utils.json_to_sheet(data);
     XLSX.utils.book_append_sheet(wb, ws, 'All Leads');
 
     const hotData = hotLeads.map(l => ({
