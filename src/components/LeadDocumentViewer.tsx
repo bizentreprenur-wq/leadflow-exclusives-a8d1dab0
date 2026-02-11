@@ -1952,7 +1952,7 @@ export default function LeadDocumentViewer({
         ) : (
           <>
             {/* Document Header - Like a PDF */}
-            <div className={`border-b px-6 py-4 shrink-0 rounded-t-xl ${researchMode === 'competitive' ? 'bg-gradient-to-r from-amber-50 to-orange-50' : 'bg-white'}`}>
+            <div className={`border-b px-6 py-4 shrink-0 rounded-t-xl ${researchMode === 'competitive' ? 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950 dark:to-orange-950' : 'bg-white dark:bg-gray-900'}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${
