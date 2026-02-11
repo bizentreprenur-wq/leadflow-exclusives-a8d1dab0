@@ -132,7 +132,10 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         $expansionMax = max($expansionMax, 50);
     }
     if ($limit >= 2000) {
-        $expansionMax = max($expansionMax, 70);
+        $expansionMax = max($expansionMax, 80);
+    }
+    if ($limit >= 5000) {
+        $expansionMax = max($expansionMax, 120);
     }
     $expandedLocations = $enableExpansion ? buildLocationExpansions($location) : [];
     if ($expansionMax > 0) {
@@ -143,6 +146,20 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
     $locationsToSearch = array_merge([$location], $expandedLocations);
     $searchedLocations = [];
 
+    // Pre-compute synonym variants for use in primary search loop
+    $serviceVariants = expandServiceSynonyms($service);
+    if (empty($serviceVariants)) {
+        $serviceVariants = [$service];
+    }
+    // For high-volume searches, use more synonym variants per location
+    $synonymsPerLocation = 1;
+    if ($limit >= 500) $synonymsPerLocation = 3;
+    if ($limit >= 1000) $synonymsPerLocation = 6;
+    if ($limit >= 2000) $synonymsPerLocation = 10;
+    if ($limit >= 5000) $synonymsPerLocation = 15;
+    // Pick top N synonyms (skip first which is the original)
+    $synonymSubset = array_slice($serviceVariants, 1, $synonymsPerLocation);
+
     sendSSE('start', [
         'query' => "$service in $location",
         'limit' => $limit,
@@ -150,6 +167,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         'sources' => ['Serper Places', 'Serper Organic', 'Serper Maps'],
         'estimatedSources' => 3,
         'expandedLocations' => $expandedLocations,
+        'synonymVariants' => count($serviceVariants),
         'filtersActive' => $filtersActive,
         'enrichmentEnabled' => $enableEnrichment,
         'enrichmentSessionId' => $enrichmentSessionId
@@ -200,6 +218,8 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         $enrichmentLastId = $completed['lastId'] ?? $enrichmentLastId;
     };
 
+    // ---- PRIMARY SEARCH LOOP ----
+    // For each location, search with base query AND synonym variants
     foreach ($locationsToSearch as $locationIndex => $searchLocation) {
         if ($totalResults >= $limit) {
             break;
@@ -213,6 +233,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
             ]);
         }
 
+        // 1) Base query for this location
         streamSerperSearchInto(
             $service,
             $searchLocation,
@@ -230,8 +251,41 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         );
 
         $emitEnrichment();
+
+        // 2) Run synonym variants for this same location to multiply results
+        if ($limit >= 500 && $totalResults < $limit) {
+            foreach ($synonymSubset as $synonym) {
+                if ($totalResults >= $limit) break;
+
+                $synonymQuery = "$synonym in $searchLocation";
+                sendSSE('status', [
+                    'message' => "Expanding: $synonym in $searchLocation ({$totalResults}/{$limit})",
+                    'progress' => min(95, round(($totalResults / max(1, $limit)) * 100)),
+                ]);
+
+                streamSerperSearchInto(
+                    $synonym,
+                    $searchLocation,
+                    $limit,
+                    $filters,
+                    $filtersActive,
+                    $filterMultiplier,
+                    $allResults,
+                    $seenBusinesses,
+                    $totalResults,
+                    $enrichmentSessionId,
+                    $enableEnrichment,
+                    $enrichmentSearchType,
+                    false,
+                    $synonymQuery
+                );
+
+                $emitEnrichment();
+            }
+        }
     }
 
+    // ---- SECONDARY TOP-UP PASS ----
     if ($totalResults < $limit) {
         sendSSE('coverage', [
             'message' => "Under requested count ({$totalResults}/{$limit}). Running broader query variants...",
@@ -277,6 +331,82 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
             );
 
             $emitEnrichment();
+        }
+    }
+
+    // ---- TERTIARY: Organic pagination pass for remaining deficit ----
+    if ($totalResults < $limit && $limit >= 500) {
+        $deficit = $limit - $totalResults;
+        sendSSE('coverage', [
+            'message' => "Running deep organic search for remaining {$deficit} leads...",
+            'total' => $totalResults,
+            'target' => $limit,
+            'progress' => min(98, round(($totalResults / max(1, $limit)) * 100)),
+        ]);
+
+        $organicVariants = array_slice($serviceVariants, 0, min(8, count($serviceVariants)));
+        $organicLocations = array_slice($searchedLocations, 0, min(5, count($searchedLocations)));
+
+        foreach ($organicLocations as $orgLoc) {
+            if ($totalResults >= $limit) break;
+            foreach ($organicVariants as $orgVariant) {
+                if ($totalResults >= $limit) break;
+
+                // Paginate Serper organic search (up to 5 pages of 100 results each)
+                for ($page = 1; $page <= 5; $page++) {
+                    if ($totalResults >= $limit) break;
+
+                    $organicResults = fetchSerperOrganicPage("$orgVariant in $orgLoc", $page, 100);
+                    if (empty($organicResults)) break;
+
+                    $foundNew = false;
+                    foreach ($organicResults as $item) {
+                        if ($totalResults >= $limit) break;
+
+                        $business = [
+                            'id' => generateId('srpo_'),
+                            'name' => $item['title'] ?? '',
+                            'url' => $item['link'] ?? '',
+                            'snippet' => $item['snippet'] ?? '',
+                            'displayLink' => parse_url($item['link'] ?? '', PHP_URL_HOST) ?? '',
+                            'address' => '',
+                            'phone' => extractPhoneFromText($item['snippet'] ?? ''),
+                            'email' => extractEmailFromText($item['snippet'] ?? ''),
+                            'rating' => null,
+                            'reviews' => null,
+                            'source' => 'Serper Organic',
+                            'sources' => ['Serper Organic']
+                        ];
+
+                        if (empty($business['name'])) continue;
+                        $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
+                        if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
+
+                        $dedupeKey = buildBusinessDedupeKey($business, $orgLoc);
+                        if (isset($seenBusinesses[$dedupeKey])) continue;
+
+                        $seenBusinesses[$dedupeKey] = count($allResults);
+                        $allResults[] = $business;
+                        $totalResults++;
+                        $foundNew = true;
+
+                        if ($enableEnrichment && !empty($business['url'])) {
+                            queueFirecrawlEnrichment($business['id'], $business['url'], $enrichmentSessionId, $enrichmentSearchType);
+                        }
+
+                        $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
+                        sendSSE('results', [
+                            'leads' => [$business],
+                            'total' => $totalResults,
+                            'progress' => $progress,
+                            'source' => 'Serper Organic'
+                        ]);
+                    }
+
+                    $emitEnrichment();
+                    if (!$foundNew) break; // No new unique results, move on
+                }
+            }
         }
     }
 
@@ -382,6 +512,44 @@ function buildSearchQueryVariants($service, $searchedLocations, $limit = 100, $f
         $maxVariants = (int)ceil($maxVariants * 1.3);
     }
     return array_slice(array_values($variants), 0, $maxVariants);
+}
+
+/**
+ * Fetch a single page of Serper organic search results with pagination.
+ * Returns array of organic results or empty array on failure.
+ */
+function fetchSerperOrganicPage($query, $page = 1, $num = 100) {
+    if (!defined('SERPER_API_KEY') || empty(SERPER_API_KEY)) {
+        return [];
+    }
+
+    $payload = [
+        'q' => $query,
+        'gl' => 'us',
+        'hl' => 'en',
+        'num' => min(100, max(10, $num)),
+    ];
+    if ($page > 1) {
+        $payload['page'] = (int)$page;
+    }
+
+    $response = curlRequest('https://google.serper.dev/search', [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($payload),
+        CURLOPT_HTTPHEADER => [
+            'X-API-KEY: ' . SERPER_API_KEY,
+            'Content-Type: application/json'
+        ],
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_CONNECTTIMEOUT => 10,
+    ]);
+
+    if (($response['httpCode'] ?? 0) !== 200) {
+        return [];
+    }
+
+    $data = json_decode($response['response'] ?? '', true);
+    return $data['organic'] ?? [];
 }
 
 function isSerpApiCreditsError($message) {
