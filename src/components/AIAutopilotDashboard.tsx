@@ -137,7 +137,7 @@ export default function AIAutopilotDashboard({
     const completed = autopilotLeads.filter(l => l.status === 'completed').length;
     const totalEmailsSent = autopilotLeads.reduce((sum, l) => sum + l.emailsSent, 0);
     const totalOpens = autopilotLeads.reduce((sum, l) => sum + l.opensCount, 0);
-    const avgProgress = autopilotLeads.reduce((sum, l) => sum + (l.currentStep / l.totalSteps) * 100, 0) / total;
+    const avgProgress = total > 0 ? autopilotLeads.reduce((sum, l) => sum + (l.currentStep / l.totalSteps) * 100, 0) / total : 0;
 
     return { total, active, responded, proposalReady, paused, completed, totalEmailsSent, totalOpens, avgProgress };
   }, [autopilotLeads]);
