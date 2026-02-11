@@ -925,6 +925,7 @@ function expandServiceSynonyms($service) {
 
     // Always add free directory source queries for maximum coverage
     $directorySynonyms = [
+        // Major review/listing platforms
         "$clean site:yelp.com",
         "$clean site:bbb.org",
         "$clean site:yellowpages.com",
@@ -932,9 +933,62 @@ function expandServiceSynonyms($service) {
         "$clean site:angi.com",
         "$clean site:thumbtack.com",
         "$clean site:homeadvisor.com",
+        // Map & location directories
         "$clean site:mapquest.com",
+        "$clean site:foursquare.com",
+        "$clean site:apple.com/maps",
+        "$clean site:bing.com/maps",
+        // Classic directories
         "$clean site:superpages.com",
         "$clean site:citysearch.com",
+        "$clean site:whitepages.com",
+        "$clean site:dexknows.com",
+        "$clean site:local.com",
+        // Business-focused directories
+        "$clean site:chamberofcommerce.com",
+        "$clean site:merchantcircle.com",
+        "$clean site:brownbook.net",
+        "$clean site:hotfrog.com",
+        "$clean site:spoke.com",
+        "$clean site:buzzfile.com",
+        "$clean site:dandb.com",
+        "$clean site:dnb.com",
+        // Industry & service directories
+        "$clean site:bark.com",
+        "$clean site:expertise.com",
+        "$clean site:thervo.com",
+        "$clean site:porch.com",
+        "$clean site:networx.com",
+        "$clean site:houzz.com",
+        "$clean site:buildzoom.com",
+        // Search USA & aggregators
+        "$clean site:searchusa.com",
+        "$clean site:uscity.net",
+        "$clean site:americantowns.com",
+        "$clean site:showmelocal.com",
+        "$clean site:localstack.com",
+        "$clean site:cylex-usa.com",
+        "$clean site:us-info.com",
+        // Health-specific (if applicable)
+        "$clean site:healthgrades.com",
+        "$clean site:zocdoc.com",
+        "$clean site:vitals.com",
+        "$clean site:webmd.com/physician-directory",
+        "$clean site:wellness.com",
+        // Legal-specific
+        "$clean site:avvo.com",
+        "$clean site:justia.com",
+        "$clean site:findlaw.com",
+        "$clean site:lawyers.com",
+        // Real estate specific
+        "$clean site:zillow.com",
+        "$clean site:realtor.com",
+        "$clean site:trulia.com",
+        // Food & restaurant specific
+        "$clean site:tripadvisor.com",
+        "$clean site:opentable.com",
+        "$clean site:grubhub.com",
+        "$clean site:doordash.com",
     ];
     $synonyms = array_merge($synonyms, $directorySynonyms);
 
