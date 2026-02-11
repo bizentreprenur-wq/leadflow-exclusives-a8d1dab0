@@ -159,9 +159,9 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
     // rely on the dedicated deep organic pass for volume.
     $synonymsPerLocation = 1;
     if ($limit >= 500) $synonymsPerLocation = 2;
-    if ($limit >= 1000) $synonymsPerLocation = 3;
-    if ($limit >= 2000) $synonymsPerLocation = 4;
-    if ($limit >= 5000) $synonymsPerLocation = 6;
+    if ($limit >= 1000) $synonymsPerLocation = 4;
+    if ($limit >= 2000) $synonymsPerLocation = 6;
+    if ($limit >= 5000) $synonymsPerLocation = 8;
     // Pick top N synonyms (skip first which is the original) — includes intent modifiers
     $synonymSubset = array_slice($serviceVariants, 1, $synonymsPerLocation);
 
@@ -249,7 +249,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
     // location shard — it bottlenecks and can cause the stream to end early.
     $placesLocationsToSearch = $locationsToSearch;
     if ($limit >= 500) {
-        $placesLocationCap = $limit >= 2000 ? 12 : ($limit >= 1000 ? 10 : 8);
+        $placesLocationCap = $limit >= 2000 ? 20 : ($limit >= 1000 ? 14 : 8);
         $placesLocationsToSearch = array_slice($locationsToSearch, 0, min($placesLocationCap, count($locationsToSearch)));
     }
 
@@ -388,9 +388,9 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         ]);
 
         // Fewer query shards + deeper pagination is faster and more reliable on many hosts.
-        $maxOrgPages = $limit >= 2000 ? 8 : ($limit >= 1000 ? 6 : 4);
-        $maxOrgVariants = $limit >= 2000 ? 4 : ($limit >= 1000 ? 3 : 3);
-        $maxOrgLocations = $limit >= 2000 ? 4 : ($limit >= 1000 ? 3 : 3);
+        $maxOrgPages = $limit >= 2000 ? 15 : ($limit >= 1000 ? 10 : 4);
+        $maxOrgVariants = $limit >= 2000 ? 8 : ($limit >= 1000 ? 5 : 3);
+        $maxOrgLocations = $limit >= 2000 ? 8 : ($limit >= 1000 ? 5 : 3);
 
         $organicVariants = array_slice($serviceVariants, 0, min($maxOrgVariants, count($serviceVariants)));
         $organicLocations = array_slice($searchedLocations, 0, min($maxOrgLocations, count($searchedLocations)));
@@ -435,6 +435,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
 
                     $orgLoc = $batch[$batchIdx]['location'] ?? '';
 
+                    $orgBatch = [];
                     foreach ($organicResults as $item) {
                         if ($totalResults >= $limit) break;
 
@@ -463,14 +464,29 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                         $seenBusinesses[$dedupeKey] = count($allResults);
                         $allResults[] = $business;
                         $totalResults++;
+                        $orgBatch[] = $business;
 
                         if ($enableEnrichment && !empty($business['url'])) {
                             queueFirecrawlEnrichment($business['id'], $business['url'], $enrichmentSessionId, $enrichmentSearchType);
                         }
 
+                        // Batch SSE: send every 25 leads at once
+                        if (count($orgBatch) >= 25) {
+                            $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
+                            sendSSE('results', [
+                                'leads' => $orgBatch,
+                                'total' => $totalResults,
+                                'progress' => $progress,
+                                'source' => 'Serper Organic'
+                            ]);
+                            $orgBatch = [];
+                        }
+                    }
+                    // Flush remaining
+                    if (!empty($orgBatch)) {
                         $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
                         sendSSE('results', [
-                            'leads' => [$business],
+                            'leads' => $orgBatch,
                             'total' => $totalResults,
                             'progress' => $progress,
                             'source' => 'Serper Organic'
@@ -493,16 +509,20 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
             'progress' => min(98, round(($totalResults / max(1, $limit)) * 100)),
         ]);
 
-        $dirLocations = array_slice($searchedLocations, 0, min(6, count($searchedLocations)));
+        $dirLocations = array_slice($searchedLocations, 0, min(10, count($searchedLocations)));
+        $dirPages = $limit >= 2000 ? 3 : 1;
         foreach ($directoryQueries as $dirSite) {
             if ($totalResults >= $limit) break;
             foreach ($dirLocations as $dirLoc) {
                 if ($totalResults >= $limit) break;
 
+                for ($dirPage = 1; $dirPage <= $dirPages; $dirPage++) {
+                if ($totalResults >= $limit) break;
                 $dirQuery = "$service $dirLoc $dirSite";
-                $organicResults = fetchSerperOrganicPage($dirQuery, 1, 100);
+                $organicResults = fetchSerperOrganicPage($dirQuery, $dirPage, 100);
                 if (empty($organicResults)) continue;
 
+                $dirBatch = [];
                 foreach ($organicResults as $item) {
                     if ($totalResults >= $limit) break;
 
@@ -531,14 +551,27 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                     $seenBusinesses[$dedupeKey] = count($allResults);
                     $allResults[] = $business;
                     $totalResults++;
+                    $dirBatch[] = $business;
 
                     if ($enableEnrichment && !empty($business['url'])) {
                         queueFirecrawlEnrichment($business['id'], $business['url'], $enrichmentSessionId, $enrichmentSearchType);
                     }
 
+                    if (count($dirBatch) >= 25) {
+                        $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
+                        sendSSE('results', [
+                            'leads' => $dirBatch,
+                            'total' => $totalResults,
+                            'progress' => $progress,
+                            'source' => 'Directory'
+                        ]);
+                        $dirBatch = [];
+                    }
+                }
+                if (!empty($dirBatch)) {
                     $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
                     sendSSE('results', [
-                        'leads' => [$business],
+                        'leads' => $dirBatch,
                         'total' => $totalResults,
                         'progress' => $progress,
                         'source' => 'Directory'
@@ -546,6 +579,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                 }
 
                 $emitEnrichment();
+                }
             }
         }
     }
