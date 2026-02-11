@@ -151,15 +151,57 @@ function streamPlatformSearch($service, $location, $platforms, $limit) {
 
     $unique = [];
     $seen = [];
+    $seenNames = [];
     $totalResults = 0;
+    $GLOBALS['_bamlead_search_limit'] = $limit;
 
-    $addAndStream = function($results) use (&$unique, &$seen, &$totalResults, $limit) {
+    // Directory domains where multiple listings = different businesses
+    $directoryDomains = [
+        'yelp.com', 'yellowpages.com', 'bbb.org', 'manta.com', 'angi.com', 'angieslist.com',
+        'thumbtack.com', 'homeadvisor.com', 'mapquest.com', 'foursquare.com', 'superpages.com',
+        'citysearch.com', 'whitepages.com', 'dexknows.com', 'local.com', 'chamberofcommerce.com',
+        'merchantcircle.com', 'brownbook.net', 'hotfrog.com', 'spoke.com', 'buzzfile.com',
+        'dandb.com', 'dnb.com', 'bark.com', 'expertise.com', 'thervo.com', 'porch.com',
+        'networx.com', 'houzz.com', 'buildzoom.com', 'searchusa.com', 'showmelocal.com',
+        'cylex-usa.com', 'americantowns.com', 'healthgrades.com', 'zocdoc.com', 'vitals.com',
+        'avvo.com', 'justia.com', 'findlaw.com', 'tripadvisor.com', 'opentable.com',
+        'google.com', 'maps.google.com', 'facebook.com', 'nextdoor.com',
+    ];
+
+    $addAndStream = function($results) use (&$unique, &$seen, &$seenNames, &$totalResults, $limit, $directoryDomains) {
         foreach ($results as $result) {
             if ($totalResults >= $limit) return;
             
-            $domain = parse_url($result['url'] ?? '', PHP_URL_HOST);
-            if (!$domain || isset($seen[$domain])) continue;
-            $seen[$domain] = true;
+            $url = $result['url'] ?? '';
+            $domain = parse_url($url, PHP_URL_HOST);
+            if (!$domain) continue;
+            
+            $domainClean = preg_replace('/^www\./', '', strtolower($domain));
+            $isDirectory = false;
+            foreach ($directoryDomains as $dirDomain) {
+                if ($domainClean === $dirDomain || str_ends_with($domainClean, '.' . $dirDomain)) {
+                    $isDirectory = true;
+                    break;
+                }
+            }
+            
+            // For directories: dedupe by full URL path; for regular sites: dedupe by domain
+            if ($isDirectory) {
+                $dedupeKey = strtolower(parse_url($url, PHP_URL_HOST) . (parse_url($url, PHP_URL_PATH) ?? '/'));
+            } else {
+                $dedupeKey = $domainClean;
+            }
+            
+            if (isset($seen[$dedupeKey])) continue;
+            $seen[$dedupeKey] = true;
+            
+            // Also dedupe by business name to avoid same business from multiple directories
+            $nameLower = strtolower(trim($result['name'] ?? ''));
+            $nameKey = preg_replace('/[^a-z0-9]/', '', $nameLower);
+            if (!empty($nameKey) && strlen($nameKey) > 3) {
+                if (isset($seenNames[$nameKey])) continue;
+                $seenNames[$nameKey] = true;
+            }
 
             // Quick website check + contact extraction
             $result['websiteAnalysis'] = quickWebsiteCheckPlatform($result['url']);
