@@ -630,7 +630,7 @@ export default function Dashboard() {
 
       // Minimal delay between batches for speed
       if (i + batchSize < candidates.length) {
-        await new Promise((r) => setTimeout(r, 100));
+        await new Promise((r) => setTimeout(r, 50));
       }
     }
 
