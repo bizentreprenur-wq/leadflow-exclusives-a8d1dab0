@@ -12,7 +12,8 @@ import { Separator } from '@/components/ui/separator';
 import { 
   Palette, Type, Hash, Image, Save, Eye, Edit3, 
   RotateCcw, Check, X, Sparkles, Wand2, Copy,
-  ChevronDown, ChevronUp, Plus, Trash2, Star
+  ChevronDown, ChevronUp, Plus, Trash2, Star,
+  Upload, ImageOff, Link
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { sanitizeEmailHTML } from '@/lib/sanitize';
@@ -160,6 +161,10 @@ export default function VisualTemplateEditor({
   const [activeTab, setActiveTab] = useState<'visual' | 'content' | 'colors' | 'stats'>('visual');
   const [showPreview, setShowPreview] = useState(true);
   
+  // Hero image
+  const [heroImageUrl, setHeroImageUrl] = useState(template.previewImage);
+  const [showHeroImage, setShowHeroImage] = useState(true);
+  
   // Editable content
   const [editedSubject, setEditedSubject] = useState(template.subject);
   const [editedHeadline, setEditedHeadline] = useState('');
@@ -184,7 +189,8 @@ export default function VisualTemplateEditor({
   useEffect(() => {
     if (template) {
       setEditedSubject(template.subject);
-      
+      setHeroImageUrl(template.previewImage);
+      setShowHeroImage(true);
       // Extract sections from HTML
       const sections = extractEditableSections(template.body_html);
       const headline = sections.find(s => s.type === 'headline');
@@ -254,12 +260,13 @@ export default function VisualTemplateEditor({
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
 <body style="margin:0;padding:0;background:#0a0a0a;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:${backgroundColor};">
+    ${showHeroImage && heroImageUrl ? `
     <!-- Hero Image -->
     <tr>
       <td>
-        <img src="${template.previewImage}" alt="Header" style="width:100%;height:auto;display:block;"/>
+        <img src="${heroImageUrl}" alt="Header" style="width:100%;height:auto;display:block;"/>
       </td>
-    </tr>
+    </tr>` : ''}
     <!-- Logo Strip -->
     <tr>
       <td style="background:linear-gradient(135deg,${primaryColor} 0%,${accentColor} 100%);padding:15px 30px;">
@@ -334,7 +341,7 @@ export default function VisualTemplateEditor({
   </table>
 </body>
 </html>`;
-  }, [editedHeadline, editedBody, editedCTA, editedStats, editedFeatures, primaryColor, accentColor, ctaColor, statColor, headlineColor, bodyTextColor, backgroundColor, template.previewImage]);
+  }, [editedHeadline, editedBody, editedCTA, editedStats, editedFeatures, primaryColor, accentColor, ctaColor, statColor, headlineColor, bodyTextColor, backgroundColor, heroImageUrl, showHeroImage]);
 
   const handleStatChange = (id: string, field: 'value' | 'label' | 'color', newValue: string) => {
     setEditedStats(prev => prev.map(stat => 
@@ -381,6 +388,7 @@ export default function VisualTemplateEditor({
       ...template,
       subject: editedSubject,
       body_html: generateUpdatedHTML,
+      previewImage: showHeroImage ? heroImageUrl : template.previewImage,
     };
     onSave?.(updatedTemplate);
     toast.success('Template updated!');
@@ -400,7 +408,7 @@ export default function VisualTemplateEditor({
       subject: editedSubject,
       body_html: generateUpdatedHTML,
       description: `Custom version of ${template.name}`,
-      previewImage: template.previewImage,
+      previewImage: showHeroImage ? heroImageUrl : template.previewImage,
       conversionTip: template.conversionTip,
       openRate: 0,
       replyRate: 0,
@@ -485,6 +493,91 @@ export default function VisualTemplateEditor({
                     <p className="text-xs text-muted-foreground">
                       Variables: {'{{first_name}}'}, {'{{business_name}}'}, {'{{website}}'}
                     </p>
+                  </div>
+
+                  <Separator />
+
+                  {/* Hero Image Swap */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="flex items-center gap-2">
+                        <Image className="w-4 h-4" />
+                        Hero Image
+                      </Label>
+                      <Button
+                        variant={showHeroImage ? "outline" : "secondary"}
+                        size="sm"
+                        onClick={() => setShowHeroImage(!showHeroImage)}
+                        className="gap-1 text-xs"
+                      >
+                        {showHeroImage ? <ImageOff className="w-3.5 h-3.5" /> : <Image className="w-3.5 h-3.5" />}
+                        {showHeroImage ? 'Remove Image' : 'Show Image'}
+                      </Button>
+                    </div>
+                    
+                    {showHeroImage && (
+                      <>
+                        {/* Current preview */}
+                        <div className="relative rounded-lg overflow-hidden border bg-muted/30 group">
+                          <img 
+                            src={heroImageUrl} 
+                            alt="Hero preview" 
+                            className="w-full h-24 object-cover"
+                            onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                          />
+                          <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                            <label className="cursor-pointer">
+                              <Button size="sm" variant="secondary" className="gap-1 pointer-events-none" asChild>
+                                <span>
+                                  <Upload className="w-3.5 h-3.5" />
+                                  Upload
+                                </span>
+                              </Button>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    const reader = new FileReader();
+                                    reader.onload = (ev) => {
+                                      setHeroImageUrl(ev.target?.result as string);
+                                      toast.success('Image uploaded!');
+                                    };
+                                    reader.readAsDataURL(file);
+                                  }
+                                }}
+                              />
+                            </label>
+                          </div>
+                        </div>
+
+                        {/* URL input */}
+                        <div className="flex gap-2">
+                          <div className="relative flex-1">
+                            <Link className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                            <Input
+                              value={heroImageUrl}
+                              onChange={(e) => setHeroImageUrl(e.target.value)}
+                              placeholder="Paste image URL..."
+                              className="pl-8 text-xs"
+                            />
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setHeroImageUrl(template.previewImage);
+                              toast.success('Reset to original image');
+                            }}
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                        <p className="text-xs text-muted-foreground">Upload an image or paste a URL. Hover the preview to upload.</p>
+                      </>
+                    )}
                   </div>
 
                   <Separator />
