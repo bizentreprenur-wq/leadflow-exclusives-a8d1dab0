@@ -747,8 +747,8 @@ export default function Step4AICallingHub({
                     <div className="grid md:grid-cols-2 gap-4">
                       <div className="rounded-2xl border border-border/50 bg-card p-5 space-y-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                            <Headphones className="w-5 h-5 text-emerald-400" />
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center">
+                            <Headphones className="w-5 h-5 text-white" />
                           </div>
                           <div>
                             <h4 className="font-semibold text-sm text-foreground">Call Queue</h4>
@@ -761,8 +761,8 @@ export default function Step4AICallingHub({
                       </div>
                       <div className="rounded-2xl border border-border/50 bg-card p-5 space-y-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                            <Flame className="w-5 h-5 text-orange-400" />
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center">
+                            <Flame className="w-5 h-5 text-white" />
                           </div>
                           <div>
                             <h4 className="font-semibold text-sm text-foreground">Hot Leads</h4>
@@ -827,20 +827,20 @@ export default function Step4AICallingHub({
                     ) : (
                       <div className="space-y-4">
                         {/* Mode selection */}
-                        <div className="grid md:grid-cols-2 gap-4">
+                         <div className="grid md:grid-cols-2 gap-4">
                           <div
                             onClick={() => setProvisionMode('new')}
-                            className={`cursor-pointer rounded-2xl border p-5 transition-all ${provisionMode === 'new' ? 'border-primary/30 bg-primary/[0.05] ring-1 ring-primary/20' : 'border-border/50 hover:border-primary/20'}`}
+                            className={`cursor-pointer rounded-2xl border p-5 transition-all ${provisionMode === 'new' ? 'border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-orange-500/5 ring-1 ring-amber-500/20' : 'border-border/50 hover:border-amber-500/20'}`}
                           >
-                            <Signal className="w-6 h-6 text-primary mb-3" />
+                            <Signal className="w-6 h-6 text-amber-400 mb-3" />
                             <h4 className="font-semibold text-foreground">Get New Number</h4>
                             <p className="text-xs text-muted-foreground mt-1">Choose an area code and get a local number instantly.</p>
                           </div>
                           <div
                             onClick={() => setProvisionMode('port')}
-                            className={`cursor-pointer rounded-2xl border p-5 transition-all ${provisionMode === 'port' ? 'border-primary/30 bg-primary/[0.05] ring-1 ring-primary/20' : 'border-border/50 hover:border-primary/20'}`}
+                            className={`cursor-pointer rounded-2xl border p-5 transition-all ${provisionMode === 'port' ? 'border-violet-500/30 bg-gradient-to-br from-violet-500/10 to-purple-500/5 ring-1 ring-violet-500/20' : 'border-border/50 hover:border-violet-500/20'}`}
                           >
-                            <PhoneForwarded className="w-6 h-6 text-primary mb-3" />
+                            <PhoneForwarded className="w-6 h-6 text-violet-400 mb-3" />
                             <h4 className="font-semibold text-foreground">Port Existing Number</h4>
                             <p className="text-xs text-muted-foreground mt-1">Transfer your existing business number. Takes 1-3 days.</p>
                           </div>
@@ -848,7 +848,7 @@ export default function Step4AICallingHub({
 
                         {provisionMode === 'new' ? (
                           <div className="rounded-2xl border border-border/50 bg-card/30 p-5 space-y-4">
-                            <div className="flex items-center gap-2"><Signal className="w-4 h-4 text-primary" /><span className="font-semibold text-sm">Choose Area Code</span></div>
+                            <div className="flex items-center gap-2"><Signal className="w-4 h-4 text-amber-400" /><span className="font-semibold text-sm">Choose Area Code</span></div>
                             <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
                               {[
                                 { code: '212', city: 'NYC' }, { code: '310', city: 'LA' }, { code: '312', city: 'Chicago' },
@@ -876,7 +876,7 @@ export default function Step4AICallingHub({
                           </div>
                         ) : (
                           <div className="rounded-2xl border border-border/50 bg-card/30 p-5 space-y-4">
-                            <div className="flex items-center gap-2"><PhoneForwarded className="w-4 h-4 text-primary" /><span className="font-semibold text-sm">Port Your Number</span></div>
+                            <div className="flex items-center gap-2"><PhoneForwarded className="w-4 h-4 text-violet-400" /><span className="font-semibold text-sm">Port Your Number</span></div>
                             <div className="space-y-3">
                               <input type="tel" placeholder="+1 (555) 123-4567" value={portNumber} onChange={(e) => setPortNumber(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border bg-background text-foreground text-sm" />
                               <input type="text" placeholder="Account holder name" value={portName} onChange={(e) => setPortName(e.target.value)} className="w-full px-3 py-2.5 rounded-xl border bg-background text-foreground text-sm" />
@@ -927,10 +927,10 @@ export default function Step4AICallingHub({
 
                     {/* Progress */}
                     {isCallingActive && (
-                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-primary/20 bg-primary/[0.04] p-5">
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-amber-500/20 bg-gradient-to-r from-amber-500/10 to-orange-500/5 p-5">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2.5">
-                            <Mic className="w-4 h-4 text-primary animate-pulse" />
+                            <Mic className="w-4 h-4 text-amber-400 animate-pulse" />
                             <span className="text-sm font-semibold text-foreground">AI Calling in Progress</span>
                           </div>
                           <span className="text-sm font-mono text-muted-foreground">{callQueue.filter(c => c.status !== 'pending').length}/{callQueue.length}</span>
@@ -942,14 +942,14 @@ export default function Step4AICallingHub({
                     {/* Status counters */}
                     <div className="grid grid-cols-4 gap-3">
                       {[
-                        { label: 'Pending', count: callQueue.filter(c => c.status === 'pending').length, color: 'text-muted-foreground', bg: 'bg-muted/50' },
-                        { label: 'Calling', count: callQueue.filter(c => c.status === 'calling').length, color: 'text-primary', bg: 'bg-primary/10' },
-                        { label: 'Completed', count: callQueue.filter(c => c.status === 'completed').length, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-                        { label: 'Failed', count: callQueue.filter(c => c.status === 'no_answer' || c.status === 'failed').length, color: 'text-amber-500', bg: 'bg-amber-500/10' },
+                        { label: 'Pending', count: callQueue.filter(c => c.status === 'pending').length, cardBg: 'bg-gradient-to-br from-slate-500 to-slate-600' },
+                        { label: 'Calling', count: callQueue.filter(c => c.status === 'calling').length, cardBg: 'bg-gradient-to-br from-amber-500 to-orange-500' },
+                        { label: 'Completed', count: callQueue.filter(c => c.status === 'completed').length, cardBg: 'bg-gradient-to-br from-emerald-500 to-emerald-600' },
+                        { label: 'Failed', count: callQueue.filter(c => c.status === 'no_answer' || c.status === 'failed').length, cardBg: 'bg-gradient-to-br from-rose-500 to-rose-600' },
                       ].map(s => (
-                        <div key={s.label} className={`rounded-2xl border p-4 text-center ${s.bg}`}>
-                          <div className={`text-2xl font-bold ${s.color}`}>{s.count}</div>
-                          <div className="text-[11px] text-muted-foreground mt-0.5 font-medium uppercase tracking-wider">{s.label}</div>
+                        <div key={s.label} className={`rounded-2xl p-4 text-center shadow-lg ${s.cardBg}`}>
+                          <div className="text-2xl font-bold text-white">{s.count}</div>
+                          <div className="text-[11px] text-white/70 mt-0.5 font-medium uppercase tracking-wider">{s.label}</div>
                         </div>
                       ))}
                     </div>
@@ -1035,19 +1035,19 @@ export default function Step4AICallingHub({
                       <>
                         <div className="grid md:grid-cols-3 gap-5">
                           {[
-                            { icon: CheckCircle2, color: 'emerald', title: 'Success Rate', value: `${callStats.total > 0 ? Math.round((callStats.answered / callStats.total) * 100) : 0}%`, sub: `${callStats.answered} answered / ${callStats.total} total` },
-                            { icon: Target, color: 'primary', title: 'Interest Rate', value: `${callStats.answered > 0 ? Math.round((callStats.interested / callStats.answered) * 100) : 0}%`, sub: `${callStats.interested} interested` },
-                            { icon: MessageSquare, color: 'blue', title: 'SMS Replies', value: callStats.smsReplies, sub: isAutopilot ? 'Lead responses' : 'Autopilot only' },
+                            { icon: CheckCircle2, cardBg: 'bg-gradient-to-br from-emerald-500 to-emerald-600', title: 'Success Rate', value: `${callStats.total > 0 ? Math.round((callStats.answered / callStats.total) * 100) : 0}%`, sub: `${callStats.answered} answered / ${callStats.total} total` },
+                            { icon: Target, cardBg: 'bg-gradient-to-br from-violet-500 to-violet-600', title: 'Interest Rate', value: `${callStats.answered > 0 ? Math.round((callStats.interested / callStats.answered) * 100) : 0}%`, sub: `${callStats.interested} interested` },
+                            { icon: MessageSquare, cardBg: 'bg-gradient-to-br from-cyan-500 to-cyan-600', title: 'SMS Replies', value: callStats.smsReplies, sub: isAutopilot ? 'Lead responses' : 'Autopilot only' },
                           ].map((card) => (
-                            <div key={card.title} className="rounded-2xl border bg-card/50 p-6">
+                            <div key={card.title} className={`rounded-2xl p-6 shadow-lg ${card.cardBg}`}>
                               <div className="flex items-center gap-3 mb-5">
-                                <div className={`w-10 h-10 rounded-xl bg-${card.color === 'primary' ? 'primary' : card.color + '-500'}/10 flex items-center justify-center`}>
-                                  <card.icon className={`w-5 h-5 ${card.color === 'primary' ? 'text-primary' : `text-${card.color}-500`}`} />
+                                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                                  <card.icon className="w-5 h-5 text-white" />
                                 </div>
-                                <span className="font-semibold text-sm text-foreground">{card.title}</span>
+                                <span className="font-semibold text-sm text-white">{card.title}</span>
                               </div>
-                              <div className={`text-4xl font-extrabold tracking-tight ${card.color === 'primary' ? 'text-primary' : `text-${card.color}-400`}`}>{card.value}</div>
-                              <p className="text-xs text-muted-foreground mt-1">{card.sub}</p>
+                              <div className="text-4xl font-extrabold tracking-tight text-white">{card.value}</div>
+                              <p className="text-xs text-white/60 mt-1">{card.sub}</p>
                             </div>
                           ))}
                         </div>
@@ -1126,8 +1126,8 @@ export default function Step4AICallingHub({
                     <div className="grid md:grid-cols-2 gap-6">
                       <div className="rounded-2xl border border-border/50 bg-card/30 p-6 space-y-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center">
-                            <CalendarIcon className="w-5 h-5 text-blue-400" />
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center">
+                            <CalendarIcon className="w-5 h-5 text-white" />
                           </div>
                           <h4 className="font-semibold text-foreground text-sm">Select Date</h4>
                         </div>
@@ -1138,8 +1138,8 @@ export default function Step4AICallingHub({
                       </div>
                       <div className="rounded-2xl border border-border/50 bg-card/30 p-6 space-y-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center">
-                            <Users className="w-5 h-5 text-purple-400" />
+                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center">
+                            <Users className="w-5 h-5 text-white" />
                           </div>
                           <h4 className="font-semibold text-foreground text-sm">Quick Schedule</h4>
                         </div>
