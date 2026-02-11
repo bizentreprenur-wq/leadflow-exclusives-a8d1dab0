@@ -500,9 +500,10 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
 
     if ($enableEnrichment) {
         $flushStart = time();
-        while ((time() - $flushStart) < 8) {
+        $flushSeconds = $limit >= 1000 ? 3 : 5; // Shorter flush for high-volume
+        while ((time() - $flushStart) < $flushSeconds) {
             $emitEnrichment();
-            usleep(200000);
+            usleep(50000); // 50ms poll interval (was 200ms)
         }
     }
 
@@ -628,8 +629,8 @@ function fetchSerperOrganicPage($query, $page = 1, $num = 100) {
             'X-API-KEY: ' . SERPER_API_KEY,
             'Content-Type: application/json'
         ],
-        CURLOPT_TIMEOUT => 30,
-        CURLOPT_CONNECTTIMEOUT => 10,
+         CURLOPT_TIMEOUT => 15,
+         CURLOPT_CONNECTTIMEOUT => 5,
     ]);
 
     if (($response['httpCode'] ?? 0) !== 200) {
@@ -707,12 +708,14 @@ function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sour
     
     $emptyPageStreak = 0; // Track consecutive empty pages to exit early
     
-    // Reduced throttle for faster searches
+    // Minimal throttle for maximum speed
     $throttleUs = defined('SERPAPI_THROTTLE_US') ? max(0, (int)SERPAPI_THROTTLE_US) : 50000;
     if ($limit >= 2000) {
-        $throttleUs = min($throttleUs, 10000);
+        $throttleUs = 0; // No delay for high-volume searches
     } elseif ($limit >= 1000) {
-        $throttleUs = min($throttleUs, 15000);
+        $throttleUs = min($throttleUs, 5000); // 5ms
+    } elseif ($limit >= 500) {
+        $throttleUs = min($throttleUs, 10000); // 10ms
     }
     
     $connectTimeout = defined('SERPAPI_CONNECT_TIMEOUT_SEC') ? max(5, (int)SERPAPI_CONNECT_TIMEOUT_SEC) : 15;
@@ -1087,8 +1090,8 @@ function fetchSerperPlacesAndMaps($payload) {
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $body,
             CURLOPT_HTTPHEADER => $headers,
-            CURLOPT_TIMEOUT => 25,
-            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_TIMEOUT => 15,
+            CURLOPT_CONNECTTIMEOUT => 5,
         ]);
         return $ch;
     };
@@ -1430,10 +1433,10 @@ function streamSerperSearchInto(
 
     if ($enableEnrichment && $emitComplete) {
         $flushStart = time();
-        $flushSeconds = defined('ENRICHMENT_FINAL_FLUSH_SECONDS') ? max(1, (int)ENRICHMENT_FINAL_FLUSH_SECONDS) : 4;
+        $flushSeconds = defined('ENRICHMENT_FINAL_FLUSH_SECONDS') ? max(1, (int)ENRICHMENT_FINAL_FLUSH_SECONDS) : 2;
         while ((time() - $flushStart) < $flushSeconds) {
             $emitEnrichment();
-            usleep(200000);
+            usleep(50000); // 50ms poll (was 200ms)
         }
     }
     
