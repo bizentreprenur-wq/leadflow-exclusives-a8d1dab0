@@ -361,7 +361,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
     }
 
     // ---- TERTIARY: Organic pagination pass for remaining deficit ----
-    if ($totalResults < $limit && $limit >= 500) {
+    if ($totalResults < $limit) {
         $deficit = $limit - $totalResults;
         sendSSE('coverage', [
             'message' => "Running deep organic search for remaining {$deficit} leads...",
@@ -450,7 +450,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
     }
 
     // ---- QUATERNARY: Directory-focused pass (Yelp, BBB, YellowPages, etc.) ----
-    if ($totalResults < $limit && !empty($directoryQueries) && $limit >= 500) {
+    if ($totalResults < $limit && !empty($directoryQueries)) {
         $deficit = $limit - $totalResults;
         sendSSE('coverage', [
             'message' => "Searching " . count($directoryQueries) . " business directories for remaining {$deficit} leads...",
@@ -1606,6 +1606,67 @@ function streamSerperSearchInto(
                 'progress' => $progress,
                 'source' => $business['source'] ?? 'Serper Maps'
             ]);
+
+            $emitEnrichment();
+        }
+    }
+
+    // ORGANIC BOOST: Run organic search for every location query to dramatically
+    // increase volume. Places returns ~20 results, organic returns ~100 per page.
+    // This is the primary volume driver for high-volume searches.
+    if ($totalResults < $limit) {
+        $organicPages = 1;
+        if ($limit >= 500) $organicPages = 3;
+        if ($limit >= 1000) $organicPages = 5;
+        if ($limit >= 2000) $organicPages = 8;
+
+        for ($orgPage = 1; $orgPage <= $organicPages; $orgPage++) {
+            if ($totalResults >= $limit) break;
+
+            $organicResults = fetchSerperOrganicPage($query, $orgPage, 100);
+            if (empty($organicResults)) break;
+
+            foreach ($organicResults as $item) {
+                if ($totalResults >= $limit) break;
+
+                $business = [
+                    'id' => generateId('srpo_'),
+                    'name' => $item['title'] ?? '',
+                    'url' => $item['link'] ?? '',
+                    'snippet' => $item['snippet'] ?? '',
+                    'displayLink' => parse_url($item['link'] ?? '', PHP_URL_HOST) ?? '',
+                    'address' => '',
+                    'phone' => extractPhoneFromText($item['snippet'] ?? ''),
+                    'email' => extractEmailFromText($item['snippet'] ?? ''),
+                    'rating' => null,
+                    'reviews' => null,
+                    'source' => 'Serper Organic',
+                    'sources' => ['Serper Organic']
+                ];
+
+                if (empty($business['name'])) continue;
+                $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
+                if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
+
+                $dedupeKey = buildBusinessDedupeKey($business, $location);
+                if (isset($seenBusinesses[$dedupeKey])) continue;
+
+                $seenBusinesses[$dedupeKey] = count($allResults);
+                $allResults[] = $business;
+                $totalResults++;
+
+                if ($enableEnrichment && !empty($business['url'])) {
+                    queueFirecrawlEnrichment($business['id'], $business['url'], $enrichmentSessionId, $enrichmentSearchType);
+                }
+
+                $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
+                sendSSE('results', [
+                    'leads' => [$business],
+                    'total' => $totalResults,
+                    'progress' => $progress,
+                    'source' => 'Serper Organic'
+                ]);
+            }
 
             $emitEnrichment();
         }
