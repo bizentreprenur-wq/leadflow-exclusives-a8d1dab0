@@ -364,7 +364,7 @@ function expandServiceSynonyms($service) {
     $variants = [$clean];
     $synonyms = [];
 
-    // Comprehensive synonym map — each keyword triggers related search terms
+    // Comprehensive synonym map — each keyword triggers 20-35 related search terms for maximum lead volume
     $synonymMap = [
         // Auto / Mechanic
         '/\bmechanic\b|\bauto repair\b|\bcar repair\b|\bautomotive\b|\bauto shop\b/' => [
@@ -373,20 +373,36 @@ function expandServiceSynonyms($service) {
             'engine technician', 'drivetrain specialist', 'diagnostic technician', 'diesel mechanic',
             'auto repair specialist', 'automotive service professional', 'certified mechanic',
             'auto repair shop', 'car repair shop', 'auto service center', 'vehicle repair',
+            'transmission repair', 'brake repair shop', 'oil change service', 'tire shop',
+            'muffler shop', 'exhaust repair', 'car maintenance', 'fleet mechanic',
+            'hybrid car mechanic', 'electric vehicle technician', 'mobile mechanic',
+            'roadside mechanic', 'ASE certified mechanic', 'foreign car specialist',
+            'import car repair', 'domestic car repair', 'classic car mechanic',
         ],
         // Dental
-        '/\bdental\b|\bdentist\b/' => [
+        '/\bdental\b|\bdentist\b|\borthodont\b/' => [
             'dentist', 'dental clinic', 'dental office', 'family dentist', 'cosmetic dentist',
             'dental surgeon', 'orthodontist', 'endodontist', 'pediatric dentist',
             'dental practice', 'emergency dentist', 'dental care', 'oral surgeon',
-            'dental hygienist', 'implant dentist', 'denture clinic',
+            'dental hygienist', 'implant dentist', 'denture clinic', 'periodontist',
+            'prosthodontist', 'teeth whitening', 'dental implants', 'invisalign provider',
+            'braces specialist', 'root canal specialist', 'wisdom teeth removal',
+            'sedation dentist', 'holistic dentist', 'geriatric dentist', 'smile makeover',
+            'dental crown specialist', 'veneer specialist', 'TMJ dentist',
+            'sleep apnea dentist', 'oral health clinic', 'dental x-ray',
         ],
         // Plumbing
         '/\bplumber\b|\bplumbing\b/' => [
             'plumbing company', 'plumbing contractor', 'drain specialist', 'pipe repair',
             'emergency plumber', 'residential plumber', 'commercial plumber', 'plumbing service',
             'sewer repair', 'water heater repair', 'leak detection', 'plumbing repair',
-            'drain cleaning', 'pipe fitting', 'backflow prevention',
+            'drain cleaning', 'pipe fitting', 'backflow prevention', 'gas line plumber',
+            'water line repair', 'sewer line replacement', 'trenchless sewer repair',
+            'toilet repair', 'faucet installation', 'garbage disposal repair',
+            'sump pump installation', 'water softener installation', 'hydro jetting',
+            'septic tank service', 'bathroom plumber', 'kitchen plumber',
+            'water filtration installer', 'repiping specialist', 'master plumber',
+            'licensed plumber', 'journeyman plumber', '24 hour plumber',
         ],
         // Legal / Lawyer
         '/\blawyer\b|\battorney\b|\blaw firm\b|\blegal\b/' => [
@@ -394,38 +410,76 @@ function expandServiceSynonyms($service) {
             'trial lawyer', 'litigation attorney', 'family lawyer', 'divorce attorney',
             'personal injury lawyer', 'criminal defense attorney', 'estate planning attorney',
             'business lawyer', 'immigration lawyer', 'bankruptcy attorney', 'real estate attorney',
+            'employment lawyer', 'workers compensation attorney', 'medical malpractice lawyer',
+            'tax attorney', 'intellectual property lawyer', 'patent attorney',
+            'contract lawyer', 'civil rights attorney', 'environmental lawyer',
+            'elder law attorney', 'probate lawyer', 'DUI attorney', 'traffic lawyer',
+            'social security disability lawyer', 'slip and fall attorney',
+            'wrongful death lawyer', 'class action attorney', 'corporate lawyer',
+            'mergers and acquisitions attorney', 'securities lawyer',
         ],
         // HVAC
         '/\bhvac\b|\bair conditioning\b|\bheating\b|\bac repair\b|\bfurnace\b/' => [
             'hvac contractor', 'heating and cooling', 'ac repair', 'furnace repair',
             'air conditioning service', 'hvac technician', 'hvac company', 'duct cleaning',
             'heat pump repair', 'central air', 'hvac installation', 'cooling system repair',
-            'thermostat installation', 'air quality specialist',
+            'thermostat installation', 'air quality specialist', 'hvac maintenance',
+            'commercial hvac', 'residential hvac', 'mini split installation',
+            'boiler repair', 'radiant heating', 'geothermal heating', 'hvac tune up',
+            'refrigerant recharge', 'evaporator coil repair', 'condenser repair',
+            'air handler service', 'ventilation specialist', 'indoor air quality',
+            'humidifier installation', 'dehumidifier service', 'zone control system',
+            'energy efficient hvac', 'smart thermostat installation', 'emergency hvac',
         ],
         // Roofing
         '/\broof\b|\broofing\b|\broofer\b/' => [
             'roofing contractor', 'roof repair', 'roofing company', 'roof replacement',
             'commercial roofing', 'residential roofer', 'roof inspection', 'shingle repair',
             'metal roofing', 'flat roof repair', 'storm damage repair', 'gutter installation',
-            'roof leak repair', 'roofing specialist',
+            'roof leak repair', 'roofing specialist', 'tile roofing', 'slate roofing',
+            'cedar shake roofing', 'TPO roofing', 'EPDM roofing', 'modified bitumen roofing',
+            'roof coating', 'skylight installation', 'chimney repair', 'fascia repair',
+            'soffit repair', 'roof ventilation', 'ice dam removal', 'emergency roof repair',
+            'roof maintenance', 'green roofing', 'solar roofing', 'standing seam metal roof',
+            'gutter guard installation', 'downspout repair', 'roof flashing repair',
         ],
         // Electrician
         '/\belectrician\b|\belectrical\b/' => [
             'electrical contractor', 'electrician', 'electrical repair', 'wiring specialist',
             'commercial electrician', 'residential electrician', 'emergency electrician',
             'electrical service', 'panel upgrade', 'lighting installation', 'electrical company',
+            'master electrician', 'journeyman electrician', 'licensed electrician',
+            'circuit breaker repair', 'outlet installation', 'ceiling fan installation',
+            'generator installation', 'whole house surge protector', 'EV charger installation',
+            'knob and tube rewiring', 'aluminum wiring replacement', 'landscape lighting',
+            'recessed lighting', 'electrical inspection', 'code compliance electrician',
+            'industrial electrician', 'low voltage electrician', 'home automation wiring',
+            'smart home electrician', 'solar panel electrician', 'electrical troubleshooting',
         ],
         // Real Estate
         '/\brealtor\b|\breal estate\b|\brealty\b/' => [
             'real estate agent', 'realtor', 'real estate broker', 'property agent',
             'real estate company', 'home sales agent', 'listing agent', 'buyer agent',
             'commercial real estate', 'real estate office', 'property management',
+            'real estate investor', 'real estate appraiser', 'property valuation',
+            'luxury real estate', 'foreclosure specialist', 'short sale agent',
+            'first time home buyer agent', 'relocation specialist', 'land broker',
+            'condo specialist', 'townhouse agent', 'vacation property agent',
+            'rental property manager', 'real estate consultant', 'home staging',
+            'real estate photographer', 'open house agent', 'MLS listing agent',
+            'investment property agent', 'multi-family real estate', 'new construction realtor',
         ],
         // Restaurant / Food
-        '/\brestaurant\b|\bdining\b|\bcafe\b|\beatery\b/' => [
+        '/\brestaurant\b|\bdining\b|\bcafe\b|\beatery\b|\bcater\b/' => [
             'restaurant', 'dining', 'cafe', 'bistro', 'eatery', 'diner',
             'food service', 'catering', 'bar and grill', 'pizzeria', 'steakhouse',
-            'food truck', 'fast food', 'family restaurant',
+            'food truck', 'fast food', 'family restaurant', 'fine dining',
+            'sports bar', 'pub', 'tavern', 'brasserie', 'trattoria',
+            'sushi restaurant', 'seafood restaurant', 'Mexican restaurant',
+            'Chinese restaurant', 'Indian restaurant', 'Thai restaurant',
+            'Italian restaurant', 'Mediterranean restaurant', 'vegan restaurant',
+            'vegetarian restaurant', 'farm to table', 'brunch spot',
+            'breakfast restaurant', 'buffet restaurant', 'catering company',
         ],
         // Medical / Doctor
         '/\bdoctor\b|\bphysician\b|\bmedical\b|\bclinic\b|\bhealthcare\b/' => [
@@ -434,6 +488,11 @@ function expandServiceSynonyms($service) {
             'primary care physician', 'walk-in clinic', 'health clinic',
             'concierge doctor', 'telemedicine doctor', 'holistic medicine', 'functional medicine',
             'integrative medicine', 'direct primary care', 'preventive medicine',
+            'sports medicine doctor', 'geriatric doctor', 'pediatrician',
+            'cardiologist', 'dermatologist', 'gastroenterologist', 'neurologist',
+            'pulmonologist', 'rheumatologist', 'allergist', 'endocrinologist',
+            'nephrologist', 'infectious disease doctor', 'pain management doctor',
+            'sleep medicine doctor', 'weight loss doctor', 'anti-aging doctor',
         ],
         // Therapy / Counseling
         '/\btherap\b|\bcounsel\b|\bpsycholog\b|\bmental health\b/' => [
@@ -442,6 +501,11 @@ function expandServiceSynonyms($service) {
             'cognitive behavioral therapy', 'psychotherapist', 'licensed therapist',
             'anxiety therapist', 'depression counselor', 'trauma therapist',
             'substance abuse counselor', 'addiction therapist', 'grief counselor',
+            'EMDR therapist', 'DBT therapist', 'play therapist', 'art therapist',
+            'music therapist', 'anger management counselor', 'life coach',
+            'couples therapist', 'group therapy', 'teletherapy provider',
+            'clinical social worker', 'psychiatric nurse practitioner',
+            'child psychologist', 'adolescent therapist', 'eating disorder therapist',
         ],
         // Physical Therapy
         '/\bphysical therap\b|\brehab\b|\bpt clinic\b/' => [
@@ -449,99 +513,208 @@ function expandServiceSynonyms($service) {
             'sports physical therapy', 'occupational therapist', 'orthopedic rehab',
             'post surgery rehabilitation', 'pelvic floor therapy', 'aquatic therapy',
             'hand therapy', 'vestibular therapy', 'geriatric physical therapy',
+            'pediatric physical therapy', 'neurological rehabilitation', 'cardiac rehab',
+            'pulmonary rehabilitation', 'work injury rehab', 'pain rehabilitation',
+            'balance therapy', 'gait training', 'functional capacity evaluation',
+            'dry needling therapy', 'cupping therapy', 'kinesiology',
+            'movement specialist', 'mobility specialist', 'strength rehab',
         ],
         // Massage
         '/\bmassage\b/' => [
             'massage therapist', 'massage therapy', 'sports massage', 'deep tissue massage',
             'Swedish massage', 'therapeutic massage', 'prenatal massage', 'hot stone massage',
             'myofascial release', 'trigger point therapy', 'lymphatic drainage massage',
+            'aromatherapy massage', 'reflexology', 'craniosacral therapy',
+            'shiatsu massage', 'Thai massage', 'couples massage', 'chair massage',
+            'medical massage', 'oncology massage', 'geriatric massage',
+            'neuromuscular massage', 'cupping massage', 'ashiatsu massage',
+            'lomi lomi massage', 'mobile massage therapist', 'corporate massage',
         ],
         // Optometry / Eye Care
         '/\boptometr\b|\beye doctor\b|\beye care\b|\bophthalmolog\b/' => [
             'optometrist', 'eye doctor', 'eye care center', 'ophthalmologist',
             'vision center', 'optical shop', 'lasik surgeon', 'pediatric eye doctor',
             'contact lens specialist', 'eye exam', 'vision therapy',
+            'retina specialist', 'glaucoma specialist', 'cataract surgeon',
+            'cornea specialist', 'neuro-ophthalmologist', 'oculoplastic surgeon',
+            'low vision specialist', 'sports vision specialist', 'eyeglass store',
+            'prescription sunglasses', 'emergency eye care', 'dry eye specialist',
+            'macular degeneration doctor', 'diabetic eye care', 'eye allergist',
         ],
         // Landscaping
         '/\blandscap\b|\blawn\b|\bgarden\b/' => [
             'landscaping company', 'lawn care', 'lawn service', 'landscape design',
             'landscaper', 'lawn maintenance', 'garden service', 'tree service',
             'yard maintenance', 'hardscaping', 'irrigation service', 'outdoor living',
+            'tree trimming', 'tree removal', 'stump grinding', 'bush trimming',
+            'hedge trimming', 'mulching service', 'sod installation', 'lawn aeration',
+            'fertilization service', 'weed control', 'landscape lighting',
+            'patio installation', 'retaining wall builder', 'water feature installation',
+            'xeriscaping', 'native plant landscaping', 'commercial landscaping',
+            'snow removal service', 'leaf removal', 'lawn mowing service',
         ],
         // Insurance
         '/\binsurance\b/' => [
             'insurance agent', 'insurance broker', 'insurance company', 'insurance agency',
             'auto insurance', 'home insurance', 'life insurance', 'health insurance',
-            'commercial insurance', 'insurance provider',
+            'commercial insurance', 'insurance provider', 'renters insurance',
+            'flood insurance', 'earthquake insurance', 'umbrella insurance',
+            'business insurance', 'workers compensation insurance', 'liability insurance',
+            'professional liability insurance', 'cyber insurance', 'pet insurance',
+            'dental insurance', 'vision insurance', 'disability insurance',
+            'long term care insurance', 'boat insurance', 'motorcycle insurance',
+            'RV insurance', 'landlord insurance', 'event insurance',
         ],
         // Accounting / CPA
         '/\baccountant\b|\bcpa\b|\baccounting\b|\bbookkeep\b|\btax prep\b/' => [
             'accountant', 'cpa', 'certified public accountant', 'bookkeeper',
             'tax preparation', 'accounting firm', 'tax accountant', 'payroll services',
             'financial advisor', 'tax consultant', 'accounting services',
+            'forensic accountant', 'audit services', 'tax planning', 'estate tax accountant',
+            'business tax preparation', 'nonprofit accountant', 'QuickBooks specialist',
+            'CFO services', 'controller services', 'cost accountant',
+            'management accountant', 'enrolled agent', 'tax resolution specialist',
+            'IRS representation', 'sales tax consultant', 'financial planner',
+            'wealth management advisor', 'retirement planning', 'small business accountant',
         ],
         // Construction
         '/\bconstruction\b|\bcontractor\b|\bbuilder\b|\bgeneral contractor\b/' => [
             'construction company', 'general contractor', 'home builder', 'building contractor',
             'remodeling contractor', 'renovation contractor', 'commercial construction',
             'residential construction', 'home improvement contractor',
+            'kitchen remodeling', 'bathroom remodeling', 'basement finishing',
+            'room addition contractor', 'deck builder', 'fence contractor',
+            'concrete contractor', 'foundation repair', 'demolition contractor',
+            'framing contractor', 'drywall contractor', 'flooring contractor',
+            'tile installer', 'cabinet maker', 'countertop installer',
+            'siding contractor', 'window installer', 'door installer',
+            'custom home builder', 'green building contractor', 'design build contractor',
         ],
         // Cleaning
         '/\bcleaning\b|\bcleaner\b|\bjanitorial\b|\bmaid\b/' => [
             'cleaning service', 'house cleaning', 'commercial cleaning', 'janitorial service',
             'maid service', 'carpet cleaning', 'office cleaning', 'deep cleaning',
-            'window cleaning', 'pressure washing',
+            'window cleaning', 'pressure washing', 'move out cleaning',
+            'move in cleaning', 'post construction cleaning', 'tile and grout cleaning',
+            'upholstery cleaning', 'air duct cleaning', 'hoarder cleaning',
+            'biohazard cleaning', 'crime scene cleaning', 'industrial cleaning',
+            'green cleaning service', 'recurring cleaning', 'one time cleaning',
+            'spring cleaning service', 'vacation rental cleaning', 'Airbnb cleaning',
+            'restaurant cleaning', 'medical office cleaning', 'school cleaning',
         ],
         // Photography
         '/\bphotograph\b/' => [
             'photographer', 'photography studio', 'wedding photographer', 'portrait photographer',
             'commercial photographer', 'event photographer', 'photo studio',
+            'family photographer', 'newborn photographer', 'maternity photographer',
+            'senior portrait photographer', 'headshot photographer', 'product photographer',
+            'food photographer', 'real estate photographer', 'drone photographer',
+            'sports photographer', 'fashion photographer', 'boudoir photographer',
+            'pet photographer', 'school photographer', 'corporate photographer',
+            'architectural photographer', 'landscape photographer', 'photojournalist',
         ],
         // Fitness / Gym
-        '/\bgym\b|\bfitness\b|\bpersonal train\b/' => [
+        '/\bgym\b|\bfitness\b|\bpersonal train\b|\bworkout\b/' => [
             'gym', 'fitness center', 'personal trainer', 'health club', 'CrossFit',
             'yoga studio', 'pilates studio', 'fitness studio', 'workout gym',
+            'boxing gym', 'martial arts studio', 'kickboxing gym', 'spin studio',
+            'barre studio', 'boot camp fitness', 'strength training gym',
+            'powerlifting gym', 'Olympic lifting gym', 'functional fitness',
+            'group fitness', 'HIIT studio', 'aqua fitness', 'senior fitness',
+            'prenatal fitness', 'weight loss program', 'body transformation',
+            'nutrition coach', 'online personal trainer', 'sports performance trainer',
+            'certified fitness instructor', '24 hour gym', 'boutique gym',
         ],
         // Veterinary
         '/\bvet\b|\bveterinar\b|\banimal\b|\bpet\b/' => [
             'veterinarian', 'vet clinic', 'animal hospital', 'pet clinic',
             'veterinary hospital', 'emergency vet', 'animal care', 'pet hospital',
+            'mobile vet', 'holistic veterinarian', 'exotic animal vet',
+            'avian veterinarian', 'equine veterinarian', 'feline veterinarian',
+            'canine specialist', 'veterinary surgeon', 'veterinary dentist',
+            'veterinary dermatologist', 'veterinary ophthalmologist', 'pet wellness clinic',
+            'low cost vet clinic', 'spay and neuter clinic', 'pet vaccination clinic',
+            'veterinary oncologist', 'veterinary cardiologist', 'animal rescue',
+            'pet grooming', 'dog groomer', 'pet boarding', 'doggy daycare',
         ],
         // Moving
-        '/\bmoving\b|\bmover\b/' => [
+        '/\bmoving\b|\bmover\b|\brelocation\b/' => [
             'moving company', 'movers', 'relocation service', 'local movers',
             'long distance movers', 'packing service', 'moving and storage',
+            'commercial movers', 'office movers', 'piano movers', 'furniture movers',
+            'senior moving service', 'military movers', 'international movers',
+            'apartment movers', 'house movers', 'flat rate movers', 'hourly movers',
+            'full service movers', 'loading and unloading', 'moving labor',
+            'pod moving', 'container moving', 'auto transport', 'vehicle shipping',
+            'junk removal', 'estate cleanout', 'storage unit movers',
         ],
         // Pest Control
-        '/\bpest\b|\bexterminator\b/' => [
+        '/\bpest\b|\bexterminator\b|\bbug\b|\btermite\b/' => [
             'pest control', 'exterminator', 'termite control', 'pest management',
             'rodent control', 'bed bug treatment', 'wildlife removal',
+            'ant exterminator', 'cockroach control', 'mosquito control',
+            'flea treatment', 'spider control', 'wasp removal', 'bee removal',
+            'moth control', 'silverfish treatment', 'cricket control',
+            'commercial pest control', 'residential pest control', 'organic pest control',
+            'green pest control', 'integrated pest management', 'fumigation service',
+            'crawl space pest control', 'attic pest removal', 'lawn pest control',
+            'tick control', 'fly control', 'bird control',
         ],
         // Marketing / Digital Agency
         '/\bmarketing\b|\bseo\b|\bdigital agency\b|\badvertising\b/' => [
             'marketing agency', 'digital marketing', 'seo company', 'advertising agency',
             'social media marketing', 'ppc agency', 'content marketing', 'web marketing',
             'branding agency', 'online marketing', 'digital agency',
+            'email marketing agency', 'video marketing', 'influencer marketing',
+            'affiliate marketing', 'marketing consultant', 'growth marketing',
+            'performance marketing', 'local seo', 'national seo', 'ecommerce seo',
+            'google ads management', 'facebook ads agency', 'tiktok marketing',
+            'linkedin marketing', 'PR agency', 'public relations firm',
+            'reputation management', 'conversion rate optimization', 'marketing automation',
         ],
         // Web Design
         '/\bweb design\b|\bweb develop\b|\bwebsite\b/' => [
             'web design company', 'web developer', 'website designer', 'web development agency',
             'website development', 'web agency', 'website builder', 'frontend developer',
+            'UI UX designer', 'responsive web design', 'ecommerce website developer',
+            'WordPress developer', 'Shopify developer', 'Wix designer',
+            'Squarespace developer', 'custom web application', 'landing page designer',
+            'mobile app developer', 'fullstack developer', 'web hosting provider',
+            'website maintenance', 'website redesign', 'ADA compliant web design',
+            'SEO web design', 'graphic designer', 'logo designer',
         ],
         // Salon / Beauty
         '/\bsalon\b|\bbeauty\b|\bhair\b|\bnail\b|\bbarber\b/' => [
             'hair salon', 'beauty salon', 'barber shop', 'nail salon', 'spa',
             'hair stylist', 'beauty parlor', 'day spa', 'beauty studio',
+            'hair colorist', 'balayage specialist', 'keratin treatment',
+            'hair extension specialist', 'braiding salon', 'natural hair salon',
+            'mens grooming', 'beard trim', 'hot shave barber', 'kids hair salon',
+            'blowout bar', 'lash salon', 'eyelash extensions', 'microblading',
+            'waxing salon', 'threading salon', 'tanning salon', 'spray tan',
+            'med spa', 'facial treatment', 'chemical peel', 'Botox provider',
         ],
         // Towing
         '/\btow\b|\btowing\b/' => [
             'towing service', 'tow truck', 'roadside assistance', 'emergency towing',
             'auto towing', 'flatbed towing', 'vehicle recovery',
+            'motorcycle towing', 'heavy duty towing', 'semi truck towing',
+            'RV towing', 'long distance towing', 'accident towing',
+            'lockout service', 'jump start service', 'tire change service',
+            'fuel delivery service', 'winch out service', 'off road recovery',
+            'impound towing', 'private property towing', 'abandoned vehicle removal',
+            'junk car towing', 'scrap car removal', '24 hour towing',
         ],
         // Painting
         '/\bpainter\b|\bpainting\b/' => [
             'painting contractor', 'house painter', 'commercial painter', 'painting company',
             'interior painting', 'exterior painting', 'residential painter',
+            'cabinet painting', 'deck staining', 'fence staining', 'pressure washing painter',
+            'wallpaper installer', 'wallpaper removal', 'epoxy floor coating',
+            'garage floor painting', 'industrial painter', 'mural painter',
+            'faux finish painter', 'texture specialist', 'drywall repair painter',
+            'popcorn ceiling removal', 'trim painter', 'spray painter',
+            'lead paint removal', 'eco-friendly painter', 'color consultant',
         ],
         // Chiropractor / Spinal Care
         '/\bchiropract\b|\bspinal\b|\bback doctor\b|\bspine specialist\b/' => [
@@ -560,12 +733,172 @@ function expandServiceSynonyms($service) {
         // Pharmacy
         '/\bpharmac\b/' => [
             'pharmacy', 'drugstore', 'compounding pharmacy', 'retail pharmacy',
-            'specialty pharmacy',
+            'specialty pharmacy', 'independent pharmacy', 'community pharmacy',
+            'mail order pharmacy', 'hospital pharmacy', 'clinical pharmacy',
+            'veterinary pharmacy', 'nuclear pharmacy', 'infusion pharmacy',
+            'long term care pharmacy', 'consultant pharmacist', '24 hour pharmacy',
+            'drive through pharmacy', 'medication management', 'prescription delivery',
+            'immunization pharmacy', 'diabetes pharmacy', 'durable medical equipment',
         ],
         // Auto Body
         '/\bauto body\b|\bcollision\b|\bbody shop\b/' => [
             'auto body shop', 'collision repair', 'body shop', 'paint and body',
             'dent repair', 'auto body repair', 'collision center',
+            'paintless dent repair', 'bumper repair', 'scratch repair',
+            'auto painting', 'custom paint job', 'frame repair',
+            'hail damage repair', 'fender repair', 'door ding repair',
+            'fiberglass repair', 'auto glass repair', 'windshield replacement',
+            'headlight restoration', 'auto detailing', 'ceramic coating',
+            'paint protection film', 'vinyl wrap', 'custom body kit',
+        ],
+        // Tutoring / Education
+        '/\btutor\b|\btutoring\b|\beducat\b|\blearn\b|\bteach\b/' => [
+            'tutor', 'tutoring service', 'math tutor', 'reading tutor',
+            'science tutor', 'English tutor', 'SAT prep tutor', 'ACT prep',
+            'college prep', 'test prep', 'homework help', 'after school tutoring',
+            'online tutor', 'in home tutor', 'learning center', 'Kumon',
+            'Sylvan learning', 'Mathnasium', 'STEM tutor', 'coding tutor',
+            'music teacher', 'piano teacher', 'guitar teacher', 'private lessons',
+            'language tutor', 'Spanish tutor', 'ESL teacher', 'GED prep',
+        ],
+        // Daycare / Childcare
+        '/\bdaycare\b|\bchildcare\b|\bchild care\b|\bpreschool\b|\bnursery\b/' => [
+            'daycare center', 'childcare provider', 'preschool', 'nursery school',
+            'early childhood education', 'Montessori school', 'in home daycare',
+            'infant care', 'toddler care', 'after school care', 'before school care',
+            'summer camp', 'nanny service', 'au pair', 'babysitter',
+            'licensed daycare', 'church daycare', 'corporate childcare',
+            'drop in childcare', 'special needs daycare', 'bilingual preschool',
+            'nature preschool', 'cooperative preschool', 'Head Start program',
+        ],
+        // Florist / Flowers
+        '/\bflorist\b|\bflower\b|\bfloral\b/' => [
+            'florist', 'flower shop', 'floral designer', 'wedding florist',
+            'event florist', 'funeral flowers', 'sympathy flowers', 'flower delivery',
+            'same day flower delivery', 'bouquet shop', 'plant nursery',
+            'garden center', 'indoor plants', 'succulent shop', 'dried flower shop',
+            'flower subscription', 'corporate flower service', 'tropical flowers',
+            'custom floral arrangements', 'balloon and flower shop',
+        ],
+        // IT Services / Computer Repair
+        '/\bit service\b|\bcomputer repair\b|\btech support\b|\bit support\b|\bmanaged it\b/' => [
+            'IT services', 'computer repair', 'tech support', 'IT support',
+            'managed IT', 'IT consulting', 'network setup', 'server support',
+            'cybersecurity company', 'data recovery', 'virus removal',
+            'laptop repair', 'PC repair', 'Mac repair', 'phone repair',
+            'screen repair', 'IT outsourcing', 'cloud computing services',
+            'backup solutions', 'VoIP provider', 'cabling contractor',
+            'IT security', 'managed service provider', 'help desk services',
+            'remote IT support', 'computer networking', 'WiFi installation',
+        ],
+        // Locksmith
+        '/\blocksmith\b|\block\b|\bkey\b/' => [
+            'locksmith', 'emergency locksmith', 'automotive locksmith',
+            'residential locksmith', 'commercial locksmith', '24 hour locksmith',
+            'car lockout service', 'lock change', 'lock rekey', 'key duplication',
+            'master key system', 'access control', 'safe locksmith',
+            'lock installation', 'smart lock installer', 'deadbolt installation',
+            'keyless entry installer', 'lock repair', 'padlock specialist',
+        ],
+        // Garage Door
+        '/\bgarage door\b|\boverhead door\b/' => [
+            'garage door repair', 'garage door installation', 'garage door company',
+            'overhead door', 'garage door opener repair', 'garage door spring repair',
+            'garage door cable repair', 'garage door panel replacement',
+            'commercial garage door', 'rolling steel door', 'automatic garage door',
+            'insulated garage door', 'custom garage door', 'garage door maintenance',
+            'emergency garage door repair', 'garage door remote programming',
+        ],
+        // Appliance Repair
+        '/\bappliance\b/' => [
+            'appliance repair', 'washer repair', 'dryer repair', 'refrigerator repair',
+            'dishwasher repair', 'oven repair', 'stove repair', 'microwave repair',
+            'ice maker repair', 'garbage disposal repair', 'range repair',
+            'freezer repair', 'wine cooler repair', 'commercial appliance repair',
+            'small appliance repair', 'appliance installation', 'appliance maintenance',
+        ],
+        // Flooring
+        '/\bfloor\b|\bflooring\b|\bcarpet install\b/' => [
+            'flooring company', 'flooring contractor', 'hardwood flooring',
+            'laminate flooring', 'vinyl flooring', 'tile flooring', 'carpet installation',
+            'engineered hardwood', 'bamboo flooring', 'cork flooring',
+            'epoxy flooring', 'concrete polishing', 'floor refinishing',
+            'floor sanding', 'floor staining', 'waterproof flooring',
+            'luxury vinyl plank', 'commercial flooring', 'residential flooring',
+            'floor repair', 'subfloor repair', 'heated flooring installation',
+        ],
+        // Pool / Swimming Pool
+        '/\bpool\b|\bswimming pool\b|\bhot tub\b|\bspa service\b/' => [
+            'pool service', 'pool cleaning', 'pool repair', 'pool company',
+            'swimming pool contractor', 'pool builder', 'pool installation',
+            'pool maintenance', 'pool resurfacing', 'pool remodeling',
+            'pool heater repair', 'pool pump repair', 'pool filter service',
+            'pool tile repair', 'pool deck resurfacing', 'pool safety fence',
+            'hot tub service', 'spa repair', 'pool opening service',
+            'pool closing service', 'pool leak detection', 'saltwater pool conversion',
+        ],
+        // Funeral / Mortuary
+        '/\bfuneral\b|\bmortuary\b|\bcremat\b/' => [
+            'funeral home', 'mortuary', 'funeral director', 'cremation service',
+            'funeral service', 'memorial service', 'burial service', 'cemetery',
+            'funeral chapel', 'celebration of life', 'pre-need funeral planning',
+            'direct cremation', 'green burial', 'pet cremation', 'obituary service',
+            'funeral catering', 'grief support', 'estate executor assistance',
+        ],
+        // Tattoo / Piercing
+        '/\btattoo\b|\bpiercing\b|\bbody art\b/' => [
+            'tattoo shop', 'tattoo artist', 'tattoo parlor', 'tattoo studio',
+            'piercing studio', 'body piercing', 'custom tattoo', 'cover up tattoo',
+            'tattoo removal', 'laser tattoo removal', 'permanent makeup',
+            'cosmetic tattoo', 'microblading', 'scalp micropigmentation',
+            'henna artist', 'body art studio', 'traditional tattoo',
+            'fine line tattoo', 'watercolor tattoo', 'realism tattoo artist',
+        ],
+        // Printing / Signs
+        '/\bprint\b|\bsign\b|\bbanner\b|\bgraphic\b/' => [
+            'printing company', 'sign shop', 'sign company', 'banner printing',
+            'custom signs', 'vehicle wrap', 'car wrap', 'vinyl lettering',
+            'business cards printing', 'flyer printing', 'brochure printing',
+            'large format printing', 'screen printing', 'embroidery shop',
+            't-shirt printing', 'promotional products', 'trade show displays',
+            'neon signs', 'LED signs', 'monument signs', 'channel letters',
+            'A-frame signs', 'yard signs', 'real estate signs', 'window graphics',
+        ],
+        // Security
+        '/\bsecurity\b|\balarm\b|\bsurveillance\b/' => [
+            'security company', 'alarm system', 'surveillance cameras',
+            'home security', 'commercial security', 'security guard service',
+            'CCTV installation', 'access control system', 'fire alarm system',
+            'security monitoring', 'video surveillance', 'smart home security',
+            'intercom system', 'security patrol', 'private investigator',
+            'bodyguard service', 'event security', 'security consultant',
+            'burglar alarm', 'motion sensor installation', 'doorbell camera',
+        ],
+        // Welding / Metal Work
+        '/\bweld\b|\bmetal work\b|\bfabricat\b|\biron work\b/' => [
+            'welding service', 'welder', 'metal fabrication', 'custom welding',
+            'structural welding', 'pipe welding', 'aluminum welding', 'TIG welding',
+            'MIG welding', 'stick welding', 'mobile welding', 'ornamental iron',
+            'wrought iron', 'custom metal work', 'steel fabrication',
+            'handrail fabrication', 'gate fabrication', 'metal staircase',
+            'industrial welding', 'underwater welding', 'certified welder',
+        ],
+        // Storage
+        '/\bstorage\b|\bself storage\b|\bwarehouse\b/' => [
+            'self storage', 'storage unit', 'mini storage', 'climate controlled storage',
+            'vehicle storage', 'boat storage', 'RV storage', 'warehouse storage',
+            'portable storage', 'storage container', 'document storage',
+            'wine storage', 'business storage', 'student storage',
+            'military storage', 'moving storage', 'long term storage',
+        ],
+        // Dry Cleaning / Laundry
+        '/\bdry clean\b|\blaundry\b|\blaundromat\b/' => [
+            'dry cleaner', 'dry cleaning', 'laundry service', 'laundromat',
+            'wash and fold', 'coin laundry', 'commercial laundry',
+            'wedding dress cleaning', 'suit cleaning', 'leather cleaning',
+            'alterations', 'tailor', 'seamstress', 'garment repair',
+            'pickup and delivery laundry', 'same day dry cleaning',
+            'eco friendly dry cleaner', 'organic dry cleaning',
         ],
     ];
 
