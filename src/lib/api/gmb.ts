@@ -512,7 +512,7 @@ async function searchGMBStreaming(
         const throttledProgress = (progress: number) => {
           lastProgress = progress;
           if (!progressTimer) {
-            progressTimer = setTimeout(flushProgress, 300);
+            progressTimer = setTimeout(flushProgress, 100);
           }
         };
         
