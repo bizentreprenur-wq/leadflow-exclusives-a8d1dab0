@@ -153,12 +153,26 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
     }
     // For high-volume searches, use more synonym variants per location
     $synonymsPerLocation = 1;
-    if ($limit >= 500) $synonymsPerLocation = 3;
-    if ($limit >= 1000) $synonymsPerLocation = 6;
-    if ($limit >= 2000) $synonymsPerLocation = 10;
-    if ($limit >= 5000) $synonymsPerLocation = 15;
+    if ($limit >= 500) $synonymsPerLocation = 5;
+    if ($limit >= 1000) $synonymsPerLocation = 12;
+    if ($limit >= 2000) $synonymsPerLocation = 20;
+    if ($limit >= 5000) $synonymsPerLocation = 30;
     // Pick top N synonyms (skip first which is the original)
     $synonymSubset = array_slice($serviceVariants, 1, $synonymsPerLocation);
+
+    // For high-volume, also prepare directory-specific queries
+    $directoryQueries = [];
+    if ($limit >= 500) {
+        $topDirectories = [
+            'site:yelp.com', 'site:bbb.org', 'site:yellowpages.com',
+            'site:manta.com', 'site:angi.com', 'site:thumbtack.com',
+            'site:homeadvisor.com', 'site:mapquest.com', 'site:foursquare.com',
+            'site:superpages.com', 'site:chamberofcommerce.com',
+            'site:expertise.com', 'site:porch.com', 'site:bark.com',
+        ];
+        $dirCount = $limit >= 2000 ? count($topDirectories) : ($limit >= 1000 ? 8 : 5);
+        $directoryQueries = array_slice($topDirectories, 0, $dirCount);
+    }
 
     $locationCount = count($locationsToSearch);
     $variantCount = 1 + count($synonymSubset); // base + synonyms
@@ -413,6 +427,73 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                     $emitEnrichment();
                     if (!$foundNew) break; // No new unique results, move on
                 }
+            }
+        }
+    }
+
+    // ---- QUATERNARY: Directory-focused pass (Yelp, BBB, YellowPages, etc.) ----
+    if ($totalResults < $limit && !empty($directoryQueries) && $limit >= 500) {
+        $deficit = $limit - $totalResults;
+        sendSSE('coverage', [
+            'message' => "Searching " . count($directoryQueries) . " business directories for remaining {$deficit} leads...",
+            'total' => $totalResults,
+            'target' => $limit,
+            'progress' => min(98, round(($totalResults / max(1, $limit)) * 100)),
+        ]);
+
+        $dirLocations = array_slice($searchedLocations, 0, min(6, count($searchedLocations)));
+        foreach ($directoryQueries as $dirSite) {
+            if ($totalResults >= $limit) break;
+            foreach ($dirLocations as $dirLoc) {
+                if ($totalResults >= $limit) break;
+
+                $dirQuery = "$service $dirLoc $dirSite";
+                $organicResults = fetchSerperOrganicPage($dirQuery, 1, 100);
+                if (empty($organicResults)) continue;
+
+                foreach ($organicResults as $item) {
+                    if ($totalResults >= $limit) break;
+
+                    $business = [
+                        'id' => generateId('sdir_'),
+                        'name' => $item['title'] ?? '',
+                        'url' => $item['link'] ?? '',
+                        'snippet' => $item['snippet'] ?? '',
+                        'displayLink' => parse_url($item['link'] ?? '', PHP_URL_HOST) ?? '',
+                        'address' => '',
+                        'phone' => extractPhoneFromText($item['snippet'] ?? ''),
+                        'email' => extractEmailFromText($item['snippet'] ?? ''),
+                        'rating' => null,
+                        'reviews' => null,
+                        'source' => 'Directory',
+                        'sources' => ['Directory']
+                    ];
+
+                    if (empty($business['name'])) continue;
+                    $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
+                    if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
+
+                    $dedupeKey = buildBusinessDedupeKey($business, $dirLoc);
+                    if (isset($seenBusinesses[$dedupeKey])) continue;
+
+                    $seenBusinesses[$dedupeKey] = count($allResults);
+                    $allResults[] = $business;
+                    $totalResults++;
+
+                    if ($enableEnrichment && !empty($business['url'])) {
+                        queueFirecrawlEnrichment($business['id'], $business['url'], $enrichmentSessionId, $enrichmentSearchType);
+                    }
+
+                    $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
+                    sendSSE('results', [
+                        'leads' => [$business],
+                        'total' => $totalResults,
+                        'progress' => $progress,
+                        'source' => 'Directory'
+                    ]);
+                }
+
+                $emitEnrichment();
             }
         }
     }
