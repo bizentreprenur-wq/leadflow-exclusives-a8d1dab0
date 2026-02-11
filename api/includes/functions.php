@@ -136,7 +136,58 @@ function buildLocationExpansions($location) {
         $city = $parts[0] ?? '';
         $state = $parts[1] ?? '';
     } else {
-        $state = $clean;
+        // Smart detection: if input is a single word/phrase that looks like a city name
+        // (not a state name), treat it as a city and try to resolve the state
+        $normalizedState = normalizeStateCode($clean);
+        if ($normalizedState && strlen($normalizedState) === 2 && strcasecmp($clean, $normalizedState) === 0) {
+            // It's actually a state abbreviation like "TX"
+            $state = $clean;
+        } else {
+            // Treat as a city name — try to look up state from nearby city shards
+            $city = $clean;
+            // Try common city-to-state mapping for major US cities
+            $cityStateMap = [
+                'houston' => 'TX', 'dallas' => 'TX', 'austin' => 'TX', 'san antonio' => 'TX', 'fort worth' => 'TX', 'el paso' => 'TX', 'arlington' => 'TX', 'plano' => 'TX',
+                'los angeles' => 'CA', 'san francisco' => 'CA', 'san diego' => 'CA', 'san jose' => 'CA', 'sacramento' => 'CA', 'fresno' => 'CA', 'oakland' => 'CA', 'long beach' => 'CA',
+                'new york' => 'NY', 'brooklyn' => 'NY', 'queens' => 'NY', 'bronx' => 'NY', 'manhattan' => 'NY', 'buffalo' => 'NY', 'rochester' => 'NY',
+                'chicago' => 'IL', 'naperville' => 'IL', 'aurora' => 'IL', 'springfield' => 'IL',
+                'phoenix' => 'AZ', 'tucson' => 'AZ', 'mesa' => 'AZ', 'scottsdale' => 'AZ', 'chandler' => 'AZ',
+                'philadelphia' => 'PA', 'pittsburgh' => 'PA',
+                'jacksonville' => 'FL', 'miami' => 'FL', 'tampa' => 'FL', 'orlando' => 'FL', 'fort lauderdale' => 'FL', 'st petersburg' => 'FL',
+                'columbus' => 'OH', 'cleveland' => 'OH', 'cincinnati' => 'OH',
+                'indianapolis' => 'IN', 'fort wayne' => 'IN',
+                'charlotte' => 'NC', 'raleigh' => 'NC', 'durham' => 'NC', 'greensboro' => 'NC',
+                'seattle' => 'WA', 'tacoma' => 'WA', 'spokane' => 'WA',
+                'denver' => 'CO', 'colorado springs' => 'CO', 'aurora' => 'CO',
+                'nashville' => 'TN', 'memphis' => 'TN', 'knoxville' => 'TN',
+                'detroit' => 'MI', 'grand rapids' => 'MI', 'ann arbor' => 'MI',
+                'portland' => 'OR', 'salem' => 'OR', 'eugene' => 'OR',
+                'las vegas' => 'NV', 'reno' => 'NV', 'henderson' => 'NV',
+                'atlanta' => 'GA', 'savannah' => 'GA', 'augusta' => 'GA',
+                'boston' => 'MA', 'cambridge' => 'MA', 'worcester' => 'MA',
+                'baltimore' => 'MD', 'annapolis' => 'MD',
+                'milwaukee' => 'WI', 'madison' => 'WI',
+                'minneapolis' => 'MN', 'st paul' => 'MN',
+                'new orleans' => 'LA', 'baton rouge' => 'LA',
+                'kansas city' => 'MO', 'st louis' => 'MO',
+                'oklahoma city' => 'OK', 'tulsa' => 'OK',
+                'omaha' => 'NE', 'lincoln' => 'NE',
+                'richmond' => 'VA', 'virginia beach' => 'VA', 'norfolk' => 'VA',
+                'salt lake city' => 'UT', 'provo' => 'UT',
+                'birmingham' => 'AL', 'montgomery' => 'AL', 'huntsville' => 'AL',
+                'louisville' => 'KY', 'lexington' => 'KY',
+                'hartford' => 'CT', 'new haven' => 'CT',
+                'providence' => 'RI',
+                'honolulu' => 'HI',
+                'anchorage' => 'AK',
+                'albuquerque' => 'NM', 'santa fe' => 'NM',
+                'charleston' => 'SC', 'columbia' => 'SC',
+                'des moines' => 'IA', 'cedar rapids' => 'IA',
+                'little rock' => 'AR', 'fayetteville' => 'AR',
+                'boise' => 'ID',
+            ];
+            $state = $cityStateMap[strtolower($city)] ?? '';
+        }
     }
 
     if ($city && $state) {
@@ -158,6 +209,13 @@ function buildLocationExpansions($location) {
                 $expansions[] = "{$nearbyCity} metro";
             }
         }
+    } elseif ($city && !$state) {
+        // City without state — still add directional expansions
+        foreach (['north', 'south', 'east', 'west'] as $direction) {
+            $expansions[] = "{$direction} {$city}";
+        }
+        $expansions[] = "{$city} downtown";
+        $expansions[] = "{$city} suburbs";
     }
 
     // For broad state-level searches (e.g., "Texas"), add major city shards

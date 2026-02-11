@@ -291,7 +291,7 @@ export default function LeadReportModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-[1400px] h-[90vh] p-0 overflow-hidden flex flex-col" aria-describedby={undefined}>
+      <DialogContent className="max-w-[95vw] w-[1400px] h-[90vh] p-0 overflow-hidden flex flex-col duration-100" aria-describedby={undefined}>
         <VisuallyHidden>
           <DialogTitle>Lead Intelligence Report</DialogTitle>
         </VisuallyHidden>
@@ -337,7 +337,7 @@ export default function LeadReportModal({
                 <Copy className="w-4 h-4" />
                 Phones
               </Button>
-              <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="text-white hover:bg-white/20">
+              <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="text-white hover:bg-white/20 transition-none">
                 <X className="w-5 h-5" />
               </Button>
             </div>
