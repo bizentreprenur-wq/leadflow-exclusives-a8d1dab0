@@ -3,7 +3,7 @@
  * Shows phone provisioning flow after AI Calling add-on purchase
  * 
  * V1 WORKFLOW:
- * - BamLead provisions phone numbers via Telnyx API
+ * - BamLead provisions phone numbers via Twilio API
  * - Customers don't connect their own numbers in V1
  * - Autopilot: Phone included, auto-provisioned
  * - Basic/Pro + $8/mo add-on: Phone provisioned after purchase
