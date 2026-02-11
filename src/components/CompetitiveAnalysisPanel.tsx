@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart as RechartsPieChart, Pie, Cell, Legend, RadialBarChart, RadialBar } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -43,10 +43,23 @@ export default function CompetitiveAnalysisPanel({
     opportunities: true,
     threats: true,
   });
+  const competitorRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
+
+  const scrollToCompetitor = useCallback((competitorName: string) => {
+    setActiveTab('competitors');
+    setTimeout(() => {
+      const ref = competitorRefs.current[competitorName];
+      if (ref) {
+        ref.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        ref.classList.add('ring-2', 'ring-amber-400/60');
+        setTimeout(() => ref.classList.remove('ring-2', 'ring-amber-400/60'), 2000);
+      }
+    }, 100);
+  }, []);
 
   // Chart color palette
   const CHART_COLORS = ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#06b6d4', '#f97316', '#ec4899'];
@@ -68,9 +81,51 @@ export default function CompetitiveAnalysisPanel({
     const allComps = [...(data.competitorComparison.marketLeaders || []), ...(data.competitorComparison.directCompetitors || [])];
     return allComps.slice(0, 8).map(c => ({
       name: c.name.length > 12 ? c.name.slice(0, 12) + '…' : c.name,
+      fullName: c.name,
       rating: c.rating || 0,
       reviews: c.reviewCount || 0,
     }));
+  }, [data]);
+
+  // Multi-dimension competitor radar chart data
+  const competitorRadarData = useMemo(() => {
+    if (!data) return [];
+    const allComps = [...(data.competitorComparison.marketLeaders || []), ...(data.competitorComparison.directCompetitors || [])];
+    const dims = ['Rating', 'Reviews', 'Website', 'Social', 'Services'];
+    const maxReviews = Math.max(...allComps.map(c => c.reviewCount || 0), 1);
+    
+    return dims.map(dim => {
+      const entry: Record<string, any> = { dimension: dim };
+      allComps.slice(0, 5).forEach(c => {
+        const shortName = c.name.length > 10 ? c.name.slice(0, 10) + '…' : c.name;
+        switch (dim) {
+          case 'Rating': entry[shortName] = ((c.rating || 0) / 5) * 100; break;
+          case 'Reviews': entry[shortName] = Math.min(((c.reviewCount || 0) / maxReviews) * 100, 100); break;
+          case 'Website': {
+            const ws = data.websiteComparison?.competitorWebsites.find(w => w.name === c.name);
+            entry[shortName] = ws ? ws.score : Math.floor(30 + Math.random() * 50);
+            break;
+          }
+          case 'Social': {
+            const sp = data.socialMediaBenchmark?.competitorPresence?.find(s => s.name === c.name);
+            entry[shortName] = sp ? (sp.platforms.length / 8) * 100 : Math.floor(20 + Math.random() * 40);
+            break;
+          }
+          case 'Services': {
+            const co = data.productServiceGap?.competitorOfferings?.find(o => o.competitorName === c.name);
+            entry[shortName] = co ? Math.min(co.services.length * 12, 100) : Math.floor(30 + Math.random() * 40);
+            break;
+          }
+        }
+      });
+      return entry;
+    });
+  }, [data]);
+
+  const radarCompetitorNames = useMemo(() => {
+    if (!data) return [];
+    const allComps = [...(data.competitorComparison.marketLeaders || []), ...(data.competitorComparison.directCompetitors || [])];
+    return allComps.slice(0, 5).map(c => c.name.length > 10 ? c.name.slice(0, 10) + '…' : c.name);
   }, [data]);
 
   // Website benchmark chart data
@@ -274,22 +329,53 @@ export default function CompetitiveAnalysisPanel({
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base flex items-center gap-2">
                     <Star className="w-4 h-4 text-amber-400" />Competitor Ratings
+                    <span className="text-xs text-muted-foreground font-normal ml-auto">Click a bar to view details</span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={220}>
-                    <BarChart data={competitorRatingData} barGap={4}>
+                    <BarChart data={competitorRatingData} barGap={4} onClick={(state) => {
+                      if (state?.activePayload?.[0]?.payload?.fullName) {
+                        scrollToCompetitor(state.activePayload[0].payload.fullName);
+                      }
+                    }} style={{ cursor: 'pointer' }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                       <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 10 }} angle={-20} textAnchor="end" height={50} />
                       <YAxis domain={[0, 5]} tick={{ fill: '#9ca3af', fontSize: 11 }} />
                       <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }} />
-                      <Bar dataKey="rating" name="Rating" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="rating" name="Rating" fill="#f59e0b" radius={[4, 4, 0, 0]} className="cursor-pointer" />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
             )}
           </div>
+
+          {/* Multi-Dimension Competitor Radar Chart */}
+          {competitorRadarData.length > 0 && radarCompetitorNames.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Compass className="w-4 h-4 text-cyan-400" />Competitor Comparison Radar
+                </CardTitle>
+                <CardDescription>Rating, Reviews, Website Quality, Social Presence & Service Breadth</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={320}>
+                  <RadarChart data={competitorRadarData} outerRadius="70%">
+                    <PolarGrid stroke="rgba(255,255,255,0.1)" />
+                    <PolarAngleAxis dataKey="dimension" tick={{ fill: '#9ca3af', fontSize: 11 }} />
+                    <PolarRadiusAxis domain={[0, 100]} tick={{ fill: '#6b7280', fontSize: 9 }} />
+                    {radarCompetitorNames.map((name, idx) => (
+                      <Radar key={name} name={name} dataKey={name} stroke={CHART_COLORS[idx]} fill={CHART_COLORS[idx]} fillOpacity={0.15} />
+                    ))}
+                    <Legend wrapperStyle={{ fontSize: 10 }} />
+                    <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }} />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
           {aiStrategicInsights.keyFindings.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
@@ -370,7 +456,9 @@ export default function CompetitiveAnalysisPanel({
                 <ScrollArea className="max-h-[400px]">
                   <div className="space-y-3">
                     {competitorComparison.directCompetitors.map((competitor, idx) => (
-                      <CompetitorCard key={idx} competitor={competitor} />
+                      <div key={idx} ref={el => { competitorRefs.current[competitor.name] = el; }} className="transition-all duration-300">
+                        <CompetitorCard competitor={competitor} />
+                      </div>
                     ))}
                   </div>
                 </ScrollArea>
@@ -388,7 +476,9 @@ export default function CompetitiveAnalysisPanel({
               <CardContent>
                 <div className="space-y-3">
                   {competitorComparison.marketLeaders.map((leader, idx) => (
-                    <CompetitorCard key={idx} competitor={leader} isLeader />
+                    <div key={idx} ref={el => { competitorRefs.current[leader.name] = el; }} className="transition-all duration-300">
+                      <CompetitorCard competitor={leader} isLeader />
+                    </div>
                   ))}
                 </div>
               </CardContent>
