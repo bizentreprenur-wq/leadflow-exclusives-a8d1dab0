@@ -16,7 +16,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ExternalLink, Mail, Phone, Loader2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { scrapeSocialContacts, SocialContactsResult } from '@/lib/api/socialContacts';
+import { bamleadScrape } from '@/lib/api/bamleadScraper';
+import { SocialContactsResult } from '@/lib/api/socialContacts';
 import { fetchSocialSearchPreview } from '@/lib/api/socialSearchPreview';
 import { toast } from 'sonner';
 
@@ -178,7 +179,23 @@ export default function SocialMediaLookup({
     
     setIsScrapingContacts(true);
     try {
-      const result = await scrapeSocialContacts(businessName, location);
+      const scrapeResult = await bamleadScrape('', businessName, location);
+      
+      // Convert to SocialContactsResult format for compatibility
+      const result: SocialContactsResult = {
+        success: scrapeResult.success,
+        cached: scrapeResult.cached || false,
+        business_name: businessName,
+        location: location || '',
+        contacts: {
+          emails: scrapeResult.emails,
+          phones: scrapeResult.phones,
+          profiles: scrapeResult.profiles as any,
+          sources: scrapeResult.sources,
+        },
+        error: scrapeResult.error,
+      };
+      
       setSocialContacts(result);
       
       // Cache in session storage
@@ -186,7 +203,7 @@ export default function SocialMediaLookup({
       sessionStorage.setItem(cacheKey, JSON.stringify(result));
       
       if (result.success && (result.contacts.emails.length > 0 || result.contacts.phones.length > 0)) {
-        toast.success(`Found ${result.contacts.emails.length} emails, ${result.contacts.phones.length} phones from social profiles`, {
+        toast.success(`Found ${result.contacts.emails.length} emails, ${result.contacts.phones.length} phones`, {
           description: result.contacts.sources.join(', ')
         });
         if (onContactsFound) {
@@ -194,12 +211,12 @@ export default function SocialMediaLookup({
         }
         setShowContactsPanel(true);
       } else {
-        toast.info('No contact info found in public social profiles', {
+        toast.info('No contact info found', {
           description: 'Try checking the website directly'
         });
       }
     } catch (error) {
-      toast.error('Failed to scrape social contacts');
+      toast.error('Failed to scrape contacts');
     } finally {
       setIsScrapingContacts(false);
     }
