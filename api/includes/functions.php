@@ -968,20 +968,72 @@ function expandServiceSynonyms($service) {
         }
     }
 
-    // If no specific match, try generic expansion with directory-style queries
+    // If no specific match, add generic business-type variants
     if (empty($synonyms)) {
-        // Add basic variants
         $synonyms[] = "$clean service";
         $synonyms[] = "$clean company";
-        $synonyms[] = "$clean near me";
-        $synonyms[] = "best $clean";
-        $synonyms[] = "local $clean";
-        $synonyms[] = "top rated $clean";
         $synonyms[] = "$clean provider";
         $synonyms[] = "$clean specialist";
-        $synonyms[] = "affordable $clean";
-        $synonyms[] = "professional $clean";
+        $synonyms[] = "$clean contractor";
+        $synonyms[] = "$clean consultant";
+        $synonyms[] = "$clean agency";
+        $synonyms[] = "$clean firm";
+        $synonyms[] = "$clean solutions";
     }
+
+    // UNIVERSAL INTENT MODIFIERS — these mirror how real customers search
+    // and surface different Google result sets per modifier
+    $intentModifiers = [
+        // Proximity & local intent
+        "$clean near me",
+        "local $clean",
+        "$clean in my area",
+        "$clean nearby",
+        // Quality & trust signals
+        "best $clean",
+        "top rated $clean",
+        "top $clean",
+        "leading $clean",
+        "trusted $clean",
+        "reliable $clean",
+        "experienced $clean",
+        // Credentials
+        "licensed $clean",
+        "certified $clean",
+        "insured $clean",
+        "accredited $clean",
+        // Pricing intent
+        "affordable $clean",
+        "cheap $clean",
+        "$clean free estimate",
+        "$clean quote",
+        "$clean pricing",
+        "$clean cost",
+        // Urgency intent
+        "emergency $clean",
+        "24 hour $clean",
+        "same day $clean",
+        "fast $clean",
+        "$clean available now",
+        "$clean open now",
+        // Business type modifiers
+        "professional $clean",
+        "commercial $clean",
+        "residential $clean",
+        "family owned $clean",
+        "small business $clean",
+        // Service type modifiers
+        "$clean installation",
+        "$clean repair",
+        "$clean maintenance",
+        "$clean custom",
+        // Review intent
+        "$clean reviews",
+    ];
+
+    // Shuffle intent modifiers so different searches get different combos
+    shuffle($intentModifiers);
+    $synonyms = array_merge($synonyms, $intentModifiers);
 
     // Always add free directory source queries for maximum coverage
     $directorySynonyms = [

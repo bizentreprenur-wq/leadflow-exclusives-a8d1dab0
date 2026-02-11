@@ -151,13 +151,14 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
     if (empty($serviceVariants)) {
         $serviceVariants = [$service];
     }
-    // For high-volume searches, use more synonym variants per location
+    // For high-volume searches, use more synonym + intent modifier variants per location
+    // Intent modifiers (near me, best, top rated, etc.) dramatically increase unique results
     $synonymsPerLocation = 1;
-    if ($limit >= 500) $synonymsPerLocation = 5;
-    if ($limit >= 1000) $synonymsPerLocation = 12;
-    if ($limit >= 2000) $synonymsPerLocation = 20;
-    if ($limit >= 5000) $synonymsPerLocation = 30;
-    // Pick top N synonyms (skip first which is the original)
+    if ($limit >= 500) $synonymsPerLocation = 10;
+    if ($limit >= 1000) $synonymsPerLocation = 20;
+    if ($limit >= 2000) $synonymsPerLocation = 35;
+    if ($limit >= 5000) $synonymsPerLocation = 50;
+    // Pick top N synonyms (skip first which is the original) — includes intent modifiers
     $synonymSubset = array_slice($serviceVariants, 1, $synonymsPerLocation);
 
     // For high-volume, also prepare directory-specific queries
