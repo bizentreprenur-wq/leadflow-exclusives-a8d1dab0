@@ -53,7 +53,7 @@ import { useSMTPConfig } from '@/hooks/useSMTPConfig';
 import { searchPlatforms, PlatformResult } from '@/lib/api/platforms';
 import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } from '@/lib/api/leadAnalysis';
 import { quickScoreLeads } from '@/lib/api/aiLeadScoring';
-import { scrapeSocialContacts } from '@/lib/api/socialContacts';
+import { bamleadScrape } from '@/lib/api/bamleadScraper';
 import { bamleadScrapeBatch } from '@/lib/api/bamleadScraper';
 import { HIGH_CONVERTING_TEMPLATES } from '@/lib/highConvertingTemplates';
 import { generateMechanicLeads, injectTestLeads } from '@/lib/testMechanicLeads';
@@ -574,7 +574,7 @@ export default function Dashboard() {
     }
 
     const requestUrls = Array.from(leadByRequestUrl.keys());
-    const batchSize = 10; // API endpoint limit in scrape-website-contacts.php
+    const batchSize = 15; // BamLead unified scraper supports up to 15
     let processed = 0;
     let updatedCount = 0;
 
