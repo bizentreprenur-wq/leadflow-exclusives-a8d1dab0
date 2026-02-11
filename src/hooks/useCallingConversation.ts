@@ -28,10 +28,8 @@ export interface UseCallingConversationOptions {
 }
 
 /**
- * Telnyx AI Calling conversation hook.
- * 
- * Instead of WebSocket, this polls the backend for call status and transcript
- * since Telnyx handles the AI conversation server-side via gather_using_ai.
+ * Twilio calling conversation hook.
+ * Polls the backend for call status and transcript updates.
  */
 export function useCallingConversation(options: UseCallingConversationOptions = {}) {
   const { onConnect, onDisconnect, onTranscript, onError } = options;
@@ -50,33 +48,32 @@ export function useCallingConversation(options: UseCallingConversationOptions = 
     }
   }, []);
 
-  // Poll for call status and transcript updates
-  const startPolling = useCallback((callControlId: string) => {
+  const startPolling = useCallback((callSid: string) => {
     stopPolling();
     
     pollingRef.current = window.setInterval(async () => {
       try {
         const [statusResult, transcriptResult] = await Promise.all([
-          getCallStatus(callControlId),
-          getCallTranscript(callControlId)
+          getCallStatus(callSid),
+          getCallTranscript(callSid)
         ]);
 
         if (statusResult.success && statusResult.status) {
-          if (statusResult.status === 'ended') {
+          const endStatuses = ['completed', 'busy', 'no-answer', 'failed', 'canceled'];
+          if (endStatuses.includes(statusResult.status)) {
             stopPolling();
             setStatus("disconnected");
             setIsSpeaking(false);
             onDisconnect?.();
             return;
           }
-          setIsSpeaking(statusResult.status === 'speaking');
+          setIsSpeaking(statusResult.status === 'in-progress');
         }
 
         if (transcriptResult.success && transcriptResult.transcript) {
           const newTranscript = transcriptResult.transcript;
           setTranscript(prev => {
             if (newTranscript.length > prev.length) {
-              // Notify about new entries
               for (let i = prev.length; i < newTranscript.length; i++) {
                 onTranscript?.(newTranscript[i]);
               }
@@ -88,7 +85,7 @@ export function useCallingConversation(options: UseCallingConversationOptions = 
       } catch (e) {
         console.error('Polling error:', e);
       }
-    }, 2000); // Poll every 2 seconds
+    }, 2000);
   }, [stopPolling, onDisconnect, onTranscript]);
 
   const startSession = useCallback(
@@ -107,16 +104,15 @@ export function useCallingConversation(options: UseCallingConversationOptions = 
           lead_name: opts.lead.name,
         });
 
-        if (!result.success || !result.call_control_id) {
+        if (!result.success || !result.call_sid) {
           throw new Error(result.error || 'Failed to initiate call');
         }
 
-        setCurrentCallId(result.call_control_id);
+        setCurrentCallId(result.call_sid);
         setStatus("connected");
         onConnect?.();
 
-        // Start polling for status and transcript
-        startPolling(result.call_control_id);
+        startPolling(result.call_sid);
 
       } catch (e) {
         stopPolling();
@@ -150,14 +146,14 @@ export function useCallingConversation(options: UseCallingConversationOptions = 
       lead_name: lead?.name,
     });
 
-    if (!result.success || !result.call_control_id) {
+    if (!result.success || !result.call_sid) {
       throw new Error(result.error || 'Failed to initiate call');
     }
 
-    setCurrentCallId(result.call_control_id);
-    startPolling(result.call_control_id);
+    setCurrentCallId(result.call_sid);
+    startPolling(result.call_sid);
 
-    return { id: result.call_control_id, call_leg_id: result.call_leg_id };
+    return { id: result.call_sid };
   }, [startPolling]);
 
   const hangupCall = useCallback(async () => {
@@ -169,7 +165,6 @@ export function useCallingConversation(options: UseCallingConversationOptions = 
     setIsSpeaking(false);
   }, [currentCallId, stopPolling]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopPolling();

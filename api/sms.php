@@ -142,49 +142,41 @@ function handleSendSMS($pdo, $userId) {
         return;
     }
     
-    // Get user's Telnyx config (phone number)
-    $stmt = $pdo->prepare("SELECT phone_number FROM telnyx_config WHERE user_id = ? AND enabled = 1");
+    // Get user's Twilio config (phone number)
+    $stmt = $pdo->prepare("SELECT phone_number FROM twilio_config WHERE user_id = ? AND enabled = 1");
     $stmt->execute([$userId]);
     $config = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$config || empty($config['phone_number'])) {
         http_response_code(400);
-        echo json_encode(['success' => false, 'error' => 'No Telnyx phone number configured. Please set up AI Calling first.']);
+        echo json_encode(['success' => false, 'error' => 'No phone number configured. Please set up AI Calling first.']);
         return;
     }
     
-    // Use global TELNYX_API_KEY from config.php
-    $telnyxApiKey = defined('TELNYX_API_KEY') ? TELNYX_API_KEY : '';
-    if (!$telnyxApiKey) {
+    // Use global Twilio credentials from config.php
+    $twilioSid = defined('TWILIO_ACCOUNT_SID') ? TWILIO_ACCOUNT_SID : '';
+    $twilioToken = defined('TWILIO_AUTH_TOKEN') ? TWILIO_AUTH_TOKEN : '';
+    if (!$twilioSid || !$twilioToken) {
         http_response_code(500);
-        echo json_encode(['success' => false, 'error' => 'TELNYX_API_KEY not configured on server']);
+        echo json_encode(['success' => false, 'error' => 'Twilio credentials not configured on server']);
         return;
     }
     
-    $messagingProfileId = defined('TELNYX_MESSAGING_PROFILE_ID') ? TELNYX_MESSAGING_PROFILE_ID : null;
-    
-    // Send SMS via Telnyx Messaging API
+    // Send SMS via Twilio Messages API
+    $twilioUrl = 'https://api.twilio.com/2010-04-01/Accounts/' . $twilioSid . '/Messages.json';
     $smsPayload = [
-        'from' => $config['phone_number'],
-        'to' => $leadPhone,
-        'text' => $message,
-        'type' => 'SMS',
-        'webhook_url' => (defined('FRONTEND_URL') ? FRONTEND_URL : 'https://bamlead.com') . '/api/sms.php?action=webhook',
-        'webhook_failover_url' => (defined('FRONTEND_URL') ? FRONTEND_URL : 'https://bamlead.com') . '/api/sms.php?action=webhook'
+        'From' => $config['phone_number'],
+        'To' => $leadPhone,
+        'Body' => $message,
+        'StatusCallback' => (defined('FRONTEND_URL') ? FRONTEND_URL : 'https://bamlead.com') . '/api/twilio.php?action=sms_webhook'
     ];
-    if ($messagingProfileId) {
-        $smsPayload['messaging_profile_id'] = $messagingProfileId;
-    }
     
-    $ch = curl_init('https://api.telnyx.com/v2/messages');
+    $ch = curl_init($twilioUrl);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode($smsPayload),
-        CURLOPT_HTTPHEADER => [
-            'Authorization: Bearer ' . $telnyxApiKey,
-            'Content-Type: application/json'
-        ],
+        CURLOPT_POSTFIELDS => http_build_query($smsPayload),
+        CURLOPT_USERPWD => $twilioSid . ':' . $twilioToken,
         CURLOPT_TIMEOUT => 15
     ]);
     
@@ -209,8 +201,8 @@ function handleSendSMS($pdo, $userId) {
             'message_id' => $externalId
         ]);
     } else {
-        $errorMsg = $responseData['errors'][0]['detail'] ?? 'Failed to send SMS';
-        error_log("Telnyx SMS send failed ($httpCode): $response");
+        $errorMsg = $responseData['message'] ?? 'Failed to send SMS';
+        error_log("Twilio SMS send failed ($httpCode): $response");
         echo json_encode([
             'success' => false,
             'error' => $errorMsg
@@ -559,134 +551,119 @@ function generateAISuggestion($lastMessage, $leadName, $context = []) {
 }
 
 /**
- * Handle inbound SMS webhook from Telnyx
+ * Handle inbound SMS webhook from Twilio
  */
 function handleSMSWebhook($db) {
-    $input = json_decode(file_get_contents('php://input'), true);
+    // Twilio sends webhooks as POST with form-encoded data
+    $fromNumber = $_POST['From'] ?? '';
+    $toNumber = $_POST['To'] ?? '';
+    $messageText = $_POST['Body'] ?? '';
+    $messageSid = $_POST['MessageSid'] ?? uniqid('sms_in_');
+    $messageStatus = $_POST['SmsStatus'] ?? $_POST['MessageStatus'] ?? '';
     
-    if (!$input || !isset($input['data'])) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Invalid webhook payload']);
+    // Handle delivery status updates
+    if (in_array($messageStatus, ['sent', 'delivered', 'failed', 'undelivered'])) {
+        if ($messageSid) {
+            $status = ($messageStatus === 'delivered') ? 'delivered' : 
+                     (($messageStatus === 'failed' || $messageStatus === 'undelivered') ? 'failed' : 'sent');
+            $stmt = $db->prepare("UPDATE sms_messages SET status = ?, delivered_at = NOW() WHERE external_id = ?");
+            $stmt->execute([$status, $messageSid]);
+        }
+        
+        // Twilio expects TwiML response
+        header('Content-Type: text/xml');
+        echo '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
         return;
     }
     
-    $eventType = $input['data']['event_type'] ?? '';
-    $payload = $input['data']['payload'] ?? [];
-    
-    error_log("Telnyx SMS webhook: $eventType - " . json_encode($payload));
-    
-    switch ($eventType) {
-        case 'message.received':
-            // Inbound SMS from a lead
-            $fromNumber = $payload['from']['phone_number'] ?? '';
-            $toNumber = $payload['to'][0]['phone_number'] ?? '';
-            $messageText = $payload['text'] ?? '';
-            $externalId = $payload['id'] ?? uniqid('sms_in_');
-            
-            if (empty($fromNumber) || empty($messageText)) break;
-            
-            // Find the user who owns this Telnyx number
-            $stmt = $db->prepare("SELECT user_id FROM telnyx_config WHERE phone_number = ?");
-            $stmt->execute([$toNumber]);
-            $config = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            if (!$config) {
-                error_log("SMS webhook: No user found for number $toNumber");
-                break;
-            }
-            
-            $userId = $config['user_id'];
-            
-            // Try to find the lead by phone number
-            $stmt = $db->prepare("
-                SELECT lead_id, lead_name FROM sms_messages 
-                WHERE user_id = ? AND lead_phone = ? 
-                ORDER BY created_at DESC LIMIT 1
-            ");
-            $stmt->execute([$userId, $fromNumber]);
-            $existing = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            $leadId = $existing['lead_id'] ?? null;
-            $leadName = $existing['lead_name'] ?? '';
-            
-            // Store inbound message
-            $stmt = $db->prepare("
-                INSERT INTO sms_messages (id, user_id, lead_id, lead_phone, lead_name, direction, message, status, external_id, `read`, created_at)
-                VALUES (?, ?, ?, ?, ?, 'inbound', ?, 'received', ?, 0, NOW())
-            ");
-            $stmt->execute([uniqid('sms_'), $userId, $leadId, $fromNumber, $leadName, $messageText, $externalId]);
-            
-            // Check if auto-SMS is enabled for this lead
-            if ($leadId) {
-                $stmt = $db->prepare("SELECT id FROM sms_auto_enabled WHERE user_id = ? AND lead_id = ?");
-                $stmt->execute([$userId, $leadId]);
-                if ($stmt->fetch()) {
-                    // Auto-reply with AI suggestion
-                    $aiReply = generateAISuggestion($messageText, $leadName);
-                    
-                    // Get user's phone number and use global API key
-                    $stmt = $db->prepare("SELECT phone_number FROM telnyx_config WHERE user_id = ?");
-                    $stmt->execute([$userId]);
-                    $telnyxConfig = $stmt->fetch(PDO::FETCH_ASSOC);
-                    $globalApiKey = defined('TELNYX_API_KEY') ? TELNYX_API_KEY : '';
-                    
-                    if ($telnyxConfig && $telnyxConfig['phone_number'] && $globalApiKey) {
-                        // Send auto-reply via Telnyx
-                        $ch = curl_init('https://api.telnyx.com/v2/messages');
-                        curl_setopt_array($ch, [
-                            CURLOPT_RETURNTRANSFER => true,
-                            CURLOPT_POST => true,
-                            CURLOPT_POSTFIELDS => json_encode([
-                                'from' => $telnyxConfig['phone_number'],
-                                'to' => $fromNumber,
-                                'text' => $aiReply,
-                                'type' => 'SMS'
-                            ]),
-                            CURLOPT_HTTPHEADER => [
-                                'Authorization: Bearer ' . $globalApiKey,
-                                'Content-Type: application/json'
-                            ],
-                            CURLOPT_TIMEOUT => 15
-                        ]);
-                        
-                        $response = curl_exec($ch);
-                        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                        curl_close($ch);
-                        
-                        if ($httpCode === 200 || $httpCode === 201 || $httpCode === 202) {
-                            $responseData = json_decode($response, true);
-                            $replyId = $responseData['data']['id'] ?? uniqid('sms_auto_');
-                            
-                            $stmt = $db->prepare("
-                                INSERT INTO sms_messages (id, user_id, lead_id, lead_phone, lead_name, direction, message, status, external_id, created_at)
-                                VALUES (?, ?, ?, ?, ?, 'outbound', ?, 'sent', ?, NOW())
-                            ");
-                            $stmt->execute([uniqid('sms_'), $userId, $leadId, $fromNumber, $leadName, $aiReply, $replyId]);
-                        }
-                    }
-                }
-            }
-            break;
-            
-        case 'message.sent':
-        case 'message.delivered':
-            // Update delivery status
-            $externalId = $payload['id'] ?? '';
-            $status = ($eventType === 'message.delivered') ? 'delivered' : 'sent';
-            if ($externalId) {
-                $stmt = $db->prepare("UPDATE sms_messages SET status = ?, delivered_at = NOW() WHERE external_id = ?");
-                $stmt->execute([$status, $externalId]);
-            }
-            break;
-            
-        case 'message.failed':
-            $externalId = $payload['id'] ?? '';
-            if ($externalId) {
-                $stmt = $db->prepare("UPDATE sms_messages SET status = 'failed' WHERE external_id = ?");
-                $stmt->execute([$externalId]);
-            }
-            break;
+    // Handle inbound message
+    if (empty($fromNumber) || empty($messageText)) {
+        header('Content-Type: text/xml');
+        echo '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
+        return;
     }
     
-    echo json_encode(['success' => true]);
+    // Find the user who owns this Twilio number
+    $stmt = $db->prepare("SELECT user_id FROM twilio_config WHERE phone_number = ?");
+    $stmt->execute([$toNumber]);
+    $config = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$config) {
+        error_log("SMS webhook: No user found for number $toNumber");
+        header('Content-Type: text/xml');
+        echo '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
+        return;
+    }
+    
+    $userId = $config['user_id'];
+    
+    // Try to find the lead by phone number
+    $stmt = $db->prepare("
+        SELECT lead_id, lead_name FROM sms_messages 
+        WHERE user_id = ? AND lead_phone = ? 
+        ORDER BY created_at DESC LIMIT 1
+    ");
+    $stmt->execute([$userId, $fromNumber]);
+    $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    $leadId = $existing['lead_id'] ?? null;
+    $leadName = $existing['lead_name'] ?? '';
+    
+    // Store inbound message
+    $stmt = $db->prepare("
+        INSERT INTO sms_messages (id, user_id, lead_id, lead_phone, lead_name, direction, message, status, external_id, `read`, created_at)
+        VALUES (?, ?, ?, ?, ?, 'inbound', ?, 'received', ?, 0, NOW())
+    ");
+    $stmt->execute([uniqid('sms_'), $userId, $leadId, $fromNumber, $leadName, $messageText, $messageSid]);
+    
+    // Check if auto-SMS is enabled for this lead
+    if ($leadId) {
+        $stmt = $db->prepare("SELECT id FROM sms_auto_enabled WHERE user_id = ? AND lead_id = ?");
+        $stmt->execute([$userId, $leadId]);
+        if ($stmt->fetch()) {
+            // Auto-reply with AI suggestion
+            $aiReply = generateAISuggestion($messageText, $leadName);
+            
+            $stmt = $db->prepare("SELECT phone_number FROM twilio_config WHERE user_id = ?");
+            $stmt->execute([$userId]);
+            $twilioConfig = $stmt->fetch(PDO::FETCH_ASSOC);
+            $twilioSid = defined('TWILIO_ACCOUNT_SID') ? TWILIO_ACCOUNT_SID : '';
+            $twilioToken = defined('TWILIO_AUTH_TOKEN') ? TWILIO_AUTH_TOKEN : '';
+            
+            if ($twilioConfig && $twilioConfig['phone_number'] && $twilioSid && $twilioToken) {
+                // Send auto-reply via Twilio
+                $ch = curl_init('https://api.twilio.com/2010-04-01/Accounts/' . $twilioSid . '/Messages.json');
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_POST => true,
+                    CURLOPT_POSTFIELDS => http_build_query([
+                        'From' => $twilioConfig['phone_number'],
+                        'To' => $fromNumber,
+                        'Body' => $aiReply
+                    ]),
+                    CURLOPT_USERPWD => $twilioSid . ':' . $twilioToken,
+                    CURLOPT_TIMEOUT => 15
+                ]);
+                
+                $response = curl_exec($ch);
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+                
+                if ($httpCode === 200 || $httpCode === 201 || $httpCode === 202) {
+                    $responseData = json_decode($response, true);
+                    $replyId = $responseData['sid'] ?? uniqid('sms_auto_');
+                    
+                    $stmt = $db->prepare("
+                        INSERT INTO sms_messages (id, user_id, lead_id, lead_phone, lead_name, direction, message, status, external_id, created_at)
+                        VALUES (?, ?, ?, ?, ?, 'outbound', ?, 'sent', ?, NOW())
+                    ");
+                    $stmt->execute([uniqid('sms_'), $userId, $leadId, $fromNumber, $leadName, $aiReply, $replyId]);
+                }
+            }
+        }
+    }
+    
+    // Twilio expects TwiML response
+    header('Content-Type: text/xml');
+    echo '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
 }
