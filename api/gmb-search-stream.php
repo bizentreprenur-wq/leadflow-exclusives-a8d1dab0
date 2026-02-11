@@ -197,8 +197,8 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
     $enrichmentLastPolled = 0;
     $enrichmentLastId = 0;
     $enrichmentLastTrigger = 0;
-    $enrichmentPollInterval = 1;
-    $enrichmentTriggerInterval = 8;
+    $enrichmentPollInterval = 0; // Poll every cycle for max speed
+    $enrichmentTriggerInterval = 4; // Re-trigger enrichment more frequently
 
     if ($enableEnrichment && function_exists('triggerBackgroundEnrichmentProcessing')) {
         triggerBackgroundEnrichmentProcessing($enrichmentSessionId);
@@ -500,10 +500,10 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
 
     if ($enableEnrichment) {
         $flushStart = time();
-        $flushSeconds = $limit >= 1000 ? 3 : 5; // Shorter flush for high-volume
+        $flushSeconds = $limit >= 1000 ? 2 : 3; // Minimal flush — enrichment continues in background
         while ((time() - $flushStart) < $flushSeconds) {
             $emitEnrichment();
-            usleep(50000); // 50ms poll interval (was 200ms)
+            usleep(25000); // 25ms poll — maximum speed
         }
     }
 
@@ -708,14 +708,10 @@ function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sour
     
     $emptyPageStreak = 0; // Track consecutive empty pages to exit early
     
-    // Minimal throttle for maximum speed
-    $throttleUs = defined('SERPAPI_THROTTLE_US') ? max(0, (int)SERPAPI_THROTTLE_US) : 50000;
-    if ($limit >= 2000) {
-        $throttleUs = 0; // No delay for high-volume searches
-    } elseif ($limit >= 1000) {
-        $throttleUs = min($throttleUs, 5000); // 5ms
-    } elseif ($limit >= 500) {
-        $throttleUs = min($throttleUs, 10000); // 10ms
+    // Zero throttle for all high-volume searches — maximum speed
+    $throttleUs = defined('SERPAPI_THROTTLE_US') ? max(0, (int)SERPAPI_THROTTLE_US) : 30000;
+    if ($limit >= 500) {
+        $throttleUs = 0; // No delay at all for 500+ lead searches
     }
     
     $connectTimeout = defined('SERPAPI_CONNECT_TIMEOUT_SEC') ? max(5, (int)SERPAPI_CONNECT_TIMEOUT_SEC) : 15;
@@ -782,7 +778,7 @@ function searchSingleEngine($apiKey, $engine, $query, $resultsKey, $limit, $sour
                 break;
             }
 
-            usleep((int)(250000 * ($attempt + 1))); // 250ms, 500ms, 750ms...
+            usleep((int)(100000 * ($attempt + 1))); // 100ms, 200ms, 300ms (was 250/500/750)
         }
         
         if ($response['httpCode'] !== 200) {
@@ -1156,8 +1152,8 @@ function streamSerperSearchInto(
     $enrichmentLastPolled = 0;
     $enrichmentLastId = 0;
     $enrichmentLastTrigger = 0;
-    $enrichmentPollInterval = 1;
-    $enrichmentTriggerInterval = 8;
+    $enrichmentPollInterval = 0;
+    $enrichmentTriggerInterval = 4;
 
     if ($enableEnrichment && function_exists('triggerBackgroundEnrichmentProcessing')) {
         triggerBackgroundEnrichmentProcessing($enrichmentSessionId);
@@ -1433,10 +1429,10 @@ function streamSerperSearchInto(
 
     if ($enableEnrichment && $emitComplete) {
         $flushStart = time();
-        $flushSeconds = defined('ENRICHMENT_FINAL_FLUSH_SECONDS') ? max(1, (int)ENRICHMENT_FINAL_FLUSH_SECONDS) : 2;
+        $flushSeconds = defined('ENRICHMENT_FINAL_FLUSH_SECONDS') ? max(1, (int)ENRICHMENT_FINAL_FLUSH_SECONDS) : 1;
         while ((time() - $flushStart) < $flushSeconds) {
             $emitEnrichment();
-            usleep(50000); // 50ms poll (was 200ms)
+            usleep(25000); // 25ms poll — max speed
         }
     }
     
