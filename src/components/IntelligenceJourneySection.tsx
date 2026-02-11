@@ -276,7 +276,7 @@ const IntelligenceJourneySection = () => {
       step: "Step 4",
       title: "AI Calling Hub",
       description: "Voice outreach scales with your plan — from manual dialing to fully autonomous AI conversations.",
-      details: ["Telnyx Voice AI", "Dynamic Script Gen", "Tier-Based Calling", "SMS Follow-Up"],
+      details: ["Twilio Voice AI", "Dynamic Script Gen", "Tier-Based Calling", "SMS Follow-Up"],
       icon: Phone,
       color: "from-violet-500 to-purple-500",
       glowColor: "shadow-[0_0_30px_hsl(270_60%_50%_/_0.3)]",

@@ -10,14 +10,14 @@
  * 
  * V1 RULES:
  * - One phone number per customer
- * - BamLead provisions phone numbers via Telnyx API
+ * - BamLead provisions phone numbers via Twilio API
  * - $8/month add-on for Free/Basic/Pro tiers
  * - Autopilot includes phone number in subscription
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { usePlanFeatures, PlanTier } from '@/hooks/usePlanFeatures';
-import { getTelnyxConfig, saveTelnyxConfig, type TelnyxConfig } from '@/lib/api/telnyx';
+import { getTwilioConfig, saveTwilioConfig, type TwilioConfig } from '@/lib/api/twilio';
 import { provisionNumber as apiProvisionNumber } from '@/lib/api/calling';
 import { createAddonCheckoutSession } from '@/lib/api/stripe';
 import { toast } from 'sonner';
@@ -70,11 +70,11 @@ const TIER_CAPABILITIES: Record<PlanTier, AICallingCapabilities> = {
   },
   basic: {
     canViewScripts: true,
-    canEditScripts: true, // Can edit after add-on purchase
-    canGenerateScripts: true, // AI generates, you dial
-    canMakeCalls: false, // Manual dial only
+    canEditScripts: true,
+    canGenerateScripts: true,
+    canMakeCalls: false,
     canAutoCall: false,
-    requiresAddon: true, // Needs $8/mo add-on
+    requiresAddon: true,
     addonIncluded: false,
     phoneIncluded: false,
     callLimitType: 'manual_dial',
@@ -84,9 +84,9 @@ const TIER_CAPABILITIES: Record<PlanTier, AICallingCapabilities> = {
     canViewScripts: true,
     canEditScripts: true,
     canGenerateScripts: true,
-    canMakeCalls: true, // AI makes calls, you supervise
+    canMakeCalls: true,
     canAutoCall: false,
-    requiresAddon: true, // Needs $8/mo add-on
+    requiresAddon: true,
     addonIncluded: false,
     phoneIncluded: false,
     callLimitType: 'supervised',
@@ -97,10 +97,10 @@ const TIER_CAPABILITIES: Record<PlanTier, AICallingCapabilities> = {
     canEditScripts: true,
     canGenerateScripts: true,
     canMakeCalls: true,
-    canAutoCall: true, // Fully autonomous
-    requiresAddon: false, // Included!
+    canAutoCall: true,
+    requiresAddon: false,
     addonIncluded: true,
-    phoneIncluded: true, // Phone number included
+    phoneIncluded: true,
     callLimitType: 'autonomous',
     scriptGeneration: 'advanced',
   },
@@ -111,7 +111,7 @@ const ADDON_STORAGE_KEY = 'bamlead_ai_calling_addon';
 
 export function useAICalling() {
   const { tier, isLoading: planLoading, isPro, isAutopilot } = usePlanFeatures();
-  const [config, setConfig] = useState<TelnyxConfig | null>(null);
+  const [config, setConfig] = useState<TwilioConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [phoneSetup, setPhoneSetup] = useState<PhoneSetup>({
     hasPhone: false,
@@ -126,18 +126,12 @@ export function useAICalling() {
     phoneNumber: null,
   });
   
-  // Get capabilities for current tier
   const capabilities = useMemo(() => TIER_CAPABILITIES[tier], [tier]);
-  
-  // Check if addon is needed and not purchased
   const needsAddonPurchase = capabilities.requiresAddon && addon.status === 'not_purchased';
   
-  // Determine current status
   const status = useMemo<AICallingStatus>(() => {
-    // Free tier: preview only
     if (tier === 'free') return 'disabled';
     
-    // Autopilot: Check if phone is ready (auto-provisioned)
     if (capabilities.addonIncluded) {
       if (phoneSetup.isProvisioning) return 'phone_provisioning';
       if (!phoneSetup.hasPhone) return 'phone_needed';
@@ -145,12 +139,10 @@ export function useAICalling() {
       return 'phone_needed';
     }
     
-    // Basic/Pro: Check addon first
     if (capabilities.requiresAddon && addon.status !== 'active') {
       return 'addon_needed';
     }
     
-    // Addon active but no phone yet
     if (phoneSetup.isProvisioning) return 'phone_provisioning';
     if (!phoneSetup.hasPhone) return 'phone_needed';
     if (phoneSetup.isVerified) return 'ready';
@@ -158,17 +150,14 @@ export function useAICalling() {
     return 'phone_needed';
   }, [capabilities, phoneSetup, addon, tier]);
   
-  // Load config on mount
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        // Load Telnyx config
-        const result = await getTelnyxConfig();
+        const result = await getTwilioConfig();
         if (result.success && result.config) {
           setConfig(result.config);
           
-          // Derive phone setup from config
           if (result.config.phone_number) {
             setPhoneSetup({
               hasPhone: true,
@@ -180,7 +169,6 @@ export function useAICalling() {
           }
         }
         
-        // Load addon status from localStorage
         try {
           const cachedAddon = localStorage.getItem(ADDON_STORAGE_KEY);
           if (cachedAddon) {
@@ -189,9 +177,7 @@ export function useAICalling() {
           }
         } catch {}
         
-        // For Autopilot, check if phone should be auto-provisioned
         if (tier === 'autopilot' && !result?.config?.phone_number) {
-          // Mark as provisioning - BamLead will set this up
           setPhoneSetup(prev => ({ ...prev, isProvisioning: true }));
         }
       } catch (error) {
@@ -206,10 +192,8 @@ export function useAICalling() {
     }
   }, [planLoading, tier]);
   
-  // Purchase AI Calling addon ($8/mo) - redirects to Stripe checkout
   const purchaseAddon = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
     try {
-      // Set pending state
       const pendingAddon: AICallingAddon = {
         status: 'pending',
         purchasedAt: null,
@@ -217,35 +201,22 @@ export function useAICalling() {
       };
       setAddon(pendingAddon);
       
-      // Create Stripe checkout session for the addon
       const result = await createAddonCheckoutSession('ai_calling');
       
       if (result.checkout_url) {
-        // Redirect to Stripe checkout
         window.location.href = result.checkout_url;
         return { success: true };
       }
       
-      // Restore state if no checkout URL
-      setAddon({
-        status: 'not_purchased',
-        purchasedAt: null,
-        phoneNumber: null,
-      });
+      setAddon({ status: 'not_purchased', purchasedAt: null, phoneNumber: null });
       return { success: false, error: 'Failed to create checkout session' };
     } catch (error: any) {
-      // If demo mode or other error, show message
       toast.error(error.message || 'Failed to start checkout');
-      setAddon({
-        status: 'not_purchased',
-        purchasedAt: null,
-        phoneNumber: null,
-      });
+      setAddon({ status: 'not_purchased', purchasedAt: null, phoneNumber: null });
       return { success: false, error: error.message || 'Failed to purchase addon' };
     }
   }, []);
   
-  // Request phone number provisioning via Telnyx API
   const requestPhoneProvisioning = useCallback(async (options?: { country_code?: string; area_code?: string }): Promise<{ success: boolean; error?: string }> => {
     try {
       setPhoneSetup(prev => ({ ...prev, isProvisioning: true }));
@@ -269,7 +240,6 @@ export function useAICalling() {
       
       setPhoneSetup(prev => ({ ...prev, isProvisioning: false }));
       
-      // Handle 402 - needs addon purchase
       if (result.error?.includes('add-on')) {
         toast.error('Purchase the AI Calling add-on first');
         return { success: false, error: result.error };
@@ -284,14 +254,13 @@ export function useAICalling() {
     }
   }, [addon]);
   
-  // Save phone setup (for manual configuration by BamLead team)
   const savePhoneSetup = useCallback(async (
     phoneNumber: string
   ): Promise<{ success: boolean; error?: string }> => {
     try {
-      const newConfig: TelnyxConfig = {
+      const newConfig: TwilioConfig = {
         ...(config || {
-          voice: 'Telnyx.Kokoro',
+          voice: 'Polly.Joanna',
           greeting_message: '',
           system_prompt: '',
           enabled: false,
@@ -301,7 +270,7 @@ export function useAICalling() {
         phone_number: phoneNumber,
       };
       
-      const result = await saveTelnyxConfig(newConfig);
+      const result = await saveTwilioConfig(newConfig);
       
       if (result.success) {
         const newPhoneSetup: PhoneSetup = {
@@ -313,7 +282,6 @@ export function useAICalling() {
         };
         setPhoneSetup(newPhoneSetup);
         setConfig(newConfig);
-        
         return { success: true };
       }
       
@@ -323,25 +291,22 @@ export function useAICalling() {
     }
   }, [config]);
   
-  // Verify phone number (after BamLead configures it)
   const verifyPhone = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
     if (!phoneSetup.phoneNumber) {
       return { success: false, error: 'No phone number to verify' };
     }
     
-    // In production, this verifies the Telnyx connection
     setPhoneSetup(prev => ({ ...prev, isVerified: true }));
     
     if (config) {
       const newConfig = { ...config, enabled: true };
-      await saveTelnyxConfig(newConfig);
+      await saveTwilioConfig(newConfig);
       setConfig(newConfig);
     }
     
     return { success: true };
   }, [phoneSetup, config]);
   
-  // Clear phone setup
   const clearPhoneSetup = useCallback(async () => {
     setPhoneSetup({
       hasPhone: false,
@@ -353,7 +318,6 @@ export function useAICalling() {
     localStorage.removeItem(STORAGE_KEY);
   }, []);
   
-  // Get addon message based on tier
   const addonMessage = useMemo(() => {
     if (capabilities.addonIncluded) {
       return 'AI Calling phone number is included with your Autopilot plan!';
@@ -371,7 +335,6 @@ export function useAICalling() {
     }
   }, [tier, capabilities]);
   
-  // Get status message
   const statusMessage = useMemo(() => {
     switch (status) {
       case 'disabled':
@@ -391,7 +354,6 @@ export function useAICalling() {
     }
   }, [status]);
   
-  // Get tier-specific calling description
   const callingModeDescription = useMemo(() => {
     switch (tier) {
       case 'free':
@@ -408,36 +370,25 @@ export function useAICalling() {
   }, [tier]);
   
   return {
-    // Status
     status,
     statusMessage,
     callingModeDescription,
     isLoading: isLoading || planLoading,
-    
-    // Capabilities
     capabilities,
     tier,
     isPro,
     isAutopilot,
-    
-    // Addon
     addon,
     addonMessage,
     needsAddonPurchase,
     purchaseAddon,
     addonPrice: AI_CALLING_ADDON_PRICE,
-    
-    // Phone setup
     phoneSetup,
     requestPhoneProvisioning,
     savePhoneSetup,
     verifyPhone,
     clearPhoneSetup,
-    
-    // Config
     config,
-    
-    // Helpers
     needsUpgrade: tier === 'free',
     needsAddon: needsAddonPurchase,
     needsPhone: addon.status === 'active' && !phoneSetup.hasPhone,

@@ -1,7 +1,6 @@
 /**
- * Telnyx AI Calling API Client
- * Handles AI voice calling via Telnyx's native gather_using_ai
- * Cost: ~$0.007/min (cheapest option — TTS + STT + LLM included)
+ * Twilio AI Calling API Client
+ * Handles AI voice calling via Twilio
  */
 
 const API_BASE = import.meta.env.VITE_API_URL || 'https://bamlead.com/api';
@@ -24,9 +23,8 @@ export interface CallRequest {
 }
 
 export interface ActiveCall {
-  call_control_id: string;
-  call_leg_id: string;
-  status: 'initiated' | 'ringing' | 'answered' | 'speaking' | 'listening' | 'ended';
+  call_sid: string;
+  status: 'initiated' | 'ringing' | 'in-progress' | 'completed' | 'busy' | 'no-answer' | 'failed' | 'canceled';
   destination_number: string;
   lead_name?: string;
   duration_seconds?: number;
@@ -61,7 +59,7 @@ function getAuthHeaders(): HeadersInit {
 /** Get user's calling configuration */
 export async function getCallingConfig(): Promise<{ success: boolean; config?: CallingConfig | null; error?: string }> {
   try {
-    const response = await fetch(`${API_BASE}/telnyx.php?action=get_config`, {
+    const response = await fetch(`${API_BASE}/twilio.php?action=get_config`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -75,7 +73,7 @@ export async function getCallingConfig(): Promise<{ success: boolean; config?: C
 /** Save voice agent settings */
 export async function saveCallingConfig(config: Partial<CallingConfig>): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(`${API_BASE}/telnyx.php?action=save_config`, {
+    const response = await fetch(`${API_BASE}/twilio.php?action=save_config`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(config),
@@ -87,10 +85,10 @@ export async function saveCallingConfig(config: Partial<CallingConfig>): Promise
   }
 }
 
-/** Test Telnyx connection (uses server-side global key) */
+/** Test Twilio connection (uses server-side global credentials) */
 export async function testCallingConnection(): Promise<{ success: boolean; message?: string; error?: string }> {
   try {
-    const response = await fetch(`${API_BASE}/telnyx.php?action=test_connection`, {
+    const response = await fetch(`${API_BASE}/twilio.php?action=test_connection`, {
       method: 'POST',
       headers: getAuthHeaders(),
     });
@@ -110,7 +108,7 @@ export async function provisionNumber(options?: { country_code?: string; area_co
   error?: string 
 }> {
   try {
-    const response = await fetch(`${API_BASE}/telnyx.php?action=provision_number`, {
+    const response = await fetch(`${API_BASE}/twilio.php?action=provision_number`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(options || {}),
@@ -125,7 +123,7 @@ export async function provisionNumber(options?: { country_code?: string; area_co
 /** Release a provisioned phone number */
 export async function releaseNumber(): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(`${API_BASE}/telnyx.php?action=release_number`, {
+    const response = await fetch(`${API_BASE}/twilio.php?action=release_number`, {
       method: 'POST',
       headers: getAuthHeaders(),
     });
@@ -136,15 +134,14 @@ export async function releaseNumber(): Promise<{ success: boolean; error?: strin
   }
 }
 
-/** Initiate an outbound AI call via Telnyx */
+/** Initiate an outbound call via Twilio */
 export async function initiateCall(request: CallRequest): Promise<{ 
   success: boolean; 
-  call_control_id?: string;
-  call_leg_id?: string;
+  call_sid?: string;
   error?: string 
 }> {
   try {
-    const response = await fetch(`${API_BASE}/telnyx.php?action=initiate_call`, {
+    const response = await fetch(`${API_BASE}/twilio.php?action=initiate_call`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(request),
@@ -157,12 +154,12 @@ export async function initiateCall(request: CallRequest): Promise<{
 }
 
 /** Hang up an active call */
-export async function hangupCall(callControlId: string): Promise<{ success: boolean; error?: string }> {
+export async function hangupCall(callSid: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(`${API_BASE}/telnyx.php?action=hangup_call`, {
+    const response = await fetch(`${API_BASE}/twilio.php?action=hangup_call`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ call_control_id: callControlId }),
+      body: JSON.stringify({ call_sid: callSid }),
     });
     return await response.json();
   } catch (error) {
@@ -172,14 +169,14 @@ export async function hangupCall(callControlId: string): Promise<{ success: bool
 }
 
 /** Get call status */
-export async function getCallStatus(callControlId: string): Promise<{ 
+export async function getCallStatus(callSid: string): Promise<{ 
   success: boolean; 
   status?: string;
   duration_seconds?: number;
   error?: string 
 }> {
   try {
-    const response = await fetch(`${API_BASE}/telnyx.php?action=call_status&call_control_id=${callControlId}`, {
+    const response = await fetch(`${API_BASE}/twilio.php?action=call_status&call_sid=${callSid}`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -191,13 +188,13 @@ export async function getCallStatus(callControlId: string): Promise<{
 }
 
 /** Get live transcript for an active call */
-export async function getCallTranscript(callControlId: string): Promise<{ 
+export async function getCallTranscript(callSid: string): Promise<{ 
   success: boolean; 
   transcript?: TranscriptEntry[];
   error?: string 
 }> {
   try {
-    const response = await fetch(`${API_BASE}/telnyx.php?action=get_transcript&call_control_id=${callControlId}`, {
+    const response = await fetch(`${API_BASE}/twilio.php?action=get_transcript&call_sid=${callSid}`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -216,7 +213,7 @@ export async function getCallLogs(limit: number = 50, offset: number = 0): Promi
   error?: string 
 }> {
   try {
-    const response = await fetch(`${API_BASE}/calling.php?action=get_call_logs&limit=${limit}&offset=${offset}`, {
+    const response = await fetch(`${API_BASE}/twilio.php?action=get_call_logs&limit=${limit}&offset=${offset}`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -237,7 +234,7 @@ export async function checkCallingAddon(): Promise<{
   error?: string 
 }> {
   try {
-    const response = await fetch(`${API_BASE}/calling.php?action=check_addon`, {
+    const response = await fetch(`${API_BASE}/twilio.php?action=check_addon`, {
       method: 'GET',
       headers: getAuthHeaders(),
     });
@@ -255,7 +252,7 @@ export async function purchaseCallingAddon(): Promise<{
   error?: string 
 }> {
   try {
-    const response = await fetch(`${API_BASE}/calling.php?action=purchase_addon`, {
+    const response = await fetch(`${API_BASE}/twilio.php?action=purchase_addon`, {
       method: 'POST',
       headers: getAuthHeaders(),
     });
