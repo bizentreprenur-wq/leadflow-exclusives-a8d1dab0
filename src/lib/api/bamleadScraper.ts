@@ -1,8 +1,8 @@
 /**
- * BamLead Unified Scraper API
+ * BamLead Hyper-Intelligence Scraper API v3
  * 
- * Single endpoint that replaces scrape-website-contacts + scrape-social-contacts
- * with parallel execution for maximum speed and results.
+ * The fastest, most intelligent business contact discovery engine.
+ * Proprietary to BamLead.com — features no other scraper has.
  */
 
 import { API_BASE_URL, getAuthHeaders } from './config';
@@ -11,6 +11,38 @@ export interface ScrapeProfile {
   url: string;
   title?: string;
   snippet?: string;
+}
+
+export interface ContactConfidence {
+  email?: string;
+  phone?: string;
+  confidence: number;
+}
+
+export interface PredictedEmail {
+  email: string;
+  confidence: number;
+  type: 'predicted_role' | 'predicted_name' | 'role_address';
+}
+
+export interface DomainInfo {
+  domain: string;
+  tld: string;
+  is_custom_domain: boolean;
+  ssl: boolean;
+  has_mx: boolean;
+  mx_provider: string | null;
+}
+
+export interface ScraperIntelligence {
+  business_type: string | null;
+  tech_stack: string[];
+  social_authority: number;
+  contact_confidence: ContactConfidence[];
+  predicted_emails: PredictedEmail[];
+  domain_info: DomainInfo;
+  structured_data: Record<string, unknown>[];
+  og_metadata: Record<string, string>;
 }
 
 export interface BamleadScrapeResult {
@@ -22,6 +54,7 @@ export interface BamleadScrapeResult {
   profiles: Record<string, ScrapeProfile>;
   sources: string[];
   hasWebsite: boolean;
+  intelligence: ScraperIntelligence | null;
   elapsed_ms?: number;
   error?: string;
 }
@@ -36,7 +69,7 @@ export interface BamleadBatchResult {
 const SCRAPER_ENDPOINT = `${API_BASE_URL}/bamlead-scraper.php`;
 
 /**
- * Scrape a single business for contacts (website + social in parallel)
+ * Scrape a single business for contacts + AI intelligence
  */
 export async function bamleadScrape(
   url: string,
@@ -64,6 +97,7 @@ export async function bamleadScrape(
         profiles: {},
         sources: [],
         hasWebsite: false,
+        intelligence: null,
         error: data.error || `HTTP ${response.status}`,
       };
     }
@@ -77,11 +111,12 @@ export async function bamleadScrape(
       profiles: data.profiles ?? {},
       sources: data.sources ?? [],
       hasWebsite: data.hasWebsite ?? false,
+      intelligence: data.intelligence ?? null,
       elapsed_ms: data.elapsed_ms,
       error: data.error,
     };
   } catch (error) {
-    console.error('[BamLead Scraper] Error:', error);
+    console.error('[BamLead Scraper v3] Error:', error);
     return {
       success: false,
       emails: [],
@@ -89,13 +124,14 @@ export async function bamleadScrape(
       profiles: {},
       sources: [],
       hasWebsite: false,
+      intelligence: null,
       error: error instanceof Error ? error.message : 'Network error',
     };
   }
 }
 
 /**
- * Batch scrape multiple businesses (up to 15)
+ * Batch scrape multiple businesses (up to 25)
  */
 export async function bamleadScrapeBatch(
   businesses: Array<{ url: string; name?: string; location?: string }>
@@ -116,24 +152,24 @@ export async function bamleadScrapeBatch(
     });
 
     if (!response.ok) {
-      console.error('[BamLead Scraper] Batch failed:', response.status);
+      console.error('[BamLead Scraper v3] Batch failed:', response.status);
       return {};
     }
 
     const data: BamleadBatchResult = await response.json();
     return data.results ?? {};
   } catch (error) {
-    console.error('[BamLead Scraper] Batch error:', error);
+    console.error('[BamLead Scraper v3] Batch error:', error);
     return {};
   }
 }
 
 /**
- * Batch scrape with concurrency control (processes in chunks of batchSize)
+ * Batch scrape with concurrency control (processes in chunks)
  */
 export async function bamleadScrapeSequential(
   businesses: Array<{ url: string; name?: string; location?: string }>,
-  batchSize = 10,
+  batchSize = 15,
   onProgress?: (completed: number, total: number) => void
 ): Promise<BamleadScrapeResult[]> {
   const results: BamleadScrapeResult[] = [];
@@ -152,6 +188,7 @@ export async function bamleadScrapeSequential(
           profiles: {},
           sources: [],
           hasWebsite: false,
+          intelligence: null,
           error: 'Not found in batch results',
         }
       );
@@ -159,9 +196,9 @@ export async function bamleadScrapeSequential(
 
     onProgress?.(Math.min(i + batchSize, businesses.length), businesses.length);
 
-    // Small delay between batches
+    // Minimal delay between batches
     if (i + batchSize < businesses.length) {
-      await new Promise((r) => setTimeout(r, 300));
+      await new Promise((r) => setTimeout(r, 200));
     }
   }
 
