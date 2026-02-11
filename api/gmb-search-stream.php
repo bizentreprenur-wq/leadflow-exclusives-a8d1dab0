@@ -56,6 +56,8 @@ $service = sanitizeInput($input['service'] ?? '');
 $location = sanitizeInput($input['location'] ?? '');
 $limit = intval($input['limit'] ?? 100);
 $limit = max(20, min(50000, $limit));
+// Set global so inlineExtractEmail can skip for high-volume searches
+$GLOBALS['_bamlead_search_limit'] = $limit;
 $filters = normalizeSearchFilters($input['filters'] ?? null);
 $filtersActive = hasAnySearchFilter($filters);
 $filterMultiplier = $filtersActive ? (defined('FILTER_OVERFETCH_MULTIPLIER') ? max(1, (int)FILTER_OVERFETCH_MULTIPLIER) : 3) : 1;
@@ -151,13 +153,15 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
     if (empty($serviceVariants)) {
         $serviceVariants = [$service];
     }
-    // For high-volume searches, use more synonym + intent modifier variants per location
-    // Intent modifiers (near me, best, top rated, etc.) dramatically increase unique results
+    // For high-volume searches, use synonym variants per location.
+    // BUT: Places API only returns ~20 results per query, so using too many
+    // synonyms per location wastes time. Cap Places synonyms and rely on
+    // organic search (100 results/page) for volume.
     $synonymsPerLocation = 1;
-    if ($limit >= 500) $synonymsPerLocation = 10;
-    if ($limit >= 1000) $synonymsPerLocation = 20;
-    if ($limit >= 2000) $synonymsPerLocation = 35;
-    if ($limit >= 5000) $synonymsPerLocation = 50;
+    if ($limit >= 500) $synonymsPerLocation = 5;
+    if ($limit >= 1000) $synonymsPerLocation = 8;
+    if ($limit >= 2000) $synonymsPerLocation = 12;
+    if ($limit >= 5000) $synonymsPerLocation = 20;
     // Pick top N synonyms (skip first which is the original) — includes intent modifiers
     $synonymSubset = array_slice($serviceVariants, 1, $synonymsPerLocation);
 
@@ -366,69 +370,82 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
             'progress' => min(98, round(($totalResults / max(1, $limit)) * 100)),
         ]);
 
-        $organicVariants = array_slice($serviceVariants, 0, min(15, count($serviceVariants)));
-        $organicLocations = array_slice($searchedLocations, 0, min(10, count($searchedLocations)));
+        // Organic search returns 100 results per page — this is the primary volume driver
+        // for high-volume searches. Increase coverage aggressively.
+        $maxOrgVariants = $limit >= 2000 ? 25 : ($limit >= 1000 ? 20 : 15);
+        $maxOrgLocations = $limit >= 2000 ? 15 : ($limit >= 1000 ? 12 : 10);
+        $maxOrgPages = $limit >= 2000 ? 12 : ($limit >= 1000 ? 10 : 8);
+        $organicVariants = array_slice($serviceVariants, 0, min($maxOrgVariants, count($serviceVariants)));
+        $organicLocations = array_slice($searchedLocations, 0, min($maxOrgLocations, count($searchedLocations)));
 
+        // Build all organic queries upfront, then fetch in parallel batches
+        $organicQueryList = [];
         foreach ($organicLocations as $orgLoc) {
-            if ($totalResults >= $limit) break;
             foreach ($organicVariants as $orgVariant) {
-                if ($totalResults >= $limit) break;
+                $organicQueryList[] = ['query' => "$orgVariant in $orgLoc", 'location' => $orgLoc];
+            }
+        }
 
-                // Paginate Serper organic search (up to 8 pages of 100 results each for deep coverage)
-                for ($page = 1; $page <= 8; $page++) {
+        // Process in batches of 8 parallel requests
+        $batchSize = 8;
+        $queryBatches = array_chunk($organicQueryList, $batchSize);
+
+        foreach ($queryBatches as $batch) {
+            if ($totalResults >= $limit) break;
+
+            $queryStrings = array_map(function ($q) { return $q['query']; }, $batch);
+            $batchResults = fetchSerperOrganicBatch($queryStrings, $batchSize);
+
+            foreach ($batchResults as $batchIdx => $organicResults) {
+                if ($totalResults >= $limit) break;
+                if (empty($organicResults)) continue;
+
+                $orgLoc = $batch[$batchIdx]['location'] ?? '';
+
+                foreach ($organicResults as $item) {
                     if ($totalResults >= $limit) break;
 
-                    $organicResults = fetchSerperOrganicPage("$orgVariant in $orgLoc", $page, 100);
-                    if (empty($organicResults)) break;
+                    $business = [
+                        'id' => generateId('srpo_'),
+                        'name' => $item['title'] ?? '',
+                        'url' => $item['link'] ?? '',
+                        'snippet' => $item['snippet'] ?? '',
+                        'displayLink' => parse_url($item['link'] ?? '', PHP_URL_HOST) ?? '',
+                        'address' => '',
+                        'phone' => extractPhoneFromText($item['snippet'] ?? ''),
+                        'email' => extractEmailFromText($item['snippet'] ?? ''),
+                        'rating' => null,
+                        'reviews' => null,
+                        'source' => 'Serper Organic',
+                        'sources' => ['Serper Organic']
+                    ];
 
-                    $foundNew = false;
-                    foreach ($organicResults as $item) {
-                        if ($totalResults >= $limit) break;
+                    if (empty($business['name'])) continue;
+                    $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
+                    if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
 
-                        $business = [
-                            'id' => generateId('srpo_'),
-                            'name' => $item['title'] ?? '',
-                            'url' => $item['link'] ?? '',
-                            'snippet' => $item['snippet'] ?? '',
-                            'displayLink' => parse_url($item['link'] ?? '', PHP_URL_HOST) ?? '',
-                            'address' => '',
-                            'phone' => extractPhoneFromText($item['snippet'] ?? ''),
-                            'email' => extractEmailFromText($item['snippet'] ?? '') ?: inlineExtractEmail($item['link'] ?? ''),
-                            'rating' => null,
-                            'reviews' => null,
-                            'source' => 'Serper Organic',
-                            'sources' => ['Serper Organic']
-                        ];
+                    $dedupeKey = buildBusinessDedupeKey($business, $orgLoc);
+                    if (isset($seenBusinesses[$dedupeKey])) continue;
 
-                        if (empty($business['name'])) continue;
-                        $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
-                        if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
+                    $seenBusinesses[$dedupeKey] = count($allResults);
+                    $allResults[] = $business;
+                    $totalResults++;
 
-                        $dedupeKey = buildBusinessDedupeKey($business, $orgLoc);
-                        if (isset($seenBusinesses[$dedupeKey])) continue;
-
-                        $seenBusinesses[$dedupeKey] = count($allResults);
-                        $allResults[] = $business;
-                        $totalResults++;
-                        $foundNew = true;
-
-                        if ($enableEnrichment && !empty($business['url'])) {
-                            queueFirecrawlEnrichment($business['id'], $business['url'], $enrichmentSessionId, $enrichmentSearchType);
-                        }
-
-                        $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
-                        sendSSE('results', [
-                            'leads' => [$business],
-                            'total' => $totalResults,
-                            'progress' => $progress,
-                            'source' => 'Serper Organic'
-                        ]);
+                    if ($enableEnrichment && !empty($business['url'])) {
+                        queueFirecrawlEnrichment($business['id'], $business['url'], $enrichmentSessionId, $enrichmentSearchType);
                     }
 
-                    $emitEnrichment();
-                    if (!$foundNew) break; // No new unique results, move on
+                    $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
+                    sendSSE('results', [
+                        'leads' => [$business],
+                        'total' => $totalResults,
+                        'progress' => $progress,
+                        'source' => 'Serper Organic'
+                    ]);
                 }
             }
+
+            $emitEnrichment();
         }
     }
 
@@ -463,7 +480,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                         'displayLink' => parse_url($item['link'] ?? '', PHP_URL_HOST) ?? '',
                         'address' => '',
                         'phone' => extractPhoneFromText($item['snippet'] ?? ''),
-                        'email' => extractEmailFromText($item['snippet'] ?? '') ?: inlineExtractEmail($item['link'] ?? ''),
+                        'email' => extractEmailFromText($item['snippet'] ?? ''),
                         'rating' => null,
                         'reviews' => null,
                         'source' => 'Directory',
@@ -997,6 +1014,13 @@ function extractEmailFromText($text) {
  */
 function inlineExtractEmail($url) {
     if (empty($url)) return null;
+
+    // Skip for high-volume searches — inline scraping blocks the SSE stream
+    // for 2-3s per lead, causing server timeouts before reaching target volume.
+    // Background Firecrawl enrichment handles email extraction asynchronously.
+    if (isset($GLOBALS['_bamlead_search_limit']) && $GLOBALS['_bamlead_search_limit'] >= 500) {
+        return null;
+    }
     
     // Normalize URL
     if (!preg_match('/^https?:\/\//', $url)) {
@@ -1227,6 +1251,66 @@ function fetchSerperPlacesAndMaps($payload) {
         'places' => $places,
         'maps' => $maps,
     ];
+}
+
+/**
+ * Batch fetch multiple Serper organic queries in parallel using curl_multi.
+ * Runs up to $batchSize queries simultaneously for massive speed improvement.
+ */
+function fetchSerperOrganicBatch($queries, $batchSize = 8) {
+    if (empty($queries) || !defined('SERPER_API_KEY') || empty(SERPER_API_KEY)) return [];
+    
+    $allResults = [];
+    $batches = array_chunk($queries, $batchSize, true);
+    
+    foreach ($batches as $batch) {
+        $multi = curl_multi_init();
+        $handles = [];
+        
+        foreach ($batch as $i => $query) {
+            $payload = [
+                'q' => $query,
+                'gl' => 'us',
+                'hl' => 'en',
+                'num' => 100,
+            ];
+            
+            $ch = curl_init('https://google.serper.dev/search');
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => json_encode($payload),
+                CURLOPT_HTTPHEADER => [
+                    'X-API-KEY: ' . SERPER_API_KEY,
+                    'Content-Type: application/json'
+                ],
+                CURLOPT_TIMEOUT => 15,
+                CURLOPT_CONNECTTIMEOUT => 5,
+            ]);
+            curl_multi_add_handle($multi, $ch);
+            $handles[$i] = $ch;
+        }
+        
+        do {
+            $status = curl_multi_exec($multi, $running);
+            if ($running) curl_multi_select($multi, 1.0);
+        } while ($running && $status === CURLM_OK);
+        
+        foreach ($handles as $i => $ch) {
+            $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            if ($httpCode === 200) {
+                $data = json_decode(curl_multi_getcontent($ch), true);
+                $allResults[$i] = $data['organic'] ?? [];
+            } else {
+                $allResults[$i] = [];
+            }
+            curl_multi_remove_handle($multi, $ch);
+            curl_close($ch);
+        }
+        curl_multi_close($multi);
+    }
+    
+    return $allResults;
 }
 
 /**
