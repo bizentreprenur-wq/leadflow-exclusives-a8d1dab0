@@ -313,6 +313,12 @@ function extractPhoneFromSnippetPlatform($text) {
  */
 function inlineExtractEmailPlatform($url) {
     if (empty($url)) return null;
+
+    // Skip for high-volume searches — rely on background Firecrawl enrichment
+    if (isset($GLOBALS['_bamlead_search_limit']) && $GLOBALS['_bamlead_search_limit'] >= 500) {
+        return null;
+    }
+
     if (!preg_match('/^https?:\/\//', $url)) $url = 'https://' . $url;
     
     $cacheKey = "scrape_contacts_" . md5($url);
