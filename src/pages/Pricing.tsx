@@ -381,7 +381,7 @@ const Pricing = () => {
                       )}
                       {isAutopilot && (
                         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                          <span className="px-4 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-medium">
+                          <span className="px-4 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm font-medium whitespace-nowrap">
                             AI Does Everything
                           </span>
                         </div>
