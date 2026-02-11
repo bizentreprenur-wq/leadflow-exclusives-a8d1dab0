@@ -154,14 +154,14 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         $serviceVariants = [$service];
     }
     // For high-volume searches, use synonym variants per location.
-    // BUT: Places API only returns ~20 results per query, so using too many
-    // synonyms per location wastes time. Cap Places synonyms and rely on
-    // organic search (100 results/page) for volume.
+    // BUT: Places/Maps only returns ~20 results per query, so too many
+    // synonyms per location bottlenecks the stream. Keep this small and
+    // rely on the dedicated deep organic pass for volume.
     $synonymsPerLocation = 1;
-    if ($limit >= 500) $synonymsPerLocation = 5;
-    if ($limit >= 1000) $synonymsPerLocation = 8;
-    if ($limit >= 2000) $synonymsPerLocation = 12;
-    if ($limit >= 5000) $synonymsPerLocation = 20;
+    if ($limit >= 500) $synonymsPerLocation = 2;
+    if ($limit >= 1000) $synonymsPerLocation = 3;
+    if ($limit >= 2000) $synonymsPerLocation = 4;
+    if ($limit >= 5000) $synonymsPerLocation = 6;
     // Pick top N synonyms (skip first which is the original) — includes intent modifiers
     $synonymSubset = array_slice($serviceVariants, 1, $synonymsPerLocation);
 
@@ -245,8 +245,16 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
     };
 
     // ---- PRIMARY SEARCH LOOP ----
-    // For each location, search with base query AND synonym variants
-    foreach ($locationsToSearch as $locationIndex => $searchLocation) {
+    // For high-volume searches, avoid running Places/Maps for every expanded
+    // location shard — it bottlenecks and can cause the stream to end early.
+    $placesLocationsToSearch = $locationsToSearch;
+    if ($limit >= 500) {
+        $placesLocationCap = $limit >= 2000 ? 12 : ($limit >= 1000 ? 10 : 8);
+        $placesLocationsToSearch = array_slice($locationsToSearch, 0, min($placesLocationCap, count($locationsToSearch)));
+    }
+
+    // For each location, search with base query AND a small set of synonym variants
+    foreach ($placesLocationsToSearch as $locationIndex => $searchLocation) {
         if ($totalResults >= $limit) {
             break;
         }
@@ -278,8 +286,8 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
 
         $emitEnrichment();
 
-        // 2) Run synonym variants for this same location to multiply results
-        if ($limit >= 500 && $totalResults < $limit) {
+        // 2) Limited synonym variants for this same location
+        if ($limit >= 500 && $totalResults < $limit && !empty($synonymSubset)) {
             foreach ($synonymSubset as $synonym) {
                 if ($totalResults >= $limit) break;
 
@@ -312,7 +320,9 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
     }
 
     // ---- SECONDARY TOP-UP PASS ----
-    if ($totalResults < $limit) {
+    // Only run expensive Places/Maps query variants for small searches.
+    // For high-volume, deep organic is substantially faster.
+    if ($totalResults < $limit && $limit < 500) {
         sendSSE('coverage', [
             'message' => "Under requested count ({$totalResults}/{$limit}). Running broader query variants...",
             'total' => $totalResults,
@@ -358,9 +368,16 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
 
             $emitEnrichment();
         }
+    } elseif ($totalResults < $limit) {
+        sendSSE('coverage', [
+            'message' => "Switching to deep organic search to reach {$limit} leads...",
+            'total' => $totalResults,
+            'target' => $limit,
+            'progress' => min(98, round(($totalResults / max(1, $limit)) * 100)),
+        ]);
     }
 
-    // ---- TERTIARY: Organic pagination pass for remaining deficit ----
+    // ---- TERTIARY: Deep organic pagination pass for remaining deficit ----
     if ($totalResults < $limit) {
         $deficit = $limit - $totalResults;
         sendSSE('coverage', [
@@ -370,82 +387,99 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
             'progress' => min(98, round(($totalResults / max(1, $limit)) * 100)),
         ]);
 
-        // Organic search returns 100 results per page — this is the primary volume driver
-        // for high-volume searches. Increase coverage aggressively.
-        $maxOrgVariants = $limit >= 2000 ? 25 : ($limit >= 1000 ? 20 : 15);
-        $maxOrgLocations = $limit >= 2000 ? 15 : ($limit >= 1000 ? 12 : 10);
-        $maxOrgPages = $limit >= 2000 ? 12 : ($limit >= 1000 ? 10 : 8);
+        // Fewer query shards + deeper pagination is faster and more reliable on many hosts.
+        $maxOrgPages = $limit >= 2000 ? 8 : ($limit >= 1000 ? 6 : 4);
+        $maxOrgVariants = $limit >= 2000 ? 4 : ($limit >= 1000 ? 3 : 3);
+        $maxOrgLocations = $limit >= 2000 ? 4 : ($limit >= 1000 ? 3 : 3);
+
         $organicVariants = array_slice($serviceVariants, 0, min($maxOrgVariants, count($serviceVariants)));
         $organicLocations = array_slice($searchedLocations, 0, min($maxOrgLocations, count($searchedLocations)));
-
-        // Build all organic queries upfront, then fetch in parallel batches
-        $organicQueryList = [];
-        foreach ($organicLocations as $orgLoc) {
-            foreach ($organicVariants as $orgVariant) {
-                $organicQueryList[] = ['query' => "$orgVariant in $orgLoc", 'location' => $orgLoc];
-            }
+        if (empty($organicLocations)) {
+            $organicLocations = array_slice($locationsToSearch, 0, min($maxOrgLocations, count($locationsToSearch)));
         }
 
-        // Process in batches of 8 parallel requests
+        // Build unique organic queries
+        $organicQueryMap = [];
+        foreach ($organicLocations as $orgLoc) {
+            foreach ($organicVariants as $orgVariant) {
+                $q = preg_replace('/\s+/', ' ', trim("$orgVariant in $orgLoc"));
+                $k = strtolower($q);
+                if (!isset($organicQueryMap[$k])) {
+                    $organicQueryMap[$k] = ['query' => $q, 'location' => $orgLoc];
+                }
+            }
+        }
+        $organicQueryList = array_values($organicQueryMap);
+
         $batchSize = 8;
         $queryBatches = array_chunk($organicQueryList, $batchSize);
 
-        foreach ($queryBatches as $batch) {
+        for ($orgPage = 1; $orgPage <= $maxOrgPages; $orgPage++) {
             if ($totalResults >= $limit) break;
 
-            $queryStrings = array_map(function ($q) { return $q['query']; }, $batch);
-            $batchResults = fetchSerperOrganicBatch($queryStrings, $batchSize);
+            sendSSE('status', [
+                'message' => "Deep organic search — page {$orgPage}/{$maxOrgPages} ({$totalResults}/{$limit})",
+                'engine' => 'Serper Organic',
+                'progress' => min(98, round(($totalResults / max(1, $limit)) * 100)),
+            ]);
 
-            foreach ($batchResults as $batchIdx => $organicResults) {
-                if ($totalResults >= $limit) break;
-                if (empty($organicResults)) continue;
+            foreach ($queryBatches as $batch) {
+                if ($totalResults >= $limit) break 2;
 
-                $orgLoc = $batch[$batchIdx]['location'] ?? '';
+                $queryStrings = array_values(array_map(function ($q) { return $q['query']; }, $batch));
+                $batchResults = fetchSerperOrganicBatch($queryStrings, $batchSize, $orgPage);
 
-                foreach ($organicResults as $item) {
+                foreach ($batchResults as $batchIdx => $organicResults) {
                     if ($totalResults >= $limit) break;
+                    if (empty($organicResults)) continue;
 
-                    $business = [
-                        'id' => generateId('srpo_'),
-                        'name' => $item['title'] ?? '',
-                        'url' => $item['link'] ?? '',
-                        'snippet' => $item['snippet'] ?? '',
-                        'displayLink' => parse_url($item['link'] ?? '', PHP_URL_HOST) ?? '',
-                        'address' => '',
-                        'phone' => extractPhoneFromText($item['snippet'] ?? ''),
-                        'email' => extractEmailFromText($item['snippet'] ?? ''),
-                        'rating' => null,
-                        'reviews' => null,
-                        'source' => 'Serper Organic',
-                        'sources' => ['Serper Organic']
-                    ];
+                    $orgLoc = $batch[$batchIdx]['location'] ?? '';
 
-                    if (empty($business['name'])) continue;
-                    $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
-                    if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
+                    foreach ($organicResults as $item) {
+                        if ($totalResults >= $limit) break;
 
-                    $dedupeKey = buildBusinessDedupeKey($business, $orgLoc);
-                    if (isset($seenBusinesses[$dedupeKey])) continue;
+                        $business = [
+                            'id' => generateId('srpo_'),
+                            'name' => $item['title'] ?? '',
+                            'url' => $item['link'] ?? '',
+                            'snippet' => $item['snippet'] ?? '',
+                            'displayLink' => parse_url($item['link'] ?? '', PHP_URL_HOST) ?? '',
+                            'address' => '',
+                            'phone' => extractPhoneFromText($item['snippet'] ?? ''),
+                            'email' => extractEmailFromText($item['snippet'] ?? ''),
+                            'rating' => null,
+                            'reviews' => null,
+                            'source' => 'Serper Organic',
+                            'sources' => ['Serper Organic']
+                        ];
 
-                    $seenBusinesses[$dedupeKey] = count($allResults);
-                    $allResults[] = $business;
-                    $totalResults++;
+                        if (empty($business['name'])) continue;
+                        $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
+                        if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
 
-                    if ($enableEnrichment && !empty($business['url'])) {
-                        queueFirecrawlEnrichment($business['id'], $business['url'], $enrichmentSessionId, $enrichmentSearchType);
+                        $dedupeKey = buildBusinessDedupeKey($business, $orgLoc);
+                        if (isset($seenBusinesses[$dedupeKey])) continue;
+
+                        $seenBusinesses[$dedupeKey] = count($allResults);
+                        $allResults[] = $business;
+                        $totalResults++;
+
+                        if ($enableEnrichment && !empty($business['url'])) {
+                            queueFirecrawlEnrichment($business['id'], $business['url'], $enrichmentSessionId, $enrichmentSearchType);
+                        }
+
+                        $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
+                        sendSSE('results', [
+                            'leads' => [$business],
+                            'total' => $totalResults,
+                            'progress' => $progress,
+                            'source' => 'Serper Organic'
+                        ]);
                     }
-
-                    $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
-                    sendSSE('results', [
-                        'leads' => [$business],
-                        'total' => $totalResults,
-                        'progress' => $progress,
-                        'source' => 'Serper Organic'
-                    ]);
                 }
-            }
 
-            $emitEnrichment();
+                $emitEnrichment();
+            }
         }
     }
 
@@ -1257,16 +1291,18 @@ function fetchSerperPlacesAndMaps($payload) {
  * Batch fetch multiple Serper organic queries in parallel using curl_multi.
  * Runs up to $batchSize queries simultaneously for massive speed improvement.
  */
-function fetchSerperOrganicBatch($queries, $batchSize = 8) {
+function fetchSerperOrganicBatch($queries, $batchSize = 8, $page = 1) {
     if (empty($queries) || !defined('SERPER_API_KEY') || empty(SERPER_API_KEY)) return [];
-    
+
+    $page = max(1, (int)$page);
+
     $allResults = [];
     $batches = array_chunk($queries, $batchSize, true);
-    
+
     foreach ($batches as $batch) {
         $multi = curl_multi_init();
         $handles = [];
-        
+
         foreach ($batch as $i => $query) {
             $payload = [
                 'q' => $query,
@@ -1274,7 +1310,10 @@ function fetchSerperOrganicBatch($queries, $batchSize = 8) {
                 'hl' => 'en',
                 'num' => 100,
             ];
-            
+            if ($page > 1) {
+                $payload['page'] = $page;
+            }
+
             $ch = curl_init('https://google.serper.dev/search');
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
@@ -1290,12 +1329,12 @@ function fetchSerperOrganicBatch($queries, $batchSize = 8) {
             curl_multi_add_handle($multi, $ch);
             $handles[$i] = $ch;
         }
-        
+
         do {
             $status = curl_multi_exec($multi, $running);
             if ($running) curl_multi_select($multi, 1.0);
         } while ($running && $status === CURLM_OK);
-        
+
         foreach ($handles as $i => $ch) {
             $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
             if ($httpCode === 200) {
@@ -1309,7 +1348,7 @@ function fetchSerperOrganicBatch($queries, $batchSize = 8) {
         }
         curl_multi_close($multi);
     }
-    
+
     return $allResults;
 }
 
