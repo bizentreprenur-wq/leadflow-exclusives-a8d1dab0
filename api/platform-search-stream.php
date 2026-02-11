@@ -513,7 +513,7 @@ function buildPlatformQueries($platforms) {
         'customhtml' => 'inurl:".html" OR inurl:".htm"',
         'customphp' => 'inurl:".php"',
         'gmb' => 'site:google.com/maps OR site:maps.google.com OR "google.com/maps/place"',
-        // Free business directories
+        // Free business directories - Major platforms
         'yelp' => 'site:yelp.com',
         'bbb' => 'site:bbb.org',
         'yellowpages' => 'site:yellowpages.com',
@@ -521,11 +521,47 @@ function buildPlatformQueries($platforms) {
         'angi' => 'site:angi.com OR site:angieslist.com',
         'thumbtack' => 'site:thumbtack.com',
         'homeadvisor' => 'site:homeadvisor.com',
+        // Map directories
         'mapquest' => 'site:mapquest.com',
+        'foursquare' => 'site:foursquare.com',
+        // Classic directories
         'superpages' => 'site:superpages.com',
         'citysearch' => 'site:citysearch.com',
-        'foursquare' => 'site:foursquare.com',
+        'whitepages' => 'site:whitepages.com',
+        'dexknows' => 'site:dexknows.com',
+        'local' => 'site:local.com',
+        // Business directories
         'chamberofcommerce' => 'site:chamberofcommerce.com',
+        'merchantcircle' => 'site:merchantcircle.com',
+        'brownbook' => 'site:brownbook.net',
+        'hotfrog' => 'site:hotfrog.com',
+        'spoke' => 'site:spoke.com',
+        'buzzfile' => 'site:buzzfile.com',
+        'dandb' => 'site:dandb.com OR site:dnb.com',
+        // Service directories
+        'bark' => 'site:bark.com',
+        'expertise' => 'site:expertise.com',
+        'thervo' => 'site:thervo.com',
+        'porch' => 'site:porch.com',
+        'networx' => 'site:networx.com',
+        'houzz' => 'site:houzz.com',
+        'buildzoom' => 'site:buildzoom.com',
+        // USA aggregators
+        'searchusa' => 'site:searchusa.com',
+        'showmelocal' => 'site:showmelocal.com',
+        'cylex' => 'site:cylex-usa.com',
+        'americantowns' => 'site:americantowns.com',
+        // Health directories
+        'healthgrades' => 'site:healthgrades.com',
+        'zocdoc' => 'site:zocdoc.com',
+        'vitals' => 'site:vitals.com',
+        // Legal directories
+        'avvo' => 'site:avvo.com',
+        'justia' => 'site:justia.com',
+        'findlaw' => 'site:findlaw.com',
+        // Food directories
+        'tripadvisor' => 'site:tripadvisor.com',
+        'opentable' => 'site:opentable.com',
     ];
     foreach ($platforms as $platform) {
         $key = strtolower($platform);
