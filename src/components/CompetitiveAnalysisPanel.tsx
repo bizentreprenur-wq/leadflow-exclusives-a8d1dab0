@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart as RechartsPieChart, Pie, Cell, Legend, RadialBarChart, RadialBar } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -46,6 +47,73 @@ export default function CompetitiveAnalysisPanel({
   const toggleSection = (section: string) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
+
+  // Chart color palette
+  const CHART_COLORS = ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#06b6d4', '#f97316', '#ec4899'];
+  
+  // SWOT chart data
+  const swotChartData = useMemo(() => {
+    if (!data) return [];
+    return [
+      { subject: 'Strengths', count: data.swotAnalysis.strengths.length, highImpact: data.swotAnalysis.strengths.filter(s => s.impact === 'high').length },
+      { subject: 'Weaknesses', count: data.swotAnalysis.weaknesses.length, highImpact: data.swotAnalysis.weaknesses.filter(s => s.impact === 'high').length },
+      { subject: 'Opportunities', count: data.swotAnalysis.opportunities.length, highImpact: data.swotAnalysis.opportunities.filter(s => s.impact === 'high').length },
+      { subject: 'Threats', count: data.swotAnalysis.threats.length, highImpact: data.swotAnalysis.threats.filter(s => s.impact === 'high').length },
+    ];
+  }, [data]);
+
+  // Competitor rating distribution
+  const competitorRatingData = useMemo(() => {
+    if (!data) return [];
+    const allComps = [...(data.competitorComparison.marketLeaders || []), ...(data.competitorComparison.directCompetitors || [])];
+    return allComps.slice(0, 8).map(c => ({
+      name: c.name.length > 12 ? c.name.slice(0, 12) + '…' : c.name,
+      rating: c.rating || 0,
+      reviews: c.reviewCount || 0,
+    }));
+  }, [data]);
+
+  // Website benchmark chart data
+  const websiteBenchmarkData = useMemo(() => {
+    if (!data?.websiteComparison) return [];
+    return data.websiteComparison.industryBenchmarks.map(b => ({
+      name: b.feature.length > 18 ? b.feature.slice(0, 18) + '…' : b.feature,
+      adoption: b.competitorAdoption,
+    }));
+  }, [data]);
+
+  // Social platform chart data
+  const socialRadarData = useMemo(() => {
+    if (!data?.socialMediaBenchmark) return [];
+    return data.socialMediaBenchmark.platforms.map(p => ({
+      platform: p.platform.length > 10 ? p.platform.slice(0, 10) + '…' : p.platform,
+      competitors: p.competitorPercentage,
+      you: p.yourPresence ? 80 : 0,
+    }));
+  }, [data]);
+
+  // Service gap pie data
+  const serviceGapPieData = useMemo(() => {
+    if (!data?.productServiceGap) return [];
+    const gaps = data.productServiceGap.serviceGaps;
+    const high = gaps.filter(g => g.demandLevel === 'high').length;
+    const med = gaps.filter(g => g.demandLevel === 'medium').length;
+    const low = gaps.filter(g => g.demandLevel === 'low').length;
+    return [
+      { name: 'High Demand', value: high },
+      { name: 'Medium Demand', value: med },
+      { name: 'Low Demand', value: low },
+    ].filter(d => d.value > 0);
+  }, [data]);
+
+  // Competitor website scores
+  const websiteScoreData = useMemo(() => {
+    if (!data?.websiteComparison) return [];
+    return data.websiteComparison.competitorWebsites.slice(0, 10).map(s => ({
+      name: s.name.length > 12 ? s.name.slice(0, 12) + '…' : s.name,
+      score: s.score,
+    }));
+  }, [data]);
 
   if (loading) {
     return (
@@ -175,7 +243,53 @@ export default function CompetitiveAnalysisPanel({
             <OverviewCard icon={Lightbulb} title="Top Recommendations" items={aiStrategicInsights.strategicRecommendations.slice(0, 3).map(r => r.recommendation)} color="purple" emptyText="Generating insights..." />
           </div>
 
-          {/* Key Findings */}
+          {/* Charts Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* SWOT Summary Chart */}
+            {swotChartData.length > 0 && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-blue-400" />SWOT Overview
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={swotChartData} barGap={4}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                      <XAxis dataKey="subject" tick={{ fill: '#9ca3af', fontSize: 11 }} />
+                      <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} />
+                      <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }} />
+                      <Bar dataKey="count" name="Total Items" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="highImpact" name="High Impact" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Competitor Ratings Chart */}
+            {competitorRatingData.length > 0 && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Star className="w-4 h-4 text-amber-400" />Competitor Ratings
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={competitorRatingData} barGap={4}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                      <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 10 }} angle={-20} textAnchor="end" height={50} />
+                      <YAxis domain={[0, 5]} tick={{ fill: '#9ca3af', fontSize: 11 }} />
+                      <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }} />
+                      <Bar dataKey="rating" name="Rating" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
+          </div>
           {aiStrategicInsights.keyFindings.length > 0 && (
             <Card>
               <CardHeader className="pb-2">
@@ -354,7 +468,51 @@ export default function CompetitiveAnalysisPanel({
               </CardContent>
             </Card>
 
-            {/* Competitor Websites */}
+            {/* Website Scores Chart */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {websiteBenchmarkData.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-blue-400" />Feature Adoption Rate
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={websiteBenchmarkData} layout="vertical" margin={{ left: 10 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                        <XAxis type="number" domain={[0, 100]} tick={{ fill: '#9ca3af', fontSize: 10 }} />
+                        <YAxis type="category" dataKey="name" tick={{ fill: '#9ca3af', fontSize: 10 }} width={110} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }} formatter={(v: number) => `${v}%`} />
+                        <Bar dataKey="adoption" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              )}
+
+              {websiteScoreData.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Trophy className="w-4 h-4 text-amber-400" />Competitor Website Scores
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={websiteScoreData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                        <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 9 }} angle={-25} textAnchor="end" height={50} />
+                        <YAxis domain={[0, 100]} tick={{ fill: '#9ca3af', fontSize: 10 }} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }} />
+                        <Bar dataKey="score" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -436,7 +594,30 @@ export default function CompetitiveAnalysisPanel({
               </CardContent>
             </Card>
 
-            {/* Platform Analysis */}
+            {/* Social Media Radar Chart */}
+            {socialRadarData.length > 0 && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-purple-400" />Your Presence vs Competitors
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <RadarChart data={socialRadarData} outerRadius="70%">
+                      <PolarGrid stroke="rgba(255,255,255,0.1)" />
+                      <PolarAngleAxis dataKey="platform" tick={{ fill: '#9ca3af', fontSize: 10 }} />
+                      <PolarRadiusAxis domain={[0, 100]} tick={{ fill: '#6b7280', fontSize: 9 }} />
+                      <Radar name="Competitor %" dataKey="competitors" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.3} />
+                      <Radar name="Your Presence" dataKey="you" stroke="#10b981" fill="#10b981" fillOpacity={0.3} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
@@ -517,7 +698,54 @@ export default function CompetitiveAnalysisPanel({
         {/* Products & Services Tab */}
         {productServiceGap && (
           <TabsContent value="products" className="mt-4 space-y-4">
-            {/* Service Gap Heatmap */}
+            {/* Service Demand Distribution Chart */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {serviceGapPieData.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <PieChart className="w-4 h-4 text-orange-400" />Service Demand Distribution
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <RechartsPieChart>
+                        <Pie data={serviceGapPieData} cx="50%" cy="50%" outerRadius={70} innerRadius={35} dataKey="value" label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
+                          {serviceGapPieData.map((_, idx) => (
+                            <Cell key={idx} fill={['#ef4444', '#f59e0b', '#6b7280'][idx] || CHART_COLORS[idx]} />
+                          ))}
+                        </Pie>
+                        <Legend wrapperStyle={{ fontSize: 11 }} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }} />
+                      </RechartsPieChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Service Gap Bar Chart */}
+              {productServiceGap.serviceGaps.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4 text-blue-400" />Competitor Adoption by Service
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart data={productServiceGap.serviceGaps.slice(0, 6).map(g => ({ name: g.service.length > 12 ? g.service.slice(0, 12) + '…' : g.service, pct: g.competitorPercentage }))} layout="vertical" margin={{ left: 10 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                        <XAxis type="number" domain={[0, 100]} tick={{ fill: '#9ca3af', fontSize: 10 }} />
+                        <YAxis type="category" dataKey="name" tick={{ fill: '#9ca3af', fontSize: 10 }} width={90} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8, fontSize: 12 }} formatter={(v: number) => `${v}%`} />
+                        <Bar dataKey="pct" name="% Offering" fill="#f97316" radius={[0, 4, 4, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
             <Card className="border-orange-500/20">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
