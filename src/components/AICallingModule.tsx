@@ -165,7 +165,7 @@ export default function AICallingModule({
     toast.info('AI calling paused');
   };
 
-  // Simulate a call (in production, uses Telnyx API)
+  // Simulate a call (in production, uses Twilio API)
   const simulateCall = () => {
     const pendingCalls = callQueue.filter(c => c.status === 'pending');
     if (pendingCalls.length === 0 || !isCallingActive) {

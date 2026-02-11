@@ -154,7 +154,7 @@ export default function LeadCallModal({
       // Request microphone permission
       await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // Simulate connection delay (Telnyx backend would handle this)
+      // Simulate connection delay (Twilio backend would handle this)
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       setIsConnecting(false);

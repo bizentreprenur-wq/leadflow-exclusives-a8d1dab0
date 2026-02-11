@@ -80,11 +80,10 @@ define('GOOGLE_DRIVE_CLIENT_SECRET', '');
 define('GOOGLE_DRIVE_REDIRECT_URI', 'https://bamlead.com/api/google-drive-callback.php');
 
 // =====================================
-// TELNYX (AI Calling & SMS — Global Key)
+// TWILIO (Voice Calling & SMS)
 // =====================================
-define('TELNYX_API_KEY', 'KEY_your_telnyx_api_key_here');
-define('TELNYX_CONNECTION_ID', 'your_texml_connection_id_here');
-define('TELNYX_MESSAGING_PROFILE_ID', 'your_messaging_profile_id_here');
+define('TWILIO_ACCOUNT_SID', 'YOUR_TWILIO_ACCOUNT_SID_HERE');
+define('TWILIO_AUTH_TOKEN', 'YOUR_TWILIO_AUTH_TOKEN_HERE');
 
 // =====================================
 // OPTIONAL APIS
