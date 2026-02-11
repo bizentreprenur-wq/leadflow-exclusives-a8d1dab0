@@ -351,56 +351,11 @@ function extractPhoneFromSnippetPlatform($text) {
 }
 
 /**
- * Inline email extraction for platform search — scrapes homepage + /contact page
+ * Inline email extraction REMOVED for speed — deferred to BamLead Scraper enrichment.
+ * All email discovery now happens post-discovery via the unified enrichment pipeline.
  */
 function inlineExtractEmailPlatform($url) {
-    if (empty($url)) return null;
-
-    // Skip for high-volume searches — rely on background Firecrawl enrichment
-    if (isset($GLOBALS['_bamlead_search_limit']) && $GLOBALS['_bamlead_search_limit'] >= 500) {
-        return null;
-    }
-
-    if (!preg_match('/^https?:\/\//', $url)) $url = 'https://' . $url;
-    
-    $cacheKey = "scrape_contacts_" . md5($url);
-    $cached = getCache($cacheKey);
-    if ($cached !== null && !empty($cached['emails'])) {
-        return $cached['emails'][0] ?? null;
-    }
-    
-    try {
-        $parsed = parse_url($url);
-        if (!$parsed || empty($parsed['host'])) return null;
-        $baseUrl = ($parsed['scheme'] ?? 'https') . '://' . $parsed['host'];
-        
-        $result = curlRequest($baseUrl, [
-            CURLOPT_TIMEOUT => 3, CURLOPT_CONNECTTIMEOUT => 2,
-            CURLOPT_SSL_VERIFYPEER => false, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 2,
-            CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        ], 3);
-        
-        if ($result['httpCode'] === 200 && !empty($result['response'])) {
-            $emails = extractEmails($result['response']);
-            if (!empty($emails)) {
-                setCache($cacheKey, ['emails' => $emails, 'phones' => [], 'hasWebsite' => true], 86400);
-                return $emails[0];
-            }
-            $contactResult = curlRequest($baseUrl . '/contact', [
-                CURLOPT_TIMEOUT => 2, CURLOPT_CONNECTTIMEOUT => 2,
-                CURLOPT_SSL_VERIFYPEER => false, CURLOPT_FOLLOWLOCATION => true, CURLOPT_MAXREDIRS => 2,
-                CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            ], 2);
-            if ($contactResult['httpCode'] === 200 && !empty($contactResult['response'])) {
-                $contactEmails = extractEmails($contactResult['response']);
-                if (!empty($contactEmails)) {
-                    setCache($cacheKey, ['emails' => $contactEmails, 'phones' => [], 'hasWebsite' => true], 86400);
-                    return $contactEmails[0];
-                }
-            }
-        }
-    } catch (Exception $e) {}
-    return null;
+    return null; // ⚡ SPEED: No inline scraping during discovery
 }
 
 function isSerpApiCreditsErrorPlatform($message) {
