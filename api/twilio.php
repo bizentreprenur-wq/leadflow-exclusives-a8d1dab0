@@ -122,6 +122,37 @@ function twilioWebhookBaseUrl() {
     return 'https://bamlead.com';
 }
 
+/**
+ * Resolve active subscription plan across schema variants.
+ * Older DBs use `plan`; newer migrations use `plan_name`.
+ */
+function getActiveSubscriptionPlan($db, $userId) {
+    $queries = [
+        "SELECT plan AS plan_value FROM subscriptions WHERE user_id = ? AND status = 'active' ORDER BY created_at DESC LIMIT 1",
+        "SELECT plan_name AS plan_value FROM subscriptions WHERE user_id = ? AND status = 'active' ORDER BY created_at DESC LIMIT 1",
+    ];
+
+    foreach ($queries as $sql) {
+        try {
+            $stmt = $db->prepare($sql);
+            $stmt->execute([$userId]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row && isset($row['plan_value'])) {
+                return strtolower((string)$row['plan_value']);
+            }
+            return null;
+        } catch (PDOException $e) {
+            $msg = $e->getMessage();
+            if (stripos($msg, 'SQLSTATE[42S22]') !== false || stripos($msg, 'Unknown column') !== false) {
+                continue;
+            }
+            throw $e;
+        }
+    }
+
+    return null;
+}
+
 // ─── Twilio API helper ───
 function twilioRequest($method, $endpoint, $body = null) {
     $accountSid = getTwilioAccountSid();
@@ -289,11 +320,8 @@ function handleProvisionNumber($db, $user) {
     }
     
     // Verify payment: Autopilot gets it free, others need $8/mo add-on
-    $stmt = $db->prepare("SELECT plan, status FROM subscriptions WHERE user_id = ? AND status = 'active' ORDER BY created_at DESC LIMIT 1");
-    $stmt->execute([$user['id']]);
-    $subscription = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    $isAutopilot = $subscription && $subscription['plan'] === 'autopilot';
+    $activePlan = getActiveSubscriptionPlan($db, $user['id']);
+    $isAutopilot = ($activePlan === 'autopilot');
     
     if (!$isAutopilot) {
         $addonActive = false;
@@ -786,11 +814,8 @@ function saveCallToLogs($db, $callSid) {
  * Check if user has AI Calling add-on
  */
 function handleCheckAddon($db, $user) {
-    $stmt = $db->prepare("SELECT plan FROM subscriptions WHERE user_id = ? AND status = 'active'");
-    $stmt->execute([$user['id']]);
-    $subscription = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    $isAutopilot = $subscription && $subscription['plan'] === 'autopilot';
+    $activePlan = getActiveSubscriptionPlan($db, $user['id']);
+    $isAutopilot = ($activePlan === 'autopilot');
     
     if ($isAutopilot) {
         echo json_encode([
@@ -810,7 +835,7 @@ function handleCheckAddon($db, $user) {
         'success' => true,
         'has_addon' => $config && $config['addon_active'],
         'included_with_plan' => false,
-        'plan' => $subscription['plan'] ?? 'free',
+        'plan' => $activePlan ?? 'free',
         'addon_price' => 8.00
     ]);
 }
