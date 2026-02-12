@@ -56,3 +56,52 @@ jobs:
           remote_user: ${{ secrets.SSH_USERNAME }}
           remote_key: ${{ secrets.SSH_PRIVATE_KEY }}
           remote_port: ${{ secrets.SSH_PORT }}
+
+      - name: Ensure server cron entries (idempotent)
+        if: ${{ secrets.CRON_SECRET_KEY != '' }}
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          API_DIR: /home/u497238762/domains/bamlead.com/public_html/api
+          LOG_DIR: /home/u497238762/domains/bamlead.com/logs
+          CRON_SECRET_KEY: ${{ secrets.CRON_SECRET_KEY }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          envs: API_DIR,LOG_DIR,CRON_SECRET_KEY
+          script: |
+            set -euo pipefail
+
+            mkdir -p "$LOG_DIR"
+
+            PHP_BIN="$(command -v php || true)"
+            if [ -z "$PHP_BIN" ]; then
+              PHP_BIN="/usr/bin/php"
+            fi
+
+            EMAIL_CRON="* * * * * $PHP_BIN $API_DIR/cron-email.php >> $LOG_DIR/cron-email.log 2>&1"
+            FOLLOWUP_CRON="* * * * * $PHP_BIN -r '\$_GET[\"key\"]=\"${CRON_SECRET_KEY}\"; require \"$API_DIR/cron-followups.php\";' >> $LOG_DIR/cron-followups.log 2>&1"
+
+            CURRENT_CRON="$(crontab -l 2>/dev/null || true)"
+            HAS_EMAIL="$(printf '%s\n' "$CURRENT_CRON" | grep -Fxc "$EMAIL_CRON" || true)"
+            HAS_FOLLOWUP="$(printf '%s\n' "$CURRENT_CRON" | grep -Fxc "$FOLLOWUP_CRON" || true)"
+
+            if [ "$HAS_EMAIL" -ge 1 ] && [ "$HAS_FOLLOWUP" -ge 1 ]; then
+              echo "Cron entries already configured for user $(whoami)."
+              exit 0
+            fi
+
+            TMP_CRON="$(mktemp)"
+            printf '%s\n' "$CURRENT_CRON" | grep -v 'cron-email.php\|cron-followups.php' > "$TMP_CRON" || true
+            printf '%s\n' "$EMAIL_CRON" >> "$TMP_CRON"
+            printf '%s\n' "$FOLLOWUP_CRON" >> "$TMP_CRON"
+            crontab "$TMP_CRON"
+            rm -f "$TMP_CRON"
+
+            echo "Installed crontab for user $(whoami):"
+            crontab -l
+
+      - name: Warn if cron setup step was skipped
+        if: ${{ secrets.CRON_SECRET_KEY == '' }}
+        run: echo "Skipped cron setup because CRON_SECRET_KEY is missing."
