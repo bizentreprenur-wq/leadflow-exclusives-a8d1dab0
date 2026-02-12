@@ -513,8 +513,17 @@ function handleInitiateCall($db, $user) {
         return;
     }
     
-    $input = json_decode(file_get_contents('php://input'), true);
-    $destinationNumber = $input['destination_number'] ?? '';
+    $rawBody = file_get_contents('php://input');
+    $input = json_decode($rawBody, true);
+    if (!is_array($input)) {
+        $input = $_POST;
+        if (!is_array($input) || empty($input)) {
+            parse_str((string)$rawBody, $parsedBody);
+            $input = is_array($parsedBody) ? $parsedBody : [];
+        }
+    }
+
+    $destinationNumber = trim((string)($input['destination_number'] ?? $input['to'] ?? $input['lead_phone'] ?? $input['phone_number'] ?? ''));
     
     if (!$destinationNumber) {
         http_response_code(400);
