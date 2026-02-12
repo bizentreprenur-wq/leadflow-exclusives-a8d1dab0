@@ -117,7 +117,7 @@ export default function Step4AICallingHub({
   searchType = 'gmb', searchQuery = '', searchLocation = '',
   selectedStrategy = '', emailSequences = [], proposalType = ''
 }: Step4AICallingHubProps) {
-  const { status, statusMessage, callingModeDescription, capabilities, phoneSetup, isLoading, needsUpgrade, needsAddon, addonMessage, purchaseAddon, requestPhoneProvisioning, isReady, addon } = useAICalling();
+  const { status, statusMessage, callingModeDescription, capabilities, phoneSetup, isLoading, needsUpgrade, needsAddon, addonMessage, purchaseAddon, requestPhoneProvisioning, isReady, addon, savePhoneSetup } = useAICalling();
   const { tier, tierInfo, isAutopilot, isPro } = usePlanFeatures();
   const { user } = useAuth();
   const { branding, isLoading: brandingLoading } = useUserBranding();
@@ -128,6 +128,8 @@ export default function Step4AICallingHub({
   const [portNumber, setPortNumber] = useState('');
   const [portName, setPortName] = useState('');
   const [isPortSubmitting, setIsPortSubmitting] = useState(false);
+  const [existingNumber, setExistingNumber] = useState('');
+  const [isSavingExisting, setIsSavingExisting] = useState(false);
   const [isReleasingNumber, setIsReleasingNumber] = useState(false);
   const [showReleaseConfirm, setShowReleaseConfirm] = useState(false);
   const [showPhoneModal, setShowPhoneModal] = useState(false);
@@ -794,16 +796,35 @@ export default function Step4AICallingHub({
                               <Phone className="w-7 h-7 text-emerald-500" />
                             </div>
                             <div>
-                              <p className="text-[11px] text-muted-foreground uppercase tracking-widest font-medium">Your AI Phone Line</p>
+                              <p className="text-[11px] text-muted-foreground uppercase tracking-widest font-medium">Your Twilio Phone Number</p>
                               <p className="text-2xl font-mono font-bold text-emerald-400 tracking-wide">{formatPhoneWithCountry(phoneSetup.phoneNumber)}</p>
                             </div>
-                          </div>
-                          <div className="flex gap-2 mt-4">
-                            <Badge className="bg-emerald-500/15 text-emerald-500 rounded-full border-0 gap-1">
+                            <Badge className="bg-emerald-500/15 text-emerald-500 rounded-full border-0 gap-1 ml-auto">
                               <CheckCircle2 className="w-3 h-3" /> Active
                             </Badge>
                           </div>
                         </div>
+
+                        {/* Prominent Start Calling CTA */}
+                        <div className="rounded-2xl border border-amber-500/25 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-primary/5 p-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                              <PhoneCall className="w-6 h-6 text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-bold text-foreground">Ready to Call</h3>
+                              <p className="text-xs text-muted-foreground">{pendingCount} leads in queue with valid phone numbers</p>
+                            </div>
+                            <Button
+                              onClick={() => { setActiveSection('queue'); setTimeout(() => handleStartCalling(), 300); }}
+                              disabled={pendingCount === 0}
+                              className="gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 text-sm font-semibold shadow-lg shadow-emerald-500/20"
+                            >
+                              <Play className="w-4 h-4" /> Start AI Calling
+                            </Button>
+                          </div>
+                        </div>
+
                         {/* Release Number */}
                         <div className="rounded-2xl border border-border/50 p-4">
                           <h4 className="font-semibold text-sm text-foreground mb-2">Manage Number</h4>
@@ -827,7 +848,7 @@ export default function Step4AICallingHub({
                     ) : (
                       <div className="space-y-4">
                         {/* Mode selection */}
-                         <div className="grid md:grid-cols-2 gap-4">
+                         <div className="grid md:grid-cols-3 gap-4">
                           <div
                             onClick={() => setProvisionMode('new')}
                             className={`cursor-pointer rounded-2xl border p-5 transition-all ${provisionMode === 'new' ? 'border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-orange-500/5 ring-1 ring-amber-500/20' : 'border-border/50 hover:border-amber-500/20'}`}
@@ -843,6 +864,14 @@ export default function Step4AICallingHub({
                             <PhoneForwarded className="w-6 h-6 text-violet-400 mb-3" />
                             <h4 className="font-semibold text-foreground">Port Existing Number</h4>
                             <p className="text-xs text-muted-foreground mt-1">Transfer your existing business number. Takes 1-3 days.</p>
+                          </div>
+                          <div
+                            onClick={() => setProvisionMode('existing' as any)}
+                            className={`cursor-pointer rounded-2xl border p-5 transition-all ${(provisionMode as string) === 'existing' ? 'border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-teal-500/5 ring-1 ring-emerald-500/20' : 'border-border/50 hover:border-emerald-500/20'}`}
+                          >
+                            <Phone className="w-6 h-6 text-emerald-400 mb-3" />
+                            <h4 className="font-semibold text-foreground">I Have a Twilio Number</h4>
+                            <p className="text-xs text-muted-foreground mt-1">Already have a Twilio number? Enter it here.</p>
                           </div>
                         </div>
 
@@ -873,6 +902,48 @@ export default function Step4AICallingHub({
                             }} className="w-full gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700">
                               {isProvisioningNumber ? <><Loader2 className="w-4 h-4 animate-spin" /> Provisioning…</> : <><Phone className="w-4 h-4" /> Get Number ({selectedAreaCode || '…'})</>}
                             </Button>
+                          </div>
+                        ) : (provisionMode as string) === 'existing' ? (
+                          <div className="rounded-2xl border border-emerald-500/20 bg-card/30 p-5 space-y-4">
+                            <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-emerald-400" /><span className="font-semibold text-sm">Enter Your Twilio Number</span></div>
+                            <p className="text-xs text-muted-foreground">Enter the phone number you purchased from Twilio. It will be saved to your account for AI calling.</p>
+                            <input
+                              type="tel"
+                              placeholder="+1 (888) 293-5813"
+                              value={existingNumber}
+                              onChange={(e) => setExistingNumber(e.target.value)}
+                              className="w-full px-4 py-3 rounded-xl border bg-background text-foreground text-sm font-mono"
+                            />
+                            <Button
+                              onClick={async () => {
+                                if (!existingNumber.trim()) { toast.error('Enter your Twilio number'); return; }
+                                const formatted = toE164(existingNumber.trim());
+                                if (!formatted.startsWith('+') || formatted.replace(/\D/g, '').length < 11) {
+                                  toast.error('Enter a valid phone number (e.g. +18882935813)');
+                                  return;
+                                }
+                                setIsSavingExisting(true);
+                                try {
+                                  const result = await savePhoneSetup(formatted);
+                                  if (result.success) {
+                                    toast.success(`Number ${formatted} saved! Reload to see it active.`);
+                                    window.location.reload();
+                                  } else {
+                                    toast.error(result.error || 'Failed to save number');
+                                  }
+                                } catch { toast.error('Network error'); }
+                                finally { setIsSavingExisting(false); }
+                              }}
+                              disabled={isSavingExisting || !existingNumber.trim()}
+                              className="w-full gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700"
+                            >
+                              {isSavingExisting ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <><CheckCircle2 className="w-4 h-4" /> Save My Twilio Number</>}
+                            </Button>
+                            <div className="text-[11px] text-muted-foreground bg-muted/30 p-3 rounded-xl space-y-1">
+                              <p>✅ <strong>Format:</strong> Use E.164 format (e.g. +18882935813)</p>
+                              <p>🔒 <strong>Security:</strong> This number is tied only to your account</p>
+                              <p>⚡ <strong>Instant:</strong> Number is active immediately after saving</p>
+                            </div>
                           </div>
                         ) : (
                           <div className="rounded-2xl border border-border/50 bg-card/30 p-5 space-y-4">
