@@ -51,6 +51,7 @@ import { AIStrategy, autoSelectStrategy, buildStrategyContext } from '@/lib/aiSt
 interface Lead {
   id?: string | number;
   email?: string;
+  phone?: string;
   business_name?: string;
   name?: string;
   contact_name?: string;
@@ -108,6 +109,18 @@ type AutopilotTab = 'leads' | 'template' | 'sequence' | 'launch';
 
 // Campaign target type
 type CampaignTarget = 'all' | 'hot' | 'warm' | 'cold';
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function hasValidEmail(email?: string): boolean {
+  return !!email && EMAIL_REGEX.test(email.trim());
+}
+
+function hasValidPhone(phone?: string): boolean {
+  if (!phone) return false;
+  const digits = phone.replace(/\D/g, '');
+  return digits.length >= 7;
+}
 
 export default function ComposeEmailModal({
   isOpen,
@@ -254,6 +267,11 @@ export default function ComposeEmailModal({
 
   const currentLead = useMemo(() => leads[currentLeadIndex] || null, [leads, currentLeadIndex]);
   const safeLeads = useMemo(() => leads?.filter((l): l is Lead => l != null) ?? [], [leads]);
+  const autopilotEligibleLeads = useMemo(
+    () => safeLeads.filter((lead) => hasValidEmail(lead.email) && hasValidPhone(lead.phone)),
+    [safeLeads]
+  );
+  const autopilotExcludedCount = safeLeads.length - autopilotEligibleLeads.length;
   
   // Filtered leads based on campaign target
   const filteredLeads = useMemo(() => {
@@ -514,9 +532,8 @@ export default function ComposeEmailModal({
       return;
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const selected = selectedLeads;
-    const validLeads = selected.filter((lead) => lead.email && emailRegex.test(lead.email));
+    const validLeads = selected.filter((lead) => hasValidEmail(lead.email));
 
     if (validLeads.length === 0) {
       toast.error('No selected leads have valid email addresses.');
@@ -615,16 +632,12 @@ export default function ComposeEmailModal({
       return;
     }
 
-    if (safeLeads.length === 0) {
+    if (autopilotEligibleLeads.length === 0) {
       toast.error('No leads available for Autopilot. Add leads first.');
       return;
     }
 
-    const validLeads = safeLeads.filter(l => l.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(l.email));
-    if (validLeads.length === 0) {
-      toast.error('No leads with valid email addresses. Please add valid emails first.');
-      return;
-    }
+    const validLeads = autopilotEligibleLeads;
 
     const launchTemplate = effectiveTemplate;
     const launchSequence = effectiveSequence;
@@ -1798,10 +1811,10 @@ export default function ComposeEmailModal({
                 {/* Autopilot Tabs - ALWAYS show at top for consistent positioning */}
                 <Tabs value={autopilotTab} onValueChange={(v) => setAutopilotTab(v as AutopilotTab)}>
                   <TabsList className="bg-muted/50 border border-amber-500/30 p-1 w-full">
-                    <TabsTrigger value="leads" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-amber-500 data-[state=active]:text-white">
-                      <Users className="w-3.5 h-3.5" />
-                      1. Leads ({safeLeads.length})
-                    </TabsTrigger>
+                      <TabsTrigger value="leads" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-amber-500 data-[state=active]:text-white">
+                        <Users className="w-3.5 h-3.5" />
+                      1. Leads ({autopilotEligibleLeads.length})
+                      </TabsTrigger>
                     <TabsTrigger value="template" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-amber-500 data-[state=active]:text-white">
                       <FileText className="w-3.5 h-3.5" />
                       2. Template
@@ -1911,25 +1924,30 @@ export default function ComposeEmailModal({
                             {getSearchBadge()}
                           </div>
                           <p className="text-xs text-muted-foreground mb-4">
-                            AI will automatically email all leads below based on their classification and website analysis.
+                            AI will only include leads that have both a valid email and phone number.
                           </p>
+                          {autopilotExcludedCount > 0 && (
+                            <p className="text-xs text-amber-400 mb-3">
+                              {autopilotExcludedCount} lead{autopilotExcludedCount !== 1 ? 's are' : ' is'} excluded (missing valid email or phone).
+                            </p>
+                          )}
                           
                           {/* Lead Stats */}
                           <div className="grid grid-cols-4 gap-2 mb-4">
                             <div className="p-3 rounded-lg bg-background border border-border text-center">
-                              <div className="text-lg font-bold text-foreground">{safeLeads.length}</div>
+                              <div className="text-lg font-bold text-foreground">{autopilotEligibleLeads.length}</div>
                               <div className="text-[10px] text-muted-foreground">Total</div>
                             </div>
                             <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-center">
-                              <div className="text-lg font-bold text-red-400">{safeLeads.filter(l => l.aiClassification === 'hot').length}</div>
+                              <div className="text-lg font-bold text-red-400">{autopilotEligibleLeads.filter(l => l.aiClassification === 'hot').length}</div>
                               <div className="text-[10px] text-muted-foreground">Hot</div>
                             </div>
                             <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
-                              <div className="text-lg font-bold text-amber-400">{safeLeads.filter(l => l.aiClassification === 'warm').length}</div>
+                              <div className="text-lg font-bold text-amber-400">{autopilotEligibleLeads.filter(l => l.aiClassification === 'warm').length}</div>
                               <div className="text-[10px] text-muted-foreground">Warm</div>
                             </div>
                             <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-center">
-                              <div className="text-lg font-bold text-blue-400">{safeLeads.filter(l => l.aiClassification === 'cold' || !l.aiClassification).length}</div>
+                              <div className="text-lg font-bold text-blue-400">{autopilotEligibleLeads.filter(l => l.aiClassification === 'cold' || !l.aiClassification).length}</div>
                               <div className="text-[10px] text-muted-foreground">Cold</div>
                             </div>
                           </div>
@@ -1937,7 +1955,7 @@ export default function ComposeEmailModal({
                           {/* Lead List */}
                           <ScrollArea className="h-[250px]">
                             <div className="space-y-2">
-                              {safeLeads.map((lead, idx) => (
+                              {autopilotEligibleLeads.map((lead, idx) => (
                                 <div 
                                   key={lead.id || idx}
                                   className="flex items-center gap-3 p-3 rounded-lg bg-background border border-border"
@@ -1972,7 +1990,7 @@ export default function ComposeEmailModal({
                         </div>
                         <Button 
                           onClick={() => setAutopilotTab('template')} 
-                          disabled={safeLeads.length === 0}
+                          disabled={autopilotEligibleLeads.length === 0}
                           className="w-full bg-amber-500 hover:bg-amber-600 gap-2"
                         >
                           Continue to Templates <ArrowRight className="w-4 h-4" />
@@ -2066,10 +2084,10 @@ export default function ComposeEmailModal({
                         <AIStrategySelector
                           mode="autopilot"
                           searchType={detectedSearchType}
-                          leads={safeLeads}
+                          leads={autopilotEligibleLeads}
                           selectedTemplate={selectedCampaignTemplate || effectiveTemplate || undefined}
                           onSelectStrategy={(strategy) => setSelectedStrategy(strategy)}
-                          selectedStrategy={selectedStrategy || autoSelectStrategy(buildStrategyContext(detectedSearchType, safeLeads))}
+                          selectedStrategy={selectedStrategy || autoSelectStrategy(buildStrategyContext(detectedSearchType, autopilotEligibleLeads))}
                         />
                         
                         <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
@@ -2187,7 +2205,7 @@ export default function ComposeEmailModal({
                           <div className="space-y-3 text-sm">
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">Total Leads:</span>
-                              <span className="font-medium text-foreground">{safeLeads.length}</span>
+                              <span className="font-medium text-foreground">{autopilotEligibleLeads.length}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">Template:</span>
@@ -2217,12 +2235,12 @@ export default function ComposeEmailModal({
                           <div className="flex items-center justify-between mb-3">
                             <h4 className="font-semibold text-foreground text-sm flex items-center gap-2">
                               <Users className="w-4 h-4 text-amber-400" />
-                              Recipients ({safeLeads.length})
+                              Recipients ({autopilotEligibleLeads.length})
                             </h4>
                           </div>
                           
                           <div className="space-y-2">
-                            {safeLeads.slice(0, 5).map((lead, idx) => (
+                            {autopilotEligibleLeads.slice(0, 5).map((lead, idx) => (
                               <div key={lead?.id ?? idx} className="flex items-center gap-3 p-2 rounded-lg bg-background border border-border">
                                 <div className={cn(
                                   "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
@@ -2240,9 +2258,9 @@ export default function ComposeEmailModal({
                                 </div>
                               </div>
                             ))}
-                            {safeLeads.length > 5 && (
+                            {autopilotEligibleLeads.length > 5 && (
                               <p className="text-xs text-center text-muted-foreground py-2">
-                                + {safeLeads.length - 5} more recipients
+                                + {autopilotEligibleLeads.length - 5} more recipients
                               </p>
                             )}
                           </div>
@@ -2270,7 +2288,7 @@ export default function ComposeEmailModal({
                           </Button>
                           <Button 
                             onClick={handleStartAutopilot}
-                            disabled={safeLeads.length === 0 || isLaunchingAutopilot}
+                            disabled={autopilotEligibleLeads.length === 0 || isLaunchingAutopilot}
                             className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white gap-2"
                           >
                             {isLaunchingAutopilot ? (
@@ -2281,7 +2299,7 @@ export default function ComposeEmailModal({
                             ) : (
                               <>
                                 <Wand2 className="w-4 h-4" />
-                                Launch AI Autopilot ({safeLeads.length} leads)
+                                Launch AI Autopilot ({autopilotEligibleLeads.length} leads)
                               </>
                             )}
                           </Button>
@@ -2368,7 +2386,7 @@ export default function ComposeEmailModal({
                        '🚀 Launch complete!'}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {safeLeads.length} leads being prepared for AI outreach
+                      {autopilotEligibleLeads.length} leads being prepared for AI outreach
                     </p>
                   </div>
                   <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 animate-pulse">
@@ -2386,13 +2404,13 @@ export default function ComposeEmailModal({
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Bot className="w-4 h-4 text-primary" />
-                  <span>{safeLeads.length} verified leads ready for AI outreach</span>
+                  <span>{autopilotEligibleLeads.length} verified leads ready for AI outreach</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <Button variant="outline" onClick={onClose}>Cancel</Button>
                   <Button
                     onClick={handleStartAutopilot}
-                    disabled={safeLeads.length === 0 || isLaunchingAutopilot}
+                    disabled={autopilotEligibleLeads.length === 0 || isLaunchingAutopilot}
                     className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white gap-2"
                   >
                     <Send className="w-4 h-4" />
