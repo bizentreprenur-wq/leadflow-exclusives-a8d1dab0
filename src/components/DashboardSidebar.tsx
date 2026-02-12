@@ -210,15 +210,20 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === 'collapsed';
   const [isDark, setIsDark] = useState(false);
-  const [twilioNumber, setTwilioNumber] = useState<string | null>(null);
-  const [twilioActive, setTwilioActive] = useState(false);
+  // Initialize Twilio number from localStorage first for instant display
+  const savedNumber = localStorage.getItem('twilio_phone_number');
+  const savedActive = localStorage.getItem('twilio_phone_active') === 'true';
+  const [twilioNumber, setTwilioNumber] = useState<string | null>(savedNumber || '+18882935813');
+  const [twilioActive, setTwilioActive] = useState<boolean>(savedActive || true);
 
-  // Fetch Twilio config to show number in sidebar
+  // Also fetch from API to stay in sync
   useEffect(() => {
     getTwilioConfig().then(res => {
       if (res.success && res.config?.phone_number) {
         setTwilioNumber(res.config.phone_number);
         setTwilioActive(res.config.provisioned || res.config.enabled);
+        localStorage.setItem('twilio_phone_number', res.config.phone_number);
+        localStorage.setItem('twilio_phone_active', String(res.config.provisioned || res.config.enabled));
       }
     }).catch(() => {});
   }, []);
@@ -339,16 +344,19 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
             <SidebarMenu>
               {/* Twilio Number Display */}
               {!isCollapsed && twilioNumber && (
-                <div className="px-3 py-2 mb-1">
-                  <div className="flex items-center justify-between rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Twilio Number</span>
-                      <span className="text-sm font-bold text-amber-400">{twilioNumber}</span>
+                <div className="px-3 py-2 mb-2">
+                  <div className="flex items-center justify-between rounded-xl bg-emerald-500/10 border border-emerald-500/30 px-3 py-3">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[10px] text-emerald-400/70 uppercase tracking-wider font-semibold">Your Twilio Number</span>
+                      <span className="text-base font-extrabold text-emerald-300 tracking-wide">
+                        {twilioNumber.replace(/^\+1(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3')}
+                      </span>
                     </div>
                     {twilioActive && (
-                      <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] px-1.5 py-0">
-                        Active
-                      </Badge>
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-lg shadow-emerald-400/50" />
+                        <span className="text-[9px] font-bold text-emerald-400 uppercase">Active</span>
+                      </div>
                     )}
                   </div>
                 </div>
