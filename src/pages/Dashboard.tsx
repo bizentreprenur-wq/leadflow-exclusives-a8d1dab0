@@ -1263,6 +1263,10 @@ export default function Dashboard() {
       // Clear restored indicator since this is a fresh search
       setRestoredFromSession(null);
       
+      // Persist query/location to sessionStorage so the report header always has them
+      sessionStorage.setItem('bamlead_query', query);
+      sessionStorage.setItem('bamlead_location', location);
+      
       // Save the search timestamp for restoration tracking
       const searchTimestamp = new Date().toISOString();
       localStorage.setItem('bamlead_search_timestamp', searchTimestamp);

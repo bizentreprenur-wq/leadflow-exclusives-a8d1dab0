@@ -2242,12 +2242,12 @@ export default function LeadDocumentViewer({
                 <div className="border-b pb-6 mb-6">
                   <div className="flex items-center gap-2 mb-4">
                     <Brain className="w-5 h-5 text-primary" />
-                    <h2 className="text-lg font-bold text-gray-900">🧠 Super AI Business Intelligence</h2>
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-white">🧠 Super AI Business Intelligence</h2>
                     <Badge className="bg-primary/10 text-primary border-primary/30 ml-2">
                       12 Categories Analyzed
                     </Badge>
                   </div>
-                  <p className="text-sm text-gray-600 mb-4">
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                     {researchMode === 'competitive' 
                       ? 'Detailed intelligence on each business in this market. Use this data to identify partnership opportunities, benchmark your position, or find businesses that need your product/service.'
                       : 'Complete decision-level intelligence: who to contact, what problem they have, how much money they\'re losing, what service they need, and the exact message that will convert.'}
@@ -2255,87 +2255,87 @@ export default function LeadDocumentViewer({
                   
                   <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
                     {/* Business Identity */}
-                    <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="p-2 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg">
                       <div className="text-sm mb-1">🏢</div>
-                      <div className="text-[10px] font-bold text-blue-700">Identity</div>
-                      <div className="text-[9px] text-blue-600">Size, Revenue, Type</div>
+                      <div className="text-[10px] font-bold text-blue-700 dark:text-blue-300">Identity</div>
+                      <div className="text-[9px] text-blue-600 dark:text-blue-400">Size, Revenue, Type</div>
                     </div>
                     
                     {/* Decision Maker */}
-                    <div className="p-2 bg-indigo-50 border border-indigo-200 rounded-lg">
+                    <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-700 rounded-lg">
                       <div className="text-sm mb-1">👤</div>
-                      <div className="text-[10px] font-bold text-indigo-700">Decision Maker</div>
-                      <div className="text-[9px] text-indigo-600">Owner, Role, Reach</div>
+                      <div className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300">Decision Maker</div>
+                      <div className="text-[9px] text-indigo-600 dark:text-indigo-400">Owner, Role, Reach</div>
                     </div>
                     
                     {/* Website Health */}
-                    <div className="p-2 bg-teal-50 border border-teal-200 rounded-lg">
+                    <div className="p-2 bg-teal-50 dark:bg-teal-900/30 border border-teal-200 dark:border-teal-700 rounded-lg">
                       <div className="text-sm mb-1">🌐</div>
-                      <div className="text-[10px] font-bold text-teal-700">Website</div>
-                      <div className="text-[9px] text-teal-600">Health, Mobile, SEO</div>
+                      <div className="text-[10px] font-bold text-teal-700 dark:text-teal-300">Website</div>
+                      <div className="text-[9px] text-teal-600 dark:text-teal-400">Health, Mobile, SEO</div>
                     </div>
                     
                     {/* Online Presence */}
-                    <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg">
+                    <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 rounded-lg">
                       <div className="text-sm mb-1">📈</div>
-                      <div className="text-[10px] font-bold text-emerald-700">Visibility</div>
-                      <div className="text-[9px] text-emerald-600">GMB, Rankings</div>
+                      <div className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">Visibility</div>
+                      <div className="text-[9px] text-emerald-600 dark:text-emerald-400">GMB, Rankings</div>
                     </div>
                     
                     {/* Reputation */}
-                    <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="p-2 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg">
                       <div className="text-sm mb-1">⭐</div>
-                      <div className="text-[10px] font-bold text-amber-700">Reputation</div>
-                      <div className="text-[9px] text-amber-600">Reviews, Sentiment</div>
+                      <div className="text-[10px] font-bold text-amber-700 dark:text-amber-300">Reputation</div>
+                      <div className="text-[9px] text-amber-600 dark:text-amber-400">Reviews, Sentiment</div>
                     </div>
                     
                     {/* AI Opportunity */}
-                    <div className="p-2 bg-violet-50 border border-violet-200 rounded-lg">
+                    <div className="p-2 bg-violet-50 dark:bg-violet-900/30 border border-violet-200 dark:border-violet-700 rounded-lg">
                       <div className="text-sm mb-1">🧠</div>
-                      <div className="text-[10px] font-bold text-violet-700">Opportunity</div>
-                      <div className="text-[9px] text-violet-600">Gaps, ROI Lift</div>
+                      <div className="text-[10px] font-bold text-violet-700 dark:text-violet-300">Opportunity</div>
+                      <div className="text-[9px] text-violet-600 dark:text-violet-400">Gaps, ROI Lift</div>
                     </div>
                     
                     {/* Tech Stack */}
-                    <div className="p-2 bg-sky-50 border border-sky-200 rounded-lg">
+                    <div className="p-2 bg-sky-50 dark:bg-sky-900/30 border border-sky-200 dark:border-sky-700 rounded-lg">
                       <div className="text-sm mb-1">🛠</div>
-                      <div className="text-[10px] font-bold text-sky-700">Tech Stack</div>
-                      <div className="text-[9px] text-sky-600">Analytics, CRM</div>
+                      <div className="text-[10px] font-bold text-sky-700 dark:text-sky-300">Tech Stack</div>
+                      <div className="text-[9px] text-sky-600 dark:text-sky-400">Analytics, CRM</div>
                     </div>
                     
                     {/* Marketing */}
-                    <div className="p-2 bg-rose-50 border border-rose-200 rounded-lg">
+                    <div className="p-2 bg-rose-50 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-700 rounded-lg">
                       <div className="text-sm mb-1">📣</div>
-                      <div className="text-[10px] font-bold text-rose-700">Marketing</div>
-                      <div className="text-[9px] text-rose-600">Ads, Social, Spend</div>
+                      <div className="text-[10px] font-bold text-rose-700 dark:text-rose-300">Marketing</div>
+                      <div className="text-[9px] text-rose-600 dark:text-rose-400">Ads, Social, Spend</div>
                     </div>
                     
                     {/* Conversion */}
-                    <div className="p-2 bg-cyan-50 border border-cyan-200 rounded-lg">
+                    <div className="p-2 bg-cyan-50 dark:bg-cyan-900/30 border border-cyan-200 dark:border-cyan-700 rounded-lg">
                       <div className="text-sm mb-1">🔄</div>
-                      <div className="text-[10px] font-bold text-cyan-700">Conversion</div>
-                      <div className="text-[9px] text-cyan-600">Booking, Funnel</div>
+                      <div className="text-[10px] font-bold text-cyan-700 dark:text-cyan-300">Conversion</div>
+                      <div className="text-[9px] text-cyan-600 dark:text-cyan-400">Booking, Funnel</div>
                     </div>
                     
                     {/* Buying Signals */}
-                    <div className="p-2 bg-orange-50 border border-orange-200 rounded-lg">
+                    <div className="p-2 bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700 rounded-lg">
                       <div className="text-sm mb-1">🎯</div>
-                      <div className="text-[10px] font-bold text-orange-700">Intent</div>
-                      <div className="text-[9px] text-orange-600">Buying Signals</div>
+                      <div className="text-[10px] font-bold text-orange-700 dark:text-orange-300">Intent</div>
+                      <div className="text-[9px] text-orange-600 dark:text-orange-400">Buying Signals</div>
                     </div>
                     
                     {/* Competitors */}
-                    <div className="p-2 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="p-2 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg">
                       <div className="text-sm mb-1">🥊</div>
-                      <div className="text-[10px] font-bold text-red-700">Competitors</div>
-                      <div className="text-[9px] text-red-600">Gaps, Position</div>
+                      <div className="text-[10px] font-bold text-red-700 dark:text-red-300">Competitors</div>
+                      <div className="text-[9px] text-red-600 dark:text-red-400">Gaps, Position</div>
                     </div>
                     
                     {/* AI Outreach */}
-                    <div className="p-2 bg-gradient-to-br from-primary/10 to-emerald-50 border border-primary/30 rounded-lg">
+                    <div className="p-2 bg-gradient-to-br from-primary/10 to-emerald-50 dark:to-emerald-900/30 border border-primary/30 rounded-lg">
                       <div className="text-sm mb-1">✨</div>
                       <div className="text-[10px] font-bold text-primary">AI Outreach</div>
-                      <div className="text-[9px] text-gray-600">Scripts, Timing</div>
+                      <div className="text-[9px] text-gray-600 dark:text-gray-400">Scripts, Timing</div>
                     </div>
                   </div>
                 </div>
