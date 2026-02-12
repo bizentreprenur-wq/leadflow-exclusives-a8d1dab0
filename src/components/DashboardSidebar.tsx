@@ -53,6 +53,7 @@ import {
 import { useEffect, useState } from 'react';
 import bamMascot from '@/assets/bamlead-mascot.png';
 import { BackendStatusIndicator } from '@/components/BackendStatusIndicator';
+import { getTwilioConfig } from '@/lib/api/twilio';
 
 interface DashboardSidebarProps {
   activeTab: string;
@@ -209,6 +210,18 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === 'collapsed';
   const [isDark, setIsDark] = useState(false);
+  const [twilioNumber, setTwilioNumber] = useState<string | null>(null);
+  const [twilioActive, setTwilioActive] = useState(false);
+
+  // Fetch Twilio config to show number in sidebar
+  useEffect(() => {
+    getTwilioConfig().then(res => {
+      if (res.success && res.config?.phone_number) {
+        setTwilioNumber(res.config.phone_number);
+        setTwilioActive(res.config.provisioned || res.config.enabled);
+      }
+    }).catch(() => {});
+  }, []);
 
   // Initialize theme from localStorage or system preference
   useEffect(() => {
@@ -324,31 +337,52 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {aiCallingTools.map((tool) => (
-                <SidebarMenuItem key={tool.id}>
-                  <SidebarMenuButton
-                    isActive={activeTab === tool.id}
-                    tooltip={tool.title}
-                    onClick={() => onTabChange(tool.id)}
-                    className={isAICallingActive && activeTab === tool.id
-                      ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/30'
-                      : isAICallingActive
-                      ? 'hover:bg-amber-500/10'
-                      : ''
-                    }
-                  >
-                    <tool.icon className={`w-4 h-4 ${activeTab === tool.id && isAICallingActive ? 'text-amber-400' : (tool.iconColor || '')}`} />
-                    <span>{tool.title}</span>
-                    {'badge' in tool && tool.badge && (
-                      <Badge variant="secondary" className={`ml-auto text-[10px] px-1.5 py-0 ${
-                        isAICallingActive ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-primary/10 text-primary'
-                      }`}>
-                        {tool.badge}
+              {/* Twilio Number Display */}
+              {!isCollapsed && twilioNumber && (
+                <div className="px-3 py-2 mb-1">
+                  <div className="flex items-center justify-between rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Twilio Number</span>
+                      <span className="text-sm font-bold text-amber-400">{twilioNumber}</span>
+                    </div>
+                    {twilioActive && (
+                      <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] px-1.5 py-0">
+                        Active
                       </Badge>
                     )}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+                  </div>
+                </div>
+              )}
+              {aiCallingTools.map((tool) => {
+                const isPhoneSetup = tool.id === 'voice-calling';
+                const isGreyedOut = isPhoneSetup && twilioActive;
+                return (
+                  <SidebarMenuItem key={tool.id}>
+                    <SidebarMenuButton
+                      isActive={activeTab === tool.id}
+                      tooltip={tool.title}
+                      onClick={() => onTabChange(tool.id)}
+                      className={`${isGreyedOut ? 'opacity-50' : ''} ${
+                        isAICallingActive && activeTab === tool.id
+                          ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/30'
+                          : isAICallingActive
+                          ? 'hover:bg-amber-500/10'
+                          : ''
+                      }`}
+                    >
+                      <tool.icon className={`w-4 h-4 ${activeTab === tool.id && isAICallingActive ? 'text-amber-400' : (tool.iconColor || '')}`} />
+                      <span>{tool.title}</span>
+                      {'badge' in tool && tool.badge && (
+                        <Badge variant="secondary" className={`ml-auto text-[10px] px-1.5 py-0 ${
+                          isAICallingActive ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-primary/10 text-primary'
+                        }`}>
+                          {tool.badge}
+                        </Badge>
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
