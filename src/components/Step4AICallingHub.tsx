@@ -655,6 +655,47 @@ export default function Step4AICallingHub({
                       </div>
                     </div>
 
+                    {/* ── PRIMARY CALL ACTION ── */}
+                    {!isCallingActive && phoneSetup.hasPhone && pendingCount > 0 && (
+                      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border-2 border-emerald-500/30 bg-gradient-to-r from-emerald-500/15 via-emerald-500/10 to-emerald-500/5 p-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                            <PhoneCall className="w-7 h-7 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-lg text-foreground">Ready to Call Your Leads</h3>
+                            <p className="text-sm text-muted-foreground"><span className="font-extrabold text-foreground">{pendingCount}</span> leads queued · Phone <span className="text-emerald-400 font-semibold">{formatPhoneDisplay(phoneSetup.phoneNumber || '')}</span> active</p>
+                          </div>
+                          <Button
+                            onClick={handleStartCalling}
+                            className="gap-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-8 py-4 text-base font-bold shadow-xl shadow-emerald-500/30"
+                          >
+                            <Play className="w-5 h-5" /> Start Calling
+                          </Button>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {!isCallingActive && !phoneSetup.hasPhone && pendingCount > 0 && (
+                      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border-2 border-amber-500/30 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/5 p-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
+                            <Phone className="w-7 h-7 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-lg text-foreground">Set Up Your Phone First</h3>
+                            <p className="text-sm text-muted-foreground"><span className="font-extrabold text-foreground">{pendingCount}</span> leads ready — configure a Twilio number to start calling</p>
+                          </div>
+                          <Button
+                            onClick={() => setActiveSection('phone-setup')}
+                            className="gap-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-8 py-4 text-base font-bold shadow-xl shadow-amber-500/30"
+                          >
+                            <Signal className="w-5 h-5" /> Setup Phone
+                          </Button>
+                        </div>
+                      </motion.div>
+                    )}
+
                     {/* Active Call Banner */}
                     {isCallingActive && (
                       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-primary/25 bg-primary/[0.05] p-5">
