@@ -323,14 +323,26 @@ export default function Dashboard() {
   const [outreachMode, setOutreachMode] = useState<'email' | 'verify'>('email');
   
   // Search filter options - persist in localStorage
+  const [noWebsiteOnly, setNoWebsiteOnly] = useState(() => {
+    try { return localStorage.getItem('bamlead_filter_no_website') === 'true'; } catch { return false; }
+  });
+  const [notMobileOnly, setNotMobileOnly] = useState(() => {
+    try { return localStorage.getItem('bamlead_filter_not_mobile') === 'true'; } catch { return false; }
+  });
+  const [outdatedOnly, setOutdatedOnly] = useState(() => {
+    try { return localStorage.getItem('bamlead_filter_outdated') === 'true'; } catch { return false; }
+  });
   const [phoneLeadsOnly, setPhoneLeadsOnly] = useState(() => {
     try { return localStorage.getItem('bamlead_filter_phone_only') === 'true'; } catch { return false; }
   });
 
   // Persist filter settings to localStorage
   useEffect(() => {
+    localStorage.setItem('bamlead_filter_no_website', noWebsiteOnly.toString());
+    localStorage.setItem('bamlead_filter_not_mobile', notMobileOnly.toString());
+    localStorage.setItem('bamlead_filter_outdated', outdatedOnly.toString());
     localStorage.setItem('bamlead_filter_phone_only', phoneLeadsOnly.toString());
-  }, [phoneLeadsOnly]);
+  }, [noWebsiteOnly, notMobileOnly, outdatedOnly, phoneLeadsOnly]);
 
   // Ensure search type picker shows after a new login (token change)
   useEffect(() => {
@@ -1047,16 +1059,20 @@ export default function Dashboard() {
     const minimumAcceptableResults = Math.ceil(requestedLimit * 0.95);
     const startingResults: SearchResult[] = append ? [...searchResults] : [];
     let latestMergedResults: SearchResult[] = startingResults;
+    const optionBSearch = searchType === 'platform';
     const backendFilters = {
       phoneOnly: phoneLeadsOnly,
-      noWebsite: false,
-      notMobile: false,
-      outdated: false,
+      noWebsite: optionBSearch ? noWebsiteOnly : false,
+      notMobile: optionBSearch ? notMobileOnly : false,
+      outdated: optionBSearch ? outdatedOnly : false,
       platforms: searchType === 'platform' ? selectedPlatforms : [],
       platformMode: searchType === 'platform',
     };
     const backendFiltersActive =
       backendFilters.phoneOnly ||
+      backendFilters.noWebsite ||
+      backendFilters.notMobile ||
+      backendFilters.outdated ||
       (backendFilters.platforms && backendFilters.platforms.length > 0);
     setLastRequestedLimit(requestedLimit);
     // Backend handles over-fetching, location expansion, and query variants to hit requested volume.
@@ -1235,6 +1251,9 @@ export default function Dashboard() {
       // Calculate filter summary for user feedback
       const activeFilters: string[] = [];
       if (phoneLeadsOnly) activeFilters.push('Phone Required');
+      if (backendFilters.noWebsite) activeFilters.push('No Website');
+      if (backendFilters.notMobile) activeFilters.push('Not Mobile-Friendly');
+      if (backendFilters.outdated) activeFilters.push('Outdated Website');
 
       // Show result summary with context about what was found vs requested
       if (finalResults.length < minimumAcceptableResults) {
@@ -1613,6 +1632,9 @@ export default function Dashboard() {
     setLastRequestedLimit(null);
     
     // Reset filters to default (off)
+    setNoWebsiteOnly(false);
+    setNotMobileOnly(false);
+    setOutdatedOnly(false);
     setPhoneLeadsOnly(false);
     
     // Clear restored indicator
@@ -2216,6 +2238,51 @@ export default function Dashboard() {
                             Select at least one platform to search for outdated websites
                           </p>
                         )}
+                      </div>
+                    )}
+
+                    {/* Option B quality filters */}
+                    {searchType === 'platform' && (
+                      <div className="p-4 rounded-lg border-2 border-violet-500/30 bg-violet-500/5 space-y-3">
+                        <div>
+                          <span className="font-medium text-violet-300">🎯 Option B Filters</span>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Focus results on businesses with website opportunities
+                          </p>
+                        </div>
+
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <Checkbox
+                            checked={noWebsiteOnly}
+                            onCheckedChange={(checked) => setNoWebsiteOnly(checked === true)}
+                          />
+                          <div>
+                            <span className="text-sm font-medium text-foreground">No website</span>
+                            <p className="text-xs text-muted-foreground">Show businesses without a website</p>
+                          </div>
+                        </label>
+
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <Checkbox
+                            checked={notMobileOnly}
+                            onCheckedChange={(checked) => setNotMobileOnly(checked === true)}
+                          />
+                          <div>
+                            <span className="text-sm font-medium text-foreground">Not mobile-friendly</span>
+                            <p className="text-xs text-muted-foreground">Prioritize sites with weak mobile experience</p>
+                          </div>
+                        </label>
+
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <Checkbox
+                            checked={outdatedOnly}
+                            onCheckedChange={(checked) => setOutdatedOnly(checked === true)}
+                          />
+                          <div>
+                            <span className="text-sm font-medium text-foreground">Outdated website</span>
+                            <p className="text-xs text-muted-foreground">Include sites flagged as needing upgrades</p>
+                          </div>
+                        </label>
                       </div>
                     )}
 
