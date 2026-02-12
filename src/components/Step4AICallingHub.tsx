@@ -680,7 +680,7 @@ export default function Step4AICallingHub({
                           <div className="flex items-start justify-between">
                             <div>
                               <p className="text-[11px] font-semibold text-white/70 uppercase tracking-wider mb-2">{card.label}</p>
-                              <p className="text-2xl font-bold text-white">{card.value}</p>
+                              <p className="text-2xl font-extrabold text-white">{card.value}</p>
                             </div>
                             <div className={`w-10 h-10 rounded-xl ${card.iconBg} flex items-center justify-center`}>
                               <card.icon className={`w-5 h-5 ${card.iconColor}`} />
@@ -717,21 +717,21 @@ export default function Step4AICallingHub({
                           <Phone className="w-4 h-4 text-blue-500" />
                           <div>
                             <p className="text-xs text-muted-foreground">Total</p>
-                            <p className="text-sm font-bold text-foreground">{callStats.total}</p>
+                            <p className="text-lg font-extrabold text-foreground">{callStats.total}</p>
                           </div>
                         </div>
                         <div className="rounded-xl bg-muted/30 border border-border/30 p-3 flex items-center gap-2">
                           <Activity className="w-4 h-4 text-amber-400" />
                           <div>
                             <p className="text-xs text-muted-foreground">Average Per Day</p>
-                            <p className="text-sm font-bold text-foreground">{callStats.total > 0 ? (callStats.total / 7).toFixed(1) : '0'}</p>
+                            <p className="text-lg font-extrabold text-foreground">{callStats.total > 0 ? (callStats.total / 7).toFixed(1) : '0'}</p>
                           </div>
                         </div>
                         <div className="rounded-xl bg-muted/30 border border-border/30 p-3 flex items-center gap-2">
                           <Rocket className="w-4 h-4 text-amber-500" />
                           <div>
                             <p className="text-xs text-muted-foreground">Peak Day</p>
-                            <p className="text-sm font-bold text-foreground">{callStats.total > 0 ? callStats.total : '—'}</p>
+                            <p className="text-lg font-extrabold text-foreground">{callStats.total > 0 ? callStats.total : '—'}</p>
                           </div>
                         </div>
                       </div>
@@ -754,7 +754,7 @@ export default function Step4AICallingHub({
                           </div>
                           <div>
                             <h4 className="font-semibold text-sm text-foreground">Call Queue</h4>
-                            <p className="text-xs text-muted-foreground">{pendingCount} leads waiting</p>
+                            <p className="text-xs text-muted-foreground"><span className="font-extrabold text-foreground">{pendingCount}</span> leads waiting</p>
                           </div>
                         </div>
                         <Button onClick={() => setActiveSection('queue')} variant="outline" className="w-full gap-2 rounded-xl">
@@ -768,7 +768,7 @@ export default function Step4AICallingHub({
                           </div>
                           <div>
                             <h4 className="font-semibold text-sm text-foreground">Hot Leads</h4>
-                            <p className="text-xs text-muted-foreground">{hotLeads} interested</p>
+                            <p className="text-xs text-muted-foreground"><span className="font-extrabold text-foreground">{hotLeads}</span> interested</p>
                           </div>
                         </div>
                         <Button onClick={() => setActiveSection('results')} variant="outline" className="w-full gap-2 rounded-xl">
@@ -813,7 +813,7 @@ export default function Step4AICallingHub({
                             </div>
                             <div className="flex-1">
                               <h3 className="font-bold text-foreground">Ready to Call</h3>
-                              <p className="text-xs text-muted-foreground">{pendingCount} leads in queue with valid phone numbers</p>
+                              <p className="text-xs text-muted-foreground"><span className="font-extrabold text-foreground">{pendingCount}</span> leads in queue with valid phone numbers</p>
                             </div>
                             <Button
                               onClick={() => { setActiveSection('queue'); setTimeout(() => handleStartCalling(), 300); }}
