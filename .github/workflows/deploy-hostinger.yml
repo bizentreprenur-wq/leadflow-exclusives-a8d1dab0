@@ -66,8 +66,24 @@ jobs:
             **/logs/**
             **/logs
 
+      - name: Detect cron setup prerequisites
+        id: cron_check
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          CRON_SECRET_KEY: ${{ secrets.CRON_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -n "${SSH_HOST:-}" ] && [ -n "${SSH_USERNAME:-}" ] && [ -n "${SSH_PRIVATE_KEY:-}" ] && [ -n "${SSH_PORT:-}" ] && [ -n "${CRON_SECRET_KEY:-}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Ensure server cron entries (idempotent)
-        if: ${{ secrets.SSH_HOST != '' && secrets.SSH_USERNAME != '' && secrets.SSH_PRIVATE_KEY != '' && secrets.SSH_PORT != '' && secrets.CRON_SECRET_KEY != '' }}
+        if: ${{ steps.cron_check.outputs.enabled == 'true' }}
         uses: appleboy/ssh-action@v1.2.0
         env:
           API_DIR: /home/u497238762/domains/bamlead.com/public_html/api
@@ -112,5 +128,5 @@ jobs:
             crontab -l
 
       - name: Warn if cron setup step was skipped
-        if: ${{ !(secrets.SSH_HOST != '' && secrets.SSH_USERNAME != '' && secrets.SSH_PRIVATE_KEY != '' && secrets.SSH_PORT != '' && secrets.CRON_SECRET_KEY != '') }}
+        if: ${{ steps.cron_check.outputs.enabled != 'true' }}
         run: echo "Skipped cron setup because one or more SSH/CRON secrets are missing."
