@@ -61,12 +61,36 @@ $limit = max(20, min(50000, $limit));
 $GLOBALS['_bamlead_search_limit'] = $limit;
 $filters = normalizeSearchFilters($input['filters'] ?? null);
 $filtersActive = hasAnySearchFilter($filters);
-$filterMultiplier = $filtersActive ? (defined('FILTER_OVERFETCH_MULTIPLIER') ? max(1, (int)FILTER_OVERFETCH_MULTIPLIER) : 3) : 1;
-if ($filtersActive && $limit >= 500) {
-    $filterMultiplier = max($filterMultiplier, 4);
-}
-if ($filtersActive && $limit >= 1500) {
-    $filterMultiplier = max($filterMultiplier, 5);
+$baseFilterMultiplier = defined('FILTER_OVERFETCH_MULTIPLIER') ? max(1, (int)FILTER_OVERFETCH_MULTIPLIER) : 3;
+$filterMultiplier = $filtersActive ? $baseFilterMultiplier : 1;
+if ($filtersActive) {
+    $strictFilterCount = 0;
+    foreach (['phoneOnly', 'noWebsite', 'notMobile', 'outdated'] as $filterKey) {
+        if (!empty($filters[$filterKey])) {
+            $strictFilterCount++;
+        }
+    }
+    $platformFilterActive = !empty($filters['platforms']) && is_array($filters['platforms']) && count($filters['platforms']) > 0;
+    if ($platformFilterActive) {
+        $strictFilterCount++;
+    }
+
+    $strictnessBoost = 1.0 + (max(0, $strictFilterCount - 1) * 0.35);
+    if (!empty($filters['platformMode']) && $platformFilterActive) {
+        $strictnessBoost += 0.4;
+    }
+    if (!empty($filters['noWebsite']) && (!empty($filters['notMobile']) || !empty($filters['outdated']))) {
+        $strictnessBoost += 0.25;
+    }
+
+    $filterMultiplier = (int)ceil($filterMultiplier * $strictnessBoost);
+    if ($limit >= 500) {
+        $filterMultiplier = max($filterMultiplier, 4);
+    }
+    if ($limit >= 1500) {
+        $filterMultiplier = max($filterMultiplier, 5);
+    }
+    $filterMultiplier = min($filterMultiplier, $limit >= 2000 ? 10 : 8);
 }
 $targetCount = getSearchFillTargetCount($limit);
 
@@ -140,6 +164,15 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
     if ($limit >= 5000) {
         $expansionMax = max($expansionMax, 120);
     }
+    if ($filtersActive) {
+        if ($limit >= 2000) {
+            $expansionMax = max($expansionMax, 150);
+        } elseif ($limit >= 1000) {
+            $expansionMax = max($expansionMax, 90);
+        } else {
+            $expansionMax = max($expansionMax, 45);
+        }
+    }
     $expandedLocations = $enableExpansion ? buildLocationExpansions($location) : [];
     if ($expansionMax > 0) {
         $expandedLocations = array_slice($expandedLocations, 0, $expansionMax);
@@ -168,7 +201,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
 
     // For high-volume, also prepare directory-specific queries
     $directoryQueries = [];
-    if ($limit >= 500) {
+    if ($limit >= 500 || ($filtersActive && $limit >= 250)) {
         $topDirectories = [
             'site:yelp.com', 'site:bbb.org', 'site:yellowpages.com',
             'site:manta.com', 'site:angi.com', 'site:thumbtack.com',
@@ -176,7 +209,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
             'site:superpages.com', 'site:chamberofcommerce.com',
             'site:expertise.com', 'site:porch.com', 'site:bark.com',
         ];
-        $dirCount = $limit >= 2000 ? count($topDirectories) : ($limit >= 1000 ? 8 : 5);
+        $dirCount = $limit >= 2000 ? count($topDirectories) : ($limit >= 1000 ? 8 : ($filtersActive ? 7 : 5));
         $directoryQueries = array_slice($topDirectories, 0, $dirCount);
     }
 
@@ -251,6 +284,9 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
     $placesLocationsToSearch = $locationsToSearch;
     if ($limit >= 500) {
         $placesLocationCap = $limit >= 2000 ? 20 : ($limit >= 1000 ? 14 : 8);
+        if ($filtersActive) {
+            $placesLocationCap = (int)ceil($placesLocationCap * 1.5);
+        }
         $placesLocationsToSearch = array_slice($locationsToSearch, 0, min($placesLocationCap, count($locationsToSearch)));
     }
 
@@ -523,6 +559,14 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         $maxOrgPages = $limit >= 2000 ? 15 : ($limit >= 1000 ? 10 : 4);
         $maxOrgVariants = $limit >= 2000 ? 8 : ($limit >= 1000 ? 5 : 3);
         $maxOrgLocations = $limit >= 2000 ? 8 : ($limit >= 1000 ? 5 : 3);
+        if ($filtersActive) {
+            $maxOrgPages = (int)ceil($maxOrgPages * 1.5);
+            $maxOrgVariants = (int)ceil($maxOrgVariants * 1.6);
+            $maxOrgLocations = (int)ceil($maxOrgLocations * 1.5);
+        }
+        $maxOrgPages = min($maxOrgPages, $limit >= 5000 ? 25 : 20);
+        $maxOrgVariants = min($maxOrgVariants, $limit >= 5000 ? 20 : 16);
+        $maxOrgLocations = min($maxOrgLocations, $limit >= 5000 ? 16 : 12);
 
         $organicVariants = array_slice($serviceVariants, 0, min($maxOrgVariants, count($serviceVariants)));
         $organicLocations = array_slice($searchedLocations, 0, min($maxOrgLocations, count($searchedLocations)));
@@ -765,7 +809,20 @@ function buildSearchQueryVariants($service, $searchedLocations, $limit = 100, $f
             }
         }
     }
-    $locations = array_slice($locations, 0, 4);
+    $maxLocations = 4;
+    if ($limit >= 500) {
+        $maxLocations = 6;
+    }
+    if ($limit >= 1000) {
+        $maxLocations = 8;
+    }
+    if ($limit >= 2000) {
+        $maxLocations = 12;
+    }
+    if ($filtersActive) {
+        $maxLocations = (int)ceil($maxLocations * 1.25);
+    }
+    $locations = array_slice($locations, 0, $maxLocations);
     if (empty($locations)) {
         return [];
     }
@@ -829,7 +886,7 @@ function buildSearchQueryVariants($service, $searchedLocations, $limit = 100, $f
         $maxVariants = max($maxVariants, 400);
     }
     if ($filtersActive) {
-        $maxVariants = (int)ceil($maxVariants * 1.3);
+        $maxVariants = (int)ceil($maxVariants * 1.6);
     }
     return array_slice(array_values($variants), 0, $maxVariants);
 }

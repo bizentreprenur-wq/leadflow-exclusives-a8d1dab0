@@ -40,12 +40,36 @@ $location = sanitizeInput($input['location'] ?? '');
 $limit = intval($input['limit'] ?? 100); // Default 100, max 50000
 $filters = normalizeSearchFilters($input['filters'] ?? null);
 $filtersActive = hasAnySearchFilter($filters);
-$filterMultiplier = $filtersActive ? (defined('FILTER_OVERFETCH_MULTIPLIER') ? max(1, (int)FILTER_OVERFETCH_MULTIPLIER) : 3) : 1;
-if ($filtersActive && $limit >= 500) {
-    $filterMultiplier = max($filterMultiplier, 4);
-}
-if ($filtersActive && $limit >= 1500) {
-    $filterMultiplier = max($filterMultiplier, 5);
+$baseFilterMultiplier = defined('FILTER_OVERFETCH_MULTIPLIER') ? max(1, (int)FILTER_OVERFETCH_MULTIPLIER) : 3;
+$filterMultiplier = $filtersActive ? $baseFilterMultiplier : 1;
+if ($filtersActive) {
+    $strictFilterCount = 0;
+    foreach (['phoneOnly', 'noWebsite', 'notMobile', 'outdated'] as $filterKey) {
+        if (!empty($filters[$filterKey])) {
+            $strictFilterCount++;
+        }
+    }
+    $platformFilterActive = !empty($filters['platforms']) && is_array($filters['platforms']) && count($filters['platforms']) > 0;
+    if ($platformFilterActive) {
+        $strictFilterCount++;
+    }
+
+    $strictnessBoost = 1.0 + (max(0, $strictFilterCount - 1) * 0.35);
+    if (!empty($filters['platformMode']) && $platformFilterActive) {
+        $strictnessBoost += 0.4;
+    }
+    if (!empty($filters['noWebsite']) && (!empty($filters['notMobile']) || !empty($filters['outdated']))) {
+        $strictnessBoost += 0.25;
+    }
+
+    $filterMultiplier = (int)ceil($filterMultiplier * $strictnessBoost);
+    if ($limit >= 500) {
+        $filterMultiplier = max($filterMultiplier, 4);
+    }
+    if ($limit >= 1500) {
+        $filterMultiplier = max($filterMultiplier, 5);
+    }
+    $filterMultiplier = min($filterMultiplier, $limit >= 2000 ? 10 : 8);
 }
 
 // Validate limit (min 20, max 50000)
@@ -314,6 +338,15 @@ function searchSerpApiEngines($service, $location, $limit, $filters, $filtersAct
     if ($limit >= 2000) {
         $expansionMax = max($expansionMax, 60);
     }
+    if ($filtersActive) {
+        if ($limit >= 2000) {
+            $expansionMax = max($expansionMax, 90);
+        } elseif ($limit >= 1000) {
+            $expansionMax = max($expansionMax, 60);
+        } else {
+            $expansionMax = max($expansionMax, 35);
+        }
+    }
     $expandedLocations = $enableExpansion ? buildLocationExpansions($location) : [];
     if ($expansionMax > 0) {
         $expandedLocations = array_slice($expandedLocations, 0, $expansionMax);
@@ -422,7 +455,20 @@ function buildSearchQueryVariantsForNonStream($service, $searchedLocations, $lim
             }
         }
     }
-    $locations = array_slice($locations, 0, 4);
+    $maxLocations = 4;
+    if ($limit >= 500) {
+        $maxLocations = 6;
+    }
+    if ($limit >= 1000) {
+        $maxLocations = 8;
+    }
+    if ($limit >= 2000) {
+        $maxLocations = 10;
+    }
+    if ($filtersActive) {
+        $maxLocations = (int)ceil($maxLocations * 1.25);
+    }
+    $locations = array_slice($locations, 0, $maxLocations);
     if (empty($locations)) {
         return [];
     }
@@ -473,7 +519,7 @@ function buildSearchQueryVariantsForNonStream($service, $searchedLocations, $lim
         $maxVariants = max($maxVariants, 90);
     }
     if ($filtersActive) {
-        $maxVariants = (int)ceil($maxVariants * 1.25);
+        $maxVariants = (int)ceil($maxVariants * 1.5);
     }
     return array_slice(array_values($variants), 0, $maxVariants);
 }
