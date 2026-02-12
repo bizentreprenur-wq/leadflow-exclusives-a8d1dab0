@@ -393,6 +393,12 @@ export default function Dashboard() {
   // Live data mode indicator (true when real SerpAPI data is being used)
   const [isLiveDataMode, setIsLiveDataMode] = useState(false);
 
+  const persistLastReportShownKey = useCallback((key: string | null) => {
+    if (!key) return;
+    setLastReportShownKey(key);
+    localStorage.setItem('bamlead_last_report_shown_key', key);
+  }, []);
+
 
   // Form validation state
   const [validationErrors, setValidationErrors] = useState<{ query?: boolean; location?: boolean; platforms?: boolean }>({});
@@ -474,9 +480,10 @@ export default function Dashboard() {
     if (currentStep !== 2 || searchResults.length === 0) return;
     // Only auto-open immediately after a NEW search (never on login/restore).
     const key = reportAutoPopKey;
-    if (!key || lastReportShownKey === key) return;
+    if (!key || lastReportShownKey === key || showReportModal) return;
+    persistLastReportShownKey(key);
     setShowReportModal(true);
-  }, [currentStep, searchResults.length, reportAutoPopKey, lastReportShownKey]);
+  }, [currentStep, searchResults.length, reportAutoPopKey, lastReportShownKey, showReportModal, persistLastReportShownKey]);
 
   useEffect(() => {
     if (emailLeads.length > 0) {
@@ -3333,11 +3340,7 @@ export default function Dashboard() {
           }
           if (!open) {
             const key = reportAutoPopKey || localStorage.getItem('bamlead_search_timestamp');
-            if (key) {
-              setLastReportShownKey(key);
-              // Persist to localStorage so it survives page refresh
-              localStorage.setItem('bamlead_last_report_shown_key', key);
-            }
+            persistLastReportShownKey(key);
           }
         }}
         leads={searchResults}

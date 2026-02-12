@@ -875,27 +875,49 @@ export default function LeadDocumentViewer({
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(100); // Zoom percentage (50-150)
   const documentRef = useRef<HTMLDivElement>(null);
+  const analyzedReportKeysRef = useRef<Set<string>>(new Set());
+
+  const reportAnalysisKey = useMemo(() => {
+    const stableLeadKeys = leads
+      .map((lead) => lead.id || [lead.name, lead.phone, lead.address].filter(Boolean).join('|'))
+      .filter(Boolean)
+      .sort();
+    return `${searchQuery}|${location}|${stableLeadKeys.length}|${stableLeadKeys.join(',')}`;
+  }, [leads, searchQuery, location]);
 
   // Simulate AI analysis loading
   useEffect(() => {
-    if (open) {
-      setIsLoading(true);
-      setLoadingProgress(0);
-      
-      const interval = setInterval(() => {
-        setLoadingProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            setTimeout(() => setIsLoading(false), 300);
-            return 100;
-          }
-          return prev + Math.floor(Math.random() * 15) + 5;
-        });
-      }, 200);
+    if (!open) return;
 
-      return () => clearInterval(interval);
+    if (analyzedReportKeysRef.current.has(reportAnalysisKey)) {
+      setIsLoading(false);
+      setLoadingProgress(100);
+      return;
     }
-  }, [open, leads]);
+
+    setIsLoading(true);
+    setLoadingProgress(0);
+    let finishTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const interval = setInterval(() => {
+      setLoadingProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          finishTimer = setTimeout(() => {
+            analyzedReportKeysRef.current.add(reportAnalysisKey);
+            setIsLoading(false);
+          }, 300);
+          return 100;
+        }
+        return Math.min(100, prev + Math.floor(Math.random() * 15) + 5);
+      });
+    }, 200);
+
+    return () => {
+      clearInterval(interval);
+      if (finishTimer) clearTimeout(finishTimer);
+    };
+  }, [open, reportAnalysisKey]);
 
   // Analyze all leads
   const analyzedLeads = useMemo(() => {
