@@ -84,6 +84,14 @@ define('GOOGLE_DRIVE_REDIRECT_URI', 'https://bamlead.com/api/google-drive-callba
 // =====================================
 define('TWILIO_ACCOUNT_SID', 'YOUR_TWILIO_ACCOUNT_SID_HERE');
 define('TWILIO_AUTH_TOKEN', 'YOUR_TWILIO_AUTH_TOKEN_HERE');
+// Optional but recommended in production: public base URL Twilio should call.
+// Callback paths used by BamLead:
+//   /api/twilio.php?action=voice_webhook
+//   /api/twilio.php?action=status_webhook
+//   /api/twilio.php?action=sms_webhook
+define('TWILIO_WEBHOOK_BASE_URL', 'https://bamlead.com');
+// Optional/documentary only. Provisioning uses database state in twilio_config.
+define('TWILIO_PHONE_NUMBER', '');
 
 // =====================================
 // OPTIONAL APIS

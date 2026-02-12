@@ -242,6 +242,18 @@ if (!defined('LOCATION_EXPANSION_INCLUDE_COUNTRY')) {
     define('LOCATION_EXPANSION_INCLUDE_COUNTRY', false);
 }
 
+define('TWILIO_ACCOUNT_SID', 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');
+define('TWILIO_AUTH_TOKEN', 'your_auth_token_here');
+// Optional but recommended in production: public base URL Twilio should call.
+// Example: https://bamlead.com
+// Twilio callback paths used by BamLead:
+//   /api/twilio.php?action=voice_webhook
+//   /api/twilio.php?action=status_webhook
+//   /api/twilio.php?action=sms_webhook
+define('TWILIO_WEBHOOK_BASE_URL', 'https://bamlead.com');
+// Optional/documentary only. BamLead uses provisioned numbers stored in twilio_config.
+define('TWILIO_PHONE_NUMBER', '');
+
 // =====================================
 // DEBUG MODE
 // =====================================

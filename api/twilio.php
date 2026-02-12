@@ -90,7 +90,11 @@ function getTwilioAccountSid() {
     if (!defined('TWILIO_ACCOUNT_SID') || !TWILIO_ACCOUNT_SID) {
         throw new Exception('TWILIO_ACCOUNT_SID not configured on server');
     }
-    return TWILIO_ACCOUNT_SID;
+    $sid = trim((string) TWILIO_ACCOUNT_SID);
+    if (!preg_match('/^AC[a-zA-Z0-9]{32}$/', $sid)) {
+        throw new Exception('TWILIO_ACCOUNT_SID must be a valid Account SID (AC...)');
+    }
+    return $sid;
 }
 
 function getTwilioAuthToken() {
@@ -98,6 +102,24 @@ function getTwilioAuthToken() {
         throw new Exception('TWILIO_AUTH_TOKEN not configured on server');
     }
     return TWILIO_AUTH_TOKEN;
+}
+
+function twilioWebhookBaseUrl() {
+    if (defined('TWILIO_WEBHOOK_BASE_URL') && trim((string) TWILIO_WEBHOOK_BASE_URL) !== '') {
+        return rtrim((string) TWILIO_WEBHOOK_BASE_URL, '/');
+    }
+
+    if (defined('FRONTEND_URL') && trim((string) FRONTEND_URL) !== '') {
+        return rtrim((string) FRONTEND_URL, '/');
+    }
+
+    $host = $_SERVER['HTTP_X_FORWARDED_HOST'] ?? ($_SERVER['HTTP_HOST'] ?? '');
+    if ($host !== '') {
+        $proto = $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http');
+        return $proto . '://' . $host;
+    }
+
+    return 'https://bamlead.com';
 }
 
 // ─── Twilio API helper ───
@@ -333,7 +355,7 @@ function handleProvisionNumber($db, $user) {
         $phoneNumber = $availableNumber['phone_number'];
         
         // Step 2: Purchase the number
-        $webhookBase = (defined('FRONTEND_URL') ? FRONTEND_URL : 'https://bamlead.com') . '/api/twilio.php';
+        $webhookBase = twilioWebhookBaseUrl() . '/api/twilio.php';
         
         $orderResult = twilioRequest('POST', '/IncomingPhoneNumbers.json', [
             'PhoneNumber' => $phoneNumber,
@@ -379,6 +401,16 @@ function handleProvisionNumber($db, $user) {
             ");
             $stmt->execute([$user['id'], $phoneNumber, $phoneNumberSid]);
         }
+
+        $stmt = $db->prepare("
+            INSERT INTO calling_config (user_id, phone_number, provisioned, updated_at)
+            VALUES (?, ?, 1, NOW())
+            ON DUPLICATE KEY UPDATE
+                phone_number = VALUES(phone_number),
+                provisioned = 1,
+                updated_at = NOW()
+        ");
+        $stmt->execute([$user['id'], $phoneNumber]);
         
         echo json_encode([
             'success' => true,
@@ -427,6 +459,15 @@ function handleReleaseNumber($db, $user) {
             WHERE user_id = ?
         ");
         $stmt->execute([$user['id']]);
+
+        $stmt = $db->prepare("
+            UPDATE calling_config SET
+                phone_number = NULL,
+                provisioned = 0,
+                updated_at = NOW()
+            WHERE user_id = ?
+        ");
+        $stmt->execute([$user['id']]);
         
         echo json_encode(['success' => true, 'message' => 'Phone number released']);
     } catch (Exception $e) {
@@ -462,7 +503,7 @@ function handleInitiateCall($db, $user) {
         return;
     }
     
-    $webhookBase = (defined('FRONTEND_URL') ? FRONTEND_URL : 'https://bamlead.com') . '/api/twilio.php';
+    $webhookBase = twilioWebhookBaseUrl() . '/api/twilio.php';
     
     $callData = [
         'To' => $destinationNumber,

@@ -31,6 +31,9 @@ Upload the entire `hostinger-backend/` folder contents to `/public_html/api/`:
 ├── platform-search.php
 ├── stripe.php
 ├── stripe-webhook.php
+├── twilio.php
+├── sms.php
+├── calling.php
 ├── verified-leads.php
 ├── verify-lead.php
 ├── includes/
@@ -42,6 +45,11 @@ Upload the entire `hostinger-backend/` folder contents to `/public_html/api/`:
 │   └── stripe.php
 └── database/
     ├── schema.sql
+    ├── twilio_config.sql
+    ├── calling_config.sql
+    ├── call_logs.sql
+    ├── sms_messages.sql
+    ├── call_followups.sql
     ├── email_outreach.sql
     ├── rate_limits.sql
     ├── subscriptions.sql
@@ -112,6 +120,12 @@ define('GOOGLE_DRIVE_CLIENT_ID', '');  // ← Optional
 define('GOOGLE_DRIVE_CLIENT_SECRET', '');  // ← Optional
 define('GOOGLE_DRIVE_REDIRECT_URI', 'https://bamlead.com/api/google-drive-callback.php');
 
+// TWILIO - For AI calling/SMS
+define('TWILIO_ACCOUNT_SID', 'ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx');  // ← CHANGE THIS
+define('TWILIO_AUTH_TOKEN', 'your_twilio_auth_token');  // ← CHANGE THIS
+define('TWILIO_WEBHOOK_BASE_URL', 'https://bamlead.com');  // ← Recommended (public base URL)
+define('TWILIO_PHONE_NUMBER', '');  // Optional/documentary only
+
 // OTHER SETTINGS
 define('ALLOWED_ORIGINS', [
     'https://bamlead.com',
@@ -132,12 +146,17 @@ define('DEBUG_MODE', false);  // Set to true temporarily for debugging
 In Hostinger's phpMyAdmin, run these SQL files in order:
 
 1. `database/schema.sql` - Core tables
-2. `database/email_outreach.sql` - Email system
-3. `database/rate_limits.sql` - Rate limiting
-4. `database/subscriptions.sql` - Stripe subscriptions
-5. `database/verification_tokens.sql` - Email verification
-6. `database/verified_leads.sql` - Verified leads
-7. `database/google_drive_tokens.sql` - Google Drive tokens
+2. `database/twilio_config.sql` - Twilio config + active calls
+3. `database/calling_config.sql` - AI calling state/add-on tracking
+4. `database/call_logs.sql` - Call outcome/transcript logs
+5. `database/sms_messages.sql` - SMS history and auto-SMS tables
+6. `database/call_followups.sql` - Scheduled call/SMS follow-ups
+7. `database/email_outreach.sql` - Email system
+8. `database/rate_limits.sql` - Rate limiting
+9. `database/subscriptions.sql` - Stripe subscriptions
+10. `database/verification_tokens.sql` - Email verification
+11. `database/verified_leads.sql` - Verified leads
+12. `database/google_drive_tokens.sql` - Google Drive tokens
 
 ---
 
@@ -152,9 +171,32 @@ wget -q -O /dev/null "https://bamlead.com/api/cron-email.php?key=YOUR_CRON_SECRE
 
 **Schedule:** Every minute (`* * * * *`)
 
+Optional (if using automatic call follow-up SMS):
+
+**Command:**
+```
+wget -q -O /dev/null "https://bamlead.com/api/cron-followups.php?key=YOUR_CRON_SECRET_KEY"
+```
+
+**Schedule:** Every minute (`* * * * *`)
+
 ---
 
-## Step 5: Create Email Account
+## Step 5: Configure Twilio Webhooks
+
+In Twilio Console for each active number, set:
+
+1. Voice webhook URL:
+   `https://bamlead.com/api/twilio.php?action=voice_webhook`
+2. Voice status callback URL:
+   `https://bamlead.com/api/twilio.php?action=status_webhook`
+3. Messaging webhook URL:
+   `https://bamlead.com/api/twilio.php?action=sms_webhook`
+4. Method: `POST` for all webhook requests
+
+---
+
+## Step 6: Create Email Account
 
 In Hostinger hPanel → Emails:
 1. Create email: `noreply@bamlead.com`
@@ -163,7 +205,7 @@ In Hostinger hPanel → Emails:
 
 ---
 
-## Step 6: Verify Everything Works
+## Step 7: Verify Everything Works
 
 ### Quick Tests:
 
@@ -181,6 +223,13 @@ In Hostinger hPanel → Emails:
 
 3. **In Dashboard:**
    Go to Dashboard → Backend Diagnostics to run comprehensive tests
+
+4. **Twilio connection test (authenticated):**
+   `POST /api/twilio.php?action=test_connection`
+
+5. **Twilio provisioning/call flow (authenticated):**
+   - `POST /api/twilio.php?action=provision_number`
+   - `POST /api/twilio.php?action=initiate_call`
 
 ---
 
@@ -222,6 +271,8 @@ In Hostinger hPanel → Emails:
 | `/api/analyze-leads.php` | AI lead grouping |
 | `/api/email-outreach.php` | Email templates & sending |
 | `/api/cron-email.php?key=X` | Process scheduled emails |
+| `/api/twilio.php` | Twilio config/provisioning/calls/webhooks |
+| `/api/sms.php` | SMS messaging and webhook handling |
 | `/api/stripe.php` | Stripe checkout/portal |
 | `/api/verified-leads.php` | Saved leads management |
 
