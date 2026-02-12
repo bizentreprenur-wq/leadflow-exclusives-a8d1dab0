@@ -133,6 +133,8 @@ export default function Step4AICallingHub({
   const [isReleasingNumber, setIsReleasingNumber] = useState(false);
   const [showReleaseConfirm, setShowReleaseConfirm] = useState(false);
   const [showPhoneModal, setShowPhoneModal] = useState(false);
+  const [testCallNumber, setTestCallNumber] = useState('');
+  const [isTestingCall, setIsTestingCall] = useState(false);
   const [activeSection, setActiveSection] = useState('getting-started');
   const [isCallingActive, setIsCallingActive] = useState(false);
   const [callQueue, setCallQueue] = useState<CallQueueItem[]>([]);
@@ -872,30 +874,54 @@ export default function Step4AICallingHub({
                         </div>
 
                         {/* Test Your AI Phone */}
-                        <div className="rounded-2xl border border-cyan-500/25 bg-gradient-to-r from-cyan-500/10 via-teal-500/5 to-emerald-500/5 p-5">
-                          <div className="flex items-center gap-4">
+                        <div className="rounded-2xl border border-cyan-500/25 bg-gradient-to-r from-cyan-500/10 via-teal-500/5 to-emerald-500/5 p-5 space-y-4">
+                          <div className="flex items-center gap-3">
                             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-400 to-emerald-400 flex items-center justify-center shadow-lg shadow-cyan-500/25">
                               <PhoneCall className="w-6 h-6 text-white" />
                             </div>
-                            <div className="flex-1">
+                            <div>
                               <h3 className="font-bold text-foreground">Test Your AI Phone</h3>
-                              <p className="text-xs text-muted-foreground">Call your own phone to hear how the AI agent sounds to your leads.</p>
+                              <p className="text-xs text-muted-foreground">Enter a real US phone number to receive a test call from your Twilio AI agent.</p>
                             </div>
+                          </div>
+                          <div className="flex gap-3">
+                            <input
+                              type="tel"
+                              placeholder="+1 (555) 123-4567"
+                              value={testCallNumber}
+                              onChange={(e) => setTestCallNumber(e.target.value)}
+                              className="flex-1 px-4 py-3 rounded-xl border bg-background text-foreground text-sm font-mono placeholder:text-muted-foreground/50"
+                            />
                             <Button
-                              onClick={() => {
-                                const testNumber = prompt('Enter your personal phone number to receive a test call:');
-                                if (testNumber && testNumber.trim()) {
-                                  toast.info('📞 Test call initiated! Your phone should ring shortly.');
-                                  apiInitiateCall({ destination_number: testNumber.trim(), lead_name: 'Test Call' })
-                                    .then(res => { if (res.success) toast.success('✅ Test call connected!'); else toast.error(res.error || 'Test call failed'); })
-                                    .catch(() => toast.error('Network error'));
+                              onClick={async () => {
+                                if (!testCallNumber.trim()) { toast.error('Enter a phone number to test'); return; }
+                                const formatted = toE164(testCallNumber.trim());
+                                if (!formatted.startsWith('+') || formatted.replace(/\D/g, '').length < 11) {
+                                  toast.error('Enter a valid US phone number (e.g. +1 555 123 4567)');
+                                  return;
+                                }
+                                setIsTestingCall(true);
+                                toast.info('📞 Initiating test call to ' + formatted + '...');
+                                try {
+                                  const res = await apiInitiateCall({ destination_number: formatted, lead_name: 'BamLead Test Call' });
+                                  if (res.success) {
+                                    toast.success('✅ Test call initiated! Your phone should ring shortly.');
+                                  } else {
+                                    toast.error(res.error || 'Test call failed. Check your Twilio configuration.');
+                                  }
+                                } catch {
+                                  toast.error('Network error — make sure your backend is running.');
+                                } finally {
+                                  setIsTestingCall(false);
                                 }
                               }}
-                              className="gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-white font-bold px-5 py-2.5 shadow-lg shadow-cyan-500/20"
+                              disabled={isTestingCall || !testCallNumber.trim()}
+                              className="gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-white font-bold px-6 shadow-lg shadow-cyan-500/20"
                             >
-                              <Phone className="w-4 h-4" /> Test Call
+                              {isTestingCall ? <><Loader2 className="w-4 h-4 animate-spin" /> Calling…</> : <><Phone className="w-4 h-4" /> Test Call</>}
                             </Button>
                           </div>
+                          <p className="text-[10px] text-muted-foreground/60">Your Twilio number <span className="font-mono font-bold text-cyan-400">{formatPhoneWithCountry(phoneSetup.phoneNumber || '')}</span> will appear as the caller ID.</p>
                         </div>
 
                         {/* Release Number */}
