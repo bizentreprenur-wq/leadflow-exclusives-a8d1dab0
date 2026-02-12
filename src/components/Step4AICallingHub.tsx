@@ -135,6 +135,10 @@ export default function Step4AICallingHub({
   const [showPhoneModal, setShowPhoneModal] = useState(false);
   const [testCallNumber, setTestCallNumber] = useState('');
   const [isTestingCall, setIsTestingCall] = useState(false);
+  const [testCallStatus, setTestCallStatus] = useState<'idle' | 'initiated' | 'ringing' | 'in-progress' | 'completed' | 'busy' | 'no-answer' | 'failed' | 'canceled'>('idle');
+  const [testCallSid, setTestCallSid] = useState<string | null>(null);
+  const [testCallDuration, setTestCallDuration] = useState(0);
+  const testCallPollingRef = useRef<number | null>(null);
   const [activeSection, setActiveSection] = useState('getting-started');
   const [isCallingActive, setIsCallingActive] = useState(false);
   const [callQueue, setCallQueue] = useState<CallQueueItem[]>([]);
@@ -884,43 +888,152 @@ export default function Step4AICallingHub({
                               <p className="text-xs text-muted-foreground">Enter a real US phone number to receive a test call from your Twilio AI agent.</p>
                             </div>
                           </div>
-                          <div className="flex gap-3">
-                            <input
-                              type="tel"
-                              placeholder="+1 (555) 123-4567"
-                              value={testCallNumber}
-                              onChange={(e) => setTestCallNumber(e.target.value)}
-                              className="flex-1 px-4 py-3 rounded-xl border bg-background text-foreground text-sm font-mono placeholder:text-muted-foreground/50"
-                            />
-                            <Button
-                              onClick={async () => {
-                                if (!testCallNumber.trim()) { toast.error('Enter a phone number to test'); return; }
-                                const formatted = toE164(testCallNumber.trim());
-                                if (!formatted.startsWith('+') || formatted.replace(/\D/g, '').length < 11) {
-                                  toast.error('Enter a valid US phone number (e.g. +1 555 123 4567)');
-                                  return;
-                                }
-                                setIsTestingCall(true);
-                                toast.info('📞 Initiating test call to ' + formatted + '...');
-                                try {
-                                  const res = await apiInitiateCall({ destination_number: formatted, lead_name: 'BamLead Test Call' });
-                                  if (res.success) {
-                                    toast.success('✅ Test call initiated! Your phone should ring shortly.');
-                                  } else {
-                                    toast.error(res.error || 'Test call failed. Check your Twilio configuration.');
+
+                          {testCallStatus === 'idle' || testCallStatus === 'completed' || testCallStatus === 'failed' || testCallStatus === 'busy' || testCallStatus === 'no-answer' || testCallStatus === 'canceled' ? (
+                            <>
+                              {/* Show result banner if last call ended */}
+                              {testCallStatus !== 'idle' && (
+                                <div className={`flex items-center gap-3 p-3 rounded-xl border ${
+                                  testCallStatus === 'completed' ? 'bg-emerald-500/10 border-emerald-500/25' :
+                                  testCallStatus === 'busy' ? 'bg-amber-500/10 border-amber-500/25' :
+                                  'bg-red-500/10 border-red-500/25'
+                                }`}>
+                                  {testCallStatus === 'completed' ? (
+                                    <><CheckCircle2 className="w-5 h-5 text-emerald-400" /><div><p className="text-sm font-semibold text-emerald-400">Call Completed</p><p className="text-xs text-muted-foreground">Duration: {testCallDuration}s — Your AI agent is working!</p></div></>
+                                  ) : testCallStatus === 'busy' ? (
+                                    <><Phone className="w-5 h-5 text-amber-400" /><div><p className="text-sm font-semibold text-amber-400">Line Busy</p><p className="text-xs text-muted-foreground">The number was busy. Try again.</p></div></>
+                                  ) : testCallStatus === 'no-answer' ? (
+                                    <><Phone className="w-5 h-5 text-amber-400" /><div><p className="text-sm font-semibold text-amber-400">No Answer</p><p className="text-xs text-muted-foreground">Nobody picked up. Try again.</p></div></>
+                                  ) : testCallStatus === 'canceled' ? (
+                                    <><XCircle className="w-5 h-5 text-muted-foreground" /><div><p className="text-sm font-semibold text-muted-foreground">Call Canceled</p></div></>
+                                  ) : (
+                                    <><XCircle className="w-5 h-5 text-red-400" /><div><p className="text-sm font-semibold text-red-400">Call Failed</p><p className="text-xs text-muted-foreground">Check your Twilio configuration.</p></div></>
+                                  )}
+                                  <Button size="sm" variant="ghost" className="ml-auto text-xs" onClick={() => { setTestCallStatus('idle'); setTestCallDuration(0); }}>Dismiss</Button>
+                                </div>
+                              )}
+                              <div className="flex gap-3">
+                                <input
+                                  type="tel"
+                                  placeholder="+1 (555) 123-4567"
+                                  value={testCallNumber}
+                                  onChange={(e) => setTestCallNumber(e.target.value)}
+                                  className="flex-1 px-4 py-3 rounded-xl border bg-background text-foreground text-sm font-mono placeholder:text-muted-foreground/50"
+                                />
+                                <Button
+                                  onClick={async () => {
+                                    if (!testCallNumber.trim()) { toast.error('Enter a phone number to test'); return; }
+                                    const formatted = toE164(testCallNumber.trim());
+                                    if (!formatted.startsWith('+') || formatted.replace(/\D/g, '').length < 11) {
+                                      toast.error('Enter a valid US phone number (e.g. +1 555 123 4567)');
+                                      return;
+                                    }
+                                    setIsTestingCall(true);
+                                    setTestCallStatus('initiated');
+                                    setTestCallDuration(0);
+                                    try {
+                                      const res = await apiInitiateCall({ destination_number: formatted, lead_name: 'BamLead Test Call' });
+                                      if (res.success && res.call_sid) {
+                                        setTestCallSid(res.call_sid);
+                                        setTestCallStatus('ringing');
+                                        // Start polling for status
+                                        let elapsed = 0;
+                                        testCallPollingRef.current = window.setInterval(async () => {
+                                          elapsed++;
+                                          try {
+                                            const statusRes = await getCallStatus(res.call_sid!);
+                                            if (statusRes.success && statusRes.status) {
+                                              const s = statusRes.status;
+                                              setTestCallStatus(s as any);
+                                              if (s === 'in-progress') setTestCallDuration(prev => prev + 2);
+                                              const endStatuses = ['completed', 'busy', 'no-answer', 'failed', 'canceled'];
+                                              if (endStatuses.includes(s)) {
+                                                if (statusRes.duration_seconds) setTestCallDuration(statusRes.duration_seconds);
+                                                window.clearInterval(testCallPollingRef.current!);
+                                                testCallPollingRef.current = null;
+                                                setIsTestingCall(false);
+                                              }
+                                            }
+                                          } catch { /* ignore polling errors */ }
+                                          // Auto-stop after 120s
+                                          if (elapsed > 60) {
+                                            window.clearInterval(testCallPollingRef.current!);
+                                            testCallPollingRef.current = null;
+                                            setTestCallStatus('completed');
+                                            setIsTestingCall(false);
+                                          }
+                                        }, 2000);
+                                      } else {
+                                        setTestCallStatus('failed');
+                                        setIsTestingCall(false);
+                                        toast.error(res.error || 'Test call failed.');
+                                      }
+                                    } catch {
+                                      setTestCallStatus('failed');
+                                      setIsTestingCall(false);
+                                      toast.error('Network error — make sure your backend is running.');
+                                    }
+                                  }}
+                                  disabled={isTestingCall || !testCallNumber.trim()}
+                                  className="gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-white font-bold px-6 shadow-lg shadow-cyan-500/20"
+                                >
+                                  <Phone className="w-4 h-4" /> Test Call
+                                </Button>
+                              </div>
+                            </>
+                          ) : (
+                            /* Live call status tracker */
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-4 p-4 rounded-xl bg-background/50 border border-border/50">
+                                {/* Status steps */}
+                                <div className="flex-1 space-y-3">
+                                  {[
+                                    { key: 'initiated', label: 'Initiating Call', icon: Phone },
+                                    { key: 'ringing', label: 'Ringing…', icon: PhoneCall },
+                                    { key: 'in-progress', label: 'Connected — Speaking', icon: Mic },
+                                  ].map((step, idx) => {
+                                    const stepOrder = ['initiated', 'ringing', 'in-progress'];
+                                    const currentIdx = stepOrder.indexOf(testCallStatus);
+                                    const stepIdx = idx;
+                                    const isActive = testCallStatus === step.key;
+                                    const isDone = stepIdx < currentIdx;
+                                    return (
+                                      <div key={step.key} className={`flex items-center gap-3 transition-all ${isActive ? 'opacity-100' : isDone ? 'opacity-60' : 'opacity-30'}`}>
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                          isActive ? 'bg-cyan-400/20 ring-2 ring-cyan-400/50' : isDone ? 'bg-emerald-500/20' : 'bg-muted/30'
+                                        }`}>
+                                          {isDone ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> :
+                                           isActive ? <step.icon className="w-4 h-4 text-cyan-400 animate-pulse" /> :
+                                           <step.icon className="w-4 h-4 text-muted-foreground" />}
+                                        </div>
+                                        <span className={`text-sm font-medium ${isActive ? 'text-cyan-400' : isDone ? 'text-emerald-400' : 'text-muted-foreground'}`}>
+                                          {step.label}
+                                        </span>
+                                        {isActive && step.key === 'in-progress' && (
+                                          <span className="ml-auto text-xs font-mono text-cyan-400">{testCallDuration}s</span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                              <Button
+                                onClick={async () => {
+                                  if (testCallSid) {
+                                    try { await apiHangupCall(testCallSid); } catch { /* ignore */ }
                                   }
-                                } catch {
-                                  toast.error('Network error — make sure your backend is running.');
-                                } finally {
+                                  if (testCallPollingRef.current) { window.clearInterval(testCallPollingRef.current); testCallPollingRef.current = null; }
+                                  setTestCallStatus('canceled');
                                   setIsTestingCall(false);
-                                }
-                              }}
-                              disabled={isTestingCall || !testCallNumber.trim()}
-                              className="gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-white font-bold px-6 shadow-lg shadow-cyan-500/20"
-                            >
-                              {isTestingCall ? <><Loader2 className="w-4 h-4 animate-spin" /> Calling…</> : <><Phone className="w-4 h-4" /> Test Call</>}
-                            </Button>
-                          </div>
+                                  setTestCallSid(null);
+                                }}
+                                variant="outline"
+                                className="w-full gap-2 rounded-xl border-red-500/30 text-red-400 hover:bg-red-500/10"
+                              >
+                                <Square className="w-4 h-4" /> End Test Call
+                              </Button>
+                            </div>
+                          )}
                           <p className="text-[10px] text-muted-foreground/60">Your Twilio number <span className="font-mono font-bold text-cyan-400">{formatPhoneWithCountry(phoneSetup.phoneNumber || '')}</span> will appear as the caller ID.</p>
                         </div>
 
