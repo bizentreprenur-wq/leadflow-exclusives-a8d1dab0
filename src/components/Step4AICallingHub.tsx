@@ -367,17 +367,21 @@ export default function Step4AICallingHub({
 
   const renderSidebarItem = (item: SidebarSection) => {
     const isActive = activeSection === item.id;
+    const isDisabled = item.id === 'phone-setup' && phoneSetup.hasPhone;
     return (
       <button
         key={item.id}
-        onClick={() => setActiveSection(item.id)}
+        onClick={() => !isDisabled && setActiveSection(item.id)}
         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-          isActive
-            ? 'bg-amber-500/15 text-amber-400 border border-amber-500/25'
-            : 'text-white hover:text-white hover:bg-white/10'
+          isDisabled
+            ? 'opacity-40 cursor-not-allowed text-muted-foreground'
+            : isActive
+            ? 'bg-primary/10 text-primary border border-primary/20'
+            : 'text-foreground hover:text-foreground hover:bg-muted/60'
         }`}
+        disabled={isDisabled}
       >
-        <item.icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-amber-400' : (item.iconColor || 'text-white/80')}`} />
+        <item.icon className={`w-4 h-4 shrink-0 ${isDisabled ? 'text-muted-foreground' : isActive ? 'text-primary' : (item.iconColor || 'text-muted-foreground')}`} />
         {!sidebarCollapsed && (
           <>
             <span className="flex-1 text-left truncate">{item.label}</span>
@@ -399,7 +403,7 @@ export default function Step4AICallingHub({
     <>
       <div className="flex h-[calc(100vh-120px)] max-w-[1400px] mx-auto gap-0">
         {/* ── LEFT SIDEBAR ── */}
-        <div className={`shrink-0 ${sidebarCollapsed ? 'w-16' : 'w-64'} border-r border-amber-500/20 bg-gradient-to-b from-amber-950/20 via-card/40 to-card/30 flex flex-col transition-all duration-300`}>
+        <div className={`shrink-0 ${sidebarCollapsed ? 'w-16' : 'w-64'} border-r border-border bg-gradient-to-b from-muted/60 via-card to-card flex flex-col transition-all duration-300`}>
           {/* Sidebar Header */}
           <div className="p-4 border-b border-border/50">
             <div className="flex items-center gap-3">
@@ -428,15 +432,7 @@ export default function Step4AICallingHub({
             )}
           </div>
 
-          {/* Phone Status */}
-          {!sidebarCollapsed && phoneSetup.hasPhone && phoneSetup.phoneNumber && (
-            <div className="px-4 py-3 border-b border-border/50">
-              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                <Phone className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <span className="text-xs font-mono font-semibold text-emerald-400 truncate">{formatPhoneWithCountry(phoneSetup.phoneNumber)}</span>
-              </div>
-            </div>
-          )}
+          {/* Phone Status - moved to AI Calling section below */}
 
           {/* Tier Badge */}
           {!sidebarCollapsed && (
@@ -452,7 +448,7 @@ export default function Step4AICallingHub({
             <div className="space-y-1">
               {/* Main */}
               <div className="mb-3">
-                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-amber-400/40 px-3 mb-2">Main</p>}
+                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/60 px-3 mb-2">Main</p>}
                 {filteredItems.filter(i => i.group === 'main').map(renderSidebarItem)}
               </div>
 
@@ -460,7 +456,17 @@ export default function Step4AICallingHub({
 
               {/* AI Calling */}
               <div className="mb-3">
-                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-amber-400/40 px-3 mb-2">AI Calling</p>}
+                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/60 px-3 mb-2">AI Calling</p>}
+                {/* Phone number display - shown before Phone Setup */}
+                {!sidebarCollapsed && phoneSetup.hasPhone && phoneSetup.phoneNumber && (
+                  <div className="px-2 mb-2">
+                    <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                      <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span className="text-xs font-mono font-bold text-emerald-600 truncate">{formatPhoneWithCountry(phoneSetup.phoneNumber)}</span>
+                      <Badge className="ml-auto bg-emerald-500/15 text-emerald-600 rounded-full border-0 text-[9px] px-1.5 py-0">Active</Badge>
+                    </div>
+                  </div>
+                )}
                 {filteredItems.filter(i => i.group === 'calling').map(renderSidebarItem)}
               </div>
 
@@ -468,7 +474,7 @@ export default function Step4AICallingHub({
 
               {/* Tools */}
               <div>
-                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-amber-400/40 px-3 mb-2">Tools</p>}
+                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/60 px-3 mb-2">Tools</p>}
                 {filteredItems.filter(i => i.group === 'tools').map(renderSidebarItem)}
               </div>
             </div>
