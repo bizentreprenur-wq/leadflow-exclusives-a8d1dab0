@@ -16,7 +16,7 @@ setCorsHeaders();
 handlePreflight();
 
 $action = $_GET['action'] ?? '';
-$db = getDB();
+$db = getDbConnection();
 
 // Public webhook endpoints (no auth required)
 if ($action === 'voice_webhook' || $action === 'status_webhook' || $action === 'sms_webhook') {
