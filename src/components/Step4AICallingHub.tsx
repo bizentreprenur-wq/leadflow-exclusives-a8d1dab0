@@ -283,10 +283,9 @@ export default function Step4AICallingHub({
   }, [callQueue]);
 
   const handleStartCalling = useCallback(() => {
-    if (!isReady) {
-      if (needsUpgrade) toast.error('Upgrade your plan to enable AI calling');
-      else if (needsAddon) toast.error('Purchase AI Calling add-on first');
-      else if (status === 'phone_needed') setShowPhoneModal(true);
+    if (!phoneSetup.hasPhone) {
+      toast.error('Set up a phone number first');
+      setActiveSection('phone-setup');
       return;
     }
     const pendingCalls = callQueue.filter(c => c.status === 'pending');
@@ -1084,6 +1083,61 @@ export default function Step4AICallingHub({
                                   <div className="flex items-center gap-1.5 text-xs text-primary font-medium">
                                     <Volume2 className="w-3.5 h-3.5 animate-pulse" /> Live
                                   </div>
+                                )}
+                                {/* Individual Call Button */}
+                                {call.status === 'pending' && phoneSetup.hasPhone && (
+                                  <Button
+                                    size="sm"
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      setCallQueue(prev => prev.map(c => c.id === call.id ? { ...c, status: 'calling' as const } : c));
+                                      try {
+                                        const result = await apiInitiateCall({
+                                          destination_number: call.phone,
+                                          lead_id: typeof call.id === 'number' ? call.id : undefined,
+                                          lead_name: call.name,
+                                        });
+                                        if (!result.success) {
+                                          setCallQueue(prev => prev.map(c => c.id === call.id ? { ...c, status: 'failed' as const, outcome: result.error || 'Failed' } : c));
+                                          toast.error(result.error || 'Call failed');
+                                        } else {
+                                          toast.success(`Calling ${call.name}...`);
+                                          // Poll for completion
+                                          const sid = result.call_sid!;
+                                          const poll = setInterval(async () => {
+                                            const sr = await getCallStatus(sid);
+                                            if (sr.success && sr.status && ['completed','busy','no-answer','failed','canceled'].includes(sr.status)) {
+                                              clearInterval(poll);
+                                              const answered = sr.status === 'completed';
+                                              setCallQueue(prev => prev.map(c => c.id === call.id ? {
+                                                ...c,
+                                                status: answered ? 'completed' as const : 'failed' as const,
+                                                outcome: answered ? (sr.duration_seconds && sr.duration_seconds > 30 ? 'Interested' : 'Callback') : sr.status === 'no-answer' ? 'No Answer' : 'Failed',
+                                                duration: sr.duration_seconds || 0,
+                                              } : c));
+                                              setCallStats(prev => ({ ...prev, total: prev.total + 1, answered: prev.answered + (answered ? 1 : 0) }));
+                                            }
+                                          }, 3000);
+                                        }
+                                      } catch {
+                                        setCallQueue(prev => prev.map(c => c.id === call.id ? { ...c, status: 'failed' as const, outcome: 'Network Error' } : c));
+                                        toast.error('Network error');
+                                      }
+                                    }}
+                                    className="gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-md shadow-emerald-500/20 px-4 font-semibold text-xs"
+                                  >
+                                    <PhoneCall className="w-3.5 h-3.5" /> Call
+                                  </Button>
+                                )}
+                                {call.status === 'pending' && !phoneSetup.hasPhone && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setActiveSection('phone-setup')}
+                                    className="gap-1.5 rounded-xl text-xs text-amber-500 border-amber-500/30"
+                                  >
+                                    <Signal className="w-3.5 h-3.5" /> Setup Phone
+                                  </Button>
                                 )}
                               </div>
                             </motion.div>
