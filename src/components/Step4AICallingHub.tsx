@@ -871,6 +871,33 @@ export default function Step4AICallingHub({
                           </div>
                         </div>
 
+                        {/* Test Your AI Phone */}
+                        <div className="rounded-2xl border border-cyan-500/25 bg-gradient-to-r from-cyan-500/10 via-teal-500/5 to-emerald-500/5 p-5">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-400 to-emerald-400 flex items-center justify-center shadow-lg shadow-cyan-500/25">
+                              <PhoneCall className="w-6 h-6 text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-bold text-foreground">Test Your AI Phone</h3>
+                              <p className="text-xs text-muted-foreground">Call your own phone to hear how the AI agent sounds to your leads.</p>
+                            </div>
+                            <Button
+                              onClick={() => {
+                                const testNumber = prompt('Enter your personal phone number to receive a test call:');
+                                if (testNumber && testNumber.trim()) {
+                                  toast.info('📞 Test call initiated! Your phone should ring shortly.');
+                                  apiInitiateCall({ destination_number: testNumber.trim(), lead_name: 'Test Call' })
+                                    .then(res => { if (res.success) toast.success('✅ Test call connected!'); else toast.error(res.error || 'Test call failed'); })
+                                    .catch(() => toast.error('Network error'));
+                                }
+                              }}
+                              className="gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-white font-bold px-5 py-2.5 shadow-lg shadow-cyan-500/20"
+                            >
+                              <Phone className="w-4 h-4" /> Test Call
+                            </Button>
+                          </div>
+                        </div>
+
                         {/* Release Number */}
                         <div className="rounded-2xl border border-border/50 p-4">
                           <h4 className="font-semibold text-sm text-foreground mb-2">Manage Number</h4>
@@ -949,7 +976,7 @@ export default function Step4AICallingHub({
                                 else toast.error(result.error || 'Provisioning failed');
                               } catch { toast.error('Network error'); }
                               finally { setIsProvisioningNumber(false); }
-                            }} className="w-full gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white">
+                            }} className="w-full gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-white font-bold text-sm shadow-lg shadow-cyan-500/30">
                               {isProvisioningNumber ? <><Loader2 className="w-4 h-4 animate-spin" /> Provisioning…</> : <><Phone className="w-4 h-4" /> Get Number ({selectedAreaCode || '…'})</>}
                             </Button>
                           </div>
