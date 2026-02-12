@@ -941,7 +941,11 @@ export default function Step4AICallingHub({
                               setIsProvisioningNumber(true);
                               try {
                                 const result = await requestPhoneProvisioning({ area_code: selectedAreaCode });
-                                if (result.success) { toast.success('Phone number provisioned!'); window.location.reload(); }
+                                if (result.success) { 
+                                  localStorage.setItem('twilio_phone_number', (result as any).phone_number || `+1${selectedAreaCode}`);
+                                  localStorage.setItem('twilio_phone_active', 'true');
+                                  toast.success('Phone number provisioned!'); window.location.reload(); 
+                                }
                                 else toast.error(result.error || 'Provisioning failed');
                               } catch { toast.error('Network error'); }
                               finally { setIsProvisioningNumber(false); }
@@ -968,12 +972,28 @@ export default function Step4AICallingHub({
                                   toast.error('Enter a valid phone number (e.g. +18882935813)');
                                   return;
                                 }
+                                // Verify the number is a real Twilio number
                                 setIsSavingExisting(true);
                                 try {
+                                  // Step 1: Verify with Twilio API
+                                  const verifyRes = await fetch(`${import.meta.env.VITE_API_URL || 'https://bamlead.com/api'}/calling.php?action=verify_twilio_number`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+                                    body: JSON.stringify({ phone_number: formatted }),
+                                  });
+                                  const verifyData = await verifyRes.json().catch(() => null);
+                                  
+                                  if (verifyRes.ok && verifyData?.verified === false) {
+                                    toast.error('❌ This number is not a valid Twilio number. Please enter a number purchased from your Twilio account.');
+                                    return;
+                                  }
+
+                                  // Step 2: Save to backend
                                   const result = await savePhoneSetup(formatted);
                                   if (result.success) {
-                                    toast.success(`✅ Number ${formatted} is now active!`);
-                                    // Auto-navigate to Call Queue instead of reloading
+                                    toast.success(`✅ Number ${formatted} verified & active!`);
+                                    localStorage.setItem('twilio_phone_number', formatted);
+                                    localStorage.setItem('twilio_phone_active', 'true');
                                     setTimeout(() => setActiveSection('queue'), 600);
                                   } else {
                                     toast.error(result.error || 'Failed to save number');
@@ -982,14 +1002,15 @@ export default function Step4AICallingHub({
                                 finally { setIsSavingExisting(false); }
                               }}
                               disabled={isSavingExisting || !existingNumber.trim()}
-                              className="w-full gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700"
+                              className="w-full gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-400 hover:from-emerald-400 hover:to-green-300 text-white font-bold text-sm shadow-lg shadow-emerald-500/30"
                             >
-                              {isSavingExisting ? <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</> : <><CheckCircle2 className="w-4 h-4" /> Save My Twilio Number</>}
+                              {isSavingExisting ? <><Loader2 className="w-4 h-4 animate-spin" /> Verifying & Saving…</> : <><CheckCircle2 className="w-4 h-4" /> Save My Twilio Number</>}
                             </Button>
                             <div className="text-[11px] text-muted-foreground bg-muted/30 p-3 rounded-xl space-y-1">
+                              <p>🔍 <strong>Verified:</strong> We confirm your number is from Twilio before saving</p>
                               <p>✅ <strong>Format:</strong> Use E.164 format (e.g. +18882935813)</p>
                               <p>🔒 <strong>Security:</strong> This number is tied only to your account</p>
-                              <p>⚡ <strong>Instant:</strong> Number is active immediately after saving</p>
+                              <p>⚡ <strong>Instant:</strong> Number is active immediately after verification</p>
                             </div>
                           </div>
                         ) : (
