@@ -1,19 +1,11 @@
 name: Ensure Server Cron Setup
 
 on:
-  push:
-    branches: [main]
-  workflow_run:
-    workflows:
-      - Deploy to Hostinger (Safe - Protects /api/)
-      - Deploy via SSH (Safest)
-    types: [completed]
   workflow_dispatch:
 
 jobs:
   ensure-cron:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Validate required secrets
         env:
