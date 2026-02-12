@@ -318,8 +318,8 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
 
         {/* AI Calling Section */}
         <SidebarGroup>
-          <SidebarGroupLabel className={isAICallingActive ? 'text-amber-400' : ''}>
-            <Phone className={`w-3 h-3 mr-2 ${isAICallingActive ? 'text-amber-400' : ''}`} />
+          <SidebarGroupLabel className="text-amber-400">
+            <Phone className="w-3 h-3 mr-2 text-amber-400" />
             AI Calling
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -357,8 +357,8 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
 
         {/* Drip Feed Email Section */}
         <SidebarGroup>
-          <SidebarGroupLabel className={isEmailActive ? 'text-primary' : ''}>
-            <Mail className={`w-3 h-3 mr-2 ${isEmailActive ? 'text-primary' : ''}`} />
+          <SidebarGroupLabel className="text-emerald-400">
+            <Mail className="w-3 h-3 mr-2 text-emerald-400" />
             Drip Feed Email
           </SidebarGroupLabel>
           <SidebarGroupContent>
