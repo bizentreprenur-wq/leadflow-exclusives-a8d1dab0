@@ -849,27 +849,27 @@ export default function Step4AICallingHub({
                       <div className="space-y-4">
                         {/* Mode selection */}
                          <div className="grid md:grid-cols-3 gap-4">
-                          <div
+                         <div
                             onClick={() => setProvisionMode('new')}
-                            className={`cursor-pointer rounded-2xl border p-5 transition-all ${provisionMode === 'new' ? 'border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-orange-500/5 ring-1 ring-amber-500/20' : 'border-border/50 hover:border-amber-500/20'}`}
+                            className={`cursor-pointer rounded-2xl border p-5 transition-all ${provisionMode === 'new' ? 'border-amber-500/40 bg-gradient-to-br from-amber-500/15 to-orange-500/10 ring-2 ring-amber-500/30 shadow-lg shadow-amber-500/10' : 'border-border/50 hover:border-amber-500/30 hover:shadow-md hover:shadow-amber-500/5'}`}
                           >
-                            <Signal className="w-6 h-6 text-amber-400 mb-3" />
+                            <Signal className="w-7 h-7 text-amber-400 mb-3" />
                             <h4 className="font-semibold text-foreground">Get New Number</h4>
                             <p className="text-xs text-muted-foreground mt-1">Choose an area code and get a local number instantly.</p>
                           </div>
                           <div
                             onClick={() => setProvisionMode('port')}
-                            className={`cursor-pointer rounded-2xl border p-5 transition-all ${provisionMode === 'port' ? 'border-violet-500/30 bg-gradient-to-br from-violet-500/10 to-purple-500/5 ring-1 ring-violet-500/20' : 'border-border/50 hover:border-violet-500/20'}`}
+                            className={`cursor-pointer rounded-2xl border p-5 transition-all ${provisionMode === 'port' ? 'border-violet-500/40 bg-gradient-to-br from-violet-500/15 to-purple-500/10 ring-2 ring-violet-500/30 shadow-lg shadow-violet-500/10' : 'border-border/50 hover:border-violet-500/30 hover:shadow-md hover:shadow-violet-500/5'}`}
                           >
-                            <PhoneForwarded className="w-6 h-6 text-violet-400 mb-3" />
+                            <PhoneForwarded className="w-7 h-7 text-violet-400 mb-3" />
                             <h4 className="font-semibold text-foreground">Port Existing Number</h4>
                             <p className="text-xs text-muted-foreground mt-1">Transfer your existing business number. Takes 1-3 days.</p>
                           </div>
                           <div
                             onClick={() => setProvisionMode('existing' as any)}
-                            className={`cursor-pointer rounded-2xl border p-5 transition-all ${(provisionMode as string) === 'existing' ? 'border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-teal-500/5 ring-1 ring-emerald-500/20' : 'border-border/50 hover:border-emerald-500/20'}`}
+                            className={`cursor-pointer rounded-2xl border p-5 transition-all ${(provisionMode as string) === 'existing' ? 'border-emerald-500/40 bg-gradient-to-br from-emerald-500/15 to-teal-500/10 ring-2 ring-emerald-500/30 shadow-lg shadow-emerald-500/10' : 'border-border/50 hover:border-emerald-500/30 hover:shadow-md hover:shadow-emerald-500/5'}`}
                           >
-                            <Phone className="w-6 h-6 text-emerald-400 mb-3" />
+                            <Phone className="w-7 h-7 text-emerald-400 mb-3" />
                             <h4 className="font-semibold text-foreground">I Have a Twilio Number</h4>
                             <p className="text-xs text-muted-foreground mt-1">Already have a Twilio number? Enter it here.</p>
                           </div>
@@ -926,8 +926,9 @@ export default function Step4AICallingHub({
                                 try {
                                   const result = await savePhoneSetup(formatted);
                                   if (result.success) {
-                                    toast.success(`Number ${formatted} saved! Reload to see it active.`);
-                                    window.location.reload();
+                                    toast.success(`✅ Number ${formatted} is now active!`);
+                                    // Auto-navigate to Call Queue instead of reloading
+                                    setTimeout(() => setActiveSection('queue'), 600);
                                   } else {
                                     toast.error(result.error || 'Failed to save number');
                                   }
@@ -976,14 +977,32 @@ export default function Step4AICallingHub({
                 {/* ════════ CALL QUEUE ════════ */}
                 {activeSection === 'queue' && (
                   <div className="space-y-5">
+                    {/* Phone required guard */}
+                    {!phoneSetup.hasPhone && (
+                      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border-2 border-amber-500/40 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/5 p-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
+                            <Phone className="w-7 h-7 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-lg text-foreground">Phone Number Required</h3>
+                            <p className="text-sm text-muted-foreground">You need an active Twilio phone number before you can start calling leads.</p>
+                          </div>
+                          <Button onClick={() => setActiveSection('phone-setup')} className="gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 font-semibold shadow-lg shadow-amber-500/20">
+                            <Signal className="w-4 h-4" /> Set Up Phone
+                          </Button>
+                        </div>
+                      </motion.div>
+                    )}
+
                     <div className="flex items-center justify-between">
                       <div>
                         <h1 className="text-2xl font-bold text-foreground mb-1">Call Queue</h1>
                         <p className="text-muted-foreground text-sm">{callableLeads.length} leads with valid phone numbers ready to call.</p>
                       </div>
                       <div className="flex gap-2">
-                        {isReady && !isCallingActive && pendingCount > 0 && (
-                          <Button onClick={handleStartCalling} className="gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700">
+                        {phoneSetup.hasPhone && !isCallingActive && pendingCount > 0 && (
+                          <Button onClick={handleStartCalling} className="gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg shadow-emerald-500/25 px-6">
                             <Play className="w-4 h-4" /> Start Calling ({pendingCount})
                           </Button>
                         )}
@@ -1013,14 +1032,14 @@ export default function Step4AICallingHub({
                     {/* Status counters */}
                     <div className="grid grid-cols-4 gap-3">
                       {[
-                        { label: 'Pending', count: callQueue.filter(c => c.status === 'pending').length, cardBg: 'bg-gradient-to-br from-slate-500 to-slate-600' },
-                        { label: 'Calling', count: callQueue.filter(c => c.status === 'calling').length, cardBg: 'bg-gradient-to-br from-amber-500 to-orange-500' },
-                        { label: 'Completed', count: callQueue.filter(c => c.status === 'completed').length, cardBg: 'bg-gradient-to-br from-emerald-500 to-emerald-600' },
-                        { label: 'Failed', count: callQueue.filter(c => c.status === 'no_answer' || c.status === 'failed').length, cardBg: 'bg-gradient-to-br from-rose-500 to-rose-600' },
+                        { label: 'Pending', count: callQueue.filter(c => c.status === 'pending').length, cardBg: 'bg-gradient-to-br from-slate-500 to-slate-600 shadow-lg shadow-slate-500/20' },
+                        { label: 'Calling', count: callQueue.filter(c => c.status === 'calling').length, cardBg: 'bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg shadow-amber-500/25' },
+                        { label: 'Completed', count: callQueue.filter(c => c.status === 'completed').length, cardBg: 'bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/25' },
+                        { label: 'Failed', count: callQueue.filter(c => c.status === 'no_answer' || c.status === 'failed').length, cardBg: 'bg-gradient-to-br from-rose-500 to-rose-600 shadow-lg shadow-rose-500/25' },
                       ].map(s => (
-                        <div key={s.label} className={`rounded-2xl p-4 text-center shadow-lg ${s.cardBg}`}>
-                          <div className="text-2xl font-bold text-white">{s.count}</div>
-                          <div className="text-[11px] text-white/70 mt-0.5 font-medium uppercase tracking-wider">{s.label}</div>
+                        <div key={s.label} className={`rounded-2xl p-4 text-center ${s.cardBg}`}>
+                          <div className="text-3xl font-extrabold text-white drop-shadow-sm">{s.count}</div>
+                          <div className="text-[11px] text-white/80 mt-0.5 font-semibold uppercase tracking-wider">{s.label}</div>
                         </div>
                       ))}
                     </div>
