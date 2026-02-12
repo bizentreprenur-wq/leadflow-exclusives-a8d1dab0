@@ -904,7 +904,7 @@ export default function Step4AICallingHub({
                                 else toast.error(result.error || 'Provisioning failed');
                               } catch { toast.error('Network error'); }
                               finally { setIsProvisioningNumber(false); }
-                            }} className="w-full gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700">
+                            }} className="w-full gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white">
                               {isProvisioningNumber ? <><Loader2 className="w-4 h-4 animate-spin" /> Provisioning…</> : <><Phone className="w-4 h-4" /> Get Number ({selectedAreaCode || '…'})</>}
                             </Button>
                           </div>
