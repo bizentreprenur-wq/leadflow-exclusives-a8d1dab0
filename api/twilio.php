@@ -170,8 +170,8 @@ function handleGetConfig($db, $user) {
                 'voice' => $config['voice'] ?? 'Polly.Joanna',
                 'greeting_message' => $config['greeting_message'] ?? '',
                 'system_prompt' => $config['system_prompt'] ?? '',
-                'enabled' => (bool)$config['enabled'],
-                'provisioned' => (bool)$config['provisioned'],
+                'enabled' => (bool)($config['enabled'] ?? 0),
+                'provisioned' => (bool)($config['provisioned'] ?? 0),
                 'provision_status' => $config['provision_status'] ?? 'none'
             ]
         ]);
@@ -190,7 +190,7 @@ function handleSaveConfig($db, $user) {
         return;
     }
     
-    $input = json_decode(file_get_contents('php://input'), true);
+    $input = json_decode(file_get_contents('php://input'), true) ?: [];
     
     $stmt = $db->prepare("SELECT id FROM twilio_config WHERE user_id = ?");
     $stmt->execute([$user['id']]);
@@ -210,7 +210,7 @@ function handleSaveConfig($db, $user) {
             $input['voice'] ?? 'Polly.Joanna',
             $input['greeting_message'] ?? '',
             $input['system_prompt'] ?? '',
-            $input['enabled'] ? 1 : 0,
+            !empty($input['enabled']) ? 1 : 0,
             $user['id']
         ]);
     } else {
@@ -224,7 +224,7 @@ function handleSaveConfig($db, $user) {
             $input['voice'] ?? 'Polly.Joanna',
             $input['greeting_message'] ?? '',
             $input['system_prompt'] ?? '',
-            $input['enabled'] ? 1 : 0
+            !empty($input['enabled']) ? 1 : 0
         ]);
     }
     
