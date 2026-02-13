@@ -75,7 +75,7 @@ function refreshAccessToken($refreshToken, $userId) {
 }
 
 // Helper function to make Google API requests
-function googleCalendarRequest($endpoint, $method = 'GET', $data = null, $accessToken) {
+function googleCalendarRequest($endpoint, $accessToken, $method = 'GET', $data = null) {
     global $userData, $user;
     
     $url = 'https://www.googleapis.com/calendar/v3' . $endpoint;
@@ -104,7 +104,7 @@ function googleCalendarRequest($endpoint, $method = 'GET', $data = null, $access
     if ($httpCode === 401 && !empty($userData['google_calendar_refresh_token'])) {
         $newToken = refreshAccessToken($userData['google_calendar_refresh_token'], $user['id']);
         if ($newToken) {
-            return googleCalendarRequest($endpoint, $method, $data, $newToken);
+            return googleCalendarRequest($endpoint, $newToken, $method, $data);
         }
     }
     
@@ -117,7 +117,7 @@ switch ($action) {
     case 'list':
         // List upcoming events
         $timeMin = urlencode(date('c'));
-        $result = googleCalendarRequest("/calendars/primary/events?timeMin=$timeMin&maxResults=20&singleEvents=true&orderBy=startTime", 'GET', null, $accessToken);
+        $result = googleCalendarRequest("/calendars/primary/events?timeMin=$timeMin&maxResults=20&singleEvents=true&orderBy=startTime", $accessToken, 'GET', null);
         
         if ($result['code'] === 200) {
             echo json_encode([
@@ -175,7 +175,7 @@ switch ($action) {
             $endpoint .= '?conferenceDataVersion=1';
         }
         
-        $result = googleCalendarRequest($endpoint, 'POST', $eventData, $accessToken);
+        $result = googleCalendarRequest($endpoint, $accessToken, 'POST', $eventData);
         
         if ($result['code'] === 200 || $result['code'] === 201) {
             echo json_encode([
@@ -199,7 +199,7 @@ switch ($action) {
             exit;
         }
         
-        $result = googleCalendarRequest("/calendars/primary/events/$eventId", 'DELETE', null, $accessToken);
+        $result = googleCalendarRequest("/calendars/primary/events/$eventId", $accessToken, 'DELETE', null);
         
         if ($result['code'] === 204 || $result['code'] === 200) {
             echo json_encode(['success' => true, 'message' => 'Event deleted']);
