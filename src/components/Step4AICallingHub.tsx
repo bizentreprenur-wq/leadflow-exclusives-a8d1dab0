@@ -30,6 +30,8 @@ import PhoneNumberSetupModal from '@/components/PhoneNumberSetupModal';
 import AIScriptPreviewPanel from '@/components/AIScriptPreviewPanel';
 import CallQueueModal from '@/components/CallQueueModal';
 import SMSConversationPanel from '@/components/SMSConversationPanel';
+import LiveTranscriptViewer from '@/components/LiveTranscriptViewer';
+import AIAgentManagement from '@/components/AIAgentManagement';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { buildCallScriptContext, addBreadcrumb, CustomerJourneyBreadcrumb } from '@/lib/aiCallingScriptGenerator';
@@ -350,6 +352,8 @@ export default function Step4AICallingHub({
     { id: 'script', label: 'AI Script', icon: Brain, group: 'calling', iconColor: 'text-orange-400' },
     { id: 'results', label: 'Call Results', icon: Target, group: 'calling', badge: hotLeads > 0 ? `🔥 ${hotLeads}` : undefined, badgeColor: 'bg-orange-500', iconColor: 'text-rose-400' },
     { id: 'sms', label: 'SMS Messaging', icon: MessageCircle, group: 'calling', badge: unreadSMS > 0 ? unreadSMS : undefined, badgeColor: 'bg-blue-500', requiresAutopilot: true, iconColor: 'text-cyan-400' },
+    { id: 'transcript', label: 'Live Transcript', icon: Activity, group: 'calling', iconColor: 'text-teal-400' },
+    { id: 'agents', label: 'AI Agents', icon: Bot, group: 'calling', badge: '3', badgeColor: 'bg-cyan-500', iconColor: 'text-cyan-400' },
     { id: 'schedule', label: 'Calendar', icon: CalendarIcon, group: 'tools', iconColor: 'text-pink-400' },
     { id: 'crm', label: 'Save to CRM', icon: Database, group: 'tools', iconColor: 'text-yellow-400' },
   ], [pendingCount, unreadSMS, hotLeads, phoneSetup.hasPhone]);
@@ -1538,6 +1542,32 @@ export default function Step4AICallingHub({
                         </ScrollArea>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* ════════ LIVE TRANSCRIPT ════════ */}
+                {activeSection === 'transcript' && (
+                  <div className="space-y-5">
+                    <div>
+                      <h1 className="text-2xl font-bold text-foreground mb-1">Live Transcript</h1>
+                      <p className="text-muted-foreground text-sm">Real-time conversation view between AI agents and callers.</p>
+                    </div>
+                    <LiveTranscriptViewer
+                      callSid={activeCallSidRef.current || testCallSid}
+                      isLive={isCallingActive || (testCallStatus === 'initiated' || testCallStatus === 'ringing' || testCallStatus === 'in-progress')}
+                      leadName={callQueue.find(c => c.status === 'calling')?.name || 'Test Call'}
+                    />
+                  </div>
+                )}
+
+                {/* ════════ AI AGENTS ════════ */}
+                {activeSection === 'agents' && (
+                  <div className="space-y-5">
+                    <div>
+                      <h1 className="text-2xl font-bold text-foreground mb-1">AI Agent Management</h1>
+                      <p className="text-muted-foreground text-sm">Configure and monitor Qualifier, Closer, and Scheduler agents.</p>
+                    </div>
+                    <AIAgentManagement />
                   </div>
                 )}
 
