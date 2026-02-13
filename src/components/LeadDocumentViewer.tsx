@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { VisuallyHidden } from '@/components/ui/visually-hidden';
 import { Button } from '@/components/ui/button';
@@ -876,6 +876,7 @@ export default function LeadDocumentViewer({
   const [zoomLevel, setZoomLevel] = useState(100); // Zoom percentage (50-150)
   const documentRef = useRef<HTMLDivElement>(null);
   const analyzedReportKeysRef = useRef<Set<string>>(new Set());
+  const analyzedReportStorageKey = 'bamlead_analyzed_report_keys_v1';
 
   const reportAnalysisKey = useMemo(() => {
     const stableLeadKeys = leads
@@ -884,6 +885,29 @@ export default function LeadDocumentViewer({
       .sort();
     return `${searchQuery}|${location}|${stableLeadKeys.length}|${stableLeadKeys.join(',')}`;
   }, [leads, searchQuery, location]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(analyzedReportStorageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return;
+      analyzedReportKeysRef.current = new Set(parsed.filter((key): key is string => typeof key === 'string'));
+    } catch {
+      // Ignore malformed cache
+    }
+  }, []);
+
+  const markReportAsAnalyzed = useCallback((key: string) => {
+    analyzedReportKeysRef.current.add(key);
+    try {
+      const cappedKeys = Array.from(analyzedReportKeysRef.current).slice(-50);
+      analyzedReportKeysRef.current = new Set(cappedKeys);
+      localStorage.setItem(analyzedReportStorageKey, JSON.stringify(cappedKeys));
+    } catch {
+      // Ignore storage write failures
+    }
+  }, [analyzedReportStorageKey]);
 
   // Simulate AI analysis loading
   useEffect(() => {
@@ -904,7 +928,7 @@ export default function LeadDocumentViewer({
         if (prev >= 100) {
           clearInterval(interval);
           finishTimer = setTimeout(() => {
-            analyzedReportKeysRef.current.add(reportAnalysisKey);
+            markReportAsAnalyzed(reportAnalysisKey);
             setIsLoading(false);
           }, 300);
           return 100;
@@ -917,7 +941,7 @@ export default function LeadDocumentViewer({
       clearInterval(interval);
       if (finishTimer) clearTimeout(finishTimer);
     };
-  }, [open, reportAnalysisKey]);
+  }, [open, reportAnalysisKey, markReportAsAnalyzed]);
 
   // Analyze all leads
   const analyzedLeads = useMemo(() => {
@@ -1935,7 +1959,7 @@ export default function LeadDocumentViewer({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-[1100px] w-[98vw] h-[95vh] flex flex-col p-0 gap-0 bg-gray-100 rounded-xl shadow-2xl [&>button]:hidden"
+        className="max-w-[1100px] w-[98vw] h-[95vh] flex flex-col p-0 gap-0 bg-gray-100 rounded-xl shadow-2xl data-[state=open]:animate-none data-[state=closed]:animate-none [&>button]:hidden"
         aria-describedby={undefined}
       >
         <VisuallyHidden>
