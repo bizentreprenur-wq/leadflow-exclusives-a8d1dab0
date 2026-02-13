@@ -342,22 +342,22 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {/* Twilio Number Display */}
+              {/* Twilio Number above Phone Setup */}
               {!isCollapsed && twilioNumber && (
-                <div className="px-3 py-2 mb-2">
-                  <div className="flex items-center justify-between rounded-xl bg-emerald-500/10 border border-emerald-500/30 px-3 py-3">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] text-emerald-400/70 uppercase tracking-wider font-semibold">Your Twilio Number</span>
-                      <span className="text-base font-extrabold text-emerald-300 tracking-wide">
+                <div className="px-3 py-1.5 mb-1">
+                  <div className="flex items-center justify-between rounded-lg bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-2">
+                    <div className="flex flex-col gap-0">
+                      <span className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">Twilio</span>
+                      <span className="text-sm font-extrabold text-emerald-300 tracking-wide">
                         {twilioNumber.replace(/^\+1(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3')}
                       </span>
                     </div>
-                    {twilioActive && (
-                      <div className="flex flex-col items-center gap-1">
-                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse shadow-lg shadow-emerald-400/50" />
-                        <span className="text-[9px] font-bold text-emerald-400 uppercase">Active</span>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1.5">
+                      <div className={`w-2 h-2 rounded-full ${twilioActive ? 'bg-emerald-400 animate-pulse shadow-lg shadow-emerald-400/50' : 'bg-destructive'}`} />
+                      <span className={`text-[9px] font-bold uppercase ${twilioActive ? 'text-emerald-400' : 'text-destructive'}`}>
+                        {twilioActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
                   </div>
                 </div>
               )}

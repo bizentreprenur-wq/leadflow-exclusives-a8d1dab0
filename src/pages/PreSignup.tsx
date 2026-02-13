@@ -15,8 +15,10 @@ import {
   ArrowRight,
   Target,
   Brain,
-  Rocket
+  Rocket,
+  Home
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import mascot from "@/assets/bamlead-mascot.png";
 
 const PreSignup = () => {
@@ -162,6 +164,19 @@ const PreSignup = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Top Nav with Home Button */}
+      <nav className="relative z-10 border-b border-border/50 bg-background/80 backdrop-blur-sm">
+        <div className="container px-4 py-3 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2 text-foreground hover:text-primary transition-colors">
+            <Home className="w-5 h-5" />
+            <span className="font-semibold">Home</span>
+          </Link>
+          <Link to="/auth" className="text-sm text-primary hover:underline font-medium">
+            Sign In
+          </Link>
+        </div>
+      </nav>
+
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         {/* Gradient background */}
