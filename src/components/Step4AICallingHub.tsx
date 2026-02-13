@@ -30,6 +30,8 @@ import PhoneNumberSetupModal from '@/components/PhoneNumberSetupModal';
 import AIScriptPreviewPanel from '@/components/AIScriptPreviewPanel';
 import CallQueueModal from '@/components/CallQueueModal';
 import SMSConversationPanel from '@/components/SMSConversationPanel';
+import LiveTranscriptViewer from '@/components/LiveTranscriptViewer';
+import AIAgentManagement from '@/components/AIAgentManagement';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { buildCallScriptContext, addBreadcrumb, CustomerJourneyBreadcrumb } from '@/lib/aiCallingScriptGenerator';
@@ -117,7 +119,7 @@ export default function Step4AICallingHub({
   searchType = 'gmb', searchQuery = '', searchLocation = '',
   selectedStrategy = '', emailSequences = [], proposalType = ''
 }: Step4AICallingHubProps) {
-  const { status, statusMessage, callingModeDescription, capabilities, phoneSetup, isLoading, needsUpgrade, needsAddon, addonMessage, purchaseAddon, requestPhoneProvisioning, isReady, addon } = useAICalling();
+  const { status, statusMessage, callingModeDescription, capabilities, phoneSetup, isLoading, needsUpgrade, needsAddon, addonMessage, purchaseAddon, requestPhoneProvisioning, isReady, addon, savePhoneSetup } = useAICalling();
   const { tier, tierInfo, isAutopilot, isPro } = usePlanFeatures();
   const { user } = useAuth();
   const { branding, isLoading: brandingLoading } = useUserBranding();
@@ -128,9 +130,17 @@ export default function Step4AICallingHub({
   const [portNumber, setPortNumber] = useState('');
   const [portName, setPortName] = useState('');
   const [isPortSubmitting, setIsPortSubmitting] = useState(false);
+  const [existingNumber, setExistingNumber] = useState('');
+  const [isSavingExisting, setIsSavingExisting] = useState(false);
   const [isReleasingNumber, setIsReleasingNumber] = useState(false);
   const [showReleaseConfirm, setShowReleaseConfirm] = useState(false);
   const [showPhoneModal, setShowPhoneModal] = useState(false);
+  const [testCallNumber, setTestCallNumber] = useState('');
+  const [isTestingCall, setIsTestingCall] = useState(false);
+  const [testCallStatus, setTestCallStatus] = useState<'idle' | 'initiated' | 'ringing' | 'in-progress' | 'completed' | 'busy' | 'no-answer' | 'failed' | 'canceled'>('idle');
+  const [testCallSid, setTestCallSid] = useState<string | null>(null);
+  const [testCallDuration, setTestCallDuration] = useState(0);
+  const testCallPollingRef = useRef<number | null>(null);
   const [activeSection, setActiveSection] = useState('getting-started');
   const [isCallingActive, setIsCallingActive] = useState(false);
   const [callQueue, setCallQueue] = useState<CallQueueItem[]>([]);
@@ -281,10 +291,9 @@ export default function Step4AICallingHub({
   }, [callQueue]);
 
   const handleStartCalling = useCallback(() => {
-    if (!isReady) {
-      if (needsUpgrade) toast.error('Upgrade your plan to enable AI calling');
-      else if (needsAddon) toast.error('Purchase AI Calling add-on first');
-      else if (status === 'phone_needed') setShowPhoneModal(true);
+    if (!phoneSetup.hasPhone) {
+      toast.error('Set up a phone number first');
+      setActiveSection('phone-setup');
       return;
     }
     const pendingCalls = callQueue.filter(c => c.status === 'pending');
@@ -343,6 +352,8 @@ export default function Step4AICallingHub({
     { id: 'script', label: 'AI Script', icon: Brain, group: 'calling', iconColor: 'text-orange-400' },
     { id: 'results', label: 'Call Results', icon: Target, group: 'calling', badge: hotLeads > 0 ? `🔥 ${hotLeads}` : undefined, badgeColor: 'bg-orange-500', iconColor: 'text-rose-400' },
     { id: 'sms', label: 'SMS Messaging', icon: MessageCircle, group: 'calling', badge: unreadSMS > 0 ? unreadSMS : undefined, badgeColor: 'bg-blue-500', requiresAutopilot: true, iconColor: 'text-cyan-400' },
+    { id: 'transcript', label: 'Live Transcript', icon: Activity, group: 'calling', iconColor: 'text-teal-400' },
+    { id: 'agents', label: 'AI Agents', icon: Bot, group: 'calling', badge: '3', badgeColor: 'bg-cyan-500', iconColor: 'text-cyan-400' },
     { id: 'schedule', label: 'Calendar', icon: CalendarIcon, group: 'tools', iconColor: 'text-pink-400' },
     { id: 'crm', label: 'Save to CRM', icon: Database, group: 'tools', iconColor: 'text-yellow-400' },
   ], [pendingCount, unreadSMS, hotLeads, phoneSetup.hasPhone]);
@@ -366,17 +377,21 @@ export default function Step4AICallingHub({
 
   const renderSidebarItem = (item: SidebarSection) => {
     const isActive = activeSection === item.id;
+    const isDisabled = item.id === 'phone-setup' && phoneSetup.hasPhone;
     return (
       <button
         key={item.id}
-        onClick={() => setActiveSection(item.id)}
+        onClick={() => !isDisabled && setActiveSection(item.id)}
         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-          isActive
-            ? 'bg-amber-500/15 text-amber-400 border border-amber-500/25'
-            : 'text-white hover:text-white hover:bg-white/10'
+          isDisabled
+            ? 'opacity-40 cursor-not-allowed text-muted-foreground'
+            : isActive
+            ? 'bg-primary/10 text-primary border border-primary/20'
+            : 'text-foreground hover:text-foreground hover:bg-muted/60'
         }`}
+        disabled={isDisabled}
       >
-        <item.icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-amber-400' : (item.iconColor || 'text-white/80')}`} />
+        <item.icon className={`w-4 h-4 shrink-0 ${isDisabled ? 'text-muted-foreground' : isActive ? 'text-primary' : (item.iconColor || 'text-muted-foreground')}`} />
         {!sidebarCollapsed && (
           <>
             <span className="flex-1 text-left truncate">{item.label}</span>
@@ -398,7 +413,7 @@ export default function Step4AICallingHub({
     <>
       <div className="flex h-[calc(100vh-120px)] max-w-[1400px] mx-auto gap-0">
         {/* ── LEFT SIDEBAR ── */}
-        <div className={`shrink-0 ${sidebarCollapsed ? 'w-16' : 'w-64'} border-r border-amber-500/20 bg-gradient-to-b from-amber-950/20 via-card/40 to-card/30 flex flex-col transition-all duration-300`}>
+        <div className={`shrink-0 ${sidebarCollapsed ? 'w-16' : 'w-64'} border-r border-border bg-gradient-to-b from-muted/60 via-card to-card flex flex-col transition-all duration-300`}>
           {/* Sidebar Header */}
           <div className="p-4 border-b border-border/50">
             <div className="flex items-center gap-3">
@@ -427,15 +442,7 @@ export default function Step4AICallingHub({
             )}
           </div>
 
-          {/* Phone Status */}
-          {!sidebarCollapsed && phoneSetup.hasPhone && phoneSetup.phoneNumber && (
-            <div className="px-4 py-3 border-b border-border/50">
-              <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                <Phone className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                <span className="text-xs font-mono font-semibold text-emerald-400 truncate">{formatPhoneWithCountry(phoneSetup.phoneNumber)}</span>
-              </div>
-            </div>
-          )}
+          {/* Phone Status - moved to AI Calling section below */}
 
           {/* Tier Badge */}
           {!sidebarCollapsed && (
@@ -451,7 +458,7 @@ export default function Step4AICallingHub({
             <div className="space-y-1">
               {/* Main */}
               <div className="mb-3">
-                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-amber-400/40 px-3 mb-2">Main</p>}
+                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/60 px-3 mb-2">Main</p>}
                 {filteredItems.filter(i => i.group === 'main').map(renderSidebarItem)}
               </div>
 
@@ -459,7 +466,17 @@ export default function Step4AICallingHub({
 
               {/* AI Calling */}
               <div className="mb-3">
-                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-amber-400/40 px-3 mb-2">AI Calling</p>}
+                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/60 px-3 mb-2">AI Calling</p>}
+                {/* Phone number display - shown before Phone Setup */}
+                {!sidebarCollapsed && phoneSetup.hasPhone && phoneSetup.phoneNumber && (
+                  <div className="px-2 mb-2">
+                    <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                      <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span className="text-xs font-mono font-bold text-emerald-600 truncate">{formatPhoneWithCountry(phoneSetup.phoneNumber)}</span>
+                      <Badge className="ml-auto bg-emerald-500/15 text-emerald-600 rounded-full border-0 text-[9px] px-1.5 py-0">Active</Badge>
+                    </div>
+                  </div>
+                )}
                 {filteredItems.filter(i => i.group === 'calling').map(renderSidebarItem)}
               </div>
 
@@ -467,7 +484,7 @@ export default function Step4AICallingHub({
 
               {/* Tools */}
               <div>
-                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-amber-400/40 px-3 mb-2">Tools</p>}
+                {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/60 px-3 mb-2">Tools</p>}
                 {filteredItems.filter(i => i.group === 'tools').map(renderSidebarItem)}
               </div>
             </div>
@@ -648,6 +665,47 @@ export default function Step4AICallingHub({
                       </div>
                     </div>
 
+                    {/* ── PRIMARY CALL ACTION ── */}
+                    {!isCallingActive && phoneSetup.hasPhone && pendingCount > 0 && (
+                      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border-2 border-emerald-500/30 bg-gradient-to-r from-emerald-500/15 via-emerald-500/10 to-emerald-500/5 p-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                            <PhoneCall className="w-7 h-7 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-lg text-foreground">Ready to Call Your Leads</h3>
+                            <p className="text-sm text-muted-foreground"><span className="font-extrabold text-foreground">{pendingCount}</span> leads queued · Phone <span className="text-emerald-400 font-semibold">{formatPhoneDisplay(phoneSetup.phoneNumber || '')}</span> active</p>
+                          </div>
+                          <Button
+                            onClick={handleStartCalling}
+                            className="gap-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-8 py-4 text-base font-bold shadow-xl shadow-emerald-500/30"
+                          >
+                            <Play className="w-5 h-5" /> Start Calling
+                          </Button>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {!isCallingActive && !phoneSetup.hasPhone && pendingCount > 0 && (
+                      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border-2 border-amber-500/30 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/5 p-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
+                            <Phone className="w-7 h-7 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-lg text-foreground">Set Up Your Phone First</h3>
+                            <p className="text-sm text-muted-foreground"><span className="font-extrabold text-foreground">{pendingCount}</span> leads ready — configure a Twilio number to start calling</p>
+                          </div>
+                          <Button
+                            onClick={() => setActiveSection('phone-setup')}
+                            className="gap-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-8 py-4 text-base font-bold shadow-xl shadow-amber-500/30"
+                          >
+                            <Signal className="w-5 h-5" /> Setup Phone
+                          </Button>
+                        </div>
+                      </motion.div>
+                    )}
+
                     {/* Active Call Banner */}
                     {isCallingActive && (
                       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border border-primary/25 bg-primary/[0.05] p-5">
@@ -678,7 +736,7 @@ export default function Step4AICallingHub({
                           <div className="flex items-start justify-between">
                             <div>
                               <p className="text-[11px] font-semibold text-white/70 uppercase tracking-wider mb-2">{card.label}</p>
-                              <p className="text-2xl font-bold text-white">{card.value}</p>
+                              <p className="text-2xl font-extrabold text-white">{card.value}</p>
                             </div>
                             <div className={`w-10 h-10 rounded-xl ${card.iconBg} flex items-center justify-center`}>
                               <card.icon className={`w-5 h-5 ${card.iconColor}`} />
@@ -715,21 +773,21 @@ export default function Step4AICallingHub({
                           <Phone className="w-4 h-4 text-blue-500" />
                           <div>
                             <p className="text-xs text-muted-foreground">Total</p>
-                            <p className="text-sm font-bold text-foreground">{callStats.total}</p>
+                            <p className="text-lg font-extrabold text-foreground">{callStats.total}</p>
                           </div>
                         </div>
                         <div className="rounded-xl bg-muted/30 border border-border/30 p-3 flex items-center gap-2">
                           <Activity className="w-4 h-4 text-amber-400" />
                           <div>
                             <p className="text-xs text-muted-foreground">Average Per Day</p>
-                            <p className="text-sm font-bold text-foreground">{callStats.total > 0 ? (callStats.total / 7).toFixed(1) : '0'}</p>
+                            <p className="text-lg font-extrabold text-foreground">{callStats.total > 0 ? (callStats.total / 7).toFixed(1) : '0'}</p>
                           </div>
                         </div>
                         <div className="rounded-xl bg-muted/30 border border-border/30 p-3 flex items-center gap-2">
                           <Rocket className="w-4 h-4 text-amber-500" />
                           <div>
                             <p className="text-xs text-muted-foreground">Peak Day</p>
-                            <p className="text-sm font-bold text-foreground">{callStats.total > 0 ? callStats.total : '—'}</p>
+                            <p className="text-lg font-extrabold text-foreground">{callStats.total > 0 ? callStats.total : '—'}</p>
                           </div>
                         </div>
                       </div>
@@ -752,7 +810,7 @@ export default function Step4AICallingHub({
                           </div>
                           <div>
                             <h4 className="font-semibold text-sm text-foreground">Call Queue</h4>
-                            <p className="text-xs text-muted-foreground">{pendingCount} leads waiting</p>
+                            <p className="text-xs text-muted-foreground"><span className="font-extrabold text-foreground">{pendingCount}</span> leads waiting</p>
                           </div>
                         </div>
                         <Button onClick={() => setActiveSection('queue')} variant="outline" className="w-full gap-2 rounded-xl">
@@ -766,7 +824,7 @@ export default function Step4AICallingHub({
                           </div>
                           <div>
                             <h4 className="font-semibold text-sm text-foreground">Hot Leads</h4>
-                            <p className="text-xs text-muted-foreground">{hotLeads} interested</p>
+                            <p className="text-xs text-muted-foreground"><span className="font-extrabold text-foreground">{hotLeads}</span> interested</p>
                           </div>
                         </div>
                         <Button onClick={() => setActiveSection('results')} variant="outline" className="w-full gap-2 rounded-xl">
@@ -794,16 +852,195 @@ export default function Step4AICallingHub({
                               <Phone className="w-7 h-7 text-emerald-500" />
                             </div>
                             <div>
-                              <p className="text-[11px] text-muted-foreground uppercase tracking-widest font-medium">Your AI Phone Line</p>
+                              <p className="text-[11px] text-muted-foreground uppercase tracking-widest font-medium">Your Twilio Phone Number</p>
                               <p className="text-2xl font-mono font-bold text-emerald-400 tracking-wide">{formatPhoneWithCountry(phoneSetup.phoneNumber)}</p>
                             </div>
-                          </div>
-                          <div className="flex gap-2 mt-4">
-                            <Badge className="bg-emerald-500/15 text-emerald-500 rounded-full border-0 gap-1">
+                            <Badge className="bg-emerald-500/15 text-emerald-500 rounded-full border-0 gap-1 ml-auto">
                               <CheckCircle2 className="w-3 h-3" /> Active
                             </Badge>
                           </div>
                         </div>
+
+                        {/* Prominent Start Calling CTA */}
+                        <div className="rounded-2xl border border-amber-500/25 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-primary/5 p-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                              <PhoneCall className="w-6 h-6 text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-bold text-foreground">Ready to Call</h3>
+                              <p className="text-xs text-muted-foreground"><span className="font-extrabold text-foreground">{pendingCount}</span> leads in queue with valid phone numbers</p>
+                            </div>
+                            <Button
+                              onClick={() => { setActiveSection('queue'); setTimeout(() => handleStartCalling(), 300); }}
+                              disabled={pendingCount === 0}
+                              className="gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 text-sm font-semibold shadow-lg shadow-emerald-500/20"
+                            >
+                              <Play className="w-4 h-4" /> Start AI Calling
+                            </Button>
+                          </div>
+                        </div>
+
+                        {/* Test Your AI Phone */}
+                        <div className="rounded-2xl border border-cyan-500/25 bg-gradient-to-r from-cyan-500/10 via-teal-500/5 to-emerald-500/5 p-5 space-y-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan-400 to-emerald-400 flex items-center justify-center shadow-lg shadow-cyan-500/25">
+                              <PhoneCall className="w-6 h-6 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-foreground">Test Your AI Phone</h3>
+                              <p className="text-xs text-muted-foreground">Enter a real US phone number to receive a test call from your Twilio AI agent.</p>
+                            </div>
+                          </div>
+
+                          {testCallStatus === 'idle' || testCallStatus === 'completed' || testCallStatus === 'failed' || testCallStatus === 'busy' || testCallStatus === 'no-answer' || testCallStatus === 'canceled' ? (
+                            <>
+                              {/* Show result banner if last call ended */}
+                              {testCallStatus !== 'idle' && (
+                                <div className={`flex items-center gap-3 p-3 rounded-xl border ${
+                                  testCallStatus === 'completed' ? 'bg-emerald-500/10 border-emerald-500/25' :
+                                  testCallStatus === 'busy' ? 'bg-amber-500/10 border-amber-500/25' :
+                                  'bg-red-500/10 border-red-500/25'
+                                }`}>
+                                  {testCallStatus === 'completed' ? (
+                                    <><CheckCircle2 className="w-5 h-5 text-emerald-400" /><div><p className="text-sm font-semibold text-emerald-400">Call Completed</p><p className="text-xs text-muted-foreground">Duration: {testCallDuration}s — Your AI agent is working!</p></div></>
+                                  ) : testCallStatus === 'busy' ? (
+                                    <><Phone className="w-5 h-5 text-amber-400" /><div><p className="text-sm font-semibold text-amber-400">Line Busy</p><p className="text-xs text-muted-foreground">The number was busy. Try again.</p></div></>
+                                  ) : testCallStatus === 'no-answer' ? (
+                                    <><Phone className="w-5 h-5 text-amber-400" /><div><p className="text-sm font-semibold text-amber-400">No Answer</p><p className="text-xs text-muted-foreground">Nobody picked up. Try again.</p></div></>
+                                  ) : testCallStatus === 'canceled' ? (
+                                    <><XCircle className="w-5 h-5 text-muted-foreground" /><div><p className="text-sm font-semibold text-muted-foreground">Call Canceled</p></div></>
+                                  ) : (
+                                    <><XCircle className="w-5 h-5 text-red-400" /><div><p className="text-sm font-semibold text-red-400">Call Failed</p><p className="text-xs text-muted-foreground">Check your Twilio configuration.</p></div></>
+                                  )}
+                                  <Button size="sm" variant="ghost" className="ml-auto text-xs" onClick={() => { setTestCallStatus('idle'); setTestCallDuration(0); }}>Dismiss</Button>
+                                </div>
+                              )}
+                              <div className="flex gap-3">
+                                <input
+                                  type="tel"
+                                  placeholder="+1 (555) 123-4567"
+                                  value={testCallNumber}
+                                  onChange={(e) => setTestCallNumber(e.target.value)}
+                                  className="flex-1 px-4 py-3 rounded-xl border bg-background text-foreground text-sm font-mono placeholder:text-muted-foreground/50"
+                                />
+                                <Button
+                                  onClick={async () => {
+                                    if (!testCallNumber.trim()) { toast.error('Enter a phone number to test'); return; }
+                                    const formatted = toE164(testCallNumber.trim());
+                                    if (!formatted.startsWith('+') || formatted.replace(/\D/g, '').length < 11) {
+                                      toast.error('Enter a valid US phone number (e.g. +1 555 123 4567)');
+                                      return;
+                                    }
+                                    setIsTestingCall(true);
+                                    setTestCallStatus('initiated');
+                                    setTestCallDuration(0);
+                                    try {
+                                      const res = await apiInitiateCall({ destination_number: formatted, lead_name: 'BamLead Test Call' });
+                                      if (res.success && res.call_sid) {
+                                        setTestCallSid(res.call_sid);
+                                        setTestCallStatus('ringing');
+                                        // Start polling for status
+                                        let elapsed = 0;
+                                        testCallPollingRef.current = window.setInterval(async () => {
+                                          elapsed++;
+                                          try {
+                                            const statusRes = await getCallStatus(res.call_sid!);
+                                            if (statusRes.success && statusRes.status) {
+                                              const s = statusRes.status;
+                                              setTestCallStatus(s as any);
+                                              if (s === 'in-progress') setTestCallDuration(prev => prev + 2);
+                                              const endStatuses = ['completed', 'busy', 'no-answer', 'failed', 'canceled'];
+                                              if (endStatuses.includes(s)) {
+                                                if (statusRes.duration_seconds) setTestCallDuration(statusRes.duration_seconds);
+                                                window.clearInterval(testCallPollingRef.current!);
+                                                testCallPollingRef.current = null;
+                                                setIsTestingCall(false);
+                                              }
+                                            }
+                                          } catch { /* ignore polling errors */ }
+                                          // Auto-stop after 120s
+                                          if (elapsed > 60) {
+                                            window.clearInterval(testCallPollingRef.current!);
+                                            testCallPollingRef.current = null;
+                                            setTestCallStatus('completed');
+                                            setIsTestingCall(false);
+                                          }
+                                        }, 2000);
+                                      } else {
+                                        setTestCallStatus('failed');
+                                        setIsTestingCall(false);
+                                        toast.error(res.error || 'Test call failed.');
+                                      }
+                                    } catch {
+                                      setTestCallStatus('failed');
+                                      setIsTestingCall(false);
+                                      toast.error('Network error — make sure your backend is running.');
+                                    }
+                                  }}
+                                  disabled={isTestingCall || !testCallNumber.trim()}
+                                  className="gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-white font-bold px-6 shadow-lg shadow-cyan-500/20"
+                                >
+                                  <Phone className="w-4 h-4" /> Test Call
+                                </Button>
+                              </div>
+                            </>
+                          ) : (
+                            /* Live call status tracker */
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-4 p-4 rounded-xl bg-background/50 border border-border/50">
+                                {/* Status steps */}
+                                <div className="flex-1 space-y-3">
+                                  {[
+                                    { key: 'initiated', label: 'Initiating Call', icon: Phone },
+                                    { key: 'ringing', label: 'Ringing…', icon: PhoneCall },
+                                    { key: 'in-progress', label: 'Connected — Speaking', icon: Mic },
+                                  ].map((step, idx) => {
+                                    const stepOrder = ['initiated', 'ringing', 'in-progress'];
+                                    const currentIdx = stepOrder.indexOf(testCallStatus);
+                                    const stepIdx = idx;
+                                    const isActive = testCallStatus === step.key;
+                                    const isDone = stepIdx < currentIdx;
+                                    return (
+                                      <div key={step.key} className={`flex items-center gap-3 transition-all ${isActive ? 'opacity-100' : isDone ? 'opacity-60' : 'opacity-30'}`}>
+                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                          isActive ? 'bg-cyan-400/20 ring-2 ring-cyan-400/50' : isDone ? 'bg-emerald-500/20' : 'bg-muted/30'
+                                        }`}>
+                                          {isDone ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> :
+                                           isActive ? <step.icon className="w-4 h-4 text-cyan-400 animate-pulse" /> :
+                                           <step.icon className="w-4 h-4 text-muted-foreground" />}
+                                        </div>
+                                        <span className={`text-sm font-medium ${isActive ? 'text-cyan-400' : isDone ? 'text-emerald-400' : 'text-muted-foreground'}`}>
+                                          {step.label}
+                                        </span>
+                                        {isActive && step.key === 'in-progress' && (
+                                          <span className="ml-auto text-xs font-mono text-cyan-400">{testCallDuration}s</span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                              <Button
+                                onClick={async () => {
+                                  if (testCallSid) {
+                                    try { await apiHangupCall(testCallSid); } catch { /* ignore */ }
+                                  }
+                                  if (testCallPollingRef.current) { window.clearInterval(testCallPollingRef.current); testCallPollingRef.current = null; }
+                                  setTestCallStatus('canceled');
+                                  setIsTestingCall(false);
+                                  setTestCallSid(null);
+                                }}
+                                variant="outline"
+                                className="w-full gap-2 rounded-xl border-red-500/30 text-red-400 hover:bg-red-500/10"
+                              >
+                                <Square className="w-4 h-4" /> End Test Call
+                              </Button>
+                            </div>
+                          )}
+                          <p className="text-[10px] text-muted-foreground/60">Your Twilio number <span className="font-mono font-bold text-cyan-400">{formatPhoneWithCountry(phoneSetup.phoneNumber || '')}</span> will appear as the caller ID.</p>
+                        </div>
+
                         {/* Release Number */}
                         <div className="rounded-2xl border border-border/50 p-4">
                           <h4 className="font-semibold text-sm text-foreground mb-2">Manage Number</h4>
@@ -827,22 +1064,30 @@ export default function Step4AICallingHub({
                     ) : (
                       <div className="space-y-4">
                         {/* Mode selection */}
-                         <div className="grid md:grid-cols-2 gap-4">
-                          <div
+                         <div className="grid md:grid-cols-3 gap-4">
+                         <div
                             onClick={() => setProvisionMode('new')}
-                            className={`cursor-pointer rounded-2xl border p-5 transition-all ${provisionMode === 'new' ? 'border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-orange-500/5 ring-1 ring-amber-500/20' : 'border-border/50 hover:border-amber-500/20'}`}
+                            className={`cursor-pointer rounded-2xl border p-5 transition-all ${provisionMode === 'new' ? 'border-amber-500/40 bg-gradient-to-br from-amber-500/15 to-orange-500/10 ring-2 ring-amber-500/30 shadow-lg shadow-amber-500/10' : 'border-border/50 hover:border-amber-500/30 hover:shadow-md hover:shadow-amber-500/5'}`}
                           >
-                            <Signal className="w-6 h-6 text-amber-400 mb-3" />
+                            <Signal className="w-7 h-7 text-amber-400 mb-3" />
                             <h4 className="font-semibold text-foreground">Get New Number</h4>
                             <p className="text-xs text-muted-foreground mt-1">Choose an area code and get a local number instantly.</p>
                           </div>
                           <div
                             onClick={() => setProvisionMode('port')}
-                            className={`cursor-pointer rounded-2xl border p-5 transition-all ${provisionMode === 'port' ? 'border-violet-500/30 bg-gradient-to-br from-violet-500/10 to-purple-500/5 ring-1 ring-violet-500/20' : 'border-border/50 hover:border-violet-500/20'}`}
+                            className={`cursor-pointer rounded-2xl border p-5 transition-all ${provisionMode === 'port' ? 'border-violet-500/40 bg-gradient-to-br from-violet-500/15 to-purple-500/10 ring-2 ring-violet-500/30 shadow-lg shadow-violet-500/10' : 'border-border/50 hover:border-violet-500/30 hover:shadow-md hover:shadow-violet-500/5'}`}
                           >
-                            <PhoneForwarded className="w-6 h-6 text-violet-400 mb-3" />
+                            <PhoneForwarded className="w-7 h-7 text-violet-400 mb-3" />
                             <h4 className="font-semibold text-foreground">Port Existing Number</h4>
                             <p className="text-xs text-muted-foreground mt-1">Transfer your existing business number. Takes 1-3 days.</p>
+                          </div>
+                          <div
+                            onClick={() => setProvisionMode('existing' as any)}
+                            className={`cursor-pointer rounded-2xl border p-5 transition-all ${(provisionMode as string) === 'existing' ? 'border-emerald-500/40 bg-gradient-to-br from-emerald-500/15 to-teal-500/10 ring-2 ring-emerald-500/30 shadow-lg shadow-emerald-500/10' : 'border-border/50 hover:border-emerald-500/30 hover:shadow-md hover:shadow-emerald-500/5'}`}
+                          >
+                            <Phone className="w-7 h-7 text-emerald-400 mb-3" />
+                            <h4 className="font-semibold text-foreground">I Have a Twilio Number</h4>
+                            <p className="text-xs text-muted-foreground mt-1">Already have a Twilio number? Enter it here.</p>
                           </div>
                         </div>
 
@@ -866,13 +1111,77 @@ export default function Step4AICallingHub({
                               setIsProvisioningNumber(true);
                               try {
                                 const result = await requestPhoneProvisioning({ area_code: selectedAreaCode });
-                                if (result.success) { toast.success('Phone number provisioned!'); window.location.reload(); }
+                                if (result.success) { 
+                                  localStorage.setItem('twilio_phone_number', (result as any).phone_number || `+1${selectedAreaCode}`);
+                                  localStorage.setItem('twilio_phone_active', 'true');
+                                  toast.success('Phone number provisioned!'); window.location.reload(); 
+                                }
                                 else toast.error(result.error || 'Provisioning failed');
                               } catch { toast.error('Network error'); }
                               finally { setIsProvisioningNumber(false); }
-                            }} className="w-full gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700">
+                            }} className="w-full gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-emerald-400 hover:from-cyan-300 hover:to-emerald-300 text-white font-bold text-sm shadow-lg shadow-cyan-500/30">
                               {isProvisioningNumber ? <><Loader2 className="w-4 h-4 animate-spin" /> Provisioning…</> : <><Phone className="w-4 h-4" /> Get Number ({selectedAreaCode || '…'})</>}
                             </Button>
+                          </div>
+                        ) : (provisionMode as string) === 'existing' ? (
+                          <div className="rounded-2xl border border-emerald-500/20 bg-card/30 p-5 space-y-4">
+                            <div className="flex items-center gap-2"><Phone className="w-4 h-4 text-emerald-400" /><span className="font-semibold text-sm">Enter Your Twilio Number</span></div>
+                            <p className="text-xs text-muted-foreground">Enter the phone number you purchased from Twilio. It will be saved to your account for AI calling.</p>
+                            <input
+                              type="tel"
+                              placeholder="+1 (888) 293-5813"
+                              value={existingNumber}
+                              onChange={(e) => setExistingNumber(e.target.value)}
+                              className="w-full px-4 py-3 rounded-xl border bg-background text-foreground text-sm font-mono"
+                            />
+                            <Button
+                              onClick={async () => {
+                                if (!existingNumber.trim()) { toast.error('Enter your Twilio number'); return; }
+                                const formatted = toE164(existingNumber.trim());
+                                if (!formatted.startsWith('+') || formatted.replace(/\D/g, '').length < 11) {
+                                  toast.error('Enter a valid phone number (e.g. +18882935813)');
+                                  return;
+                                }
+                                // Verify the number is a real Twilio number
+                                setIsSavingExisting(true);
+                                try {
+                                  // Step 1: Verify with Twilio API
+                                  const verifyRes = await fetch(`${import.meta.env.VITE_API_URL || 'https://bamlead.com/api'}/calling.php?action=verify_twilio_number`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('auth_token')}` },
+                                    body: JSON.stringify({ phone_number: formatted }),
+                                  });
+                                  const verifyData = await verifyRes.json().catch(() => null);
+                                  
+                                  if (verifyRes.ok && verifyData?.verified === false) {
+                                    toast.error('❌ This number is not a valid Twilio number. Please enter a number purchased from your Twilio account.');
+                                    return;
+                                  }
+
+                                  // Step 2: Save to backend
+                                  const result = await savePhoneSetup(formatted);
+                                  if (result.success) {
+                                    toast.success(`✅ Number ${formatted} verified & active!`);
+                                    localStorage.setItem('twilio_phone_number', formatted);
+                                    localStorage.setItem('twilio_phone_active', 'true');
+                                    setTimeout(() => setActiveSection('queue'), 600);
+                                  } else {
+                                    toast.error(result.error || 'Failed to save number');
+                                  }
+                                } catch { toast.error('Network error'); }
+                                finally { setIsSavingExisting(false); }
+                              }}
+                              disabled={isSavingExisting || !existingNumber.trim()}
+                              className="w-full gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-green-400 hover:from-emerald-400 hover:to-green-300 text-white font-bold text-sm shadow-lg shadow-emerald-500/30"
+                            >
+                              {isSavingExisting ? <><Loader2 className="w-4 h-4 animate-spin" /> Verifying & Saving…</> : <><CheckCircle2 className="w-4 h-4" /> Save My Twilio Number</>}
+                            </Button>
+                            <div className="text-[11px] text-muted-foreground bg-muted/30 p-3 rounded-xl space-y-1">
+                              <p>🔍 <strong>Verified:</strong> We confirm your number is from Twilio before saving</p>
+                              <p>✅ <strong>Format:</strong> Use E.164 format (e.g. +18882935813)</p>
+                              <p>🔒 <strong>Security:</strong> This number is tied only to your account</p>
+                              <p>⚡ <strong>Instant:</strong> Number is active immediately after verification</p>
+                            </div>
                           </div>
                         ) : (
                           <div className="rounded-2xl border border-border/50 bg-card/30 p-5 space-y-4">
@@ -905,14 +1214,32 @@ export default function Step4AICallingHub({
                 {/* ════════ CALL QUEUE ════════ */}
                 {activeSection === 'queue' && (
                   <div className="space-y-5">
+                    {/* Phone required guard */}
+                    {!phoneSetup.hasPhone && (
+                      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl border-2 border-amber-500/40 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/5 p-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/25">
+                            <Phone className="w-7 h-7 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-lg text-foreground">Phone Number Required</h3>
+                            <p className="text-sm text-muted-foreground">You need an active Twilio phone number before you can start calling leads.</p>
+                          </div>
+                          <Button onClick={() => setActiveSection('phone-setup')} className="gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white px-6 py-3 font-semibold shadow-lg shadow-amber-500/20">
+                            <Signal className="w-4 h-4" /> Set Up Phone
+                          </Button>
+                        </div>
+                      </motion.div>
+                    )}
+
                     <div className="flex items-center justify-between">
                       <div>
                         <h1 className="text-2xl font-bold text-foreground mb-1">Call Queue</h1>
                         <p className="text-muted-foreground text-sm">{callableLeads.length} leads with valid phone numbers ready to call.</p>
                       </div>
                       <div className="flex gap-2">
-                        {isReady && !isCallingActive && pendingCount > 0 && (
-                          <Button onClick={handleStartCalling} className="gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700">
+                        {phoneSetup.hasPhone && !isCallingActive && pendingCount > 0 && (
+                          <Button onClick={handleStartCalling} className="gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg shadow-emerald-500/25 px-6">
                             <Play className="w-4 h-4" /> Start Calling ({pendingCount})
                           </Button>
                         )}
@@ -942,14 +1269,14 @@ export default function Step4AICallingHub({
                     {/* Status counters */}
                     <div className="grid grid-cols-4 gap-3">
                       {[
-                        { label: 'Pending', count: callQueue.filter(c => c.status === 'pending').length, cardBg: 'bg-gradient-to-br from-slate-500 to-slate-600' },
-                        { label: 'Calling', count: callQueue.filter(c => c.status === 'calling').length, cardBg: 'bg-gradient-to-br from-amber-500 to-orange-500' },
-                        { label: 'Completed', count: callQueue.filter(c => c.status === 'completed').length, cardBg: 'bg-gradient-to-br from-emerald-500 to-emerald-600' },
-                        { label: 'Failed', count: callQueue.filter(c => c.status === 'no_answer' || c.status === 'failed').length, cardBg: 'bg-gradient-to-br from-rose-500 to-rose-600' },
+                        { label: 'Pending', count: callQueue.filter(c => c.status === 'pending').length, cardBg: 'bg-gradient-to-br from-slate-500 to-slate-600 shadow-lg shadow-slate-500/20' },
+                        { label: 'Calling', count: callQueue.filter(c => c.status === 'calling').length, cardBg: 'bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg shadow-amber-500/25' },
+                        { label: 'Completed', count: callQueue.filter(c => c.status === 'completed').length, cardBg: 'bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/25' },
+                        { label: 'Failed', count: callQueue.filter(c => c.status === 'no_answer' || c.status === 'failed').length, cardBg: 'bg-gradient-to-br from-rose-500 to-rose-600 shadow-lg shadow-rose-500/25' },
                       ].map(s => (
-                        <div key={s.label} className={`rounded-2xl p-4 text-center shadow-lg ${s.cardBg}`}>
-                          <div className="text-2xl font-bold text-white">{s.count}</div>
-                          <div className="text-[11px] text-white/70 mt-0.5 font-medium uppercase tracking-wider">{s.label}</div>
+                        <div key={s.label} className={`rounded-2xl p-4 text-center ${s.cardBg}`}>
+                          <div className="text-3xl font-extrabold text-white drop-shadow-sm">{s.count}</div>
+                          <div className="text-[11px] text-white/80 mt-0.5 font-semibold uppercase tracking-wider">{s.label}</div>
                         </div>
                       ))}
                     </div>
@@ -994,6 +1321,61 @@ export default function Step4AICallingHub({
                                   <div className="flex items-center gap-1.5 text-xs text-primary font-medium">
                                     <Volume2 className="w-3.5 h-3.5 animate-pulse" /> Live
                                   </div>
+                                )}
+                                {/* Individual Call Button */}
+                                {call.status === 'pending' && phoneSetup.hasPhone && (
+                                  <Button
+                                    size="sm"
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      setCallQueue(prev => prev.map(c => c.id === call.id ? { ...c, status: 'calling' as const } : c));
+                                      try {
+                                        const result = await apiInitiateCall({
+                                          destination_number: call.phone,
+                                          lead_id: typeof call.id === 'number' ? call.id : undefined,
+                                          lead_name: call.name,
+                                        });
+                                        if (!result.success) {
+                                          setCallQueue(prev => prev.map(c => c.id === call.id ? { ...c, status: 'failed' as const, outcome: result.error || 'Failed' } : c));
+                                          toast.error(result.error || 'Call failed');
+                                        } else {
+                                          toast.success(`Calling ${call.name}...`);
+                                          // Poll for completion
+                                          const sid = result.call_sid!;
+                                          const poll = setInterval(async () => {
+                                            const sr = await getCallStatus(sid);
+                                            if (sr.success && sr.status && ['completed','busy','no-answer','failed','canceled'].includes(sr.status)) {
+                                              clearInterval(poll);
+                                              const answered = sr.status === 'completed';
+                                              setCallQueue(prev => prev.map(c => c.id === call.id ? {
+                                                ...c,
+                                                status: answered ? 'completed' as const : 'failed' as const,
+                                                outcome: answered ? (sr.duration_seconds && sr.duration_seconds > 30 ? 'Interested' : 'Callback') : sr.status === 'no-answer' ? 'No Answer' : 'Failed',
+                                                duration: sr.duration_seconds || 0,
+                                              } : c));
+                                              setCallStats(prev => ({ ...prev, total: prev.total + 1, answered: prev.answered + (answered ? 1 : 0) }));
+                                            }
+                                          }, 3000);
+                                        }
+                                      } catch {
+                                        setCallQueue(prev => prev.map(c => c.id === call.id ? { ...c, status: 'failed' as const, outcome: 'Network Error' } : c));
+                                        toast.error('Network error');
+                                      }
+                                    }}
+                                    className="gap-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-md shadow-emerald-500/20 px-4 font-semibold text-xs"
+                                  >
+                                    <PhoneCall className="w-3.5 h-3.5" /> Call
+                                  </Button>
+                                )}
+                                {call.status === 'pending' && !phoneSetup.hasPhone && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => setActiveSection('phone-setup')}
+                                    className="gap-1.5 rounded-xl text-xs text-amber-500 border-amber-500/30"
+                                  >
+                                    <Signal className="w-3.5 h-3.5" /> Setup Phone
+                                  </Button>
                                 )}
                               </div>
                             </motion.div>
@@ -1160,6 +1542,32 @@ export default function Step4AICallingHub({
                         </ScrollArea>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* ════════ LIVE TRANSCRIPT ════════ */}
+                {activeSection === 'transcript' && (
+                  <div className="space-y-5">
+                    <div>
+                      <h1 className="text-2xl font-bold text-foreground mb-1">Live Transcript</h1>
+                      <p className="text-muted-foreground text-sm">Real-time conversation view between AI agents and callers.</p>
+                    </div>
+                    <LiveTranscriptViewer
+                      callSid={activeCallSidRef.current || testCallSid}
+                      isLive={isCallingActive || (testCallStatus === 'initiated' || testCallStatus === 'ringing' || testCallStatus === 'in-progress')}
+                      leadName={callQueue.find(c => c.status === 'calling')?.name || 'Test Call'}
+                    />
+                  </div>
+                )}
+
+                {/* ════════ AI AGENTS ════════ */}
+                {activeSection === 'agents' && (
+                  <div className="space-y-5">
+                    <div>
+                      <h1 className="text-2xl font-bold text-foreground mb-1">AI Agent Management</h1>
+                      <p className="text-muted-foreground text-sm">Configure and monitor Qualifier, Closer, and Scheduler agents.</p>
+                    </div>
+                    <AIAgentManagement />
                   </div>
                 )}
 

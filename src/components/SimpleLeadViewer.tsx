@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import * as XLSX from 'xlsx-js-style';
 import {
   ArrowLeft, Download, ChevronDown,
-  Globe, Phone, MapPin,
+  Globe, Phone, PhoneCall, MapPin,
   Flame, Thermometer, Snowflake, 
   Users, Mail, Search, X,
   FileSpreadsheet, Printer, Star,
@@ -1189,6 +1189,7 @@ export default function SimpleLeadViewer({
                     <TableHead className="w-28 min-w-[100px]">Best Action</TableHead>
                     <TableHead className="w-[170px]">Pain Points</TableHead>
                     <TableHead className="w-[220px]">Recommended Approach</TableHead>
+                    <TableHead className="w-[100px] text-center">Quick Call</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1340,6 +1341,23 @@ export default function SimpleLeadViewer({
                             <span className="text-purple-500 font-medium">Multi-channel approach</span>
                           ) : (
                             <span className="text-blue-500 font-medium">Send case study email</span>
+                          )}
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          {lead.phone ? (
+                            <Button
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onProceedToCall([lead]);
+                                toast.success(`Routing ${lead.name} to AI Calling...`);
+                              }}
+                              className="gap-1.5 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs px-3 py-1 h-7 font-semibold shadow-md shadow-amber-500/20"
+                            >
+                              <PhoneCall className="w-3 h-3" /> Quick Call
+                            </Button>
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">No phone</span>
                           )}
                         </TableCell>
                       </TableRow>

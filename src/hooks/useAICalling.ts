@@ -282,6 +282,9 @@ export function useAICalling() {
         };
         setPhoneSetup(newPhoneSetup);
         setConfig(newConfig);
+        // Persist to localStorage for sidebar display
+        localStorage.setItem('twilio_phone_number', phoneNumber);
+        localStorage.setItem('twilio_phone_active', 'true');
         return { success: true };
       }
       

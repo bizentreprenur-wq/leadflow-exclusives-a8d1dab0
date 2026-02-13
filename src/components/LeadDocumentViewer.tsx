@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { VisuallyHidden } from '@/components/ui/visually-hidden';
 import { Button } from '@/components/ui/button';
@@ -876,7 +876,6 @@ export default function LeadDocumentViewer({
   const [zoomLevel, setZoomLevel] = useState(100); // Zoom percentage (50-150)
   const documentRef = useRef<HTMLDivElement>(null);
   const analyzedReportKeysRef = useRef<Set<string>>(new Set());
-  const analyzedReportStorageKey = 'bamlead_analyzed_report_keys_v1';
 
   const reportAnalysisKey = useMemo(() => {
     const stableLeadKeys = leads
@@ -885,29 +884,6 @@ export default function LeadDocumentViewer({
       .sort();
     return `${searchQuery}|${location}|${stableLeadKeys.length}|${stableLeadKeys.join(',')}`;
   }, [leads, searchQuery, location]);
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(analyzedReportStorageKey);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return;
-      analyzedReportKeysRef.current = new Set(parsed.filter((key): key is string => typeof key === 'string'));
-    } catch {
-      // Ignore malformed cache
-    }
-  }, []);
-
-  const markReportAsAnalyzed = useCallback((key: string) => {
-    analyzedReportKeysRef.current.add(key);
-    try {
-      const cappedKeys = Array.from(analyzedReportKeysRef.current).slice(-50);
-      analyzedReportKeysRef.current = new Set(cappedKeys);
-      localStorage.setItem(analyzedReportStorageKey, JSON.stringify(cappedKeys));
-    } catch {
-      // Ignore storage write failures
-    }
-  }, [analyzedReportStorageKey]);
 
   // Simulate AI analysis loading
   useEffect(() => {
@@ -928,7 +904,7 @@ export default function LeadDocumentViewer({
         if (prev >= 100) {
           clearInterval(interval);
           finishTimer = setTimeout(() => {
-            markReportAsAnalyzed(reportAnalysisKey);
+            analyzedReportKeysRef.current.add(reportAnalysisKey);
             setIsLoading(false);
           }, 300);
           return 100;
@@ -941,7 +917,7 @@ export default function LeadDocumentViewer({
       clearInterval(interval);
       if (finishTimer) clearTimeout(finishTimer);
     };
-  }, [open, reportAnalysisKey, markReportAsAnalyzed]);
+  }, [open, reportAnalysisKey]);
 
   // Analyze all leads
   const analyzedLeads = useMemo(() => {
@@ -1287,13 +1263,13 @@ export default function LeadDocumentViewer({
   }) => (
     <div className="mb-3">
       <div className="flex items-center gap-1 mb-1">
-        <Icon className="w-3 h-3 text-emerald-600" />
-        <span className="text-xs font-semibold text-emerald-700 uppercase">{label}</span>
+        <Icon className="w-3 h-3 text-emerald-400" />
+        <span className="text-xs font-semibold text-emerald-300 uppercase">{label}</span>
       </div>
-      <div className={`group flex items-start gap-2 text-sm text-gray-700 rounded-lg p-2 border ${
+      <div className={`group flex items-start gap-2 text-sm text-gray-300 rounded-lg p-2 border ${
         accent 
-          ? 'bg-emerald-100/50 border-emerald-200 font-medium' 
-          : 'bg-white/60 border-emerald-100'
+          ? 'bg-emerald-950/30 border-emerald-700/50 font-medium' 
+          : 'bg-gray-800/50 border-emerald-800/30'
       } ${highlight ? 'font-medium' : ''}`}>
         <span className="flex-1">
           {prefix && `${prefix} `}
@@ -1309,27 +1285,27 @@ export default function LeadDocumentViewer({
     const classColors = {
       hot: {
         border: 'border-l-red-500',
-        bg: 'bg-red-50',
-        text: 'text-red-700',
-        badge: 'bg-red-100 text-red-700 border-red-200',
+        bg: 'bg-red-950/30',
+        text: 'text-red-400',
+        badge: 'bg-red-900/50 text-red-300 border-red-700/50',
       },
       warm: {
         border: 'border-l-orange-500',
-        bg: 'bg-orange-50',
-        text: 'text-orange-700',
-        badge: 'bg-orange-100 text-orange-700 border-orange-200',
+        bg: 'bg-orange-950/30',
+        text: 'text-orange-400',
+        badge: 'bg-orange-900/50 text-orange-300 border-orange-700/50',
       },
       cold: {
         border: 'border-l-blue-500',
-        bg: 'bg-blue-50',
-        text: 'text-blue-700',
-        badge: 'bg-blue-100 text-blue-700 border-blue-200',
+        bg: 'bg-blue-950/30',
+        text: 'text-blue-400',
+        badge: 'bg-blue-900/50 text-blue-300 border-blue-700/50',
       },
     };
     const colors = classColors[lead.insight.classification];
 
     return (
-      <div className={`bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow border-l-4 ${colors.border}`}>
+      <div className={`bg-gray-800 border border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow border-l-4 ${colors.border}`}>
         <div className="p-4">
           {/* Header Row */}
           <div className="flex items-start justify-between mb-3">
@@ -1340,7 +1316,7 @@ export default function LeadDocumentViewer({
               />
               <div>
                 <div className="flex items-center gap-2">
-                  <h4 className="font-semibold text-gray-900">{lead.name}</h4>
+                  <h4 className="font-semibold text-white">{lead.name}</h4>
                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors.badge}`}>
                     {lead.insight.classification.toUpperCase()}
                   </span>
@@ -1368,9 +1344,9 @@ export default function LeadDocumentViewer({
             </div>
             <div className="text-right">
               <div className="text-xs text-gray-500">Conversion</div>
-              <div className="font-bold text-green-600">{lead.insight.conversionProbability}%</div>
+              <div className="font-bold text-green-400">{lead.insight.conversionProbability}%</div>
               <div className="text-xs text-gray-500 mt-1">Est. Value</div>
-              <div className="font-semibold text-gray-900">{lead.insight.estimatedValue}</div>
+              <div className="font-semibold text-white">{lead.insight.estimatedValue}</div>
             </div>
           </div>
 
@@ -1440,12 +1416,12 @@ export default function LeadDocumentViewer({
 
           {/* Pain Points & Talking Points */}
           <div className="grid md:grid-cols-2 gap-3 mb-3">
-            <div className="bg-gray-50 rounded-lg p-3">
+            <div className="bg-gray-800/50 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-2">
-                <AlertTriangle className="w-4 h-4 text-red-500" />
-                <span className="font-medium text-sm text-gray-700">Pain Points</span>
+                <AlertTriangle className="w-4 h-4 text-red-400" />
+                <span className="font-medium text-sm text-gray-300">Pain Points</span>
               </div>
-              <ul className="text-sm text-gray-600 space-y-1">
+              <ul className="text-sm text-gray-400 space-y-1">
                 {lead.insight.painPoints.slice(0, 3).map((point, i) => (
                   <li key={i} className="flex items-start gap-1">
                     <span className="text-red-400 mt-0.5">•</span>
@@ -1454,12 +1430,12 @@ export default function LeadDocumentViewer({
                 ))}
               </ul>
             </div>
-            <div className="bg-gray-50 rounded-lg p-3">
+            <div className="bg-gray-800/50 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-2">
-                <Lightbulb className="w-4 h-4 text-green-500" />
-                <span className="font-medium text-sm text-gray-700">Talking Points</span>
+                <Lightbulb className="w-4 h-4 text-green-400" />
+                <span className="font-medium text-sm text-gray-300">Talking Points</span>
               </div>
-              <ul className="text-sm text-gray-600 space-y-1">
+              <ul className="text-sm text-gray-400 space-y-1">
                 {lead.insight.talkingPoints.slice(0, 3).map((point, i) => (
                   <li key={i} className="flex items-start gap-1">
                     <span className="text-green-400 mt-0.5">•</span>
@@ -1471,19 +1447,19 @@ export default function LeadDocumentViewer({
           </div>
 
           {/* AI Recommendation */}
-          <div className="bg-gradient-to-r from-violet-50 to-purple-50 border border-violet-100 rounded-lg p-3 mb-3">
+          <div className="bg-gradient-to-r from-violet-950/40 to-purple-950/40 border border-violet-700/50 rounded-lg p-3 mb-3">
             <div className="flex items-center gap-2 mb-1">
-              <Brain className="w-4 h-4 text-violet-600" />
-              <span className="font-medium text-sm text-violet-700">🤖 AI Script Recommendation</span>
+              <Brain className="w-4 h-4 text-violet-400" />
+              <span className="font-medium text-sm text-violet-300">🤖 AI Script Recommendation</span>
             </div>
-            <p className="text-sm text-gray-700 italic">"{lead.insight.aiRecommendation}"</p>
+            <p className="text-sm text-gray-300 italic">"{lead.insight.aiRecommendation}"</p>
           </div>
 
           {/* What to Say - Detailed Scripts */}
-          <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-lg p-4">
+          <div className="bg-gradient-to-r from-emerald-950/40 to-teal-950/40 border border-emerald-700/50 rounded-lg p-4">
             <div className="flex items-center gap-2 mb-3">
-              <MessageSquare className="w-5 h-5 text-emerald-600" />
-              <span className="font-semibold text-emerald-800">📞 What to Say (AI-Generated Scripts)</span>
+              <MessageSquare className="w-5 h-5 text-emerald-400" />
+              <span className="font-semibold text-emerald-300">📞 What to Say (AI-Generated Scripts)</span>
             </div>
             
             {/* Opening Script */}
@@ -1515,12 +1491,12 @@ export default function LeadDocumentViewer({
             {lead.insight.objectionHandlers.length > 0 && (
               <div className="mb-3">
                 <div className="flex items-center gap-1 mb-1">
-                  <Shield className="w-3 h-3 text-emerald-600" />
-                  <span className="text-xs font-semibold text-emerald-700 uppercase">Handle Objections</span>
+                  <Shield className="w-3 h-3 text-emerald-400" />
+                  <span className="text-xs font-semibold text-emerald-300 uppercase">Handle Objections</span>
                 </div>
                 <ul className="space-y-1">
                   {lead.insight.objectionHandlers.map((handler, i) => (
-                    <li key={i} className="group flex items-start gap-2 text-xs text-gray-700 bg-white/60 rounded-lg p-2 border border-emerald-100">
+                    <li key={i} className="group flex items-start gap-2 text-xs text-gray-300 bg-gray-800/50 rounded-lg p-2 border border-emerald-800/30">
                       <span className="flex-1">{handler}</span>
                       <CopyButton text={handler} size="xs" />
                     </li>
@@ -1910,9 +1886,9 @@ export default function LeadDocumentViewer({
     aiExplanation: string;
   }) => {
     const colors = {
-      hot: { bg: 'bg-red-600', light: 'bg-red-50', border: 'border-red-200', text: 'text-red-700' },
-      warm: { bg: 'bg-orange-500', light: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700' },
-      cold: { bg: 'bg-blue-500', light: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700' },
+      hot: { bg: 'bg-red-600', light: 'bg-red-950/30', border: 'border-red-700/50', text: 'text-red-400' },
+      warm: { bg: 'bg-orange-500', light: 'bg-orange-950/30', border: 'border-orange-700/50', text: 'text-orange-400' },
+      cold: { bg: 'bg-blue-500', light: 'bg-blue-950/30', border: 'border-blue-700/50', text: 'text-blue-400' },
     };
     const c = colors[type];
 
@@ -1948,7 +1924,7 @@ export default function LeadDocumentViewer({
             <Sparkles className={`w-4 h-4 mt-0.5 ${c.text}`} />
             <div>
               <span className={`text-sm font-medium ${c.text}`}>AI Intelligence: </span>
-              <span className="text-sm text-gray-700">{aiExplanation}</span>
+              <span className="text-sm text-gray-300">{aiExplanation}</span>
             </div>
           </div>
         </div>
@@ -1959,7 +1935,7 @@ export default function LeadDocumentViewer({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-[1100px] w-[98vw] h-[95vh] flex flex-col p-0 gap-0 bg-gray-100 rounded-xl shadow-2xl data-[state=open]:animate-none data-[state=closed]:animate-none [&>button]:hidden"
+        className="max-w-[1100px] w-[98vw] h-[95vh] flex flex-col p-0 gap-0 bg-gray-950 rounded-xl shadow-2xl [&>button]:hidden"
         aria-describedby={undefined}
       >
         <VisuallyHidden>
@@ -1969,13 +1945,13 @@ export default function LeadDocumentViewer({
 
         {/* Loading State */}
         {isLoading ? (
-          <div className="flex-1 flex items-center justify-center bg-white rounded-xl m-4">
+          <div className="flex-1 flex items-center justify-center bg-gray-900 rounded-xl m-4">
             <div className="text-center max-w-md">
               <div className="w-16 h-16 bg-gradient-to-br from-violet-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-6 animate-pulse">
                 <Brain className="w-8 h-8 text-white" />
               </div>
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Analyzing Your Leads</h2>
-              <p className="text-gray-600 mb-2">
+              <h2 className="text-xl font-bold text-white mb-2">Analyzing Your Leads</h2>
+              <p className="text-gray-400 mb-2">
                 Our AI is processing {leads.length} leads to identify opportunities, pain points, and optimal contact strategies...
               </p>
               <p className="text-sm font-semibold text-foreground mb-6">
@@ -1998,7 +1974,7 @@ export default function LeadDocumentViewer({
         ) : (
           <>
             {/* Document Header - Like a PDF */}
-            <div className={`border-b px-6 py-4 shrink-0 rounded-t-xl ${researchMode === 'competitive' ? 'bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950 dark:to-orange-950' : 'bg-white dark:bg-gray-900'}`}>
+            <div className={`border-b px-6 py-4 shrink-0 rounded-t-xl ${researchMode === 'competitive' ? 'bg-gradient-to-r from-amber-950 to-orange-950' : 'bg-gray-900'}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-lg ${
@@ -2031,52 +2007,52 @@ export default function LeadDocumentViewer({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setShowFieldSelector(!showFieldSelector)} className="border-gray-300 text-gray-700 hover:bg-gray-100">
+                  <Button variant="outline" size="sm" onClick={() => setShowFieldSelector(!showFieldSelector)} className="border-gray-600 text-gray-300 hover:bg-gray-800">
                     <CheckCircle2 className="w-4 h-4 mr-2" />
                     Fields
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handlePrint} className="border-gray-300 text-gray-700 hover:bg-gray-100">
+                  <Button variant="outline" size="sm" onClick={handlePrint} className="border-gray-600 text-gray-300 hover:bg-gray-800">
                     <Printer className="w-4 h-4 mr-2" />
                     Print
                   </Button>
-                  <Button variant="outline" size="sm" onClick={exportToPDF} className="border-gray-300 text-gray-700 hover:bg-gray-100">
+                  <Button variant="outline" size="sm" onClick={exportToPDF} className="border-gray-600 text-gray-300 hover:bg-gray-800">
                     <Download className="w-4 h-4 mr-2" />
                     PDF
                   </Button>
-                  <Button variant="outline" size="sm" onClick={exportToExcel} className="border-gray-300 text-gray-700 hover:bg-gray-100">
+                  <Button variant="outline" size="sm" onClick={exportToExcel} className="border-gray-600 text-gray-300 hover:bg-gray-800">
                     <FileSpreadsheet className="w-4 h-4 mr-2" />
                     Excel
                   </Button>
                   
                   {/* Zoom Controls */}
-                  <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-lg border border-gray-200">
+                   <div className="flex items-center gap-2 px-3 py-1 bg-gray-800 rounded-lg border border-gray-700">
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => setZoomLevel(Math.max(50, zoomLevel - 10))}
-                      className="h-7 w-7 hover:bg-gray-200"
+                      className="h-7 w-7 hover:bg-gray-700"
                       disabled={zoomLevel <= 50}
                     >
-                      <ZoomOut className="w-4 h-4 text-gray-600" />
+                      <ZoomOut className="w-4 h-4 text-gray-400" />
                     </Button>
-                    <span className="text-sm font-medium text-gray-700 min-w-[3rem] text-center">{zoomLevel}%</span>
+                    <span className="text-sm font-medium text-gray-300 min-w-[3rem] text-center">{zoomLevel}%</span>
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => setZoomLevel(Math.min(150, zoomLevel + 10))}
-                      className="h-7 w-7 hover:bg-gray-200"
+                      className="h-7 w-7 hover:bg-gray-700"
                       disabled={zoomLevel >= 150}
                     >
-                      <ZoomIn className="w-4 h-4 text-gray-600" />
+                      <ZoomIn className="w-4 h-4 text-gray-400" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => setZoomLevel(100)}
-                      className="h-7 w-7 hover:bg-gray-200"
+                      className="h-7 w-7 hover:bg-gray-700"
                       title="Reset zoom"
                     >
-                      <RotateCcw className="w-3.5 h-3.5 text-gray-600" />
+                      <RotateCcw className="w-3.5 h-3.5 text-gray-400" />
                     </Button>
                   </div>
                   
@@ -2094,8 +2070,8 @@ export default function LeadDocumentViewer({
 
             {/* Field Selector Dropdown */}
             {showFieldSelector && (
-              <div className="border-b bg-gray-50 px-6 py-3">
-                <p className="text-sm font-medium text-gray-700 mb-2">Select fields to include in exports:</p>
+              <div className="border-b bg-gray-800/50 px-6 py-3">
+                <p className="text-sm font-medium text-gray-300 mb-2">Select fields to include in exports:</p>
                 <div className="flex flex-wrap gap-3">
                   {EXPORT_FIELDS.map(field => (
                     <label key={field.id} className="flex items-center gap-2 cursor-pointer">
@@ -2103,7 +2079,7 @@ export default function LeadDocumentViewer({
                         checked={selectedFields.includes(field.id)}
                         onCheckedChange={() => toggleField(field.id)}
                       />
-                      <span className="text-sm text-gray-700">{field.label}</span>
+                      <span className="text-sm text-gray-300">{field.label}</span>
                     </label>
                   ))}
                 </div>
@@ -2113,7 +2089,7 @@ export default function LeadDocumentViewer({
             {/* PDF-like Document Content with Zoom */}
             <ScrollArea className="flex-1 p-4" ref={documentRef}>
               <div 
-                className="bg-white rounded-xl shadow-sm border p-8 mx-auto transition-transform origin-top"
+                className="bg-gray-900 rounded-xl shadow-sm border border-gray-700 p-8 mx-auto transition-transform origin-top"
                 style={{ 
                   transform: `scale(${zoomLevel / 100})`,
                   maxWidth: `${800 * (100 / zoomLevel)}px`,
@@ -2121,74 +2097,74 @@ export default function LeadDocumentViewer({
                 }}
               >
                 {/* Executive Summary */}
-                <div className="border-b pb-6 mb-6">
+                <div className="border-b border-gray-700 pb-6 mb-6">
                   <div className="flex items-center gap-2 mb-4">
-                    <BarChart3 className="w-5 h-5 text-violet-600" />
-                    <h2 className="text-lg font-bold text-gray-900">Executive Summary</h2>
+                    <BarChart3 className="w-5 h-5 text-violet-400" />
+                    <h2 className="text-lg font-bold text-white">Executive Summary</h2>
                   </div>
                   <div className="grid grid-cols-4 gap-4 mb-4">
-                    <div className="text-center p-4 bg-gray-50 rounded-lg">
-                      <div className="text-3xl font-bold text-gray-900">{leads.length}</div>
-                      <div className="text-sm text-gray-500">Total Leads</div>
+                    <div className="text-center p-4 bg-gray-800 rounded-lg border border-gray-700">
+                      <div className="text-3xl font-bold text-white">{leads.length}</div>
+                      <div className="text-sm text-gray-400">Total Leads</div>
                     </div>
-                    <div className="text-center p-4 bg-red-50 rounded-lg border border-red-100">
-                      <div className="text-3xl font-bold text-red-600">{hotLeads.length}</div>
-                      <div className="text-sm text-red-600">Hot Leads</div>
+                    <div className="text-center p-4 bg-red-950/50 rounded-lg border border-red-800/50">
+                      <div className="text-3xl font-bold text-red-400">{hotLeads.length}</div>
+                      <div className="text-sm text-red-400">Hot Leads</div>
                     </div>
-                    <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-100">
-                      <div className="text-3xl font-bold text-orange-600">{warmLeads.length}</div>
-                      <div className="text-sm text-orange-600">Warm Leads</div>
+                    <div className="text-center p-4 bg-orange-950/50 rounded-lg border border-orange-800/50">
+                      <div className="text-3xl font-bold text-orange-400">{warmLeads.length}</div>
+                      <div className="text-sm text-orange-400">Warm Leads</div>
                     </div>
-                    <div className="text-center p-4 bg-blue-50 rounded-lg border border-blue-100">
-                      <div className="text-3xl font-bold text-blue-600">{coldLeads.length}</div>
-                      <div className="text-sm text-blue-600">Cold Leads</div>
+                    <div className="text-center p-4 bg-blue-950/50 rounded-lg border border-blue-800/50">
+                      <div className="text-3xl font-bold text-blue-400">{coldLeads.length}</div>
+                      <div className="text-sm text-blue-400">Cold Leads</div>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between bg-gradient-to-r from-green-950/50 to-emerald-950/50 border border-green-800/50 rounded-lg p-4">
                     <div className="flex items-center gap-3">
-                      <DollarSign className="w-6 h-6 text-green-600" />
+                      <DollarSign className="w-6 h-6 text-green-400" />
                       <div>
-                        <div className="text-sm text-green-700">Estimated Pipeline Value</div>
-                        <div className="text-2xl font-bold text-green-700">${totalEstimatedValue.toLocaleString()}</div>
+                        <div className="text-sm text-green-400">Estimated Pipeline Value</div>
+                        <div className="text-2xl font-bold text-green-400">${totalEstimatedValue.toLocaleString()}</div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm text-gray-600">Selected Leads</div>
-                      <div className="text-lg font-bold text-gray-900">{selectedLeadIds.size} / {leads.length}</div>
+                      <div className="text-sm text-gray-400">Selected Leads</div>
+                      <div className="text-lg font-bold text-white">{selectedLeadIds.size} / {leads.length}</div>
                     </div>
                   </div>
                 </div>
 
                 {/* Competitive Analysis Overview - Only show in competitive mode */}
                 {researchMode === 'competitive' && (
-                  <div className="border-b pb-6 mb-6">
+                  <div className="border-b border-gray-700 pb-6 mb-6">
                     <div className="flex items-center gap-2 mb-4">
-                      <Swords className="w-5 h-5 text-amber-600" />
-                      <h2 className="text-lg font-bold text-gray-900">🏆 Competitive Intelligence Dashboard</h2>
-                      <Badge className="bg-amber-100 text-amber-700 border-amber-300 ml-2">
+                      <Swords className="w-5 h-5 text-amber-400" />
+                      <h2 className="text-lg font-bold text-white">🏆 Competitive Intelligence Dashboard</h2>
+                      <Badge className="bg-amber-900/50 text-amber-300 border-amber-700/50 ml-2">
                         {leads.length} Businesses Analyzed
                       </Badge>
                       {myBusinessInfo?.name && (
-                        <Badge className="bg-emerald-100 text-emerald-700 border-emerald-300 ml-1">
+                        <Badge className="bg-emerald-900/50 text-emerald-300 border-emerald-700/50 ml-1">
                           Benchmarking: {myBusinessInfo.name}
                         </Badge>
                       )}
                     </div>
                     
-                    <p className="text-sm text-gray-600 mb-4">
-                      Use this intelligence to: <strong>benchmark your business</strong> against competitors, 
-                      <strong> find partnership opportunities</strong>, <strong>research before entering a market</strong>, 
-                      or <strong>identify businesses that need your product/service</strong>.
+                    <p className="text-sm text-gray-400 mb-4">
+                      Use this intelligence to: <strong className="text-gray-200">benchmark your business</strong> against competitors, 
+                      <strong className="text-gray-200"> find partnership opportunities</strong>, <strong className="text-gray-200">research before entering a market</strong>, 
+                      or <strong className="text-gray-200">identify businesses that need your product/service</strong>.
                     </p>
                     
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                       {/* Market Overview */}
-                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                      <div className="p-4 bg-slate-800/50 border border-slate-600/50 rounded-xl">
                         <div className="flex items-center gap-2 mb-3">
-                          <BarChart3 className="w-5 h-5 text-slate-600" />
-                          <span className="font-bold text-slate-700">Market Overview</span>
+                          <BarChart3 className="w-5 h-5 text-slate-400" />
+                          <span className="font-bold text-slate-300">Market Overview</span>
                         </div>
-                        <div className="space-y-2 text-sm text-slate-700">
+                        <div className="space-y-2 text-sm text-slate-300">
                           <div className="flex justify-between">
                             <span>Total in Market:</span>
                             <span className="font-medium">{leads.length}</span>
@@ -2204,13 +2180,13 @@ export default function LeadDocumentViewer({
                         </div>
                       </div>
 
-                      {/* Your Advantages (if benchmarking) */}
-                      <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                      {/* Your Advantages */}
+                      <div className="p-4 bg-emerald-950/40 border border-emerald-700/50 rounded-xl">
                         <div className="flex items-center gap-2 mb-3">
-                          <Trophy className="w-5 h-5 text-emerald-600" />
-                          <span className="font-bold text-emerald-700">{myBusinessInfo?.name ? 'Your Advantages' : 'Market Gaps'}</span>
+                          <Trophy className="w-5 h-5 text-emerald-400" />
+                          <span className="font-bold text-emerald-300">{myBusinessInfo?.name ? 'Your Advantages' : 'Market Gaps'}</span>
                         </div>
-                        <ul className="space-y-2 text-sm text-emerald-700">
+                        <ul className="space-y-2 text-sm text-emerald-300">
                           <li className="flex items-start gap-2">
                             <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
                             <span>{leads.filter(l => !l.website).length} have no website</span>
@@ -2227,12 +2203,12 @@ export default function LeadDocumentViewer({
                       </div>
 
                       {/* Competitive Threats */}
-                      <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                      <div className="p-4 bg-amber-950/40 border border-amber-700/50 rounded-xl">
                         <div className="flex items-center gap-2 mb-3">
-                          <AlertTriangle className="w-5 h-5 text-amber-600" />
-                          <span className="font-bold text-amber-700">Strong Players</span>
+                          <AlertTriangle className="w-5 h-5 text-amber-400" />
+                          <span className="font-bold text-amber-300">Strong Players</span>
                         </div>
-                        <ul className="space-y-2 text-sm text-amber-700">
+                        <ul className="space-y-2 text-sm text-amber-300">
                           <li className="flex items-start gap-2">
                             <ChevronRight className="w-4 h-4 shrink-0 mt-0.5" />
                             <span>{leads.filter(l => (l.rating || 0) >= 4.5).length} with 4.5+ rating</span>
@@ -2249,12 +2225,12 @@ export default function LeadDocumentViewer({
                       </div>
 
                       {/* AI Recommendations */}
-                      <div className="p-4 bg-violet-50 border border-violet-200 rounded-xl">
+                      <div className="p-4 bg-violet-950/40 border border-violet-700/50 rounded-xl">
                         <div className="flex items-center gap-2 mb-3">
-                          <Sparkles className="w-5 h-5 text-violet-600" />
-                          <span className="font-bold text-violet-700">AI Recommendations</span>
+                          <Sparkles className="w-5 h-5 text-violet-400" />
+                          <span className="font-bold text-violet-300">AI Recommendations</span>
                         </div>
-                        <ul className="space-y-2 text-sm text-violet-700">
+                        <ul className="space-y-2 text-sm text-violet-300">
                           <li className="flex items-start gap-2">
                             <Zap className="w-4 h-4 shrink-0 mt-0.5" />
                             <span>{hotLeads.length > warmLeads.length ? 'Many underserved - act fast' : 'Build relationships first'}</span>
@@ -2272,8 +2248,8 @@ export default function LeadDocumentViewer({
                     </div>
 
                     {/* Key Insight */}
-                    <div className="p-3 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg">
-                      <p className="text-sm text-amber-800">
+                    <div className="p-3 bg-gradient-to-r from-amber-950/50 to-orange-950/50 border border-amber-700/50 rounded-lg">
+                      <p className="text-sm text-amber-300">
                         <strong>💡 Key Insight:</strong> This market has {leads.length} players. 
                         {hotLeads.length > leads.length / 3 
                           ? ` ${hotLeads.length} businesses (${Math.round(hotLeads.length / leads.length * 100)}%) have significant digital gaps - prime targets for your product/service or easy wins if competing.`
@@ -2285,15 +2261,15 @@ export default function LeadDocumentViewer({
                 )}
 
                 {/* AI Research Intelligence Sections - Updated to 12 Categories */}
-                <div className="border-b pb-6 mb-6">
+                <div className="border-b border-gray-700 pb-6 mb-6">
                   <div className="flex items-center gap-2 mb-4">
                     <Brain className="w-5 h-5 text-primary" />
-                    <h2 className="text-lg font-bold text-gray-900 dark:text-white">🧠 Super AI Business Intelligence</h2>
-                    <Badge className="bg-primary/10 text-primary border-primary/30 ml-2">
+                    <h2 className="text-lg font-bold text-white">🧠 Super AI Business Intelligence</h2>
+                    <Badge className="bg-primary/20 text-primary border-primary/30 ml-2">
                       12 Categories Analyzed
                     </Badge>
                   </div>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                  <p className="text-sm text-gray-400 mb-4">
                     {researchMode === 'competitive' 
                       ? 'Detailed intelligence on each business in this market. Use this data to identify partnership opportunities, benchmark your position, or find businesses that need your product/service.'
                       : 'Complete decision-level intelligence: who to contact, what problem they have, how much money they\'re losing, what service they need, and the exact message that will convert.'}
@@ -2301,107 +2277,107 @@ export default function LeadDocumentViewer({
                   
                   <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
                     {/* Business Identity */}
-                    <div className="p-2 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg">
+                    <div className="p-2 bg-blue-950/40 border border-blue-700/50 rounded-lg">
                       <div className="text-sm mb-1">🏢</div>
-                      <div className="text-[10px] font-bold text-blue-700 dark:text-blue-300">Identity</div>
-                      <div className="text-[9px] text-blue-600 dark:text-blue-400">Size, Revenue, Type</div>
+                      <div className="text-[10px] font-bold text-blue-300">Identity</div>
+                      <div className="text-[9px] text-blue-400">Size, Revenue, Type</div>
                     </div>
                     
                     {/* Decision Maker */}
-                    <div className="p-2 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-700 rounded-lg">
+                    <div className="p-2 bg-indigo-950/40 border border-indigo-700/50 rounded-lg">
                       <div className="text-sm mb-1">👤</div>
-                      <div className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300">Decision Maker</div>
-                      <div className="text-[9px] text-indigo-600 dark:text-indigo-400">Owner, Role, Reach</div>
+                      <div className="text-[10px] font-bold text-indigo-300">Decision Maker</div>
+                      <div className="text-[9px] text-indigo-400">Owner, Role, Reach</div>
                     </div>
                     
                     {/* Website Health */}
-                    <div className="p-2 bg-teal-50 dark:bg-teal-900/30 border border-teal-200 dark:border-teal-700 rounded-lg">
+                    <div className="p-2 bg-teal-950/40 border border-teal-700/50 rounded-lg">
                       <div className="text-sm mb-1">🌐</div>
-                      <div className="text-[10px] font-bold text-teal-700 dark:text-teal-300">Website</div>
-                      <div className="text-[9px] text-teal-600 dark:text-teal-400">Health, Mobile, SEO</div>
+                      <div className="text-[10px] font-bold text-teal-300">Website</div>
+                      <div className="text-[9px] text-teal-400">Health, Mobile, SEO</div>
                     </div>
                     
                     {/* Online Presence */}
-                    <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 rounded-lg">
+                    <div className="p-2 bg-emerald-950/40 border border-emerald-700/50 rounded-lg">
                       <div className="text-sm mb-1">📈</div>
-                      <div className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">Visibility</div>
-                      <div className="text-[9px] text-emerald-600 dark:text-emerald-400">GMB, Rankings</div>
+                      <div className="text-[10px] font-bold text-emerald-300">Visibility</div>
+                      <div className="text-[9px] text-emerald-400">GMB, Rankings</div>
                     </div>
                     
                     {/* Reputation */}
-                    <div className="p-2 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 rounded-lg">
+                    <div className="p-2 bg-amber-950/40 border border-amber-700/50 rounded-lg">
                       <div className="text-sm mb-1">⭐</div>
-                      <div className="text-[10px] font-bold text-amber-700 dark:text-amber-300">Reputation</div>
-                      <div className="text-[9px] text-amber-600 dark:text-amber-400">Reviews, Sentiment</div>
+                      <div className="text-[10px] font-bold text-amber-300">Reputation</div>
+                      <div className="text-[9px] text-amber-400">Reviews, Sentiment</div>
                     </div>
                     
                     {/* AI Opportunity */}
-                    <div className="p-2 bg-violet-50 dark:bg-violet-900/30 border border-violet-200 dark:border-violet-700 rounded-lg">
+                    <div className="p-2 bg-violet-950/40 border border-violet-700/50 rounded-lg">
                       <div className="text-sm mb-1">🧠</div>
-                      <div className="text-[10px] font-bold text-violet-700 dark:text-violet-300">Opportunity</div>
-                      <div className="text-[9px] text-violet-600 dark:text-violet-400">Gaps, ROI Lift</div>
+                      <div className="text-[10px] font-bold text-violet-300">Opportunity</div>
+                      <div className="text-[9px] text-violet-400">Gaps, ROI Lift</div>
                     </div>
                     
                     {/* Tech Stack */}
-                    <div className="p-2 bg-sky-50 dark:bg-sky-900/30 border border-sky-200 dark:border-sky-700 rounded-lg">
+                    <div className="p-2 bg-sky-950/40 border border-sky-700/50 rounded-lg">
                       <div className="text-sm mb-1">🛠</div>
-                      <div className="text-[10px] font-bold text-sky-700 dark:text-sky-300">Tech Stack</div>
-                      <div className="text-[9px] text-sky-600 dark:text-sky-400">Analytics, CRM</div>
+                      <div className="text-[10px] font-bold text-sky-300">Tech Stack</div>
+                      <div className="text-[9px] text-sky-400">Analytics, CRM</div>
                     </div>
                     
                     {/* Marketing */}
-                    <div className="p-2 bg-rose-50 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-700 rounded-lg">
+                    <div className="p-2 bg-rose-950/40 border border-rose-700/50 rounded-lg">
                       <div className="text-sm mb-1">📣</div>
-                      <div className="text-[10px] font-bold text-rose-700 dark:text-rose-300">Marketing</div>
-                      <div className="text-[9px] text-rose-600 dark:text-rose-400">Ads, Social, Spend</div>
+                      <div className="text-[10px] font-bold text-rose-300">Marketing</div>
+                      <div className="text-[9px] text-rose-400">Ads, Social, Spend</div>
                     </div>
                     
                     {/* Conversion */}
-                    <div className="p-2 bg-cyan-50 dark:bg-cyan-900/30 border border-cyan-200 dark:border-cyan-700 rounded-lg">
+                    <div className="p-2 bg-cyan-950/40 border border-cyan-700/50 rounded-lg">
                       <div className="text-sm mb-1">🔄</div>
-                      <div className="text-[10px] font-bold text-cyan-700 dark:text-cyan-300">Conversion</div>
-                      <div className="text-[9px] text-cyan-600 dark:text-cyan-400">Booking, Funnel</div>
+                      <div className="text-[10px] font-bold text-cyan-300">Conversion</div>
+                      <div className="text-[9px] text-cyan-400">Booking, Funnel</div>
                     </div>
                     
                     {/* Buying Signals */}
-                    <div className="p-2 bg-orange-50 dark:bg-orange-900/30 border border-orange-200 dark:border-orange-700 rounded-lg">
+                    <div className="p-2 bg-orange-950/40 border border-orange-700/50 rounded-lg">
                       <div className="text-sm mb-1">🎯</div>
-                      <div className="text-[10px] font-bold text-orange-700 dark:text-orange-300">Intent</div>
-                      <div className="text-[9px] text-orange-600 dark:text-orange-400">Buying Signals</div>
+                      <div className="text-[10px] font-bold text-orange-300">Intent</div>
+                      <div className="text-[9px] text-orange-400">Buying Signals</div>
                     </div>
                     
                     {/* Competitors */}
-                    <div className="p-2 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 rounded-lg">
+                    <div className="p-2 bg-red-950/40 border border-red-700/50 rounded-lg">
                       <div className="text-sm mb-1">🥊</div>
-                      <div className="text-[10px] font-bold text-red-700 dark:text-red-300">Competitors</div>
-                      <div className="text-[9px] text-red-600 dark:text-red-400">Gaps, Position</div>
+                      <div className="text-[10px] font-bold text-red-300">Competitors</div>
+                      <div className="text-[9px] text-red-400">Gaps, Position</div>
                     </div>
                     
                     {/* AI Outreach */}
-                    <div className="p-2 bg-gradient-to-br from-primary/10 to-emerald-50 dark:to-emerald-900/30 border border-primary/30 rounded-lg">
+                    <div className="p-2 bg-gradient-to-br from-primary/20 to-emerald-950/40 border border-primary/30 rounded-lg">
                       <div className="text-sm mb-1">✨</div>
                       <div className="text-[10px] font-bold text-primary">AI Outreach</div>
-                      <div className="text-[9px] text-gray-600 dark:text-gray-400">Scripts, Timing</div>
+                      <div className="text-[9px] text-gray-400">Scripts, Timing</div>
                     </div>
                   </div>
                 </div>
 
                 {/* Issue Summary Dashboard */}
                 {issueSummary.totalIssueCount > 0 && (
-                  <div className="border-b pb-6 mb-6">
+                  <div className="border-b border-gray-700 pb-6 mb-6">
                     <div className="flex items-center gap-2 mb-4">
-                      <AlertTriangle className="w-5 h-5 text-amber-600" />
-                      <h2 className="text-lg font-bold text-gray-900">AI-Detected Issues Dashboard</h2>
-                      <Badge className="bg-amber-100 text-amber-800 border-amber-300 ml-2">
+                      <AlertTriangle className="w-5 h-5 text-amber-400" />
+                      <h2 className="text-lg font-bold text-white">AI-Detected Issues Dashboard</h2>
+                      <Badge className="bg-amber-900/50 text-amber-300 border-amber-700/50 ml-2">
                         {issueSummary.totalIssueCount} total issues
                       </Badge>
                     </div>
-                    <p className="text-sm text-gray-600 mb-4">
+                    <p className="text-sm text-gray-400 mb-4">
                       Our AI scanned all leads and found these opportunities for your outreach. Target businesses with these pain points for higher conversion rates.
                     </p>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                       {Object.entries(issueSummary.categories).map(([key, cat]) => (
-                        <div key={key} className={`${cat.lightBg} border ${cat.borderColor} rounded-lg p-3`}>
+                        <div key={key} className={`bg-gray-800/50 border border-gray-700 rounded-lg p-3`}>
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                               <span className="text-lg">{cat.emoji}</span>
@@ -2409,7 +2385,7 @@ export default function LeadDocumentViewer({
                             </div>
                             <span className={`text-lg font-bold ${cat.textColor}`}>{cat.count}</span>
                           </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="w-full bg-gray-700 rounded-full h-2">
                             <div 
                               className={`${cat.color} h-2 rounded-full transition-all duration-500`}
                               style={{ width: `${(cat.count / issueSummary.maxCount) * 100}%` }}
@@ -2418,12 +2394,12 @@ export default function LeadDocumentViewer({
                         </div>
                       ))}
                     </div>
-                    <div className="mt-4 p-3 bg-violet-50 border border-violet-200 rounded-lg">
+                    <div className="mt-4 p-3 bg-violet-950/40 border border-violet-700/50 rounded-lg">
                       <div className="flex items-start gap-2">
-                        <Sparkles className="w-4 h-4 text-violet-600 mt-0.5" />
+                        <Sparkles className="w-4 h-4 text-violet-400 mt-0.5" />
                         <div className="text-sm">
-                          <span className="font-medium text-violet-700">Pro Tip: </span>
-                          <span className="text-gray-700">
+                          <span className="font-medium text-violet-300">Pro Tip: </span>
+                          <span className="text-gray-300">
                             Leads with tracking issues ({issueSummary.categories.tracking.count}) and missing booking systems ({issueSummary.categories.booking.count}) are often unaware of lost revenue — these make excellent conversation starters!
                           </span>
                         </div>
@@ -2487,30 +2463,30 @@ export default function LeadDocumentViewer({
                 )}
 
                 {/* Footer Note */}
-                <div className="mt-8 pt-6 border-t text-center">
+                <div className="mt-8 pt-6 border-t border-gray-700 text-center">
                   <div className="flex items-center justify-center gap-2 mb-2">
-                    <Shield className="w-4 h-4 text-gray-400" />
+                    <Shield className="w-4 h-4 text-gray-500" />
                     <span className="text-xs text-gray-500">Generated by BamLead AI Intelligence Engine</span>
                   </div>
-                  <p className="text-xs text-gray-400">Lead scores and recommendations are based on website analysis, industry benchmarks, and conversion data. Results may vary.</p>
+                  <p className="text-xs text-gray-500">Lead scores and recommendations are based on website analysis, industry benchmarks, and conversion data. Results may vary.</p>
                 </div>
               </div>
             </ScrollArea>
 
             {/* Footer Actions */}
-            <div className="border-t bg-white px-6 py-4 shrink-0 rounded-b-xl">
+            <div className="border-t border-gray-700 bg-gray-900 px-6 py-4 shrink-0 rounded-b-xl">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-emerald-400">
                   {selectedLeadIds.size > 0 
                     ? `${selectedLeadIds.size} leads selected` 
                     : `${hotLeads.length} hot leads ready for verification`}
                 </p>
                 <div className="flex items-center gap-3">
-                  <Button variant="outline" onClick={exportToPDF} className="border-gray-300 text-gray-700 hover:bg-gray-100">
+                  <Button variant="outline" onClick={exportToPDF} className="border-gray-600 text-gray-300 hover:bg-gray-800">
                     <Download className="w-4 h-4 mr-2" />
                     Download PDF
                   </Button>
-                  <Button variant="outline" onClick={exportToExcel} className="border-gray-300 text-gray-700 hover:bg-gray-100">
+                  <Button variant="outline" onClick={exportToExcel} className="border-gray-600 text-gray-300 hover:bg-gray-800">
                     <FileSpreadsheet className="w-4 h-4 mr-2" />
                     Download Excel
                   </Button>
