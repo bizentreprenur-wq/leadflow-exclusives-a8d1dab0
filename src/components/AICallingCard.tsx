@@ -2,11 +2,7 @@
  * AI Calling Dashboard Card
  * Shows status and provides actions based on user's plan tier
  * 
- * PRICING STRUCTURE (2026):
- * - Free: Script preview only
- * - Basic ($49/mo): +$8/mo add-on for AI scripts generation
- * - Pro ($99/mo): +$8/mo add-on for supervised AI calling
- * - Autopilot ($249/mo): AI Calling + phone included
+ * AI Calling is included in all paid plans (Basic, Pro, Autopilot)
  */
 
 import { useState } from 'react';
@@ -83,9 +79,9 @@ export default function AICallingCard({
         );
       case 'addon_needed':
         return (
-          <Badge className="bg-amber-500/20 text-amber-600 border-amber-500/30 gap-1">
-            <DollarSign className="w-3 h-3" />
-            +${addonPrice}/mo
+          <Badge className="bg-emerald-500/20 text-emerald-600 border-emerald-500/30 gap-1">
+            <CheckCircle2 className="w-3 h-3" />
+            Included
           </Badge>
         );
       case 'phone_provisioning':
@@ -133,13 +129,9 @@ export default function AICallingCard({
 
     if (needsAddon) {
       return (
-        <Button onClick={handlePurchaseAddon} disabled={isPurchasing} className="gap-2">
-          {isPurchasing ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Plus className="w-4 h-4" />
-          )}
-          Add AI Calling (${addonPrice}/mo)
+        <Button onClick={() => setShowPhoneModal(true)} className="gap-2">
+          <Phone className="w-4 h-4" />
+          Set Up AI Phone
         </Button>
       );
     }

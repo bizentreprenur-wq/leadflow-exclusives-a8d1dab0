@@ -277,7 +277,7 @@ export default function AIFollowUpSequenceGenerator({
                   Unlock AI Sequences
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  $19.99/month or start 7-day free trial
+                  Included in all paid plans — start 7-day free trial
                 </p>
               </div>
               <Button 
