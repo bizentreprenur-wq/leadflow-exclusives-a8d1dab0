@@ -84,7 +84,7 @@ export default function MailboxDemo() {
             </div>
             <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] px-2 border-0 gap-1">
               <Crown className="w-3 h-3" />
-              AI Autopilot Campaign - $19.99/mo
+              AI Autopilot Campaign
             </Badge>
           </div>
           <Button asChild size="sm">

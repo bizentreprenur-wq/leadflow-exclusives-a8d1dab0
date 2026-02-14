@@ -214,17 +214,17 @@ export default function AIAutopilotCampaignPromo() {
                     ))}
                   </div>
 
-                  {/* Pricing Box */}
+                   {/* Included Features Box */}
                   <div className="p-6 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/30">
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <p className="text-sm text-muted-foreground">Subscription</p>
-                        <p className="text-3xl font-bold text-foreground">
-                          $19.99<span className="text-lg font-normal text-muted-foreground">/month</span>
+                        <p className="text-sm text-muted-foreground">Included in All Paid Plans</p>
+                        <p className="text-xl font-bold text-foreground">
+                          AI Autopilot Campaign
                         </p>
                       </div>
                       <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-sm py-1">
-                        7-Day Free Trial
+                        ✓ Included
                       </Badge>
                     </div>
                     
@@ -243,13 +243,13 @@ export default function AIAutopilotCampaignPromo() {
                     >
                       <Link to="/pricing">
                         <Rocket className="w-5 h-5" />
-                        Subscribe Now
+                        View Plans
                         <ArrowRight className="w-5 h-5" />
                       </Link>
                     </Button>
                     
                     <p className="text-xs text-muted-foreground text-center mt-3">
-                      7-day free trial • Then $19.99/mo
+                      7-day free trial on all plans
                     </p>
                   </div>
 

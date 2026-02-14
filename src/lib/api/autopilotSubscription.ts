@@ -1,6 +1,7 @@
 /**
  * AI Autopilot Campaign Subscription API
- * Handles the $19.99/month subscription for AI automation features
+ * AI Autopilot is now included in all paid plans (Basic, Pro, Autopilot)
+ * This module is kept for backward compatibility with subscription checks
  */
 
 import { API_BASE_URL, apiRequest, USE_MOCK_AUTH } from './config';

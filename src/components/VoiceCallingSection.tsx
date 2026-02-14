@@ -36,7 +36,7 @@ const VoiceCallingSection = () => {
           </h2>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
             Don't just email leads - <span className="text-foreground font-semibold">CALL them</span>! 
-            Our AI makes phone calls that sound 100% human. <span className="text-green-500 font-semibold">Just $19.99/mo</span>
+            Our AI makes phone calls that sound 100% human. <span className="text-green-500 font-semibold">Included in all paid plans</span>
           </p>
         </div>
 
@@ -121,7 +121,7 @@ const VoiceCallingSection = () => {
               <ol className="space-y-3 text-sm">
                 <li className="flex items-start gap-2">
                   <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center shrink-0">1</span>
-                  <span><strong>Subscribe to AI Calling</strong> - Add the $8/mo add-on to your plan</span>
+                  <span><strong>Subscribe to Any Plan</strong> - AI Calling is included in Basic, Pro & Autopilot</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold flex items-center justify-center shrink-0">2</span>
@@ -137,7 +137,7 @@ const VoiceCallingSection = () => {
             <Link to="/pricing">
               <Button size="lg" className="w-full gap-2 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700">
                 <Phone className="w-5 h-5" />
-                Subscribe to AI Calling - $19.99/mo
+                Get Started — AI Calling Included
               </Button>
             </Link>
           </div>

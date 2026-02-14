@@ -4,15 +4,14 @@
  * 
  * PRICING STRUCTURE (2026):
  * - Free: Script preview only (can see what AI would say)
- * - Basic ($49/mo): AI generates scripts, you dial manually (+$8/mo for AI phone)
- * - Pro ($99/mo): AI calls your leads, you supervise (+$8/mo for AI phone)
- * - Autopilot ($249/mo): Fully autonomous calling, AI phone INCLUDED
+ * - Basic ($49/mo): AI generates scripts, you dial manually — phone INCLUDED
+ * - Pro ($99/mo): AI calls your leads, you supervise — phone INCLUDED
+ * - Autopilot ($249/mo): Fully autonomous calling — phone INCLUDED
  * 
  * V1 RULES:
  * - One phone number per customer
  * - BamLead provisions phone numbers via Twilio API
- * - $8/month add-on for Free/Basic/Pro tiers
- * - Autopilot includes phone number in subscription
+ * - AI Calling included in ALL paid tiers (no add-on required)
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -26,7 +25,7 @@ export type AICallingStatus = 'disabled' | 'addon_needed' | 'phone_provisioning'
 export type PhoneNumberType = 'bamlead'; // Only BamLead-provisioned numbers in V1
 export type AICallingAddonStatus = 'not_purchased' | 'pending' | 'active';
 
-export const AI_CALLING_ADDON_PRICE = 8; // $8/month
+export const AI_CALLING_ADDON_PRICE = 0; // Included in all paid plans
 
 export interface AICallingCapabilities {
   canViewScripts: boolean;
@@ -74,9 +73,9 @@ const TIER_CAPABILITIES: Record<PlanTier, AICallingCapabilities> = {
     canGenerateScripts: true,
     canMakeCalls: false,
     canAutoCall: false,
-    requiresAddon: true,
-    addonIncluded: false,
-    phoneIncluded: false,
+    requiresAddon: false,
+    addonIncluded: true,
+    phoneIncluded: true,
     callLimitType: 'manual_dial',
     scriptGeneration: 'basic',
   },
@@ -86,9 +85,9 @@ const TIER_CAPABILITIES: Record<PlanTier, AICallingCapabilities> = {
     canGenerateScripts: true,
     canMakeCalls: true,
     canAutoCall: false,
-    requiresAddon: true,
-    addonIncluded: false,
-    phoneIncluded: false,
+    requiresAddon: false,
+    addonIncluded: true,
+    phoneIncluded: true,
     callLimitType: 'supervised',
     scriptGeneration: 'full',
   },
@@ -322,28 +321,18 @@ export function useAICalling() {
   }, []);
   
   const addonMessage = useMemo(() => {
-    if (capabilities.addonIncluded) {
-      return 'AI Calling phone number is included with your Autopilot plan!';
+    if (tier === 'free') {
+      return 'Upgrade to any paid plan to access AI Calling — phone number included!';
     }
-    
-    switch (tier) {
-      case 'free':
-        return `Upgrade to Basic or Pro, then add AI Calling for $${AI_CALLING_ADDON_PRICE}/mo`;
-      case 'basic':
-        return `Add AI Calling for $${AI_CALLING_ADDON_PRICE}/mo to generate call scripts and get your AI phone number`;
-      case 'pro':
-        return `Add AI Calling for $${AI_CALLING_ADDON_PRICE}/mo to enable supervised AI calls`;
-      default:
-        return '';
-    }
-  }, [tier, capabilities]);
+    return 'AI Calling phone number is included with your plan!';
+  }, [tier]);
   
   const statusMessage = useMemo(() => {
     switch (status) {
       case 'disabled':
         return 'AI script preview only';
       case 'addon_needed':
-        return `Add AI Calling for $${AI_CALLING_ADDON_PRICE}/mo`;
+        return 'AI Calling included — set up your phone';
       case 'phone_provisioning':
         return 'Setting up your AI phone number...';
       case 'phone_needed':

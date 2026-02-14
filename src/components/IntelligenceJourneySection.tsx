@@ -282,9 +282,9 @@ const IntelligenceJourneySection = () => {
       glowColor: "shadow-[0_0_30px_hsl(45_93%_50%_/_0.3)]",
       checkColor: "text-amber-400",
       expandedContent: [
-        { label: "Basic ($49/mo) — Manual Dialing", desc: "AI generates scripts from lead intelligence, but you dial and talk. Preview-only scripts. $8/mo add-on for phone number." },
-        { label: "Pro ($99/mo) — Supervised Calling", desc: "AI recommends call order and scripts. You approve before each call. Co-pilot handles follow-up SMS. $8/mo add-on for phone number." },
-        { label: "Autopilot ($249/mo) — Fully Autonomous", desc: "AI selects leads, generates context-aware scripts, dials, converses, and logs outcomes — phone number included at no extra cost." },
+        { label: "Basic ($49/mo) — Manual Dialing", desc: "AI generates scripts from lead intelligence, but you dial and talk. Phone number included." },
+        { label: "Pro ($99/mo) — Supervised Calling", desc: "AI recommends call order and scripts. You approve before each call. Co-pilot handles follow-up SMS. Phone number included." },
+        { label: "Autopilot ($249/mo) — Fully Autonomous", desc: "AI selects leads, generates context-aware scripts, dials, converses, and logs outcomes — fully autonomous." },
         { label: "Contextual Intelligence", desc: "Every call script synthesizes search context, intelligence reports, AI strategies, email sequences, and PreDone documents into personalized talking points." },
       ],
     },
