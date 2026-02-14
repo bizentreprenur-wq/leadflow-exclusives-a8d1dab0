@@ -21,7 +21,7 @@ import {
   getResponseBehavior,
 } from '@/lib/campaignModes';
 
-export type PlanTier = 'free' | 'basic' | 'pro' | 'autopilot';
+export type PlanTier = 'free' | 'basic' | 'pro' | 'autopilot' | 'unlimited';
 
 export interface PlanFeatures {
   tier: PlanTier;
@@ -245,6 +245,42 @@ const PLAN_FEATURES: Record<PlanTier, PlanFeatures> = {
     aiCallingAutonomous: true,
     aiCallingPhoneIncluded: true,
   },
+  unlimited: {
+    tier: 'unlimited',
+    campaignMode: 'autopilot',
+    dailySearches: 'unlimited',
+    monthlyVerifications: Infinity,
+    manualEmailSend: true,
+    aiEmailWriter: 'autonomous',
+    emailTemplates: 'custom',
+    dripCampaigns: true,
+    abTesting: true,
+    sequenceSteps: 7,
+    initialEmailSending: 'automatic',
+    followUpSending: 'fully-automatic',
+    strategySelection: 'ai-auto-selects',
+    sequenceSelection: 'ai-auto-assigns',
+    autoFollowUps: true,
+    smartResponseDetection: true,
+    aiResurrectionSequences: true,
+    fullAutopilot: true,
+    autonomousProposals: true,
+    responseHandling: 'ai-auto-responds',
+    autoPauseOnPositive: true,
+    crmIncluded: true,
+    crmTrial: false,
+    externalCrmIntegrations: true,
+    teamMembers: 'unlimited',
+    apiAccess: true,
+    webhooks: true,
+    whiteLabelReports: true,
+    dedicatedManager: true,
+    requiresOnboarding: true,
+    aiCallingScripts: 'advanced',
+    aiCallingOutbound: true,
+    aiCallingAutonomous: true,
+    aiCallingPhoneIncluded: true,
+  },
 };
 
 const STORAGE_KEY = 'bamlead_user_plan';
@@ -282,13 +318,14 @@ export function usePlanFeatures() {
             'basic': 'basic',
             'pro': 'pro',
             'autopilot': 'autopilot',
-            'agency': 'autopilot', // Legacy mapping
+            'unlimited': 'unlimited',
+            'agency': 'autopilot',
           };
           const userTier = planMap[subscription.plan] || 'free';
           setTier(userTier);
           
           // Check if Autopilot user needs onboarding
-          if (userTier === 'autopilot') {
+          if (userTier === 'autopilot' || userTier === 'unlimited') {
             const onboardingComplete = localStorage.getItem(ONBOARDING_COMPLETE_KEY) === 'true';
             setNeedsOnboarding(!onboardingComplete);
           }
@@ -301,7 +338,7 @@ export function usePlanFeatures() {
       } catch (error) {
         // Fallback to cached tier
         const cached = localStorage.getItem(STORAGE_KEY) as PlanTier | null;
-        if (cached && ['free', 'basic', 'pro', 'autopilot'].includes(cached)) {
+        if (cached && ['free', 'basic', 'pro', 'autopilot', 'unlimited'].includes(cached)) {
           setTier(cached);
         }
       } finally {
@@ -315,7 +352,7 @@ export function usePlanFeatures() {
   // Get features for current tier (or all features if owner)
   const features = useMemo<PlanFeatures>(() => {
     if (isOwner) {
-      return { ...PLAN_FEATURES.autopilot, requiresOnboarding: false };
+      return { ...PLAN_FEATURES.unlimited, requiresOnboarding: false };
     }
     return PLAN_FEATURES[tier];
   }, [tier, isOwner]);
@@ -343,6 +380,7 @@ export function usePlanFeatures() {
       basic: { name: 'Basic', color: 'text-primary', bgColor: 'bg-primary/10' },
       pro: { name: 'Pro', color: 'text-primary', bgColor: 'bg-primary/10' },
       autopilot: { name: 'Autopilot', color: 'text-amber-500', bgColor: 'bg-amber-500/10' },
+      unlimited: { name: 'Unlimited', color: 'text-red-500', bgColor: 'bg-red-500/10' },
     };
     return info[tier];
   }, [tier]);
@@ -357,9 +395,10 @@ export function usePlanFeatures() {
     completeOnboarding,
     tierInfo,
     // Convenience booleans
-    isAutopilot: tier === 'autopilot' || isOwner,
-    isPro: tier === 'pro' || tier === 'autopilot' || isOwner,
+    isAutopilot: tier === 'autopilot' || tier === 'unlimited' || isOwner,
+    isPro: tier === 'pro' || tier === 'autopilot' || tier === 'unlimited' || isOwner,
     isPaid: tier !== 'free',
+    isUnlimited: tier === 'unlimited' || isOwner,
   };
 }
 
@@ -367,7 +406,7 @@ export function usePlanFeatures() {
 export function getCachedTier(): PlanTier {
   try {
     const cached = localStorage.getItem(STORAGE_KEY) as PlanTier | null;
-    if (cached && ['free', 'basic', 'pro', 'autopilot'].includes(cached)) {
+    if (cached && ['free', 'basic', 'pro', 'autopilot', 'unlimited'].includes(cached)) {
       return cached;
     }
   } catch {}

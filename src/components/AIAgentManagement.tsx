@@ -65,6 +65,7 @@ const AGENTS: AgentConfig[] = [
       basic: 'AI generates qualification scripts. You dial leads manually and follow the script to qualify them.',
       pro: 'AI calls your leads and qualifies them using intelligent scripts. You supervise and jump in when needed.',
       autopilot: 'AI autonomously calls, qualifies, and scores every lead. Transfers hot prospects to Closer Agent automatically.',
+      unlimited: 'AI autonomously calls, qualifies, and scores every lead. Transfers hot prospects to Closer Agent automatically.',
     },
     capabilities: [
       { label: 'Call Scripts', free: 'Preview only', basic: 'AI generates (you dial)', pro: 'AI calls (you supervise)', autopilot: 'Fully autonomous' },
@@ -90,6 +91,7 @@ const AGENTS: AgentConfig[] = [
       basic: 'AI generates closing scripts with objection rebuttals. You handle the call and follow the playbook.',
       pro: 'AI calls qualified leads, handles objections, and presents your value proposition. You jump in to close.',
       autopilot: 'AI handles the entire closing conversation — objections, pricing, and commitment — then triggers proposals automatically.',
+      unlimited: 'AI handles the entire closing conversation — objections, pricing, and commitment — then triggers proposals automatically.',
     },
     capabilities: [
       { label: 'Objection Handling', free: 'Preview only', basic: 'Script playbook', pro: 'AI handles (you close)', autopilot: 'Fully autonomous' },
@@ -115,6 +117,7 @@ const AGENTS: AgentConfig[] = [
       basic: 'AI generates meeting request templates. You book meetings manually and send proposals yourself.',
       pro: 'AI calls to book meetings and drafts proposals. You confirm the appointment and approve the proposal before sending.',
       autopilot: 'AI books meetings, sends proposals and contracts, syncs to CRM, and schedules automated follow-ups — zero manual work.',
+      unlimited: 'AI books meetings, sends proposals and contracts, syncs to CRM, and schedules automated follow-ups — zero manual work.',
     },
     capabilities: [
       { label: 'Meeting Booking', free: 'Preview only', basic: 'Manual booking', pro: 'AI books (you confirm)', autopilot: 'Fully autonomous' },
@@ -139,6 +142,7 @@ const TIER_MODE_LABELS: Record<PlanTier, { label: string; color: string; icon: R
   basic: { label: 'Manual Mode — You Dial, AI Assists', color: 'text-primary', icon: Phone },
   pro: { label: 'Co-Pilot — AI Calls, You Supervise', color: 'text-cyan-400', icon: PhoneCall },
   autopilot: { label: 'Agentic Mode — AI Does Everything', color: 'text-amber-400', icon: Sparkles },
+  unlimited: { label: 'Unlimited — AI Does Everything', color: 'text-red-400', icon: Sparkles },
 };
 
 export default function AIAgentManagement() {

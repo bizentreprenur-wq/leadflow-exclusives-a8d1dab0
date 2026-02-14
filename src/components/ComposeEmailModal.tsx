@@ -18,10 +18,11 @@ import {
   Settings2, Users, TrendingUp, Rocket, Search, Globe, Store,
   CreditCard, Wand2, Layers, MailPlus, Briefcase, Crown,
   X, Maximize2, Minimize2, Eye, AlertCircle, Lightbulb, Brain,
-  CheckSquare, Square, Edit3, ExternalLink
+  CheckSquare, Square, Edit3, ExternalLink, Shield
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import AutopilotTrialWarning from './AutopilotTrialWarning';
 import { useAutopilotTrial } from '@/hooks/useAutopilotTrial';
 import LeadQueueIndicator from './LeadQueueIndicator';
@@ -189,6 +190,9 @@ export default function ComposeEmailModal({
   // Use the trial hook for autopilot subscription status
   const { status: trialStatus, startTrial, upgradeToPaid, MONTHLY_PRICE, TRIAL_DURATION_DAYS } = useAutopilotTrial();
   const hasAutopilotSubscription = trialStatus.canUseAutopilot;
+  
+  // Plan features for Unlimited mode
+  const { isUnlimited: isUnlimitedPlan } = usePlanFeatures();
 
   useEffect(() => {
     if (!isOpen) {
@@ -870,7 +874,7 @@ export default function ComposeEmailModal({
               window.dispatchEvent(new CustomEvent('bamlead-navigate', { detail: { target: 'smtp-setup' } }));
             }}
           />
-          <div className="grid grid-cols-3 gap-3">
+          <div className={`grid gap-3 ${isUnlimitedPlan ? 'grid-cols-4 opacity-50 pointer-events-none' : 'grid-cols-3'}`}>
             {/* Mode 1: Basic Single Email */}
             <button
               onClick={() => setComposeMode('regular')}
@@ -898,7 +902,6 @@ export default function ComposeEmailModal({
               onClick={() => {
                 setSelectedCampaignType('manual');
                 setComposeMode('campaign');
-                // Log for accountability
                 try {
                   const auditLog = JSON.parse(localStorage.getItem('bamlead_campaign_audit') || '[]');
                   auditLog.push({
@@ -936,14 +939,12 @@ export default function ComposeEmailModal({
             {/* Mode 3: AI Autopilot Campaign */}
             <button
               onClick={() => {
-                // Check payment/trial first
                 if (!hasAutopilotSubscription) {
                   setShowPaymentRequired(true);
                   return;
                 }
                 setSelectedCampaignType('autopilot');
                 setComposeMode('autopilot');
-                // Log for accountability
                 try {
                   const auditLog = JSON.parse(localStorage.getItem('bamlead_campaign_audit') || '[]');
                   auditLog.push({
@@ -986,6 +987,20 @@ export default function ComposeEmailModal({
               )}
             </button>
           </div>
+
+          {/* Unlimited Mode Banner - shows when on Unlimited plan */}
+          {isUnlimitedPlan && (
+            <div className="mt-3 p-4 rounded-xl border-2 border-red-500 bg-red-500/10">
+              <div className="flex items-center gap-2 mb-1">
+                <Shield className="w-5 h-5 text-red-500" />
+                <span className="font-semibold text-foreground text-sm">Unlimited Mode Active</span>
+                <Badge className="text-[8px] px-1.5 bg-red-500 text-white border-0">$999/mo</Badge>
+              </div>
+              <p className="text-[10px] text-muted-foreground">
+                All features unlocked. No credit limits. AI handles everything autonomously.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* MAIN CONTENT */}

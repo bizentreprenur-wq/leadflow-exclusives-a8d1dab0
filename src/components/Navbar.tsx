@@ -7,6 +7,7 @@ import mascotLogo from "@/assets/bamlead-mascot.png";
 import { startTourManually } from "./AITourGuide";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { useLanguage } from "@/contexts/LanguageContext";
+import CreditCounter from "./CreditCounter";
 
 const Navbar = () => {
   const location = useLocation();
@@ -82,12 +83,15 @@ const Navbar = () => {
             
             {!isLoading && (
               isAuthenticated ? (
-                <Link to="/dashboard">
-                  <Button className="gap-2 rounded-full px-5 font-semibold">
-                    <LayoutDashboard className="w-4 h-4" />
-                    {t('nav.dashboard')}
-                  </Button>
-                </Link>
+                <>
+                  <CreditCounter compact />
+                  <Link to="/dashboard">
+                    <Button className="gap-2 rounded-full px-5 font-semibold">
+                      <LayoutDashboard className="w-4 h-4" />
+                      {t('nav.dashboard')}
+                    </Button>
+                  </Link>
+                </>
               ) : (
                 <>
                   <Link to="/auth">

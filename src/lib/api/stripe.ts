@@ -27,6 +27,7 @@ export interface StripeConfig {
     basic: Plan;
     pro: Plan;
     autopilot: Plan;
+    unlimited: Plan;
   };
 }
 
@@ -89,6 +90,21 @@ const MOCK_CONFIG: StripeConfig = {
         'Unlimited team members',
       ],
     },
+    unlimited: {
+      name: 'Unlimited',
+      monthly_price: 999,
+      yearly_price: 9590,
+      features: [
+        'Unlimited everything',
+        'Agentic Mode: Full Autopilot',
+        'Dedicated AI verification credits',
+        'Autonomous Proposal Delivery',
+        'White-label reports',
+        'API access',
+        'Dedicated account manager',
+        'Unlimited team members',
+      ],
+    },
   },
 };
 
@@ -102,7 +118,7 @@ export async function getStripeConfig(): Promise<StripeConfig> {
 }
 
 export async function createCheckoutSession(
-  plan: 'basic' | 'pro' | 'autopilot',
+  plan: 'basic' | 'pro' | 'autopilot' | 'unlimited',
   billingPeriod: 'monthly' | 'yearly' = 'monthly'
 ): Promise<{ checkout_url: string; session_id: string }> {
   if (USE_MOCK_AUTH) {
