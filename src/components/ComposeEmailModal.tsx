@@ -874,7 +874,7 @@ export default function ComposeEmailModal({
               window.dispatchEvent(new CustomEvent('bamlead-navigate', { detail: { target: 'smtp-setup' } }));
             }}
           />
-          <div className={`grid gap-3 ${isUnlimitedPlan ? 'grid-cols-4 opacity-50 pointer-events-none' : 'grid-cols-3'}`}>
+          <div className={`grid gap-3 ${isUnlimitedPlan ? 'grid-cols-4' : 'grid-cols-3'}`}>
             {/* Mode 1: Basic Single Email */}
             <button
               onClick={() => setComposeMode('regular')}
@@ -986,31 +986,29 @@ export default function ComposeEmailModal({
                 </Badge>
               )}
             </button>
-          </div>
 
-          {/* Unlimited Mode - 4th card inline */}
-          {isUnlimitedPlan && (
-            <div className="mt-3">
+            {/* Mode 4: Unlimited Mode - inline next to AI Autopilot */}
+            {isUnlimitedPlan && (
               <button
                 onClick={() => {
                   setComposeMode('autopilot');
                 }}
                 className={cn(
-                  "w-full p-4 rounded-xl border-2 transition-all text-left",
+                  "p-4 rounded-xl border-2 transition-all text-left",
                   "border-red-500 bg-gradient-to-br from-red-500/10 to-red-900/10"
                 )}
               >
                 <div className="flex items-center gap-2 mb-2">
                   <Shield className="w-5 h-5 text-red-500" />
-                  <span className="font-semibold text-foreground text-sm">Unlimited Mode Active</span>
+                  <span className="font-semibold text-foreground text-sm">Unlimited Mode</span>
                   <Badge className="text-[8px] px-1.5 bg-red-500 text-white border-0">$999/mo</Badge>
                 </div>
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  All features unlocked. No credit limits. A dedicated agent guides your setup and ensures everything is configured correctly.
+                  All features unlocked. No credit limits. A dedicated agent guides your setup.
                 </p>
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* MAIN CONTENT */}
