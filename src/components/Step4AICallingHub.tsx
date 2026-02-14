@@ -1002,6 +1002,24 @@ export default function Step4AICallingHub({
                 {/* ════════ PHONE SETUP ════════ */}
                 {activeSection === 'phone-setup' && (
                   <div className="space-y-6">
+                    {/* Active Twilio number card - displayed above Phone Setup heading */}
+                    {phoneSetup.hasPhone && phoneSetup.phoneNumber && (
+                      <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.05] p-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 flex items-center justify-center">
+                            <Phone className="w-7 h-7 text-emerald-500" />
+                          </div>
+                          <div>
+                            <p className="text-[11px] text-muted-foreground uppercase tracking-widest font-medium">Your Twilio Phone Number</p>
+                            <p className="text-2xl font-mono font-bold text-emerald-400 tracking-wide">{formatPhoneWithCountry(phoneSetup.phoneNumber)}</p>
+                          </div>
+                          <Badge className="bg-emerald-500/15 text-emerald-500 rounded-full border-0 gap-1 ml-auto">
+                            <CheckCircle2 className="w-3 h-3" /> Active
+                          </Badge>
+                        </div>
+                      </div>
+                    )}
+
                     <div>
                       <h1 className="text-2xl font-bold text-foreground mb-1">Phone Setup</h1>
                       <p className="text-muted-foreground text-sm">Provision or port a business phone number for AI calling.</p>
@@ -1009,20 +1027,6 @@ export default function Step4AICallingHub({
 
                     {phoneSetup.hasPhone && phoneSetup.phoneNumber ? (
                       <div className="space-y-4">
-                        <div className="rounded-2xl border border-emerald-500/25 bg-emerald-500/[0.05] p-6">
-                          <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 flex items-center justify-center">
-                              <Phone className="w-7 h-7 text-emerald-500" />
-                            </div>
-                            <div>
-                              <p className="text-[11px] text-muted-foreground uppercase tracking-widest font-medium">Your Twilio Phone Number</p>
-                              <p className="text-2xl font-mono font-bold text-emerald-400 tracking-wide">{formatPhoneWithCountry(phoneSetup.phoneNumber)}</p>
-                            </div>
-                            <Badge className="bg-emerald-500/15 text-emerald-500 rounded-full border-0 gap-1 ml-auto">
-                              <CheckCircle2 className="w-3 h-3" /> Active
-                            </Badge>
-                          </div>
-                        </div>
 
                         {/* Prominent Start Calling CTA */}
                         <div className="rounded-2xl border border-amber-500/25 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-primary/5 p-6">
