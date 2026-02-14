@@ -103,6 +103,18 @@ const TIER_CAPABILITIES: Record<PlanTier, AICallingCapabilities> = {
     callLimitType: 'autonomous',
     scriptGeneration: 'advanced',
   },
+  unlimited: {
+    canViewScripts: true,
+    canEditScripts: true,
+    canGenerateScripts: true,
+    canMakeCalls: true,
+    canAutoCall: true,
+    requiresAddon: false,
+    addonIncluded: true,
+    phoneIncluded: true,
+    callLimitType: 'autonomous',
+    scriptGeneration: 'advanced',
+  },
 };
 
 const STORAGE_KEY = 'bamlead_phone_setup';
