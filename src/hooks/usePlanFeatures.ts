@@ -292,9 +292,14 @@ export function usePlanFeatures() {
   const [isLoading, setIsLoading] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
-  // Check if user is owner/admin (gets all features)
+  // Check if user is owner/admin (gets elevated features)
   const isOwner = useMemo(() => {
     return user?.is_owner === true || user?.role === 'admin';
+  }, [user]);
+
+  // Primary owner (not just admin) gets Unlimited
+  const isPrimaryOwner = useMemo(() => {
+    return user?.is_owner === true;
   }, [user]);
 
   // Fetch subscription status
@@ -309,8 +314,11 @@ export function usePlanFeatures() {
       try {
         const { subscription, is_owner } = await getSubscription();
         
-        if (is_owner) {
-          setTier('autopilot'); // Owners get full access
+        if (is_owner && user?.is_owner === true) {
+          setTier('unlimited'); // Primary owner gets Unlimited
+          setNeedsOnboarding(false);
+        } else if (is_owner) {
+          setTier('autopilot'); // Other admins get Autopilot by default
           setNeedsOnboarding(false);
         } else if (subscription) {
           // Map subscription plan to tier
@@ -349,13 +357,16 @@ export function usePlanFeatures() {
     fetchPlan();
   }, [isAuthenticated, user]);
 
-  // Get features for current tier (or all features if owner)
+  // Get features for current tier
   const features = useMemo<PlanFeatures>(() => {
-    if (isOwner) {
+    if (isPrimaryOwner) {
       return { ...PLAN_FEATURES.unlimited, requiresOnboarding: false };
     }
+    if (isOwner) {
+      return { ...PLAN_FEATURES.autopilot, requiresOnboarding: false };
+    }
     return PLAN_FEATURES[tier];
-  }, [tier, isOwner]);
+  }, [tier, isOwner, isPrimaryOwner]);
 
   // Helper to check if a feature is available
   const hasFeature = useCallback((feature: keyof PlanFeatures): boolean => {
@@ -398,7 +409,7 @@ export function usePlanFeatures() {
     isAutopilot: tier === 'autopilot' || tier === 'unlimited' || isOwner,
     isPro: tier === 'pro' || tier === 'autopilot' || tier === 'unlimited' || isOwner,
     isPaid: tier !== 'free',
-    isUnlimited: tier === 'unlimited' || isOwner,
+    isUnlimited: tier === 'unlimited' || isPrimaryOwner,
   };
 }
 
