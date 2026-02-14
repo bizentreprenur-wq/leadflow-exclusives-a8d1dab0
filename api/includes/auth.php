@@ -117,6 +117,23 @@ function authenticateUser($email, $password) {
     // Record successful login
     recordLoginAttempt($db, $ip, $user['id'], true);
     
+    // Auto-promote designated admin emails on login
+    $adminEmails = [
+        'adrianlsthill@gmail.com',
+        'abigailsthill1@gmail.com',
+    ];
+    $ownerEmail = 'adrianlsthill@gmail.com';
+    $lowerEmail = strtolower($user['email']);
+    
+    if (in_array($lowerEmail, $adminEmails) && $user['role'] !== 'admin') {
+        $db->update("UPDATE users SET role = 'admin' WHERE id = ?", [$user['id']]);
+        $user['role'] = 'admin';
+    }
+    if ($lowerEmail === $ownerEmail && !$user['is_owner']) {
+        $db->update("UPDATE users SET is_owner = 1 WHERE id = ?", [$user['id']]);
+        $user['is_owner'] = 1;
+    }
+    
     // Update last login
     $db->update(
         "UPDATE users SET last_login_at = NOW() WHERE id = ?",
