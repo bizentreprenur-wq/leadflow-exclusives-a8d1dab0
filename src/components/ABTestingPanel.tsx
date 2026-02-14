@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,25 +6,25 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  FlaskConical, 
-  Plus, 
-  Trash2, 
-  Play, 
-  Pause, 
-  Trophy, 
-  TrendingUp, 
-  Mail, 
-  MousePointer, 
+import {
+  FlaskConical,
+  Plus,
+  Trash2,
+  Play,
+  Pause,
+  Trophy,
+  Mail,
+  MousePointer,
   Eye,
-  BarChart3,
   Sparkles,
   Copy,
   CheckCircle2,
-  Pencil
+  Pencil,
+  RefreshCw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { getSentEmails } from '@/lib/emailService';
 
 interface ABVariant {
   id: string;
@@ -48,59 +48,159 @@ interface ABTest {
   splitPercentage: number;
 }
 
-// Sample tests for demo
-const sampleTests: ABTest[] = [
-  {
-    id: '1',
-    name: 'Subject Line Test - Web Design',
-    status: 'running',
-    splitPercentage: 50,
-    startedAt: '2024-01-15',
-    variants: [
-      { id: 'a', name: 'Variant A', subject: 'Is your website losing customers?', sends: 245, opens: 89, clicks: 34, replies: 12 },
-      { id: 'b', name: 'Variant B', subject: 'Quick question about your online presence', sends: 248, opens: 112, clicks: 45, replies: 18 }
-    ]
-  },
-  {
-    id: '2',
-    name: 'Template Test - Cold Outreach',
-    status: 'completed',
-    splitPercentage: 50,
-    startedAt: '2024-01-10',
-    completedAt: '2024-01-14',
-    winner: 'b',
-    variants: [
-      { id: 'a', name: 'Professional', subject: 'Partnership Opportunity', sends: 500, opens: 145, clicks: 42, replies: 15 },
-      { id: 'b', name: 'Casual', subject: 'Quick idea for your business', sends: 500, opens: 198, clicks: 78, replies: 32 }
-    ]
+interface EmailActivityRecord {
+  subject?: string;
+  status?: string;
+  sent_at?: string;
+  created_at?: string;
+}
+
+const AB_TESTS_STORAGE_KEY = 'bamlead_ab_tests';
+
+const calculateRate = (numerator: number, denominator: number) => {
+  if (denominator === 0) return 0;
+  return Math.round((numerator / denominator) * 100);
+};
+
+const getWinningVariant = (test: ABTest) => {
+  if (test.variants.length < 2) return null;
+  const [a, b] = test.variants;
+  const aScore = calculateRate(a.replies, a.sends);
+  const bScore = calculateRate(b.replies, b.sends);
+  if (aScore > bScore) return 'a';
+  if (bScore > aScore) return 'b';
+  return null;
+};
+
+const inWindow = (activity: EmailActivityRecord, test: ABTest) => {
+  const timestamp = activity.sent_at || activity.created_at;
+  if (!timestamp) return false;
+
+  const eventDate = new Date(timestamp);
+  if (Number.isNaN(eventDate.getTime())) return false;
+
+  if (test.startedAt) {
+    const start = new Date(test.startedAt);
+    if (!Number.isNaN(start.getTime()) && eventDate < start) return false;
   }
-];
+
+  if (test.completedAt) {
+    const end = new Date(test.completedAt);
+    if (!Number.isNaN(end.getTime()) && eventDate > end) return false;
+  }
+
+  return true;
+};
+
+const recomputeMetrics = (tests: ABTest[], activities: EmailActivityRecord[]): ABTest[] => {
+  return tests.map((test) => {
+    if (test.status === 'draft') return test;
+
+    const nextVariants = test.variants.map((variant) => {
+      const normalizedSubject = variant.subject.trim().toLowerCase();
+      const matching = activities.filter((activity) => {
+        const subject = String(activity.subject || '').trim().toLowerCase();
+        return subject === normalizedSubject && inWindow(activity, test);
+      });
+
+      const counted = matching.filter((activity) => !['scheduled', 'pending', 'cancelled'].includes(String(activity.status || '').toLowerCase()));
+      const opens = matching.filter((activity) => ['opened', 'clicked', 'replied'].includes(String(activity.status || '').toLowerCase())).length;
+      const clicks = matching.filter((activity) => ['clicked', 'replied'].includes(String(activity.status || '').toLowerCase())).length;
+      const replies = matching.filter((activity) => String(activity.status || '').toLowerCase() === 'replied').length;
+
+      return {
+        ...variant,
+        sends: counted.length,
+        opens,
+        clicks,
+        replies,
+      };
+    });
+
+    const nextTest: ABTest = {
+      ...test,
+      variants: nextVariants,
+    };
+
+    if (test.status === 'completed') {
+      const winner = getWinningVariant(nextTest);
+      nextTest.winner = winner || undefined;
+    }
+
+    return nextTest;
+  });
+};
+
+const formatTimestamp = (timestamp?: string) => {
+  if (!timestamp) return null;
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return timestamp;
+  return date.toLocaleString();
+};
 
 export default function ABTestingPanel() {
-  const [tests, setTests] = useState<ABTest[]>(sampleTests);
+  const [tests, setTests] = useState<ABTest[]>(() => {
+    try {
+      const raw = localStorage.getItem(AB_TESTS_STORAGE_KEY);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  });
   const [showCreate, setShowCreate] = useState(false);
   const [editingTest, setEditingTest] = useState<ABTest | null>(null);
+  const [isSyncingMetrics, setIsSyncingMetrics] = useState(false);
   const [newTest, setNewTest] = useState({
     name: '',
     variantASubject: '',
     variantBSubject: '',
-    splitPercentage: 50
+    splitPercentage: 50,
   });
 
-  const calculateRate = (numerator: number, denominator: number) => {
-    if (denominator === 0) return 0;
-    return Math.round((numerator / denominator) * 100);
-  };
+  useEffect(() => {
+    localStorage.setItem(AB_TESTS_STORAGE_KEY, JSON.stringify(tests));
+  }, [tests]);
 
-  const getWinningVariant = (test: ABTest) => {
-    if (test.variants.length < 2) return null;
-    const [a, b] = test.variants;
-    const aScore = calculateRate(a.replies, a.sends);
-    const bScore = calculateRate(b.replies, b.sends);
-    if (aScore > bScore) return 'a';
-    if (bScore > aScore) return 'b';
-    return null;
-  };
+  const syncPerformanceMetrics = useCallback(async (showToast = false) => {
+    if (tests.length === 0) {
+      if (showToast) {
+        toast.info('No A/B tests available yet.');
+      }
+      return;
+    }
+
+    setIsSyncingMetrics(true);
+    try {
+      const records = (await getSentEmails(500, 0)) as EmailActivityRecord[];
+      const normalized = Array.isArray(records) ? records : [];
+
+      setTests((prev) => recomputeMetrics(prev, normalized));
+
+      if (showToast) {
+        toast.success('A/B metrics refreshed from real sends');
+      }
+    } catch {
+      if (showToast) {
+        toast.error('Failed to refresh A/B metrics');
+      }
+    } finally {
+      setIsSyncingMetrics(false);
+    }
+  }, [tests.length]);
+
+  useEffect(() => {
+    void syncPerformanceMetrics(false);
+
+    const timer = window.setInterval(() => {
+      void syncPerformanceMetrics(false);
+    }, 30000);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [syncPerformanceMetrics]);
 
   const handleCreateTest = () => {
     if (!newTest.name || !newTest.variantASubject || !newTest.variantBSubject) {
@@ -115,41 +215,47 @@ export default function ABTestingPanel() {
       splitPercentage: newTest.splitPercentage,
       variants: [
         { id: 'a', name: 'Variant A', subject: newTest.variantASubject, sends: 0, opens: 0, clicks: 0, replies: 0 },
-        { id: 'b', name: 'Variant B', subject: newTest.variantBSubject, sends: 0, opens: 0, clicks: 0, replies: 0 }
-      ]
+        { id: 'b', name: 'Variant B', subject: newTest.variantBSubject, sends: 0, opens: 0, clicks: 0, replies: 0 },
+      ],
     };
 
-    setTests([test, ...tests]);
+    setTests((prev) => [test, ...prev]);
     setNewTest({ name: '', variantASubject: '', variantBSubject: '', splitPercentage: 50 });
     setShowCreate(false);
     toast.success('A/B test created! Ready to launch.');
   };
 
   const handleStartTest = (testId: string) => {
-    setTests(tests.map(t => 
-      t.id === testId ? { ...t, status: 'running' as const, startedAt: new Date().toISOString().split('T')[0] } : t
-    ));
-    toast.success('Test started! We\'ll split your sends 50/50.');
+    setTests((prev) => prev.map((test) => (
+      test.id === testId
+        ? {
+            ...test,
+            status: 'running',
+            startedAt: new Date().toISOString(),
+            completedAt: undefined,
+            winner: undefined,
+          }
+        : test
+    )));
+    toast.success('Test started. Metrics update from real email sends.');
   };
 
   const handleStopTest = (testId: string) => {
-    const test = tests.find(t => t.id === testId);
-    if (!test) return;
-    
-    const winner = getWinningVariant(test);
-    setTests(tests.map(t => 
-      t.id === testId ? { 
-        ...t, 
-        status: 'completed' as const, 
-        completedAt: new Date().toISOString().split('T')[0],
-        winner: winner || undefined
-      } : t
-    ));
-    toast.success('Test completed! Check the results.');
+    setTests((prev) => prev.map((test) => {
+      if (test.id !== testId) return test;
+      const winner = getWinningVariant(test);
+      return {
+        ...test,
+        status: 'completed',
+        completedAt: new Date().toISOString(),
+        winner: winner || undefined,
+      };
+    }));
+    toast.success('Test completed. Winner locked from current metrics.');
   };
 
   const handleDeleteTest = (testId: string) => {
-    setTests(tests.filter(t => t.id !== testId));
+    setTests((prev) => prev.filter((test) => test.id !== testId));
     toast.success('Test deleted');
   };
 
@@ -159,22 +265,21 @@ export default function ABTestingPanel() {
 
   const handleSaveEdit = () => {
     if (!editingTest) return;
-    setTests(tests.map(t => t.id === editingTest.id ? editingTest : t));
+    setTests((prev) => prev.map((test) => (test.id === editingTest.id ? editingTest : test)));
     setEditingTest(null);
-    toast.success('Test updated successfully!');
+    toast.success('Test updated successfully');
   };
 
   const handleCopyWinner = (test: ABTest) => {
-    const winner = test.variants.find(v => v.id === test.winner);
+    const winner = test.variants.find((variant) => variant.id === test.winner);
     if (winner) {
       navigator.clipboard.writeText(winner.subject);
-      toast.success('Winning subject line copied!');
+      toast.success('Winning subject line copied');
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/20">
@@ -182,16 +287,26 @@ export default function ABTestingPanel() {
           </div>
           <div>
             <h2 className="text-xl font-bold">A/B Testing</h2>
-            <p className="text-sm text-muted-foreground">Test subject lines & templates to maximize opens</p>
+            <p className="text-sm text-muted-foreground">Metrics are derived from real sent emails by matching subject lines</p>
           </div>
         </div>
-        <Button onClick={() => setShowCreate(!showCreate)} className="gap-2">
-          <Plus className="w-4 h-4" />
-          New Test
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => void syncPerformanceMetrics(true)}
+            disabled={isSyncingMetrics}
+            className="gap-2"
+          >
+            {isSyncingMetrics ? <RefreshCw className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            Refresh Metrics
+          </Button>
+          <Button onClick={() => setShowCreate(!showCreate)} className="gap-2">
+            <Plus className="w-4 h-4" />
+            New Test
+          </Button>
+        </div>
       </div>
 
-      {/* Create New Test */}
       {showCreate && (
         <Card className="border-purple-500/30 bg-gradient-to-br from-purple-500/5 to-pink-500/5">
           <CardHeader>
@@ -200,13 +315,13 @@ export default function ABTestingPanel() {
               Create A/B Test
             </CardTitle>
             <CardDescription>
-              Split your audience and find what converts best
+              Split your audience and compare real performance
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Test Name</Label>
-              <Input 
+              <Input
                 placeholder="e.g., Subject Line Test - January Campaign"
                 value={newTest.name}
                 onChange={(e) => setNewTest({ ...newTest, name: e.target.value })}
@@ -219,7 +334,7 @@ export default function ABTestingPanel() {
                   <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/30">A</Badge>
                   Variant A Subject
                 </Label>
-                <Input 
+                <Input
                   placeholder="Your first subject line..."
                   value={newTest.variantASubject}
                   onChange={(e) => setNewTest({ ...newTest, variantASubject: e.target.value })}
@@ -230,7 +345,7 @@ export default function ABTestingPanel() {
                   <Badge variant="outline" className="bg-orange-500/10 text-orange-400 border-orange-500/30">B</Badge>
                   Variant B Subject
                 </Label>
-                <Input 
+                <Input
                   placeholder="Your second subject line..."
                   value={newTest.variantBSubject}
                   onChange={(e) => setNewTest({ ...newTest, variantBSubject: e.target.value })}
@@ -240,7 +355,7 @@ export default function ABTestingPanel() {
 
             <div className="flex items-center justify-between pt-2">
               <p className="text-sm text-muted-foreground">
-                Audience will be split 50/50 between variants
+                Audience split: {newTest.splitPercentage}% / {100 - newTest.splitPercentage}%
               </p>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setShowCreate(false)}>Cancel</Button>
@@ -254,12 +369,11 @@ export default function ABTestingPanel() {
         </Card>
       )}
 
-      {/* Tests List */}
       <Tabs defaultValue="all" className="space-y-4">
         <TabsList>
           <TabsTrigger value="all">All Tests ({tests.length})</TabsTrigger>
-          <TabsTrigger value="running">Running ({tests.filter(t => t.status === 'running').length})</TabsTrigger>
-          <TabsTrigger value="completed">Completed ({tests.filter(t => t.status === 'completed').length})</TabsTrigger>
+          <TabsTrigger value="running">Running ({tests.filter((t) => t.status === 'running').length})</TabsTrigger>
+          <TabsTrigger value="completed">Completed ({tests.filter((t) => t.status === 'completed').length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="space-y-4">
@@ -274,56 +388,49 @@ export default function ABTestingPanel() {
               </Button>
             </Card>
           ) : (
-            tests.map(test => (
-              <TestCard 
-                key={test.id} 
+            tests.map((test) => (
+              <TestCard
+                key={test.id}
                 test={test}
                 onStart={handleStartTest}
                 onStop={handleStopTest}
                 onDelete={handleDeleteTest}
                 onEdit={handleEditTest}
                 onCopyWinner={handleCopyWinner}
-                calculateRate={calculateRate}
-                getWinningVariant={getWinningVariant}
               />
             ))
           )}
         </TabsContent>
 
         <TabsContent value="running" className="space-y-4">
-          {tests.filter(t => t.status === 'running').map(test => (
-            <TestCard 
-              key={test.id} 
+          {tests.filter((t) => t.status === 'running').map((test) => (
+            <TestCard
+              key={test.id}
               test={test}
               onStart={handleStartTest}
               onStop={handleStopTest}
               onDelete={handleDeleteTest}
               onEdit={handleEditTest}
               onCopyWinner={handleCopyWinner}
-              calculateRate={calculateRate}
-              getWinningVariant={getWinningVariant}
             />
           ))}
         </TabsContent>
 
         <TabsContent value="completed" className="space-y-4">
-          {tests.filter(t => t.status === 'completed').map(test => (
-            <TestCard 
-              key={test.id} 
+          {tests.filter((t) => t.status === 'completed').map((test) => (
+            <TestCard
+              key={test.id}
               test={test}
               onStart={handleStartTest}
               onStop={handleStopTest}
               onDelete={handleDeleteTest}
               onEdit={handleEditTest}
               onCopyWinner={handleCopyWinner}
-              calculateRate={calculateRate}
-              getWinningVariant={getWinningVariant}
             />
           ))}
         </TabsContent>
       </Tabs>
 
-      {/* Edit Test Dialog */}
       <Dialog open={!!editingTest} onOpenChange={(open) => !open && setEditingTest(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -339,7 +446,7 @@ export default function ABTestingPanel() {
             <div className="space-y-4 pt-2">
               <div className="space-y-2">
                 <Label>Test Name</Label>
-                <Input 
+                <Input
                   value={editingTest.name}
                   onChange={(e) => setEditingTest({ ...editingTest, name: e.target.value })}
                 />
@@ -351,13 +458,13 @@ export default function ABTestingPanel() {
                     <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/30">A</Badge>
                     Variant A Subject
                   </Label>
-                  <Input 
+                  <Input
                     value={editingTest.variants[0]?.subject || ''}
                     onChange={(e) => setEditingTest({
                       ...editingTest,
-                      variants: editingTest.variants.map((v, i) => 
-                        i === 0 ? { ...v, subject: e.target.value } : v
-                      )
+                      variants: editingTest.variants.map((variant, index) => (
+                        index === 0 ? { ...variant, subject: e.target.value } : variant
+                      )),
                     })}
                   />
                 </div>
@@ -366,13 +473,13 @@ export default function ABTestingPanel() {
                     <Badge variant="outline" className="bg-orange-500/10 text-orange-400 border-orange-500/30">B</Badge>
                     Variant B Subject
                   </Label>
-                  <Input 
+                  <Input
                     value={editingTest.variants[1]?.subject || ''}
                     onChange={(e) => setEditingTest({
                       ...editingTest,
-                      variants: editingTest.variants.map((v, i) => 
-                        i === 1 ? { ...v, subject: e.target.value } : v
-                      )
+                      variants: editingTest.variants.map((variant, index) => (
+                        index === 1 ? { ...variant, subject: e.target.value } : variant
+                      )),
                     })}
                   />
                 </div>
@@ -400,11 +507,9 @@ interface TestCardProps {
   onDelete: (id: string) => void;
   onEdit: (test: ABTest) => void;
   onCopyWinner: (test: ABTest) => void;
-  calculateRate: (num: number, denom: number) => number;
-  getWinningVariant: (test: ABTest) => string | null;
 }
 
-function TestCard({ test, onStart, onStop, onDelete, onEdit, onCopyWinner, calculateRate, getWinningVariant }: TestCardProps) {
+function TestCard({ test, onStart, onStop, onDelete, onEdit, onCopyWinner }: TestCardProps) {
   const currentWinner = getWinningVariant(test);
 
   return (
@@ -413,11 +518,11 @@ function TestCard({ test, onStart, onStop, onDelete, onEdit, onCopyWinner, calcu
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <CardTitle className="text-lg">{test.name}</CardTitle>
-            <Badge 
-              variant="outline" 
+            <Badge
+              variant="outline"
               className={
-                test.status === 'running' 
-                  ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' 
+                test.status === 'running'
+                  ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
                   : test.status === 'completed'
                     ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                     : 'bg-muted'
@@ -454,10 +559,10 @@ function TestCard({ test, onStart, onStop, onDelete, onEdit, onCopyWinner, calcu
             </Button>
           </div>
         </div>
-        {test.startedAt && (
+        {(test.startedAt || test.completedAt) && (
           <CardDescription>
-            Started {test.startedAt}
-            {test.completedAt && ` • Completed ${test.completedAt}`}
+            {test.startedAt ? `Started ${formatTimestamp(test.startedAt)}` : ''}
+            {test.completedAt ? ` • Completed ${formatTimestamp(test.completedAt)}` : ''}
           </CardDescription>
         )}
       </CardHeader>
@@ -470,18 +575,18 @@ function TestCard({ test, onStart, onStop, onDelete, onEdit, onCopyWinner, calcu
             const replyRate = calculateRate(variant.replies, variant.sends);
 
             return (
-              <div 
+              <div
                 key={variant.id}
                 className={`p-4 rounded-xl border ${
-                  isWinner 
-                    ? 'border-emerald-500/50 bg-emerald-500/5' 
+                  isWinner
+                    ? 'border-emerald-500/50 bg-emerald-500/5'
                     : 'border-border/50 bg-muted/30'
                 }`}
               >
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <Badge 
-                      variant="outline" 
+                    <Badge
+                      variant="outline"
                       className={idx === 0 ? 'bg-blue-500/10 text-blue-400 border-blue-500/30' : 'bg-orange-500/10 text-orange-400 border-orange-500/30'}
                     >
                       {variant.name}

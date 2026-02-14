@@ -14,6 +14,8 @@ export interface CRMConnection {
 export interface CRMStatusResponse {
   success: boolean;
   connections: Record<CRMProvider, CRMConnection>;
+  migration_needed?: boolean;
+  migration_sql?: string | null;
   error?: string;
 }
 

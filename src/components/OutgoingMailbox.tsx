@@ -140,8 +140,7 @@ export default function OutgoingMailbox({
       if (sendsRes.success && sendsRes.sends && sendsRes.sends.length > 0) {
         setEmails(sendsRes.sends.map(mapEmailSendToOutgoing));
       } else {
-        // Fall back to demo data if no real data
-        setEmails(getDemoEmails());
+        setEmails([]);
       }
 
       if (statsRes.success && statsRes.stats) {
@@ -149,7 +148,7 @@ export default function OutgoingMailbox({
       }
     } catch (error) {
       console.error('Failed to load email data:', error);
-      setEmails(getDemoEmails());
+      setEmails([]);
     }
     
     setIsLoading(false);
@@ -160,34 +159,6 @@ export default function OutgoingMailbox({
     await loadEmailData();
     setIsRefreshing(false);
   };
-
-  // Demo emails as fallback
-  const getDemoEmails = (): OutgoingEmail[] => [
-    {
-      id: 'demo-1',
-      to: 'john@smithplumbing.com',
-      subject: 'Grow Your Plumbing Business with BamLead',
-      status: 'sent',
-      timestamp: new Date().toISOString(),
-      businessName: 'Smith Plumbing Co.'
-    },
-    {
-      id: 'demo-2',
-      to: 'info@greenlawncare.com',
-      subject: 'Special Offer for Green Lawn Care',
-      status: 'sent',
-      timestamp: new Date(Date.now() - 60000).toISOString(),
-      businessName: 'Green Lawn Care'
-    },
-    {
-      id: 'demo-3',
-      to: 'hello@quickelectric.com',
-      subject: 'Partnership Opportunity',
-      status: 'queued',
-      timestamp: new Date(Date.now() - 120000).toISOString(),
-      businessName: 'Quick Electric Services'
-    },
-  ];
 
   const getStatusIcon = (status: OutgoingEmail['status']) => {
     switch (status) {
@@ -229,7 +200,11 @@ export default function OutgoingMailbox({
 
   const sentCount = stats?.total_sent || emails.filter(e => e.status === 'sent').length;
   const queuedCount = emails.filter(e => e.status === 'queued' || e.status === 'sending').length;
-  const deliveryRate = stats ? Math.round(((stats.total_sent - stats.total_bounced - stats.total_failed) / Math.max(stats.total_sent, 1)) * 100) : 98;
+  const fallbackSent = emails.filter((email) => email.status === 'sent').length;
+  const fallbackFailed = emails.filter((email) => email.status === 'failed').length;
+  const deliveryRate = stats
+    ? Math.round(((stats.total_sent - stats.total_bounced - stats.total_failed) / Math.max(stats.total_sent, 1)) * 100)
+    : Math.round((fallbackSent / Math.max(fallbackSent + fallbackFailed, 1)) * 100);
 
   return (
     <div className="space-y-4">

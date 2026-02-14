@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
   Mail, Server, Shield, Send, Inbox, Settings, Eye, EyeOff,
@@ -23,11 +23,12 @@ import WebhookURLConfiguration from './WebhookURLConfiguration';
 import EmailClientPreviewPanel from './EmailClientPreviewPanel';
 import HighConvertingTemplateGallery from './HighConvertingTemplateGallery';
 import ABTestingPanel from './ABTestingPanel';
+import CRMSelectionPanel from './CRMSelectionPanel';
 import ProposalsContractsPanel from './ProposalsContractsPanel';
 import { sendSingleEmail, getSentEmails } from '@/lib/emailService';
 import { API_BASE_URL, getAuthHeaders } from '@/lib/api/config';
 import { EmailTemplate } from '@/lib/highConvertingTemplates';
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 
 interface SMTPConfig {
   host: string;
@@ -54,6 +55,17 @@ interface EmailMessage {
   read: boolean;
   starred: boolean;
   type: 'sent' | 'received' | 'failed';
+}
+
+interface EmailSendRecord {
+  id?: number | string;
+  recipient_email?: string;
+  subject?: string;
+  body_html?: string;
+  body_text?: string;
+  status?: string;
+  sent_at?: string;
+  created_at?: string;
 }
 
 interface Lead {
@@ -126,6 +138,9 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
   const [isEditingTemplate, setIsEditingTemplate] = useState(false);
   const [showTemplateGallery, setShowTemplateGallery] = useState(false);
   const [showProposalsPanel, setShowProposalsPanel] = useState<'proposals' | 'contracts' | null>(null);
+  const [showGoogleSheetsDialog, setShowGoogleSheetsDialog] = useState(false);
+  const [googleSheetUrl, setGoogleSheetUrl] = useState(() => localStorage.getItem('bamlead_google_sheet_url') || '');
+  const [isSyncingGoogleSheets, setIsSyncingGoogleSheets] = useState(false);
   const broadcastSMTPChange = () => {
     window.dispatchEvent(new Event(SMTP_LEGACY_EVENT));
     window.dispatchEvent(new CustomEvent(SMTP_CHANGE_EVENT));
@@ -164,6 +179,59 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
     );
   };
 
+  const toPreviewText = (htmlOrText: string) => {
+    return htmlOrText
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  const loadEmailHistory = useCallback(async (showToast = false) => {
+    setIsLoadingEmails(true);
+    try {
+      const fromConfig = safeParse(localStorage.getItem('smtp_config'), {} as Partial<SMTPConfig>);
+      const fromAddress = fromConfig.fromEmail || fromConfig.username || 'noreply@bamlead.com';
+      const rows = (await getSentEmails(200, 0)) as EmailSendRecord[];
+      const mapped = (Array.isArray(rows) ? rows : []).map((row) => {
+        const status = String(row.status || '').toLowerCase();
+        const preview = toPreviewText(row.body_text || row.body_html || '');
+        const type: EmailMessage['type'] = (
+          status === 'failed' || status === 'bounced' || status === 'cancelled'
+            ? 'failed'
+            : status === 'replied'
+              ? 'received'
+              : 'sent'
+        );
+
+        return {
+          id: String(
+            row.id ??
+            `${row.recipient_email || 'unknown'}-${row.sent_at || row.created_at || 'na'}-${row.subject || 'no-subject'}`
+          ),
+          from: fromAddress,
+          to: row.recipient_email || '',
+          subject: row.subject || '(No subject)',
+          preview: preview || '(No content)',
+          date: row.sent_at || row.created_at || new Date().toISOString(),
+          read: type !== 'received',
+          starred: false,
+          type,
+        } as EmailMessage;
+      }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      setEmails(mapped);
+      if (showToast) {
+        toast.success('Email history refreshed');
+      }
+    } catch (error) {
+      if (showToast) {
+        toast.error('Failed to load email history');
+      }
+    } finally {
+      setIsLoadingEmails(false);
+    }
+  }, []);
+
   // Load saved config on mount
   useEffect(() => {
     const savedConfig = localStorage.getItem('smtp_config');
@@ -176,55 +244,11 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
         console.error('Failed to parse SMTP config');
       }
     }
-
-    // Load mock emails for demo
-    setEmails([
-      {
-        id: '1',
-        from: 'noreply@bamlead.com',
-        to: 'client@example.com',
-        subject: 'Your Lead Report is Ready',
-        preview: 'Hi there! Your weekly lead report has been generated...',
-        date: '2025-01-09T10:30:00',
-        read: true,
-        starred: true,
-        type: 'sent',
-      },
-      {
-        id: '2',
-        from: 'noreply@bamlead.com',
-        to: 'prospect@business.com',
-        subject: 'Introduction from BamLead',
-        preview: 'Hello, I noticed your business could benefit from...',
-        date: '2025-01-09T09:15:00',
-        read: true,
-        starred: false,
-        type: 'sent',
-      },
-      {
-        id: '3',
-        from: 'noreply@bamlead.com',
-        to: 'failed@invalid.xyz',
-        subject: 'Partnership Opportunity',
-        preview: 'This email failed to deliver...',
-        date: '2025-01-08T16:45:00',
-        read: false,
-        starred: false,
-        type: 'failed',
-      },
-      {
-        id: '4',
-        from: 'reply@customer.com',
-        to: 'noreply@bamlead.com',
-        subject: 'Re: Your Business Proposal',
-        preview: 'Thank you for reaching out. I would love to discuss...',
-        date: '2025-01-08T14:20:00',
-        read: false,
-        starred: true,
-        type: 'received',
-      },
-    ]);
   }, []);
+
+  useEffect(() => {
+    void loadEmailHistory(false);
+  }, [loadEmailHistory]);
 
   const handleSaveConfig = () => {
     if (!smtpConfig.host || !smtpConfig.username || !smtpConfig.password) {
@@ -354,6 +378,7 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
         broadcastSMTPChange();
         setShowTestEmailInput(false);
         setTestEmailAddress('');
+        void loadEmailHistory(false);
       } else {
         toast.error('Failed to send test email', {
           description: result.error || 'Check your SMTP configuration',
@@ -377,10 +402,7 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
   };
 
   const handleRefreshEmails = async () => {
-    setIsLoadingEmails(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    toast.success('Inbox refreshed');
-    setIsLoadingEmails(false);
+    await loadEmailHistory(true);
   };
 
   const formatDate = (dateString: string) => {
@@ -415,6 +437,115 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
     localStorage.removeItem('bamlead_template_customizations');
     setShowTemplateGallery(false);
     toast.success(`Template "${template.name}" selected!`);
+  };
+
+  const sanitizeSpreadsheetCell = (value: unknown) => {
+    const raw = String(value ?? '').replace(/\r?\n/g, ' ').trim();
+    if (/^[=+\-@]/.test(raw)) {
+      return `'${raw}`;
+    }
+    return raw;
+  };
+
+  const triggerLeadDownload = (content: string, mimeType: string, extension: 'csv' | 'xls') => {
+    const blob = new Blob([content], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `leads-${new Date().toISOString().split('T')[0]}.${extension}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportLeads = (format: 'csv' | 'excel') => {
+    if (leads.length === 0) {
+      toast.error('No leads available to export');
+      return;
+    }
+
+    const headers = ['Name', 'Email', 'Phone', 'Website', 'Address', 'Classification', 'Lead Score'];
+    const rows = leads.map((lead) => [
+      sanitizeSpreadsheetCell(lead.name),
+      sanitizeSpreadsheetCell(lead.email || ''),
+      sanitizeSpreadsheetCell(lead.phone || ''),
+      sanitizeSpreadsheetCell(lead.website || ''),
+      sanitizeSpreadsheetCell(lead.address || ''),
+      sanitizeSpreadsheetCell(lead.aiClassification || ''),
+      sanitizeSpreadsheetCell(lead.leadScore ?? ''),
+    ]);
+
+    if (format === 'excel') {
+      const tsv = [headers.join('\t'), ...rows.map((row) => row.join('\t'))].join('\n');
+      triggerLeadDownload(tsv, 'application/vnd.ms-excel;charset=utf-8;', 'xls');
+      toast.success('Lead export downloaded (Excel-compatible)');
+      return;
+    }
+
+    const csv = [headers.join(','), ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))].join('\n');
+    triggerLeadDownload(csv, 'text/csv;charset=utf-8;', 'csv');
+    toast.success('Lead export downloaded (CSV)');
+  };
+
+  const getLeadsAsTabSeparated = () => {
+    const headers = ['Name', 'Email', 'Phone', 'Website', 'Address', 'Classification', 'Lead Score'];
+    const rows = leads.map((lead) => [
+      sanitizeSpreadsheetCell(lead.name),
+      sanitizeSpreadsheetCell(lead.email || ''),
+      sanitizeSpreadsheetCell(lead.phone || ''),
+      sanitizeSpreadsheetCell(lead.website || ''),
+      sanitizeSpreadsheetCell(lead.address || ''),
+      sanitizeSpreadsheetCell(lead.aiClassification || ''),
+      sanitizeSpreadsheetCell(lead.leadScore ?? ''),
+    ]);
+    return [headers.join('\t'), ...rows.map((row) => row.join('\t'))].join('\n');
+  };
+
+  const handleOpenGoogleSheets = () => {
+    if (leads.length === 0) {
+      toast.error('No leads available to sync');
+      return;
+    }
+    setShowGoogleSheetsDialog(true);
+  };
+
+  const handleGoogleSheetsSync = async () => {
+    setIsSyncingGoogleSheets(true);
+    try {
+      const cleanUrl = googleSheetUrl.trim();
+      const targetUrl = cleanUrl || 'https://docs.google.com/spreadsheets/create';
+
+      if (cleanUrl) {
+        let parsed: URL;
+        try {
+          parsed = new URL(cleanUrl);
+        } catch {
+          toast.error('Please enter a valid URL');
+          return;
+        }
+
+        const isGoogleSheets =
+          parsed.hostname.includes('docs.google.com') &&
+          parsed.pathname.includes('/spreadsheets/');
+
+        if (!isGoogleSheets) {
+          toast.error('Please enter a Google Sheets URL');
+          return;
+        }
+      }
+
+      await navigator.clipboard.writeText(getLeadsAsTabSeparated());
+      localStorage.setItem('bamlead_google_sheet_url', cleanUrl);
+
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+      setShowGoogleSheetsDialog(false);
+      toast.success('Leads copied. Paste into Google Sheets with Ctrl+V / Cmd+V.');
+    } catch {
+      toast.error('Failed to copy leads to clipboard');
+    } finally {
+      setIsSyncingGoogleSheets(false);
+    }
   };
 
   return (
@@ -677,93 +808,9 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
                 );
               })()}
 
-              {/* Lead Acquisition Over Time - Bar Chart */}
-              {(() => {
-                const totalLeads = leads.length;
-                // Generate time-based data (last 7 days simulation)
-                const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Today'];
-                const acquisitionData = days.map((day, index) => {
-                  // Distribute leads across days with more weight towards recent
-                  const weight = (index + 1) / days.length;
-                  const baseCount = Math.floor((totalLeads / days.length) * weight);
-                  const variance = Math.floor(Math.random() * 3);
-                  return {
-                    day,
-                    leads: index === days.length - 1 ? totalLeads - days.slice(0, -1).reduce((acc, _, i) => {
-                      const w = (i + 1) / days.length;
-                      return acc + Math.floor((totalLeads / days.length) * w);
-                    }, 0) : baseCount + variance,
-                  };
-                });
-                
-                return (
-                  <div className="p-4 rounded-lg bg-muted/30 border">
-                    <p className="text-sm font-medium mb-3">Lead Acquisition (Last 7 Days)</p>
-                    {totalLeads > 0 ? (
-                      <div className="h-48">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={acquisitionData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                            <XAxis 
-                              dataKey="day" 
-                              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                              axisLine={{ stroke: 'hsl(var(--border))' }}
-                            />
-                            <YAxis 
-                              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                              axisLine={{ stroke: 'hsl(var(--border))' }}
-                            />
-                            <Tooltip 
-                              contentStyle={{ 
-                                backgroundColor: 'hsl(var(--card))', 
-                                border: '1px solid hsl(var(--border))',
-                                borderRadius: '8px'
-                              }}
-                              labelStyle={{ color: 'hsl(var(--foreground))' }}
-                            />
-                            <Bar 
-                              dataKey="leads" 
-                              fill="hsl(var(--primary))" 
-                              radius={[4, 4, 0, 0]}
-                              name="Leads Acquired"
-                            />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    ) : (
-                      <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
-                        No acquisition data available
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-
               <div className="space-y-3">
                 <Label className="text-sm font-medium">Connect External CRM</Label>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { name: 'HubSpot', icon: '🟠', connected: false },
-                    { name: 'Salesforce', icon: '☁️', connected: false },
-                    { name: 'Pipedrive', icon: '🟢', connected: false },
-                    { name: 'Zoho CRM', icon: '🔴', connected: false },
-                    { name: 'Monday.com', icon: '🟣', connected: false },
-                    { name: 'Freshsales', icon: '🟡', connected: false },
-                  ].map((crm) => (
-                    <Button
-                      key={crm.name}
-                      variant="outline"
-                      className="h-auto py-3 flex-col gap-1"
-                      onClick={() => toast.info(`${crm.name} integration coming soon!`)}
-                    >
-                      <span className="text-xl">{crm.icon}</span>
-                      <span className="text-xs">{crm.name}</span>
-                      {crm.connected && (
-                        <Badge variant="secondary" className="text-[10px]">Connected</Badge>
-                      )}
-                    </Button>
-                  ))}
-                </div>
+                <CRMSelectionPanel leadCount={leads.length} />
               </div>
 
               {/* Export Options */}
@@ -771,15 +818,15 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
               <div className="space-y-3">
                 <Label className="text-sm font-medium">Export Leads</Label>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="gap-2" onClick={() => toast.success('Exported to CSV!')}>
+                  <Button variant="outline" size="sm" className="gap-2" onClick={() => handleExportLeads('csv')}>
                     <Download className="w-4 h-4" />
                     Export CSV
                   </Button>
-                  <Button variant="outline" size="sm" className="gap-2" onClick={() => toast.success('Exported to Excel!')}>
+                  <Button variant="outline" size="sm" className="gap-2" onClick={() => handleExportLeads('excel')}>
                     <Download className="w-4 h-4" />
                     Export Excel
                   </Button>
-                  <Button variant="outline" size="sm" className="gap-2" onClick={() => toast.info('Google Sheets sync coming soon!')}>
+                  <Button variant="outline" size="sm" className="gap-2" onClick={handleOpenGoogleSheets}>
                     <ExternalLink className="w-4 h-4" />
                     Google Sheets
                   </Button>
@@ -1079,7 +1126,17 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
                   </CardTitle>
                   <CardDescription>Track your outreach email delivery status</CardDescription>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={handleRefreshEmails}
+                    disabled={isLoadingEmails}
+                  >
+                    {isLoadingEmails ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                    Refresh
+                  </Button>
                   <Badge variant="outline" className="gap-1">
                     <CheckCircle2 className="w-3 h-3 text-emerald-500" />
                     {emails.filter(e => e.type === 'sent').length} Delivered
@@ -1173,6 +1230,45 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
           </div>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={showGoogleSheetsDialog} onOpenChange={setShowGoogleSheetsDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link2 className="w-5 h-5 text-primary" />
+              Google Sheets Sync
+            </DialogTitle>
+            <DialogDescription>
+              Paste an existing Google Sheet URL, or leave blank to create a new sheet. Lead rows will be copied for instant paste.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2">
+            <Label htmlFor="google-sheet-url">Google Sheet URL (optional)</Label>
+            <Input
+              id="google-sheet-url"
+              type="url"
+              value={googleSheetUrl}
+              onChange={(e) => setGoogleSheetUrl(e.target.value)}
+              placeholder="https://docs.google.com/spreadsheets/d/..."
+            />
+          </div>
+
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-muted-foreground">
+            Data is copied to your clipboard, then the sheet opens in a new tab. Paste with `Ctrl+V` or `Cmd+V`.
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowGoogleSheetsDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={() => void handleGoogleSheetsSync()} disabled={isSyncingGoogleSheets}>
+              {isSyncingGoogleSheets ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ExternalLink className="w-4 h-4 mr-2" />}
+              Open Sheet & Copy
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Template Gallery Modal */}
       <Dialog open={showTemplateGallery} onOpenChange={setShowTemplateGallery}>
