@@ -1,7 +1,8 @@
 <?php
 /**
- * BamLead Hyper-Intelligence Scraper v3
+ * BamLead Hyper-Intelligence Scraper v4
  * 
+ * Outscraper-style architecture: contact pages fetched FIRST in parallel.
  * The fastest, most intelligent business contact discovery engine.
  * Proprietary to BamLead.com — no other scraper has these capabilities.
  * 
@@ -173,7 +174,8 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
 
     $ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 
-    // ── PHASE 1: Hyper-parallel discovery ────────────────────────────────────
+    // ── PHASE 1: Outscraper-style parallel discovery ───────────────────────
+    // Fetch homepage + contact page variations ALL at once
     $mh = curl_multi_init();
     // ⚡ Enable HTTP/2 multiplexing
     curl_multi_setopt($mh, CURLMOPT_PIPELINING, CURLPIPE_MULTIPLEX);
@@ -181,7 +183,7 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
     $handles = [];
     $handleMeta = [];
 
-    // 1a) Website homepage — adaptive fast timeout
+    // 1a) Website homepage
     if (!empty($url)) {
         $ch = bamleadFastCurl($url, $ua, 4, 2);
         curl_multi_add_handle($mh, $ch);
@@ -189,7 +191,22 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
         $handleMeta['homepage'] = ['type' => 'website', 'url' => $url];
     }
 
-    // 1b) Robots.txt for sitemap discovery (unique — no other scraper does this)
+    // 1b) 🚀 OUTSCRAPER-STYLE: Contact page variations fetched IN PARALLEL with homepage
+    $contactPaths = ['/contact', '/contact-us', '/contactus', '/get-in-touch', '/about', '/about-us', '/reach-us', '/connect'];
+    if (!empty($url)) {
+        $parsed = parse_url($url);
+        $baseUrl = ($parsed['scheme'] ?? 'https') . '://' . ($parsed['host'] ?? '');
+        foreach ($contactPaths as $path) {
+            $contactUrl = $baseUrl . $path;
+            $ch = bamleadFastCurl($contactUrl, $ua, 4, 2);
+            curl_multi_add_handle($mh, $ch);
+            $handleKey = 'contact_' . md5($path);
+            $handles[$handleKey] = $ch;
+            $handleMeta[$handleKey] = ['type' => 'contact_page', 'url' => $contactUrl, 'path' => $path];
+        }
+    }
+
+    // 1c) Robots.txt for sitemap discovery
     if (!empty($url)) {
         $parsed = parse_url($url);
         $robotsUrl = ($parsed['scheme'] ?? 'https') . '://' . ($parsed['host'] ?? '') . '/robots.txt';
@@ -210,64 +227,16 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
         }
     }
 
-    // 1c) Social + directory Serper queries — ALL in parallel
-    if (!empty($serperKey) && !empty($searchName)) {
-        $socialPlatforms = ['facebook', 'linkedin', 'instagram', 'twitter', 'yelp', 'tiktok'];
-        foreach ($socialPlatforms as $platform) {
-            $siteFilter = $platform . '.com';
-            if ($platform === 'linkedin') $siteFilter = 'linkedin.com/company';
-            if ($platform === 'twitter') $siteFilter = 'x.com';
-
-            $query = $searchName . ' ' . $location . ' site:' . $siteFilter;
-            $ch = bamleadSerperCurl($query, $serperKey, 3);
-            curl_multi_add_handle($mh, $ch);
-            $handles['social_' . $platform] = $ch;
-            $handleMeta['social_' . $platform] = ['type' => 'social', 'platform' => $platform];
-        }
-
-        // Directories — expanded set
-        $directories = [
-            'yellowpages' => 'yellowpages.com',
-            'bbb' => 'bbb.org',
-            'manta' => 'manta.com',
-            'angieslist' => 'angi.com',
-            'thumbtack' => 'thumbtack.com',
-            'nextdoor' => 'nextdoor.com',
-        ];
-        foreach ($directories as $dirKey => $dirDomain) {
-            $query = $searchName . ' ' . $location . ' site:' . $dirDomain;
-            $ch = bamleadSerperCurl($query, $serperKey, 2);
-            curl_multi_add_handle($mh, $ch);
-            $handles['dir_' . $dirKey] = $ch;
-            $handleMeta['dir_' . $dirKey] = ['type' => 'directory', 'name' => $dirKey];
-        }
-
-        // 1d) 🧠 AI: Direct email pattern search (unique to BamLead)
-        if (!empty($url)) {
-            $domain = parse_url($url, PHP_URL_HOST);
-            $domain = preg_replace('/^www\./', '', $domain);
-            $emailQuery = '"@' . $domain . '" email contact';
-            $ch = bamleadSerperCurl($emailQuery, $serperKey, 5);
-            curl_multi_add_handle($mh, $ch);
-            $handles['email_hunt'] = $ch;
-            $handleMeta['email_hunt'] = ['type' => 'email_hunt', 'domain' => $domain];
-        }
-    }
-
-    // ⚡ Execute Phase 1 — non-blocking parallel
+    // ⚡ Execute Phase 1a — homepage + contact pages + robots (NO Serper yet)
     bamleadExecMulti($mh);
 
-    // ── Collect Phase 1 results ──────────────────────────────────────────────
-    $contactPageUrls = [];
-    $socialProfileUrls = [];
-    $directoryPageUrls = [];
+    // ── Collect Phase 1a results ─────────────────────────────────────────────
     $sitemapUrls = [];
     $homepageHtml = '';
 
     foreach ($handles as $key => $ch) {
         $response = curl_multi_getcontent($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $totalTime = curl_getinfo($ch, CURLINFO_TOTAL_TIME);
         curl_multi_remove_handle($mh, $ch);
         curl_close($ch);
 
@@ -331,106 +300,181 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
                     $allEmails = array_merge($allEmails, $metaEmails);
                     $sources[] = 'Meta tags';
                 }
+            }
 
-                // Discover contact page links for Phase 2
-                $parsed = parse_url($url);
-                $baseUrl = ($parsed['scheme'] ?? 'https') . '://' . ($parsed['host'] ?? '');
-                if (preg_match_all('/<a[^>]+href=["\']([^"\']+)["\']/i', $response, $linkMatches)) {
-                    foreach ($linkMatches[1] as $href) {
-                        $href = trim(html_entity_decode((string)$href, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-                        if (preg_match('/^(mailto:|tel:|javascript:|#)/i', $href)) continue;
-                        if (!preg_match('/(contact|about|team|staff|support|get[-_ ]?in[-_ ]?touch|reach|location|connect|help|inquiry|enquiry)/i', $href)) continue;
+        } elseif ($meta['type'] === 'contact_page') {
+            // 🚀 OUTSCRAPER-STYLE: Extract emails/phones from contact pages
+            if ($httpCode === 200 && !empty($response)) {
+                $hasWebsite = true;
+                $pageEmails = extractEmails($response);
+                $pagePhones = extractPhoneNumbers($response);
+                if (preg_match_all('/tel:([+\d\-\(\)\s\.]+)/', $response, $telMatches)) {
+                    $pagePhones = array_merge($pagePhones, $telMatches[1]);
+                }
+                if (!empty($pageEmails)) {
+                    $allEmails = array_merge($allEmails, $pageEmails);
+                    $sources[] = 'Website (contact page: ' . $meta['path'] . ')';
+                }
+                if (!empty($pagePhones)) {
+                    $allPhones = array_merge($allPhones, $pagePhones);
+                }
 
-                        if (preg_match('/^https?:\/\//i', $href)) {
-                            $candidate = $href;
-                        } elseif (strpos($href, '/') === 0) {
-                            $candidate = $baseUrl . $href;
-                        } else {
-                            $candidate = $baseUrl . '/' . ltrim($href, '/');
-                        }
-                        $contactPageUrls[] = $candidate;
-                    }
+                // Also extract structured data from contact pages
+                $contactSD = bamleadExtractStructuredData($response);
+                if (!empty($contactSD)) {
+                    $sdEmails = bamleadExtractFromStructuredData($contactSD, 'email');
+                    $sdPhones = bamleadExtractFromStructuredData($contactSD, 'telephone');
+                    $allEmails = array_merge($allEmails, $sdEmails);
+                    $allPhones = array_merge($allPhones, $sdPhones);
                 }
-                // Add common contact paths
-                foreach (['/contact', '/contact-us', '/about', '/about-us', '/team', '/get-in-touch', '/connect'] as $path) {
-                    $contactPageUrls[] = $baseUrl . $path;
+
+                // Extract microformats from contact pages too
+                $microEmails = bamleadExtractMicroformats($response);
+                if (!empty($microEmails)) {
+                    $allEmails = array_merge($allEmails, $microEmails);
                 }
-                $contactPageUrls = array_unique(array_slice($contactPageUrls, 0, 8));
             }
 
         } elseif ($meta['type'] === 'robots') {
-            // 🚀 Unique: parse robots.txt for sitemap URLs with contact pages
             if ($httpCode === 200 && !empty($response)) {
                 if (preg_match_all('/Sitemap:\s*(https?:\/\/\S+)/i', $response, $sitemapMatches)) {
                     $sitemapUrls = array_slice($sitemapMatches[1], 0, 2);
                 }
             }
+        }
+    }
 
-        } elseif ($meta['type'] === 'social') {
-            if ($httpCode === 200 && !empty($response)) {
-                $data = json_decode($response, true);
-                $platform = $meta['platform'];
-                if (!empty($data['organic'])) {
-                    foreach ($data['organic'] as $result) {
-                        $link = $result['link'] ?? '';
-                        $snippet = $result['snippet'] ?? '';
-                        $title = $result['title'] ?? '';
-                        if (!isLikelySocialProfile($platform, $link)) continue;
+    // Dedupe early for accurate count
+    $allEmails = bamleadDedupeEmails($allEmails);
+    $allPhones = bamleadDedupePhones($allPhones);
 
-                        $profiles[$platform] = [
-                            'url' => $link,
-                            'title' => $title,
-                            'snippet' => $snippet
-                        ];
+    // ── 🚀 SMART EARLY-EXIT: Skip expensive Serper calls if contact pages yielded emails ──
+    $hasContactPageEmails = !empty($allEmails);
+    $socialProfileUrls = [];
+    $directoryPageUrls = [];
+    $contactPageUrls = []; // Already scraped in Phase 1, used for Phase 2 link discovery
 
-                        $snippetEmails = extractEmails($snippet . ' ' . $title);
-                        $snippetPhones = extractPhoneNumbers($snippet);
-                        if (!empty($snippetEmails)) {
-                            $allEmails = array_merge($allEmails, $snippetEmails);
-                            $sources[] = ucfirst($platform) . ' (snippet)';
+    if (!$hasContactPageEmails && !empty($serperKey) && !empty($searchName)) {
+        // Only call Serper if we DIDN'T find emails on contact pages
+        $handles = [];
+        $handleMeta = [];
+
+        $socialPlatforms = ['facebook', 'linkedin', 'instagram', 'twitter', 'yelp', 'tiktok'];
+        foreach ($socialPlatforms as $platform) {
+            $siteFilter = $platform . '.com';
+            if ($platform === 'linkedin') $siteFilter = 'linkedin.com/company';
+            if ($platform === 'twitter') $siteFilter = 'x.com';
+
+            $query = $searchName . ' ' . $location . ' site:' . $siteFilter;
+            $ch = bamleadSerperCurl($query, $serperKey, 3);
+            curl_multi_add_handle($mh, $ch);
+            $handles['social_' . $platform] = $ch;
+            $handleMeta['social_' . $platform] = ['type' => 'social', 'platform' => $platform];
+        }
+
+        // Directories
+        $directories = [
+            'yellowpages' => 'yellowpages.com',
+            'bbb' => 'bbb.org',
+            'manta' => 'manta.com',
+            'angieslist' => 'angi.com',
+            'thumbtack' => 'thumbtack.com',
+            'nextdoor' => 'nextdoor.com',
+        ];
+        foreach ($directories as $dirKey => $dirDomain) {
+            $query = $searchName . ' ' . $location . ' site:' . $dirDomain;
+            $ch = bamleadSerperCurl($query, $serperKey, 2);
+            curl_multi_add_handle($mh, $ch);
+            $handles['dir_' . $dirKey] = $ch;
+            $handleMeta['dir_' . $dirKey] = ['type' => 'directory', 'name' => $dirKey];
+        }
+
+        // 🧠 AI: Direct email pattern search
+        if (!empty($url)) {
+            $domain = parse_url($url, PHP_URL_HOST);
+            $domain = preg_replace('/^www\./', '', $domain);
+            $emailQuery = '"@' . $domain . '" email contact';
+            $ch = bamleadSerperCurl($emailQuery, $serperKey, 5);
+            curl_multi_add_handle($mh, $ch);
+            $handles['email_hunt'] = $ch;
+            $handleMeta['email_hunt'] = ['type' => 'email_hunt', 'domain' => $domain];
+        }
+
+        // Execute Serper batch
+        bamleadExecMulti($mh);
+
+        // Collect Serper results
+        foreach ($handles as $key => $ch) {
+            $response = curl_multi_getcontent($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+
+            $meta = $handleMeta[$key];
+
+            if ($meta['type'] === 'social') {
+                if ($httpCode === 200 && !empty($response)) {
+                    $data = json_decode($response, true);
+                    $platform = $meta['platform'];
+                    if (!empty($data['organic'])) {
+                        foreach ($data['organic'] as $result) {
+                            $link = $result['link'] ?? '';
+                            $snippet = $result['snippet'] ?? '';
+                            $title = $result['title'] ?? '';
+                            if (!isLikelySocialProfile($platform, $link)) continue;
+
+                            $profiles[$platform] = [
+                                'url' => $link,
+                                'title' => $title,
+                                'snippet' => $snippet
+                            ];
+
+                            $snippetEmails = extractEmails($snippet . ' ' . $title);
+                            $snippetPhones = extractPhoneNumbers($snippet);
+                            if (!empty($snippetEmails)) {
+                                $allEmails = array_merge($allEmails, $snippetEmails);
+                                $sources[] = ucfirst($platform) . ' (snippet)';
+                            }
+                            if (!empty($snippetPhones)) {
+                                $allPhones = array_merge($allPhones, $snippetPhones);
+                            }
+                            $socialProfileUrls[$platform] = $link;
+                            break;
                         }
-                        if (!empty($snippetPhones)) {
-                            $allPhones = array_merge($allPhones, $snippetPhones);
-                        }
-                        $socialProfileUrls[$platform] = $link;
-                        break;
                     }
                 }
-            }
-
-        } elseif ($meta['type'] === 'directory') {
-            if ($httpCode === 200 && !empty($response)) {
-                $data = json_decode($response, true);
-                if (!empty($data['organic'][0])) {
-                    $listing = $data['organic'][0];
-                    $snippet = $listing['snippet'] ?? '';
-                    $dirEmails = extractEmails($snippet);
-                    $dirPhones = extractPhoneNumbers($snippet);
-                    if (!empty($dirEmails)) {
-                        $allEmails = array_merge($allEmails, $dirEmails);
-                        $sources[] = ucfirst($meta['name']);
+            } elseif ($meta['type'] === 'directory') {
+                if ($httpCode === 200 && !empty($response)) {
+                    $data = json_decode($response, true);
+                    if (!empty($data['organic'][0])) {
+                        $listing = $data['organic'][0];
+                        $snippet = $listing['snippet'] ?? '';
+                        $dirEmails = extractEmails($snippet);
+                        $dirPhones = extractPhoneNumbers($snippet);
+                        if (!empty($dirEmails)) {
+                            $allEmails = array_merge($allEmails, $dirEmails);
+                            $sources[] = ucfirst($meta['name']);
+                        }
+                        if (!empty($dirPhones)) {
+                            $allPhones = array_merge($allPhones, $dirPhones);
+                        }
+                        $directoryPageUrls[] = $listing['link'] ?? '';
                     }
-                    if (!empty($dirPhones)) {
-                        $allPhones = array_merge($allPhones, $dirPhones);
-                    }
-                    $directoryPageUrls[] = $listing['link'] ?? '';
                 }
-            }
-
-        } elseif ($meta['type'] === 'email_hunt') {
-            // 🧠 AI: Extract emails found via direct domain search
-            if ($httpCode === 200 && !empty($response)) {
-                $data = json_decode($response, true);
-                $domain = $meta['domain'] ?? '';
-                if (!empty($data['organic'])) {
-                    foreach ($data['organic'] as $result) {
-                        $combined = ($result['snippet'] ?? '') . ' ' . ($result['title'] ?? '');
-                        $huntedEmails = extractEmails($combined);
-                        foreach ($huntedEmails as $e) {
-                            if (stripos($e, $domain) !== false) {
-                                $allEmails[] = $e;
-                                if (!in_array('Email hunt (web)', $sources)) {
-                                    $sources[] = 'Email hunt (web)';
+            } elseif ($meta['type'] === 'email_hunt') {
+                if ($httpCode === 200 && !empty($response)) {
+                    $data = json_decode($response, true);
+                    $domain = $meta['domain'] ?? '';
+                    if (!empty($data['organic'])) {
+                        foreach ($data['organic'] as $result) {
+                            $combined = ($result['snippet'] ?? '') . ' ' . ($result['title'] ?? '');
+                            $huntedEmails = extractEmails($combined);
+                            foreach ($huntedEmails as $e) {
+                                if (stripos($e, $domain) !== false) {
+                                    $allEmails[] = $e;
+                                    if (!in_array('Email hunt (web)', $sources)) {
+                                        $sources[] = 'Email hunt (web)';
+                                    }
                                 }
                             }
                         }
@@ -438,7 +482,36 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
                 }
             }
         }
+    } else if ($hasContactPageEmails) {
+        $sources[] = '⚡ Early-exit (contact page emails found, Serper skipped)';
     }
+
+    // Discover additional contact links from homepage HTML for Phase 2
+    if (!empty($homepageHtml) && !empty($url)) {
+        $parsed = parse_url($url);
+        $baseUrl = ($parsed['scheme'] ?? 'https') . '://' . ($parsed['host'] ?? '');
+        if (preg_match_all('/<a[^>]+href=["\']([^"\']+)["\']/i', $homepageHtml, $linkMatches)) {
+            foreach ($linkMatches[1] as $href) {
+                $href = trim(html_entity_decode((string)$href, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                if (preg_match('/^(mailto:|tel:|javascript:|#)/i', $href)) continue;
+                if (!preg_match('/(contact|about|team|staff|support|get[-_ ]?in[-_ ]?touch|reach|location|connect|help|inquiry|enquiry)/i', $href)) continue;
+
+                if (preg_match('/^https?:\/\//i', $href)) {
+                    $candidate = $href;
+                } elseif (strpos($href, '/') === 0) {
+                    $candidate = $baseUrl . $href;
+                } else {
+                    $candidate = $baseUrl . '/' . ltrim($href, '/');
+                }
+                $contactPageUrls[] = $candidate;
+            }
+        }
+        // Remove paths we already fetched in Phase 1
+        $alreadyFetched = array_map(function($p) use ($baseUrl) { return $baseUrl . $p; }, $contactPaths);
+        $contactPageUrls = array_diff($contactPageUrls, $alreadyFetched);
+        $contactPageUrls = array_unique(array_slice($contactPageUrls, 0, 5));
+    }
+    // (Serper results already collected above or skipped via early-exit)
 
     // 🧠 AI: Predict common email patterns (unique to BamLead)
     if (empty($allEmails) && !empty($url)) {
@@ -549,9 +622,29 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
 
     curl_multi_close($mh);
 
-    // ── Dedupe, validate & score ─────────────────────────────────────────────
+    // ── Dedupe, validate & verify ───────────────────────────────────────────
     $allEmails = bamleadDedupeEmails($allEmails);
     $allPhones = bamleadDedupePhones($allPhones);
+
+    // 🔒 Email verification: MX check + SMTP RCPT TO validation
+    $verifiedEmails = [];
+    foreach ($allEmails as $email) {
+        $verification = bamleadVerifyEmail($email);
+        if ($verification['valid']) {
+            $verifiedEmails[] = $email;
+        }
+    }
+    // If verification filtered out everything, fall back to MX-only check
+    if (empty($verifiedEmails) && !empty($allEmails)) {
+        foreach ($allEmails as $email) {
+            $domain = substr($email, strpos($email, '@') + 1);
+            $mxHosts = [];
+            if (function_exists('getmxrr') && @getmxrr($domain, $mxHosts) && !empty($mxHosts)) {
+                $verifiedEmails[] = $email;
+            }
+        }
+    }
+    $allEmails = !empty($verifiedEmails) ? $verifiedEmails : $allEmails;
 
     // 🧠 AI: Score each email's confidence
     $intelligence['contact_confidence'] = bamleadScoreContacts($allEmails, $allPhones, $url);
@@ -969,4 +1062,124 @@ function isLikelySocialProfile($platform, $url) {
     }
     $trimmedPath = trim($path, '/');
     return !empty($trimmedPath);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🔒 EMAIL VERIFICATION (Outscraper-style)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Verify an email address using MX lookup + SMTP RCPT TO check
+ * Returns ['valid' => bool, 'reason' => string]
+ */
+function bamleadVerifyEmail($email) {
+    $result = ['valid' => false, 'reason' => 'unknown'];
+
+    // Step 1: Format validation
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $result['reason'] = 'invalid_format';
+        return $result;
+    }
+
+    $domain = substr($email, strpos($email, '@') + 1);
+
+    // Step 2: MX record check — domain must accept email
+    $mxHosts = [];
+    $mxWeights = [];
+    if (!function_exists('getmxrr') || !@getmxrr($domain, $mxHosts, $mxWeights)) {
+        // Fallback: check A record (some domains accept mail without MX)
+        $aRecord = @gethostbyname($domain);
+        if ($aRecord === $domain) {
+            $result['reason'] = 'no_mx_no_a_record';
+            return $result;
+        }
+        $mxHosts = [$domain];
+    }
+
+    if (empty($mxHosts)) {
+        $result['reason'] = 'no_mx_record';
+        return $result;
+    }
+
+    // Step 3: SMTP RCPT TO verification (fast, 3s timeout)
+    $mxHost = $mxHosts[0]; // Use highest priority MX
+    $smtpVerified = bamleadSmtpVerify($email, $mxHost);
+
+    if ($smtpVerified === true) {
+        $result['valid'] = true;
+        $result['reason'] = 'smtp_verified';
+    } elseif ($smtpVerified === null) {
+        // SMTP inconclusive (greylisting, timeout, catch-all) — trust MX
+        $result['valid'] = true;
+        $result['reason'] = 'mx_valid_smtp_inconclusive';
+    } else {
+        $result['reason'] = 'smtp_rejected';
+    }
+
+    return $result;
+}
+
+/**
+ * SMTP RCPT TO check — verify mailbox exists without sending mail
+ * Returns: true = verified, false = rejected, null = inconclusive
+ */
+function bamleadSmtpVerify($email, $mxHost) {
+    $timeout = 3; // seconds
+
+    try {
+        $socket = @fsockopen($mxHost, 25, $errno, $errstr, $timeout);
+        if (!$socket) {
+            // Try port 587
+            $socket = @fsockopen($mxHost, 587, $errno, $errstr, $timeout);
+        }
+        if (!$socket) {
+            return null; // Can't connect — inconclusive
+        }
+
+        stream_set_timeout($socket, $timeout);
+
+        // Read banner
+        $banner = fgets($socket, 1024);
+        if (strpos($banner, '220') === false) {
+            fclose($socket);
+            return null;
+        }
+
+        // EHLO
+        fwrite($socket, "EHLO bamlead.com\r\n");
+        $ehloReply = '';
+        while ($line = fgets($socket, 1024)) {
+            $ehloReply .= $line;
+            if (preg_match('/^\d{3} /m', $line)) break;
+        }
+
+        // MAIL FROM
+        fwrite($socket, "MAIL FROM:<verify@bamlead.com>\r\n");
+        $mailFromReply = fgets($socket, 1024);
+        if (strpos($mailFromReply, '250') === false) {
+            fwrite($socket, "QUIT\r\n");
+            fclose($socket);
+            return null;
+        }
+
+        // RCPT TO — this is the actual verification
+        fwrite($socket, "RCPT TO:<{$email}>\r\n");
+        $rcptReply = fgets($socket, 1024);
+
+        // QUIT
+        fwrite($socket, "QUIT\r\n");
+        fclose($socket);
+
+        $code = (int)substr($rcptReply, 0, 3);
+
+        if ($code === 250 || $code === 251) {
+            return true; // Mailbox exists
+        } elseif ($code === 550 || $code === 551 || $code === 552 || $code === 553) {
+            return false; // Mailbox doesn't exist / rejected
+        } else {
+            return null; // Inconclusive (greylisting, rate limit, catch-all)
+        }
+    } catch (Exception $e) {
+        return null; // Error — inconclusive
+    }
 }
