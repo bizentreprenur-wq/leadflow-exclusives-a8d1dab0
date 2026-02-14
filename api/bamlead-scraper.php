@@ -526,7 +526,7 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
         $intelligence['domain_info'] = bamleadDomainIntelligence($url);
     }
 
-    // ── PHASE 2: Deep contact extraction (parallel) ──────────────────────────
+    // ── PHASE 2: Deep contact extraction + footer crawling (parallel) ────────
     // ⚡ Smart early-exit: skip if we already have 3+ emails
     $phase2Urls = [];
     $needMore = count($allEmails) < 3;
@@ -547,6 +547,55 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
             if (!empty($dirUrl)) {
                 $phase2Urls['dirpage_' . md5($dirUrl)] = ['type' => 'dirpage', 'url' => $dirUrl];
             }
+        }
+    }
+
+    // 🚀 PHASE 2 FALLBACK: Internal page footer crawling
+    // When contact pages didn't find emails, scrape 2-3 random internal pages
+    // to discover emails in sitewide footers (common pattern for small businesses)
+    if ($needMore && !empty($homepageHtml) && !empty($url)) {
+        $parsed = parse_url($url);
+        $baseUrl = ($parsed['scheme'] ?? 'https') . '://' . ($parsed['host'] ?? '');
+        $internalLinks = [];
+
+        // Extract internal links from homepage
+        if (preg_match_all('/<a[^>]+href=["\']([^"\'#]+)["\']/i', $homepageHtml, $linkMatches)) {
+            foreach ($linkMatches[1] as $href) {
+                $href = trim(html_entity_decode((string)$href, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+                if (preg_match('/^(mailto:|tel:|javascript:)/i', $href)) continue;
+                // Skip already-fetched contact/about paths
+                if (preg_match('/(contact|about|team|staff|support|get[-_ ]?in[-_ ]?touch|reach|connect|help|inquiry|enquiry)/i', $href)) continue;
+                // Skip external links, anchors, and assets
+                if (preg_match('/\.(jpg|jpeg|png|gif|svg|css|js|pdf|zip|ico|webp|mp4|mp3|woff|woff2|ttf|eot)(\?|$)/i', $href)) continue;
+
+                if (preg_match('/^https?:\/\//i', $href)) {
+                    // Only same-domain links
+                    $hrefHost = parse_url($href, PHP_URL_HOST);
+                    $urlHost = parse_url($url, PHP_URL_HOST);
+                    if ($hrefHost && $urlHost && strtolower($hrefHost) !== strtolower($urlHost)) continue;
+                    $candidate = $href;
+                } elseif (strpos($href, '/') === 0) {
+                    $candidate = $baseUrl . $href;
+                } else {
+                    $candidate = $baseUrl . '/' . ltrim($href, '/');
+                }
+
+                // Skip homepage itself
+                $candidateNorm = rtrim(strtolower($candidate), '/');
+                $baseNorm = rtrim(strtolower($baseUrl), '/');
+                if ($candidateNorm === $baseNorm || $candidateNorm === $baseNorm . '/') continue;
+
+                $internalLinks[] = $candidate;
+            }
+        }
+
+        // Shuffle and pick 2-3 random internal pages for footer email discovery
+        $internalLinks = array_unique($internalLinks);
+        shuffle($internalLinks);
+        $footerPages = array_slice($internalLinks, 0, 3);
+
+        foreach ($footerPages as $footerUrl) {
+            $phase2Urls['footer_' . md5($footerUrl)] = ['type' => 'footer_crawl', 'url' => $footerUrl];
         }
     }
 
@@ -581,6 +630,7 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
                 if ($info['type'] === 'contact') $sources[] = 'Website (contact page)';
                 elseif ($info['type'] === 'profile') $sources[] = ucfirst($info['platform']) . ' (profile)';
                 elseif ($info['type'] === 'dirpage') $sources[] = 'Directory listing';
+                elseif ($info['type'] === 'footer_crawl') $sources[] = 'Website (footer crawl)';
             }
             if (!empty($pagePhones)) $allPhones = array_merge($allPhones, $pagePhones);
 

@@ -5,7 +5,7 @@ import {
   Volume2, VolumeX, X, ChevronRight, ChevronLeft, 
   SkipForward, Play, Pause, Sparkles, Settings2, Check,
   Mic2, Captions, Keyboard, Mail, Send, Rocket, Gift, 
-  Heart, Star, Users, TrendingUp, Calendar, Zap
+  Heart, Star, Users, TrendingUp, Calendar, Zap, GripVertical
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import mascotImage from "@/assets/bamlead-mascot.png";
@@ -125,6 +125,10 @@ export default function AITourGuide() {
   const [mascotPosition, setMascotPosition] = useState({ x: 0, y: 0 });
   const [isWalking, setIsWalking] = useState(false);
   const [isDemoMinimized, setIsDemoMinimized] = useState(false);
+  const [panelPosition, setPanelPosition] = useState<{ x: number; y: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [showPulse, setShowPulse] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
   
   // Voice settings state
   const [availableVoices, setAvailableVoices] = useState<VoiceOption[]>([]);
@@ -555,6 +559,56 @@ export default function AITourGuide() {
     };
   }, [showTour, currentStepIndex, location.pathname, navigate, speak, moveMascotToElement]);
 
+  // Pulse animation when tour panel appears or step changes
+  useEffect(() => {
+    if (!showTour) return;
+    setShowPulse(true);
+    const timer = setTimeout(() => setShowPulse(false), 2000);
+    return () => clearTimeout(timer);
+  }, [showTour, currentStepIndex]);
+
+  // Drag handlers for tour panel
+  const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+    const currentPos = panelPosition || { x: 16, y: window.innerHeight - 400 };
+    dragStartRef.current = { x: clientX, y: clientY, px: currentPos.x, py: currentPos.y };
+    setIsDragging(true);
+  }, [panelPosition]);
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMove = (e: MouseEvent | TouchEvent) => {
+      if (!dragStartRef.current) return;
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      const dx = clientX - dragStartRef.current.x;
+      const dy = clientY - dragStartRef.current.y;
+      setPanelPosition({
+        x: Math.max(0, Math.min(window.innerWidth - 420, dragStartRef.current.px + dx)),
+        y: Math.max(0, Math.min(window.innerHeight - 100, dragStartRef.current.py + dy)),
+      });
+    };
+
+    const handleEnd = () => {
+      setIsDragging(false);
+      dragStartRef.current = null;
+    };
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleEnd);
+    window.addEventListener('touchmove', handleMove);
+    window.addEventListener('touchend', handleEnd);
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleEnd);
+      window.removeEventListener('touchmove', handleMove);
+      window.removeEventListener('touchend', handleEnd);
+    };
+  }, [isDragging]);
+
   // Auto-start countdown for first visit
   useEffect(() => {
     if (isFirstVisit && !showTour && location.pathname === "/" && !countdownPaused) {
@@ -859,9 +913,28 @@ export default function AITourGuide() {
         </div>
       </div>
 
-      {/* Tour Panel */}
-      <div className="fixed bottom-4 left-4 z-50 w-full max-w-md">
-        <div className="bg-card rounded-2xl border border-border shadow-elevated overflow-hidden">
+      {/* Tour Panel - Draggable */}
+      <div 
+        className={`fixed z-50 w-full max-w-md transition-shadow duration-300 ${showPulse ? 'animate-pulse' : ''} ${isDragging ? 'cursor-grabbing' : ''}`}
+        style={panelPosition 
+          ? { left: `${panelPosition.x}px`, top: `${panelPosition.y}px` }
+          : { bottom: '1rem', left: '1rem' }
+        }
+      >
+        {/* Pulse ring effect when appearing */}
+        {showPulse && (
+          <div className="absolute -inset-2 rounded-2xl border-2 border-primary/50 animate-ping pointer-events-none" />
+        )}
+        <div className="bg-card rounded-2xl border border-border shadow-elevated overflow-hidden relative">
+          {/* Drag handle */}
+          <div 
+            className="absolute top-2 right-12 z-10 cursor-grab active:cursor-grabbing p-1 rounded hover:bg-secondary/50 transition-colors"
+            onMouseDown={handleDragStart}
+            onTouchStart={handleDragStart}
+            title="Drag to move"
+          >
+            <GripVertical className="w-4 h-4 text-muted-foreground" />
+          </div>
           {/* Progress bar */}
           <div className="h-1.5 bg-secondary">
             <div 
