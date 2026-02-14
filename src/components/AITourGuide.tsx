@@ -832,7 +832,7 @@ export default function AITourGuide() {
 
       {/* Email Template Preview Animation - Shows during email steps */}
       {(currentStep.id === "email-outreach" || currentStep.id === "lead-nurturing") && (
-        <div className="fixed top-20 right-8 z-[55] pointer-events-none">
+        <div className="fixed top-20 right-8 z-[55] pointer-events-none hidden md:block">
           <div className="relative">
             {/* Animated template cards */}
             <div className="flex flex-col gap-3">
@@ -984,7 +984,7 @@ export default function AITourGuide() {
           </button>
         ) : (
         <div
-          className="w-full max-w-md rounded-2xl bg-card shadow-elevated overflow-hidden relative border-2"
+          className="w-[calc(100vw-2rem)] max-w-md rounded-2xl bg-card shadow-elevated overflow-hidden relative border-2 max-h-[70vh] overflow-y-auto"
           style={{ animation: 'orange-border-glow 2s ease-in-out infinite', borderColor: 'hsl(25 95% 53% / 0.8)' }}
         >
           {/* Drag handle bar */}
@@ -1010,7 +1010,7 @@ export default function AITourGuide() {
           </div>
 
           {/* Step indicators */}
-          <div className="flex items-center justify-center gap-1.5 py-3 border-b border-border/50">
+          <div className="flex items-center justify-center gap-1 md:gap-1.5 py-2 md:py-3 border-b border-border/50 flex-wrap">
             {TOUR_STEPS.map((step, index) => (
               <button
                 key={step.id}
@@ -1039,14 +1039,14 @@ export default function AITourGuide() {
             ))}
           </div>
 
-          <div className="p-4 md:p-6">
+          <div className="p-3 md:p-6">
             {/* Header */}
             <div className="flex items-start justify-between gap-4 mb-4">
               <div className="flex items-center gap-3">
                 <img 
                   src={mascotImage} 
                   alt="Bam" 
-                  className={`w-12 h-12 object-contain ${isSpeaking ? 'animate-pulse' : ''}`}
+                  className={`w-8 h-8 md:w-12 md:h-12 object-contain ${isSpeaking ? 'animate-pulse' : ''}`}
                 />
                 <div>
                   <Badge variant="outline" className="mb-1">
@@ -1080,21 +1080,21 @@ export default function AITourGuide() {
 
             {/* Description with optional subtitles styling */}
             {showSubtitles && (
-              <div className="bg-secondary/50 rounded-lg p-3 mb-4 border-l-2 border-primary">
-                <p className="text-foreground text-sm leading-relaxed">
+              <div className="bg-secondary/50 rounded-lg p-2 md:p-3 mb-3 md:mb-4 border-l-2 border-primary max-h-[25vh] overflow-y-auto">
+                <p className="text-foreground text-xs md:text-sm leading-relaxed">
                   {currentStep.description}
                 </p>
               </div>
             )}
             {!showSubtitles && (
-              <p className="text-muted-foreground text-sm leading-relaxed mb-4">
+              <p className="text-muted-foreground text-xs md:text-sm leading-relaxed mb-3 md:mb-4 max-h-[25vh] overflow-y-auto">
                 {currentStep.description}
               </p>
             )}
 
             {/* Controls */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between gap-1 md:gap-2 flex-wrap">
+              <div className="flex items-center gap-1 md:gap-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -1121,7 +1121,7 @@ export default function AITourGuide() {
                   variant="ghost"
                   size="icon"
                   onClick={stopSpeaking}
-                  className="h-8 w-8"
+                  className="h-8 w-8 hidden md:flex"
                   disabled={!isSpeaking}
                 >
                   <VolumeX className="w-4 h-4" />
@@ -1133,7 +1133,7 @@ export default function AITourGuide() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-8 w-8 hidden md:flex"
                       title="Voice Settings"
                     >
                       <Settings2 className="w-4 h-4" />
@@ -1286,7 +1286,7 @@ export default function AITourGuide() {
                 </Popover>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 md:gap-2">
                 <Button
                   variant="ghost"
                   size="sm"
