@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Volume2, VolumeX, X, ChevronRight, ChevronLeft, 
+  Volume2, VolumeX, X, ChevronRight, ChevronLeft, ChevronDown, 
   SkipForward, Play, Pause, Sparkles, Settings2, Check,
   Mic2, Captions, Keyboard, Mail, Send, Rocket, Gift, 
   Heart, Star, Users, TrendingUp, Calendar, Zap
@@ -125,8 +125,11 @@ export default function AITourGuide() {
   const [mascotPosition, setMascotPosition] = useState({ x: 0, y: 0 });
   const [isWalking, setIsWalking] = useState(false);
   const [isDemoMinimized, setIsDemoMinimized] = useState(false);
-  const [panelSide, setPanelSide] = useState<'left' | 'right'>('left');
-  const [showPulse, setShowPulse] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [showHint, setShowHint] = useState(true);
+  const [dragPosition, setDragPosition] = useState<{ x: number; y: number } | null>(null);
+  const isDraggingRef = useRef(false);
+  const dragOffsetRef = useRef({ x: 0, y: 0 });
   
   // Voice settings state
   const [availableVoices, setAvailableVoices] = useState<VoiceOption[]>([]);
@@ -557,18 +560,36 @@ export default function AITourGuide() {
     };
   }, [showTour, currentStepIndex, location.pathname, navigate, speak, moveMascotToElement]);
 
-  // Pulse animation when tour panel appears or step changes
+  // Dismiss hint after 5 seconds
   useEffect(() => {
-    if (!showTour) return;
-    setShowPulse(true);
-    const timer = setTimeout(() => setShowPulse(false), 2000);
+    if (!showTour || !showHint) return;
+    const timer = setTimeout(() => setShowHint(false), 6000);
     return () => clearTimeout(timer);
-  }, [showTour, currentStepIndex]);
+  }, [showTour, showHint]);
 
-  // Toggle panel side
-  const togglePanelSide = useCallback(() => {
-    setPanelSide(prev => prev === 'left' ? 'right' : 'left');
-  }, []);
+  // Drag handlers
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    isDraggingRef.current = true;
+    const rect = (e.currentTarget.closest('[data-tour-panel]') as HTMLElement)?.getBoundingClientRect();
+    if (rect) {
+      dragOffsetRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    }
+    const handleMouseMove = (ev: MouseEvent) => {
+      if (!isDraggingRef.current) return;
+      setDragPosition({
+        x: Math.max(0, Math.min(window.innerWidth - 100, ev.clientX - dragOffsetRef.current.x)),
+        y: Math.max(0, Math.min(window.innerHeight - 60, ev.clientY - dragOffsetRef.current.y)),
+      });
+      if (!isCollapsed) setIsCollapsed(true);
+    };
+    const handleMouseUp = () => {
+      isDraggingRef.current = false;
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  }, [isCollapsed]);
 
   // Auto-start countdown for first visit
   useEffect(() => {
@@ -748,6 +769,10 @@ export default function AITourGuide() {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-8px); }
         }
+        @keyframes orange-border-glow {
+          0%, 100% { border-color: hsl(25 95% 53% / 0.6); box-shadow: 0 0 8px hsl(25 95% 53% / 0.3); }
+          50% { border-color: hsl(25 95% 53% / 1); box-shadow: 0 0 20px hsl(25 95% 53% / 0.5), 0 0 40px hsl(25 95% 53% / 0.2); }
+        }
       `}</style>
 
       {/* Email Template Preview Animation - Shows during email steps */}
@@ -874,30 +899,53 @@ export default function AITourGuide() {
         </div>
       </div>
 
-      {/* Tour Panel - Snaps left/right */}
-      <div 
-        className={`fixed z-50 w-full max-w-md transition-all duration-500 ease-out ${showPulse ? 'animate-pulse' : ''}`}
-        style={{ 
-          bottom: '1rem', 
-          ...(panelSide === 'left' ? { left: '1rem', right: 'auto' } : { right: '1rem', left: 'auto' })
+      {/* Tour Panel - Draggable & Collapsible */}
+      <div
+        data-tour-panel
+        className="fixed z-50 transition-all duration-300 ease-out"
+        style={dragPosition ? {
+          left: `${dragPosition.x}px`,
+          top: `${dragPosition.y}px`,
+        } : {
+          bottom: '1rem',
+          left: '1rem',
         }}
       >
-        {/* Pulse ring effect when appearing */}
-        {showPulse && (
-          <div className="absolute -inset-2 rounded-2xl border-2 border-primary/50 animate-ping pointer-events-none" />
-        )}
-        <div className="bg-card rounded-2xl border border-border shadow-elevated overflow-hidden relative">
-          {/* Quick snap left/right button */}
+        {/* Collapsed state - small icon */}
+        {isCollapsed ? (
           <button
-            onClick={togglePanelSide}
-            className="absolute top-2 right-12 z-10 p-1 rounded hover:bg-secondary/50 transition-colors"
-            title={`Move to ${panelSide === 'left' ? 'right' : 'left'}`}
+            onClick={() => setIsCollapsed(false)}
+            className="relative w-16 h-16 rounded-2xl bg-card border-2 shadow-elevated flex items-center justify-center cursor-pointer hover:scale-110 transition-transform"
+            style={{ animation: 'orange-border-glow 2s ease-in-out infinite', borderColor: 'hsl(25 95% 53% / 0.8)' }}
+            title="Click to expand tour guide"
+            onMouseDown={handleMouseDown}
           >
-            {panelSide === 'left' 
-              ? <ChevronRight className="w-4 h-4 text-muted-foreground" />
-              : <ChevronLeft className="w-4 h-4 text-muted-foreground" />
-            }
+            <img src={mascotImage} alt="Bam" className="w-10 h-10 object-contain" />
+            {isSpeaking && (
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
+                <Volume2 className="w-2.5 h-2.5 text-primary-foreground" />
+              </div>
+            )}
           </button>
+        ) : (
+        <div
+          className="w-full max-w-md rounded-2xl bg-card shadow-elevated overflow-hidden relative border-2"
+          style={{ animation: 'orange-border-glow 2s ease-in-out infinite', borderColor: 'hsl(25 95% 53% / 0.8)' }}
+        >
+          {/* Drag handle bar */}
+          <div
+            onMouseDown={handleMouseDown}
+            className="h-6 bg-secondary/50 flex items-center justify-center cursor-grab active:cursor-grabbing select-none"
+          >
+            <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+          </div>
+
+          {/* Hint message at beginning */}
+          {showHint && currentStepIndex === 0 && (
+            <div className="bg-orange-500/10 border-b border-orange-500/20 px-4 py-2 text-xs text-center" style={{ color: 'hsl(25 95% 53%)' }}>
+              💡 Drag this box to move it, or click it when small to expand. Click the minimize button to shrink it!
+            </div>
+          )}
           {/* Progress bar */}
           <div className="h-1.5 bg-secondary">
             <div 
@@ -954,14 +1002,25 @@ export default function AITourGuide() {
                   </h3>
                 </div>
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={skipTour}
-                className="shrink-0"
-              >
-                <X className="w-5 h-5" />
-              </Button>
+              <div className="flex items-center gap-1">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => setIsCollapsed(true)}
+                  className="shrink-0"
+                  title="Minimize"
+                >
+                  <ChevronDown className="w-5 h-5" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={skipTour}
+                  className="shrink-0"
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+              </div>
             </div>
 
             {/* Description with optional subtitles styling */}
@@ -1194,6 +1253,7 @@ export default function AITourGuide() {
             </div>
           </div>
         </div>
+        )}
       </div>
     </>
   );
