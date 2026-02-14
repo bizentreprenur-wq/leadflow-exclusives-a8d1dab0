@@ -39,6 +39,11 @@ interface SMTPConfig {
   secure: boolean;
 }
 
+const SMTP_CONFIG_KEY = 'bamlead_smtp_config';
+const SMTP_STATUS_KEY = 'bamlead_smtp_status';
+const SMTP_CHANGE_EVENT = 'bamlead_smtp_changed';
+const SMTP_LEGACY_EVENT = 'bamlead-smtp-config-updated';
+
 interface EmailMessage {
   id: string;
   from: string;
@@ -121,6 +126,25 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
   const [isEditingTemplate, setIsEditingTemplate] = useState(false);
   const [showTemplateGallery, setShowTemplateGallery] = useState(false);
   const [showProposalsPanel, setShowProposalsPanel] = useState<'proposals' | 'contracts' | null>(null);
+  const broadcastSMTPChange = () => {
+    window.dispatchEvent(new Event(SMTP_LEGACY_EVENT));
+    window.dispatchEvent(new CustomEvent(SMTP_CHANGE_EVENT));
+  };
+
+  const persistSMTPConfig = (config: SMTPConfig) => {
+    const serialized = JSON.stringify(config);
+    localStorage.setItem('smtp_config', serialized);
+    localStorage.setItem(SMTP_CONFIG_KEY, serialized);
+  };
+
+  const persistSMTPStatus = (isConnected: boolean, isVerified: boolean) => {
+    localStorage.setItem(SMTP_STATUS_KEY, JSON.stringify({
+      isConnected,
+      isVerified,
+      lastTestDate: new Date().toISOString(),
+    }));
+  };
+
   const getStoredVerification = () => {
     return safeParse(localStorage.getItem('smtp_verified'), null as null | {
       host?: string;
@@ -208,10 +232,11 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
       return;
     }
 
-    localStorage.setItem('smtp_config', JSON.stringify(smtpConfig));
+    persistSMTPConfig(smtpConfig);
     localStorage.removeItem('smtp_verified');
     setIsConnected(false);
-    window.dispatchEvent(new Event('bamlead-smtp-config-updated'));
+    persistSMTPStatus(false, false);
+    broadcastSMTPChange();
     toast.success('SMTP configuration saved!');
   };
 
@@ -239,6 +264,7 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
         toast.success('SMTP connection verified!', {
           description: `Connected to ${smtpConfig.host}:${smtpConfig.port}`,
         });
+        persistSMTPConfig(smtpConfig);
         localStorage.setItem('smtp_verified', JSON.stringify({
           host: smtpConfig.host,
           port: smtpConfig.port,
@@ -246,12 +272,16 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
           verifiedAt: new Date().toISOString(),
         }));
         setIsConnected(true);
+        persistSMTPStatus(true, true);
+        broadcastSMTPChange();
       } else {
         toast.error('Connection failed', {
           description: result.error || 'Please check your SMTP credentials',
         });
         localStorage.removeItem('smtp_verified');
         setIsConnected(false);
+        persistSMTPStatus(false, false);
+        broadcastSMTPChange();
       }
     } catch (error) {
       toast.error('SMTP test failed', {
@@ -259,6 +289,8 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
       });
       localStorage.removeItem('smtp_verified');
       setIsConnected(false);
+      persistSMTPStatus(false, false);
+      broadcastSMTPChange();
     } finally {
       setIsTesting(false);
     }
@@ -310,6 +342,7 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
         toast.success('Test email sent!', {
           description: `Check ${testEmailAddress} for your test email`,
         });
+        persistSMTPConfig(smtpConfig);
         localStorage.setItem('smtp_verified', JSON.stringify({
           host: smtpConfig.host,
           port: smtpConfig.port,
@@ -317,6 +350,8 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
           verifiedAt: new Date().toISOString(),
         }));
         setIsConnected(true);
+        persistSMTPStatus(true, true);
+        broadcastSMTPChange();
         setShowTestEmailInput(false);
         setTestEmailAddress('');
       } else {
@@ -325,6 +360,8 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
         });
         localStorage.removeItem('smtp_verified');
         setIsConnected(false);
+        persistSMTPStatus(false, false);
+        broadcastSMTPChange();
       }
     } catch (error) {
       toast.error('Failed to send test email', {
@@ -332,6 +369,8 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
       });
       localStorage.removeItem('smtp_verified');
       setIsConnected(false);
+      persistSMTPStatus(false, false);
+      broadcastSMTPChange();
     } finally {
       setIsSendingTest(false);
     }

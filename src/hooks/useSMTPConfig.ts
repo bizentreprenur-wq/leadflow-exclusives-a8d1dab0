@@ -78,7 +78,10 @@ export function useSMTPConfig() {
     // Sync on mount - ensures component picks up latest state
     const syncFromStorage = () => {
       try {
-        const savedConfig = localStorage.getItem(SMTP_CONFIG_KEY);
+        let savedConfig = localStorage.getItem(SMTP_CONFIG_KEY);
+        if (!savedConfig) {
+          savedConfig = localStorage.getItem('smtp_config');
+        }
         if (savedConfig) {
           const parsed = JSON.parse(savedConfig);
           setConfig(parsed);
@@ -100,7 +103,7 @@ export function useSMTPConfig() {
     syncFromStorage();
 
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === SMTP_CONFIG_KEY && e.newValue) {
+      if ((e.key === SMTP_CONFIG_KEY || e.key === 'smtp_config') && e.newValue) {
         try {
           setConfig(JSON.parse(e.newValue));
         } catch {}

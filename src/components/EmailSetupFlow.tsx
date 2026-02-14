@@ -27,7 +27,6 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import HighConvertingTemplateGallery from './HighConvertingTemplateGallery';
-import EmailOutreachModule from './EmailOutreachModule';
 import CRMIntegrationModal from './CRMIntegrationModal';
 import MailboxDripAnimation from './MailboxDripAnimation';
 import EmailClientPreviewPanel from './EmailClientPreviewPanel';
@@ -43,8 +42,7 @@ import LeadIntelligenceReviewPanel from './LeadIntelligenceReviewPanel';
 import PersonalizedLeadPreview from './PersonalizedLeadPreview';
 import AIStrategyReviewPanel from './AIStrategyReviewPanel';
 import { LeadForEmail, sendBulkEmails } from '@/lib/api/email';
-import { isSMTPConfigured, personalizeContent, sendTestEmail } from '@/lib/emailService';
-import { addLeadsToCRM, queueLeadsForEmail } from '@/lib/customTemplates';
+import { addLeadsToCRM } from '@/lib/customTemplates';
 import EmailDeliveryNotifications from './EmailDeliveryNotifications';
 import { useAuth } from '@/contexts/AuthContext';
 import { loadBrandingFromBackend, saveUserBranding, deleteUserLogo } from '@/lib/api/branding';
@@ -497,6 +495,34 @@ export default function EmailSetupFlow({
     toast.info('Template cleared. Choose a new one below.');
   };
 
+  const getSelectedTemplateSubject = () => {
+    return customizedContent?.subject || selectedTemplate?.subject || '';
+  };
+
+  const getSelectedTemplateBodyHtml = () => {
+    if (customizedContent?.body) {
+      const hasHtml = /<[^>]+>/.test(customizedContent.body);
+      if (hasHtml) return customizedContent.body;
+      return customizedContent.body
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+        .map((line) => `<p>${line}</p>`)
+        .join('');
+    }
+
+    return selectedTemplate?.body_html || selectedTemplate?.body || selectedTemplate?.preview || '';
+  };
+
+  const getSelectedTemplateBodyPlainText = () => {
+    if (customizedContent?.body) {
+      return customizedContent.body;
+    }
+
+    const body = selectedTemplate?.body_html || selectedTemplate?.body || selectedTemplate?.preview || '';
+    return String(body).replace(/<[^>]*>/g, '');
+  };
+
   const renderPhaseContent = () => {
     switch (currentPhase) {
       case 'smtp':
@@ -717,11 +743,11 @@ export default function EmailSetupFlow({
                       <Label htmlFor="subject">Subject Line</Label>
                       <Input 
                         id="subject"
-                        value={customizedContent?.subject || selectedTemplate.subject}
+                        value={getSelectedTemplateSubject()}
                         placeholder="Enter your subject line..."
                         className="mt-1"
                         onChange={(e) => {
-                          const body = customizedContent?.body || selectedTemplate.body || '';
+                          const body = getSelectedTemplateBodyPlainText();
                           handleSaveCustomization(e.target.value, body);
                         }}
                       />
@@ -730,11 +756,11 @@ export default function EmailSetupFlow({
                       <Label htmlFor="body">Email Body</Label>
                       <textarea 
                         id="body"
-                        value={(customizedContent?.body || selectedTemplate.body || '').replace(/<[^>]*>/g, '')}
+                        value={getSelectedTemplateBodyPlainText()}
                         placeholder="Enter your email content..."
                         className="mt-1 w-full h-48 p-3 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
                         onChange={(e) => {
-                          const subject = customizedContent?.subject || selectedTemplate.subject;
+                          const subject = getSelectedTemplateSubject();
                           handleSaveCustomization(subject, e.target.value);
                         }}
                       />
@@ -750,15 +776,15 @@ export default function EmailSetupFlow({
                 <AIEmailAssistant
                   template={selectedTemplate}
                   leads={leads}
-                  currentSubject={customizedContent?.subject || selectedTemplate.subject}
-                  currentBody={customizedContent?.body || selectedTemplate.body}
+                  currentSubject={getSelectedTemplateSubject()}
+                  currentBody={getSelectedTemplateBodyPlainText()}
                   onApplySubject={(subject) => {
-                    const body = customizedContent?.body || selectedTemplate.body || '';
+                    const body = getSelectedTemplateBodyPlainText();
                     handleSaveCustomization(subject, body);
                   }}
                   onApplyBody={(newBody) => {
-                    const subject = customizedContent?.subject || selectedTemplate.subject;
-                    const currentBody = customizedContent?.body || selectedTemplate.body || '';
+                    const subject = getSelectedTemplateSubject();
+                    const currentBody = getSelectedTemplateBodyPlainText();
                     const updatedBody = currentBody ? `${currentBody}\n\n${newBody}` : newBody;
                     handleSaveCustomization(subject, updatedBody.replace(/<[^>]*>/g, ''));
                   }}
@@ -1064,7 +1090,7 @@ export default function EmailSetupFlow({
                                 {/* Real Send Button */}
                                 <Button 
                                   size="lg"
-                                  onClick={async () => {
+                                  onClick={() => {
                                     // Validate SMTP
                                     if (!smtpConfigured) {
                                       toast.error('Please configure SMTP settings first');
@@ -1085,43 +1111,20 @@ export default function EmailSetupFlow({
                                     }
                                     
                                     // Ensure we have body content
-                                    const emailBody = customizedContent?.body || selectedTemplate.body || selectedTemplate.preview || '';
-                                    const emailSubject = customizedContent?.subject || selectedTemplate.subject || '';
+                                    const emailBody = getSelectedTemplateBodyHtml();
+                                    const emailSubject = getSelectedTemplateSubject();
                                     
                                     if (!emailSubject || !emailBody) {
                                       toast.error('Email subject and body are required');
                                       return;
                                     }
-                                    
-                                    setIsSending(true);
-                                    try {
-                                      console.log('Sending emails to:', validLeads.length, 'leads');
-                                      console.log('Subject:', emailSubject);
-                                      console.log('Body length:', emailBody.length);
-                                      
-                                      const result = await sendBulkEmails({
-                                        leads: validLeads,
-                                        custom_subject: emailSubject,
-                                        custom_body: emailBody,
-                                        send_mode: 'drip',
-                                        drip_config: { emailsPerHour: dripSettings.emailsPerHour, delayMinutes: Math.max(1, Math.floor(60 / dripSettings.emailsPerHour)) },
-                                      });
-                                      
-                                      if (result.success) {
-                                        sessionStorage.setItem('emails_sent', 'true');
-                                        setRealSendingMode(true);
-                                        setDemoIsActive(true);
-                                        toast.success(`🚀 Campaign launched! Sending ${result.results?.sent || validLeads.length} emails...`);
-                                      } else {
-                                        console.error('Send failed:', result.error);
-                                        toast.error(result.error || 'Failed to send emails');
-                                      }
-                                    } catch (error) {
-                                      console.error('Send error:', error);
-                                      toast.error('Failed to send emails. Check your connection.');
-                                    } finally {
-                                      setIsSending(false);
-                                    }
+
+                                    setPendingSendData({
+                                      validLeads,
+                                      emailSubject,
+                                      emailBody,
+                                    });
+                                    setShowSendConfirmation(true);
                                   }}
                                   disabled={isSending || !smtpConfigured || !selectedTemplate}
                                   className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground font-bold px-8 py-6 text-lg shadow-lg shadow-primary/30"
@@ -1605,7 +1608,11 @@ export default function EmailSetupFlow({
                     leads: formattedLeads,
                     custom_subject: emailSubject,
                     custom_body: emailBody,
-                    send_mode: 'instant',
+                    send_mode: 'drip',
+                    drip_config: {
+                      emailsPerHour: dripSettings.emailsPerHour,
+                      delayMinutes: Math.max(1, Math.floor(60 / dripSettings.emailsPerHour)),
+                    },
                   });
                   
                   if (result.success) {
@@ -1616,6 +1623,7 @@ export default function EmailSetupFlow({
                       duration: 6000,
                     });
                     setDemoSentCount(sentCount);
+                    onComplete();
                   } else {
                     console.error('Send failed:', result.error);
                     toast.error(result.error || 'Failed to send emails');
