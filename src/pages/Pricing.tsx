@@ -131,6 +131,28 @@ const featureCategories = [
     ],
   },
   {
+    name: "Dedicated AI Sales Brain",
+    icon: Brain,
+    features: [
+      { text: "Custom-Trained AI on Your Niche", free: false, basic: false, pro: false, autopilot: true, unlimited: true },
+      { text: "Learns Objection Handling Over Time", free: false, basic: false, pro: false, autopilot: true, unlimited: true },
+      { text: "Custom Call Scripts Per Industry", free: false, basic: false, pro: false, autopilot: true, unlimited: true },
+      { text: "Memory Across All Conversations", free: false, basic: false, pro: false, autopilot: true, unlimited: true },
+    ],
+  },
+  {
+    name: "Managed Services (Done-For-You)",
+    icon: Rocket,
+    features: [
+      { text: "Full Campaign Buildout", free: false, basic: false, pro: false, autopilot: true, unlimited: true },
+      { text: "ICP Targeting Setup", free: false, basic: false, pro: false, autopilot: true, unlimited: true },
+      { text: "Niche Research Done For You", free: false, basic: false, pro: false, autopilot: true, unlimited: true },
+      { text: "Custom Proposal Templates", free: false, basic: false, pro: false, autopilot: true, unlimited: true },
+      { text: "CRM Integration Setup", free: false, basic: false, pro: false, autopilot: true, unlimited: true },
+      { text: "Calendar Integration Setup", free: false, basic: false, pro: false, autopilot: true, unlimited: true },
+    ],
+  },
+  {
     name: "Team & Support",
     icon: Shield,
     features: [
@@ -204,10 +226,11 @@ const tiers = [
     highlights: [
       "Unlimited searches",
       "2,000 AI verification credits",
+      "Dedicated AI Sales Brain (Custom Model)",
       "Fully Autonomous AI Calling",
-      "AI handles calls → booked meetings",
-      "Auto Proposal Delivery",
-      "Phone number included",
+      "Full campaign buildout & ICP setup",
+      "CRM + Calendar integration setup",
+      "Custom proposal templates",
     ],
   },
   {
