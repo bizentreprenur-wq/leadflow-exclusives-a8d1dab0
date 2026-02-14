@@ -988,17 +988,27 @@ export default function ComposeEmailModal({
             </button>
           </div>
 
-          {/* Unlimited Mode Banner - shows when on Unlimited plan */}
+          {/* Unlimited Mode - 4th card inline */}
           {isUnlimitedPlan && (
-            <div className="mt-3 p-4 rounded-xl border-2 border-red-500 bg-red-500/10">
-              <div className="flex items-center gap-2 mb-1">
-                <Shield className="w-5 h-5 text-red-500" />
-                <span className="font-semibold text-foreground text-sm">Unlimited Mode Active</span>
-                <Badge className="text-[8px] px-1.5 bg-red-500 text-white border-0">$999/mo</Badge>
-              </div>
-              <p className="text-[10px] text-muted-foreground">
-                All features unlocked. No credit limits. AI handles everything autonomously.
-              </p>
+            <div className="mt-3">
+              <button
+                onClick={() => {
+                  setComposeMode('autopilot');
+                }}
+                className={cn(
+                  "w-full p-4 rounded-xl border-2 transition-all text-left",
+                  "border-red-500 bg-gradient-to-br from-red-500/10 to-red-900/10"
+                )}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Shield className="w-5 h-5 text-red-500" />
+                  <span className="font-semibold text-foreground text-sm">Unlimited Mode Active</span>
+                  <Badge className="text-[8px] px-1.5 bg-red-500 text-white border-0">$999/mo</Badge>
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  All features unlocked. No credit limits. A dedicated agent guides your setup and ensures everything is configured correctly.
+                </p>
+              </button>
             </div>
           )}
         </div>
