@@ -53,7 +53,7 @@ import {
 import { useEffect, useState } from 'react';
 import bamMascot from '@/assets/bamlead-mascot.png';
 import { BackendStatusIndicator } from '@/components/BackendStatusIndicator';
-import { getTwilioConfig } from '@/lib/api/twilio';
+
 
 interface DashboardSidebarProps {
   activeTab: string;
@@ -210,23 +210,7 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === 'collapsed';
   const [isDark, setIsDark] = useState(false);
-  // Initialize Twilio number from localStorage first for instant display
-  const savedNumber = localStorage.getItem('twilio_phone_number');
-  const savedActive = localStorage.getItem('twilio_phone_active') === 'true';
-  const [twilioNumber, setTwilioNumber] = useState<string | null>(savedNumber || '+18882935813');
-  const [twilioActive, setTwilioActive] = useState<boolean>(savedActive || true);
-
-  // Also fetch from API to stay in sync
-  useEffect(() => {
-    getTwilioConfig().then(res => {
-      if (res.success && res.config?.phone_number) {
-        setTwilioNumber(res.config.phone_number);
-        setTwilioActive(res.config.provisioned || res.config.enabled);
-        localStorage.setItem('twilio_phone_number', res.config.phone_number);
-        localStorage.setItem('twilio_phone_active', String(res.config.provisioned || res.config.enabled));
-      }
-    }).catch(() => {});
-  }, []);
+  // Phone number display moved to Step 4 AI Calling Hub
 
   // Initialize theme from localStorage or system preference
   useEffect(() => {
@@ -342,55 +326,32 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {/* Twilio Number above Phone Setup */}
-              {!isCollapsed && twilioNumber && (
-                <div className="px-3 py-1.5 mb-1">
-                  <div className="flex items-center justify-between rounded-lg bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-2">
-                    <div className="flex flex-col gap-0">
-                      <span className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">Twilio</span>
-                      <span className="text-sm font-extrabold text-emerald-300 tracking-wide">
-                        {twilioNumber.replace(/^\+1(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3')}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className={`w-2 h-2 rounded-full ${twilioActive ? 'bg-emerald-400 animate-pulse shadow-lg shadow-emerald-400/50' : 'bg-destructive'}`} />
-                      <span className={`text-[9px] font-bold uppercase ${twilioActive ? 'text-emerald-400' : 'text-destructive'}`}>
-                        {twilioActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {aiCallingTools.map((tool) => {
-                const isPhoneSetup = tool.id === 'voice-calling';
-                const isGreyedOut = isPhoneSetup && twilioActive;
-                return (
-                  <SidebarMenuItem key={tool.id}>
-                    <SidebarMenuButton
-                      isActive={activeTab === tool.id}
-                      tooltip={tool.title}
-                      onClick={() => onTabChange(tool.id)}
-                      className={`${isGreyedOut ? 'opacity-50' : ''} ${
-                        isAICallingActive && activeTab === tool.id
-                          ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/30'
-                          : isAICallingActive
-                          ? 'hover:bg-amber-500/10'
-                          : ''
-                      }`}
-                    >
-                      <tool.icon className={`w-4 h-4 ${activeTab === tool.id && isAICallingActive ? 'text-amber-400' : (tool.iconColor || '')}`} />
-                      <span>{tool.title}</span>
-                      {'badge' in tool && tool.badge && (
-                        <Badge variant="secondary" className={`ml-auto text-[10px] px-1.5 py-0 ${
-                          isAICallingActive ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-primary/10 text-primary'
-                        }`}>
-                          {tool.badge}
-                        </Badge>
-                      )}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
+              {aiCallingTools.map((tool) => (
+                <SidebarMenuItem key={tool.id}>
+                  <SidebarMenuButton
+                    isActive={activeTab === tool.id}
+                    tooltip={tool.title}
+                    onClick={() => onTabChange(tool.id)}
+                    className={`${
+                      isAICallingActive && activeTab === tool.id
+                        ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/30'
+                        : isAICallingActive
+                        ? 'hover:bg-amber-500/10'
+                        : ''
+                    }`}
+                  >
+                    <tool.icon className={`w-4 h-4 ${activeTab === tool.id && isAICallingActive ? 'text-amber-400' : (tool.iconColor || '')}`} />
+                    <span>{tool.title}</span>
+                    {'badge' in tool && tool.badge && (
+                      <Badge variant="secondary" className={`ml-auto text-[10px] px-1.5 py-0 ${
+                        isAICallingActive ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-primary/10 text-primary'
+                      }`}>
+                        {tool.badge}
+                      </Badge>
+                    )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
