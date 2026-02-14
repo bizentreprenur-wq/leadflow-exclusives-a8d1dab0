@@ -467,13 +467,20 @@ export default function Step4AICallingHub({
               {/* AI Calling */}
               <div className="mb-3">
                 {!sidebarCollapsed && <p className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/60 px-3 mb-2">AI Calling</p>}
-                {/* Phone number display - shown before Phone Setup */}
+                {/* Phone number display - styled like sidebar Twilio card */}
                 {!sidebarCollapsed && phoneSetup.hasPhone && phoneSetup.phoneNumber && (
                   <div className="px-2 mb-2">
-                    <div className="flex items-center gap-2 p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                      <Phone className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      <span className="text-xs font-mono font-bold text-emerald-600 truncate">{formatPhoneWithCountry(phoneSetup.phoneNumber)}</span>
-                      <Badge className="ml-auto bg-emerald-500/15 text-emerald-600 rounded-full border-0 text-[9px] px-1.5 py-0">Active</Badge>
+                    <div className="flex items-center justify-between rounded-lg bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-2">
+                      <div className="flex flex-col gap-0">
+                        <span className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">Twilio</span>
+                        <span className="text-sm font-extrabold text-emerald-300 tracking-wide">
+                          {phoneSetup.phoneNumber.replace(/^\+1(\d{3})(\d{3})(\d{4})$/, '($1) $2-$3')}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-lg shadow-emerald-400/50" />
+                        <span className="text-[9px] font-bold uppercase text-emerald-400">Active</span>
+                      </div>
                     </div>
                   </div>
                 )}
