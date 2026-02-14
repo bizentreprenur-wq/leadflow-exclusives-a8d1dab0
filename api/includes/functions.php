@@ -1282,10 +1282,16 @@ function buildBusinessDedupeKey($business, $context = '') {
         return "{$name}|phone:{$phone}";
     }
     $host = '';
+    $path = '';
     if (!empty($business['url'])) {
         $host = strtolower(trim(parse_url($business['url'], PHP_URL_HOST) ?? ''));
+        $path = strtolower(trim(parse_url($business['url'], PHP_URL_PATH) ?? ''));
+        $path = preg_replace('#/+#', '/', $path);
     }
     if ($host !== '') {
+        if ($path !== '' && $path !== '/') {
+            return "{$name}|host:{$host}|path:" . substr(sha1($path), 0, 12);
+        }
         return "{$name}|host:{$host}";
     }
     $snippet = strtolower(trim((string)($business['snippet'] ?? '')));

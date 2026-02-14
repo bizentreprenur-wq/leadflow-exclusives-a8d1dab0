@@ -348,7 +348,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                 ];
 
                 if (empty($business['name'])) continue;
-                $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
+                $business['websiteAnalysis'] = quickWebsiteCheck($business['url'], ($business['snippet'] ?? '') . ' ' . ($business['name'] ?? ''));
                 if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
 
                 $dedupeKey = buildBusinessDedupeKey($business, $batchLocation);
@@ -438,7 +438,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                     ];
 
                     if (empty($business['name'])) continue;
-                    $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
+                    $business['websiteAnalysis'] = quickWebsiteCheck($business['url'], ($business['snippet'] ?? '') . ' ' . ($business['name'] ?? ''));
                     if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
 
                     $dedupeKey = buildBusinessDedupeKey($business, $location);
@@ -556,22 +556,23 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         ]);
 
         // Fewer query shards + deeper pagination is faster and more reliable on many hosts.
-        $maxOrgPages = $limit >= 2000 ? 15 : ($limit >= 1000 ? 10 : 4);
-        $maxOrgVariants = $limit >= 2000 ? 8 : ($limit >= 1000 ? 5 : 3);
-        $maxOrgLocations = $limit >= 2000 ? 8 : ($limit >= 1000 ? 5 : 3);
+        $maxOrgPages = $limit >= 5000 ? 22 : ($limit >= 2000 ? 16 : ($limit >= 1000 ? 11 : ($limit >= 500 ? 6 : 4)));
+        $maxOrgVariants = $limit >= 5000 ? 14 : ($limit >= 2000 ? 9 : ($limit >= 1000 ? 6 : ($limit >= 500 ? 4 : 3)));
+        $maxOrgLocations = $limit >= 5000 ? 14 : ($limit >= 2000 ? 10 : ($limit >= 1000 ? 6 : ($limit >= 500 ? 4 : 3)));
         if ($filtersActive) {
-            $maxOrgPages = (int)ceil($maxOrgPages * 1.5);
-            $maxOrgVariants = (int)ceil($maxOrgVariants * 1.6);
-            $maxOrgLocations = (int)ceil($maxOrgLocations * 1.5);
+            $maxOrgPages = (int)ceil($maxOrgPages * 1.7);
+            $maxOrgVariants = (int)ceil($maxOrgVariants * 2.0);
+            $maxOrgLocations = (int)ceil($maxOrgLocations * 1.8);
         }
-        $maxOrgPages = min($maxOrgPages, $limit >= 5000 ? 25 : 20);
-        $maxOrgVariants = min($maxOrgVariants, $limit >= 5000 ? 20 : 16);
-        $maxOrgLocations = min($maxOrgLocations, $limit >= 5000 ? 16 : 12);
+        $maxOrgPages = min($maxOrgPages, $limit >= 5000 ? 28 : 22);
+        $maxOrgVariants = min($maxOrgVariants, $filtersActive ? ($limit >= 5000 ? 28 : 22) : ($limit >= 5000 ? 20 : 16));
+        $maxOrgLocations = min($maxOrgLocations, $filtersActive ? ($limit >= 5000 ? 22 : 18) : ($limit >= 5000 ? 16 : 12));
 
         $organicVariants = array_slice($serviceVariants, 0, min($maxOrgVariants, count($serviceVariants)));
-        $organicLocations = array_slice($searchedLocations, 0, min($maxOrgLocations, count($searchedLocations)));
+        $organicLocationSeed = array_values(array_unique(array_merge($searchedLocations, $locationsToSearch)));
+        $organicLocations = array_slice($organicLocationSeed, 0, min($maxOrgLocations, count($organicLocationSeed)));
         if (empty($organicLocations)) {
-            $organicLocations = array_slice($locationsToSearch, 0, min($maxOrgLocations, count($locationsToSearch)));
+            $organicLocations = [$location];
         }
 
         // Build unique organic queries
@@ -587,7 +588,10 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         }
         $organicQueryList = array_values($organicQueryMap);
 
-        $batchSize = 15; // ⚡ Increased from 8 for faster parallel organic fetching
+        $batchSize = 15; // Tuned for high throughput without overwhelming upstream APIs
+        if ($limit >= 1000) $batchSize = 18;
+        if ($limit >= 2000) $batchSize = 22;
+        if ($filtersActive) $batchSize = min(24, $batchSize + 2);
         $queryBatches = array_chunk($organicQueryList, $batchSize);
 
         for ($orgPage = 1; $orgPage <= $maxOrgPages; $orgPage++) {
@@ -631,7 +635,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                         ];
 
                         if (empty($business['name'])) continue;
-                        $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
+                        $business['websiteAnalysis'] = quickWebsiteCheck($business['url'], ($business['snippet'] ?? '') . ' ' . ($business['name'] ?? ''));
                         if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
 
                         $dedupeKey = buildBusinessDedupeKey($business, $orgLoc);
@@ -685,8 +689,9 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
             'progress' => min(98, round(($totalResults / max(1, $limit)) * 100)),
         ]);
 
-        $dirLocations = array_slice($searchedLocations, 0, min(10, count($searchedLocations)));
-        $dirPages = $limit >= 2000 ? 3 : 1;
+        $dirLocationSeed = array_values(array_unique(array_merge($searchedLocations, [$location])));
+        $dirLocations = array_slice($dirLocationSeed, 0, min($filtersActive ? 15 : 10, count($dirLocationSeed)));
+        $dirPages = $limit >= 2000 ? 3 : (($filtersActive || $limit >= 1000) ? 2 : 1);
         foreach ($directoryQueries as $dirSite) {
             if ($totalResults >= $limit) break;
             foreach ($dirLocations as $dirLoc) {
@@ -718,7 +723,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                     ];
 
                     if (empty($business['name'])) continue;
-                    $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
+                    $business['websiteAnalysis'] = quickWebsiteCheck($business['url'], ($business['snippet'] ?? '') . ' ' . ($business['name'] ?? ''));
                     if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
 
                     $dedupeKey = buildBusinessDedupeKey($business, $dirLoc);
@@ -1366,9 +1371,9 @@ function extractPhoneFromText($text) {
 }
 
 /**
- * Quick website check - URL-based only
+ * Quick website check - URL + snippet/title hints
  */
-function quickWebsiteCheck($url) {
+function quickWebsiteCheck($url, $hintText = '') {
     if (empty($url)) {
         return [
             'hasWebsite' => false,
@@ -1382,41 +1387,92 @@ function quickWebsiteCheck($url) {
     
     $host = parse_url($url, PHP_URL_HOST) ?? '';
     $hostLower = strtolower($host);
+    $hintLower = strtolower((string)$hintText);
+    $combinedSignals = trim($hostLower . ' ' . $hintLower);
     
     $platform = null;
     $needsUpgrade = false;
     $issues = [];
     
-    if (strpos($hostLower, 'wix') !== false || strpos($hostLower, 'wixsite') !== false) {
+    $hasWordPressSignal = strpos($hostLower, 'wordpress') !== false ||
+        strpos($hintLower, 'powered by wordpress') !== false ||
+        strpos($hintLower, 'wp-content') !== false ||
+        strpos($hintLower, 'wp-json') !== false ||
+        strpos($hintLower, 'wordpress.com') !== false;
+
+    if (strpos($combinedSignals, 'wix') !== false || strpos($combinedSignals, 'wixsite') !== false) {
         $platform = 'wix';
         $needsUpgrade = true;
         $issues[] = 'Using Wix template';
-    } elseif (strpos($hostLower, 'squarespace') !== false) {
+    } elseif (strpos($combinedSignals, 'squarespace') !== false) {
         $platform = 'squarespace';
         $needsUpgrade = true;
         $issues[] = 'Using Squarespace template';
-    } elseif (strpos($hostLower, 'weebly') !== false) {
+    } elseif (strpos($combinedSignals, 'weebly') !== false) {
         $platform = 'weebly';
         $needsUpgrade = true;
         $issues[] = 'Using Weebly template';
-    } elseif (strpos($hostLower, 'godaddy') !== false) {
+    } elseif (strpos($combinedSignals, 'godaddy') !== false || strpos($combinedSignals, 'godaddysites') !== false) {
         $platform = 'godaddy';
         $needsUpgrade = true;
         $issues[] = 'Using GoDaddy builder';
-    } elseif (strpos($hostLower, 'wordpress.com') !== false) {
+    } elseif (strpos($combinedSignals, 'wordpress.com') !== false) {
         $platform = 'wordpress.com';
         $needsUpgrade = true;
         $issues[] = 'Using free WordPress.com';
-    } elseif (strpos($hostLower, 'shopify') !== false) {
+    } elseif ($hasWordPressSignal) {
+        $platform = 'wordpress';
+    } elseif (strpos($combinedSignals, 'shopify') !== false) {
         $platform = 'shopify';
-    } elseif (strpos($hostLower, 'blogger') !== false || strpos($hostLower, 'blogspot') !== false) {
+    } elseif (strpos($combinedSignals, 'webflow') !== false) {
+        $platform = 'webflow';
+    } elseif (strpos($combinedSignals, 'jimdo') !== false) {
+        $platform = 'jimdo';
+        $needsUpgrade = true;
+        $issues[] = 'Using Jimdo builder';
+    } elseif (strpos($combinedSignals, 'joomla') !== false) {
+        $platform = 'joomla';
+        $needsUpgrade = true;
+        $issues[] = 'Using Joomla CMS';
+    } elseif (strpos($combinedSignals, 'drupal') !== false) {
+        $platform = 'drupal';
+        $needsUpgrade = true;
+        $issues[] = 'Using Drupal CMS';
+    } elseif (strpos($combinedSignals, 'opencart') !== false) {
+        $platform = 'opencart';
+        $needsUpgrade = true;
+        $issues[] = 'Using OpenCart CMS';
+    } elseif (strpos($combinedSignals, 'prestashop') !== false) {
+        $platform = 'prestashop';
+        $needsUpgrade = true;
+        $issues[] = 'Using PrestaShop CMS';
+    } elseif (strpos($combinedSignals, 'magento') !== false) {
+        $platform = 'magento';
+    } elseif (strpos($combinedSignals, 'zencart') !== false || strpos($combinedSignals, 'zen cart') !== false) {
+        $platform = 'zencart';
+        $needsUpgrade = true;
+        $issues[] = 'Using Zen Cart CMS';
+    } elseif (strpos($combinedSignals, 'oscommerce') !== false) {
+        $platform = 'oscommerce';
+        $needsUpgrade = true;
+        $issues[] = 'Using osCommerce CMS';
+    } elseif (strpos($combinedSignals, 'blogger') !== false || strpos($combinedSignals, 'blogspot') !== false) {
         $platform = 'blogger';
         $needsUpgrade = true;
         $issues[] = 'Using Blogger';
-    } elseif (strpos($hostLower, 'facebook.com') !== false) {
-        $platform = 'facebook';
+    } elseif (
+        strpos($combinedSignals, 'facebook.com') !== false ||
+        strpos($combinedSignals, 'instagram.com') !== false ||
+        strpos($combinedSignals, 'tiktok.com') !== false ||
+        strpos($combinedSignals, 'linktr.ee') !== false
+    ) {
+        $platform = strpos($combinedSignals, 'facebook.com') !== false
+            ? 'facebook'
+            : (strpos($combinedSignals, 'instagram.com') !== false
+                ? 'instagram'
+                : (strpos($combinedSignals, 'tiktok.com') !== false ? 'tiktok' : 'linktree'));
         $needsUpgrade = true;
-        $issues[] = 'Only Facebook presence';
+        $issues[] = 'Social-only web presence';
     }
     
     return [
@@ -1798,7 +1854,7 @@ function streamSerperSearchInto(
         }
         
         if (empty($business['name'])) continue;
-        $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
+        $business['websiteAnalysis'] = quickWebsiteCheck($business['url'], ($business['snippet'] ?? '') . ' ' . ($business['name'] ?? ''));
         if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
         
         $dedupeKey = buildBusinessDedupeKey($business, $location);
@@ -1870,7 +1926,7 @@ function streamSerperSearchInto(
             ];
             
             if (empty($business['name'])) continue;
-            $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
+            $business['websiteAnalysis'] = quickWebsiteCheck($business['url'], ($business['snippet'] ?? '') . ' ' . ($business['name'] ?? ''));
             if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
             
             $dedupeKey = buildBusinessDedupeKey($business, $location);
@@ -1948,7 +2004,7 @@ function streamSerperSearchInto(
                 ];
 
                 if (empty($business['name'])) continue;
-                $business['websiteAnalysis'] = quickWebsiteCheck($business['url']);
+                $business['websiteAnalysis'] = quickWebsiteCheck($business['url'], ($business['snippet'] ?? '') . ' ' . ($business['name'] ?? ''));
                 if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
 
                 $dedupeKey = buildBusinessDedupeKey($business, $location);

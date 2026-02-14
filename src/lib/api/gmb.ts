@@ -152,6 +152,28 @@ function isSameBusiness(a: GMBResult, b: GMBResult): boolean {
   return false;
 }
 
+function buildBusinessMatchKeys(lead: {
+  name?: string;
+  url?: string;
+  phone?: string;
+  address?: string;
+}): string[] {
+  const keys: string[] = [];
+  const host = normalizeHost(lead.url);
+  if (host) keys.push(`host:${host}`);
+
+  const name = normalizeForMatch(lead.name);
+  if (!name) return keys;
+
+  const phone = normalizePhone(lead.phone);
+  if (phone) keys.push(`name_phone:${name}|${phone}`);
+
+  const address = normalizeForMatch(lead.address);
+  if (address) keys.push(`name_addr:${name}|${address}`);
+
+  return keys;
+}
+
 function uniqueStrings(values: string[] = []): string[] {
   return Array.from(new Set(values.filter(Boolean)));
 }
@@ -446,6 +468,8 @@ async function searchGMBStreaming(
   console.log('[GMB API] Starting SSE streaming search');
   
   const allResults: GMBResult[] = [];
+  const idIndex = new Map<string, number>();
+  const businessKeyIndex = new Map<string, number>();
   let enrichmentSessionId: string | undefined;
   let enrichmentEnabled = false;
   
@@ -461,6 +485,14 @@ async function searchGMBStreaming(
       if (settled) return;
       settled = true;
       reject(error);
+    };
+    const indexLead = (lead: GMBResult, index: number) => {
+      if (lead.id) {
+        idIndex.set(lead.id, index);
+      }
+      for (const key of buildBusinessMatchKeys(lead)) {
+        businessKeyIndex.set(key, index);
+      }
     };
     const initialTimeoutId = setTimeout(() => {
       controller.abort();
@@ -631,19 +663,36 @@ async function searchGMBStreaming(
                     }
                   };
 
-                  const idMatchIndex = allResults.findIndex((item) => item.id === incomingLead.id);
-                  if (idMatchIndex !== -1) {
+                  const idMatchIndex = idIndex.get(incomingLead.id);
+                  if (idMatchIndex !== undefined) {
                     allResults[idMatchIndex] = mergeLeadRecords(allResults[idMatchIndex], incomingLead);
+                    indexLead(allResults[idMatchIndex], idMatchIndex);
                     continue;
                   }
 
-                  const businessMatchIndex = allResults.findIndex((item) => isSameBusiness(item, incomingLead));
-                  if (businessMatchIndex !== -1) {
+                  let businessMatchIndex: number | undefined;
+                  for (const key of buildBusinessMatchKeys(incomingLead)) {
+                    const matchedIndex = businessKeyIndex.get(key);
+                    if (matchedIndex !== undefined) {
+                      businessMatchIndex = matchedIndex;
+                      break;
+                    }
+                  }
+                  if (businessMatchIndex === undefined) {
+                    // Safety fallback for rare edge cases where match keys are unavailable.
+                    const fallbackIndex = allResults.findIndex((item) => isSameBusiness(item, incomingLead));
+                    if (fallbackIndex !== -1) {
+                      businessMatchIndex = fallbackIndex;
+                    }
+                  }
+
+                  if (businessMatchIndex !== undefined) {
                     allResults[businessMatchIndex] = mergeLeadRecords(allResults[businessMatchIndex], incomingLead);
-                    continue;
+                    indexLead(allResults[businessMatchIndex], businessMatchIndex);
+                  } else {
+                    allResults.push(incomingLead);
+                    indexLead(incomingLead, allResults.length - 1);
                   }
-
-                  allResults.push(incomingLead);
                 }
                 
                 // Throttled progress — UI updates in bulk, not per-lead
@@ -675,8 +724,8 @@ async function searchGMBStreaming(
                     const enrichmentData = result.data;
                     
                     // Update the lead in allResults
-                    const leadIndex = allResults.findIndex(l => l.id === leadId);
-                    if (leadIndex !== -1) {
+                    const leadIndex = idIndex.get(leadId);
+                    if (leadIndex !== undefined) {
                       const enrichedLead = {
                         ...allResults[leadIndex],
                         enrichment: enrichmentData,
@@ -686,12 +735,18 @@ async function searchGMBStreaming(
                         phone: enrichmentData?.phones?.[0] || allResults[leadIndex].phone,
                       };
                       allResults[leadIndex] = enrichedLead;
+                      indexLead(enrichedLead, leadIndex);
 
                       // Backfill matching duplicates if one source has email/phone and another doesn't.
-                      for (let i = 0; i < allResults.length; i++) {
-                        if (i === leadIndex) continue;
-                        if (!isSameBusiness(allResults[i], enrichedLead)) continue;
-                        allResults[i] = mergeLeadRecords(allResults[i], enrichedLead);
+                      const relatedIndexes = new Set<number>();
+                      for (const key of buildBusinessMatchKeys(enrichedLead)) {
+                        const idx = businessKeyIndex.get(key);
+                        if (idx !== undefined) relatedIndexes.add(idx);
+                      }
+                      for (const idx of relatedIndexes) {
+                        if (idx === leadIndex) continue;
+                        allResults[idx] = mergeLeadRecords(allResults[idx], enrichedLead);
+                        indexLead(allResults[idx], idx);
                       }
                     }
                     
