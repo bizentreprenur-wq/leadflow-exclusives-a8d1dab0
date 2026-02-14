@@ -67,6 +67,37 @@ export interface BamleadBatchResult {
 }
 
 const SCRAPER_ENDPOINT = `${API_BASE_URL}/bamlead-scraper.php`;
+const SCRAPER_BATCH_LIMIT = 25;
+
+function normalizeUrlKey(input?: string): string {
+  const value = (input || '').trim();
+  if (!value) return '';
+  try {
+    const url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
+    const host = url.hostname.toLowerCase().replace(/^www\./, '');
+    const path = (url.pathname || '/').replace(/\/+$/, '') || '/';
+    return `${host}${path === '/' ? '' : path}`;
+  } catch {
+    return value.toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/+$/, '');
+  }
+}
+
+function buildResultLookup(
+  backendResults: Record<string, BamleadScrapeResult>
+): Record<string, BamleadScrapeResult> {
+  const lookup: Record<string, BamleadScrapeResult> = {};
+  for (const [key, result] of Object.entries(backendResults)) {
+    lookup[key] = result;
+    const normalizedKey = normalizeUrlKey(key);
+    if (normalizedKey) lookup[normalizedKey] = result;
+    if (result.url) {
+      lookup[result.url] = result;
+      const normalizedResultUrl = normalizeUrlKey(result.url);
+      if (normalizedResultUrl) lookup[normalizedResultUrl] = result;
+    }
+  }
+  return lookup;
+}
 
 /**
  * Scrape a single business for contacts + AI intelligence
@@ -138,30 +169,60 @@ export async function bamleadScrapeBatch(
 ): Promise<Record<string, BamleadScrapeResult>> {
   if (!businesses.length) return {};
 
-  try {
-    const response = await fetch(SCRAPER_ENDPOINT, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({
-        businesses: businesses.map((b) => ({
-          url: b.url,
-          name: b.name || '',
-          location: b.location || '',
-        })),
-      }),
-    });
-
-    if (!response.ok) {
-      console.error('[BamLead Scraper v3] Batch failed:', response.status);
-      return {};
-    }
-
-    const data: BamleadBatchResult = await response.json();
-    return data.results ?? {};
-  } catch (error) {
-    console.error('[BamLead Scraper v3] Batch error:', error);
-    return {};
+  const allResults: Record<string, BamleadScrapeResult> = {};
+  const chunks: Array<Array<{ url: string; name?: string; location?: string }>> = [];
+  for (let i = 0; i < businesses.length; i += SCRAPER_BATCH_LIMIT) {
+    chunks.push(businesses.slice(i, i + SCRAPER_BATCH_LIMIT));
   }
+
+  for (const chunk of chunks) {
+    try {
+      const response = await fetch(SCRAPER_ENDPOINT, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          businesses: chunk.map((b) => ({
+            url: b.url,
+            name: b.name || '',
+            location: b.location || '',
+          })),
+        }),
+      });
+
+      if (!response.ok) {
+        console.error('[BamLead Scraper v3] Batch failed:', response.status);
+        continue;
+      }
+
+      const data: BamleadBatchResult = await response.json();
+      const batchResults = data.results ?? {};
+      const lookup = buildResultLookup(batchResults);
+
+      for (const biz of chunk) {
+        const exactUrl = (biz.url || '').trim();
+        const normalizedUrl = normalizeUrlKey(exactUrl);
+        const nameKey = (biz.name || '').trim();
+        const found =
+          (exactUrl && (lookup[exactUrl] || lookup[normalizeUrlKey(exactUrl)])) ||
+          (normalizedUrl && lookup[normalizedUrl]) ||
+          (nameKey && lookup[nameKey]);
+        if (!found) continue;
+
+        if (exactUrl) {
+          allResults[exactUrl] = found;
+          const urlNorm = normalizeUrlKey(exactUrl);
+          if (urlNorm) allResults[urlNorm] = found;
+        }
+        if (nameKey) {
+          allResults[nameKey] = found;
+        }
+      }
+    } catch (error) {
+      console.error('[BamLead Scraper v3] Batch error:', error);
+    }
+  }
+
+  return allResults;
 }
 
 /**

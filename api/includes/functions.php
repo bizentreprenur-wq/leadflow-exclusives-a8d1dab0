@@ -2070,6 +2070,15 @@ function scrapeWebsiteForContacts($url, $timeout = 8) {
         '/reach-us',
         '/team',
         '/support',
+        '/help',
+        '/connect',
+        '/locations',
+        '/privacy',
+        '/privacy-policy',
+        '/terms',
+        '/legal',
+        '/imprint',
+        '/impressum',
     ];
     foreach ($seedPaths as $path) {
         $pageUrl = $baseUrl . $path;
@@ -2083,13 +2092,16 @@ function scrapeWebsiteForContacts($url, $timeout = 8) {
         }
     }
 
-    // Keep this low for speed, but high enough to catch contact pages.
-    $pagesLimit = 5;
+    // Deep crawl defaults tuned for contact discovery.
+    // These can be overridden in config.php.
+    $pagesLimit = defined('CONTACT_SCRAPE_MAX_PAGES') ? max(3, (int)CONTACT_SCRAPE_MAX_PAGES) : 8;
+    $queueLimit = defined('CONTACT_SCRAPE_MAX_QUEUE') ? max(8, (int)CONTACT_SCRAPE_MAX_QUEUE) : 24;
+    $earlyStopEmails = defined('CONTACT_SCRAPE_EARLY_STOP_EMAILS') ? max(1, (int)CONTACT_SCRAPE_EARLY_STOP_EMAILS) : 2;
     $pagesScraped = 0;
 
     while (!empty($pagesQueued) && $pagesScraped < $pagesLimit) {
-        // Already have email? Stop early for speed.
-        if (!empty($allEmails)) {
+        // Stop early only after we have enough emails and at least 2 successful page scrapes.
+        if (count($allEmails) >= $earlyStopEmails && $pagesScraped >= 2) {
             break;
         }
 
@@ -2165,7 +2177,7 @@ function scrapeWebsiteForContacts($url, $timeout = 8) {
                 }
 
                 $path = strtolower((string)($parsedCandidate['path'] ?? ''));
-                if (!preg_match('/(contact|about|team|staff|support|get[-_ ]?in[-_ ]?touch|reach|location|book|appointment)/i', $path)) {
+                if (!preg_match('/(contact|about|team|staff|support|help|connect|get[-_ ]?in[-_ ]?touch|reach|location|book|appointment|privacy|legal|terms|impressum|imprint|footer)/i', $path)) {
                     continue;
                 }
 
@@ -2176,7 +2188,7 @@ function scrapeWebsiteForContacts($url, $timeout = 8) {
                 if (isset($queuedSet[$normalized])) {
                     continue;
                 }
-                if (count($pagesQueued) >= 12) {
+                if (count($pagesQueued) >= $queueLimit) {
                     break;
                 }
                 $queuedSet[$normalized] = true;

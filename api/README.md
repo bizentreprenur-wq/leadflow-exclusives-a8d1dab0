@@ -180,6 +180,10 @@ You can speed up large searches and widen results with these `config.php` settin
 - `ENABLE_LOCATION_EXPANSION` (auto-expand when results are below the requested limit)
 - `LOCATION_EXPANSION_MAX` (how many extra location variants to try)
 - `LOCATION_EXPANSION_INCLUDE_STATE` / `LOCATION_EXPANSION_INCLUDE_COUNTRY` (broader coverage)
+- `CONTACT_SCRAPE_TIMEOUT` (fallback contact-page scrape timeout in seconds)
+- `CONTACT_SCRAPE_MAX_PAGES` (how deep fallback email crawl goes per lead)
+- `CONTACT_SCRAPE_MAX_QUEUE` (max internal contact/about/privacy links queued)
+- `CONTACT_SCRAPE_EARLY_STOP_EMAILS` (stop crawl after this many emails are found)
 
 ## Troubleshooting
 

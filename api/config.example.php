@@ -182,6 +182,19 @@ define('WEBSITE_TIMEOUT', 10);
 
 // Maximum page size to download (in bytes)
 define('MAX_PAGE_SIZE', 2 * 1024 * 1024); // 2MB
+// Contact fallback scraper tuning (used by Firecrawl gap fill + BamLead extraction fallback)
+if (!defined('CONTACT_SCRAPE_TIMEOUT')) {
+    define('CONTACT_SCRAPE_TIMEOUT', 8);
+}
+if (!defined('CONTACT_SCRAPE_MAX_PAGES')) {
+    define('CONTACT_SCRAPE_MAX_PAGES', 8);
+}
+if (!defined('CONTACT_SCRAPE_MAX_QUEUE')) {
+    define('CONTACT_SCRAPE_MAX_QUEUE', 24);
+}
+if (!defined('CONTACT_SCRAPE_EARLY_STOP_EMAILS')) {
+    define('CONTACT_SCRAPE_EARLY_STOP_EMAILS', 2);
+}
 
 // =====================================
 // SEARCH SETTINGS

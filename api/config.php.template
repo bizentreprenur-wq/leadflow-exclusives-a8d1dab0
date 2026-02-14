@@ -133,6 +133,19 @@ define('FREE_SEARCHES_PER_DAY', 5);
 define('PAID_SEARCHES_PER_DAY', 100);
 define('WEBSITE_TIMEOUT', 10);
 define('MAX_PAGE_SIZE', 2097152);
+// Contact fallback scraper tuning (used by Firecrawl gap fill + BamLead extraction fallback)
+if (!defined('CONTACT_SCRAPE_TIMEOUT')) {
+    define('CONTACT_SCRAPE_TIMEOUT', 8);
+}
+if (!defined('CONTACT_SCRAPE_MAX_PAGES')) {
+    define('CONTACT_SCRAPE_MAX_PAGES', 8);
+}
+if (!defined('CONTACT_SCRAPE_MAX_QUEUE')) {
+    define('CONTACT_SCRAPE_MAX_QUEUE', 24);
+}
+if (!defined('CONTACT_SCRAPE_EARLY_STOP_EMAILS')) {
+    define('CONTACT_SCRAPE_EARLY_STOP_EMAILS', 2);
+}
 if (!defined('RESULTS_PER_PAGE')) {
     define('RESULTS_PER_PAGE', 10);
 }

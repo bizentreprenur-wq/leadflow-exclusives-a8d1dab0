@@ -399,6 +399,23 @@ export default function Dashboard() {
     localStorage.setItem('bamlead_last_report_shown_key', key);
   }, []);
 
+  const normalizeLookupKey = (value?: string | null) => {
+    const raw = (value || '').trim();
+    if (!raw) return '';
+    try {
+      const parsed = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+      const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+      const path = (parsed.pathname || '/').replace(/\/+$/, '') || '/';
+      return `${host}${path === '/' ? '' : path}`;
+    } catch {
+      return raw
+        .toLowerCase()
+        .replace(/^https?:\/\//, '')
+        .replace(/^www\./, '')
+        .replace(/\/+$/, '');
+    }
+  };
+
 
   // Form validation state
   const [validationErrors, setValidationErrors] = useState<{ query?: boolean; location?: boolean; platforms?: boolean }>({});
@@ -594,8 +611,13 @@ export default function Dashboard() {
         // Apply results to leads
         setSearchResults((prev) =>
           prev.map((item) => {
-            const key = item.website || item.name;
-            const result = batchResults[key];
+            const website = (item.website || '').trim();
+            const nameKey = (item.name || '').trim();
+            const normalizedWebsite = normalizeLookupKey(website);
+            const result =
+              (website && (batchResults[website] || batchResults[normalizedWebsite])) ||
+              (normalizedWebsite && batchResults[normalizedWebsite]) ||
+              (nameKey && batchResults[nameKey]);
             if (!result || !result.success) return item;
 
             const updates: Partial<SearchResult> = {};

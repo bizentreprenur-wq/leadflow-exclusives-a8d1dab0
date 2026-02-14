@@ -543,7 +543,8 @@ function fillContactGapsFromWebsiteScrape($enrichment, $url) {
     }
 
     try {
-        $fallback = scrapeWebsiteForContacts($url, 6);
+        $fallbackTimeout = defined('CONTACT_SCRAPE_TIMEOUT') ? max(3, (int)CONTACT_SCRAPE_TIMEOUT) : 8;
+        $fallback = scrapeWebsiteForContacts($url, $fallbackTimeout);
     } catch (Exception $e) {
         error_log("Firecrawl fallback scrape error: " . $e->getMessage());
         return $enrichment;
