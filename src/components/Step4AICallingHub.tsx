@@ -377,21 +377,20 @@ export default function Step4AICallingHub({
 
   const renderSidebarItem = (item: SidebarSection) => {
     const isActive = activeSection === item.id;
-    const isDisabled = item.id === 'phone-setup' && phoneSetup.hasPhone;
+    const isPhoneSetupWithNumber = item.id === 'phone-setup' && phoneSetup.hasPhone;
     return (
       <button
         key={item.id}
-        onClick={() => !isDisabled && setActiveSection(item.id)}
+        onClick={() => setActiveSection(item.id)}
         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-          isDisabled
-            ? 'opacity-40 cursor-not-allowed text-muted-foreground'
+          isPhoneSetupWithNumber
+            ? 'opacity-50 text-muted-foreground hover:opacity-70 hover:bg-muted/40'
             : isActive
             ? 'bg-primary/10 text-primary border border-primary/20'
             : 'text-foreground hover:text-foreground hover:bg-muted/60'
         }`}
-        disabled={isDisabled}
       >
-        <item.icon className={`w-4 h-4 shrink-0 ${isDisabled ? 'text-muted-foreground' : isActive ? 'text-primary' : (item.iconColor || 'text-muted-foreground')}`} />
+        <item.icon className={`w-4 h-4 shrink-0 ${isPhoneSetupWithNumber ? 'text-muted-foreground' : isActive ? 'text-primary' : (item.iconColor || 'text-muted-foreground')}`} />
         {!sidebarCollapsed && (
           <>
             <span className="flex-1 text-left truncate">{item.label}</span>
