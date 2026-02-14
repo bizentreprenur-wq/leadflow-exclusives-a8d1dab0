@@ -20,7 +20,7 @@ const isPreviewEnv =
   hostname === 'localhost' ||
   hostname.includes('lovableproject.com') ||
   hostname.startsWith('id-preview--');
-const SIGNUP_ENABLED = false;
+const SIGNUP_ENABLED = true;
 
 export default function Auth() {
   const [isLoading, setIsLoading] = useState(false);
