@@ -21,6 +21,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadStats();
     await renderLeadsViewer();
 
+    // Detect browser and update store link
+    const storeLink = document.getElementById('storeLink');
+    if (storeLink) {
+      const ua = navigator.userAgent;
+      if (ua.includes('Edg/')) {
+        storeLink.href = 'https://microsoftedge.microsoft.com/addons/search/BamLead';
+        storeLink.textContent = '⭐ Rate on Edge Add-ons';
+      } else if (ua.includes('OPR/') || ua.includes('Opera')) {
+        storeLink.href = 'https://addons.opera.com/search/?query=BamLead';
+        storeLink.textContent = '⭐ Rate on Opera Add-ons';
+      } else {
+        storeLink.textContent = '⭐ Rate on Chrome Web Store';
+      }
+    }
+
     const extractBtn = document.getElementById('extractBtn');
     const analyzeBtn = document.getElementById('analyzeBtn');
     const highlightBtn = document.getElementById('highlightBtn');
@@ -52,7 +67,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (bulkExtractBtn) bulkExtractBtn.addEventListener('click', bulkExtract);
 
     // Disable on chrome:// pages
-    if (tab && tab.url && (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:'))) {
+    if (tab && tab.url && (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:') || tab.url.startsWith('brave://') || tab.url.startsWith('opera://'))) {
       showToast('Cannot access browser internal pages');
       if (extractBtn) extractBtn.disabled = true;
       if (analyzeBtn) analyzeBtn.disabled = true;
