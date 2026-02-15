@@ -498,10 +498,14 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
                 {trialDaysRemaining} days left
               </Badge>
             )}
-            {user?.subscription_status === 'active' && (
-              <Badge className="w-full justify-center gap-1.5 bg-emerald-500/10 text-emerald-600 border-emerald-500/20 py-1.5">
+            {(user?.subscription_status === 'active' || user?.is_owner) && (
+              <Badge className={`w-full justify-center gap-1.5 py-1.5 ${
+                user?.is_owner 
+                  ? "bg-red-500/10 text-red-500 border-red-500/20"
+                  : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+              }`}>
                 <Star className="w-3 h-3 fill-current" />
-                Pro Plan
+                {user?.is_owner ? 'Unlimited Plan' : 'Pro Plan'}
               </Badge>
             )}
           </div>

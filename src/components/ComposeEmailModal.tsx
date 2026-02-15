@@ -1948,10 +1948,10 @@ export default function ComposeEmailModal({
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
                             <h4 className="font-bold text-foreground">
-                              {trialStatus.isPaid ? 'AI Autopilot Pro Active' : 'AI Autopilot Trial Active'}
+                              {isUnlimitedPlan ? 'Unlimited Mode Active' : trialStatus.isPaid ? 'AI Autopilot Pro Active' : 'AI Autopilot Trial Active'}
                             </h4>
                             <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]">
-                              {`$${MONTHLY_PRICE}/mo`}
+                              {isUnlimitedPlan ? '$999/mo' : `$${MONTHLY_PRICE}/mo`}
                             </Badge>
                           </div>
                           <p className="text-xs text-muted-foreground">

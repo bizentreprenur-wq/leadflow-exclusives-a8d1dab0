@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -65,6 +66,7 @@ export default function AIAutopilotDashboard({
   
   // Trial status
   const { status: trialStatus, upgradeToPaid, MONTHLY_PRICE } = useAutopilotTrial();
+  const { isUnlimited } = usePlanFeatures();
   const isExpired = trialStatus.isExpired;
   const canUseAutopilot = trialStatus.canUseAutopilot;
 
@@ -332,18 +334,25 @@ export default function AIAutopilotDashboard({
           </div>
           <div>
             <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-              AI Autopilot
-              <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] px-2 border-0">
-                PRO
+              {isUnlimited ? 'Unlimited Mode' : 'AI Autopilot'}
+              <Badge className={cn(
+                "text-white text-[10px] px-2 border-0",
+                isUnlimited
+                  ? "bg-gradient-to-r from-red-500 to-red-700"
+                  : "bg-gradient-to-r from-amber-500 to-orange-500"
+              )}>
+                {isUnlimited ? 'UNLIMITED' : 'PRO'}
               </Badge>
               {!isExpired && (
                 <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs">
-                  {trialStatus.isPaid ? 'Active' : `${stats.active} Running`}
+                  {trialStatus.isPaid || isUnlimited ? 'Active' : `${stats.active} Running`}
                 </Badge>
               )}
             </h2>
             <p className="text-sm text-muted-foreground">
-              {`AI handles everything: Drip → Follow-ups → Responses ($${MONTHLY_PRICE}/mo)`}
+              {isUnlimited
+                ? 'All features unlocked. No credit limits. Dedicated agent guides your setup.'
+                : `AI handles everything: Drip → Follow-ups → Responses ($${MONTHLY_PRICE}/mo)`}
             </p>
           </div>
         </div>
