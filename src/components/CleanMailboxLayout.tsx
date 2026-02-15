@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -100,6 +101,7 @@ interface CleanMailboxLayoutProps {
 }
 
 export default function CleanMailboxLayout({ searchType, campaignContext }: CleanMailboxLayoutProps) {
+  const { isUnlimited } = usePlanFeatures();
   const [mainTab, setMainTab] = useState<MainTab>('inbox');
   const [inboxFilter, setInboxFilter] = useState<InboxFilter>('all');
   const [selectedReply, setSelectedReply] = useState<EmailReply | null>(null);
@@ -566,7 +568,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
     { id: 'campaigns' as MainTab, label: 'Campaigns', icon: Send },
     { id: 'sequences' as MainTab, label: 'Sequences', icon: Layers },
     { id: 'strategy' as MainTab, label: 'AI Strategy', icon: Brain, isBrain: true },
-    { id: 'automation' as MainTab, label: 'AI Autopilot', icon: Crown, isPro: true },
+    { id: 'automation' as MainTab, label: isUnlimited ? 'Unlimited' : 'AI Autopilot', icon: Crown, isPro: !isUnlimited },
     { id: 'analytics' as MainTab, label: 'Analytics', icon: BarChart3 },
     { id: 'documents' as MainTab, label: 'PreDone Docs', icon: FolderOpen },
     { id: 'settings' as MainTab, label: 'Settings', icon: Settings },
@@ -653,6 +655,11 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                       {replies.filter(r => !r.isRead).length}
                     </Badge>
                   )}
+                  {tab.id === 'automation' && isUnlimited && (
+                    <Badge className="ml-auto bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[8px] px-1.5">
+                      Active
+                    </Badge>
+                  )}
                   {(tab as any).isPro && (
                     <Badge className="ml-auto bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[8px] px-1.5 border-0">
                       PRO
@@ -674,7 +681,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                   <div className="flex items-center gap-2">
                     <Crown className={cn("w-4 h-4", automation.doneForYouMode ? "text-amber-400" : "text-muted-foreground")} />
                     <span className={cn("text-xs font-semibold", automation.doneForYouMode ? "text-amber-400" : "text-foreground")}>
-                      {automation.doneForYouMode ? 'AI Autopilot' : 'Manual Mode'}
+                      {automation.doneForYouMode ? (isUnlimited ? 'Unlimited Mode' : 'AI Autopilot') : 'Manual Mode'}
                     </span>
                   </div>
                   <Switch
