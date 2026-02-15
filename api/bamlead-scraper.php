@@ -771,8 +771,6 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
     $sources = array_values(array_unique($sources));
 
     // Catch-all detection removed with Phase 3
-        unset($cc);
-    }
 
     return [
         'emails' => $allEmails,
@@ -1185,209 +1183,8 @@ function isLikelySocialProfile($platform, $url) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 🔒 EMAIL VERIFICATION (Outscraper-style)
+// 🧠 EMAIL EXTRACTION HELPERS
 // ═══════════════════════════════════════════════════════════════════════════════
-
-/**
- * Verify an email address using MX lookup + SMTP RCPT TO check
- * Returns ['valid' => bool, 'reason' => string]
- */
-function bamleadVerifyEmail($email) {
-    $result = ['valid' => false, 'reason' => 'unknown'];
-
-    // Step 1: Format validation
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $result['reason'] = 'invalid_format';
-        return $result;
-    }
-
-    $domain = substr($email, strpos($email, '@') + 1);
-
-    // Step 2: MX record check — domain must accept email
-    $mxHosts = [];
-    $mxWeights = [];
-    if (!function_exists('getmxrr') || !@getmxrr($domain, $mxHosts, $mxWeights)) {
-        // Fallback: check A record (some domains accept mail without MX)
-        $aRecord = @gethostbyname($domain);
-        if ($aRecord === $domain) {
-            $result['reason'] = 'no_mx_no_a_record';
-            return $result;
-        }
-        $mxHosts = [$domain];
-    }
-
-    if (empty($mxHosts)) {
-        $result['reason'] = 'no_mx_record';
-        return $result;
-    }
-
-    // Step 3: SMTP RCPT TO verification (fast, 3s timeout)
-    $mxHost = $mxHosts[0]; // Use highest priority MX
-    $smtpVerified = bamleadSmtpVerify($email, $mxHost);
-
-    if ($smtpVerified === true) {
-        $result['valid'] = true;
-        $result['reason'] = 'smtp_verified';
-    } elseif ($smtpVerified === null) {
-        // SMTP inconclusive (greylisting, timeout, catch-all) — trust MX
-        $result['valid'] = true;
-        $result['reason'] = 'mx_valid_smtp_inconclusive';
-    } else {
-        $result['reason'] = 'smtp_rejected';
-    }
-
-    return $result;
-}
-
-/**
- * SMTP RCPT TO check — verify mailbox exists without sending mail
- * Returns: true = verified, false = rejected, null = inconclusive
- */
-function bamleadSmtpVerify($email, $mxHost) {
-    $timeout = 3; // seconds
-
-    try {
-        $socket = @fsockopen($mxHost, 25, $errno, $errstr, $timeout);
-        if (!$socket) {
-            // Try port 587
-            $socket = @fsockopen($mxHost, 587, $errno, $errstr, $timeout);
-        }
-        if (!$socket) {
-            return null; // Can't connect — inconclusive
-        }
-
-        stream_set_timeout($socket, $timeout);
-
-        // Read banner
-        $banner = fgets($socket, 1024);
-        if (strpos($banner, '220') === false) {
-            fclose($socket);
-            return null;
-        }
-
-        // EHLO
-        fwrite($socket, "EHLO bamlead.com\r\n");
-        $ehloReply = '';
-        while ($line = fgets($socket, 1024)) {
-            $ehloReply .= $line;
-            if (preg_match('/^\d{3} /m', $line)) break;
-        }
-
-        // MAIL FROM
-        fwrite($socket, "MAIL FROM:<verify@bamlead.com>\r\n");
-        $mailFromReply = fgets($socket, 1024);
-        if (strpos($mailFromReply, '250') === false) {
-            fwrite($socket, "QUIT\r\n");
-            fclose($socket);
-            return null;
-        }
-
-        // RCPT TO — this is the actual verification
-        fwrite($socket, "RCPT TO:<{$email}>\r\n");
-        $rcptReply = fgets($socket, 1024);
-
-        // QUIT
-        fwrite($socket, "QUIT\r\n");
-        fclose($socket);
-
-        $code = (int)substr($rcptReply, 0, 3);
-
-        if ($code === 250 || $code === 251) {
-            return true; // Mailbox exists
-        } elseif ($code === 550 || $code === 551 || $code === 552 || $code === 553) {
-            return false; // Mailbox doesn't exist / rejected
-        } else {
-            return null; // Inconclusive (greylisting, rate limit, catch-all)
-        }
-    } catch (Exception $e) {
-        return null; // Error — inconclusive
-    }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// 🧠 EMAIL PATTERN GUESSING ENGINE (unique to BamLead)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-/**
- * Extract person names from HTML to generate email patterns
- * Looks for: owner names, team members, staff, founder names
- * Returns array of predicted email entries with name-based patterns
- */
-function bamleadExtractPersonNames($html, $url) {
-    $domain = preg_replace('/^www\./', '', parse_url($url, PHP_URL_HOST) ?? '');
-    if (empty($domain)) return [];
-
-    $names = [];
-
-    // 1. Schema.org Person/Organization founder/employee names
-    if (preg_match_all('/"(?:name|founder|ceo|owner|author)"\s*:\s*"([A-Z][a-z]+ [A-Z][a-z]+)"/', $html, $m)) {
-        $names = array_merge($names, $m[1]);
-    }
-
-    // 2. Common "Owner: John Smith" or "Founder - Jane Doe" patterns
-    if (preg_match_all('/(?:owner|founder|ceo|president|manager|director|principal|proprietor)\s*[:–\-—]\s*([A-Z][a-z]{2,15}\s+[A-Z][a-z]{2,20})/i', $html, $m)) {
-        $names = array_merge($names, $m[1]);
-    }
-
-    // 3. Meta author tag
-    if (preg_match('/<meta[^>]+name=["\']author["\'][^>]+content=["\']([A-Z][a-z]+ [A-Z][a-z]+)["\']/', $html, $m)) {
-        $names[] = $m[1];
-    }
-
-    // 4. Team/staff section patterns (common in small business sites)
-    if (preg_match_all('/<(?:h[2-4]|strong|b)[^>]*>\s*([A-Z][a-z]{2,15}\s+[A-Z][a-z]{2,20})\s*<\/(?:h[2-4]|strong|b)>/i', $html, $m)) {
-        // Only take names near team/staff/about context
-        $htmlLower = strtolower($html);
-        if (preg_match('/(?:team|staff|about|meet|crew|people|leadership)/i', $htmlLower)) {
-            $names = array_merge($names, array_slice($m[1], 0, 5));
-        }
-    }
-
-    // 5. vCard/hCard fn (formatted name)
-    if (preg_match_all('/class=["\'][^"\']*fn[^"\']*["\'][^>]*>([A-Z][a-z]+ [A-Z][a-z]+)</', $html, $m)) {
-        $names = array_merge($names, $m[1]);
-    }
-
-    // Dedupe and clean names
-    $names = array_unique(array_map('trim', $names));
-    // Filter out common false positives
-    $blacklist = ['Privacy Policy', 'Terms Service', 'All Rights', 'Read More', 'Learn More', 'Sign Up', 'Log In', 'Get Started', 'Contact Us', 'About Us', 'Our Team', 'Home Page', 'Main Menu', 'Web Design', 'Social Media', 'Google Maps', 'United States', 'New York', 'Los Angeles', 'San Francisco', 'San Antonio', 'Fort Worth'];
-    $names = array_filter($names, function($n) use ($blacklist) {
-        return !in_array($n, $blacklist) && strlen($n) >= 5 && strlen($n) <= 40;
-    });
-    $names = array_slice(array_values($names), 0, 5); // Max 5 names
-
-    // Generate email patterns for each name
-    $predictions = [];
-    foreach ($names as $name) {
-        $parts = explode(' ', strtolower(trim($name)));
-        if (count($parts) < 2) continue;
-        $first = preg_replace('/[^a-z]/', '', $parts[0]);
-        $last = preg_replace('/[^a-z]/', '', end($parts));
-        if (strlen($first) < 2 || strlen($last) < 2) continue;
-
-        $patterns = [
-            $first . '@' . $domain,                          // john@domain.com
-            $first . '.' . $last . '@' . $domain,            // john.smith@domain.com
-            $first . $last . '@' . $domain,                   // johnsmith@domain.com
-            substr($first, 0, 1) . $last . '@' . $domain,    // jsmith@domain.com
-            $first . substr($last, 0, 1) . '@' . $domain,    // johns@domain.com
-            $last . '@' . $domain,                            // smith@domain.com
-            substr($first, 0, 1) . '.' . $last . '@' . $domain, // j.smith@domain.com
-        ];
-
-        foreach ($patterns as $email) {
-            $predictions[] = [
-                'email' => $email,
-                'confidence' => 45,
-                'type' => 'name_pattern',
-                'source_name' => $name,
-            ];
-        }
-    }
-
-    return $predictions;
-}
 
 /**
  * Extract obfuscated emails from HTML
@@ -1397,7 +1194,6 @@ function bamleadExtractObfuscatedEmails($html) {
     $emails = [];
     $text = strip_tags($html);
 
-    // Pattern: word [at] word [dot] word
     $patterns = [
         '/([a-zA-Z0-9._%+\-]+)\s*\[\s*at\s*\]\s*([a-zA-Z0-9.\-]+)\s*\[\s*dot\s*\]\s*([a-zA-Z]{2,})/i',
         '/([a-zA-Z0-9._%+\-]+)\s*\(\s*at\s*\)\s*([a-zA-Z0-9.\-]+)\s*\(\s*dot\s*\)\s*([a-zA-Z]{2,})/i',
