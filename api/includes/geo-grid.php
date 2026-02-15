@@ -95,8 +95,9 @@ function parallelSerperSearch(array $queries, string $type = 'places', int $conc
             }
         } while ($running > 0 && $status === CURLM_OK);
 
-        // Collect results
-        foreach ($handles as $ch) {
+        // Collect results — retry failed queries sequentially
+        $failedQueries = [];
+        foreach ($handles as $idx => $ch) {
             $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $items = [];
 
@@ -106,6 +107,9 @@ function parallelSerperSearch(array $queries, string $type = 'places', int $conc
                 if (is_array($data)) {
                     $items = $data[$resultKey] ?? [];
                 }
+            } elseif ($httpCode === 0 || $httpCode >= 500) {
+                // Connection failed or server error — queue for sequential retry
+                $failedQueries[$idx] = $batch[$idx];
             }
 
             $allResults[] = $items;
@@ -115,9 +119,42 @@ function parallelSerperSearch(array $queries, string $type = 'places', int $conc
 
         curl_multi_close($mh);
 
-        // ⚡ Minimal pause between batches — Serper handles high concurrency well
+        // Sequential retry for failed queries (shared hosting often drops connections)
+        foreach ($failedQueries as $idx => $query) {
+            $payload = is_array($query)
+                ? $query
+                : ['q' => $query, 'gl' => 'us', 'hl' => 'en'];
+            if ($page > 1) $payload['page'] = (int)$page;
+
+            $ch = curl_init($endpoint);
+            curl_setopt_array($ch, [
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => json_encode($payload),
+                CURLOPT_HTTPHEADER => [
+                    'X-API-KEY: ' . SERPER_API_KEY,
+                    'Content-Type: application/json',
+                ],
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 15,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_SSL_VERIFYPEER => true,
+            ]);
+            $response = curl_exec($ch);
+            $retryCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($retryCode === 200 && $response) {
+                $data = json_decode($response, true);
+                if (is_array($data)) {
+                    $allResults[$idx] = $data[$resultKey] ?? [];
+                }
+            }
+            usleep(100000); // 100ms between sequential retries
+        }
+
+        // ⚡ Pause between batches — Hostinger shared hosting needs breathing room
         if ($batchIndex < count($batches) - 1) {
-            usleep(25000); // 25ms (was 100ms)
+            usleep(150000); // 150ms between batches for shared hosting resilience
         }
     }
 
