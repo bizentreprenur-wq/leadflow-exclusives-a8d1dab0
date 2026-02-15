@@ -67,9 +67,25 @@
         <div class="data-list" id="analysisList"></div>
       </section>
 
-      <!-- Export Saved Leads -->
+      <!-- Saved Leads Viewer -->
       <section class="section">
-        <h3 class="section-title">Export Saved Leads</h3>
+        <h3 class="section-title">Saved Leads (<span id="leadsCount">0</span>)</h3>
+        <div class="leads-search-bar">
+          <input type="text" id="leadsSearchInput" class="leads-search-input" placeholder="🔍 Search leads..." />
+        </div>
+        <div class="leads-viewer" id="leadsViewer">
+          <div class="leads-empty" id="leadsEmpty">No leads saved yet</div>
+        </div>
+        <div class="leads-pagination" id="leadsPagination" style="display:none;">
+          <button class="page-btn" id="prevPageBtn">‹</button>
+          <span class="page-info" id="pageInfo2">1/1</span>
+          <button class="page-btn" id="nextPageBtn">›</button>
+        </div>
+      </section>
+
+      <!-- Export & Manage -->
+      <section class="section">
+        <h3 class="section-title">Export & Manage</h3>
         <div class="actions">
           <button class="action-btn export" id="exportCsvBtn">
             <span class="btn-icon">📄</span>
@@ -86,12 +102,12 @@
         </div>
       </section>
 
-      <!-- Saved Leads Count -->
+      <!-- Stats -->
       <section class="section">
         <div class="stats">
           <div class="stat">
-            <span class="stat-value" id="leadsCount">0</span>
-            <span class="stat-label">Leads Saved</span>
+            <span class="stat-value" id="totalLeadsCount">0</span>
+            <span class="stat-label">Total Leads</span>
           </div>
           <div class="stat">
             <span class="stat-value" id="todayCount">0</span>
