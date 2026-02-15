@@ -323,7 +323,8 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
     }
 
     // ⚡ Fire ALL primary queries in parallel batches via curl_multi (Places endpoint)
-    $primaryBatchSize = 20; // 20 concurrent Places queries
+    // ⚡ Shared hosting (Hostinger) throttles curl_multi — keep concurrency low
+    $primaryBatchSize = 8; // Reduced from 20 for shared hosting resilience
     $primaryBatches = array_chunk($allPrimaryQueries, $primaryBatchSize);
 
     foreach ($primaryBatches as $batchIdx => $batch) {
@@ -514,7 +515,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
             ]);
 
             // Fire ALL queries in parallel (30 concurrent connections)
-            $gridResultBatches = parallelSerperSearch($gridQueries, 'places', 30);
+            $gridResultBatches = parallelSerperSearch($gridQueries, 'places', 10);
 
             $gridBatch = [];
             foreach ($gridResultBatches as $places) {
@@ -690,10 +691,10 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         }
         $organicQueryList = array_values($organicQueryMap);
 
-        $batchSize = 15; // Tuned for high throughput without overwhelming upstream APIs
-        if ($limit >= 1000) $batchSize = 18;
-        if ($limit >= 2000) $batchSize = 22;
-        if ($filtersActive) $batchSize = min(24, $batchSize + 2);
+        $batchSize = 6; // Reduced for shared hosting (Hostinger) resilience
+        if ($limit >= 1000) $batchSize = 8;
+        if ($limit >= 2000) $batchSize = 10;
+        if ($filtersActive) $batchSize = min(12, $batchSize + 2);
         $queryBatches = array_chunk($organicQueryList, $batchSize);
 
         for ($orgPage = 1; $orgPage <= $maxOrgPages; $orgPage++) {
