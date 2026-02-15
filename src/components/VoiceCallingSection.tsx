@@ -23,7 +23,7 @@ const features = [
 
 const VoiceCallingSection = () => {
   return (
-    <section className="py-20 md:py-28 bg-gradient-to-b from-background to-card overflow-hidden">
+    <section data-tour="voice-calling" className="py-20 md:py-28 bg-gradient-to-b from-background to-card overflow-hidden">
       <div className="container px-4">
         {/* Section Header */}
         <div className="text-center mb-16">

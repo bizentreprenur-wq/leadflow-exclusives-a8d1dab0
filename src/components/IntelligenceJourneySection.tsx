@@ -291,7 +291,7 @@ const IntelligenceJourneySection = () => {
   ];
 
   return (
-    <section ref={sectionRef} className="py-20 bg-background relative overflow-hidden">
+    <section data-tour="intelligence-journey" ref={sectionRef} className="py-20 bg-background relative overflow-hidden">
       {/* Background glow */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
