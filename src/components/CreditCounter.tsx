@@ -67,7 +67,7 @@ export function useCredits() {
     }
   }, [tier]);
 
-  const isLow = credits <= 50 && tier !== 'unlimited';
+  const isLow = credits <= 25 && tier !== 'unlimited';
   const isOut = credits <= 0 && tier !== 'unlimited';
   const isUnlimited = tier === 'unlimited';
 
