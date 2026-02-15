@@ -159,24 +159,29 @@ function createCheckoutSession($user, $planName, $billingPeriod = 'monthly') {
 function getCreditPackages() {
     return [
         'starter' => [
-            'credits' => 100,
-            'amount_cents' => 999,
-            'name' => 'Starter Credit Pack (100 credits)',
+            'credits' => 50,
+            'amount_cents' => 3000,
+            'name' => 'Starter Credit Pack (50 credits)',
         ],
         'standard' => [
-            'credits' => 500,
-            'amount_cents' => 3999,
-            'name' => 'Standard Credit Pack (500 credits)',
+            'credits' => 100,
+            'amount_cents' => 4500,
+            'name' => 'Standard Credit Pack (100 credits)',
         ],
         'pro' => [
-            'credits' => 1000,
-            'amount_cents' => 6999,
-            'name' => 'Pro Credit Pack (1,000 credits)',
+            'credits' => 250,
+            'amount_cents' => 10000,
+            'name' => 'Growth Credit Pack (250 credits)',
         ],
         'enterprise' => [
+            'credits' => 1000,
+            'amount_cents' => 28800,
+            'name' => 'Scale Credit Pack (1,000 credits)',
+        ],
+        'agency' => [
             'credits' => 2500,
-            'amount_cents' => 14999,
-            'name' => 'Enterprise Credit Pack (2,500 credits)',
+            'amount_cents' => 49900,
+            'name' => 'Agency Credit Pack (2,500 credits)',
         ],
     ];
 }

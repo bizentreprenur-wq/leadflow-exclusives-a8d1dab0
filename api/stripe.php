@@ -42,6 +42,9 @@ switch ($action) {
     case 'config':
         handleGetConfig();
         break;
+    case 'credits':
+        handleGetCredits();
+        break;
     default:
         sendError('Invalid action', 400);
 }
@@ -98,7 +101,7 @@ function handleCreateCreditsCheckout() {
     $input = getJsonInput();
     $packageId = sanitizeInput($input['package'] ?? '', 20);
 
-    $validPackages = ['starter', 'standard', 'pro', 'enterprise'];
+    $validPackages = ['starter', 'standard', 'pro', 'enterprise', 'agency'];
     if (!in_array($packageId, $validPackages, true)) {
         sendError('Invalid credit package', 400);
     }
@@ -316,5 +319,32 @@ function handleGetConfig() {
                 ],
             ],
         ],
+    ]);
+}
+
+/**
+ * Get user's current credit balance from database
+ */
+function handleGetCredits() {
+    $user = requireAuth();
+    $db = getDB();
+    
+    $result = $db->fetchOne(
+        "SELECT credits_remaining FROM users WHERE id = ?",
+        [$user['id']]
+    );
+    
+    $credits = (int)($result['credits_remaining'] ?? 0);
+    
+    // Unlimited plan users get unlimited
+    if ($user['is_owner'] || ($user['subscription_plan'] ?? '') === 'unlimited') {
+        $credits = 99999;
+    }
+    
+    sendJson([
+        'success' => true,
+        'credits_remaining' => $credits,
+        'tier' => $user['subscription_plan'] ?? 'free',
+        'is_unlimited' => (bool)$user['is_owner'],
     ]);
 }

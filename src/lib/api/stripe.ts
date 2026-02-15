@@ -10,9 +10,10 @@ const STRIPE_ENDPOINTS = {
   cancel: `${API_BASE_URL}/stripe.php?action=cancel`,
   resume: `${API_BASE_URL}/stripe.php?action=resume`,
   history: `${API_BASE_URL}/stripe.php?action=history`,
+  credits: `${API_BASE_URL}/stripe.php?action=credits`,
 };
 
-export type CreditPackageId = 'starter' | 'standard' | 'pro' | 'enterprise';
+export type CreditPackageId = 'starter' | 'standard' | 'pro' | 'enterprise' | 'agency';
 
 export interface Plan {
   name: string;
@@ -233,4 +234,18 @@ export async function getPaymentHistory(): Promise<{ payments: Payment[] }> {
   }
 
   return apiRequest(STRIPE_ENDPOINTS.history);
+}
+
+export interface CreditsResponse {
+  credits_remaining: number;
+  tier: string;
+  is_unlimited: boolean;
+}
+
+export async function getCreditsFromDB(): Promise<CreditsResponse> {
+  if (USE_MOCK_AUTH) {
+    return { credits_remaining: 200, tier: 'free', is_unlimited: false };
+  }
+
+  return apiRequest(STRIPE_ENDPOINTS.credits);
 }
