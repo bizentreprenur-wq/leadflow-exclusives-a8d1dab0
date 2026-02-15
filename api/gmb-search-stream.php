@@ -1375,20 +1375,8 @@ function extractEmailFromText($text) {
 function inlineExtractEmail($url) {
     if (empty($url)) return null;
 
-    // For high-volume searches, we still want SOME leads to arrive with emails.
-    // Track how many inline extractions we've done and cap it to avoid blocking
-    // the SSE stream for too long. First ~150 leads get inline emails; the rest
-    // rely on Firecrawl background enrichment.
-    if (isset($GLOBALS['_bamlead_search_limit']) && $GLOBALS['_bamlead_search_limit'] >= 500) {
-        if (!isset($GLOBALS['_bamlead_inline_email_count'])) {
-            $GLOBALS['_bamlead_inline_email_count'] = 0;
-        }
-        $maxInline = 150; // Extract emails for first ~150 leads even on large searches
-        if ($GLOBALS['_bamlead_inline_email_count'] >= $maxInline) {
-            return null;
-        }
-        $GLOBALS['_bamlead_inline_email_count']++;
-    }
+    // ⚡ NO CAP: Extract emails for ALL leads, not just first 150
+    // Use parallel curl_multi for speed so we don't block the SSE stream
     
     // Normalize URL
     if (!preg_match('/^https?:\/\//', $url)) {
@@ -1409,7 +1397,6 @@ function inlineExtractEmail($url) {
         return $fcCached['emails'][0] ?? null;
     }
     
-    // Quick scrape: only homepage + /contact page (2s timeout for speed)
     try {
         $parsed = parse_url($url);
         if (!$parsed || empty($parsed['host'])) return null;
@@ -1417,48 +1404,140 @@ function inlineExtractEmail($url) {
         $scheme = $parsed['scheme'] ?? 'https';
         $host = $parsed['host'];
         $baseUrl = "{$scheme}://{$host}";
+        $domain = preg_replace('/^www\./', '', $host);
         
-        // Try homepage first (many businesses list email in footer)
-        $result = curlRequest($baseUrl, [
-            CURLOPT_TIMEOUT => 3,
-            CURLOPT_CONNECTTIMEOUT => 2,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS => 2,
-            CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        ], 3);
+        // ⚡ PARALLEL: Fetch homepage + multiple contact paths simultaneously
+        $mh = curl_multi_init();
+        $handles = [];
+        $ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
         
-        if ($result['httpCode'] === 200 && !empty($result['response'])) {
-            $emails = extractEmails($result['response']);
-            if (!empty($emails)) {
-                // Cache the result
-                setCache($cacheKey, ['emails' => $emails, 'phones' => [], 'hasWebsite' => true], 86400);
-                return $emails[0];
-            }
-            
-            // Try /contact page
-            $contactResult = curlRequest($baseUrl . '/contact', [
-                CURLOPT_TIMEOUT => 2,
+        $pagesToFetch = [
+            'homepage' => $baseUrl,
+            'contact' => $baseUrl . '/contact',
+            'contact-us' => $baseUrl . '/contact-us',
+            'about' => $baseUrl . '/about',
+            'about-us' => $baseUrl . '/about-us',
+        ];
+        
+        foreach ($pagesToFetch as $key => $pageUrl) {
+            $ch = curl_init($pageUrl);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 3,
                 CURLOPT_CONNECTTIMEOUT => 2,
                 CURLOPT_SSL_VERIFYPEER => false,
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_MAXREDIRS => 2,
-                CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            ], 2);
+                CURLOPT_USERAGENT => $ua,
+                CURLOPT_ENCODING => 'gzip, deflate',
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_2_0,
+            ]);
+            curl_multi_add_handle($mh, $ch);
+            $handles[$key] = $ch;
+        }
+        
+        // Execute all in parallel
+        $running = null;
+        do {
+            curl_multi_exec($mh, $running);
+            if ($running > 0) curl_multi_select($mh, 0.1);
+        } while ($running > 0);
+        
+        // Collect emails from all pages
+        $allEmails = [];
+        foreach ($handles as $key => $ch) {
+            $response = curl_multi_getcontent($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
             
-            if ($contactResult['httpCode'] === 200 && !empty($contactResult['response'])) {
-                $contactEmails = extractEmails($contactResult['response']);
-                if (!empty($contactEmails)) {
-                    setCache($cacheKey, ['emails' => $contactEmails, 'phones' => [], 'hasWebsite' => true], 86400);
-                    return $contactEmails[0];
+            if ($httpCode === 200 && !empty($response)) {
+                $pageEmails = extractEmails($response);
+                if (!empty($pageEmails)) {
+                    $allEmails = array_merge($allEmails, $pageEmails);
+                }
+                // Also extract obfuscated emails (info [at] domain [dot] com)
+                if (function_exists('bamleadExtractObfuscatedEmails')) {
+                    $obfuscated = bamleadExtractObfuscatedEmails($response);
+                    if (!empty($obfuscated)) {
+                        $allEmails = array_merge($allEmails, $obfuscated);
+                    }
                 }
             }
         }
+        curl_multi_close($mh);
+        
+        // Dedupe
+        $allEmails = array_values(array_unique(array_filter($allEmails)));
+        
+        // Filter out junk emails (images, css files, generic)
+        $allEmails = array_filter($allEmails, function($email) {
+            $email = strtolower($email);
+            // Filter out non-email artifacts
+            if (preg_match('/\.(png|jpg|jpeg|gif|svg|css|js|woff|ttf)$/i', $email)) return false;
+            if (strpos($email, 'example.com') !== false) return false;
+            if (strpos($email, 'sentry.io') !== false) return false;
+            if (strpos($email, 'wordpress') !== false) return false;
+            if (strpos($email, 'wixpress') !== false) return false;
+            if (strpos($email, 'schema.org') !== false) return false;
+            if (strpos($email, 'w3.org') !== false) return false;
+            return true;
+        });
+        $allEmails = array_values($allEmails);
+        
+        if (!empty($allEmails)) {
+            setCache($cacheKey, ['emails' => $allEmails, 'phones' => [], 'hasWebsite' => true], 86400);
+            return $allEmails[0];
+        }
+        
+        // 🧠 ROLE-BASED EMAIL PREDICTION: Generate common aliases + MX validate
+        $roleEmails = inlinePredictRoleEmails($domain);
+        if (!empty($roleEmails)) {
+            setCache($cacheKey, ['emails' => $roleEmails, 'phones' => [], 'hasWebsite' => true, 'predicted' => true], 86400);
+            return $roleEmails[0];
+        }
+        
     } catch (Exception $e) {
         // Silently fail — email extraction is best-effort
     }
     
     return null;
+}
+
+/**
+ * 🧠 Role-based email prediction with MX validation
+ * Generates common business emails and validates the domain has MX records
+ */
+function inlinePredictRoleEmails($domain) {
+    if (empty($domain)) return [];
+    
+    // Skip domains that are hosting/platform providers
+    $skipDomains = ['facebook.com', 'google.com', 'yelp.com', 'yellowpages.com', 'bbb.org',
+        'linkedin.com', 'instagram.com', 'twitter.com', 'x.com', 'tiktok.com',
+        'wix.com', 'squarespace.com', 'godaddy.com', 'wordpress.com', 'weebly.com',
+        'shopify.com', 'etsy.com', 'amazon.com', 'nextdoor.com', 'angi.com',
+        'thumbtack.com', 'homeadvisor.com', 'manta.com', 'mapquest.com'];
+    if (in_array(strtolower($domain), $skipDomains)) return [];
+    
+    // Check if domain has MX records (validates it can receive email)
+    $mxHosts = [];
+    $hasMX = @getmxrr($domain, $mxHosts);
+    
+    if (!$hasMX || empty($mxHosts)) {
+        // Fallback: check for A record (some domains accept email without MX)
+        $aRecords = @dns_get_record($domain, DNS_A);
+        if (empty($aRecords)) return [];
+    }
+    
+    // Generate common role-based emails for the validated domain
+    $roles = ['info', 'contact', 'hello', 'sales', 'admin', 'office', 'support', 'help'];
+    $predictedEmails = [];
+    foreach ($roles as $role) {
+        $predictedEmails[] = $role . '@' . $domain;
+    }
+    
+    // Return top 3 most common (info@, contact@, hello@)
+    return array_slice($predictedEmails, 0, 3);
 }
 
 /**
