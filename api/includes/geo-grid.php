@@ -17,7 +17,7 @@
  * @param int $concurrency Max simultaneous connections (default 30)
  * @return array Array of result arrays (one per query)
  */
-function parallelSerperSearch(array $queries, string $type = 'places', int $concurrency = 30): array {
+function parallelSerperSearch(array $queries, string $type = 'places', int $concurrency = 30, int $page = 1): array {
     if (empty($queries) || !defined('SERPER_API_KEY') || empty(SERPER_API_KEY)) {
         return [];
     }
@@ -52,6 +52,11 @@ function parallelSerperSearch(array $queries, string $type = 'places', int $conc
             $payload = is_array($query)
                 ? $query
                 : ['q' => $query, 'gl' => 'us', 'hl' => 'en'];
+
+            // Add pagination support
+            if ($page > 1) {
+                $payload['page'] = (int)$page;
+            }
 
             $ch = curl_init($endpoint);
             curl_setopt_array($ch, [

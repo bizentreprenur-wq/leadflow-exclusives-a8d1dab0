@@ -173,10 +173,25 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
             $expansionMax = max($expansionMax, 45);
         }
     }
-    // Geo expansion disabled — was causing slow searches and low-quality results on shared hosting
+    // ⚡ RE-ENABLED: Auto-expand to nearby cities/suburbs for higher volume
     $expandedLocations = [];
     $locationsToSearch = [$location];
     $searchedLocations = [];
+
+    // Auto-expand using metro sub-areas from geo-grid
+    if ($enableExpansion) {
+        $cityClean = $location;
+        if (strpos($location, ',') !== false) {
+            [$cityClean] = array_map('trim', explode(',', $location, 2));
+        }
+        $subAreas = function_exists('getMetroSubAreas') ? getMetroSubAreas(strtolower(trim($cityClean))) : [];
+        if (!empty($subAreas)) {
+            // Add suburbs/neighborhoods as additional search locations
+            $expansionCount = min(count($subAreas), $expansionMax);
+            $expandedLocations = array_slice($subAreas, 0, $expansionCount);
+            $locationsToSearch = array_merge($locationsToSearch, $expandedLocations);
+        }
+    }
 
     // Pre-compute synonym variants for use in primary search loop
     $serviceVariants = expandServiceSynonyms($service);
@@ -187,11 +202,13 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
     // BUT: Places/Maps only returns ~20 results per query, so too many
     // synonyms per location bottlenecks the stream. Keep this small and
     // rely on the dedicated deep organic pass for volume.
-    $synonymsPerLocation = 1;
-    if ($limit >= 500) $synonymsPerLocation = 2;
-    if ($limit >= 1000) $synonymsPerLocation = 4;
-    if ($limit >= 2000) $synonymsPerLocation = 6;
-    if ($limit >= 5000) $synonymsPerLocation = 8;
+    // Feed MORE synonyms per location for broader discovery
+    $synonymsPerLocation = 2;
+    if ($limit >= 250) $synonymsPerLocation = 3;
+    if ($limit >= 500) $synonymsPerLocation = 5;
+    if ($limit >= 1000) $synonymsPerLocation = 8;
+    if ($limit >= 2000) $synonymsPerLocation = 12;
+    if ($limit >= 5000) $synonymsPerLocation = 16;
     // Pick top N synonyms (skip first which is the original) — includes intent modifiers
     $synonymSubset = array_slice($serviceVariants, 1, $synonymsPerLocation);
 
@@ -389,6 +406,95 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
             'message' => "Parallel Places batch " . ($batchIdx + 1) . "/" . count($primaryBatches) . " ({$totalResults}/{$limit} found)",
             'progress' => min(95, round(($totalResults / max(1, $limit)) * 100)),
         ]);
+    }
+
+    // ---- MULTI-PAGE PLACES PAGINATION (Pages 2-5) ----
+    // Serper Places supports pagination — fetch additional pages for more unique results
+    $maxPlacesPages = 2;
+    if ($limit >= 500) $maxPlacesPages = 3;
+    if ($limit >= 1000) $maxPlacesPages = 4;
+    if ($limit >= 2000) $maxPlacesPages = 5;
+
+    for ($placesPage = 2; $placesPage <= $maxPlacesPages; $placesPage++) {
+        if ($totalResults >= $limit) break;
+
+        sendSSE('status', [
+            'message' => "Places pagination — page {$placesPage}/{$maxPlacesPages} ({$totalResults}/{$limit} found)",
+            'progress' => min(95, round(($totalResults / max(1, $limit)) * 100)),
+        ]);
+
+        foreach ($primaryBatches as $batchIdx => $batch) {
+            if ($totalResults >= $limit) break;
+
+            $queryStrings = array_map(fn($q) => $q['query'], $batch);
+            $batchResults = parallelSerperSearch($queryStrings, 'places', $primaryBatchSize, $placesPage);
+
+            $leadBuffer = [];
+            foreach ($batchResults as $resultIdx => $places) {
+                if ($totalResults >= $limit) break;
+                if (empty($places)) continue;
+
+                $batchLocation = $batch[$resultIdx]['location'] ?? $location;
+
+                foreach ($places as $item) {
+                    if ($totalResults >= $limit) break;
+
+                    $business = [
+                        'id' => generateId('srpp_'),
+                        'name' => $item['title'] ?? '',
+                        'url' => $item['website'] ?? '',
+                        'snippet' => $item['description'] ?? ($item['type'] ?? ''),
+                        'displayLink' => parse_url($item['website'] ?? '', PHP_URL_HOST) ?? '',
+                        'address' => $item['address'] ?? '',
+                        'phone' => $item['phone'] ?? ($item['phoneNumber'] ?? ''),
+                        'email' => extractEmailFromText($item['description'] ?? ''),
+                        'rating' => $item['rating'] ?? null,
+                        'reviews' => $item['reviews'] ?? ($item['ratingCount'] ?? null),
+                        'source' => 'Serper Places (p' . $placesPage . ')',
+                        'sources' => ['Serper Places'],
+                    ];
+
+                    if (empty($business['name'])) continue;
+                    $business['websiteAnalysis'] = quickWebsiteCheck($business['url'], ($business['snippet'] ?? '') . ' ' . ($business['name'] ?? ''));
+                    if ($filtersActive && !matchesSearchFilters($business, $filters)) continue;
+
+                    $dedupeKey = buildBusinessDedupeKey($business, $batchLocation);
+                    if (isset($seenBusinesses[$dedupeKey])) continue;
+
+                    $seenBusinesses[$dedupeKey] = count($allResults);
+                    $allResults[] = $business;
+                    $totalResults++;
+                    $leadBuffer[] = $business;
+
+                    if ($enableEnrichment && !empty($business['url'])) {
+                        queueFirecrawlEnrichment($business['id'], $business['url'], $enrichmentSessionId, $enrichmentSearchType);
+                    }
+
+                    if (count($leadBuffer) >= 25) {
+                        $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
+                        sendSSE('results', [
+                            'leads' => $leadBuffer,
+                            'total' => $totalResults,
+                            'progress' => $progress,
+                            'source' => 'Serper Places (p' . $placesPage . ')'
+                        ]);
+                        $leadBuffer = [];
+                    }
+                }
+            }
+
+            if (!empty($leadBuffer)) {
+                $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
+                sendSSE('results', [
+                    'leads' => $leadBuffer,
+                    'total' => $totalResults,
+                    'progress' => $progress,
+                    'source' => 'Serper Places (p' . $placesPage . ')'
+                ]);
+            }
+
+            $emitEnrichment();
+        }
     }
 
     // ---- GRID PARALLEL SEARCH (Step A + B) ----
