@@ -1,16 +1,12 @@
 {
   "manifest_version": 3,
   "name": "BamLead - Lead Prospecting",
-  "version": "1.0.3",
-  "description": "Find and capture leads from any website. Extract contact info, company details, and save directly to BamLead. Works on Chrome, Edge, Brave, Opera, and all Chromium browsers.",
+  "version": "1.1.0",
+  "description": "Find and capture leads from any website. Extract contact info, analyze websites, and save directly to BamLead. Works on Chrome, Edge, Brave, Opera, and all Chromium browsers.",
   "permissions": [
     "activeTab",
     "storage",
     "scripting"
-  ],
-  "host_permissions": [
-    "https://*/*",
-    "http://*/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -32,20 +28,6 @@
     "service_worker": "background.js",
     "type": "module"
   },
-  "content_scripts": [
-    {
-      "matches": ["https://*/*", "http://*/*"],
-      "js": ["content.js"],
-      "css": ["content.css"],
-      "run_at": "document_idle"
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": ["content.css"],
-      "matches": ["https://*/*", "http://*/*"]
-    }
-  ],
   "browser_specific_settings": {
     "gecko": {
       "id": "extension@bamlead.com",

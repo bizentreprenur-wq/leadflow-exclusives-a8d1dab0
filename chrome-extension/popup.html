@@ -34,11 +34,15 @@
         <div class="actions">
           <button class="action-btn primary" id="extractBtn">
             <span class="btn-icon">🔍</span>
-            Extract Contact Info
+            Extract Contacts
           </button>
           <button class="action-btn" id="analyzeBtn">
             <span class="btn-icon">📊</span>
             Analyze Website
+          </button>
+          <button class="action-btn" id="highlightBtn">
+            <span class="btn-icon">🖍️</span>
+            Highlight Contacts on Page
           </button>
           <button class="action-btn" id="saveBtn">
             <span class="btn-icon">💾</span>
@@ -50,13 +54,17 @@
       <!-- Extracted Data -->
       <section class="section" id="dataSection" style="display: none;">
         <h3 class="section-title">Extracted Data</h3>
-        <div class="data-list" id="dataList">
-          <!-- Populated by JS -->
-        </div>
+        <div class="data-list" id="dataList"></div>
         <button class="action-btn success" id="sendToBamLead">
           <span class="btn-icon">🚀</span>
           Send to BamLead
         </button>
+      </section>
+
+      <!-- Website Analysis -->
+      <section class="section" id="analysisSection" style="display: none;">
+        <h3 class="section-title">Website Analysis</h3>
+        <div class="data-list" id="analysisList"></div>
       </section>
 
       <!-- Saved Leads Count -->
