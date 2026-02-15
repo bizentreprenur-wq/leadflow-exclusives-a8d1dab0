@@ -60,7 +60,7 @@ function handleCreateCheckout() {
     $plan = sanitizeInput($input['plan'] ?? '', 20);
     $billingPeriod = sanitizeInput($input['billing_period'] ?? 'monthly', 10);
     
-    if (!in_array($plan, ['basic', 'pro', 'autopilot'])) {
+    if (!in_array($plan, ['basic', 'pro', 'autopilot', 'unlimited'])) {
         sendError('Invalid plan');
     }
     
@@ -112,6 +112,7 @@ function handleCreateCreditsCheckout() {
         ]);
     } catch (Exception $e) {
         sendError($e->getMessage(), 500);
+    }
 }
 
 /**
@@ -141,7 +142,6 @@ function handleCreateAddonCheckout() {
     } catch (Exception $e) {
         sendError($e->getMessage(), 500);
     }
-}
 }
 
 /**
@@ -283,23 +283,36 @@ function handleGetConfig() {
                 'yearly_price' => 950,
                 'features' => [
                     '200 searches per day',
-                    'Advanced lead verification',
-                    'CRM integrations',
+                    'Co-Pilot Mode: AI manages sequences',
+                    'Smart Response Detection',
+                    'Auto Follow-Up Sequences',
                     'Priority support',
                     'Team collaboration (3 users)',
                 ],
             ],
-            'agency' => [
-                'name' => 'Agency',
+            'autopilot' => [
+                'name' => 'Autopilot',
                 'monthly_price' => 249,
                 'yearly_price' => 2390,
                 'features' => [
                     'Unlimited searches',
-                    'Full lead verification',
-                    'White-label exports',
+                    'Agentic Mode: Full Autopilot',
+                    'Autonomous Proposal Delivery',
+                    'White-label reports',
                     'API access',
                     'Dedicated account manager',
-                    'Unlimited team members',
+                ],
+            ],
+            'unlimited' => [
+                'name' => 'Unlimited',
+                'monthly_price' => 999,
+                'yearly_price' => 9590,
+                'features' => [
+                    'Unlimited everything — no credits needed',
+                    'Dedicated AI Sales Brain',
+                    'Dedicated agent guides your full setup',
+                    'Full campaign buildout & ICP targeting',
+                    'CRM + Calendar integration setup',
                 ],
             ],
         ],

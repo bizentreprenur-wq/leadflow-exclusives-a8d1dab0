@@ -1,7 +1,7 @@
 /**
  * Add More Credits Modal — Lovable-style branded for BamLead
  * Shows when credits drop below 50 or hit 0
- * Offers plan upgrade, top-up credits, or Unlimited plan
+ * Offers plan upgrade, top-up credits via Stripe, or Unlimited plan
  */
 
 import { useState } from 'react';
@@ -11,10 +11,11 @@ import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X, Crown, Sparkles, ChevronDown } from 'lucide-react';
+import { X, Crown, Sparkles, ChevronDown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
+import { createCreditsCheckoutSession, CreditPackageId } from '@/lib/api/stripe';
 
 interface AddCreditsModalProps {
   open: boolean;
@@ -24,10 +25,10 @@ interface AddCreditsModalProps {
 }
 
 const TOP_UP_PACKAGES = [
-  { id: '200', credits: 200, price: 30, originalPrice: 60 },
-  { id: '500', credits: 500, price: 65, originalPrice: 130 },
-  { id: '1000', credits: 1000, price: 110, originalPrice: 220 },
-  { id: '2500', credits: 2500, price: 225, originalPrice: 500 },
+  { id: 'starter' as CreditPackageId, credits: 100, price: 9.99, label: '100 credits' },
+  { id: 'standard' as CreditPackageId, credits: 500, price: 39.99, label: '500 credits' },
+  { id: 'pro' as CreditPackageId, credits: 1000, price: 69.99, label: '1,000 credits' },
+  { id: 'enterprise' as CreditPackageId, credits: 2500, price: 149.99, label: '2,500 credits' },
 ];
 
 export default function AddCreditsModal({
@@ -37,7 +38,8 @@ export default function AddCreditsModal({
   isOutOfCredits = false,
 }: AddCreditsModalProps) {
   const [selectedOption, setSelectedOption] = useState<'upgrade' | 'topup'>('upgrade');
-  const [selectedTopUp, setSelectedTopUp] = useState('200');
+  const [selectedTopUp, setSelectedTopUp] = useState<CreditPackageId>('starter');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { tier, tierInfo } = usePlanFeatures();
 
@@ -62,10 +64,14 @@ export default function AddCreditsModal({
 
   const handleTopUp = async () => {
     if (!selectedPkg) return;
-    toast.info('Redirecting to checkout...');
-    // In production this would call the Stripe credits checkout
-    onOpenChange(false);
-    navigate('/pricing');
+    setIsLoading(true);
+    try {
+      const { checkout_url } = await createCreditsCheckoutSession(selectedPkg.id);
+      window.location.href = checkout_url;
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to start checkout. Please try again.');
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -159,7 +165,7 @@ export default function AddCreditsModal({
               </div>
               <p className="text-sm text-muted-foreground mb-3">Purchase credits on demand. Valid for 12 months.</p>
               
-              <Select value={selectedTopUp} onValueChange={setSelectedTopUp}>
+              <Select value={selectedTopUp} onValueChange={(v) => setSelectedTopUp(v as CreditPackageId)}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -168,11 +174,7 @@ export default function AddCreditsModal({
                     <SelectItem key={pkg.id} value={pkg.id}>
                       <div className="flex items-center justify-between w-full gap-8">
                         <span>+{pkg.credits} additional credits</span>
-                        <span>
-                          <span className="line-through text-muted-foreground">${pkg.originalPrice.toFixed(2)}</span>
-                          {' '}
-                          <span className="font-semibold">${pkg.price.toFixed(2)}</span>
-                        </span>
+                        <span className="font-semibold">${pkg.price.toFixed(2)}</span>
                       </div>
                     </SelectItem>
                   ))}
@@ -182,9 +184,14 @@ export default function AddCreditsModal({
               {selectedOption === 'topup' && selectedPkg && (
                 <Button 
                   onClick={handleTopUp}
+                  disabled={isLoading}
                   className="w-full mt-3 bg-primary text-primary-foreground"
                 >
-                  Purchase {selectedPkg.credits} Credits — ${selectedPkg.price}
+                  {isLoading ? (
+                    <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Redirecting to Stripe...</>
+                  ) : (
+                    <>Purchase {selectedPkg.credits} Credits — ${selectedPkg.price}</>
+                  )}
                 </Button>
               )}
             </div>
