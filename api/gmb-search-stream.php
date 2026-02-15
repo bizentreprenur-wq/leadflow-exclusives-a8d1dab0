@@ -1409,7 +1409,8 @@ function inlineExtractEmail($url) {
             if (stripos($host, $ph) !== false) return null;
         }
         
-        // ⚡ PHASE 1: Parallel fetch homepage + ALL common contact paths
+        // ⚡ PHASE 1: Parallel fetch homepage + contact paths + Serper email hunt
+        // ALL requests fire simultaneously — Serper adds ZERO extra wait time
         $mh = curl_multi_init();
         curl_multi_setopt($mh, CURLMOPT_PIPELINING, CURLPIPE_MULTIPLEX);
         $handles = [];
@@ -1445,14 +1446,36 @@ function inlineExtractEmail($url) {
             $handles[$key] = $ch;
         }
         
-        // Execute all in parallel
+        // 🔍 SERPER EMAIL HUNT: Runs IN PARALLEL with page fetches (no extra wait)
+        $serperKey = defined('SERPER_API_KEY') ? SERPER_API_KEY : '';
+        if (!empty($serperKey)) {
+            $emailQuery = '"@' . $domain . '" email OR contact';
+            $ch = curl_init();
+            curl_setopt_array($ch, [
+                CURLOPT_URL => 'https://google.serper.dev/search',
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => json_encode(['q' => $emailQuery, 'num' => 5]),
+                CURLOPT_HTTPHEADER => [
+                    'X-API-KEY: ' . $serperKey,
+                    'Content-Type: application/json'
+                ],
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 4,
+                CURLOPT_CONNECTTIMEOUT => 2,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_2_0,
+            ]);
+            curl_multi_add_handle($mh, $ch);
+            $handles['serper_email'] = $ch;
+        }
+        
+        // Execute ALL in parallel (pages + Serper at the same time)
         $running = null;
         do {
             curl_multi_exec($mh, $running);
-            if ($running > 0) curl_multi_select($mh, 0.1);
+            if ($running > 0) curl_multi_select($mh, 0.05);
         } while ($running > 0);
         
-        // Collect emails from all pages
+        // Collect emails from all sources
         $allEmails = [];
         foreach ($handles as $key => $ch) {
             $response = curl_multi_getcontent($ch);
@@ -1460,15 +1483,38 @@ function inlineExtractEmail($url) {
             curl_multi_remove_handle($mh, $ch);
             curl_close($ch);
             
+            if ($key === 'serper_email') {
+                // Parse Serper organic results for emails
+                if ($httpCode === 200 && !empty($response)) {
+                    $serperData = @json_decode($response, true);
+                    if (!empty($serperData['organic'])) {
+                        foreach ($serperData['organic'] as $result) {
+                            $searchText = ($result['title'] ?? '') . ' ' . ($result['snippet'] ?? '') . ' ' . ($result['link'] ?? '');
+                            $foundEmails = extractEmails($searchText);
+                            $allEmails = array_merge($allEmails, $foundEmails);
+                        }
+                    }
+                    // Also check knowledgeGraph and answerBox
+                    if (!empty($serperData['knowledgeGraph'])) {
+                        $kgText = json_encode($serperData['knowledgeGraph']);
+                        $kgEmails = extractEmails($kgText);
+                        $allEmails = array_merge($allEmails, $kgEmails);
+                    }
+                    if (!empty($serperData['answerBox'])) {
+                        $abText = json_encode($serperData['answerBox']);
+                        $abEmails = extractEmails($abText);
+                        $allEmails = array_merge($allEmails, $abEmails);
+                    }
+                }
+                continue;
+            }
+            
             if ($httpCode === 200 && !empty($response)) {
                 // Standard extraction
                 $pageEmails = extractEmails($response);
                 $allEmails = array_merge($allEmails, $pageEmails);
                 
                 // 🧠 DEEP: Extract emails from JavaScript data blobs
-                // Wix stores data in: window.__SITE_DATA__ or window.warmupData
-                // Squarespace uses: Static.SQUARESPACE_CONTEXT
-                // WordPress/generic: JSON objects in <script> tags
                 $jsEmails = extractEmailsFromJSBlobs($response, $domain);
                 $allEmails = array_merge($allEmails, $jsEmails);
                 
