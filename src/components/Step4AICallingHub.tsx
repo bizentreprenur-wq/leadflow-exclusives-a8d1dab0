@@ -719,6 +719,44 @@ export default function Step4AICallingHub({
                       </div>
                     )}
 
+                    {/* ── BIG START CALLING BUTTON ── */}
+                    {phoneSetup.hasPhone && pendingCount > 0 && !isCallingActive && (
+                      <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="rounded-2xl border-2 border-emerald-500/40 bg-gradient-to-r from-emerald-500/15 via-emerald-500/10 to-teal-500/10 p-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-xl shadow-emerald-500/30 shrink-0">
+                            <PhoneCall className="w-8 h-8 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-xl text-foreground">Call Your Leads Now</h3>
+                            <p className="text-sm text-muted-foreground mt-0.5"><span className="font-extrabold text-emerald-400">{pendingCount}</span> leads queued &amp; ready · Calling from <span className="font-semibold text-emerald-400">{formatPhoneDisplay(phoneSetup.phoneNumber || '')}</span></p>
+                          </div>
+                          <Button
+                            onClick={handleStartCalling}
+                            className="gap-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-10 py-5 text-lg font-extrabold shadow-2xl shadow-emerald-500/40 animate-pulse"
+                          >
+                            <Play className="w-6 h-6" /> Start Calling
+                          </Button>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {isCallingActive && (
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-2xl border-2 border-primary/30 bg-primary/[0.06] p-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-16 h-16 rounded-2xl bg-primary/15 flex items-center justify-center shrink-0">
+                            <Mic className="w-8 h-8 text-primary animate-pulse" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-xl text-foreground">AI Calling in Progress…</h3>
+                            <p className="text-sm text-muted-foreground">Calling {callQueue.filter(c => c.status === 'calling').length > 0 ? callQueue.find(c => c.status === 'calling')?.name : 'next lead'}…</p>
+                          </div>
+                          <Button onClick={handleStopCalling} variant="destructive" className="gap-2 rounded-2xl px-8 py-5 text-base font-bold">
+                            <Square className="w-5 h-5" /> Stop
+                          </Button>
+                        </div>
+                      </motion.div>
+                    )}
+
                     {/* Step-by-step guide */}
                     <div className="space-y-4">
                       <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">How it works</h3>
