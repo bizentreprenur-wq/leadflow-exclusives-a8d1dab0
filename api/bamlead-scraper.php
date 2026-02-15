@@ -636,7 +636,9 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
         $handles2 = [];
 
         foreach ($phase2Urls as $key => $info) {
-            $ch = bamleadFastCurl($info['url'], $ua, 4, 2);
+            // ⚡ 6s timeout for contact/team pages (more time to find emails), 4s for others
+            $timeout = in_array($info['type'], ['contact', 'footer_crawl', 'dirpage']) ? 6 : 4;
+            $ch = bamleadFastCurl($info['url'], $ua, $timeout, 2);
             curl_multi_add_handle($mh, $ch);
             $handles2[$key] = $ch;
         }
