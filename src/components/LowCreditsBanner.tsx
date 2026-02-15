@@ -1,6 +1,6 @@
 /**
- * Low Credits Banner — Sticky banner shown when credits ≤ 50
- * Appears on whatever page the user is on, like Lovable's credit warnings
+ * Low Credits Banner — Sticky banner shown when credits ≤ 25
+ * Only for Basic through Autopilot tiers. NEVER for Unlimited/owner.
  */
 
 import { useState } from 'react';
@@ -9,13 +9,17 @@ import { Button } from '@/components/ui/button';
 import { useCredits } from './CreditCounter';
 import AddCreditsModal from './AddCreditsModal';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function LowCreditsBanner() {
   const { credits, isLow, isOut, isUnlimited } = useCredits();
+  const { user } = useAuth();
   const [dismissed, setDismissed] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
-  if (isUnlimited || !isLow || dismissed) return null;
+  // NEVER show for unlimited users or the owner
+  const isOwner = user?.is_owner || user?.email === 'adrianlsthill@gmail.com';
+  if (isUnlimited || isOwner || !isLow || dismissed) return null;
 
   return (
     <>
