@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,9 +32,11 @@ import {
   sendSingleEmail, 
   isSMTPConfigured, 
   getEmailBranding, 
-  applyBrandingToHtml 
+  applyBrandingToHtml,
+  getSMTPConfig,
 } from '@/lib/emailService';
 import { getSends, EmailSend } from '@/lib/api/email';
+import { getEmailReplies, updateReplyStatus, generateAIResponse, type EmailReplyFromAPI } from '@/lib/api/emailReplies';
 
 // Import the tab content components
 import HighConvertingTemplateGallery from './HighConvertingTemplateGallery';
@@ -436,6 +438,8 @@ export default function AIResponseInbox({ onSendResponse, campaignContext, searc
   const [sequences, setSequences] = useState<Sequence[]>(DEMO_SEQUENCES);
   const [automationEnabled, setAutomationEnabled] = useState(true);
   const [replies, setReplies] = useState<EmailReply[]>(DEMO_REPLIES);
+  const [hasLoadedRealReplies, setHasLoadedRealReplies] = useState(false);
+  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [selectedReply, setSelectedReply] = useState<EmailReply | null>(null);
   const [editedDraft, setEditedDraft] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -586,6 +590,68 @@ export default function AIResponseInbox({ onSendResponse, campaignContext, searc
   useEffect(() => {
     localStorage.setItem('bamlead_mailbox_theme', mailboxTheme);
   }, [mailboxTheme]);
+
+  // Fetch real email replies from backend with fallback to demo data
+  const fetchRealReplies = async () => {
+    try {
+      const result = await getEmailReplies('all', 50);
+      if (result.success && result.replies && result.replies.length > 0) {
+        const mapped: EmailReply[] = result.replies.map((r: EmailReplyFromAPI) => ({
+          id: String(r.id),
+          from_email: r.from_email,
+          from_name: r.from_name || r.from_email.split('@')[0],
+          subject: r.subject || 'No Subject',
+          body: r.body_preview || '',
+          received_at: r.received_at,
+          status: r.requires_action ? 'new' as const : 'ai_drafted' as const,
+          sentiment: r.sentiment,
+          sentimentScore: r.sentiment === 'positive' ? 85 : r.sentiment === 'negative' ? 20 : 50,
+          urgencyLevel: r.urgency_level,
+          buyingSignals: detectBuyingSignals(r.body_preview || '', r.intent),
+          isRead: r.is_read,
+          isFlagged: r.urgency_level === 'hot',
+        }));
+        setReplies(mapped);
+        setHasLoadedRealReplies(true);
+        console.log(`[Inbox] Loaded ${mapped.length} real replies from backend`);
+      } else {
+        console.log('[Inbox] No real replies found, using demo data');
+      }
+    } catch (error) {
+      console.log('[Inbox] Backend unavailable for replies, using demo data:', error);
+    }
+  };
+
+  // Helper to detect buying signals from reply text
+  const detectBuyingSignals = (body: string, intent?: string): string[] => {
+    const signals: string[] = [];
+    const lower = body.toLowerCase();
+    if (/price|cost|budget|quote|rate/i.test(lower)) signals.push('Asking about pricing');
+    if (/interested|curious|want to|tell me more/i.test(lower)) signals.push('Expressing interest');
+    if (/schedule|call|meet|zoom|calendar/i.test(lower)) signals.push('Requesting meeting');
+    if (/when|timeline|how long|deadline/i.test(lower)) signals.push('Timeline question');
+    if (/proposal|contract|agreement|sign/i.test(lower)) signals.push('Requesting proposal');
+    if (/ready|asap|urgent|immediately|now/i.test(lower)) signals.push('High urgency');
+    if (intent === 'interested') signals.push('Direct interest');
+    if (intent === 'scheduling') signals.push('Ready to schedule');
+    return signals;
+  };
+
+  // Load real replies on mount and poll every 30 seconds
+  useEffect(() => {
+    fetchRealReplies();
+    
+    // Poll for new replies every 30 seconds
+    pollIntervalRef.current = setInterval(() => {
+      fetchRealReplies();
+    }, 30000);
+
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+      }
+    };
+  }, []);
 
   // Fetch sent emails for Sent tab - syncs with drip campaign
   const fetchSentEmails = async () => {
@@ -745,8 +811,29 @@ export default function AIResponseInbox({ onSendResponse, campaignContext, searc
 
   const generateAIDraft = async (reply: EmailReply) => {
     setIsGenerating(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    const aiDraft = `Hi ${reply.from_name.split(' ')[0]},\n\nThank you for getting back to us! I appreciate you taking the time to respond.\n\nBased on your message, I'd love to discuss this further and answer any questions you might have.\n\nWould you be available for a quick 15-minute call this week? I can walk you through exactly how we can help ${reply.from_name.includes(' ') ? reply.from_name.split(' ')[1] : 'your business'} achieve your goals.\n\nLooking forward to hearing from you!\n\nBest regards`;
+    // Short delay for UX feedback
+    await new Promise(resolve => setTimeout(resolve, 1200));
+    
+    // Load branding for personalized responses
+    const branding = loadBranding();
+    const senderName = branding.contactName || 'Your Team';
+    const companyName = branding.companyName || '';
+    
+    // Use context-aware AI response generator
+    const aiDraft = generateAIResponse(
+      {
+        from_name: reply.from_name,
+        from_email: reply.from_email,
+        subject: reply.subject,
+        body: reply.body,
+        sentiment: reply.sentiment,
+        intent: undefined, // Let the generator detect from body
+        urgency_level: reply.urgencyLevel,
+      },
+      senderName,
+      companyName
+    );
+    
     setReplies(prev => prev.map(r => r.id === reply.id ? { ...r, status: 'ai_drafted' as const, ai_draft: aiDraft } : r));
     if (selectedReply?.id === reply.id) {
       setSelectedReply({ ...reply, status: 'ai_drafted', ai_draft: aiDraft });
