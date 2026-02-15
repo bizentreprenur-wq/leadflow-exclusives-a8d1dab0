@@ -13,13 +13,13 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export default function LowCreditsBanner() {
   const { credits, isLow, isOut, isUnlimited } = useCredits();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [dismissed, setDismissed] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
-  // NEVER show for unlimited users or the owner
+  // NEVER show for unlimited users, the owner, or unauthenticated visitors
   const isOwner = user?.is_owner || user?.email === 'adrianlsthill@gmail.com';
-  if (isUnlimited || isOwner || !isLow || dismissed) return null;
+  if (!isAuthenticated || isUnlimited || isOwner || !isLow || dismissed) return null;
 
   return (
     <>
