@@ -1,5 +1,5 @@
 // BamLead Chrome Extension - Popup Script
-// Version 1.1.0 - All services run in-browser, no external API calls
+// Version 1.2.0 - All services in-browser, CSV/PDF export, no external API calls
 
 document.addEventListener('DOMContentLoaded', async () => {
   try {
@@ -25,12 +25,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const highlightBtn = document.getElementById('highlightBtn');
     const saveBtn = document.getElementById('saveBtn');
     const sendBtn = document.getElementById('sendToBamLead');
+    const exportCsvBtn = document.getElementById('exportCsvBtn');
+    const exportPdfBtn = document.getElementById('exportPdfBtn');
+    const clearLeadsBtn = document.getElementById('clearLeadsBtn');
 
     if (extractBtn) extractBtn.addEventListener('click', () => extractContactInfo(tab));
     if (analyzeBtn) analyzeBtn.addEventListener('click', () => analyzeWebsite(tab));
     if (highlightBtn) highlightBtn.addEventListener('click', () => highlightContacts(tab));
     if (saveBtn) saveBtn.addEventListener('click', () => saveLead(tab));
     if (sendBtn) sendBtn.addEventListener('click', sendToBamLead);
+    if (exportCsvBtn) exportCsvBtn.addEventListener('click', exportAsCSV);
+    if (exportPdfBtn) exportPdfBtn.addEventListener('click', exportAsPDF);
+    if (clearLeadsBtn) clearLeadsBtn.addEventListener('click', clearAllLeads);
 
     // Disable on chrome:// pages
     if (tab && tab.url && (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:'))) {
@@ -486,4 +492,131 @@ function showToast(message) {
   toast.textContent = message;
   document.body.appendChild(toast);
   setTimeout(() => toast.remove(), 3000);
+}
+
+// ─── CSV Export (in-browser) ─────────────────────────────
+
+async function exportAsCSV() {
+  const storage = await chrome.storage.local.get(['savedLeads']);
+  const leads = storage.savedLeads || [];
+
+  if (leads.length === 0) {
+    showToast('No saved leads to export');
+    return;
+  }
+
+  const headers = ['Company', 'Website', 'Emails', 'Phones', 'Social Links', 'Address', 'Platform', 'SEO Score', 'SSL', 'Saved At'];
+  const rows = leads.map(lead => [
+    csvEscape(lead.companyName || lead.title || ''),
+    csvEscape(lead.url || lead.website || ''),
+    csvEscape((lead.emails || []).join('; ')),
+    csvEscape((lead.phones || []).join('; ')),
+    csvEscape((lead.socialLinks || []).map(l => typeof l === 'string' ? l : l.url).join('; ')),
+    csvEscape(lead.address || ''),
+    csvEscape(lead.analysis?.platform || ''),
+    lead.analysis?.seoScore ?? '',
+    lead.analysis?.hasSSL ? 'Yes' : 'No',
+    csvEscape(lead.savedAt || '')
+  ]);
+
+  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  downloadFile(csv, 'bamlead-leads.csv', 'text/csv');
+  showToast(`Exported ${leads.length} leads as CSV`);
+}
+
+function csvEscape(val) {
+  const s = String(val).replace(/"/g, '""');
+  return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s}"` : s;
+}
+
+// ─── PDF Export (in-browser, no library) ─────────────────
+
+async function exportAsPDF() {
+  const storage = await chrome.storage.local.get(['savedLeads']);
+  const leads = storage.savedLeads || [];
+
+  if (leads.length === 0) {
+    showToast('No saved leads to export');
+    return;
+  }
+
+  // Build a printable HTML document and trigger browser print-to-PDF
+  const htmlContent = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>BamLead - Exported Leads</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 24px; color: #1e293b; }
+  h1 { color: #0d9488; font-size: 22px; margin-bottom: 4px; }
+  .subtitle { color: #64748b; font-size: 12px; margin-bottom: 20px; }
+  table { width: 100%; border-collapse: collapse; font-size: 11px; }
+  th { background: #0d9488; color: #fff; padding: 8px 6px; text-align: left; }
+  td { padding: 6px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+  tr:nth-child(even) { background: #f8fafc; }
+  .footer { margin-top: 20px; font-size: 10px; color: #94a3b8; text-align: center; }
+</style></head><body>
+<h1>🎯 BamLead Lead Report</h1>
+<p class="subtitle">Generated ${new Date().toLocaleDateString()} — ${leads.length} leads</p>
+<table>
+  <tr><th>#</th><th>Company</th><th>Website</th><th>Emails</th><th>Phones</th><th>Platform</th><th>SEO</th><th>Saved</th></tr>
+  ${leads.map((lead, i) => `<tr>
+    <td>${i + 1}</td>
+    <td>${esc(lead.companyName || lead.title || '-')}</td>
+    <td>${esc(lead.url || lead.website || '-')}</td>
+    <td>${esc((lead.emails || []).join(', ') || '-')}</td>
+    <td>${esc((lead.phones || []).join(', ') || '-')}</td>
+    <td>${esc(lead.analysis?.platform || '-')}</td>
+    <td>${lead.analysis?.seoScore ?? '-'}</td>
+    <td>${lead.savedAt ? new Date(lead.savedAt).toLocaleDateString() : '-'}</td>
+  </tr>`).join('')}
+</table>
+<p class="footer">BamLead Lead Prospecting — bamlead.com</p>
+</body></html>`;
+
+  // Open as a new tab and trigger print (user can Save as PDF)
+  const blob = new Blob([htmlContent], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const printTab = await chrome.tabs.create({ url });
+
+  // Give tab time to load, then trigger print
+  chrome.scripting.executeScript({
+    target: { tabId: printTab.id },
+    func: () => { setTimeout(() => window.print(), 500); }
+  });
+
+  showToast('PDF print dialog opening...');
+}
+
+function esc(val) {
+  return String(val).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ─── Clear All Leads ─────────────────────────────────────
+
+async function clearAllLeads() {
+  const storage = await chrome.storage.local.get(['savedLeads']);
+  const count = (storage.savedLeads || []).length;
+
+  if (count === 0) {
+    showToast('No leads to clear');
+    return;
+  }
+
+  if (!confirm(`Delete all ${count} saved leads? This cannot be undone.`)) return;
+
+  await chrome.storage.local.set({ savedLeads: [], leadsCount: 0, todayCount: 0 });
+  document.getElementById('leadsCount').textContent = '0';
+  document.getElementById('todayCount').textContent = '0';
+  showToast(`Cleared ${count} leads`);
+}
+
+// ─── Download helper ─────────────────────────────────────
+
+function downloadFile(content, filename, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
