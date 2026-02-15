@@ -1011,7 +1011,11 @@ export default function ComposeEmailModal({
                   : "border-red-500/30 bg-muted/20 opacity-70 hover:opacity-90"
               )}
             >
-              {!isUnlimitedPlan && (
+              {isUnlimitedPlan ? (
+                <Badge className="absolute top-2 right-2 bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[8px]">
+                  Active
+                </Badge>
+              ) : (
                 <Badge className="absolute top-2 right-2 bg-red-500/20 text-red-400 border-red-500/30 text-[8px]">
                   Upgrade
                 </Badge>
