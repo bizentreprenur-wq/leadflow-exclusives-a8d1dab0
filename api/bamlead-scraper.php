@@ -300,6 +300,13 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
                     $allEmails = array_merge($allEmails, $metaEmails);
                     $sources[] = 'Meta tags';
                 }
+
+                // 🧠 AI: Obfuscated email detection (info [at] domain [dot] com)
+                $obfuscatedEmails = bamleadExtractObfuscatedEmails($response);
+                if (!empty($obfuscatedEmails)) {
+                    $allEmails = array_merge($allEmails, $obfuscatedEmails);
+                    $sources[] = 'Website (obfuscated)';
+                }
             }
 
         } elseif ($meta['type'] === 'contact_page') {
@@ -514,8 +521,17 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
     // (Serper results already collected above or skipped via early-exit)
 
     // 🧠 AI: Predict common email patterns (unique to BamLead)
-    if (empty($allEmails) && !empty($url)) {
+    // Always generate predictions — they'll be SMTP-verified in Phase 3
+    if (!empty($url)) {
         $intelligence['predicted_emails'] = bamleadPredictEmails($url, $searchName);
+        // Also extract owner/staff names from homepage for name-based guessing
+        if (!empty($homepageHtml)) {
+            $namePatterns = bamleadExtractPersonNames($homepageHtml, $url);
+            $intelligence['predicted_emails'] = array_merge(
+                $intelligence['predicted_emails'],
+                $namePatterns
+            );
+        }
     }
 
     // 🧠 AI: Social authority scoring
@@ -638,14 +654,77 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
             if ($info['type'] === 'profile') {
                 $platform = $info['platform'] ?? '';
                 if ($platform === 'facebook') {
+                    // Deep Facebook extraction: JSON-LD, embedded data, About section
                     if (preg_match('/"email":"([^"]+@[^"]+)"/', $response, $m)) $allEmails[] = strtolower($m[1]);
                     if (preg_match('/"phone":"([^"]+)"/', $response, $m)) $allPhones[] = $m[1];
+                    // Facebook About page emails
+                    if (preg_match_all('/"text":"([^"]*@[^"]*\.[a-z]{2,})"/', $response, $m)) {
+                        foreach ($m[1] as $fbEmail) {
+                            if (filter_var($fbEmail, FILTER_VALIDATE_EMAIL)) {
+                                $allEmails[] = strtolower($fbEmail);
+                                if (!in_array('Facebook (About)', $sources)) $sources[] = 'Facebook (About)';
+                            }
+                        }
+                    }
+                    // Facebook page info block
+                    if (preg_match_all('/data-lynx-uri="mailto:([^"]+)"/', $response, $m)) {
+                        $allEmails = array_merge($allEmails, array_map('strtolower', $m[1]));
+                        if (!in_array('Facebook (mailto)', $sources)) $sources[] = 'Facebook (mailto)';
+                    }
                 }
                 if ($platform === 'linkedin') {
                     if (preg_match('/"email"\s*:\s*"([^"]+@[^"]+)"/', $response, $m)) $allEmails[] = strtolower($m[1]);
+                    // LinkedIn company page email patterns
+                    if (preg_match_all('/([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})/', $response, $m)) {
+                        foreach ($m[1] as $liEmail) {
+                            if (filter_var($liEmail, FILTER_VALIDATE_EMAIL) && !preg_match('/@(linkedin|licdn)\./i', $liEmail)) {
+                                $allEmails[] = strtolower($liEmail);
+                                if (!in_array('LinkedIn (profile)', $sources)) $sources[] = 'LinkedIn (profile)';
+                            }
+                        }
+                    }
+                }
+                if ($platform === 'instagram') {
+                    // Instagram bio email extraction
+                    if (preg_match('/"biography":"([^"]*)"/', $response, $m)) {
+                        $bio = $m[1];
+                        $bioEmails = extractEmails($bio);
+                        if (!empty($bioEmails)) {
+                            $allEmails = array_merge($allEmails, $bioEmails);
+                            if (!in_array('Instagram (bio)', $sources)) $sources[] = 'Instagram (bio)';
+                        }
+                    }
+                    // Instagram business email
+                    if (preg_match('/"business_email":"([^"]+)"/', $response, $m)) {
+                        if (filter_var($m[1], FILTER_VALIDATE_EMAIL)) {
+                            $allEmails[] = strtolower($m[1]);
+                            if (!in_array('Instagram (business)', $sources)) $sources[] = 'Instagram (business)';
+                        }
+                    }
+                    // Instagram public email
+                    if (preg_match('/"public_email":"([^"]+)"/', $response, $m)) {
+                        if (filter_var($m[1], FILTER_VALIDATE_EMAIL)) {
+                            $allEmails[] = strtolower($m[1]);
+                        }
+                    }
                 }
                 if ($platform === 'yelp') {
                     if (preg_match('/biz-phone[^>]*>([^<]+)/', $response, $m)) $allPhones[] = trim($m[1]);
+                    // Yelp business email
+                    if (preg_match('/href="mailto:([^"]+)"/', $response, $m)) {
+                        $allEmails[] = strtolower($m[1]);
+                        if (!in_array('Yelp (listing)', $sources)) $sources[] = 'Yelp (listing)';
+                    }
+                }
+                if ($platform === 'twitter') {
+                    // Twitter/X bio email
+                    if (preg_match('/"description":"([^"]*)"/', $response, $m)) {
+                        $twitterEmails = extractEmails($m[1]);
+                        if (!empty($twitterEmails)) {
+                            $allEmails = array_merge($allEmails, $twitterEmails);
+                            if (!in_array('Twitter/X (bio)', $sources)) $sources[] = 'Twitter/X (bio)';
+                        }
+                    }
                 }
 
                 // 🧠 AI: Extract structured data from social profiles too
@@ -654,19 +733,78 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
                     $sdEmails = bamleadExtractFromStructuredData($profileSD, 'email');
                     $allEmails = array_merge($allEmails, $sdEmails);
                 }
+
+                // Extract obfuscated emails from social profiles too
+                $obfuscatedEmails = bamleadExtractObfuscatedEmails($response);
+                if (!empty($obfuscatedEmails)) {
+                    $allEmails = array_merge($allEmails, $obfuscatedEmails);
+                    if (!in_array('Social (obfuscated)', $sources)) $sources[] = 'Social (obfuscated)';
+                }
             }
         }
     }
 
-    // ── PHASE 3: Catch-all email + role address probing (unique to BamLead) ──
-    if (empty($allEmails) && !empty($url)) {
+    // ── PHASE 3: Email Pattern Guessing Engine (SMTP-verified) ──────────────
+    // Instead of just storing predictions, actually VERIFY them and add to results
+    if (!empty($url)) {
         $domain = preg_replace('/^www\./', '', parse_url($url, PHP_URL_HOST) ?? '');
         if (!empty($domain)) {
-            $roleAddresses = bamleadGenerateRoleEmails($domain);
-            $intelligence['predicted_emails'] = array_merge(
-                $intelligence['predicted_emails'] ?? [],
-                $roleAddresses
-            );
+            // Check if domain has MX records first (one check for all patterns)
+            $mxHosts = [];
+            $hasMx = function_exists('getmxrr') && @getmxrr($domain, $mxHosts) && !empty($mxHosts);
+
+            if ($hasMx) {
+                // Collect ALL candidate emails to verify
+                $candidateEmails = [];
+
+                // Role-based addresses (always try these)
+                $roleAddresses = ['info', 'contact', 'hello', 'admin', 'support', 'sales', 'office', 'team', 'help', 'service', 'billing', 'hr', 'jobs', 'careers', 'media', 'press', 'marketing'];
+                foreach ($roleAddresses as $role) {
+                    $candidateEmails[] = $role . '@' . $domain;
+                }
+
+                // Name-based patterns from intelligence predictions
+                $predictions = $intelligence['predicted_emails'] ?? [];
+                foreach ($predictions as $pred) {
+                    if (!empty($pred['email']) && $pred['type'] === 'predicted_name') {
+                        $candidateEmails[] = $pred['email'];
+                    }
+                    if (!empty($pred['email']) && $pred['type'] === 'name_pattern') {
+                        $candidateEmails[] = $pred['email'];
+                    }
+                }
+
+                // Dedupe candidates and remove already-found emails
+                $candidateEmails = array_unique(array_map('strtolower', $candidateEmails));
+                $candidateEmails = array_diff($candidateEmails, $allEmails);
+                // Limit to prevent abuse (max 20 SMTP checks per domain)
+                $candidateEmails = array_slice(array_values($candidateEmails), 0, 20);
+
+                // SMTP-verify each candidate
+                $verifiedGuesses = [];
+                $mxHost = $mxHosts[0];
+                foreach ($candidateEmails as $candidate) {
+                    $smtpResult = bamleadSmtpVerify($candidate, $mxHost);
+                    if ($smtpResult === true) {
+                        $verifiedGuesses[] = $candidate;
+                    }
+                    // Stop after finding 5 verified emails (enough for outreach)
+                    if (count($verifiedGuesses) >= 5) break;
+                }
+
+                if (!empty($verifiedGuesses)) {
+                    $allEmails = array_merge($allEmails, $verifiedGuesses);
+                    $sources[] = 'Email Pattern Engine (SMTP-verified)';
+                }
+
+                // Update intelligence with verification results
+                $intelligence['pattern_engine'] = [
+                    'candidates_tested' => count($candidateEmails),
+                    'verified_count' => count($verifiedGuesses),
+                    'verified_emails' => $verifiedGuesses,
+                    'mx_provider' => bamleadIdentifyEmailProvider($mxHost),
+                ];
+            }
         }
     }
 
@@ -1232,4 +1370,130 @@ function bamleadSmtpVerify($email, $mxHost) {
     } catch (Exception $e) {
         return null; // Error — inconclusive
     }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🧠 EMAIL PATTERN GUESSING ENGINE (unique to BamLead)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Extract person names from HTML to generate email patterns
+ * Looks for: owner names, team members, staff, founder names
+ * Returns array of predicted email entries with name-based patterns
+ */
+function bamleadExtractPersonNames($html, $url) {
+    $domain = preg_replace('/^www\./', '', parse_url($url, PHP_URL_HOST) ?? '');
+    if (empty($domain)) return [];
+
+    $names = [];
+
+    // 1. Schema.org Person/Organization founder/employee names
+    if (preg_match_all('/"(?:name|founder|ceo|owner|author)"\s*:\s*"([A-Z][a-z]+ [A-Z][a-z]+)"/', $html, $m)) {
+        $names = array_merge($names, $m[1]);
+    }
+
+    // 2. Common "Owner: John Smith" or "Founder - Jane Doe" patterns
+    if (preg_match_all('/(?:owner|founder|ceo|president|manager|director|principal|proprietor)\s*[:–\-—]\s*([A-Z][a-z]{2,15}\s+[A-Z][a-z]{2,20})/i', $html, $m)) {
+        $names = array_merge($names, $m[1]);
+    }
+
+    // 3. Meta author tag
+    if (preg_match('/<meta[^>]+name=["\']author["\'][^>]+content=["\']([A-Z][a-z]+ [A-Z][a-z]+)["\']/', $html, $m)) {
+        $names[] = $m[1];
+    }
+
+    // 4. Team/staff section patterns (common in small business sites)
+    if (preg_match_all('/<(?:h[2-4]|strong|b)[^>]*>\s*([A-Z][a-z]{2,15}\s+[A-Z][a-z]{2,20})\s*<\/(?:h[2-4]|strong|b)>/i', $html, $m)) {
+        // Only take names near team/staff/about context
+        $htmlLower = strtolower($html);
+        if (preg_match('/(?:team|staff|about|meet|crew|people|leadership)/i', $htmlLower)) {
+            $names = array_merge($names, array_slice($m[1], 0, 5));
+        }
+    }
+
+    // 5. vCard/hCard fn (formatted name)
+    if (preg_match_all('/class=["\'][^"\']*fn[^"\']*["\'][^>]*>([A-Z][a-z]+ [A-Z][a-z]+)</', $html, $m)) {
+        $names = array_merge($names, $m[1]);
+    }
+
+    // Dedupe and clean names
+    $names = array_unique(array_map('trim', $names));
+    // Filter out common false positives
+    $blacklist = ['Privacy Policy', 'Terms Service', 'All Rights', 'Read More', 'Learn More', 'Sign Up', 'Log In', 'Get Started', 'Contact Us', 'About Us', 'Our Team', 'Home Page', 'Main Menu', 'Web Design', 'Social Media', 'Google Maps', 'United States', 'New York', 'Los Angeles', 'San Francisco', 'San Antonio', 'Fort Worth'];
+    $names = array_filter($names, function($n) use ($blacklist) {
+        return !in_array($n, $blacklist) && strlen($n) >= 5 && strlen($n) <= 40;
+    });
+    $names = array_slice(array_values($names), 0, 5); // Max 5 names
+
+    // Generate email patterns for each name
+    $predictions = [];
+    foreach ($names as $name) {
+        $parts = explode(' ', strtolower(trim($name)));
+        if (count($parts) < 2) continue;
+        $first = preg_replace('/[^a-z]/', '', $parts[0]);
+        $last = preg_replace('/[^a-z]/', '', end($parts));
+        if (strlen($first) < 2 || strlen($last) < 2) continue;
+
+        $patterns = [
+            $first . '@' . $domain,                          // john@domain.com
+            $first . '.' . $last . '@' . $domain,            // john.smith@domain.com
+            $first . $last . '@' . $domain,                   // johnsmith@domain.com
+            substr($first, 0, 1) . $last . '@' . $domain,    // jsmith@domain.com
+            $first . substr($last, 0, 1) . '@' . $domain,    // johns@domain.com
+            $last . '@' . $domain,                            // smith@domain.com
+            substr($first, 0, 1) . '.' . $last . '@' . $domain, // j.smith@domain.com
+        ];
+
+        foreach ($patterns as $email) {
+            $predictions[] = [
+                'email' => $email,
+                'confidence' => 45,
+                'type' => 'name_pattern',
+                'source_name' => $name,
+            ];
+        }
+    }
+
+    return $predictions;
+}
+
+/**
+ * Extract obfuscated emails from HTML
+ * Catches: "info [at] domain [dot] com", "info(at)domain(dot)com", etc.
+ */
+function bamleadExtractObfuscatedEmails($html) {
+    $emails = [];
+    $text = strip_tags($html);
+
+    // Pattern: word [at] word [dot] word
+    $patterns = [
+        '/([a-zA-Z0-9._%+\-]+)\s*\[\s*at\s*\]\s*([a-zA-Z0-9.\-]+)\s*\[\s*dot\s*\]\s*([a-zA-Z]{2,})/i',
+        '/([a-zA-Z0-9._%+\-]+)\s*\(\s*at\s*\)\s*([a-zA-Z0-9.\-]+)\s*\(\s*dot\s*\)\s*([a-zA-Z]{2,})/i',
+        '/([a-zA-Z0-9._%+\-]+)\s*\{at\}\s*([a-zA-Z0-9.\-]+)\s*\{dot\}\s*([a-zA-Z]{2,})/i',
+        '/([a-zA-Z0-9._%+\-]+)\s+at\s+([a-zA-Z0-9.\-]+)\s+dot\s+([a-zA-Z]{2,})/i',
+        '/([a-zA-Z0-9._%+\-]+)\s*@\s+([a-zA-Z0-9.\-]+)\s*\.\s*([a-zA-Z]{2,})/',
+    ];
+
+    foreach ($patterns as $pattern) {
+        if (preg_match_all($pattern, $text, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $m) {
+                $email = strtolower(trim($m[1]) . '@' . trim($m[2]) . '.' . trim($m[3]));
+                if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $emails[] = $email;
+                }
+            }
+        }
+    }
+
+    // HTML entity obfuscation: &#64; = @, &#46; = .
+    if (preg_match_all('/([a-zA-Z0-9._%+\-]+)(?:&#64;|&#x40;)([a-zA-Z0-9.\-]+)(?:&#46;|&#x2e;)([a-zA-Z]{2,})/i', $html, $matches, PREG_SET_ORDER)) {
+        foreach ($matches as $m) {
+            $email = strtolower($m[1] . '@' . $m[2] . '.' . $m[3]);
+            if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $emails[] = $email;
+            }
+        }
+    }
+
+    return array_unique($emails);
 }
