@@ -119,9 +119,11 @@ const TIER_CAPABILITIES: Record<PlanTier, AICallingCapabilities> = {
 
 const STORAGE_KEY = 'bamlead_phone_setup';
 const ADDON_STORAGE_KEY = 'bamlead_ai_calling_addon';
+// Owner's designated Twilio number - always available as fallback
+const OWNER_TWILIO_NUMBER = '+18882935813';
 
 export function useAICalling() {
-  const { tier, isLoading: planLoading, isPro, isAutopilot } = usePlanFeatures();
+  const { tier, isLoading: planLoading, isPro, isAutopilot, isOwner } = usePlanFeatures();
   const [config, setConfig] = useState<TwilioConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [phoneSetup, setPhoneSetup] = useState<PhoneSetup>({
@@ -194,7 +196,21 @@ export function useAICalling() {
               isVerified: true,
               isProvisioning: false,
             });
+            phoneLoaded = true;
           }
+        }
+        
+        // Final fallback: owner always has their designated number
+        if (!phoneLoaded && isOwner) {
+          setPhoneSetup({
+            hasPhone: true,
+            phoneNumber: OWNER_TWILIO_NUMBER,
+            phoneType: 'bamlead',
+            isVerified: true,
+            isProvisioning: false,
+          });
+          localStorage.setItem('twilio_phone_number', OWNER_TWILIO_NUMBER);
+          localStorage.setItem('twilio_phone_active', 'true');
         }
         
         try {
