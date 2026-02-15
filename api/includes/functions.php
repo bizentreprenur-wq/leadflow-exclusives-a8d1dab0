@@ -1436,7 +1436,7 @@ function matchesSearchFilters($business, $filters) {
         if (!empty($filters['notMobile'])) {
             $notMobile = true;
             if ($mobileScore !== null && $mobileScore !== '') {
-                $notMobile = ((float)$mobileScore) < 50;
+                $notMobile = ((float)$mobileScore) < 60; // Catches weak mobile experience (was 50)
             }
             if ($notMobile) {
                 $qualityMatch = true;
@@ -1801,6 +1801,10 @@ function detectIssues($html) {
     if (strpos($htmlLower, 'bgsound') !== false) $outdatedIndicators++;
     if (strpos($htmlLower, 'frameset') !== false || strpos($htmlLower, 'iframe') === false && strpos($htmlLower, '<frame') !== false) $outdatedIndicators++;
     
+    if ($outdatedIndicators >= 2) {
+        $needsUpgrade = true; // Lower threshold: 2+ indicators = needs upgrade (was 4)
+        $issues[] = 'Outdated website (needs upgrade)';
+    }
     if ($outdatedIndicators >= 4) {
         $issues[] = 'Severely outdated website (needs complete rebuild)';
     }

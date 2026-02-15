@@ -2291,8 +2291,8 @@ export default function Dashboard() {
                             onCheckedChange={(checked) => setNoWebsiteOnly(checked === true)}
                           />
                           <div>
-                            <span className="text-sm font-medium text-foreground">No website</span>
-                            <p className="text-xs text-muted-foreground">Show businesses without a website</p>
+                            <span className="text-sm font-medium text-foreground">🔴 No website</span>
+                            <p className="text-xs text-muted-foreground">Businesses with zero web presence (highest value)</p>
                           </div>
                         </label>
 
@@ -2302,8 +2302,8 @@ export default function Dashboard() {
                             onCheckedChange={(checked) => setNotMobileOnly(checked === true)}
                           />
                           <div>
-                            <span className="text-sm font-medium text-foreground">Not mobile-friendly</span>
-                            <p className="text-xs text-muted-foreground">Prioritize sites with weak mobile experience</p>
+                            <span className="text-sm font-medium text-foreground">📱 Weak mobile experience</span>
+                            <p className="text-xs text-muted-foreground">Sites scoring below 60 on mobile performance</p>
                           </div>
                         </label>
 
@@ -2313,8 +2313,8 @@ export default function Dashboard() {
                             onCheckedChange={(checked) => setOutdatedOnly(checked === true)}
                           />
                           <div>
-                            <span className="text-sm font-medium text-foreground">Outdated website</span>
-                            <p className="text-xs text-muted-foreground">Include sites flagged as needing upgrades</p>
+                            <span className="text-sm font-medium text-foreground">⚡ Needs website upgrade</span>
+                            <p className="text-xs text-muted-foreground">Sites with outdated tech, no SSL, or legacy design</p>
                           </div>
                         </label>
                       </div>
