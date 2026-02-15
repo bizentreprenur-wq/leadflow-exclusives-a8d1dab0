@@ -38,36 +38,58 @@ const TOUR_STEPS: TourStep[] = [
   {
     id: "welcome",
     page: "/",
+    element: "[data-tour='hero']",
     title: "Welcome to BamLead! 🎉",
-    description: "Well hello there, friend! I'm Bam, and I'll be your guide today. Just sit back and relax while I walk you through BamLead, the most advanced lead generation platform on the market. If you'd like to stop the tour at any time, just click the X button or Skip Tour. Alright, let's get started!"
+    description: "Well hello there, friend! I'm Bam, and I'll be your guide today. Just sit back and relax while I walk you through BamLead, the most advanced lead generation and AI outreach platform on the market. If you'd like to stop the tour at any time, just click the X button or Skip Tour. Alright, let's get started!"
   },
   {
-    id: "search-methods",
+    id: "autopilot-promo",
     page: "/",
-    element: "[data-tour='dual-search']",
-    title: "Two Powerful Search Methods",
-    description: "Now, right over here, we have two excellent ways to find leads. First, our Google My Business scanner locates local businesses. Second, our Agency Lead Finder helps website designers, social media marketers and agencies discover clients who need their expertise. Both modes use our synonym expansion engine so you never miss a lead, no matter what terms you search."
+    element: "[data-tour='autopilot-promo']",
+    title: "AI Autopilot Campaigns",
+    description: "Right at the top we showcase our AI Autopilot Campaign system. This is the fully autonomous mode where AI handles everything from lead discovery to email nurturing to proposal generation. You set the niche, the AI does the rest. It's available on our Autopilot and Unlimited plans."
+  },
+  {
+    id: "intelligence-journey",
+    page: "/",
+    element: "[data-tour='intelligence-journey']",
+    title: "The 4-Step Intelligence Pipeline",
+    description: "Here's the Intelligence Journey, our interactive pipeline that shows exactly how BamLead works in four steps. Step one, choose your search mode. Step two, Search and Intelligence gathering. Step three, AI Strategy and Email composition. Step four, the AI Calling Hub. Each step shows what's included at each tier: Manual for Basic, Co-Pilot for Pro, and fully Autonomous for Autopilot."
+  },
+  {
+    id: "super-ai",
+    page: "/",
+    element: "[data-tour='super-ai']",
+    title: "Super AI Business Intelligence",
+    description: "This is where BamLead really shines, my friend. Our Super AI Business Search generates a detailed 12-category intelligence report for every lead. Business Identity, Decision Maker Intelligence, Website Health, Online Visibility, Reputation and Reviews, AI Opportunity Analysis, Technographics, Marketing Behavior, Conversion Readiness, Buyer Intent, Competitive Pressure, and Communication Intelligence including best contact times. Every lead gets classified as Hot, Warm, or Cold."
+  },
+  {
+    id: "synonym-expansion",
+    page: "/",
+    element: "[data-tour='synonym-expansion']",
+    title: "Synonym AI Expansion Engine",
+    description: "This interactive demo shows how a single keyword like mechanic gets expanded into 15 or more related niche terms, like auto repair, diesel technician, brake specialist, and so on. This is how we deliver the 2,000 plus leads promised in our higher tier plans. You search for one term and BamLead multiplies your reach across the entire niche."
   },
   {
     id: "agent-cards",
     page: "/",
     element: "[data-tour='agent-cards']",
     title: "Ready-to-Use Scanners",
-    description: "Walk with me over here to meet your scanning agents. The GMB Scanner tracks down local businesses with Google My Business listings. And the Agency Lead Finder is built specifically for digital professionals, finding businesses with broken websites, weak social presence, and missing reviews."
+    description: "Walk with me over here to meet your scanning agents. The GMB Scanner tracks down local businesses with Google My Business listings. And the Agency Lead Finder is built specifically for digital professionals, finding businesses with broken websites, weak social presence, and missing reviews. Both scanners work with our synonym expansion engine."
   },
   {
-    id: "super-ai-intelligence",
+    id: "voice-calling",
     page: "/",
-    element: "[data-tour='ai-activation']",
-    title: "Super AI Business Intelligence",
-    description: "This is where BamLead really shines, my friend. Our Super AI Business Search generates a detailed 12-category intelligence report for every lead. Business Identity, Decision Maker Intelligence, Website Health, Online Visibility, Reputation and Reviews, AI Opportunity Analysis, Technographics, Marketing Behavior, Conversion Readiness, Buyer Intent, Competitive Pressure, and Communication Intelligence including best contact times. Every lead gets classified as Hot, Warm, or Cold based on urgency and revenue potential."
+    element: "[data-tour='voice-calling']",
+    title: "AI Voice Calling",
+    description: "Here's something that sets BamLead apart from everyone else, AI Voice Calling. Our system can make calls to your leads using natural-sounding AI voices. You get call scripts generated by AI based on the lead's profile, live transcription during calls, call analytics, and follow-up scheduling. You can set up call queues, track call logs, and configure your Twilio phone number right from the dashboard."
   },
   {
-    id: "ai-features",
+    id: "ai-activation",
     page: "/",
     element: "[data-tour='ai-activation']",
-    title: "10+ AI Features That Work Automatically",
-    description: "BamLead has over 10 AI features that work automatically throughout your lead journey. Pre-Intent Detection predicts which leads will convert. Emotional State AI reads the mood behind interactions. The Sentiment Analyzer gauges customer sentiment in real time. During verification, AI validates emails and scores leads. During outreach, AI personalizes messages and predicts optimal send times. It's like having a team of experts working behind the scenes!"
+    title: "When AI Activates",
+    description: "This section shows you exactly when BamLead's AI kicks in during your workflow. Pre-Intent Detection predicts which leads will convert. Emotional State AI reads the mood behind interactions. The Sentiment Analyzer gauges customer sentiment in real time. During verification, AI validates emails and scores leads. During outreach, AI personalizes messages and predicts optimal send times. It's like having a team of experts working behind the scenes!"
   },
   {
     id: "revolutionary",
@@ -77,60 +99,31 @@ const TOUR_STEPS: TourStep[] = [
     description: "Allow me to show you the crown jewels. The Outcome Simulator lets you see predicted results before you send a campaign. The Psychological Profiler creates detailed customer personas. The Invisible Negotiator suggests real-time responses during conversations. The Founder Mirror matches you with leads who share your business philosophy. And the Reverse Lead Discovery flips the script, finding businesses that are already looking for YOUR services."
   },
   {
-    id: "lead-verification",
+    id: "secret-ai",
     page: "/",
-    element: "[data-tour='ai-activation']",
-    title: "AI Lead Verification",
-    description: "Before you reach out, BamLead verifies every lead with AI. Our verification system checks email validity, phone number accuracy, website status, and social media presence. Each lead gets a verification score so you know exactly which leads are worth your time. We even crawl internal website pages and footers to find emails that aren't on the contact page. No more wasting time on dead leads, my friend!"
+    element: "[data-tour='secret-ai']",
+    title: "Secret AI Agents",
+    description: "These are your behind-the-scenes AI agents, my friend. Each one handles a specialized task automatically. They work in the background while you focus on closing deals, performing tasks like market research, competitive analysis, lead enrichment, and niche intelligence gathering. Think of them as your invisible sales team."
+  },
+  {
+    id: "roi-calculator",
+    page: "/",
+    element: "[data-tour='roi-calculator']",
+    title: "ROI Calculator",
+    description: "Before you invest, see exactly what you'll get back. Our interactive ROI Calculator lets you plug in your numbers, leads per month, average deal value, and conversion rate, and it shows you projected revenue. Most users see a 10x return on their BamLead subscription within the first month."
   },
   {
     id: "email-outreach",
     page: "/",
     element: "[data-tour='email-outreach']",
     title: "Email Outreach System",
-    description: "Now let me show you something truly special, the email outreach system. You get access to over 60 professionally designed, high-converting email templates across industries like Web Design, Local Services, Insurance, Medical, Education, and B2B. Each template has beautiful visual layouts, hero banners, split designs, newsletter formats, and promotional styles. Our AI personalizes content for each lead automatically. You can schedule sends at optimal times, track opens and replies in real time, and manage entire campaigns from one dashboard."
+    description: "Now let me show you something truly special, the email outreach system. You get access to over 60 professionally designed, high-converting email templates across industries like Web Design, Local Services, Insurance, Medical, Education, and B2B. Our AI personalizes content for each lead automatically. You can schedule sends at optimal times, track opens and replies in real time, and manage entire campaigns from one dashboard."
   },
   {
-    id: "lead-nurturing",
-    page: "/",
-    element: "[data-tour='email-outreach']",
-    title: "Lead Nurturing & Drip Sequences",
-    description: "Beyond single emails, we have full lead nurturing capabilities. Build automated drip sequences that send over days or weeks. The system tracks engagement, so if someone opens but doesn't reply, it automatically sends a follow-up. Set up multi-touch campaigns, and our AI predicts when leads are going cold and nudges you to re-engage. The mailbox hub shows everything, AI Strategy, sequences, analytics, and responses, all in one place."
-  },
-  {
-    id: "ai-strategy-brain",
-    page: "/",
-    element: "[data-tour='email-outreach']",
-    title: "The Brain — AI Strategy Engine",
-    description: "Meet the Brain, your personal AI campaign strategist. It generates a Campaign Purpose Statement and detailed outreach plans based on your search context. Each strategy is clickable and expandable, showing AI reasoning, match scores, expected response rates, and personalized openers. You can edit talking points directly, then send the whole strategy to your email composer with one click. It even configures a 7-step autonomous sequence for you!"
-  },
-  {
-    id: "ai-calling",
-    page: "/",
-    element: "[data-tour='revolutionary']",
-    title: "AI Voice Calling",
-    description: "Here's something that sets BamLead apart from everyone else, AI Voice Calling. Our system can make calls to your leads using natural-sounding AI voices. You get call scripts generated by AI based on the lead's profile, live transcription during calls, call analytics, and follow-up scheduling. You can set up call queues, track call logs, and even configure your Twilio phone number right from the dashboard. AI Calling is included in all paid plans!"
-  },
-  {
-    id: "sms-outreach",
-    page: "/",
-    element: "[data-tour='revolutionary']",
-    title: "SMS & Multi-Channel Outreach",
-    description: "BamLead isn't just email and calls, we do SMS too. Send personalized text messages to your leads, manage conversations in a dedicated SMS panel, and combine SMS with email and calls for true multi-channel outreach. The system tracks delivery, replies, and lets you respond directly. Reach your leads on the channel they prefer!"
-  },
-  {
-    id: "crm-integrations",
-    page: "/",
-    element: "[data-tour='revolutionary']",
-    title: "CRM & Calendar Integrations",
-    description: "BamLead connects to the tools you already use. Export leads directly to your CRM, sync with Google Calendar for follow-up reminders, connect Google Drive to store reports and documents, and integrate with popular CRM platforms. You can also export your lead data to spreadsheets with our built-in export tools. Everything stays connected and organized."
-  },
-  {
-    id: "chrome-extension",
-    page: "/",
-    element: "[data-tour='revolutionary']",
-    title: "Chrome Extension",
-    description: "Take BamLead with you wherever you browse. Our Chrome Extension lets you scan any website for lead information, pull contact details, and add prospects to your pipeline without ever leaving the page. It's like having BamLead's power built right into your browser, my friend."
+    id: "mailbox-demo",
+    page: "/mailbox-demo",
+    title: "Mailbox & AI Autopilot Demo",
+    description: "Let me take you to the interactive Mailbox Demo. This is where you can see the full mailbox experience including the AI Strategy Brain, drip sequences, document generation, and the Autopilot campaign flow. The Brain generates campaign strategies based on your leads, and the sequence builder creates automated 7-step follow-up sequences. You can explore everything here without needing an account."
   },
   {
     id: "closeloop",
@@ -142,19 +135,19 @@ const TOUR_STEPS: TourStep[] = [
     id: "pricing-cta",
     page: "/pricing",
     title: "Flexible Pricing Plans",
-    description: "Let me walk you through our pricing. We have four tiers designed for every stage of your business. The Free Trial gives you 7 days to test everything with no credit card required. The Basic plan at 49 dollars per month is perfect for solo entrepreneurs, giving you 500 searches and 1,000 emails. The Pro plan at 99 dollars per month unlocks unlimited searches, 5,000 emails, and all AI features including AI Calling. And for agencies, the 249 dollar plan includes unlimited everything plus team collaboration, API access, and priority support."
+    description: "Let me walk you through our pricing. We have five tiers designed for every stage of your business. The Free plan lets you try everything with limited daily searches. Basic at 49 dollars per month gives you 30 searches per day and AI-assisted email writing. Pro at 99 dollars per month unlocks 200 searches per day, auto follow-up sequences, and smart response detection. Autopilot at 249 dollars per month lets AI handle everything autonomously. And Unlimited at 999 dollars per month includes a dedicated AI Sales Brain and managed services."
   },
   {
-    id: "dashboard-preview",
-    page: "/dashboard",
-    title: "Your Command Center",
-    description: "And here we are at your command center, the dashboard. On the left sidebar you'll find all your tools: lead scanners, AI verification, email outreach with 60 plus templates, the mailbox hub with the Brain strategy engine, AI Calling, SMS, CRM integrations, and analytics. The main area shows your performance stats and recent activity. Everything you need to run successful outreach campaigns is right here."
+    id: "features-page",
+    page: "/features",
+    title: "Features Overview",
+    description: "This page gives you a clean summary of all BamLead's core features. Smart business search, website analysis, mobile responsiveness checking, SEO issue detection, lead scoring, and platform detection. It's a great reference page to bookmark and share with your team."
   },
   {
     id: "finish",
     page: "/",
     title: "You're All Set! 🚀",
-    description: "Well, that concludes our tour! You've seen our powerful search scanners, Super AI Intelligence reports with 12 categories, over 10 AI features, 60 plus email templates, drip sequences, the AI Strategy Brain, voice calling, SMS outreach, CRM integrations, the Chrome Extension, and CloseLoop for closing deals. Remember, you can start with a free trial to test everything risk-free. Best of luck with your lead hunting, my friend! I'll be right here if you need me."
+    description: "Well, that concludes our tour! You've seen the AI Autopilot campaigns, the 4-step Intelligence Pipeline, Super AI reports with 12 categories, the Synonym Expansion engine, AI Voice Calling, secret AI agents, the ROI Calculator, 60 plus email templates, the Mailbox with the AI Strategy Brain, CloseLoop for closing deals, and our flexible pricing. Remember, you can start with a free plan to test everything. Best of luck with your lead hunting, my friend! I'll be right here if you need me."
   }
 ];
 

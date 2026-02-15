@@ -69,7 +69,7 @@ export default function AIAutopilotCampaignPromo() {
   };
 
   return (
-    <section className="py-16 md:py-24 bg-gradient-to-b from-background via-background to-muted/30 overflow-hidden">
+    <section data-tour="autopilot-promo" className="py-16 md:py-24 bg-gradient-to-b from-background via-background to-muted/30 overflow-hidden">
       <div className="container px-4">
         {/* Section Header */}
         <motion.div

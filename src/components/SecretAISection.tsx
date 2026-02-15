@@ -144,7 +144,7 @@ const SecretAISection = forwardRef<HTMLElement>((props, ref) => {
   const selectedAgent = agents.find(a => a.id === activeAgent);
 
   return (
-    <section ref={ref} className="py-20 bg-gradient-to-b from-background via-muted/30 to-background" {...props}>
+    <section data-tour="secret-ai" ref={ref} className="py-20 bg-gradient-to-b from-background via-muted/30 to-background" {...props}>
       <div className="container px-4">
         {/* Header */}
         <div className="text-center max-w-3xl mx-auto mb-12">
