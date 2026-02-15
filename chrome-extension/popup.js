@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     await loadStats();
+    await renderLeadsViewer();
 
     const extractBtn = document.getElementById('extractBtn');
     const analyzeBtn = document.getElementById('analyzeBtn');
@@ -28,6 +29,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const exportCsvBtn = document.getElementById('exportCsvBtn');
     const exportPdfBtn = document.getElementById('exportPdfBtn');
     const clearLeadsBtn = document.getElementById('clearLeadsBtn');
+    const leadsSearchInput = document.getElementById('leadsSearchInput');
+    const prevPageBtn = document.getElementById('prevPageBtn');
+    const nextPageBtn = document.getElementById('nextPageBtn');
 
     if (extractBtn) extractBtn.addEventListener('click', () => extractContactInfo(tab));
     if (analyzeBtn) analyzeBtn.addEventListener('click', () => analyzeWebsite(tab));
@@ -37,6 +41,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (exportCsvBtn) exportCsvBtn.addEventListener('click', exportAsCSV);
     if (exportPdfBtn) exportPdfBtn.addEventListener('click', exportAsPDF);
     if (clearLeadsBtn) clearLeadsBtn.addEventListener('click', clearAllLeads);
+    if (leadsSearchInput) leadsSearchInput.addEventListener('input', () => renderLeadsViewer());
+    if (prevPageBtn) prevPageBtn.addEventListener('click', () => { _leadsPage--; renderLeadsViewer(); });
+    if (nextPageBtn) nextPageBtn.addEventListener('click', () => { _leadsPage++; renderLeadsViewer(); });
 
     // Disable on chrome:// pages
     if (tab && tab.url && (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:'))) {
@@ -64,13 +71,135 @@ async function loadStats() {
     }
 
     const leadsCountEl = document.getElementById('leadsCount');
+    const totalLeadsCountEl = document.getElementById('totalLeadsCount');
     const todayCountEl = document.getElementById('todayCount');
 
     if (leadsCountEl) leadsCountEl.textContent = stats.leadsCount || 0;
+    if (totalLeadsCountEl) totalLeadsCountEl.textContent = stats.leadsCount || 0;
     if (todayCountEl) todayCountEl.textContent = stats.todayCount || 0;
   } catch (error) {
     console.error('Load stats error:', error);
   }
+}
+
+// ─── Saved Leads Viewer ─────────────────────────────────
+
+let _leadsPage = 0;
+const LEADS_PER_PAGE = 5;
+
+async function renderLeadsViewer() {
+  const viewer = document.getElementById('leadsViewer');
+  const emptyEl = document.getElementById('leadsEmpty');
+  const pagination = document.getElementById('leadsPagination');
+  const searchInput = document.getElementById('leadsSearchInput');
+  const query = (searchInput?.value || '').toLowerCase().trim();
+
+  const storage = await chrome.storage.local.get(['savedLeads']);
+  let leads = (storage.savedLeads || []).slice().reverse(); // newest first
+
+  // Filter
+  if (query) {
+    leads = leads.filter(l => {
+      const text = [
+        l.companyName, l.title, l.url, l.website,
+        ...(l.emails || []), ...(l.phones || []),
+        l.address, l.analysis?.platform
+      ].filter(Boolean).join(' ').toLowerCase();
+      return text.includes(query);
+    });
+  }
+
+  viewer.innerHTML = '';
+
+  if (leads.length === 0) {
+    viewer.innerHTML = `<div class="leads-empty">${query ? 'No leads match your search' : 'No leads saved yet'}</div>`;
+    pagination.style.display = 'none';
+    return;
+  }
+
+  const totalPages = Math.ceil(leads.length / LEADS_PER_PAGE);
+  _leadsPage = Math.max(0, Math.min(_leadsPage, totalPages - 1));
+  const start = _leadsPage * LEADS_PER_PAGE;
+  const pageLeads = leads.slice(start, start + LEADS_PER_PAGE);
+
+  pageLeads.forEach((lead, idx) => {
+    const globalIdx = leads.length - 1 - (start + idx); // reverse index back to original
+    const card = document.createElement('div');
+    card.className = 'lead-card';
+    const name = lead.companyName || lead.title || new URL(lead.url || lead.website || 'https://unknown').hostname;
+    const date = lead.savedAt ? new Date(lead.savedAt).toLocaleDateString() : '';
+    const emails = (lead.emails || []).slice(0, 2);
+    const phones = (lead.phones || []).slice(0, 1);
+
+    card.innerHTML = `
+      <div class="lead-card-header">
+        <span class="lead-card-name" title="${esc(name)}">${esc(name)}</span>
+        <span class="lead-card-date">${date}</span>
+      </div>
+      <div class="lead-card-details">
+        ${emails.map(e => `<span class="lead-card-tag">✉️ ${esc(e)}</span>`).join('')}
+        ${phones.map(p => `<span class="lead-card-tag">📞 ${esc(p)}</span>`).join('')}
+        ${lead.analysis?.platform ? `<span class="lead-card-tag">🖥️ ${esc(lead.analysis.platform)}</span>` : ''}
+      </div>
+      <div class="lead-card-expanded">
+        ${lead.url ? `<div class="lead-detail-row"><span>URL</span><span class="val" title="${esc(lead.url)}">${esc(lead.url)}</span></div>` : ''}
+        ${lead.address ? `<div class="lead-detail-row"><span>Address</span><span class="val">${esc(lead.address)}</span></div>` : ''}
+        ${(lead.socialLinks || []).map(s => `<div class="lead-detail-row"><span>${esc(s.platform || 'Social')}</span><span class="val">${esc(s.url)}</span></div>`).join('')}
+        ${lead.analysis?.seoScore != null ? `<div class="lead-detail-row"><span>SEO</span><span class="val">${lead.analysis.seoScore}/100</span></div>` : ''}
+        <div class="lead-card-actions">
+          <button onclick="copyLeadData(${start + idx})">📋 Copy</button>
+          <button class="delete-btn" onclick="deleteLead(${start + idx})">🗑️ Delete</button>
+        </div>
+      </div>
+    `;
+
+    card.addEventListener('click', (e) => {
+      if (e.target.tagName === 'BUTTON') return;
+      card.classList.toggle('expanded');
+    });
+
+    viewer.appendChild(card);
+  });
+
+  // Pagination
+  if (totalPages > 1) {
+    pagination.style.display = 'flex';
+    document.getElementById('pageInfo2').textContent = `${_leadsPage + 1}/${totalPages}`;
+    document.getElementById('prevPageBtn').disabled = _leadsPage === 0;
+    document.getElementById('nextPageBtn').disabled = _leadsPage >= totalPages - 1;
+  } else {
+    pagination.style.display = 'none';
+  }
+}
+
+async function copyLeadData(reversedIdx) {
+  const storage = await chrome.storage.local.get(['savedLeads']);
+  const leads = (storage.savedLeads || []).slice().reverse();
+  const lead = leads[reversedIdx];
+  if (!lead) return;
+  const text = [
+    lead.companyName || lead.title,
+    lead.url || lead.website,
+    ...(lead.emails || []),
+    ...(lead.phones || []),
+    lead.address
+  ].filter(Boolean).join('\n');
+  navigator.clipboard.writeText(text);
+  showToast('Lead copied to clipboard');
+}
+
+async function deleteLead(reversedIdx) {
+  const storage = await chrome.storage.local.get(['savedLeads', 'leadsCount']);
+  const leads = (storage.savedLeads || []).slice().reverse();
+  leads.splice(reversedIdx, 1);
+  const restored = leads.reverse();
+  const newCount = Math.max((storage.leadsCount || 1) - 1, 0);
+  await chrome.storage.local.set({ savedLeads: restored, leadsCount: newCount });
+  document.getElementById('leadsCount').textContent = newCount;
+  const totalEl = document.getElementById('totalLeadsCount');
+  if (totalEl) totalEl.textContent = newCount;
+  await renderLeadsViewer();
+  showToast('Lead deleted');
 }
 
 // ─── Extract Contact Info (runs in page context) ────────
@@ -446,8 +575,11 @@ async function saveLead(tab) {
   });
 
   document.getElementById('leadsCount').textContent = newLeadsCount;
+  const totalEl = document.getElementById('totalLeadsCount');
+  if (totalEl) totalEl.textContent = newLeadsCount;
   document.getElementById('todayCount').textContent = newTodayCount;
 
+  await renderLeadsViewer();
   showToast('Lead saved locally!');
 }
 
@@ -605,7 +737,10 @@ async function clearAllLeads() {
 
   await chrome.storage.local.set({ savedLeads: [], leadsCount: 0, todayCount: 0 });
   document.getElementById('leadsCount').textContent = '0';
+  const totalEl = document.getElementById('totalLeadsCount');
+  if (totalEl) totalEl.textContent = '0';
   document.getElementById('todayCount').textContent = '0';
+  await renderLeadsViewer();
   showToast(`Cleared ${count} leads`);
 }
 
