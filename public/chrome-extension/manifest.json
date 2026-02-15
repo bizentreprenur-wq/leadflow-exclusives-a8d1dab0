@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "BamLead - Lead Prospecting",
+  "version": "1.4.0",
+  "description": "Find and capture leads from any website. Extract contact info, analyze websites, and save directly to BamLead. Works on Chrome, Edge, Brave, Opera, and all Chromium browsers.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "tabs"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "BamLead Lead Extractor",
+    "default_icon": {
+      "16": "icon16.png",
+      "32": "icon32.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "32": "icon32.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}

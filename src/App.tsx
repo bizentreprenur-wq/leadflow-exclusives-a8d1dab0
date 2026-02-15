@@ -42,6 +42,7 @@ import UseCases from "./pages/UseCases";
 import ExampleSearches from "./pages/ExampleSearches";
 import Comparisons from "./pages/Comparisons";
 import PreSignup from "./pages/PreSignup";
+import ChromeExtension from "./pages/ChromeExtension";
 
 const queryClient = new QueryClient();
 
@@ -128,6 +129,7 @@ function AppInner() {
         <Route path="/example-searches" element={<ExampleSearches />} />
         <Route path="/comparisons" element={<Comparisons />} />
         <Route path="/presignup" element={<PreSignup />} />
+        <Route path="/extension" element={<ChromeExtension />} />
         <Route
           path="/dashboard"
           element={
