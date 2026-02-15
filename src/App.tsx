@@ -90,11 +90,11 @@ function AppInner() {
         <Route path="/reviews" element={<Reviews />} />
         <Route path="/dashboard-demo" element={<DashboardDemo />} />
         <Route path="/mailbox-demo" element={<MailboxDemo />} />
-        <Route path="/template-gallery" element={<TemplateGallery />} />
-        <Route path="/closeloop" element={<CloseLoop />} />
+        <Route path="/template-gallery" element={<ProtectedRoute><TemplateGallery /></ProtectedRoute>} />
+        <Route path="/closeloop" element={<ProtectedRoute><CloseLoop /></ProtectedRoute>} />
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
-        <Route path="/sign-contract" element={<SignContract />} />
+        <Route path="/sign-contract" element={<ProtectedRoute><SignContract /></ProtectedRoute>} />
         <Route
           path="/autopilot-onboarding"
           element={
