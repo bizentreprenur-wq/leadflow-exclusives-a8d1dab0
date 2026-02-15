@@ -137,12 +137,8 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50) {
     if ($limit >= 1000) $serviceVariantCap = 9;
     $serviceVariants = array_slice(array_values(array_unique($serviceVariants)), 0, $serviceVariantCap);
 
-    $locationVariants = array_merge([$location], buildLocationExpansions($location));
-    $locationVariantCap = defined('LOCATION_EXPANSION_MAX') ? max(3, (int)LOCATION_EXPANSION_MAX) : 12;
-    if ($limit >= 250) $locationVariantCap = max($locationVariantCap, 20);
-    if ($limit >= 500) $locationVariantCap = max($locationVariantCap, 28);
-    if ($limit >= 1000) $locationVariantCap = max($locationVariantCap, 36);
-    $locationVariants = array_slice(array_values(array_unique($locationVariants)), 0, $locationVariantCap);
+    // Geo expansion disabled
+    $locationVariants = [$location];
 
     $searchCombos = [];
     foreach ($locationVariants as $locVariant) {

@@ -114,12 +114,8 @@ function streamPlatformSearch($service, $location, $platforms, $limit) {
     if ($limit >= 2000) $serviceVariantCap = 30;
     $serviceVariants = array_slice(array_values(array_unique($serviceVariants)), 0, $serviceVariantCap);
 
-    // Location expansion
-    $locationVariants = array_merge([$location], buildLocationExpansions($location));
-    $locationVariantCap = 12;
-    if ($limit >= 250) $locationVariantCap = 20;
-    if ($limit >= 500) $locationVariantCap = 28;
-    $locationVariants = array_slice(array_values(array_unique($locationVariants)), 0, $locationVariantCap);
+    // Geo expansion disabled — was causing slow searches and low-quality results on shared hosting
+    $locationVariants = [$location];
 
     // Build search combos
     $searchCombos = [];
