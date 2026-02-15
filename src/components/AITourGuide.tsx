@@ -131,7 +131,7 @@ const TOUR_STEPS: TourStep[] = [
     page: "/",
     element: "[data-tour='revolutionary']",
     title: "CRM & Calendar Integrations",
-    description: "BamLead connects to the tools you already use. Export leads directly to your CRM, sync with Google Calendar for follow-up reminders, connect Google Drive to store reports and documents, and integrate with popular CRM platforms like HubSpot, Salesforce, and Pipedrive. You can also export your lead data to spreadsheets with our built-in export tools. Everything stays connected and organized."
+    description: "BamLead connects to the tools you already use. In Step 3 (Email Outreach), you can export leads directly to CRM platforms like HubSpot, Salesforce, and Pipedrive, connect Google Drive to store reports, and export lead data to spreadsheets. In Step 4 (AI Calling Hub), you'll find Google Calendar integration for scheduling follow-up reminders and managing meetings. Everything stays connected and organized across your workflow."
   },
   {
     id: "chrome-extension",
