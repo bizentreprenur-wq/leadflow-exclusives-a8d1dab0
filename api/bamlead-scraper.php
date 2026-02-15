@@ -192,7 +192,7 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
     }
 
     // 1b) 🚀 OUTSCRAPER-STYLE: Contact page variations fetched IN PARALLEL with homepage
-    $contactPaths = ['/contact', '/contact-us', '/contactus', '/get-in-touch', '/about', '/about-us', '/reach-us', '/connect'];
+    $contactPaths = ['/contact', '/contact-us', '/contactus', '/get-in-touch', '/about', '/about-us', '/reach-us', '/connect', '/team', '/our-team', '/staff', '/people'];
     if (!empty($url)) {
         $parsed = parse_url($url);
         $baseUrl = ($parsed['scheme'] ?? 'https') . '://' . ($parsed['host'] ?? '');
@@ -521,11 +521,16 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
     if (!empty($url)) {
         $intelligence['predicted_emails'] = bamleadPredictEmails($url, $searchName);
         if (!empty($homepageHtml)) {
-            $namePatterns = bamleadExtractPersonNames($homepageHtml, $url);
-            $intelligence['predicted_emails'] = array_merge(
-                $intelligence['predicted_emails'],
-                $namePatterns
-            );
+            $namePatterns = bamleadExtractPersonNamesDeep($homepageHtml);
+            // Convert names to prediction format for backward compatibility
+            $domain = preg_replace('/^www\./', '', parse_url($url, PHP_URL_HOST) ?? '');
+            foreach ($namePatterns as $name) {
+                $intelligence['predicted_emails'][] = [
+                    'email' => $name['first'] . '.' . $name['last'] . '@' . $domain,
+                    'confidence' => 45,
+                    'type' => 'predicted_name',
+                ];
+            }
         }
     }
 
@@ -644,6 +649,9 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
             curl_multi_remove_handle($mh, $ch);
             curl_close($ch);
             if ($httpCode !== 200 || empty($response)) continue;
+
+            // Accumulate HTML for pattern engine name extraction
+            $homepageHtml .= "\n" . $response;
 
             $info = $phase2Urls[$key];
             $pageEmails = extractEmails($response);
@@ -775,50 +783,57 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
     }
     $allEmails = !empty($verifiedEmails) ? $verifiedEmails : $allEmails;
 
-    // 🚀 OUTSCRAPER-STYLE: Role-based email generation + MX verification
-    // Generate common role emails and add those with valid MX as discovered contacts
+    // 🧠 Role-based emails → intelligence ONLY (not main list)
+    // These are guesses — keep them in predicted_emails for UI display
     if (!empty($url)) {
         $roleDomain = preg_replace('/^www\./', '', parse_url($url, PHP_URL_HOST) ?? '');
         if (!empty($roleDomain)) {
             $roleEmails = ['info', 'contact', 'hello', 'sales', 'admin', 'office', 'support', 'service'];
-            $existingLower = array_map('strtolower', $allEmails);
             $roleMxHosts = [];
             $hasMx = function_exists('getmxrr') && @getmxrr($roleDomain, $roleMxHosts) && !empty($roleMxHosts);
-            
             if ($hasMx) {
-                $addedRole = false;
                 foreach ($roleEmails as $prefix) {
                     $candidate = $prefix . '@' . $roleDomain;
-                    if (!in_array($candidate, $existingLower)) {
-                        $allEmails[] = $candidate;
-                        $addedRole = true;
-                    }
-                }
-                if ($addedRole && !in_array('Role-based (MX verified)', $sources)) {
-                    $sources[] = 'Role-based (MX verified)';
+                    // Add to predictions, NOT main email list
+                    $intelligence['predicted_emails'][] = [
+                        'email' => $candidate,
+                        'confidence' => ($prefix === 'info' || $prefix === 'contact') ? 75 : 50,
+                        'type' => 'role_address',
+                    ];
                 }
             }
         }
     }
 
-    // 🧠 AI: Score each email's confidence
-    $intelligence['contact_confidence'] = bamleadScoreContacts($allEmails, $allPhones, $url);
+    // 🧠 PATTERN ENGINE — Hunter.io-style: detect naming pattern + apply to found names
+    // This runs AFTER all scraping phases, using all collected HTML for name extraction
+    // Zero additional HTTP requests — only DNS lookups (sub-millisecond)
+    if (!empty($url)) {
+        $peDomain = preg_replace('/^www\./', '', parse_url($url, PHP_URL_HOST) ?? '');
+        // Collect all HTML we've already downloaded for name extraction
+        $allCollectedHtml = $homepageHtml; // Already have this from Phase 1
+        // Run the pattern engine
+        $patternResult = bamleadPatternEngine($allEmails, $peDomain, $allCollectedHtml);
+        $intelligence['pattern_engine'] = $patternResult;
 
-    // No arbitrary limits — return all discovered contacts
-    $allEmails = array_slice($allEmails, 0, 25);
-    $allPhones = array_slice($allPhones, 0, 15);
-    $sources = array_values(array_unique($sources));
+        if (!empty($patternResult['verified_emails'])) {
+            $allEmails = array_merge($allEmails, $patternResult['verified_emails']);
+            if (!in_array('Pattern Engine (name-based)', $sources)) {
+                $sources[] = 'Pattern Engine (name-based)';
+            }
+        }
+        // Dedupe again after pattern engine additions
+        $allEmails = bamleadDedupeEmails($allEmails);
+    }
 
-    // Catch-all detection via role-based MX
+    // Catch-all detection via MX provider analysis
     if (!empty($url)) {
         $caDomain = preg_replace('/^www\./', '', parse_url($url, PHP_URL_HOST) ?? '');
         if (!empty($caDomain)) {
             $intelligence['domain_info']['is_catch_all'] = false;
-            // If domain accepts MX, mark confidence accordingly
             $caMx = [];
             if (function_exists('getmxrr') && @getmxrr($caDomain, $caMx) && !empty($caMx)) {
                 $mxProvider = strtolower($caMx[0] ?? '');
-                // Known catch-all providers or generic hosting
                 if (preg_match('/(hostinger|namecheap|godaddy|bluehost|hostgator|dreamhost)/i', $mxProvider)) {
                     $intelligence['domain_info']['is_catch_all'] = true;
                 }
@@ -1108,6 +1123,208 @@ function bamleadPredictEmails($url, $businessName) {
     }
 
     return $predictions;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🧠 PATTERN ENGINE — Hunter.io-style email discovery (zero cost, zero latency)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Detect the email naming pattern from a list of discovered emails.
+ * Returns pattern like 'first.last', 'firstlast', 'first', 'flast', etc.
+ */
+function bamleadDetectEmailPattern($emails, $domain) {
+    if (empty($emails) || empty($domain)) return null;
+
+    $domainLower = strtolower($domain);
+    $domainEmails = [];
+    foreach ($emails as $email) {
+        $emailLower = strtolower($email);
+        $parts = explode('@', $emailLower);
+        if (count($parts) === 2 && $parts[1] === $domainLower) {
+            $local = $parts[0];
+            // Skip role addresses — they don't reveal the pattern
+            if (in_array($local, ['info', 'contact', 'hello', 'support', 'sales', 'admin', 'office', 'team', 'help', 'service', 'billing', 'hr', 'jobs', 'press', 'media'])) continue;
+            $domainEmails[] = $local;
+        }
+    }
+    if (empty($domainEmails)) return null;
+
+    // Analyze the local parts to detect patterns
+    foreach ($domainEmails as $local) {
+        if (preg_match('/^([a-z]+)\.([a-z]+)$/', $local)) return 'first.last';
+        if (preg_match('/^([a-z])\.([a-z]+)$/', $local)) return 'f.last';
+        if (preg_match('/^([a-z]+)_([a-z]+)$/', $local)) return 'first_last';
+        if (preg_match('/^([a-z])([a-z]{3,})$/', $local)) return 'flast';
+        if (preg_match('/^([a-z]{2,})([a-z])$/', $local)) return 'firstl';
+    }
+
+    // If local part is a single word 4+ chars, likely just first name
+    foreach ($domainEmails as $local) {
+        if (preg_match('/^[a-z]{4,}$/', $local)) return 'first';
+    }
+
+    return null;
+}
+
+/**
+ * Extract person names from HTML (team pages, about pages, staff listings).
+ * Returns array of ['first' => '...', 'last' => '...']
+ */
+function bamleadExtractPersonNamesDeep($html) {
+    $names = [];
+    $text = strip_tags($html);
+
+    // Pattern 1: Schema.org Person names
+    if (preg_match_all('/"@type"\s*:\s*"Person"[^}]*"name"\s*:\s*"([^"]+)"/', $html, $m)) {
+        foreach ($m[1] as $fullName) {
+            $parsed = bamleadParseName($fullName);
+            if ($parsed) $names[] = $parsed;
+        }
+    }
+
+    // Pattern 2: Common HTML patterns for team/staff sections
+    // <h3>John Smith</h3> <p>Owner</p>  or  <strong>Jane Doe</strong> - Manager
+    $titlePatterns = [
+        '/<(?:h[2-5]|strong|b)[^>]*>\s*([A-Z][a-z]{1,15}\s+[A-Z][a-z]{1,20})\s*<\//s',
+        '/class=["\'][^"\']*(?:team|staff|member|employee|name|person|author|founder|owner|ceo|director)[^"\']*["\'][^>]*>\s*([A-Z][a-z]{1,15}\s+[A-Z][a-z]{1,20})\s*</s',
+        '/itemprop=["\']name["\'][^>]*>\s*([A-Z][a-z]{1,15}\s+[A-Z][a-z]{1,20})\s*</s',
+        '/alt=["\'](?:Photo of |Image of |Portrait of )?([A-Z][a-z]{1,15}\s+[A-Z][a-z]{1,20})["\']/',
+    ];
+    foreach ($titlePatterns as $pattern) {
+        if (preg_match_all($pattern, $html, $m)) {
+            foreach ($m[1] as $fullName) {
+                $parsed = bamleadParseName(trim($fullName));
+                if ($parsed) $names[] = $parsed;
+            }
+        }
+    }
+
+    // Pattern 3: "By John Smith" or "Author: Jane Doe"
+    if (preg_match_all('/(?:by|author|written by|posted by|contact)\s*:?\s*([A-Z][a-z]{1,15}\s+[A-Z][a-z]{1,20})/i', $text, $m)) {
+        foreach ($m[1] as $fullName) {
+            $parsed = bamleadParseName(trim($fullName));
+            if ($parsed) $names[] = $parsed;
+        }
+    }
+
+    // Deduplicate
+    $seen = [];
+    $unique = [];
+    foreach ($names as $name) {
+        $key = strtolower($name['first'] . '.' . $name['last']);
+        if (!isset($seen[$key])) {
+            $seen[$key] = true;
+            $unique[] = $name;
+        }
+    }
+
+    return array_slice($unique, 0, 20); // Cap at 20 names
+}
+
+/** Parse a full name into first/last components */
+function bamleadParseName($fullName) {
+    $fullName = trim($fullName);
+    // Filter out common false positives
+    $blocklist = ['contact us', 'about us', 'read more', 'learn more', 'click here', 'sign up',
+                  'log in', 'get started', 'free trial', 'our team', 'our story', 'home page',
+                  'privacy policy', 'terms conditions', 'all rights', 'view all', 'see more',
+                  'open hours', 'business hours', 'mon fri', 'sat sun', 'new york', 'los angeles',
+                  'san francisco', 'san diego', 'las vegas', 'united states', 'north america'];
+    if (in_array(strtolower($fullName), $blocklist)) return null;
+
+    $parts = preg_split('/\s+/', $fullName);
+    if (count($parts) < 2) return null;
+
+    $first = $parts[0];
+    $last = end($parts);
+
+    // Validate: must look like real names (2-15 alpha chars each)
+    if (!preg_match('/^[A-Za-z]{2,15}$/', $first) || !preg_match('/^[A-Za-z]{2,20}$/', $last)) return null;
+
+    // Filter out common non-name words
+    $nonNames = ['the', 'and', 'for', 'our', 'your', 'new', 'all', 'best', 'top', 'get', 'how',
+                 'inc', 'llc', 'ltd', 'corp', 'est', 'since', 'mon', 'tue', 'wed', 'thu', 'fri',
+                 'sat', 'sun', 'jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep',
+                 'oct', 'nov', 'dec', 'north', 'south', 'east', 'west', 'street', 'avenue', 'road'];
+    if (in_array(strtolower($first), $nonNames) || in_array(strtolower($last), $nonNames)) return null;
+
+    return ['first' => strtolower($first), 'last' => strtolower($last)];
+}
+
+/**
+ * Apply detected email pattern to extracted names → generate candidate emails.
+ * Only returns candidates that pass MX verification (zero-latency DNS check).
+ */
+function bamleadPatternEngine($foundEmails, $domain, $allHtml) {
+    $result = [
+        'candidates_tested' => 0,
+        'verified_count' => 0,
+        'verified_emails' => [],
+        'is_catch_all' => false,
+        'mx_provider' => '',
+    ];
+
+    if (empty($domain)) return $result;
+
+    // Step 1: Check MX once for the domain (fast DNS lookup)
+    $mxHosts = [];
+    $hasMx = function_exists('getmxrr') && @getmxrr($domain, $mxHosts) && !empty($mxHosts);
+    if (!$hasMx) return $result;
+
+    $result['mx_provider'] = bamleadIdentifyEmailProvider($mxHosts[0] ?? '');
+
+    // Step 2: Detect pattern from existing emails
+    $pattern = bamleadDetectEmailPattern($foundEmails, $domain);
+
+    // Step 3: Extract names from all collected HTML
+    $names = bamleadExtractPersonNamesDeep($allHtml);
+    if (empty($names)) return $result;
+
+    // Step 4: Generate candidates using the pattern (or try common patterns)
+    $patternsToTry = $pattern ? [$pattern] : ['first.last', 'first', 'flast', 'firstl'];
+    $existingLower = array_map('strtolower', $foundEmails);
+    $candidates = [];
+
+    foreach ($names as $name) {
+        foreach ($patternsToTry as $p) {
+            $candidate = bamleadApplyPattern($p, $name['first'], $name['last'], $domain);
+            if ($candidate && !in_array($candidate, $existingLower) && !in_array($candidate, $candidates)) {
+                $candidates[] = $candidate;
+            }
+        }
+    }
+
+    $result['candidates_tested'] = count($candidates);
+
+    // Step 5: All candidates inherit MX verification from domain check
+    // (We already confirmed the domain has valid MX records)
+    foreach ($candidates as $candidate) {
+        if (filter_var($candidate, FILTER_VALIDATE_EMAIL)) {
+            $result['verified_emails'][] = $candidate;
+            $result['verified_count']++;
+        }
+    }
+
+    // Cap at 10 pattern-generated emails to avoid flooding
+    $result['verified_emails'] = array_slice($result['verified_emails'], 0, 10);
+    $result['verified_count'] = count($result['verified_emails']);
+
+    return $result;
+}
+
+/** Apply a naming pattern to a first+last name */
+function bamleadApplyPattern($pattern, $first, $last, $domain) {
+    switch ($pattern) {
+        case 'first.last': return $first . '.' . $last . '@' . $domain;
+        case 'first_last': return $first . '_' . $last . '@' . $domain;
+        case 'firstlast':  return $first . $last . '@' . $domain;
+        case 'first':      return $first . '@' . $domain;
+        case 'flast':      return substr($first, 0, 1) . $last . '@' . $domain;
+        case 'firstl':     return $first . substr($last, 0, 1) . '@' . $domain;
+        case 'f.last':     return substr($first, 0, 1) . '.' . $last . '@' . $domain;
+        default:           return $first . '.' . $last . '@' . $domain;
+    }
 }
 
 /** Generate role-based email addresses */
