@@ -12,8 +12,9 @@ import {
   ArrowLeft, ArrowRight, ArrowUp, Server, FileText, Send, 
   CheckCircle2, Mail, Users, Loader2, Link2, Database,
   Eye, Zap, Rocket, FlaskConical, Home, Brain,
-  Clock, TrendingUp, Info, Settings, Phone, X, AlertCircle, Upload, Image, Trash2, Sparkles
+  Clock, TrendingUp, Info, Settings, Phone, X, AlertCircle, Upload, Image, Trash2, Sparkles, Crown, Shield
 } from 'lucide-react';
+import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -150,6 +151,7 @@ export default function EmailSetupFlow({
   
   // Auth context for persistent branding
   const { isAuthenticated } = useAuth();
+  const planFeatures = usePlanFeatures();
   
   // Business logo for email branding
   const [businessLogo, setBusinessLogo] = useState<string | null>(() => {
@@ -1017,11 +1019,21 @@ export default function EmailSetupFlow({
                           }}
                           onOpenMailbox={() => setMailboxOpen(true)}
                           renderAfterBanner={
-                            <div className="flex justify-center">
+                            <div className="flex justify-center gap-3">
                               <Button onClick={() => setShowAutoCampaign(true)} className="gap-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700">
                                 <Rocket className="w-4 h-4" />
                                 AI Autopilot Campaign
                               </Button>
+                              {planFeatures.isUnlimited && (
+                                <Button 
+                                  onClick={() => setShowAutoCampaign(true)} 
+                                  className="gap-2 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white border border-red-500/30 shadow-lg shadow-red-500/20"
+                                >
+                                  <Crown className="w-4 h-4" />
+                                  Unlimited Mode
+                                  <Badge className="text-[8px] px-1.5 bg-white/20 text-white border-0 ml-1">$999/mo</Badge>
+                                </Button>
+                              )}
                             </div>
                           }
                         />
