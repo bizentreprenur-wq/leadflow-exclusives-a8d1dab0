@@ -14,7 +14,7 @@ import {
   Inbox, PenTool, Sparkles, Target, Rocket,
   Calendar, Shield, CheckCircle2, X, FolderOpen,
   Palette, Link2, Cloud, BarChart3, MousePointer, Eye, Reply, TrendingUp,
-  PanelLeftClose, PanelLeft, MailOpen, Zap, Crown, Layers
+  PanelLeftClose, PanelLeft, MailOpen, Zap, Crown, Layers, Brain
 } from 'lucide-react';
 import SMTPConfigPanel from './SMTPConfigPanel';
 import BrandingSettingsPanel from './BrandingSettingsPanel';
@@ -50,7 +50,7 @@ import {
 import { AutonomousSequence } from '@/lib/autonomousSequences';
 
 // Tab types for main navigation
-type MainTab = 'inbox' | 'campaigns' | 'sequences' | 'automation' | 'analytics' | 'documents' | 'settings';
+type MainTab = 'inbox' | 'campaigns' | 'sequences' | 'automation' | 'analytics' | 'documents' | 'settings' | 'strategy';
 type InboxFilter = 'all' | 'hot' | 'unread';
 
 // Demo sequence types
@@ -84,20 +84,9 @@ interface AutomationSettings {
   responseMode: 'automatic' | 'manual';
 }
 
-const DEMO_SEQUENCES: OutreachSequence[] = [
-  { id: '1', name: 'Cold Outreach', channels: ['email', 'linkedin', 'sms'], steps: 4, duration: '10 days', status: 'active' },
-  { id: '2', name: 'Warm Lead Nurture', channels: ['email'], steps: 3, duration: '7 days', status: 'active' },
-  { id: '3', name: 'No Website Specialist', channels: ['email'], steps: 3, duration: '5 days', status: 'paused' },
-  { id: '4', name: 'Re-Engagement', channels: ['email'], steps: 2, duration: '14 days', status: 'draft' },
-];
+const DEMO_SEQUENCES: OutreachSequence[] = [];
 
-const DEMO_REPLIES: EmailReply[] = [
-  { id: '1', from_name: 'Katie Myers', from_email: 'katie@example.com', subject: 'Thank you for your great assist...', preview: 'Thank you for giving great assist...', body: 'Thank you for giving great assist. We appreciate the help and would like to discuss next steps.', time: 'Today 4:32 PM', urgencyLevel: 'hot', isRead: false },
-  { id: '2', from_name: 'Thomas Jackson', from_email: 'thomas@example.com', subject: 'Forwarded meeting times!', preview: 'Hi, below, opposite PM...', body: 'Hi, below are the meeting times I can do next week. Let me know what works best on your end.', time: 'Today 2:15 PM', urgencyLevel: 'hot', isRead: false },
-  { id: '3', from_name: 'Michael Davis', from_email: 'michael@example.com', subject: 'Interested in reality TV promo', preview: 'Interested in reality TV promo', body: 'Interested in reality TV promo. Can you share pricing and timelines?', time: 'Yesterday 5:42 PM', urgencyLevel: 'warm', isRead: true },
-  { id: '4', from_name: 'Laura Bennett', from_email: 'laura@example.com', subject: 'Re: Need us think additional times?', preview: 'Finally, 200 PM...', body: 'Finally, 2:00 PM or 3:30 PM both work for me. Please confirm.', time: 'Yesterday 2:10 PM', urgencyLevel: 'warm', isRead: true },
-  { id: '5', from_name: 'Ryan Brooks', from_email: 'ryan@example.com', subject: 'Thank you for following up!', preview: 'Finally, Got PM...', body: 'Finally got your PM. I have a couple of questions about the proposal you sent.', time: '2 days ago 6:27 PM', urgencyLevel: 'cold', isRead: true, hasDocument: true },
-];
+const DEMO_REPLIES: EmailReply[] = [];
 
 const INBOX_STORAGE_KEY = 'bamlead_inbox_replies';
 
@@ -337,16 +326,16 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
     return (firstWithEmail?.email || campaignLeads?.[0]?.email || '') as string;
   }, [campaignLeads, selectedReply]);
 
-  // Campaign analytics state - sync from localStorage
+  // Campaign analytics state - sync from localStorage (no fake data)
   const [campaignAnalytics, setCampaignAnalytics] = useState(() => {
     try {
       const stored = localStorage.getItem('bamlead_campaign_analytics');
       return stored ? JSON.parse(stored) : {
-        sent: campaignContext?.sentCount || 0,
-        delivered: Math.floor((campaignContext?.sentCount || 0) * 0.95),
-        opened: Math.floor((campaignContext?.sentCount || 0) * 0.42),
-        clicked: Math.floor((campaignContext?.sentCount || 0) * 0.18),
-        replied: Math.floor((campaignContext?.sentCount || 0) * 0.08),
+        sent: 0,
+        delivered: 0,
+        opened: 0,
+        clicked: 0,
+        replied: 0,
       };
     } catch { 
       return { sent: 0, delivered: 0, opened: 0, clicked: 0, replied: 0 }; 
@@ -366,9 +355,9 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
       clicked,
       replied,
       bounced: Math.max(0, sent - delivered),
-      unsubscribed: Math.max(0, Math.floor(sent * 0.01)),
-      meetingsBooked: Math.max(0, Math.floor(replied * 0.4)),
-      dealsClosed: Math.max(0, Math.floor(replied * 0.12)),
+      unsubscribed: 0,
+      meetingsBooked: 0,
+      dealsClosed: 0,
     };
   }, [campaignAnalytics]);
 
@@ -576,6 +565,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
     { id: 'inbox' as MainTab, label: 'Inbox', icon: Inbox },
     { id: 'campaigns' as MainTab, label: 'Campaigns', icon: Send },
     { id: 'sequences' as MainTab, label: 'Sequences', icon: Layers },
+    { id: 'strategy' as MainTab, label: 'AI Strategy', icon: Brain, isBrain: true },
     { id: 'automation' as MainTab, label: 'AI Autopilot', icon: Crown, isPro: true },
     { id: 'analytics' as MainTab, label: 'Analytics', icon: BarChart3 },
     { id: 'documents' as MainTab, label: 'PreDone Docs', icon: FolderOpen },
@@ -634,7 +624,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
 
             {/* Navigation */}
             <nav className="flex-1 px-3 space-y-1">
-              {navTabs.map(tab => (
+               {navTabs.map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setMainTab(tab.id)}
@@ -643,13 +633,20 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                     mainTab === tab.id
                       ? tab.id === 'automation' 
                         ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/20"
+                        : tab.id === 'strategy'
+                        ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg shadow-purple-500/20"
                         : "bg-emerald-600 text-white"
                       : tab.id === 'automation'
                         ? "text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 border border-transparent hover:border-amber-500/30"
+                        : tab.id === 'strategy'
+                        ? "text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 border border-transparent hover:border-purple-500/30"
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
                   )}
                 >
-                  <tab.icon className={cn("w-4 h-4", tab.id === 'automation' && mainTab !== 'automation' && "text-amber-400")} />
+                  <tab.icon className={cn("w-4 h-4", 
+                    tab.id === 'automation' && mainTab !== 'automation' && "text-amber-400",
+                    tab.id === 'strategy' && mainTab !== 'strategy' && "text-purple-400"
+                  )} />
                   {tab.label}
                   {tab.id === 'inbox' && (
                     <Badge className="ml-auto bg-red-500 text-white text-[10px] px-1.5">
@@ -1391,6 +1388,57 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                     }}
                   />
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* AI STRATEGY VIEW (The Brain) */}
+          {mainTab === 'strategy' && (
+            <div className="h-full overflow-auto p-6">
+              <div className="max-w-4xl mx-auto space-y-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500/20 to-indigo-500/20 border border-purple-500/30">
+                    <Brain className="w-6 h-6 text-purple-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-foreground">AI Strategy Brain</h2>
+                    <p className="text-sm text-muted-foreground">Your campaign intelligence engine — selects strategies, sequences & personalization</p>
+                  </div>
+                </div>
+                <AIStrategySelector
+                  mode="copilot"
+                  searchType={searchType || 'gmb'}
+                  leads={campaignLeads}
+                  onSelectStrategy={(strategy) => {
+                    setSelectedStrategy(strategy);
+                    toast.success(`Strategy "${strategy.name}" activated in the Brain`);
+                  }}
+                  onApproveStrategy={(strategy) => {
+                    setSelectedStrategy(strategy);
+                    setMainTab('inbox');
+                    openCompose();
+                  }}
+                  selectedStrategy={selectedStrategy}
+                />
+                {selectedStrategy && autonomousSequences.length > 0 && (
+                  <div className="mt-6">
+                    <h3 className="text-lg font-semibold text-foreground mb-3 flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-amber-400" />
+                      Connected Drip Sequences ({autonomousSequences.length} steps)
+                    </h3>
+                    <div className="space-y-2">
+                      {autonomousSequences.map((seq, i) => (
+                        <div key={seq.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card/50">
+                          <span className="text-xs font-bold text-muted-foreground w-6">#{i+1}</span>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-foreground">{seq.name}</p>
+                            <p className="text-xs text-muted-foreground">{seq.steps.length} steps • {seq.trigger}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
