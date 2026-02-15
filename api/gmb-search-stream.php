@@ -173,13 +173,9 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
             $expansionMax = max($expansionMax, 45);
         }
     }
-    $expandedLocations = $enableExpansion ? buildLocationExpansions($location) : [];
-    if ($expansionMax > 0) {
-        $expandedLocations = array_slice($expandedLocations, 0, $expansionMax);
-    } else {
-        $expandedLocations = [];
-    }
-    $locationsToSearch = array_merge([$location], $expandedLocations);
+    // Geo expansion disabled — was causing slow searches and low-quality results on shared hosting
+    $expandedLocations = [];
+    $locationsToSearch = [$location];
     $searchedLocations = [];
 
     // Pre-compute synonym variants for use in primary search loop

@@ -347,13 +347,9 @@ function searchSerpApiEngines($service, $location, $limit, $filters, $filtersAct
             $expansionMax = max($expansionMax, 35);
         }
     }
-    $expandedLocations = $enableExpansion ? buildLocationExpansions($location) : [];
-    if ($expansionMax > 0) {
-        $expandedLocations = array_slice($expandedLocations, 0, $expansionMax);
-    } else {
-        $expandedLocations = [];
-    }
-    $locationsToSearch = array_merge([$location], $expandedLocations);
+    // Geo expansion disabled
+    $expandedLocations = [];
+    $locationsToSearch = [$location];
     $searchedLocations = [];
 
     $collectFromQuery = function ($query, $searchLocation) use (&$allResults, &$seenBusinesses, $searchEngines, $limit, $filters, $filtersActive, $filterMultiplier, $apiKey) {
