@@ -17,6 +17,7 @@ export interface ContactConfidence {
   email?: string;
   phone?: string;
   confidence: number;
+  catch_all?: boolean;
 }
 
 export interface PredictedEmail {
@@ -34,6 +35,14 @@ export interface DomainInfo {
   mx_provider: string | null;
 }
 
+export interface PatternEngineResult {
+  candidates_tested: number;
+  verified_count: number;
+  verified_emails: string[];
+  is_catch_all: boolean;
+  mx_provider: string;
+}
+
 export interface ScraperIntelligence {
   business_type: string | null;
   tech_stack: string[];
@@ -43,6 +52,7 @@ export interface ScraperIntelligence {
   domain_info: DomainInfo;
   structured_data: Record<string, unknown>[];
   og_metadata: Record<string, string>;
+  pattern_engine?: PatternEngineResult;
 }
 
 export interface BamleadScrapeResult {

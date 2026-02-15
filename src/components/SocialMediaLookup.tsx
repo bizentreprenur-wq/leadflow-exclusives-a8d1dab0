@@ -35,6 +35,8 @@ interface SocialMediaLookupProps {
     hasPhone?: boolean;
     hasSocials?: boolean;
     scrapedAt?: string;
+    isCatchAll?: boolean;
+    sources?: string[];
   };
 }
 
