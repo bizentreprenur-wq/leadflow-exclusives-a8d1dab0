@@ -166,6 +166,7 @@ export function useAICalling() {
       setIsLoading(true);
       try {
         const result = await getTwilioConfig();
+        let phoneLoaded = false;
         if (result.success && result.config) {
           setConfig(result.config);
           
@@ -175,6 +176,22 @@ export function useAICalling() {
               phoneNumber: result.config.phone_number,
               phoneType: 'bamlead',
               isVerified: result.config.enabled,
+              isProvisioning: false,
+            });
+            phoneLoaded = true;
+          }
+        }
+        
+        // Fallback: load from localStorage if API didn't return a phone number
+        if (!phoneLoaded) {
+          const cachedPhone = localStorage.getItem('twilio_phone_number');
+          const cachedActive = localStorage.getItem('twilio_phone_active');
+          if (cachedPhone && cachedActive === 'true') {
+            setPhoneSetup({
+              hasPhone: true,
+              phoneNumber: cachedPhone,
+              phoneType: 'bamlead',
+              isVerified: true,
               isProvisioning: false,
             });
           }
