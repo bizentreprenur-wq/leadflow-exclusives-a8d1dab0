@@ -68,6 +68,12 @@ export const translations: Translations = {
     pt: 'Comparações',
     fr: 'Comparaisons',
   },
+  'nav.extension': {
+    en: 'Extension',
+    es: 'Extensión',
+    pt: 'Extensão',
+    fr: 'Extension',
+  },
   'nav.presignup': {
     en: 'Pre-Signup',
     es: 'Pre-Registro',

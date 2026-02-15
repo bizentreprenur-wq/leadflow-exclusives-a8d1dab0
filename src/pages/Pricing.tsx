@@ -416,7 +416,7 @@ const Pricing = () => {
                     >
                       {tier.popular && (
                         <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                          <span className="px-4 py-1 rounded-full bg-primary text-primary-foreground text-sm font-medium">
+                          <span className="px-4 py-1 rounded-full bg-primary text-primary-foreground text-sm font-medium whitespace-nowrap">
                             Most Popular
                           </span>
                         </div>
