@@ -229,6 +229,14 @@ export default function ComposeEmailModal({
     }
   }, [isOpen]);
 
+  // Auto-select Unlimited mode for owner
+  useEffect(() => {
+    if (isOpen && isUnlimitedPlan) {
+      setComposeMode('autopilot');
+      setSelectedCampaignType('autopilot');
+    }
+  }, [isOpen, isUnlimitedPlan]);
+
   useEffect(() => {
     if (!isOpen) return;
     try {
@@ -877,12 +885,14 @@ export default function ComposeEmailModal({
           <div className="grid gap-3 grid-cols-4">
             {/* Mode 1: Basic Single Email */}
             <button
-              onClick={() => setComposeMode('regular')}
+              onClick={() => !isUnlimitedPlan && setComposeMode('regular')}
               className={cn(
                 "p-4 rounded-xl border-2 transition-all text-left",
-                composeMode === 'regular'
-                  ? "border-blue-500 bg-blue-500/10"
-                  : "border-border hover:border-blue-500/50 bg-muted/30"
+                isUnlimitedPlan
+                  ? "border-border bg-muted/20 opacity-50 cursor-not-allowed"
+                  : composeMode === 'regular'
+                    ? "border-blue-500 bg-blue-500/10"
+                    : "border-border hover:border-blue-500/50 bg-muted/30"
               )}
             >
               <div className="flex items-center gap-2 mb-2">
@@ -900,6 +910,7 @@ export default function ComposeEmailModal({
             {/* Mode 2: Co-Pilot Mode Campaign */}
             <button
               onClick={() => {
+                if (isUnlimitedPlan) return;
                 setSelectedCampaignType('manual');
                 setComposeMode('campaign');
                 try {
@@ -914,9 +925,11 @@ export default function ComposeEmailModal({
               }}
               className={cn(
                 "p-4 rounded-xl border-2 transition-all text-left relative",
-                composeMode === 'campaign' && selectedCampaignType === 'manual'
-                  ? "border-primary bg-primary/10"
-                  : "border-border hover:border-primary/50 bg-muted/30"
+                isUnlimitedPlan
+                  ? "border-border bg-muted/20 opacity-50 cursor-not-allowed"
+                  : composeMode === 'campaign' && selectedCampaignType === 'manual'
+                    ? "border-primary bg-primary/10"
+                    : "border-border hover:border-primary/50 bg-muted/30"
               )}
             >
               <div className="flex items-center gap-2 mb-2">
@@ -929,7 +942,7 @@ export default function ComposeEmailModal({
               <p className="text-[10px] text-muted-foreground leading-relaxed">
                 AI assists with writing — you click 'Send'. Send to one or many leads.
               </p>
-              {safeLeads.length > 0 && (
+              {!isUnlimitedPlan && safeLeads.length > 0 && (
                 <Badge className="absolute top-2 right-2 bg-primary/20 text-primary border-primary/30 text-[9px]">
                   {safeLeads.length} leads
                 </Badge>
@@ -939,6 +952,7 @@ export default function ComposeEmailModal({
             {/* Mode 3: AI Autopilot Campaign */}
             <button
               onClick={() => {
+                if (isUnlimitedPlan) return;
                 if (!hasAutopilotSubscription) {
                   setShowPaymentRequired(true);
                   return;
@@ -958,14 +972,16 @@ export default function ComposeEmailModal({
               }}
               className={cn(
                 "p-4 rounded-xl border-2 transition-all text-left relative",
-                composeMode === 'autopilot'
-                  ? "border-amber-500 bg-gradient-to-br from-amber-500/10 to-orange-500/10"
-                  : workflowContext.isFromWorkflow 
-                    ? "border-amber-500/50 bg-amber-500/5 animate-pulse"
-                    : "border-border hover:border-amber-500/50 bg-muted/30"
+                isUnlimitedPlan
+                  ? "border-border bg-muted/20 opacity-50 cursor-not-allowed"
+                  : composeMode === 'autopilot'
+                    ? "border-amber-500 bg-gradient-to-br from-amber-500/10 to-orange-500/10"
+                    : workflowContext.isFromWorkflow 
+                      ? "border-amber-500/50 bg-amber-500/5 animate-pulse"
+                      : "border-border hover:border-amber-500/50 bg-muted/30"
               )}
             >
-              {workflowContext.isFromWorkflow && composeMode !== 'autopilot' && (
+              {!isUnlimitedPlan && workflowContext.isFromWorkflow && composeMode !== 'autopilot' && (
                 <div className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-center">
                   <Crown className="w-3 h-3 text-white" />
                 </div>
@@ -980,7 +996,7 @@ export default function ComposeEmailModal({
               <p className="text-[10px] text-muted-foreground leading-relaxed">
                 AI sends emails, manages follow-ups, responds to customers on your behalf. Full automation.
               </p>
-              {safeLeads.length > 0 && (
+              {!isUnlimitedPlan && safeLeads.length > 0 && (
                 <Badge className="absolute top-2 right-2 bg-amber-500/20 text-amber-400 border-amber-500/30 text-[9px]">
                   {safeLeads.length} leads
                 </Badge>
