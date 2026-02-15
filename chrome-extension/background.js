@@ -1,97 +1,97 @@
 // BamLead Chrome Extension - Background Service Worker
-// Version 1.0.2 - Simplified for better installation compatibility
+// Version 1.4.0 - Compatible with Chrome, Edge, Brave, Opera
 
 // Initialize on install
-chrome.runtime.onInstalled.addListener(async () => {
+chrome.runtime.onInstalled.addListener(function() {
   console.log('BamLead extension installing...');
   
-  // Initialize storage
-  try {
-    await chrome.storage.local.set({
-      leadsCount: 0,
-      todayCount: 0,
-      savedLeads: [],
-      savedEmails: [],
-      lastDate: new Date().toDateString()
-    });
+  chrome.storage.local.set({
+    leadsCount: 0,
+    todayCount: 0,
+    savedLeads: [],
+    savedEmails: [],
+    lastDate: new Date().toDateString()
+  }, function() {
     console.log('Storage initialized');
-  } catch (e) {
-    console.error('Storage init error:', e);
-  }
+  });
 
   console.log('BamLead extension installed successfully!');
 });
 
 // Listen for messages from content script or popup
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
   if (message.type === 'GET_STATS') {
-    chrome.storage.local.get(['leadsCount', 'todayCount'], (data) => {
+    chrome.storage.local.get(['leadsCount', 'todayCount'], function(data) {
       sendResponse(data);
     });
-    return true; // Required for async response
+    return true;
   }
 
   if (message.type === 'SAVE_LEAD') {
-    saveLeadToStorage(message.lead).then(() => {
+    saveLeadToStorage(message.lead).then(function() {
       sendResponse({ success: true });
     });
     return true;
   }
 
   if (message.type === 'ADD_EMAIL') {
-    addEmailToStorage(message.email).then((result) => {
+    addEmailToStorage(message.email).then(function(result) {
       sendResponse(result);
     });
     return true;
   }
 });
 
-async function saveLeadToStorage(lead) {
-  const storage = await chrome.storage.local.get(['savedLeads', 'leadsCount', 'todayCount']);
-  const savedLeads = storage.savedLeads || [];
-  savedLeads.push({
-    ...lead,
-    savedAt: new Date().toISOString()
+function saveLeadToStorage(lead) {
+  return new Promise(function(resolve) {
+    chrome.storage.local.get(['savedLeads', 'leadsCount', 'todayCount'], function(storage) {
+      var savedLeads = storage.savedLeads || [];
+      savedLeads.push(Object.assign({}, lead, { savedAt: new Date().toISOString() }));
+
+      chrome.storage.local.set({
+        savedLeads: savedLeads,
+        leadsCount: (storage.leadsCount || 0) + 1,
+        todayCount: (storage.todayCount || 0) + 1
+      }, function() {
+        chrome.action.setBadgeText({ text: '✓' });
+        chrome.action.setBadgeBackgroundColor({ color: '#22c55e' });
+        
+        setTimeout(function() {
+          chrome.action.setBadgeText({ text: '' });
+        }, 2000);
+
+        resolve({ success: true });
+      });
+    });
   });
-
-  await chrome.storage.local.set({
-    savedLeads,
-    leadsCount: (storage.leadsCount || 0) + 1,
-    todayCount: (storage.todayCount || 0) + 1
-  });
-
-  // Update badge
-  await chrome.action.setBadgeText({ text: '✓' });
-  await chrome.action.setBadgeBackgroundColor({ color: '#22c55e' });
-  
-  setTimeout(async () => {
-    await chrome.action.setBadgeText({ text: '' });
-  }, 2000);
-
-  return { success: true };
 }
 
-async function addEmailToStorage(email) {
-  if (!email || !email.includes('@')) {
-    return { success: false, error: 'Invalid email' };
-  }
+function addEmailToStorage(email) {
+  return new Promise(function(resolve) {
+    if (!email || email.indexOf('@') === -1) {
+      resolve({ success: false, error: 'Invalid email' });
+      return;
+    }
 
-  const storage = await chrome.storage.local.get(['savedEmails']);
-  const savedEmails = storage.savedEmails || [];
-  
-  if (!savedEmails.includes(email.trim())) {
-    savedEmails.push(email.trim());
-    await chrome.storage.local.set({ savedEmails });
-    
-    await chrome.action.setBadgeText({ text: '+1' });
-    await chrome.action.setBadgeBackgroundColor({ color: '#14b8a6' });
-    
-    setTimeout(async () => {
-      await chrome.action.setBadgeText({ text: '' });
-    }, 2000);
+    chrome.storage.local.get(['savedEmails'], function(storage) {
+      var savedEmails = storage.savedEmails || [];
+      var trimmed = email.trim();
+      
+      if (savedEmails.indexOf(trimmed) === -1) {
+        savedEmails.push(trimmed);
+        chrome.storage.local.set({ savedEmails: savedEmails }, function() {
+          chrome.action.setBadgeText({ text: '+1' });
+          chrome.action.setBadgeBackgroundColor({ color: '#14b8a6' });
+          
+          setTimeout(function() {
+            chrome.action.setBadgeText({ text: '' });
+          }, 2000);
 
-    return { success: true, email: email.trim() };
-  }
-
-  return { success: false, error: 'Email already saved' };
+          resolve({ success: true, email: trimmed });
+        });
+      } else {
+        resolve({ success: false, error: 'Email already saved' });
+      }
+    });
+  });
 }
