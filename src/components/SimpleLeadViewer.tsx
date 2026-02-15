@@ -75,6 +75,8 @@ interface SearchResult {
     hasPhone?: boolean;
     hasSocials?: boolean;
     scrapedAt?: string;
+    isCatchAll?: boolean;
+    sources?: string[];
   };
   enrichmentStatus?: 'pending' | 'processing' | 'completed' | 'failed';
 }
@@ -1303,7 +1305,25 @@ export default function SimpleLeadViewer({
                         </TableCell>
                         <TableCell>
                           {getPrimaryEmail(lead) ? (
-                            <span className="text-sm">{getPrimaryEmail(lead)}</span>
+                            <div className="flex items-center gap-1">
+                              <span className="text-sm truncate max-w-[160px]">{getPrimaryEmail(lead)}</span>
+                              {lead.enrichment?.isCatchAll && (
+                                <span 
+                                  className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-semibold bg-amber-500/20 text-amber-400 shrink-0"
+                                  title="Catch-all domain — this server accepts all email addresses. Email may not reach a real person."
+                                >
+                                  ⚠️ catch-all
+                                </span>
+                              )}
+                              {lead.enrichment?.sources?.some(s => s.includes('Email Pattern Engine')) && !lead.enrichment?.isCatchAll && (
+                                <span 
+                                  className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-semibold bg-emerald-500/20 text-emerald-400 shrink-0"
+                                  title="Email discovered by BamLead's Pattern Engine and SMTP-verified"
+                                >
+                                  ✓ verified
+                                </span>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
                           )}

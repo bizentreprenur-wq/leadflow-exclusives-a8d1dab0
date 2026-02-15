@@ -122,6 +122,8 @@ interface SearchResult {
     hasPhone?: boolean;
     hasSocials?: boolean;
     scrapedAt?: string;
+    isCatchAll?: boolean;
+    sources?: string[];
   };
   enrichmentStatus?: 'pending' | 'processing' | 'completed' | 'failed';
   // Social profiles
@@ -652,9 +654,12 @@ export default function Dashboard() {
 
             // Update enrichment data
             if (result.emails.length > 0 || result.phones.length > 0) {
+              const isCatchAll = result.intelligence?.pattern_engine?.is_catch_all || false;
               updates.enrichment = {
                 ...(item.enrichment || {}),
                 emails: Array.from(new Set([...(item.enrichment?.emails || []), ...result.emails])),
+                isCatchAll,
+                sources: result.sources,
               };
               updates.enrichmentStatus = 'completed' as const;
             }

@@ -90,6 +90,8 @@ export interface GMBResult {
     hasPhone?: boolean;
     hasSocials?: boolean;
     scrapedAt?: string;
+    isCatchAll?: boolean;
+    sources?: string[];
   };
   enrichmentStatus?: 'pending' | 'processing' | 'completed' | 'failed';
 }
