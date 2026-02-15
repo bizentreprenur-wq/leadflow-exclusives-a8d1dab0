@@ -120,6 +120,27 @@ const TOUR_STEPS: TourStep[] = [
     description: "Now let me show you something truly special, the email outreach system. You get access to over 60 professionally designed, high-converting email templates across industries like Web Design, Local Services, Insurance, Medical, Education, and B2B. Our AI personalizes content for each lead automatically. You can schedule sends at optimal times, track opens and replies in real time, and manage entire campaigns from one dashboard."
   },
   {
+    id: "sms-outreach",
+    page: "/",
+    element: "[data-tour='revolutionary']",
+    title: "SMS & Multi-Channel Outreach",
+    description: "BamLead isn't just email and calls, we do SMS too. Send personalized text messages to your leads, manage conversations in a dedicated SMS panel, and combine SMS with email and calls for true multi-channel outreach. The system tracks delivery, replies, and lets you respond directly. Reach your leads on the channel they prefer!"
+  },
+  {
+    id: "crm-integrations",
+    page: "/",
+    element: "[data-tour='revolutionary']",
+    title: "CRM & Calendar Integrations",
+    description: "BamLead connects to the tools you already use. Export leads directly to your CRM, sync with Google Calendar for follow-up reminders, connect Google Drive to store reports and documents, and integrate with popular CRM platforms like HubSpot, Salesforce, and Pipedrive. You can also export your lead data to spreadsheets with our built-in export tools. Everything stays connected and organized."
+  },
+  {
+    id: "chrome-extension",
+    page: "/",
+    element: "[data-tour='revolutionary']",
+    title: "Chrome Extension",
+    description: "Take BamLead with you wherever you browse. Our Chrome Extension lets you scan any website for lead information, pull contact details, and add prospects to your pipeline without ever leaving the page. It's like having BamLead's power built right into your browser, my friend."
+  },
+  {
     id: "mailbox-demo",
     page: "/mailbox-demo",
     title: "Mailbox & AI Autopilot Demo",
@@ -147,7 +168,7 @@ const TOUR_STEPS: TourStep[] = [
     id: "finish",
     page: "/",
     title: "You're All Set! 🚀",
-    description: "Well, that concludes our tour! You've seen the AI Autopilot campaigns, the 4-step Intelligence Pipeline, Super AI reports with 12 categories, the Synonym Expansion engine, AI Voice Calling, secret AI agents, the ROI Calculator, 60 plus email templates, the Mailbox with the AI Strategy Brain, CloseLoop for closing deals, and our flexible pricing. Remember, you can start with a free plan to test everything. Best of luck with your lead hunting, my friend! I'll be right here if you need me."
+    description: "Well, that concludes our tour! You've seen the AI Autopilot campaigns, the 4-step Intelligence Pipeline, Super AI reports with 12 categories, the Synonym Expansion engine, AI Voice Calling, SMS outreach, CRM integrations, the Chrome Extension, secret AI agents, the ROI Calculator, 60 plus email templates, the Mailbox with the AI Strategy Brain, CloseLoop for closing deals, and our flexible pricing. Remember, you can start with a free plan to test everything. Best of luck with your lead hunting, my friend! I'll be right here if you need me."
   }
 ];
 
