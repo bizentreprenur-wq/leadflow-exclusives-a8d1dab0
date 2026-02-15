@@ -591,7 +591,7 @@ const Pricing = () => {
                   <p className="text-muted-foreground">How AI calling works at each level</p>
                 </div>
                 
-                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-4">
                   {/* Free - No AI Calling */}
                   <div className="p-5 rounded-2xl border border-border bg-card/50">
                     <div className="flex items-center gap-3 mb-3">
@@ -687,6 +687,38 @@ const Pricing = () => {
                       <div className="flex items-center gap-2 text-foreground">
                         <Check className="w-3.5 h-3.5 text-amber-500" />
                         <span>Lead qualification + tagging</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Unlimited - Fully Managed */}
+                  <div className="p-5 rounded-2xl border-2 border-red-500/50 bg-red-500/5">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 rounded-lg bg-red-500/20">
+                        <Phone className="w-5 h-5 text-red-500" />
+                      </div>
+                      <span className="font-semibold text-foreground">Unlimited</span>
+                      <Badge className="bg-red-500/10 text-red-500 border-red-500/30 text-[8px]">$999/mo</Badge>
+                    </div>
+                    <div className="text-sm text-muted-foreground mb-3">
+                      Unlimited calling with dedicated agent setup and management.
+                    </div>
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex items-center gap-2 text-foreground">
+                        <Check className="w-3.5 h-3.5 text-red-500" />
+                        <span>Everything in Autopilot</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-foreground">
+                        <Check className="w-3.5 h-3.5 text-red-500" />
+                        <span>Unlimited call volume</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-foreground">
+                        <Check className="w-3.5 h-3.5 text-red-500" />
+                        <span>Dedicated AI Sales Brain</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-foreground">
+                        <Check className="w-3.5 h-3.5 text-red-500" />
+                        <span>Managed campaign buildout</span>
                       </div>
                     </div>
                   </div>
