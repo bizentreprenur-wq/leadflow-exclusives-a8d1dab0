@@ -115,7 +115,7 @@ function handleCheckoutCompleted($session) {
 }
 
 /**
- * Record one-time credit checkout payments in payment history.
+ * Record one-time credit checkout payments and add credits to user account.
  */
 function recordCreditCheckoutPayment($session, $userId) {
     $paymentIntentId = $session->payment_intent ?? null;
@@ -154,6 +154,15 @@ function recordCreditCheckoutPayment($session, $userId) {
             $description,
         ]
     );
+
+    // Add purchased credits to the user's balance
+    if ($credits > 0) {
+        $db->update(
+            "UPDATE users SET credits_remaining = COALESCE(credits_remaining, 0) + ? WHERE id = ?",
+            [$credits, $userId]
+        );
+        error_log("Added $credits credits to user $userId (package: $packageId)");
+    }
 }
 
 /**

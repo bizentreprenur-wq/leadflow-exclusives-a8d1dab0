@@ -43,15 +43,25 @@ export function useCredits() {
   const isUnlimited = tier === 'unlimited';
 
   const consumeCredit = (amount: number = 1) => {
-    if (isUnlimited) return;
+    if (isUnlimited) return true;
+    if (credits < amount) return false; // Not enough credits
     setCredits(prev => {
       const next = Math.max(0, prev - amount);
       localStorage.setItem(CREDITS_STORAGE_KEY, String(next));
       return next;
     });
+    return true;
   };
 
-  return { credits, isLow, isOut, isUnlimited, consumeCredit, setCredits };
+  const addCredits = (amount: number) => {
+    setCredits(prev => {
+      const next = prev + amount;
+      localStorage.setItem(CREDITS_STORAGE_KEY, String(next));
+      return next;
+    });
+  };
+
+  return { credits, isLow, isOut, isUnlimited, consumeCredit, addCredits, setCredits };
 }
 
 export default function CreditCounter({ className = '', compact = false }: CreditCounterProps) {
