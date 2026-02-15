@@ -1,5 +1,5 @@
 // BamLead Chrome Extension - Popup Script
-// Version 1.2.0 - All services in-browser, CSV/PDF export, no external API calls
+// Version 1.3.0 - All services in-browser, bulk import, CSV/PDF export, no external API calls
 
 document.addEventListener('DOMContentLoaded', async () => {
   try {
@@ -44,6 +44,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (leadsSearchInput) leadsSearchInput.addEventListener('input', () => renderLeadsViewer());
     if (prevPageBtn) prevPageBtn.addEventListener('click', () => { _leadsPage--; renderLeadsViewer(); });
     if (nextPageBtn) nextPageBtn.addEventListener('click', () => { _leadsPage++; renderLeadsViewer(); });
+
+    // Bulk import
+    const bulkUrlsInput = document.getElementById('bulkUrlsInput');
+    const bulkExtractBtn = document.getElementById('bulkExtractBtn');
+    if (bulkUrlsInput) bulkUrlsInput.addEventListener('input', updateBulkCount);
+    if (bulkExtractBtn) bulkExtractBtn.addEventListener('click', bulkExtract);
 
     // Disable on chrome:// pages
     if (tab && tab.url && (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:'))) {
@@ -754,4 +760,136 @@ function downloadFile(content, filename, mimeType) {
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// ─── Bulk Import ─────────────────────────────────────────
+
+function updateBulkCount() {
+  const input = document.getElementById('bulkUrlsInput');
+  const countEl = document.getElementById('bulkCount');
+  const urls = parseUrls(input.value);
+  countEl.textContent = `${urls.length} URL${urls.length !== 1 ? 's' : ''}`;
+}
+
+function parseUrls(text) {
+  return text.split(/[\n,]+/)
+    .map(u => u.trim())
+    .filter(u => u.length > 3)
+    .map(u => {
+      if (!u.startsWith('http://') && !u.startsWith('https://')) return 'https://' + u;
+      return u;
+    })
+    .filter(u => {
+      try { new URL(u); return true; } catch { return false; }
+    });
+}
+
+async function bulkExtract() {
+  const input = document.getElementById('bulkUrlsInput');
+  const btn = document.getElementById('bulkExtractBtn');
+  const progressContainer = document.getElementById('bulkProgress');
+  const progressFill = document.getElementById('bulkProgressFill');
+  const progressText = document.getElementById('bulkProgressText');
+  const resultsDiv = document.getElementById('bulkResults');
+
+  const urls = parseUrls(input.value);
+  if (urls.length === 0) { showToast('Paste at least one URL'); return; }
+  if (urls.length > 50) { showToast('Max 50 URLs at a time'); return; }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="btn-icon">⏳</span> Extracting...';
+  progressContainer.style.display = 'flex';
+  resultsDiv.style.display = 'block';
+  resultsDiv.innerHTML = '';
+
+  let completed = 0;
+  let successCount = 0;
+  let failCount = 0;
+
+  for (const url of urls) {
+    completed++;
+    const pct = Math.round((completed / urls.length) * 100);
+    progressFill.style.width = pct + '%';
+    progressText.textContent = `${completed}/${urls.length}`;
+
+    try {
+      // Open tab in background, wait for load, scrape, then close
+      const tab = await chrome.tabs.create({ url, active: false });
+      await waitForTabLoad(tab.id, 15000);
+
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: _scrapeContacts
+      });
+
+      const data = results[0].result;
+      await chrome.tabs.remove(tab.id);
+
+      // Auto-save as lead
+      const lead = {
+        url,
+        title: data.pageTitle || url,
+        companyName: data.companyName,
+        emails: data.emails,
+        phones: data.phones,
+        socialLinks: data.socialLinks,
+        address: data.address,
+        website: data.website,
+        savedAt: new Date().toISOString(),
+        source: 'bulk-import'
+      };
+
+      const storage = await chrome.storage.local.get(['savedLeads', 'leadsCount', 'todayCount']);
+      const savedLeads = storage.savedLeads || [];
+      savedLeads.push(lead);
+      const newCount = (storage.leadsCount || 0) + 1;
+      const newToday = (storage.todayCount || 0) + 1;
+      await chrome.storage.local.set({ savedLeads, leadsCount: newCount, todayCount: newToday, lastDate: new Date().toDateString() });
+
+      const emailCount = (data.emails || []).length;
+      const phoneCount = (data.phones || []).length;
+      addBulkResult(resultsDiv, '✅', data.companyName || new URL(url).hostname, `${emailCount} emails, ${phoneCount} phones`);
+      successCount++;
+    } catch (err) {
+      console.error('Bulk extract error for', url, err);
+      try { /* try to get hostname for display */ 
+        addBulkResult(resultsDiv, '❌', new URL(url).hostname, 'Failed');
+      } catch { addBulkResult(resultsDiv, '❌', url.substring(0, 30), 'Failed'); }
+      failCount++;
+    }
+  }
+
+  // Refresh stats & viewer
+  await loadStats();
+  await renderLeadsViewer();
+
+  btn.disabled = false;
+  btn.innerHTML = '<span class="btn-icon">⚡</span> Bulk Extract';
+  showToast(`Done! ${successCount} extracted, ${failCount} failed`);
+}
+
+function waitForTabLoad(tabId, timeout) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      chrome.tabs.onUpdated.removeListener(listener);
+      resolve(); // resolve anyway, try to scrape whatever loaded
+    }, timeout);
+
+    function listener(id, info) {
+      if (id === tabId && info.status === 'complete') {
+        clearTimeout(timer);
+        chrome.tabs.onUpdated.removeListener(listener);
+        setTimeout(resolve, 500); // small grace period
+      }
+    }
+    chrome.tabs.onUpdated.addListener(listener);
+  });
+}
+
+function addBulkResult(container, icon, name, detail) {
+  const row = document.createElement('div');
+  row.className = 'bulk-result-row';
+  row.innerHTML = `<span>${icon}</span><span class="bulk-result-name">${esc(name)}</span><span class="bulk-result-detail">${esc(detail)}</span>`;
+  container.appendChild(row);
+  container.scrollTop = container.scrollHeight;
 }

@@ -51,6 +51,25 @@
         </div>
       </section>
 
+      <!-- Bulk Import -->
+      <section class="section">
+        <h3 class="section-title">Bulk Import</h3>
+        <div class="bulk-import-area">
+          <textarea id="bulkUrlsInput" class="bulk-textarea" placeholder="Paste URLs here (one per line)&#10;https://example.com&#10;https://another-site.com" rows="4"></textarea>
+          <div class="bulk-controls">
+            <span class="bulk-count" id="bulkCount">0 URLs</span>
+            <button class="action-btn primary" id="bulkExtractBtn">
+              <span class="btn-icon">⚡</span>
+              Bulk Extract
+            </button>
+          </div>
+          <div class="bulk-progress" id="bulkProgress" style="display:none;">
+            <div class="bulk-progress-bar"><div class="bulk-progress-fill" id="bulkProgressFill"></div></div>
+            <span class="bulk-progress-text" id="bulkProgressText">0/0</span>
+          </div>
+          <div class="bulk-results" id="bulkResults" style="display:none;"></div>
+        </div>
+
       <!-- Extracted Data -->
       <section class="section" id="dataSection" style="display: none;">
         <h3 class="section-title">Extracted Data</h3>
