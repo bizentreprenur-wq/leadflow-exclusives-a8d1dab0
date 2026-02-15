@@ -9,7 +9,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import SupportWidget from "@/components/SupportWidget";
 import AITourGuide from "@/components/AITourGuide";
-import LowCreditsBanner from "@/components/LowCreditsBanner";
+
 import SplashScreen from "@/components/SplashScreen";
 import Index from "./pages/Index";
 import Pricing from "./pages/Pricing";
@@ -148,7 +148,7 @@ function AppInner() {
         <Route path="*" element={<NotFound />} />
       </Routes>
 
-      <LowCreditsBanner />
+      
       <SupportWidget />
       <AITourGuide />
     </>
