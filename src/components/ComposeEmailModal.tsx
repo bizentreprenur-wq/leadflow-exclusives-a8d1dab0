@@ -874,7 +874,7 @@ export default function ComposeEmailModal({
               window.dispatchEvent(new CustomEvent('bamlead-navigate', { detail: { target: 'smtp-setup' } }));
             }}
           />
-          <div className={`grid gap-3 ${isUnlimitedPlan ? 'grid-cols-4' : 'grid-cols-3'}`}>
+          <div className="grid gap-3 grid-cols-4">
             {/* Mode 1: Basic Single Email */}
             <button
               onClick={() => setComposeMode('regular')}
@@ -987,27 +987,44 @@ export default function ComposeEmailModal({
               )}
             </button>
 
-            {/* Mode 4: Unlimited Mode - inline next to AI Autopilot */}
-            {isUnlimitedPlan && (
-              <button
-                onClick={() => {
-                  setComposeMode('autopilot');
-                }}
-                className={cn(
-                  "p-4 rounded-xl border-2 transition-all text-left",
-                  "border-red-500 bg-gradient-to-br from-red-500/10 to-red-900/10"
-                )}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <Shield className="w-5 h-5 text-red-500" />
-                  <span className="font-semibold text-foreground text-sm">Unlimited Mode</span>
-                  <Badge className="text-[8px] px-1.5 bg-red-500 text-white border-0">$999/mo</Badge>
-                </div>
-                <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  All features unlocked. No credit limits. A dedicated agent guides your setup.
-                </p>
-              </button>
-            )}
+            {/* Mode 4: Unlimited Mode - always visible */}
+            <button
+              onClick={() => {
+                if (!isUnlimitedPlan) {
+                  toast.info('Upgrade to Unlimited ($999/mo) for full managed services, no credit limits, and a dedicated AI agent.', {
+                    action: {
+                      label: 'View Plans',
+                      onClick: () => {
+                        onClose();
+                        window.location.href = '/pricing';
+                      },
+                    },
+                  });
+                  return;
+                }
+                setComposeMode('autopilot');
+              }}
+              className={cn(
+                "p-4 rounded-xl border-2 transition-all text-left relative",
+                isUnlimitedPlan
+                  ? "border-red-500 bg-gradient-to-br from-red-500/10 to-red-900/10"
+                  : "border-red-500/30 bg-muted/20 opacity-70 hover:opacity-90"
+              )}
+            >
+              {!isUnlimitedPlan && (
+                <Badge className="absolute top-2 right-2 bg-red-500/20 text-red-400 border-red-500/30 text-[8px]">
+                  Upgrade
+                </Badge>
+              )}
+              <div className="flex items-center gap-2 mb-2">
+                <Shield className="w-5 h-5 text-red-500" />
+                <span className="font-semibold text-foreground text-sm">Unlimited Mode</span>
+                <Badge className="text-[8px] px-1.5 bg-red-500 text-white border-0">$999/mo</Badge>
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                All features unlocked. No credit limits. A dedicated agent guides your setup.
+              </p>
+            </button>
           </div>
         </div>
 

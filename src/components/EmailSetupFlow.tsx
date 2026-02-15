@@ -1024,16 +1024,24 @@ export default function EmailSetupFlow({
                                 <Rocket className="w-4 h-4" />
                                 AI Autopilot Campaign
                               </Button>
-                              {planFeatures.isUnlimited && (
-                                <Button 
-                                  onClick={() => setShowAutoCampaign(true)} 
-                                  className="gap-2 bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-white border border-red-500/30 shadow-lg shadow-red-500/20"
-                                >
-                                  <Crown className="w-4 h-4" />
-                                  Unlimited Mode
-                                  <Badge className="text-[8px] px-1.5 bg-white/20 text-white border-0 ml-1">$999/mo</Badge>
-                                </Button>
-                              )}
+                              <Button 
+                                onClick={() => {
+                                  if (!planFeatures.isUnlimited) {
+                                    toast.info('Upgrade to Unlimited ($999/mo) for full managed services and no credit limits.');
+                                    return;
+                                  }
+                                  setShowAutoCampaign(true);
+                                }} 
+                                className={`gap-2 text-white border border-red-500/30 shadow-lg shadow-red-500/20 ${
+                                  planFeatures.isUnlimited 
+                                    ? "bg-gradient-to-r from-red-600 to-red-800 hover:from-red-700 hover:to-red-900" 
+                                    : "bg-gradient-to-r from-red-600/50 to-red-800/50 hover:from-red-600/70 hover:to-red-800/70 opacity-80"
+                                }`}
+                              >
+                                <Crown className="w-4 h-4" />
+                                Unlimited Mode
+                                <Badge className="text-[8px] px-1.5 bg-white/20 text-white border-0 ml-1">$999/mo</Badge>
+                              </Button>
                             </div>
                           }
                         />
