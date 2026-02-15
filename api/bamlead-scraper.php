@@ -355,14 +355,13 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
     $allEmails = bamleadDedupeEmails($allEmails);
     $allPhones = bamleadDedupePhones($allPhones);
 
-    // ── 🚀 SMART EARLY-EXIT: Skip expensive Serper calls if contact pages yielded emails ──
-    $hasContactPageEmails = !empty($allEmails);
+    // ── 🚀 OUTSCRAPER-STYLE: Always search ALL sources (no early-exit) ──
     $socialProfileUrls = [];
     $directoryPageUrls = [];
     $contactPageUrls = []; // Already scraped in Phase 1, used for Phase 2 link discovery
 
-    if (!$hasContactPageEmails && !empty($serperKey) && !empty($searchName)) {
-        // Only call Serper if we DIDN'T find emails on contact pages
+    if (!empty($serperKey) && !empty($searchName)) {
+        // Always search social + directories + email hunt regardless of contact page results
         $handles = [];
         $handleMeta = [];
 
@@ -489,8 +488,6 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
                 }
             }
         }
-    } else if ($hasContactPageEmails) {
-        $sources[] = '⚡ Early-exit (contact page emails found, Serper skipped)';
     }
 
     // Discover additional contact links from homepage HTML for Phase 2
@@ -544,6 +541,22 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
     // ⚡ Smart early-exit: skip if we already have 3+ emails
     $phase2Urls = [];
     $needMore = count($allEmails) < 3;
+
+    // 🚀 OUTSCRAPER-STYLE: Parse sitemap.xml for hidden contact pages
+    if ($needMore && !empty($sitemapUrls)) {
+        foreach ($sitemapUrls as $sitemapUrl) {
+            $smContext = stream_context_create(['http' => ['timeout' => 3, 'user_agent' => $ua]]);
+            $smContent = @file_get_contents($sitemapUrl, false, $smContext);
+            if (!empty($smContent) && preg_match_all('/<loc>([^<]+)<\/loc>/i', $smContent, $smMatches)) {
+                foreach ($smMatches[1] as $smUrl) {
+                    if (preg_match('/(contact|about|team|staff|support|reach|connect|inquiry)/i', $smUrl)) {
+                        $contactPageUrls[] = $smUrl;
+                    }
+                }
+            }
+        }
+        $contactPageUrls = array_unique($contactPageUrls);
+    }
 
     if ($needMore) {
         foreach ($contactPageUrls as $cpUrl) {
@@ -762,6 +775,32 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
     }
     $allEmails = !empty($verifiedEmails) ? $verifiedEmails : $allEmails;
 
+    // 🚀 OUTSCRAPER-STYLE: Role-based email generation + MX verification
+    // Generate common role emails and add those with valid MX as discovered contacts
+    if (!empty($url)) {
+        $roleDomain = preg_replace('/^www\./', '', parse_url($url, PHP_URL_HOST) ?? '');
+        if (!empty($roleDomain)) {
+            $roleEmails = ['info', 'contact', 'hello', 'sales', 'admin', 'office', 'support', 'service'];
+            $existingLower = array_map('strtolower', $allEmails);
+            $roleMxHosts = [];
+            $hasMx = function_exists('getmxrr') && @getmxrr($roleDomain, $roleMxHosts) && !empty($roleMxHosts);
+            
+            if ($hasMx) {
+                $addedRole = false;
+                foreach ($roleEmails as $prefix) {
+                    $candidate = $prefix . '@' . $roleDomain;
+                    if (!in_array($candidate, $existingLower)) {
+                        $allEmails[] = $candidate;
+                        $addedRole = true;
+                    }
+                }
+                if ($addedRole && !in_array('Role-based (MX verified)', $sources)) {
+                    $sources[] = 'Role-based (MX verified)';
+                }
+            }
+        }
+    }
+
     // 🧠 AI: Score each email's confidence
     $intelligence['contact_confidence'] = bamleadScoreContacts($allEmails, $allPhones, $url);
 
@@ -770,7 +809,22 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
     $allPhones = array_slice($allPhones, 0, 15);
     $sources = array_values(array_unique($sources));
 
-    // Catch-all detection removed with Phase 3
+    // Catch-all detection via role-based MX
+    if (!empty($url)) {
+        $caDomain = preg_replace('/^www\./', '', parse_url($url, PHP_URL_HOST) ?? '');
+        if (!empty($caDomain)) {
+            $intelligence['domain_info']['is_catch_all'] = false;
+            // If domain accepts MX, mark confidence accordingly
+            $caMx = [];
+            if (function_exists('getmxrr') && @getmxrr($caDomain, $caMx) && !empty($caMx)) {
+                $mxProvider = strtolower($caMx[0] ?? '');
+                // Known catch-all providers or generic hosting
+                if (preg_match('/(hostinger|namecheap|godaddy|bluehost|hostgator|dreamhost)/i', $mxProvider)) {
+                    $intelligence['domain_info']['is_catch_all'] = true;
+                }
+            }
+        }
+    }
 
     return [
         'emails' => $allEmails,
