@@ -1375,22 +1375,17 @@ function extractEmailFromText($text) {
 function inlineExtractEmail($url) {
     if (empty($url)) return null;
 
-    // ⚡ NO CAP: Extract emails for ALL leads, not just first 150
-    // Use parallel curl_multi for speed so we don't block the SSE stream
-    
     // Normalize URL
     if (!preg_match('/^https?:\/\//', $url)) {
         $url = 'https://' . $url;
     }
     
     // Check cache first (instant)
-    $cacheKey = "scrape_contacts_" . md5($url);
+    $cacheKey = "scrape_contacts_v2_" . md5($url);
     $cached = getCache($cacheKey);
     if ($cached !== null && !empty($cached['emails'])) {
         return $cached['emails'][0] ?? null;
     }
-    
-    // Also check Firecrawl cache
     $fcCacheKey = "firecrawl_" . md5($url . 'gmb');
     $fcCached = getCache($fcCacheKey);
     if ($fcCached !== null && !empty($fcCached['emails'])) {
@@ -1406,8 +1401,17 @@ function inlineExtractEmail($url) {
         $baseUrl = "{$scheme}://{$host}";
         $domain = preg_replace('/^www\./', '', $host);
         
-        // ⚡ PARALLEL: Fetch homepage + multiple contact paths simultaneously
+        // Skip platform/directory URLs — they won't have the business's own email
+        $platformHosts = ['facebook.com','yelp.com','yellowpages.com','bbb.org','linkedin.com',
+            'instagram.com','twitter.com','x.com','tiktok.com','nextdoor.com','angi.com',
+            'thumbtack.com','homeadvisor.com','manta.com','mapquest.com','google.com'];
+        foreach ($platformHosts as $ph) {
+            if (stripos($host, $ph) !== false) return null;
+        }
+        
+        // ⚡ PHASE 1: Parallel fetch homepage + ALL common contact paths
         $mh = curl_multi_init();
+        curl_multi_setopt($mh, CURLMOPT_PIPELINING, CURLPIPE_MULTIPLEX);
         $handles = [];
         $ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
         
@@ -1415,19 +1419,24 @@ function inlineExtractEmail($url) {
             'homepage' => $baseUrl,
             'contact' => $baseUrl . '/contact',
             'contact-us' => $baseUrl . '/contact-us',
+            'contactus' => $baseUrl . '/contactus',
             'about' => $baseUrl . '/about',
             'about-us' => $baseUrl . '/about-us',
+            'get-in-touch' => $baseUrl . '/get-in-touch',
+            'team' => $baseUrl . '/team',
+            'our-team' => $baseUrl . '/our-team',
+            'staff' => $baseUrl . '/staff',
         ];
         
         foreach ($pagesToFetch as $key => $pageUrl) {
             $ch = curl_init($pageUrl);
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT => 3,
+                CURLOPT_TIMEOUT => 4,
                 CURLOPT_CONNECTTIMEOUT => 2,
                 CURLOPT_SSL_VERIFYPEER => false,
                 CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_MAXREDIRS => 2,
+                CURLOPT_MAXREDIRS => 3,
                 CURLOPT_USERAGENT => $ua,
                 CURLOPT_ENCODING => 'gzip, deflate',
                 CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_2_0,
@@ -1452,11 +1461,18 @@ function inlineExtractEmail($url) {
             curl_close($ch);
             
             if ($httpCode === 200 && !empty($response)) {
+                // Standard extraction
                 $pageEmails = extractEmails($response);
-                if (!empty($pageEmails)) {
-                    $allEmails = array_merge($allEmails, $pageEmails);
-                }
-                // Also extract obfuscated emails (info [at] domain [dot] com)
+                $allEmails = array_merge($allEmails, $pageEmails);
+                
+                // 🧠 DEEP: Extract emails from JavaScript data blobs
+                // Wix stores data in: window.__SITE_DATA__ or window.warmupData
+                // Squarespace uses: Static.SQUARESPACE_CONTEXT
+                // WordPress/generic: JSON objects in <script> tags
+                $jsEmails = extractEmailsFromJSBlobs($response, $domain);
+                $allEmails = array_merge($allEmails, $jsEmails);
+                
+                // Extract obfuscated emails
                 if (function_exists('bamleadExtractObfuscatedEmails')) {
                     $obfuscated = bamleadExtractObfuscatedEmails($response);
                     if (!empty($obfuscated)) {
@@ -1467,51 +1483,187 @@ function inlineExtractEmail($url) {
         }
         curl_multi_close($mh);
         
-        // Dedupe
-        $allEmails = array_values(array_unique(array_filter($allEmails)));
-        
-        // Filter out junk emails (images, css files, generic)
-        $allEmails = array_filter($allEmails, function($email) {
-            $email = strtolower($email);
-            // Filter out non-email artifacts
-            if (preg_match('/\.(png|jpg|jpeg|gif|svg|css|js|woff|ttf)$/i', $email)) return false;
-            if (strpos($email, 'example.com') !== false) return false;
-            if (strpos($email, 'sentry.io') !== false) return false;
-            if (strpos($email, 'wordpress') !== false) return false;
-            if (strpos($email, 'wixpress') !== false) return false;
-            if (strpos($email, 'schema.org') !== false) return false;
-            if (strpos($email, 'w3.org') !== false) return false;
-            return true;
-        });
-        $allEmails = array_values($allEmails);
+        // Dedupe and filter
+        $allEmails = filterBusinessEmails($allEmails, $domain);
         
         if (!empty($allEmails)) {
             setCache($cacheKey, ['emails' => $allEmails, 'phones' => [], 'hasWebsite' => true], 86400);
             return $allEmails[0];
         }
         
-        // 🧠 ROLE-BASED EMAIL PREDICTION: Generate common aliases + MX validate
+        // 🧠 PHASE 2: Role-based email prediction with MX validation
         $roleEmails = inlinePredictRoleEmails($domain);
         if (!empty($roleEmails)) {
             setCache($cacheKey, ['emails' => $roleEmails, 'phones' => [], 'hasWebsite' => true, 'predicted' => true], 86400);
             return $roleEmails[0];
         }
         
+        // Negative cache (5 min) so we don't re-scrape misses too fast
+        setCache($cacheKey, ['emails' => [], 'phones' => [], 'hasWebsite' => true], 300);
+        
     } catch (Exception $e) {
-        // Silently fail — email extraction is best-effort
+        // Silently fail
     }
     
     return null;
 }
 
 /**
+ * 🧠 Extract emails hidden inside JavaScript data blobs, JSON-LD, and inline scripts
+ * Catches Wix, Squarespace, WordPress, and other JS-rendered contact data
+ */
+function extractEmailsFromJSBlobs($html, $domain = '') {
+    $emails = [];
+    
+    // 1. Extract all <script> tag contents and search for email patterns
+    if (preg_match_all('/<script[^>]*>(.*?)<\/script>/si', $html, $scriptMatches)) {
+        foreach ($scriptMatches[1] as $script) {
+            if (empty($script) || strlen($script) < 10) continue;
+            
+            // Look for email patterns in JSON strings: "email":"foo@bar.com"
+            if (preg_match_all('/"(?:email|mail|e-mail|contact_email|emailAddress|contactEmail|business_email|owner_email|reply_to|replyTo)":\s*"([^"]+@[^"]+\.[a-z]{2,})"/i', $script, $jsonEmails)) {
+                $emails = array_merge($emails, $jsonEmails[1]);
+            }
+            
+            // Generic email pattern in script blocks
+            if (preg_match_all('/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/', $script, $rawEmails)) {
+                // Only keep emails matching the business domain or common providers
+                foreach ($rawEmails[0] as $e) {
+                    $eLower = strtolower($e);
+                    // Keep if it matches business domain
+                    if (!empty($domain) && strpos($eLower, '@' . $domain) !== false) {
+                        $emails[] = $e;
+                    }
+                    // Keep if it's a common business email provider
+                    if (preg_match('/@(gmail|yahoo|hotmail|outlook|aol|icloud|protonmail|zoho|yandex|mail)\./i', $e)) {
+                        $emails[] = $e;
+                    }
+                }
+            }
+            
+            // Wix-specific: decode base64 or unicode-escaped emails
+            if (preg_match_all('/\\\\u([0-9a-fA-F]{4})/', $script, $unicodeMatches, PREG_SET_ORDER)) {
+                $decoded = $script;
+                foreach ($unicodeMatches as $um) {
+                    $decoded = str_replace($um[0], mb_chr(hexdec($um[1]), 'UTF-8'), $decoded);
+                }
+                if (preg_match_all('/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/', $decoded, $decodedEmails)) {
+                    $emails = array_merge($emails, $decodedEmails[0]);
+                }
+            }
+        }
+    }
+    
+    // 2. JSON-LD structured data (often has email even when page doesn't show it visually)
+    if (preg_match_all('/<script[^>]*type=["\']application\/ld\+json["\'][^>]*>(.*?)<\/script>/si', $html, $ldMatches)) {
+        foreach ($ldMatches[1] as $ld) {
+            $data = @json_decode($ld, true);
+            if (!$data) continue;
+            $ldEmails = extractEmailsFromArray($data);
+            $emails = array_merge($emails, $ldEmails);
+        }
+    }
+    
+    // 3. HTML data attributes (data-email, data-contact, etc.)
+    if (preg_match_all('/data-(?:email|contact|mail|address)=["\']([^"\']+@[^"\']+\.[a-z]{2,})/i', $html, $dataAttrEmails)) {
+        $emails = array_merge($emails, $dataAttrEmails[1]);
+    }
+    
+    // 4. href="mailto:" that might be URL-encoded or inside onclick handlers
+    if (preg_match_all('/(?:href|onclick|action)=["\'][^"\']*mailto:([^"\'&\s?]+)/i', $html, $mailtoDeep)) {
+        foreach ($mailtoDeep[1] as $m) {
+            $decoded = urldecode($m);
+            if (filter_var($decoded, FILTER_VALIDATE_EMAIL)) {
+                $emails[] = $decoded;
+            }
+        }
+    }
+    
+    // 5. aria-label or title attributes with emails
+    if (preg_match_all('/(?:aria-label|title|alt)=["\'][^"\']*?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i', $html, $ariaEmails)) {
+        $emails = array_merge($emails, $ariaEmails[1]);
+    }
+    
+    return $emails;
+}
+
+/**
+ * Recursively extract emails from a nested array (for JSON-LD parsing)
+ */
+function extractEmailsFromArray($data) {
+    $emails = [];
+    if (!is_array($data)) return $emails;
+    
+    foreach ($data as $key => $value) {
+        if (is_string($value)) {
+            $keyLower = is_string($key) ? strtolower($key) : '';
+            if (in_array($keyLower, ['email', 'mail', 'contactemail', 'e-mail', 'emailaddress', 'contactpoint'])) {
+                $clean = str_replace('mailto:', '', $value);
+                if (filter_var($clean, FILTER_VALIDATE_EMAIL)) {
+                    $emails[] = $clean;
+                }
+            }
+            // Also catch any email-like value
+            if (preg_match('/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/', $value)) {
+                $emails[] = $value;
+            }
+        } elseif (is_array($value)) {
+            $emails = array_merge($emails, extractEmailsFromArray($value));
+        }
+    }
+    return $emails;
+}
+
+/**
+ * Filter and dedupe business emails, removing junk
+ */
+function filterBusinessEmails($emails, $domain = '') {
+    $emails = array_values(array_unique(array_filter($emails)));
+    
+    $junkPatterns = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.css', '.js', '.woff', '.ttf',
+        'example.com', 'test.com', 'domain.com', 'sentry.io', 'wordpress.org', 'wixpress.com',
+        'schema.org', 'w3.org', 'gravatar.com', 'wp.com', 'googleapis.com', 'gstatic.com',
+        'cloudflare.com', 'jsdelivr.net', 'unpkg.com', 'cdnjs.com', 'placeholder',
+        'noreply', 'no-reply', 'mailer-daemon', 'postmaster@', 'localhost',
+        'webpack', 'jquery', 'bootstrap', 'tailwind', 'fontawesome', 'yoursite', 'yourdomain',
+        'changeme', 'user@', 'admin@wordpress', 'email@email'];
+    
+    $filtered = [];
+    foreach ($emails as $email) {
+        $emailLower = strtolower(trim($email));
+        if (strlen($emailLower) > 100 || strlen($emailLower) < 5) continue;
+        if (!filter_var($emailLower, FILTER_VALIDATE_EMAIL)) continue;
+        
+        $isJunk = false;
+        foreach ($junkPatterns as $pattern) {
+            if (strpos($emailLower, $pattern) !== false) {
+                $isJunk = true;
+                break;
+            }
+        }
+        if (!$isJunk) {
+            $filtered[] = $emailLower;
+        }
+    }
+    
+    // Prioritize: domain-matching emails first, then common providers
+    if (!empty($domain)) {
+        usort($filtered, function($a, $b) use ($domain) {
+            $aMatch = strpos($a, '@' . $domain) !== false ? 0 : 1;
+            $bMatch = strpos($b, '@' . $domain) !== false ? 0 : 1;
+            return $aMatch - $bMatch;
+        });
+    }
+    
+    return array_values(array_unique($filtered));
+}
+
+/**
  * 🧠 Role-based email prediction with MX validation
- * Generates common business emails and validates the domain has MX records
  */
 function inlinePredictRoleEmails($domain) {
     if (empty($domain)) return [];
     
-    // Skip domains that are hosting/platform providers
     $skipDomains = ['facebook.com', 'google.com', 'yelp.com', 'yellowpages.com', 'bbb.org',
         'linkedin.com', 'instagram.com', 'twitter.com', 'x.com', 'tiktok.com',
         'wix.com', 'squarespace.com', 'godaddy.com', 'wordpress.com', 'weebly.com',
@@ -1524,19 +1676,17 @@ function inlinePredictRoleEmails($domain) {
     $hasMX = @getmxrr($domain, $mxHosts);
     
     if (!$hasMX || empty($mxHosts)) {
-        // Fallback: check for A record (some domains accept email without MX)
         $aRecords = @dns_get_record($domain, DNS_A);
         if (empty($aRecords)) return [];
     }
     
-    // Generate common role-based emails for the validated domain
+    // Generate common role-based emails
     $roles = ['info', 'contact', 'hello', 'sales', 'admin', 'office', 'support', 'help'];
     $predictedEmails = [];
     foreach ($roles as $role) {
         $predictedEmails[] = $role . '@' . $domain;
     }
     
-    // Return top 3 most common (info@, contact@, hello@)
     return array_slice($predictedEmails, 0, 3);
 }
 
