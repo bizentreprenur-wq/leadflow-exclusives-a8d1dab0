@@ -744,62 +744,84 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
         }
     }
 
-    // ── PHASE 3: Email Pattern Guessing Engine (FAST — max 5 SMTP checks) ──
-    // Only runs if we found fewer than 2 emails in Phase 1+2 (skip if we already have contacts)
-    if (!empty($url) && count($allEmails) < 2) {
+    // ── PHASE 3: Email Pattern Guessing Engine (SMTP-verified) ──────────────
+    // Instead of just storing predictions, actually VERIFY them and add to results
+    if (!empty($url)) {
         $domain = preg_replace('/^www\./', '', parse_url($url, PHP_URL_HOST) ?? '');
         if (!empty($domain)) {
+            // Check if domain has MX records first (one check for all patterns)
             $mxHosts = [];
             $hasMx = function_exists('getmxrr') && @getmxrr($domain, $mxHosts) && !empty($mxHosts);
 
             if ($hasMx) {
-                $mxHost = $mxHosts[0];
-
-                // Quick catch-all detection first: test 3 unlikely addresses
-                $catchAllProbes = ['zzznoexist87@' . $domain, 'qqq-fake-test42@' . $domain, 'xnonreal99@' . $domain];
-                $catchAllHits = 0;
-                foreach ($catchAllProbes as $probe) {
-                    if (bamleadSmtpVerify($probe, $mxHost) === true) $catchAllHits++;
-                    if ($catchAllHits >= 2) break; // 2/3 fake addresses accepted = catch-all
-                }
-                $isCatchAll = ($catchAllHits >= 2);
-
-                // Only verify 5 high-value candidates (not 20)
-                $roleAddresses = ['info', 'contact', 'sales', 'hello', 'admin'];
+                // Collect ALL candidate emails to verify
                 $candidateEmails = [];
+
+                // Role-based addresses (always try these)
+                $roleAddresses = ['info', 'contact', 'hello', 'admin', 'support', 'sales', 'office', 'team', 'help', 'service', 'billing', 'hr', 'jobs', 'careers', 'media', 'press', 'marketing'];
                 foreach ($roleAddresses as $role) {
                     $candidateEmails[] = $role . '@' . $domain;
                 }
-                $candidateEmails = array_diff($candidateEmails, $allEmails);
-                $candidateEmails = array_values($candidateEmails);
 
-                $verifiedGuesses = [];
-                if (!$isCatchAll) {
-                    // Standard domain: SMTP-verify top 5 candidates
-                    foreach ($candidateEmails as $candidate) {
-                        $smtpResult = bamleadSmtpVerify($candidate, $mxHost);
-                        if ($smtpResult === true) {
-                            $verifiedGuesses[] = $candidate;
-                        }
-                        if (count($verifiedGuesses) >= 3) break; // 3 verified is plenty
+                // Name-based patterns from intelligence predictions
+                $predictions = $intelligence['predicted_emails'] ?? [];
+                foreach ($predictions as $pred) {
+                    if (!empty($pred['email']) && $pred['type'] === 'predicted_name') {
+                        $candidateEmails[] = $pred['email'];
                     }
-                    if (!empty($verifiedGuesses)) {
+                    if (!empty($pred['email']) && $pred['type'] === 'name_pattern') {
+                        $candidateEmails[] = $pred['email'];
+                    }
+                }
+
+                // Dedupe candidates and remove already-found emails
+                $candidateEmails = array_unique(array_map('strtolower', $candidateEmails));
+                $candidateEmails = array_diff($candidateEmails, $allEmails);
+                // Limit to prevent abuse (max 20 SMTP checks per domain)
+                $candidateEmails = array_slice(array_values($candidateEmails), 0, 20);
+
+                // SMTP-verify each candidate
+                $verifiedGuesses = [];
+                $mxHost = $mxHosts[0];
+                $roleVerifiedCount = 0;
+                $roleTotalTested = 0;
+                
+                foreach ($candidateEmails as $candidate) {
+                    $smtpResult = bamleadSmtpVerify($candidate, $mxHost);
+                    $isRoleAddress = in_array(explode('@', $candidate)[0], $roleAddresses);
+                    
+                    if ($isRoleAddress) $roleTotalTested++;
+                    
+                    if ($smtpResult === true) {
+                        $verifiedGuesses[] = $candidate;
+                        if ($isRoleAddress) $roleVerifiedCount++;
+                    }
+                    // Stop after finding 8 verified emails (enough for outreach)
+                    if (count($verifiedGuesses) >= 8) break;
+                }
+
+                // 🧠 Catch-all detection: if ALL role addresses verify, domain accepts everything
+                $isCatchAll = ($roleTotalTested >= 5 && $roleVerifiedCount === $roleTotalTested);
+                
+                if (!empty($verifiedGuesses)) {
+                    if ($isCatchAll) {
+                        // Catch-all domain: only add the most common role addresses, flagged as lower confidence
+                        $safeRoles = ['info', 'contact', 'sales', 'hello'];
+                        $filteredGuesses = array_filter($verifiedGuesses, function($email) use ($safeRoles, $domain) {
+                            $local = explode('@', $email)[0];
+                            return in_array($local, $safeRoles);
+                        });
+                        $allEmails = array_merge($allEmails, array_values($filteredGuesses));
+                        $sources[] = 'Email Pattern Engine (catch-all domain ⚠️)';
+                    } else {
                         $allEmails = array_merge($allEmails, $verifiedGuesses);
                         $sources[] = 'Email Pattern Engine (SMTP-verified)';
                     }
-                } else {
-                    // Catch-all: add info@ and contact@ at low confidence, no SMTP needed
-                    $safeRoles = ['info@' . $domain, 'contact@' . $domain];
-                    $safeRoles = array_diff($safeRoles, $allEmails);
-                    $allEmails = array_merge($allEmails, array_values($safeRoles));
-                    if (!empty($safeRoles)) {
-                        $sources[] = 'Email Pattern Engine (catch-all domain ⚠️)';
-                    }
-                    $verifiedGuesses = array_values($safeRoles);
                 }
 
+                // Update intelligence with verification results
                 $intelligence['pattern_engine'] = [
-                    'candidates_tested' => count($candidateEmails) + count($catchAllProbes),
+                    'candidates_tested' => count($candidateEmails),
                     'verified_count' => count($verifiedGuesses),
                     'verified_emails' => $verifiedGuesses,
                     'is_catch_all' => $isCatchAll,
@@ -1327,7 +1349,7 @@ function bamleadVerifyEmail($email) {
  * Returns: true = verified, false = rejected, null = inconclusive
  */
 function bamleadSmtpVerify($email, $mxHost) {
-    $timeout = 2; // seconds — keep fast
+    $timeout = 3; // seconds
 
     try {
         $socket = @fsockopen($mxHost, 25, $errno, $errstr, $timeout);
