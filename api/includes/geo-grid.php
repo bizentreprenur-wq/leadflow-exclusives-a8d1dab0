@@ -537,7 +537,128 @@ function getMetroSubAreas(string $city): array {
         ],
     ];
 
-    return $metros[$city] ?? [];
+    // If city is in hardcoded list, return those sub-areas
+    if (!empty($metros[$city])) {
+        return $metros[$city];
+    }
+
+    // 🚀 DYNAMIC GEO-EXPANSION: Auto-generate sub-areas for ANY city
+    // Uses Serper Places to discover nearby cities/neighborhoods
+    return dynamicGeoExpansion($city);
+}
+
+/**
+ * Dynamic geo-expansion for cities NOT in the hardcoded metro list.
+ * Uses Serper to discover nearby cities, neighborhoods, and suburbs.
+ * Falls back to directional/generic patterns if Serper is unavailable.
+ */
+function dynamicGeoExpansion(string $city): array {
+    if (empty($city)) return [];
+
+    $cacheKey = "geo_expand_" . md5($city);
+    if (function_exists('getCache')) {
+        $cached = getCache($cacheKey);
+        if ($cached !== null && is_array($cached)) {
+            return $cached;
+        }
+    }
+
+    $subAreas = [];
+
+    // Method 1: Use Serper to find "cities near [city]"
+    if (defined('SERPER_API_KEY') && !empty(SERPER_API_KEY)) {
+        $queries = [
+            "cities and towns near $city",
+            "neighborhoods in $city",
+            "suburbs of $city",
+        ];
+
+        foreach ($queries as $query) {
+            $ch = curl_init('https://google.serper.dev/search');
+            curl_setopt_array($ch, [
+                CURLOPT_POST           => true,
+                CURLOPT_POSTFIELDS     => json_encode(['q' => $query, 'gl' => 'us', 'hl' => 'en', 'num' => 10]),
+                CURLOPT_HTTPHEADER     => [
+                    'X-API-KEY: ' . SERPER_API_KEY,
+                    'Content-Type: application/json',
+                ],
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 5,
+                CURLOPT_CONNECTTIMEOUT => 3,
+                CURLOPT_SSL_VERIFYPEER => true,
+            ]);
+
+            $response = curl_exec($ch);
+            $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($httpCode === 200 && !empty($response)) {
+                $data = json_decode($response, true);
+
+                // Extract location names from organic snippets
+                if (!empty($data['organic'])) {
+                    foreach ($data['organic'] as $result) {
+                        $snippet = ($result['snippet'] ?? '') . ' ' . ($result['title'] ?? '');
+                        // Extract comma-separated place names
+                        if (preg_match_all('/\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)*)\b/', $snippet, $matches)) {
+                            foreach ($matches[1] as $place) {
+                                $placeLower = strtolower($place);
+                                // Skip generic words
+                                if (in_array($placeLower, ['the', 'and', 'for', 'with', 'from', 'near', 'city', 'town', 'village', 'county', 'state', 'area', 'region', 'district', 'north', 'south', 'east', 'west', 'northeast', 'northwest', 'southeast', 'southwest', 'downtown', 'uptown', 'midtown', 'united', 'states', 'america', 'miles', 'population', 'located', 'including'])) {
+                                    continue;
+                                }
+                                if (strlen($place) > 3 && strtolower($place) !== strtolower($city)) {
+                                    $subAreas[] = $place;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Also extract from Places/Knowledge Graph if available
+                if (!empty($data['relatedSearches'])) {
+                    foreach ($data['relatedSearches'] as $rs) {
+                        $q = $rs['query'] ?? '';
+                        if (preg_match('/\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)*)\b/', $q, $m)) {
+                            $place = $m[1];
+                            if (strtolower($place) !== strtolower($city) && strlen($place) > 3) {
+                                $subAreas[] = $place;
+                            }
+                        }
+                    }
+                }
+            }
+
+            usleep(50000); // 50ms between Serper calls
+        }
+    }
+
+    // Method 2: Generate programmatic nearby patterns (always runs as supplement)
+    $programmaticAreas = [
+        "Downtown $city",
+        "North $city",
+        "South $city",
+        "East $city",
+        "West $city",
+        "Central $city",
+        "$city Heights",
+        "$city Park",
+        "$city Valley",
+        "$city Hills",
+    ];
+
+    $subAreas = array_merge($subAreas, $programmaticAreas);
+
+    // Deduplicate and limit
+    $subAreas = array_values(array_unique($subAreas));
+    $subAreas = array_slice($subAreas, 0, 30);
+
+    // Cache for 24 hours
+    if (function_exists('setCache') && !empty($subAreas)) {
+        setCache($cacheKey, $subAreas, 86400);
+    }
+
+    return $subAreas;
 }
 
 /**

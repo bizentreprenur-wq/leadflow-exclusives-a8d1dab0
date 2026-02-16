@@ -77,7 +77,7 @@ export interface BamleadBatchResult {
 }
 
 const SCRAPER_ENDPOINT = `${API_BASE_URL}/bamlead-scraper.php`;
-const SCRAPER_BATCH_LIMIT = 25;
+const SCRAPER_BATCH_LIMIT = 5;
 
 function normalizeUrlKey(input?: string): string {
   const value = (input || '').trim();
