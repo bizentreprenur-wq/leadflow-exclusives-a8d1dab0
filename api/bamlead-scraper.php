@@ -192,7 +192,7 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
     }
 
     // 1b) 🚀 OUTSCRAPER-STYLE: Contact page variations fetched IN PARALLEL with homepage
-    $contactPaths = ['/contact', '/contact-us', '/contactus', '/get-in-touch', '/about', '/about-us', '/reach-us', '/connect', '/team', '/our-team', '/staff', '/people'];
+    $contactPaths = ['/contact', '/contact-us', '/contactus', '/get-in-touch', '/about', '/about-us', '/reach-us', '/connect', '/team', '/our-team', '/staff', '/people', '/privacy', '/terms', '/impressum', '/imprint', '/legal'];
     if (!empty($url)) {
         $parsed = parse_url($url);
         $baseUrl = ($parsed['scheme'] ?? 'https') . '://' . ($parsed['host'] ?? '');
@@ -307,6 +307,14 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
                     $allEmails = array_merge($allEmails, $obfuscatedEmails);
                     $sources[] = 'Website (obfuscated)';
                 }
+
+                // 🧠 AI: JS blob / Wix unicode / data-attribute email extraction
+                $hpDomain = preg_replace('/^www\./', '', parse_url($url, PHP_URL_HOST) ?? '');
+                $jsBlobEmails = bamleadExtractJSBlobEmails($response, $hpDomain);
+                if (!empty($jsBlobEmails)) {
+                    $allEmails = array_merge($allEmails, $jsBlobEmails);
+                    $sources[] = 'Website (JS/data-attr)';
+                }
             }
 
         } elseif ($meta['type'] === 'contact_page') {
@@ -339,6 +347,13 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
                 $microEmails = bamleadExtractMicroformats($response);
                 if (!empty($microEmails)) {
                     $allEmails = array_merge($allEmails, $microEmails);
+                }
+
+                // JS blob extraction on contact pages too
+                $cpDomain = preg_replace('/^www\./', '', parse_url($url, PHP_URL_HOST) ?? '');
+                $cpJsEmails = bamleadExtractJSBlobEmails($response, $cpDomain);
+                if (!empty($cpJsEmails)) {
+                    $allEmails = array_merge($allEmails, $cpJsEmails);
                 }
             }
 
@@ -773,6 +788,23 @@ function bamleadHyperScrape($url, $businessName, $location, $serperKey) {
     // ── Dedupe, validate & verify (MX-only — fast DNS lookup) ───────────────
     $allEmails = bamleadDedupeEmails($allEmails);
     $allPhones = bamleadDedupePhones($allPhones);
+
+    // 🔒 Domain-match filtering: prioritize emails matching the business website
+    $bizDomain = !empty($url) ? preg_replace('/^www\./', '', strtolower(parse_url($url, PHP_URL_HOST) ?? '')) : '';
+    if (!empty($bizDomain) && count($allEmails) > 1) {
+        $domainMatched = [];
+        $otherEmails = [];
+        foreach ($allEmails as $email) {
+            $emailDomain = strtolower(substr($email, strpos($email, '@') + 1));
+            if ($emailDomain === $bizDomain) {
+                $domainMatched[] = $email;
+            } else {
+                $otherEmails[] = $email;
+            }
+        }
+        // Domain-matched emails first, then others (but keep both)
+        $allEmails = array_merge($domainMatched, $otherEmails);
+    }
 
     // 🔒 Fast MX-only email validation (no SMTP connections)
     $verifiedEmails = [];
@@ -1497,4 +1529,75 @@ function bamleadExtractObfuscatedEmails($html) {
     }
 
     return array_unique($emails);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🧠 JS BLOB / WIX UNICODE / DATA-ATTRIBUTE EMAIL EXTRACTION
+// Ported from gmb-search-stream.php for use in enrichment pipeline
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Extract emails hidden in JavaScript blobs, JSON-LD, data attributes, and Wix unicode.
+ * This catches emails that simple regex on visible text misses.
+ */
+function bamleadExtractJSBlobEmails($html, $domain = '') {
+    $emails = [];
+
+    // 1. Script block scanning: JSON keys like "email", "contactEmail", etc.
+    if (preg_match_all('/<script[^>]*>(.*?)<\/script>/si', $html, $scriptMatches)) {
+        foreach ($scriptMatches[1] as $script) {
+            if (empty($script) || strlen($script) < 10) continue;
+
+            // JSON key email patterns
+            if (preg_match_all('/"(?:email|mail|e-mail|contact_email|emailAddress|contactEmail|business_email|owner_email|reply_to|replyTo)":\s*"([^"]+@[^"]+\.[a-z]{2,})"/i', $script, $jsonEmails)) {
+                $emails = array_merge($emails, $jsonEmails[1]);
+            }
+
+            // Domain-matched emails in script blocks
+            if (!empty($domain) && preg_match_all('/[a-zA-Z0-9._%+-]+@' . preg_quote($domain, '/') . '/i', $script, $domainEmails)) {
+                $emails = array_merge($emails, $domainEmails[0]);
+            }
+
+            // Wix-specific: decode \uXXXX unicode-escaped emails
+            if (strpos($script, '\\u') !== false && preg_match_all('/\\\\u([0-9a-fA-F]{4})/', $script, $unicodeMatches, PREG_SET_ORDER)) {
+                $decoded = $script;
+                foreach ($unicodeMatches as $um) {
+                    $decoded = str_replace($um[0], mb_chr(hexdec($um[1]), 'UTF-8'), $decoded);
+                }
+                if (preg_match_all('/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/', $decoded, $decodedEmails)) {
+                    $emails = array_merge($emails, $decodedEmails[0]);
+                }
+            }
+        }
+    }
+
+    // 2. HTML data attributes: data-email, data-contact, etc.
+    if (preg_match_all('/data-(?:email|contact|mail|address)=["\']([^"\']+@[^"\']+\.[a-z]{2,})/i', $html, $dataAttrEmails)) {
+        $emails = array_merge($emails, $dataAttrEmails[1]);
+    }
+
+    // 3. Deep mailto: in onclick/href/action handlers
+    if (preg_match_all('/(?:href|onclick|action)=["\'][^"\']*mailto:([^"\'&\s?]+)/i', $html, $mailtoDeep)) {
+        foreach ($mailtoDeep[1] as $m) {
+            $decoded = urldecode($m);
+            if (filter_var($decoded, FILTER_VALIDATE_EMAIL)) {
+                $emails[] = $decoded;
+            }
+        }
+    }
+
+    // 4. aria-label / title / alt attributes with emails
+    if (preg_match_all('/(?:aria-label|title|alt)=["\'][^"\']*?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i', $html, $ariaEmails)) {
+        $emails = array_merge($emails, $ariaEmails[1]);
+    }
+
+    // Filter junk
+    $emails = array_map('strtolower', $emails);
+    $emails = array_filter($emails, function($e) {
+        return filter_var($e, FILTER_VALIDATE_EMAIL) &&
+               !preg_match('/@(example|test|localhost|sentry|wixpress|cloudflare)\./i', $e) &&
+               !preg_match('/\.(png|jpg|gif|svg|css|js)$/i', $e);
+    });
+
+    return array_values(array_unique($emails));
 }
