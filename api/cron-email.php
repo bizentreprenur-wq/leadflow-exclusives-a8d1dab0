@@ -43,9 +43,9 @@ header('Content-Type: application/json');
 try {
     $db = getDB();
     
-    // Get emails scheduled for now or earlier
+    // Get emails scheduled for now or earlier (include smtp_config for per-user SMTP)
     $pendingEmails = $db->fetchAll(
-        "SELECT es.*, et.body_text as template_body_text
+        "SELECT es.*, es.smtp_config, et.body_text as template_body_text
          FROM email_sends es
          LEFT JOIN email_templates et ON es.template_id = et.id
          WHERE es.status = 'scheduled' 
@@ -66,7 +66,14 @@ try {
     
     foreach ($pendingEmails as $email) {
         $textBody = $email['template_body_text'] ?? strip_tags($email['body_html']);
-        $sent = sendEmail($email['recipient_email'], $email['subject'], $email['body_html'], $textBody);
+        
+        // Use per-email SMTP config if stored (from drip/scheduled sends), otherwise fall back to server default
+        $storedSmtp = !empty($email['smtp_config']) ? json_decode($email['smtp_config'], true) : null;
+        if ($storedSmtp && is_array($storedSmtp)) {
+            $sent = sendEmailWithCustomSMTP($email['recipient_email'], $email['subject'], $email['body_html'], $textBody, $storedSmtp);
+        } else {
+            $sent = sendEmail($email['recipient_email'], $email['subject'], $email['body_html'], $textBody);
+        }
         
         if ($sent) {
             $db->update(
