@@ -339,6 +339,55 @@ export default function SimpleLeadViewer({
     withEmail: leads.filter(l => !!getPrimaryEmail(l)).length,
   }), [leads]);
 
+  // Email source breakdown: count how many leads got emails from each extraction method
+  const emailSourceBreakdown = useMemo(() => {
+    const breakdown: Record<string, number> = {};
+    let totalWithEmail = 0;
+    leads.forEach(lead => {
+      const hasEmail = !!getPrimaryEmail(lead);
+      if (!hasEmail) return;
+      totalWithEmail++;
+      const sources = lead.enrichment?.sources || [];
+      if (sources.length === 0) {
+        // Email came from discovery (GMB/Places snippet)
+        breakdown['Discovery'] = (breakdown['Discovery'] || 0) + 1;
+      }
+      sources.forEach(src => {
+        const srcLower = src.toLowerCase();
+        if (srcLower.includes('js') || srcLower.includes('data-attr')) {
+          breakdown['JS/Data-Attr'] = (breakdown['JS/Data-Attr'] || 0) + 1;
+        } else if (srcLower.includes('contact page')) {
+          breakdown['Contact Page'] = (breakdown['Contact Page'] || 0) + 1;
+        } else if (srcLower.includes('schema') || srcLower.includes('structured')) {
+          breakdown['Schema.org'] = (breakdown['Schema.org'] || 0) + 1;
+        } else if (srcLower.includes('pattern engine') || srcLower.includes('name-based')) {
+          breakdown['Pattern Engine'] = (breakdown['Pattern Engine'] || 0) + 1;
+        } else if (srcLower.includes('email hunt')) {
+          breakdown['Email Hunt'] = (breakdown['Email Hunt'] || 0) + 1;
+        } else if (srcLower.includes('obfuscated')) {
+          breakdown['Obfuscated'] = (breakdown['Obfuscated'] || 0) + 1;
+        } else if (srcLower.includes('homepage')) {
+          breakdown['Homepage'] = (breakdown['Homepage'] || 0) + 1;
+        } else if (srcLower.includes('footer')) {
+          breakdown['Footer Crawl'] = (breakdown['Footer Crawl'] || 0) + 1;
+        } else if (srcLower.includes('microformat') || srcLower.includes('vcard')) {
+          breakdown['Microformats'] = (breakdown['Microformats'] || 0) + 1;
+        } else if (srcLower.includes('meta')) {
+          breakdown['Meta Tags'] = (breakdown['Meta Tags'] || 0) + 1;
+        } else if (srcLower.includes('facebook') || srcLower.includes('linkedin') || srcLower.includes('instagram') || srcLower.includes('twitter') || srcLower.includes('yelp')) {
+          breakdown['Social Profiles'] = (breakdown['Social Profiles'] || 0) + 1;
+        } else if (srcLower.includes('directory')) {
+          breakdown['Directories'] = (breakdown['Directories'] || 0) + 1;
+        } else if (srcLower.includes('cloudflare') || srcLower.includes('cfemail')) {
+          breakdown['CF Decoded'] = (breakdown['CF Decoded'] || 0) + 1;
+        } else {
+          breakdown['Other'] = (breakdown['Other'] || 0) + 1;
+        }
+      });
+    });
+    return { breakdown, totalWithEmail };
+  }, [leads]);
+
   const filteredLeads = useMemo(() => {
     let result = leads;
     
@@ -1018,6 +1067,29 @@ export default function SimpleLeadViewer({
         <span className="text-amber-400 font-medium">⚠ REMEMBER: AI Verify your leads before contacting them!</span>
         <Sparkles className="w-4 h-4 text-amber-500" />
       </div>
+
+      {/* Email Source Breakdown */}
+      {emailSourceBreakdown.totalWithEmail > 0 && Object.keys(emailSourceBreakdown.breakdown).length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 px-1">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mr-1">
+            📧 Email Sources:
+          </span>
+          {Object.entries(emailSourceBreakdown.breakdown)
+            .sort((a, b) => b[1] - a[1])
+            .map(([source, count]) => (
+              <span
+                key={source}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                title={`${count} leads found emails via ${source}`}
+              >
+                {source}: <span className="font-bold">{count}</span>
+              </span>
+            ))}
+          <span className="text-[10px] text-muted-foreground ml-1">
+            ({emailSourceBreakdown.totalWithEmail} total with email)
+          </span>
+        </div>
+      )}
 
 
       {/* Filters & Search Row */}

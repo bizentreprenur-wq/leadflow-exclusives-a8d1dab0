@@ -54,14 +54,14 @@ const TOUR_STEPS: TourStep[] = [
     page: "/",
     element: "[data-tour='intelligence-journey']",
     title: "The 4-Step Intelligence Pipeline",
-    description: "Here's the Intelligence Journey, our interactive pipeline that shows exactly how BamLead works in four steps. Step one, choose your search mode. Step two, Search and Intelligence gathering. Step three, AI Strategy and Email composition. Step four, the AI Calling Hub. Each step shows what's included at each tier: Manual for Basic, Co-Pilot for Pro, and fully Autonomous for Autopilot."
+    description: "Here's the Intelligence Journey, our interactive pipeline that shows exactly how BamLead works in four steps. Step one, choose your search mode. Step two, Search and Intelligence gathering. Step three, AI Strategy and Email composition. Step four, the AI Calling Hub. Each step shows what's included at each tier: Manual for Basic, Co-Pilot for Pro, fully Autonomous for Autopilot, and the Unlimited plan at 999 dollars per month which includes a dedicated AI Sales Brain, managed services, and a personal account agent."
   },
   {
     id: "super-ai",
     page: "/",
     element: "[data-tour='super-ai']",
     title: "Super AI Business Intelligence",
-    description: "This is where BamLead really shines, my friend. Our Super AI Business Search generates a detailed 12-category intelligence report for every lead. Business Identity, Decision Maker Intelligence, Website Health, Online Visibility, Reputation and Reviews, AI Opportunity Analysis, Technographics, Marketing Behavior, Conversion Readiness, Buyer Intent, Competitive Pressure, and Communication Intelligence including best contact times. Every lead gets classified as Hot, Warm, or Cold."
+    description: "This is where BamLead really shines, my friend. When you start a search, you pick your Research Goal. Choose Niche Research to discover prospects and understand the market, with full niche intelligence results including trend analysis, market dynamics, and standard products and services for any industry. Or choose Competitive Analysis to compare YOUR business to competitors, see a full SWOT breakdown, identify your core competencies, find capability gaps, and discover Potential Buyers, businesses that need what YOU offer. Both modes generate a detailed 12-category intelligence report for every lead, from Business Identity to Communication Intelligence. Every lead gets classified as Hot, Warm, or Cold."
   },
   {
     id: "synonym-expansion",

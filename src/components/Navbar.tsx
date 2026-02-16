@@ -22,6 +22,7 @@ const Navbar = () => {
     { href: "/closeloop", labelKey: "nav.closeloop", isSpecial: true },
     { href: "/pricing", labelKey: "nav.pricing" },
     { href: "/comparisons", labelKey: "nav.comparisons" },
+    { href: "/extension", labelKey: "nav.extension" },
     { href: "/presignup", labelKey: "nav.presignup" },
   ];
 

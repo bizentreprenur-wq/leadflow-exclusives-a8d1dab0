@@ -9,7 +9,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import SupportWidget from "@/components/SupportWidget";
 import AITourGuide from "@/components/AITourGuide";
-
+import LowCreditsBanner from "@/components/LowCreditsBanner";
 import SplashScreen from "@/components/SplashScreen";
 import Index from "./pages/Index";
 import Pricing from "./pages/Pricing";
@@ -42,6 +42,8 @@ import UseCases from "./pages/UseCases";
 import ExampleSearches from "./pages/ExampleSearches";
 import Comparisons from "./pages/Comparisons";
 import PreSignup from "./pages/PreSignup";
+import ChromeExtension from "./pages/ChromeExtension";
+import UnlimitedOnboarding from "./pages/UnlimitedOnboarding";
 
 const queryClient = new QueryClient();
 
@@ -128,6 +130,15 @@ function AppInner() {
         <Route path="/example-searches" element={<ExampleSearches />} />
         <Route path="/comparisons" element={<Comparisons />} />
         <Route path="/presignup" element={<PreSignup />} />
+        <Route path="/extension" element={<ChromeExtension />} />
+        <Route
+          path="/unlimited-onboarding"
+          element={
+            <ProtectedRoute>
+              <UnlimitedOnboarding />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/dashboard"
           element={
@@ -148,7 +159,7 @@ function AppInner() {
         <Route path="*" element={<NotFound />} />
       </Routes>
 
-      
+      <LowCreditsBanner />
       <SupportWidget />
       <AITourGuide />
     </>

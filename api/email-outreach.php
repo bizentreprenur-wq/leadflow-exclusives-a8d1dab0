@@ -493,10 +493,14 @@ function handleSendBulk($db, $user) {
         
         $leadId = resolveValidLeadId($db, $user, $lead['id'] ?? null);
 
+        // Store SMTP override for scheduled/drip emails so cron can use it
+        $smtpOverride = isset($data['smtp_override']) && is_array($data['smtp_override']) ? $data['smtp_override'] : null;
+        $smtpConfigJson = ($status === 'scheduled' && $smtpOverride) ? json_encode($smtpOverride) : null;
+        
         // Record the send
         $sendId = $db->insert(
-            "INSERT INTO email_sends (user_id, lead_id, template_id, campaign_id, recipient_email, recipient_name, business_name, subject, body_html, tracking_id, status, scheduled_for) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO email_sends (user_id, lead_id, template_id, campaign_id, recipient_email, recipient_name, business_name, subject, body_html, smtp_config, tracking_id, status, scheduled_for) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 $user['id'],
                 $leadId,
@@ -507,6 +511,7 @@ function handleSendBulk($db, $user) {
                 $lead['business_name'] ?? null,
                 $subject,
                 $bodyHtml,
+                $smtpConfigJson,
                 $trackingId,
                 $status,
                 $sendAt
