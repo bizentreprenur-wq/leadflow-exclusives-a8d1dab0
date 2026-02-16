@@ -16,9 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ExternalLink, Mail, Phone, Loader2, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { bamleadScrape } from '@/lib/api/bamleadScraper';
-import { SocialContactsResult } from '@/lib/api/socialContacts';
-import { fetchSocialSearchPreview } from '@/lib/api/socialSearchPreview';
+import { scrapeSocialContacts, SocialContactsResult } from '@/lib/api/socialContacts';
 import { toast } from 'sonner';
 
 interface SocialMediaLookupProps {
@@ -26,7 +24,7 @@ interface SocialMediaLookupProps {
   location?: string;
   size?: 'sm' | 'md';
   onContactsFound?: (emails: string[], phones: string[]) => void;
-  // Pre-loaded enrichment data from Firecrawl (bypasses scraping)
+  // Pre-loaded enrichment data from backend search/enrichment pipeline
   enrichment?: {
     emails?: string[];
     phones?: string[];
@@ -128,7 +126,7 @@ export default function SocialMediaLookup({
 
   // Auto-load enrichment data or cached contacts on mount
   useEffect(() => {
-    // First check if enrichment prop has data (from Firecrawl parallel streaming)
+    // First check if enrichment prop has data (from backend one-shot enrichment)
     if (enrichment && (enrichment.emails?.length || enrichment.phones?.length || enrichment.socials && Object.keys(enrichment.socials).length > 0)) {
       // Convert enrichment socials to SocialProfile format
       const profiles: Record<string, { url: string; username?: string }> = {};
@@ -181,22 +179,7 @@ export default function SocialMediaLookup({
     
     setIsScrapingContacts(true);
     try {
-      const scrapeResult = await bamleadScrape('', businessName, location);
-      
-      // Convert to SocialContactsResult format for compatibility
-      const result: SocialContactsResult = {
-        success: scrapeResult.success,
-        cached: scrapeResult.cached || false,
-        business_name: businessName,
-        location: location || '',
-        contacts: {
-          emails: scrapeResult.emails,
-          phones: scrapeResult.phones,
-          profiles: scrapeResult.profiles as any,
-          sources: scrapeResult.sources,
-        },
-        error: scrapeResult.error,
-      };
+      const result = await scrapeSocialContacts(businessName, location);
       
       setSocialContacts(result);
       
@@ -313,20 +296,8 @@ export default function SocialMediaLookup({
           <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
         `;
 
-        let exactUrl = null;
-
-        if (!exactUrl) {
-          const resolved = await fetchSocialSearchPreview(businessName, location, platformKey);
-          exactUrl = resolved.exactProfileUrl ?? null;
-        }
-
-        if (exactUrl && isLikelyExactProfileUrl(platform.name, exactUrl)) {
-          newWindow.location.replace(exactUrl);
-          return;
-        }
-
-        newWindow.close();
-        toast.info(`No exact ${platform.name} profile found for this lead yet.`);
+        const fallbackUrl = platform.getSearchUrl(businessName, location);
+        newWindow.location.replace(fallbackUrl);
       } catch (error) {
         newWindow?.close();
         toast.error(`Could not resolve ${platform.name} profile URL`);

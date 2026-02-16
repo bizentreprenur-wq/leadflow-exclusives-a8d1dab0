@@ -650,12 +650,14 @@ async function searchGMBStreaming(
                     url: lead.url,
                     snippet: lead.snippet,
                     displayLink: lead.displayLink,
-                    email: lead.email || undefined,
-                    phone: lead.phone,
+                    email: lead.email || lead.enrichment?.emails?.[0] || undefined,
+                    phone: lead.phone || lead.enrichment?.phones?.[0],
                     address: lead.address,
                     rating: lead.rating,
                     reviewCount: lead.reviews,
                     sources: lead.sources || [],
+                    enrichment: lead.enrichment,
+                    enrichmentStatus: lead.enrichmentStatus,
                     websiteAnalysis: lead.websiteAnalysis || {
                       hasWebsite: !!lead.url,
                       platform: null,
@@ -984,4 +986,4 @@ async function searchGMBRegular(
   return data;
 }
 
-// Legacy scraper functions removed — all enrichment now uses bamleadScraper.ts unified API
+// Legacy scraper functions removed — search-time enrichment now comes from backend custom one-shot fetcher

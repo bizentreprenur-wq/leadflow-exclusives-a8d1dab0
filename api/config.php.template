@@ -20,13 +20,13 @@ define('DB_PASS', 'YOUR_DATABASE_PASSWORD_HERE');
 // SERPER.DEV (Preferred - Cheaper Google Search API)
 // =====================================
 define('SERPER_API_KEY', 'YOUR_SERPER_API_KEY_HERE');
-// Run Serper as a top-up source even when SerpAPI succeeds.
+// Legacy pipeline setting (ignored by custom one-shot fetcher).
 if (!defined('ENABLE_SERPER_PARALLEL')) {
     define('ENABLE_SERPER_PARALLEL', true);
 }
 
 // =====================================
-// SERPAPI (Fallback if Serper not configured)
+// SERPAPI (Legacy pipeline only; not used by custom one-shot fetcher)
 // =====================================
 define('SERPAPI_KEY', 'YOUR_SERPAPI_KEY_HERE');
 
@@ -123,6 +123,68 @@ define('ALLOWED_ORIGINS', [
 // =====================================
 // SETTINGS (Defaults OK)
 // =====================================
+// New one-shot custom fetcher pipeline (replaces legacy Serper/BamLead/Firecrawl search-time flow)
+if (!defined('ENABLE_CUSTOM_ONE_SHOT_FETCHER')) {
+    define('ENABLE_CUSTOM_ONE_SHOT_FETCHER', true);
+}
+if (!defined('ENABLE_LEGACY_SERPER_PIPELINE')) {
+    define('ENABLE_LEGACY_SERPER_PIPELINE', false);
+}
+if (!defined('ENABLE_LEGACY_BAMLEAD_SCRAPER')) {
+    define('ENABLE_LEGACY_BAMLEAD_SCRAPER', false);
+}
+if (!defined('ENABLE_LEGACY_FIRECRAWL_ENRICHMENT')) {
+    define('ENABLE_LEGACY_FIRECRAWL_ENRICHMENT', false);
+}
+if (!defined('CUSTOM_FETCH_DISCOVERY_SOURCES')) {
+    define('CUSTOM_FETCH_DISCOVERY_SOURCES', ['serper']);
+}
+if (!defined('CUSTOM_FETCH_ENRICH_CONCURRENCY')) {
+    define('CUSTOM_FETCH_ENRICH_CONCURRENCY', 5);
+}
+if (!defined('CUSTOM_FETCH_CONTACT_TIMEOUT_SEC')) {
+    define('CUSTOM_FETCH_CONTACT_TIMEOUT_SEC', 7);
+}
+if (!defined('CUSTOM_FETCH_TARGET_RATIO')) {
+    define('CUSTOM_FETCH_TARGET_RATIO', 0.95);
+}
+if (!defined('CUSTOM_FETCH_ENABLE_INLINE_ENRICHMENT')) {
+    define('CUSTOM_FETCH_ENABLE_INLINE_ENRICHMENT', false);
+}
+if (!defined('CUSTOM_FETCH_SERPER_ORGANIC_TOPUP')) {
+    define('CUSTOM_FETCH_SERPER_ORGANIC_TOPUP', false);
+}
+if (!defined('CUSTOM_FETCH_ENABLE_LOW_COVERAGE_TOPUP')) {
+    define('CUSTOM_FETCH_ENABLE_LOW_COVERAGE_TOPUP', true);
+}
+if (!defined('CUSTOM_FETCH_LOW_COVERAGE_THRESHOLD')) {
+    define('CUSTOM_FETCH_LOW_COVERAGE_THRESHOLD', 0.80);
+}
+if (!defined('CUSTOM_FETCH_MAX_TOPUP_QUERIES')) {
+    define('CUSTOM_FETCH_MAX_TOPUP_QUERIES', 18);
+}
+if (!defined('CUSTOM_FETCH_DISCOVERY_TIMEOUT_SEC')) {
+    define('CUSTOM_FETCH_DISCOVERY_TIMEOUT_SEC', 6);
+}
+if (!defined('CUSTOM_FETCH_STREAM_EMIT_BATCH_SIZE')) {
+    define('CUSTOM_FETCH_STREAM_EMIT_BATCH_SIZE', 6);
+}
+if (!defined('CUSTOM_FETCH_ENABLE_QUICK_EMAIL_PROBE')) {
+    define('CUSTOM_FETCH_ENABLE_QUICK_EMAIL_PROBE', true);
+}
+if (!defined('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC')) {
+    define('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC', 2);
+}
+if (!defined('CUSTOM_FETCH_QUICK_EMAIL_CONCURRENCY')) {
+    define('CUSTOM_FETCH_QUICK_EMAIL_CONCURRENCY', 16);
+}
+if (!defined('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_QUERY')) {
+    define('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_QUERY', 120);
+}
+if (!defined('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_PASS')) {
+    define('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_PASS', 16);
+}
+
 define('RATE_LIMIT', 30);
 define('CACHE_DURATION', 300);
 define('ENABLE_CACHE', true);
@@ -150,12 +212,12 @@ if (!defined('RESULTS_PER_PAGE')) {
     define('RESULTS_PER_PAGE', 10);
 }
 define('DEBUG_MODE', false);
-// Throttle between SerpAPI page requests (microseconds)
+// Legacy SerpAPI throttling (ignored by custom one-shot fetcher)
 // Lower = faster, higher = safer vs rate limits. 50000 = 50ms.
 if (!defined('SERPAPI_THROTTLE_US')) {
     define('SERPAPI_THROTTLE_US', 50000);
 }
-// SerpAPI request timeouts/retries for large searches
+// Legacy SerpAPI request timeouts/retries (ignored by custom one-shot fetcher)
 if (!defined('SERPAPI_CONNECT_TIMEOUT_SEC')) {
     define('SERPAPI_CONNECT_TIMEOUT_SEC', 15);
 }

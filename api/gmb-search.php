@@ -1,13 +1,14 @@
 <?php
 /**
  * GMB Search API Endpoint
- * Searches for businesses using Serper.dev Places API
+ * Searches for businesses using the active pipeline
  */
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/ratelimit.php';
+require_once __DIR__ . '/includes/custom_fetcher.php';
 
 header('Content-Type: application/json');
 setCorsHeaders();
@@ -85,6 +86,47 @@ if (empty($location)) {
 }
 
 try {
+    $useCustomPipeline = function_exists('customFetcherEnabled') && customFetcherEnabled();
+    $legacySerperAllowed = defined('ENABLE_LEGACY_SERPER_PIPELINE') && ENABLE_LEGACY_SERPER_PIPELINE;
+
+    if ($useCustomPipeline) {
+        $filtersKey = $filtersActive ? md5(json_encode($filters)) : 'none';
+        $cacheKey = "custom_gmb_search_{$service}_{$location}_{$limit}_{$filtersKey}";
+        $cached = getCache($cacheKey);
+        if ($cached !== null) {
+            sendJson([
+                'success' => true,
+                'data' => $cached,
+                'query' => [
+                    'service' => $service,
+                    'location' => $location,
+                    'limit' => $limit
+                ],
+                'cached' => true
+            ]);
+        }
+
+        $results = searchCustomOneShotNonStream($service, $location, $limit, $filters, $filtersActive, $targetCount);
+        setCache($cacheKey, $results);
+
+        sendJson([
+            'success' => true,
+            'data' => $results,
+            'query' => [
+                'service' => $service,
+                'location' => $location,
+                'limit' => $limit
+            ],
+            'totalResults' => count($results),
+            'targetCount' => $targetCount,
+            'coverage' => round((count($results) / max(1, $limit)) * 100, 2)
+        ]);
+    }
+
+    if (!$legacySerperAllowed) {
+        sendError('Legacy Serper pipeline is disabled. Enable custom one-shot fetcher in config.', 503);
+    }
+
     $filtersKey = $filtersActive ? md5(json_encode($filters)) : 'none';
     $cacheKey = "gmb_search_{$service}_{$location}_{$limit}_{$filtersKey}";
     

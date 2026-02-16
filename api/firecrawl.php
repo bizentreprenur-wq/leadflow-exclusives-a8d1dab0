@@ -21,6 +21,10 @@ handlePreflight();
 
 $action = $_GET['action'] ?? $_POST['action'] ?? 'scrape';
 
+if (!defined('ENABLE_LEGACY_FIRECRAWL_ENRICHMENT') || !ENABLE_LEGACY_FIRECRAWL_ENRICHMENT) {
+    sendError('Legacy Firecrawl enrichment is disabled. Custom one-shot fetcher handles enrichment.', 503);
+}
+
 switch ($action) {
     case 'scrape':
         handleScrape();

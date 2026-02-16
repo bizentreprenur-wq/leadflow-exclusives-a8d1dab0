@@ -6,11 +6,19 @@
 
 require_once __DIR__ . '/database.php';
 
+function legacyFirecrawlEnabled() {
+    return defined('ENABLE_LEGACY_FIRECRAWL_ENRICHMENT') && ENABLE_LEGACY_FIRECRAWL_ENRICHMENT;
+}
+
 /**
  * Queue a single lead for Firecrawl enrichment (non-blocking)
  * Returns immediately, enrichment happens in background
  */
 function queueFirecrawlEnrichment($leadId, $url, $sessionId, $searchType = 'gmb') {
+    if (!legacyFirecrawlEnabled()) {
+        return false;
+    }
+
     if (empty($url)) {
         return false;
     }
@@ -63,6 +71,10 @@ function queueFirecrawlEnrichment($leadId, $url, $sessionId, $searchType = 'gmb'
  * Called periodically during SSE streaming
  */
 function processEnrichmentBatch($sessionId, $batchSize = 5) {
+    if (!legacyFirecrawlEnabled()) {
+        return ['processed' => 0, 'results' => []];
+    }
+
     $apiKey = defined('FIRECRAWL_API_KEY') ? FIRECRAWL_API_KEY : '';
     
     if (empty($apiKey) || $apiKey === 'YOUR_FIRECRAWL_API_KEY_HERE') {
@@ -156,6 +168,10 @@ function processEnrichmentBatch($sessionId, $batchSize = 5) {
  * Get already completed enrichment results for a session
  */
 function getCompletedEnrichments($sessionId, $afterId = 0) {
+    if (!legacyFirecrawlEnabled()) {
+        return ['results' => [], 'lastId' => $afterId];
+    }
+
     try {
         $pdo = getDbConnection();
         

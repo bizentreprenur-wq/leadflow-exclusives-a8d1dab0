@@ -1,7 +1,7 @@
 <?php
 /**
  * GMB Search API Endpoint - STREAMING VERSION
- * Streams results progressively as they arrive from Serper
+ * Streams results progressively from the active search pipeline
  * Uses Server-Sent Events (SSE) for real-time updates
  */
 
@@ -11,6 +11,7 @@ require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/ratelimit.php';
 require_once __DIR__ . '/includes/firecrawl.php';
 require_once __DIR__ . '/includes/geo-grid.php';
+require_once __DIR__ . '/includes/custom_fetcher.php';
 
 // SSE headers
 header('Content-Type: text/event-stream');
@@ -104,10 +105,28 @@ if (empty($location)) {
     exit();
 }
 
-// Start streaming search
-// Generate enrichment session ID
+// Start streaming search:
+// - New custom one-shot pipeline is default
+// - Legacy Serper/Firecrawl pipeline is explicitly gated
+$useCustomPipeline = function_exists('customFetcherEnabled') && customFetcherEnabled();
+$legacySerperAllowed = defined('ENABLE_LEGACY_SERPER_PIPELINE') && ENABLE_LEGACY_SERPER_PIPELINE;
+
+if ($useCustomPipeline) {
+    streamCustomOneShotSearch($service, $location, $limit, $filters, $filtersActive, $targetCount);
+    exit();
+}
+
+if (!$legacySerperAllowed) {
+    sendSSEError('Legacy Serper pipeline is disabled. Enable custom one-shot fetcher in config.');
+    exit();
+}
+
+// Legacy mode (kept for rollback only)
 $enrichmentSessionId = 'enrich_' . uniqid() . '_' . time();
-$enableEnrichment = defined('FIRECRAWL_API_KEY') && !empty(FIRECRAWL_API_KEY) && FIRECRAWL_API_KEY !== 'YOUR_FIRECRAWL_API_KEY_HERE';
+$enableEnrichment = (defined('ENABLE_LEGACY_FIRECRAWL_ENRICHMENT') && ENABLE_LEGACY_FIRECRAWL_ENRICHMENT)
+    && defined('FIRECRAWL_API_KEY')
+    && !empty(FIRECRAWL_API_KEY)
+    && FIRECRAWL_API_KEY !== 'YOUR_FIRECRAWL_API_KEY_HERE';
 
 streamGMBSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier, $targetCount, $enrichmentSessionId, $enableEnrichment);
 

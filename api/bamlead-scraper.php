@@ -43,6 +43,19 @@ header('Content-Type: application/json');
 setCorsHeaders();
 handlePreflight();
 
+if (!defined('ENABLE_LEGACY_BAMLEAD_SCRAPER') || !ENABLE_LEGACY_BAMLEAD_SCRAPER) {
+    sendJson([
+        'success' => false,
+        'error' => 'Legacy BamLead scraper is disabled. Use custom-fetcher-enrich.php.',
+        'emails' => [],
+        'phones' => [],
+        'profiles' => [],
+        'sources' => [],
+        'hasWebsite' => false,
+        'intelligence' => null,
+    ], 503);
+}
+
 $startTime = microtime(true);
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {

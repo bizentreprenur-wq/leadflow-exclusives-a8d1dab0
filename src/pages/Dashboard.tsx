@@ -53,7 +53,6 @@ import { useSMTPConfig } from '@/hooks/useSMTPConfig';
 import { searchPlatforms, PlatformResult } from '@/lib/api/platforms';
 import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } from '@/lib/api/leadAnalysis';
 import { quickScoreLeads } from '@/lib/api/aiLeadScoring';
-import { bamleadScrapeBatch } from '@/lib/api/bamleadScraper';
 import { HIGH_CONVERTING_TEMPLATES } from '@/lib/highConvertingTemplates';
 import { generateMechanicLeads, injectTestLeads } from '@/lib/testMechanicLeads';
 import { fetchSearchLeads, saveSearchLeads, deleteSearchLeads, SearchLead } from '@/lib/api/searchLeads';
@@ -564,126 +563,7 @@ export default function Dashboard() {
     try { return localStorage.getItem('bamlead_search_timestamp'); } catch { return null; }
   });
 
-  // Unified BamLead enrichment — emails + phones + social in ONE pass
-  const startUnifiedEnrichment = async (leads: SearchResult[]) => {
-    const runId = ++socialEnrichRunId.current;
-    emailEnrichRunId.current++;
-    
-    // Only process leads without cached data AND without emails
-    const candidates = leads.filter((lead) => {
-      const cacheKey = `social_contacts_${lead.name}_${lead.address || ''}`;
-      const hasCachedData = !!sessionStorage.getItem(cacheKey);
-      const hasEmail = !!(lead.email || (lead.enrichment?.emails?.length ?? 0) > 0);
-      return !hasCachedData || !hasEmail;
-    });
-
-    if (candidates.length === 0) {
-      setIsSocialEnriching(false);
-      setIsEmailEnriching(false);
-      setSocialEnrichTotal(0);
-      setSocialEnrichCompleted(0);
-      setEmailEnrichTotal(0);
-      setEmailEnrichCompleted(0);
-      console.log('[BamLead] Enrichment: All leads already enriched');
-      return;
-    }
-
-    setIsSocialEnriching(true);
-    setIsEmailEnriching(true);
-    setSocialEnrichTotal(candidates.length);
-    setSocialEnrichCompleted(0);
-    setEmailEnrichTotal(candidates.length);
-    setEmailEnrichCompleted(0);
-    toast.info(`🔍 BamLead Scraper: Enriching ${candidates.length} leads (emails + social in one pass)...`);
-
-    // Process in smaller batches for Hostinger shared hosting compatibility
-    // Backend limit is 5, so frontend sends 25 leads → 5 batches of 5 on backend
-    const batchSize = 25;
-    for (let i = 0; i < candidates.length && socialEnrichRunId.current === runId; i += batchSize) {
-      const batch = candidates.slice(i, i + batchSize);
-      
-      try {
-        const batchResults = await bamleadScrapeBatch(
-          batch.map((lead) => ({
-            url: lead.website || '',
-            name: lead.name,
-            location: lead.address,
-          }))
-        );
-
-        // Apply results to leads
-        setSearchResults((prev) =>
-          prev.map((item) => {
-            const website = (item.website || '').trim();
-            const nameKey = (item.name || '').trim();
-            const normalizedWebsite = normalizeLookupKey(website);
-            const result =
-              (website && (batchResults[website] || batchResults[normalizedWebsite])) ||
-              (normalizedWebsite && batchResults[normalizedWebsite]) ||
-              (nameKey && batchResults[nameKey]);
-            if (!result || !result.success) return item;
-
-            const updates: Partial<SearchResult> = {};
-
-            // Cache the result
-            const cacheKey = `social_contacts_${item.name}_${item.address || ''}`;
-            sessionStorage.setItem(cacheKey, JSON.stringify({
-              success: true,
-              contacts: {
-                emails: result.emails,
-                phones: result.phones,
-                profiles: result.profiles,
-                sources: result.sources,
-              },
-            }));
-
-            // Map social profiles
-            if (result.profiles?.facebook?.url) updates.facebookUrl = result.profiles.facebook.url;
-            if (result.profiles?.linkedin?.url) updates.linkedinUrl = result.profiles.linkedin.url;
-            if (result.profiles?.instagram?.url) updates.instagramUrl = result.profiles.instagram.url;
-            // yelp profile stored in cache but not on lead interface
-
-            // Fill missing email
-            if (!item.email && result.emails.length > 0) {
-              updates.email = result.emails[0];
-            }
-
-            // Fill missing phone
-            if (!item.phone && result.phones.length > 0) {
-              updates.phone = result.phones[0];
-            }
-
-            // Update enrichment data
-            if (result.emails.length > 0 || result.phones.length > 0) {
-              const isCatchAll = result.intelligence?.pattern_engine?.is_catch_all || false;
-              updates.enrichment = {
-                ...(item.enrichment || {}),
-                emails: Array.from(new Set([...(item.enrichment?.emails || []), ...result.emails])),
-                isCatchAll,
-                sources: result.sources,
-              };
-              updates.enrichmentStatus = 'completed' as const;
-            }
-
-            return Object.keys(updates).length > 0 ? { ...item, ...updates } : item;
-          })
-        );
-      } catch (error) {
-        console.warn('[BamLead] Batch enrichment failed:', error);
-      } finally {
-        setSocialEnrichCompleted((prev) => prev + batch.length);
-        setEmailEnrichCompleted((prev) => prev + batch.length);
-      }
-
-      // No delay — fire batches as fast as possible
-    }
-
-    if (socialEnrichRunId.current === runId) {
-      setIsSocialEnriching(false);
-      setIsEmailEnriching(false);
-      toast.success(`✨ BamLead Scraper complete for ${candidates.length} leads.`);
-    }
-  };
+  // Search-time enrichment is now handled by backend custom one-shot fetcher.
 
   // Manual save function
   const handleManualSave = async (): Promise<boolean> => {
@@ -1143,6 +1023,11 @@ export default function Dashboard() {
           // Include enrichment data if available
           enrichment: r.enrichment,
           enrichmentStatus: r.enrichmentStatus,
+          facebookUrl: r.enrichment?.socials?.facebook,
+          linkedinUrl: r.enrichment?.socials?.linkedin,
+          instagramUrl: r.enrichment?.socials?.instagram,
+          youtubeUrl: r.enrichment?.socials?.youtube,
+          tiktokUrl: r.enrichment?.socials?.tiktok,
         }));
         if (append) {
           const merged = mergeLeads(latestMergedResults, mapped);
@@ -1228,6 +1113,11 @@ export default function Dashboard() {
             websiteAnalysis: r.websiteAnalysis,
             enrichment: r.enrichment,
             enrichmentStatus: r.enrichmentStatus,
+            facebookUrl: r.enrichment?.socials?.facebook,
+            linkedinUrl: r.enrichment?.socials?.linkedin,
+            instagramUrl: r.enrichment?.socials?.instagram,
+            youtubeUrl: r.enrichment?.socials?.youtube,
+            tiktokUrl: r.enrichment?.socials?.tiktok,
           }));
         } else if (response.error) {
           throw new Error(response.error);
@@ -1254,6 +1144,11 @@ export default function Dashboard() {
             websiteAnalysis: r.websiteAnalysis,
             enrichment: r.enrichment,
             enrichmentStatus: r.enrichmentStatus,
+            facebookUrl: r.enrichment?.socials?.facebook,
+            linkedinUrl: r.enrichment?.socials?.linkedin,
+            instagramUrl: r.enrichment?.socials?.instagram,
+            youtubeUrl: r.enrichment?.socials?.youtube,
+            tiktokUrl: r.enrichment?.socials?.tiktok,
           }));
         } else if (response.error) {
           throw new Error(response.error);
@@ -1396,12 +1291,6 @@ export default function Dashboard() {
       } else {
         toast.info('No businesses found. Try a different search.');
         setShowReportModal(false);
-      }
-
-      // Start email enrichment immediately so leads get emails ASAP
-      // (Don't wait until after the AI pipeline — customers need emails right away)
-      if (scoredResults.length > 0) {
-      startUnifiedEnrichment(scoredResults as SearchResult[]);
       }
 
       // Start AI analysis in background (non-blocking)
@@ -3304,8 +3193,6 @@ export default function Dashboard() {
               setShowAIPipeline(false);
               setAdvanceToStep2AfterReport(true);
               setShowReportModal(true);
-              // Run unified enrichment (emails + social in one pass)
-              startUnifiedEnrichment(enhancedLeads as SearchResult[]);
               toast.success('🎉 All 8 AI agents complete! Your leads are supercharged.');
             }}
             onProgressUpdate={(progress, agentName) => {
