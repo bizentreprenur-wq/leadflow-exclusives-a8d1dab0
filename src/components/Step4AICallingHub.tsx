@@ -21,7 +21,7 @@ import {
   Info, Calendar as CalendarIcon, Database, ArrowLeft, Home, MessageSquare,
   Send, Settings2, Plus, Building2, MessageCircle, Headphones, Activity,
   Signal, Mic, Rocket, BookOpen, HelpCircle, PhoneForwarded, LayoutDashboard,
-  History, Brain, ChevronDown, RotateCcw
+  History, Brain, ChevronDown, RotateCcw, Crown
 } from 'lucide-react';
 import { useAICalling, AI_CALLING_ADDON_PRICE } from '@/hooks/useAICalling';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
@@ -785,35 +785,39 @@ export default function Step4AICallingHub({
                     {/* Tier Capabilities */}
                     <div>
                       <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Your Plan Capabilities</h3>
-                      <div className="grid md:grid-cols-3 gap-3">
+                      <div className="grid md:grid-cols-4 gap-3">
                         {[
+                          { tier: 'unlimited', name: 'Unlimited · $999', icon: Crown, features: ['Fully managed calling', 'Dedicated AI sales brain', 'Done-for-you campaigns'], included: 'Everything managed!' },
                           { tier: 'autopilot', name: 'Autopilot · $249', icon: Sparkles, features: ['Fully autonomous calling', 'AI texts back & forth', 'Phone included'], included: 'All included!' },
                           { tier: 'pro', name: 'Pro · $99', icon: Bot, features: ['AI calls your leads', 'You supervise calls'], addon: `+$${AI_CALLING_ADDON_PRICE}/mo` },
                           { tier: 'basic', name: 'Basic · $49', icon: Edit3, features: ['AI generates call scripts', 'You dial manually'], addon: `+$${AI_CALLING_ADDON_PRICE}/mo` },
                         ].map((tc) => {
                           const isCurrentTier = tier === tc.tier;
                           const isAutopilotTier = tc.tier === 'autopilot';
+                          const isUnlimitedTier = tc.tier === 'unlimited';
                           return (
                             <div key={tc.tier} className={`rounded-2xl border p-4 ${
+                              isCurrentTier && isUnlimitedTier ? 'border-red-500/40 bg-gradient-to-br from-red-500/10 to-rose-500/5 ring-1 ring-red-500/25' :
                               isCurrentTier && isAutopilotTier ? 'border-amber-500/40 bg-gradient-to-br from-amber-500/10 to-orange-500/5 ring-1 ring-amber-500/25' :
                               isCurrentTier ? 'border-primary/30 bg-primary/[0.05] ring-1 ring-primary/20' :
+                              isUnlimitedTier ? 'border-red-500/20 bg-red-500/[0.03]' :
                               isAutopilotTier ? 'border-amber-500/20 bg-amber-500/[0.03]' :
                               'border-border/40 opacity-50'
                             }`}>
                               <div className="flex items-center gap-2 mb-2">
-                                <tc.icon className={`w-4 h-4 ${isAutopilotTier ? 'text-amber-500' : 'text-primary'}`} />
+                                <tc.icon className={`w-4 h-4 ${isUnlimitedTier ? 'text-red-500' : isAutopilotTier ? 'text-amber-500' : 'text-primary'}`} />
                                 <span className="font-semibold text-sm">{tc.name}</span>
-                                {isCurrentTier && <Badge className={`text-[9px] rounded-full px-2 ${isAutopilotTier ? 'bg-amber-500 text-white border-0' : 'bg-foreground text-background'}`}>Current</Badge>}
+                                {isCurrentTier && <Badge className={`text-[9px] rounded-full px-2 ${isUnlimitedTier ? 'bg-red-500 text-white border-0' : isAutopilotTier ? 'bg-amber-500 text-white border-0' : 'bg-foreground text-background'}`}>Current</Badge>}
                               </div>
                               <ul className="space-y-1">
                                 {tc.features.map((f, i) => (
                                   <li key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <CheckCircle2 className={`w-3 h-3 shrink-0 ${isAutopilotTier ? 'text-amber-500' : 'text-primary'}`} /> {f}
+                                    <CheckCircle2 className={`w-3 h-3 shrink-0 ${isUnlimitedTier ? 'text-red-500' : isAutopilotTier ? 'text-amber-500' : 'text-primary'}`} /> {f}
                                   </li>
                                 ))}
                               </ul>
                               {tc.addon && <div className="mt-2 text-center text-[10px] font-medium rounded-lg py-1 bg-muted/50">{tc.addon}</div>}
-                              {tc.included && <div className="mt-2 text-center text-[10px] font-bold rounded-lg py-1 bg-amber-500/15 text-amber-500 border border-amber-500/20">{tc.included}</div>}
+                              {tc.included && <div className={`mt-2 text-center text-[10px] font-bold rounded-lg py-1 border ${isUnlimitedTier ? 'bg-red-500/15 text-red-500 border-red-500/20' : 'bg-amber-500/15 text-amber-500 border-amber-500/20'}`}>{tc.included}</div>}
                             </div>
                           );
                         })}
