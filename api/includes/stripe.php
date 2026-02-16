@@ -127,6 +127,7 @@ function createCheckoutSession($user, $planName, $billingPeriod = 'monthly') {
         'basic' => '/basic-onboarding',
         'pro' => '/pro-onboarding',
         'autopilot' => '/autopilot-onboarding',
+        'unlimited' => '/unlimited-onboarding',
     ];
     $onboardingPath = $onboardingPaths[$planName] ?? '/dashboard';
     $successUrl = FRONTEND_URL . $onboardingPath . '?payment=success&session_id={CHECKOUT_SESSION_ID}';
