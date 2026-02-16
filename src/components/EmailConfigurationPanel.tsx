@@ -102,15 +102,23 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
   const [isSendingTest, setIsSendingTest] = useState(false);
   const [testEmailAddress, setTestEmailAddress] = useState('');
   const [showTestEmailInput, setShowTestEmailInput] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
-  const [smtpConfig, setSMTPConfig] = useState<SMTPConfig>({
-    host: 'smtp.hostinger.com',
-    port: '465',
-    username: '',
-    password: '',
-    fromEmail: 'noreply@bamlead.com',
-    fromName: 'BamLead',
-    secure: true,
+  const [isConnected, setIsConnected] = useState(() => {
+    const savedStatus = safeParse(localStorage.getItem(SMTP_STATUS_KEY), null as any);
+    if (savedStatus) return Boolean(savedStatus.isConnected);
+    return false;
+  });
+  const [smtpConfig, setSMTPConfig] = useState<SMTPConfig>(() => {
+    const saved = safeParse(localStorage.getItem(SMTP_CONFIG_KEY), null as SMTPConfig | null)
+      || safeParse(localStorage.getItem('smtp_config'), null as SMTPConfig | null);
+    return saved || {
+      host: 'smtp.hostinger.com',
+      port: '465',
+      username: '',
+      password: '',
+      fromEmail: 'noreply@bamlead.com',
+      fromName: 'BamLead',
+      secure: true,
+    };
   });
   const [emails, setEmails] = useState<EmailMessage[]>([]);
   const [selectedEmail, setSelectedEmail] = useState<EmailMessage | null>(null);
