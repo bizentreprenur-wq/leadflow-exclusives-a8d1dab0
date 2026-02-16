@@ -74,8 +74,10 @@ if (empty($businesses)) {
     sendError('URL, urls array, or businesses array is required');
 }
 
-// ⚡ Increased batch limit — no restrictions
-$maxBatch = 25;
+// ⚡ Reduced batch size for Hostinger shared hosting compatibility
+// 25 concurrent leads × 20 connections each = 500+ connections → process kills
+// 5 leads × 20 connections = ~100 connections → safe for shared hosting
+$maxBatch = 5;
 $businesses = array_slice($businesses, 0, $maxBatch);
 
 $serperKey = defined('SERPER_API_KEY') ? SERPER_API_KEY : '';
@@ -88,6 +90,15 @@ foreach ($businesses as $biz) {
     $bizKey = !empty($bizUrl) ? $bizUrl : $bizName;
 
     if (empty($bizUrl) && empty($bizName)) continue;
+
+    // 🚀 NAME-BASED FALLBACK: If no website URL, use Serper to discover it
+    if (empty($bizUrl) && !empty($bizName) && !empty($serperKey)) {
+        $discoveredUrl = bamleadDiscoverWebsite($bizName, $bizLocation, $serperKey);
+        if (!empty($discoveredUrl)) {
+            $bizUrl = $discoveredUrl;
+            $biz['url'] = $bizUrl;
+        }
+    }
 
     // Normalize URL
     if (!empty($bizUrl) && !preg_match('/^https?:\/\//', $bizUrl)) {
@@ -1600,4 +1611,70 @@ function bamleadExtractJSBlobEmails($html, $domain = '') {
     });
 
     return array_values(array_unique($emails));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 🚀 NAME-BASED WEBSITE DISCOVERY
+// When a lead has no website URL, use Serper to find it by business name
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function bamleadDiscoverWebsite(string $businessName, string $location, string $serperKey): string {
+    if (empty($businessName) || empty($serperKey)) return '';
+
+    $query = $businessName;
+    if (!empty($location)) {
+        $query .= ' ' . $location;
+    }
+    $query .= ' website';
+
+    $ch = curl_init('https://google.serper.dev/search');
+    curl_setopt_array($ch, [
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => json_encode(['q' => $query, 'gl' => 'us', 'hl' => 'en', 'num' => 5]),
+        CURLOPT_HTTPHEADER     => [
+            'X-API-KEY: ' . $serperKey,
+            'Content-Type: application/json',
+        ],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT        => 5,
+        CURLOPT_CONNECTTIMEOUT => 3,
+        CURLOPT_SSL_VERIFYPEER => true,
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode !== 200 || empty($response)) return '';
+
+    $data = json_decode($response, true);
+    if (empty($data['organic'])) return '';
+
+    // Skip social/directory sites — we want the actual business website
+    $skipDomains = ['facebook.com', 'linkedin.com', 'yelp.com', 'yellowpages.com', 
+                     'bbb.org', 'instagram.com', 'twitter.com', 'x.com', 'tiktok.com',
+                     'manta.com', 'angi.com', 'thumbtack.com', 'nextdoor.com',
+                     'mapquest.com', 'google.com', 'apple.com', 'youtube.com'];
+
+    foreach ($data['organic'] as $result) {
+        $link = $result['link'] ?? '';
+        if (empty($link)) continue;
+
+        $host = strtolower(parse_url($link, PHP_URL_HOST) ?? '');
+        $host = preg_replace('/^www\./', '', $host);
+
+        $isSkipped = false;
+        foreach ($skipDomains as $skip) {
+            if ($host === $skip || str_ends_with($host, '.' . $skip)) {
+                $isSkipped = true;
+                break;
+            }
+        }
+        if ($isSkipped) continue;
+
+        // Found a likely business website
+        return $link;
+    }
+
+    return '';
 }

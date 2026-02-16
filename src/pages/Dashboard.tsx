@@ -596,8 +596,9 @@ export default function Dashboard() {
     setEmailEnrichCompleted(0);
     toast.info(`🔍 BamLead Scraper: Enriching ${candidates.length} leads (emails + social in one pass)...`);
 
-    // Process in large batches for maximum speed
-    const batchSize = 100;
+    // Process in smaller batches for Hostinger shared hosting compatibility
+    // Backend limit is 5, so frontend sends 25 leads → 5 batches of 5 on backend
+    const batchSize = 25;
     for (let i = 0; i < candidates.length && socialEnrichRunId.current === runId; i += batchSize) {
       const batch = candidates.slice(i, i + batchSize);
       
