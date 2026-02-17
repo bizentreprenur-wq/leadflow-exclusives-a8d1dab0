@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -386,6 +386,39 @@ export default function EmailSetupFlow({
   const leadsWithEmail = emailLeads.filter(l => l.email);
   const leadsWithPhone = leads.filter(l => l.phone);
 
+  const mailboxLeads = useMemo(() => {
+    const sourceByEmail = new Map<string, SearchResult>();
+    leads.forEach((lead) => {
+      const key = String(lead.email || '').trim().toLowerCase();
+      if (key && !sourceByEmail.has(key)) {
+        sourceByEmail.set(key, lead);
+      }
+    });
+
+    return leadsWithEmail.map((lead, index) => {
+      const emailKey = String(lead.email || '').trim().toLowerCase();
+      const sourceLead = sourceByEmail.get(emailKey);
+      const resolvedName =
+        sourceLead?.name ||
+        lead.business_name ||
+        lead.contact_name ||
+        (lead.email ? lead.email.split('@')[0] : `Lead ${index + 1}`);
+
+      return {
+        id: String(lead.id ?? `${emailKey || 'lead'}-${index}`),
+        name: resolvedName,
+        email: lead.email || sourceLead?.email || '',
+        business: lead.business_name || sourceLead?.name || resolvedName,
+        category: sourceLead?.aiClassification,
+        verified:
+          sourceLead?.verified ??
+          (sourceLead?.successProbability !== undefined
+            ? sourceLead.successProbability >= 60
+            : true),
+      };
+    });
+  }, [leads, leadsWithEmail]);
+
   useEffect(() => {
     if (currentPhase !== 'send') return;
     const stored = sessionStorage.getItem(DRIP_SETTINGS_KEY) || localStorage.getItem(DRIP_SETTINGS_KEY);
@@ -568,6 +601,32 @@ export default function EmailSetupFlow({
     if (currentPhase !== 'send') return;
     runSendHealthCheck({ silent: true });
   }, [currentPhase, runSendHealthCheck]);
+
+  const handleContinueToDrip = useCallback(() => {
+    if (!smtpConfigured) {
+      setCurrentPhase('smtp');
+      toast.info('Configure SMTP first to launch drip sending.');
+      return;
+    }
+
+    if (!selectedTemplate) {
+      setCurrentPhase('template');
+      toast.info('Choose a template first before launching drip sending.');
+      return;
+    }
+
+    const alreadyOnSendPhase = currentPhase === 'send';
+    setCurrentPhase('send');
+    handleTabChange('mailbox');
+
+    window.setTimeout(() => {
+      smartDripRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+
+    if (alreadyOnSendPhase) {
+      toast.success('Moved to Smart Drip campaign.');
+    }
+  }, [smtpConfigured, selectedTemplate, currentPhase, handleTabChange]);
 
   const renderPhaseContent = () => {
     switch (currentPhase) {
@@ -1054,7 +1113,7 @@ export default function EmailSetupFlow({
                           sentCount={demoSentCount}
                           isActive={demoIsActive || realSendingMode}
                           emailsPerHour={dripSettings.emailsPerHour}
-                          leads={leads.map(l => ({ id: l.id, name: l.name, email: l.email, business: l.name, category: l.aiClassification, verified: l.verified ?? (l.successProbability !== undefined && l.successProbability >= 60) }))}
+                          leads={mailboxLeads}
                           realSendingMode={realSendingMode}
                           campaignId={campaignId || undefined}
                           onEmailStatusUpdate={(statuses) => {
@@ -1594,7 +1653,8 @@ export default function EmailSetupFlow({
           </Button>
           {smtpConfigured ? (
             <Button
-              onClick={() => setCurrentPhase('send')}
+              onClick={handleContinueToDrip}
+              type="button"
               className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground px-8 py-3 text-lg font-bold shadow-elevated"
               size="lg"
             >
