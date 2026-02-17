@@ -497,107 +497,108 @@ export default function VisualTemplateEditor({
 
                   <Separator />
 
-                  {/* Hero Image Swap */}
-                  <div className="space-y-3">
+                  {/* Hero Image - compact */}
+                  <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="flex items-center gap-2">
-                        <Image className="w-4 h-4" />
+                      <Label className="flex items-center gap-2 text-xs">
+                        <Image className="w-3.5 h-3.5" />
                         Hero Image
                       </Label>
-                      <Button
-                        variant={showHeroImage ? "outline" : "secondary"}
-                        size="sm"
-                        onClick={() => setShowHeroImage(!showHeroImage)}
-                        className="gap-1 text-xs"
-                      >
-                        {showHeroImage ? <ImageOff className="w-3.5 h-3.5" /> : <Image className="w-3.5 h-3.5" />}
-                        {showHeroImage ? 'Remove Image' : 'Show Image'}
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowHeroImage(!showHeroImage)}
+                          className="gap-1 text-[10px] h-7 px-2"
+                        >
+                          {showHeroImage ? <ImageOff className="w-3 h-3" /> : <Image className="w-3 h-3" />}
+                          {showHeroImage ? 'Remove' : 'Show'}
+                        </Button>
+                      </div>
                     </div>
                     
                     {showHeroImage && (
-                      <>
-                        {/* Current preview */}
-                        <div className="relative rounded-lg overflow-hidden border bg-muted/30 group">
-                          <img 
-                            src={heroImageUrl} 
-                            alt="Hero preview" 
-                            className="w-full h-24 object-cover"
-                            onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
-                          />
-                          <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                            <label className="cursor-pointer">
-                              <Button size="sm" variant="secondary" className="gap-1 pointer-events-none" asChild>
-                                <span>
-                                  <Upload className="w-3.5 h-3.5" />
-                                  Upload
-                                </span>
-                              </Button>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    const reader = new FileReader();
-                                    reader.onload = (ev) => {
-                                      setHeroImageUrl(ev.target?.result as string);
-                                      toast.success('Image uploaded!');
-                                    };
-                                    reader.readAsDataURL(file);
-                                  }
-                                }}
-                              />
-                            </label>
-                          </div>
+                      <div className="relative rounded-lg overflow-hidden border bg-muted/30 group">
+                        <img 
+                          src={heroImageUrl} 
+                          alt="Hero preview" 
+                          className="w-full h-20 object-cover"
+                          onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
+                        />
+                        <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                          <label className="cursor-pointer">
+                            <Button size="sm" variant="secondary" className="gap-1 pointer-events-none" asChild>
+                              <span>
+                                <Upload className="w-3.5 h-3.5" />
+                                Upload
+                              </span>
+                            </Button>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onload = (ev) => {
+                                    setHeroImageUrl(ev.target?.result as string);
+                                    toast.success('Image uploaded!');
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                          </label>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="gap-1"
+                            onClick={() => {
+                              setHeroImageUrl(template.previewImage);
+                              toast.success('Reset to original');
+                            }}
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            Reset
+                          </Button>
                         </div>
-
-                        {/* URL input */}
-                        <div className="flex gap-2">
+                        <div className="flex gap-1 mt-1">
                           <div className="relative flex-1">
-                            <Link className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                            <Link className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
                             <Input
                               value={heroImageUrl}
                               onChange={(e) => setHeroImageUrl(e.target.value)}
                               placeholder="Paste image URL..."
-                              className="pl-8 text-xs"
+                              className="pl-7 text-[11px] h-7"
                             />
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setHeroImageUrl(template.previewImage);
-                              toast.success('Reset to original image');
-                            }}
-                          >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                          </Button>
                         </div>
-                        <p className="text-xs text-muted-foreground">Upload an image or paste a URL. Hover the preview to upload.</p>
-                      </>
+                      </div>
                     )}
                   </div>
 
                   <Separator />
 
-                  <div className="space-y-2">
-                    <Label>Headline</Label>
+                  {/* Headline */}
+                  <div className="space-y-1">
+                    <Label className="text-xs">Headline</Label>
                     <Input
                       value={editedHeadline}
                       onChange={(e) => setEditedHeadline(e.target.value)}
                       placeholder="Main headline text..."
+                      className="h-8 text-sm"
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Body Text</Label>
+                  {/* Body Text - immediately visible */}
+                  <div className="space-y-1">
+                    <Label className="text-xs">Body Text</Label>
                     <Textarea
                       value={editedBody}
                       onChange={(e) => setEditedBody(e.target.value)}
                       placeholder="Main email content..."
-                      className="min-h-[150px]"
+                      className="min-h-[120px] text-sm"
                     />
                   </div>
 
