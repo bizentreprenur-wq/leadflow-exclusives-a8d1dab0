@@ -454,6 +454,7 @@ export default function EmailSetupFlow({
   // Sending state management
   const [demoSentCount, setDemoSentCount] = useState(0);
   const [demoIsActive, setDemoIsActive] = useState(false);
+  const [mailboxAnimationSeed, setMailboxAnimationSeed] = useState(0);
   const [realSendingMode, setRealSendingMode] = useState(false);
   const [isSendingPaused, setIsSendingPaused] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -1110,6 +1111,7 @@ export default function EmailSetupFlow({
 
                         {/* The Mailbox Animation - THE STAR OF THE SHOW */}
                         <MailboxDripAnimation
+                          key={`mailbox-${realSendingMode ? 'real' : 'demo'}-${mailboxAnimationSeed}-${leadsWithEmail.length}`}
                           totalEmails={leadsWithEmail.length}
                           sentCount={demoSentCount}
                           isActive={demoIsActive || realSendingMode}
@@ -1242,8 +1244,14 @@ export default function EmailSetupFlow({
                                   variant="outline"
                                   size="lg"
                                   onClick={() => {
+                                    setMailboxAnimationSeed((prev) => prev + 1);
+                                    setActiveTab('mailbox');
+                                    setIsSendingPaused(false);
+                                    setDemoSentCount(0);
                                     setRealSendingMode(false);
+                                    setDemoIsActive(false);
                                     setDemoIsActive(true);
+                                    smartDripRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                                     toast.info('👀 Preview mode activated - simulating email delivery');
                                   }}
                                   disabled={isSending}
@@ -1758,6 +1766,7 @@ export default function EmailSetupFlow({
                 // Switch to send phase and show mailbox immediately
                 setCurrentPhase('send');
                 setActiveTab('mailbox');
+                setMailboxAnimationSeed((prev) => prev + 1);
                 setRealSendingMode(true);
                 setDemoIsActive(true);
                 setIsSendingPaused(false);

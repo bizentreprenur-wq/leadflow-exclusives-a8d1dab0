@@ -140,6 +140,7 @@ const EMAIL_ENDPOINTS = {
   scheduled: `${API_BASE_URL}/email-outreach.php?action=scheduled`,
   queueScheduled: `${API_BASE_URL}/email-outreach.php?action=send`,
   cancelScheduled: (id: number) => `${API_BASE_URL}/email-outreach.php?action=cancel-scheduled&id=${id}`,
+  clearQueue: `${API_BASE_URL}/email-outreach.php?action=clear-queue`,
   processMyScheduled: `${API_BASE_URL}/email-outreach.php?action=process-my-scheduled`,
   stats: (period?: number) => `${API_BASE_URL}/email-outreach.php?action=stats${period ? `&period=${period}` : ''}`,
   sendHealth: `${API_BASE_URL}/email-outreach.php?action=send-health`,
@@ -355,6 +356,17 @@ export async function cancelScheduledEmail(id: number): Promise<{ success: boole
   try {
     return await apiRequest(EMAIL_ENDPOINTS.cancelScheduled(id), {
       method: 'DELETE',
+    });
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function clearQueuedEmails(): Promise<{ success: boolean; deleted?: number; error?: string }> {
+  try {
+    return await apiRequest(EMAIL_ENDPOINTS.clearQueue, {
+      method: 'POST',
+      body: JSON.stringify({}),
     });
   } catch (error: any) {
     return { success: false, error: error.message };

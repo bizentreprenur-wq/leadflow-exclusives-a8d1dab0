@@ -46,7 +46,7 @@ import AIVerifierWidget from '@/components/AIVerifierWidget';
 import PaymentMethodModal from '@/components/PaymentMethodModal';
 import EmailVerificationRequired from '@/components/EmailVerificationRequired';
 import bamMascot from '@/assets/bamlead-mascot.png';
-import { LeadForEmail } from '@/lib/api/email';
+import { LeadForEmail, clearQueuedEmails } from '@/lib/api/email';
 import { searchGMB, GMBResult } from '@/lib/api/gmb';
 import type { StreamProgressMeta } from '@/lib/api/gmb';
 import type { EnrichmentCallback } from '@/lib/api/gmb';
@@ -1596,6 +1596,9 @@ export default function Dashboard() {
     localStorage.removeItem('bamlead_search_results');
     localStorage.removeItem('bamlead_search_results_by_type');
     localStorage.removeItem('bamlead_email_leads');
+    localStorage.removeItem('bamlead_scheduled_manual_emails');
+    localStorage.removeItem('bamlead_inbox_replies');
+    localStorage.removeItem('emails_sent');
     localStorage.removeItem('bamlead_selected_leads');
     localStorage.removeItem('bamlead_last_visited_search');
     localStorage.removeItem('bamlead_search_timestamp');
@@ -1614,6 +1617,8 @@ export default function Dashboard() {
     sessionStorage.removeItem('bamlead_location');
     sessionStorage.removeItem('bamlead_search_results');
     sessionStorage.removeItem('bamlead_email_leads');
+    sessionStorage.removeItem('bamlead_scheduled_manual_emails');
+    sessionStorage.removeItem('emails_sent');
     sessionStorage.removeItem('leadsToVerify');
     sessionStorage.removeItem('savedLeads');
     if (shouldPreserveStepContext) {
@@ -1626,9 +1631,16 @@ export default function Dashboard() {
     try {
       const token = localStorage.getItem('auth_token');
       if (token) {
-        const response = await deleteSearchLeads({ clearAll: true });
-        if (!response.success) {
-          throw new Error(response.error || 'Failed to clear server leads');
+        const [leadsResponse, queueResponse] = await Promise.all([
+          deleteSearchLeads({ clearAll: true }),
+          clearQueuedEmails(),
+        ]);
+
+        if (!leadsResponse.success) {
+          throw new Error(leadsResponse.error || 'Failed to clear server leads');
+        }
+        if (!queueResponse.success) {
+          throw new Error(queueResponse.error || 'Failed to clear queued drip emails');
         }
       }
       toast.success('All data cleared! Start fresh.');

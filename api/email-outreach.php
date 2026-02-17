@@ -95,6 +95,10 @@ try {
         case 'cancel-scheduled':
             handleCancelScheduled($db, $user);
             break;
+
+        case 'clear-queue':
+            handleClearQueue($db, $user);
+            break;
             
         case 'process-scheduled':
             // Require IP whitelist + cron secret key for processing scheduled emails
@@ -938,6 +942,31 @@ function handleCancelScheduled($db, $user) {
     );
     
     echo json_encode(['success' => true, 'message' => 'Scheduled email cancelled']);
+}
+
+function handleClearQueue($db, $user) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST' && $_SERVER['REQUEST_METHOD'] !== 'DELETE') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+        return;
+    }
+
+    // Delete queued items only. This keeps sent history while clearing stuck/pending drip queues.
+    $deleted = $db->delete(
+        "DELETE FROM email_sends
+         WHERE user_id = ?
+           AND (
+             status IN ('scheduled', 'pending', 'sending')
+             OR status = ''
+           )",
+        [(int)$user['id']]
+    );
+
+    echo json_encode([
+        'success' => true,
+        'deleted' => (int)$deleted,
+        'message' => "Cleared {$deleted} queued emails"
+    ]);
 }
 
 function handleProcessScheduled($db) {
