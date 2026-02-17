@@ -120,6 +120,15 @@ try {
         case 'send_test':
             handleSendTestEmail($db, $user);
             break;
+
+        // ===== SMTP CONFIG PERSISTENCE =====
+        case 'save_smtp_config':
+            handleSaveSMTPConfig($db, $user);
+            break;
+
+        case 'load_smtp_config':
+            handleLoadSMTPConfig($db, $user);
+            break;
             
         default:
             http_response_code(400);
@@ -1131,5 +1140,87 @@ function handleSendTestEmail($db, $user) {
             'error' => 'Failed to send test email. Please check your SMTP configuration.',
             'smtp_configured' => defined('SMTP_HOST') && !empty(SMTP_HOST)
         ]);
+    }
+}
+
+// ===== SMTP CONFIG PERSISTENCE HANDLERS =====
+
+/**
+ * Save user's SMTP configuration to the database
+ */
+function handleSaveSMTPConfig($db, $user) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+        return;
+    }
+
+    $data = json_decode(file_get_contents('php://input'), true);
+    if (!$data || !is_array($data)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Invalid request body']);
+        return;
+    }
+
+    // Whitelist allowed fields
+    $allowed = ['host', 'port', 'username', 'password', 'fromEmail', 'fromName', 'secure'];
+    $config = [];
+    foreach ($allowed as $key) {
+        if (isset($data[$key])) {
+            $config[$key] = $data[$key];
+        }
+    }
+
+    if (empty($config['host']) || empty($config['username']) || empty($config['password'])) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Host, username, and password are required']);
+        return;
+    }
+
+    $configJson = json_encode($config);
+
+    try {
+        $db->execute(
+            "UPDATE users SET smtp_config = ? WHERE id = ?",
+            [$configJson, $user['id']]
+        );
+
+        echo json_encode(['success' => true, 'message' => 'SMTP configuration saved to your account']);
+    } catch (Exception $e) {
+        error_log("Save SMTP config failed: " . $e->getMessage());
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Failed to save SMTP configuration']);
+    }
+}
+
+/**
+ * Load user's SMTP configuration from the database
+ */
+function handleLoadSMTPConfig($db, $user) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+        return;
+    }
+
+    try {
+        $row = $db->fetchOne(
+            "SELECT smtp_config FROM users WHERE id = ?",
+            [$user['id']]
+        );
+
+        if ($row && !empty($row['smtp_config'])) {
+            $config = json_decode($row['smtp_config'], true);
+            if (is_array($config)) {
+                echo json_encode(['success' => true, 'config' => $config]);
+                return;
+            }
+        }
+
+        echo json_encode(['success' => true, 'config' => null]);
+    } catch (Exception $e) {
+        error_log("Load SMTP config failed: " . $e->getMessage());
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Failed to load SMTP configuration']);
     }
 }

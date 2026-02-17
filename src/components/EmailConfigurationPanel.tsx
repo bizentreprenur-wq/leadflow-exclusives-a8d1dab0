@@ -240,25 +240,71 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
     }
   }, []);
 
-  // Load saved config on mount
+  // Load saved config — prefer server-side, fall back to localStorage
   useEffect(() => {
-    const savedConfig = localStorage.getItem('smtp_config');
-    if (savedConfig) {
+    const loadFromServer = async () => {
       try {
-        const parsed = JSON.parse(savedConfig);
-        setSMTPConfig(parsed);
-        setIsConnected(isVerificationMatch(parsed));
+        const response = await fetch(`${API_BASE_URL}/email-outreach.php?action=load_smtp_config`, {
+          method: 'GET',
+          headers: { ...getAuthHeaders() },
+        });
+        const result = await response.json();
+        if (result.success && result.config) {
+          const serverConfig: SMTPConfig = {
+            host: result.config.host || 'smtp.hostinger.com',
+            port: result.config.port || '465',
+            username: result.config.username || '',
+            password: result.config.password || '',
+            fromEmail: result.config.fromEmail || 'noreply@bamlead.com',
+            fromName: result.config.fromName || 'BamLead',
+            secure: result.config.secure !== undefined ? result.config.secure : true,
+          };
+          setSMTPConfig(serverConfig);
+          persistSMTPConfig(serverConfig);
+          const hasCredentials = Boolean(serverConfig.host && serverConfig.username && serverConfig.password);
+          if (hasCredentials) {
+            setIsConnected(true);
+            persistSMTPStatus(true, true);
+          }
+          broadcastSMTPChange();
+          return; // Server config loaded successfully
+        }
       } catch (e) {
-        console.error('Failed to parse SMTP config');
+        // Server unavailable, fall back to localStorage
       }
-    }
+
+      // Fallback: localStorage
+      const savedConfig = localStorage.getItem('smtp_config');
+      if (savedConfig) {
+        try {
+          const parsed = JSON.parse(savedConfig);
+          setSMTPConfig(parsed);
+          setIsConnected(isVerificationMatch(parsed));
+        } catch (e) {
+          console.error('Failed to parse SMTP config');
+        }
+      }
+    };
+    loadFromServer();
   }, []);
 
   useEffect(() => {
     void loadEmailHistory(false);
   }, [loadEmailHistory]);
 
-  const handleSaveConfig = () => {
+  const saveToServer = async (config: SMTPConfig) => {
+    try {
+      await fetch(`${API_BASE_URL}/email-outreach.php?action=save_smtp_config`, {
+        method: 'POST',
+        headers: { ...getAuthHeaders() },
+        body: JSON.stringify(config),
+      });
+    } catch {
+      // Silent fail — localStorage is the fallback
+    }
+  };
+
+  const handleSaveConfig = async () => {
     if (!smtpConfig.host || !smtpConfig.username || !smtpConfig.password) {
       toast.error('Please fill in all required SMTP fields');
       return;
@@ -269,7 +315,10 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
     setIsConnected(false);
     persistSMTPStatus(false, false);
     broadcastSMTPChange();
-    toast.success('SMTP configuration saved!');
+
+    // Persist to server so it survives browser clears
+    await saveToServer(smtpConfig);
+    toast.success('SMTP configuration saved to your account!');
   };
 
   const handleTestConnection = async () => {
@@ -306,6 +355,8 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
         setIsConnected(true);
         persistSMTPStatus(true, true);
         broadcastSMTPChange();
+        // Also persist to server after successful verification
+        saveToServer(smtpConfig);
       } else {
         toast.error('Connection failed', {
           description: result.error || 'Please check your SMTP credentials',
@@ -384,6 +435,7 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
         setIsConnected(true);
         persistSMTPStatus(true, true);
         broadcastSMTPChange();
+        saveToServer(smtpConfig);
         setShowTestEmailInput(false);
         setTestEmailAddress('');
         void loadEmailHistory(false);
