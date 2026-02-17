@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { API_BASE_URL, getAuthHeaders as getApiAuthHeaders } from '@/lib/api/config';
 
 export interface SMTPConfig {
   host: string;
@@ -39,6 +40,10 @@ const SMTP_CHANGE_EVENT = 'bamlead_smtp_changed';
 const CONNECTION_FIELDS: Array<keyof SMTPConfig> = ['host', 'port', 'username', 'password', 'secure'];
 
 export function useSMTPConfig() {
+  const broadcastChange = useCallback(() => {
+    window.dispatchEvent(new CustomEvent(SMTP_CHANGE_EVENT));
+  }, []);
+
   const [config, setConfig] = useState<SMTPConfig>(() => {
     try {
       // Try new key first, then legacy key
@@ -73,6 +78,25 @@ export function useSMTPConfig() {
   const [isTesting, setIsTesting] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
 
+  const saveConfigToServer = useCallback(async (smtpConfig: SMTPConfig) => {
+    const token = localStorage.getItem('auth_token');
+    if (!token) return;
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/email-outreach.php?action=save_smtp_config`, {
+        method: 'POST',
+        headers: { ...getApiAuthHeaders() },
+        body: JSON.stringify(smtpConfig),
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        console.warn('[SMTP] Server save failed:', response.status, text.slice(0, 200));
+      }
+    } catch (err) {
+      console.warn('[SMTP] Server save request failed:', err);
+    }
+  }, []);
+
   // Sync state from localStorage on mount and listen for changes
   useEffect(() => {
     // Sync on mount - ensures component picks up latest state
@@ -102,6 +126,63 @@ export function useSMTPConfig() {
     // Initial sync
     syncFromStorage();
 
+    const loadFromServer = async () => {
+      const token = localStorage.getItem('auth_token');
+      if (!token) return;
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/email-outreach.php?action=load_smtp_config`, {
+          method: 'GET',
+          headers: { ...getApiAuthHeaders() },
+        });
+        if (!response.ok) {
+          return;
+        }
+        const payload = await response.json();
+        if (!payload?.success) {
+          return;
+        }
+
+        if (!payload?.config || typeof payload.config !== 'object') {
+          localStorage.removeItem(SMTP_CONFIG_KEY);
+          localStorage.removeItem('smtp_config');
+          localStorage.setItem(SMTP_STATUS_KEY, JSON.stringify(DEFAULT_STATUS));
+          setConfig(DEFAULT_CONFIG);
+          setStatus(DEFAULT_STATUS);
+          broadcastChange();
+          return;
+        }
+
+        const serverConfig: SMTPConfig = {
+          host: payload.config.host || DEFAULT_CONFIG.host,
+          port: payload.config.port || DEFAULT_CONFIG.port,
+          username: payload.config.username || '',
+          password: payload.config.password || '',
+          fromEmail: payload.config.fromEmail || payload.config.username || DEFAULT_CONFIG.fromEmail,
+          fromName: payload.config.fromName || DEFAULT_CONFIG.fromName,
+          secure: payload.config.secure !== undefined ? Boolean(payload.config.secure) : DEFAULT_CONFIG.secure,
+        };
+
+        const serialized = JSON.stringify(serverConfig);
+        localStorage.setItem(SMTP_CONFIG_KEY, serialized);
+        localStorage.setItem('smtp_config', serialized);
+
+        const hasCredentials = Boolean(serverConfig.host && serverConfig.port && serverConfig.username && serverConfig.password);
+        const nextStatus: SMTPStatus = {
+          isConnected: hasCredentials,
+          isVerified: hasCredentials,
+          lastTestDate: new Date().toISOString(),
+        };
+        localStorage.setItem(SMTP_STATUS_KEY, JSON.stringify(nextStatus));
+        setConfig(serverConfig);
+        setStatus(nextStatus);
+        broadcastChange();
+      } catch (err) {
+        console.warn('[SMTP] Server load failed:', err);
+      }
+    };
+    void loadFromServer();
+
     const handleStorageChange = (e: StorageEvent) => {
       if ((e.key === SMTP_CONFIG_KEY || e.key === 'smtp_config') && e.newValue) {
         try {
@@ -126,11 +207,7 @@ export function useSMTPConfig() {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener(SMTP_CHANGE_EVENT, handleCustomEvent);
     };
-  }, []);
-
-  const broadcastChange = useCallback(() => {
-    window.dispatchEvent(new CustomEvent(SMTP_CHANGE_EVENT));
-  }, []);
+  }, [broadcastChange]);
 
   const updateConfig = useCallback((newConfig: Partial<SMTPConfig>) => {
     setConfig(prev => {
@@ -172,8 +249,9 @@ export function useSMTPConfig() {
     localStorage.setItem(SMTP_STATUS_KEY, JSON.stringify(newStatus));
     
     broadcastChange();
+    void saveConfigToServer(config);
     return true;
-  }, [config, status, broadcastChange]);
+  }, [config, status, broadcastChange, saveConfigToServer]);
 
   const testConnection = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
     if (!config.host || !config.port || !config.username || !config.password) {
@@ -198,6 +276,9 @@ export function useSMTPConfig() {
       setStatus(newStatus);
       localStorage.setItem(SMTP_STATUS_KEY, JSON.stringify(newStatus));
       broadcastChange();
+      if (result.success) {
+        void saveConfigToServer(config as SMTPConfig);
+      }
       
       return { success: result.success, error: result.error };
     } catch (error: any) {
@@ -214,7 +295,7 @@ export function useSMTPConfig() {
     } finally {
       setIsTesting(false);
     }
-  }, [config, broadcastChange]);
+  }, [config, broadcastChange, saveConfigToServer]);
 
   const sendTestEmail = useCallback(async (toEmail: string): Promise<{ success: boolean; error?: string }> => {
     setIsSendingTest(true);
@@ -222,13 +303,16 @@ export function useSMTPConfig() {
     try {
       const { sendTestEmail: sendTest } = await import('@/lib/emailService');
       const result = await sendTest(toEmail);
+      if (result.success) {
+        void saveConfigToServer(config);
+      }
       return { success: result.success, error: result.error };
     } catch (error: any) {
       return { success: false, error: error.message || 'Network error' };
     } finally {
       setIsSendingTest(false);
     }
-  }, []);
+  }, [config, saveConfigToServer]);
 
   const setConnected = useCallback((connected: boolean, verified: boolean = connected) => {
     const newStatus: SMTPStatus = {

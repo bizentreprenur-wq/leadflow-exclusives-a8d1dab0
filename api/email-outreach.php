@@ -357,10 +357,17 @@ function handleSendEmail($db, $user) {
     
     // Send the email (prefer per-request SMTP settings if provided)
     $textBody = $data['body_text'] ?? strip_tags($bodyHtml);
-    $smtpOverride = isset($data['smtp_override']) && is_array($data['smtp_override']) ? $data['smtp_override'] : null;
-    $sent = $smtpOverride
-        ? sendEmailWithCustomSMTP($data['to'], $subject, $bodyHtml, $textBody, $smtpOverride)
-        : sendEmail($data['to'], $subject, $bodyHtml, $textBody);
+    $smtpOverride = resolveEffectiveSmtpOverride($db, (int)$user['id'], $data);
+    if (!$smtpOverride) {
+        $db->update(
+            "UPDATE email_sends SET status = 'failed', error_message = 'No SMTP config saved for this user' WHERE id = ?",
+            [$sendId]
+        );
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'SMTP not configured. Please save your SMTP settings first.']);
+        return;
+    }
+    $sent = sendEmailWithCustomSMTP($data['to'], $subject, $bodyHtml, $textBody, $smtpOverride);
     
     if ($sent) {
         $db->update(
@@ -439,7 +446,14 @@ function handleSendBulk($db, $user) {
         'scheduled' => 0,
         'details' => []
     ];
+    $effectiveSmtpOverride = resolveEffectiveSmtpOverride($db, (int)$user['id'], $data);
     
+    if (!$effectiveSmtpOverride) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'SMTP not configured. Please save your SMTP settings first.']);
+        return;
+    }
+
     // For drip sending, we queue emails with scheduled times
     $emailsPerHour = $dripConfig['emailsPerHour'] ?? 20;
     $delayMinutes = $dripConfig['delayMinutes'] ?? 3;
@@ -503,8 +517,7 @@ function handleSendBulk($db, $user) {
         $leadId = resolveValidLeadId($db, $user, $lead['id'] ?? null);
 
         // Store SMTP override for scheduled/drip emails so cron can use it
-        $smtpOverride = isset($data['smtp_override']) && is_array($data['smtp_override']) ? $data['smtp_override'] : null;
-        $smtpConfigJson = ($status === 'scheduled' && $smtpOverride) ? json_encode($smtpOverride) : null;
+        $smtpConfigJson = ($status === 'scheduled') ? json_encode($effectiveSmtpOverride) : null;
         
         // Record the send
         $sendId = $db->insert(
@@ -530,10 +543,7 @@ function handleSendBulk($db, $user) {
         // For instant mode, send immediately
         if ($sendMode === 'instant') {
             $textBody = personalizeContent($emailBodyText, $personalization);
-            $smtpOverride = isset($data['smtp_override']) && is_array($data['smtp_override']) ? $data['smtp_override'] : null;
-            $sent = $smtpOverride
-                ? sendEmailWithCustomSMTP($lead['email'], $subject, $bodyHtml, $textBody, $smtpOverride)
-                : sendEmail($lead['email'], $subject, $bodyHtml, $textBody);
+            $sent = sendEmailWithCustomSMTP($lead['email'], $subject, $bodyHtml, $textBody, $effectiveSmtpOverride);
             
             if ($sent) {
                 $db->update(
@@ -855,9 +865,35 @@ function handleProcessScheduled($db) {
     $processed = 0;
     $failed = 0;
     
+    $userSmtpCache = [];
     foreach ($pendingEmails as $email) {
         $textBody = $email['template_body_text'] ?? strip_tags($email['body_html']);
-        $sent = sendEmail($email['recipient_email'], $email['subject'], $email['body_html'], $textBody);
+        $smtpOverride = null;
+        if (!empty($email['smtp_config'])) {
+            $decoded = json_decode((string)$email['smtp_config'], true);
+            if (is_array($decoded)) {
+                $smtpOverride = normalizeSmtpConfigPayload($decoded);
+            }
+        }
+        if (!$smtpOverride && !empty($email['user_id'])) {
+            $uid = (int)$email['user_id'];
+            if (!array_key_exists($uid, $userSmtpCache)) {
+                $loaded = loadUserSmtpConfigForUser($db, $uid);
+                $userSmtpCache[$uid] = normalizeSmtpConfigPayload($loaded['config'] ?? null);
+            }
+            $smtpOverride = $userSmtpCache[$uid] ?: null;
+        }
+
+        if (!$smtpOverride) {
+            $db->update(
+                "UPDATE email_sends SET status = 'failed', error_message = 'No SMTP config saved for this user' WHERE id = ?",
+                [$email['id']]
+            );
+            $failed++;
+            continue;
+        }
+
+        $sent = sendEmailWithCustomSMTP($email['recipient_email'], $email['subject'], $email['body_html'], $textBody, $smtpOverride);
         
         if ($sent) {
             $db->update(
@@ -914,6 +950,38 @@ function extractFirstName($businessName) {
     }
     
     return 'there';
+}
+
+function normalizeSmtpConfigPayload($config) {
+    if (!is_array($config)) {
+        return null;
+    }
+
+    $normalized = [
+        'host' => trim((string)($config['host'] ?? '')),
+        'port' => (string)($config['port'] ?? ''),
+        'username' => trim((string)($config['username'] ?? '')),
+        'password' => (string)($config['password'] ?? ''),
+        'fromEmail' => trim((string)($config['fromEmail'] ?? $config['from_email'] ?? '')),
+        'fromName' => trim((string)($config['fromName'] ?? $config['from_name'] ?? '')),
+        'secure' => $config['secure'] ?? true,
+    ];
+
+    if ($normalized['host'] === '' || $normalized['username'] === '' || $normalized['password'] === '') {
+        return null;
+    }
+
+    return $normalized;
+}
+
+function resolveEffectiveSmtpOverride($db, $userId, $requestData) {
+    $requestOverride = normalizeSmtpConfigPayload($requestData['smtp_override'] ?? null);
+    if ($requestOverride) {
+        return $requestOverride;
+    }
+
+    $loaded = loadUserSmtpConfigForUser($db, (int)$userId);
+    return normalizeSmtpConfigPayload($loaded['config'] ?? null);
 }
 
 /**
@@ -1107,11 +1175,24 @@ function handleSendTestEmail($db, $user) {
     
     $textBody = "BamLead SMTP Test - SUCCESS!\n\nYour email configuration is working properly.\n\nSent to: $toEmail\nTime: " . date('Y-m-d H:i:s T') . "\n\nYou can now send emails to your leads!";
     
-    // Send the test email (prefer per-request SMTP settings if provided)
-    $smtpOverride = isset($data['smtp_override']) && is_array($data['smtp_override']) ? $data['smtp_override'] : null;
-    $sent = $smtpOverride
-        ? sendEmailWithCustomSMTP($toEmail, $subject, $htmlBody, $textBody, $smtpOverride)
-        : sendEmail($toEmail, $subject, $htmlBody, $textBody);
+    // Send the test email using either request override or saved user SMTP config.
+    $smtpOverride = null;
+    if (is_array($user) && isset($user['id'])) {
+        $smtpOverride = resolveEffectiveSmtpOverride($db, (int)$user['id'], $data);
+    } else {
+        $smtpOverride = normalizeSmtpConfigPayload($data['smtp_override'] ?? null);
+    }
+
+    if (!$smtpOverride) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'error' => 'SMTP not configured. Please provide smtp_override or save SMTP settings first.',
+        ]);
+        return;
+    }
+
+    $sent = sendEmailWithCustomSMTP($toEmail, $subject, $htmlBody, $textBody, $smtpOverride);
     
     if ($sent) {
         // Log the successful test if possible (email_sends table may not exist in some installs).
@@ -1180,12 +1261,12 @@ function handleSaveSMTPConfig($db, $user) {
     $configJson = json_encode($config);
 
     try {
-        $db->execute(
-            "UPDATE users SET smtp_config = ? WHERE id = ?",
-            [$configJson, $user['id']]
-        );
-
-        echo json_encode(['success' => true, 'message' => 'SMTP configuration saved to your account']);
+        $storage = saveUserSmtpConfigForUser($db, (int)$user['id'], $configJson);
+        echo json_encode([
+            'success' => true,
+            'message' => 'SMTP configuration saved to your account',
+            'storage' => $storage,
+        ]);
     } catch (Exception $e) {
         error_log("Save SMTP config failed: " . $e->getMessage());
         http_response_code(500);
@@ -1204,17 +1285,14 @@ function handleLoadSMTPConfig($db, $user) {
     }
 
     try {
-        $row = $db->fetchOne(
-            "SELECT smtp_config FROM users WHERE id = ?",
-            [$user['id']]
-        );
-
-        if ($row && !empty($row['smtp_config'])) {
-            $config = json_decode($row['smtp_config'], true);
-            if (is_array($config)) {
-                echo json_encode(['success' => true, 'config' => $config]);
-                return;
-            }
+        $payload = loadUserSmtpConfigForUser($db, (int)$user['id']);
+        if (!empty($payload['config']) && is_array($payload['config'])) {
+            echo json_encode([
+                'success' => true,
+                'config' => $payload['config'],
+                'storage' => $payload['storage'] ?? null,
+            ]);
+            return;
         }
 
         echo json_encode(['success' => true, 'config' => null]);
@@ -1223,4 +1301,89 @@ function handleLoadSMTPConfig($db, $user) {
         http_response_code(500);
         echo json_encode(['success' => false, 'error' => 'Failed to load SMTP configuration']);
     }
+}
+
+function isUnknownSmtpColumnError($exception) {
+    $message = strtolower((string)($exception instanceof Throwable ? $exception->getMessage() : $exception));
+    return strpos($message, 'unknown column') !== false && strpos($message, 'smtp_config') !== false;
+}
+
+function ensureUserSmtpConfigFallbackTable($db) {
+    $db->query(
+        "CREATE TABLE IF NOT EXISTS user_smtp_configs (
+            user_id INT NOT NULL PRIMARY KEY,
+            smtp_config TEXT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            INDEX idx_user_id (user_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+}
+
+function saveUserSmtpConfigForUser($db, $userId, $configJson) {
+    try {
+        $db->update(
+            "UPDATE users SET smtp_config = ? WHERE id = ?",
+            [$configJson, $userId]
+        );
+        return 'users.smtp_config';
+    } catch (Exception $e) {
+        if (!isUnknownSmtpColumnError($e)) {
+            throw $e;
+        }
+    }
+
+    ensureUserSmtpConfigFallbackTable($db);
+    $db->query(
+        "INSERT INTO user_smtp_configs (user_id, smtp_config)
+         VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE smtp_config = VALUES(smtp_config), updated_at = CURRENT_TIMESTAMP",
+        [$userId, $configJson]
+    );
+
+    return 'user_smtp_configs.smtp_config';
+}
+
+function loadUserSmtpConfigForUser($db, $userId) {
+    try {
+        $row = $db->fetchOne(
+            "SELECT smtp_config FROM users WHERE id = ?",
+            [$userId]
+        );
+        if ($row && !empty($row['smtp_config'])) {
+            $config = json_decode($row['smtp_config'], true);
+            if (is_array($config)) {
+                return [
+                    'config' => $config,
+                    'storage' => 'users.smtp_config',
+                ];
+            }
+        }
+    } catch (Exception $e) {
+        if (!isUnknownSmtpColumnError($e)) {
+            throw $e;
+        }
+    }
+
+    try {
+        ensureUserSmtpConfigFallbackTable($db);
+        $row = $db->fetchOne(
+            "SELECT smtp_config FROM user_smtp_configs WHERE user_id = ?",
+            [$userId]
+        );
+        if ($row && !empty($row['smtp_config'])) {
+            $config = json_decode($row['smtp_config'], true);
+            if (is_array($config)) {
+                return [
+                    'config' => $config,
+                    'storage' => 'user_smtp_configs.smtp_config',
+                ];
+            }
+        }
+    } catch (Exception $fallbackError) {
+        error_log("SMTP fallback load failed: " . $fallbackError->getMessage());
+    }
+
+    return ['config' => null, 'storage' => null];
 }

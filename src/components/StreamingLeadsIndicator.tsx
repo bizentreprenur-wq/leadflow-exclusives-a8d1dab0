@@ -9,6 +9,8 @@ interface StreamingLeadsIndicatorProps {
   locationCount?: number;
   variantCount?: number;
   estimatedQueries?: number;
+  sourceLabel?: string;
+  statusMessage?: string;
 }
 
 export default function StreamingLeadsIndicator({
@@ -19,6 +21,8 @@ export default function StreamingLeadsIndicator({
   locationCount,
   variantCount,
   estimatedQueries,
+  sourceLabel,
+  statusMessage,
 }: StreamingLeadsIndicatorProps) {
   const [displayCount, setDisplayCount] = useState(0);
   const [prevCount, setPrevCount] = useState(0);
@@ -90,7 +94,7 @@ export default function StreamingLeadsIndicator({
             </div>
             <p className="text-sm text-muted-foreground">
               {isStreaming ? (
-                'Streaming results from Google Maps API'
+                statusMessage || (sourceLabel ? `Streaming results from ${sourceLabel}` : 'Streaming results...')
               ) : requestedCount && currentCount !== requestedCount ? (
                 `Found ${currentCount} of ${requestedCount} requested businesses`
               ) : (

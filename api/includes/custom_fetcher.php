@@ -29,7 +29,13 @@ if (!defined('ENABLE_LEGACY_FIRECRAWL_ENRICHMENT')) {
     define('ENABLE_LEGACY_FIRECRAWL_ENRICHMENT', false);
 }
 if (!defined('CUSTOM_FETCH_DISCOVERY_SOURCES')) {
-    define('CUSTOM_FETCH_DISCOVERY_SOURCES', ['serper']);
+    define('CUSTOM_FETCH_DISCOVERY_SOURCES', ['no_key']);
+}
+if (!defined('CUSTOM_FETCH_ENGINE_MODE')) {
+    define('CUSTOM_FETCH_ENGINE_MODE', 'current');
+}
+if (!defined('ENABLE_NO_KEY_OUTSCRAPER_STYLE')) {
+    define('ENABLE_NO_KEY_OUTSCRAPER_STYLE', false);
 }
 if (!defined('CUSTOM_FETCH_ENRICH_CONCURRENCY')) {
     define('CUSTOM_FETCH_ENRICH_CONCURRENCY', 5);
@@ -46,6 +52,9 @@ if (!defined('CUSTOM_FETCH_ENABLE_INLINE_ENRICHMENT')) {
 if (!defined('CUSTOM_FETCH_SERPER_ORGANIC_TOPUP')) {
     define('CUSTOM_FETCH_SERPER_ORGANIC_TOPUP', false);
 }
+if (!defined('CUSTOM_FETCH_SERPER_INCLUDE_MAPS')) {
+    define('CUSTOM_FETCH_SERPER_INCLUDE_MAPS', true);
+}
 if (!defined('CUSTOM_FETCH_ENABLE_LOW_COVERAGE_TOPUP')) {
     define('CUSTOM_FETCH_ENABLE_LOW_COVERAGE_TOPUP', true);
 }
@@ -60,6 +69,18 @@ if (!defined('CUSTOM_FETCH_DISCOVERY_TIMEOUT_SEC')) {
 }
 if (!defined('CUSTOM_FETCH_STREAM_EMIT_BATCH_SIZE')) {
     define('CUSTOM_FETCH_STREAM_EMIT_BATCH_SIZE', 6);
+}
+if (!defined('CUSTOM_FETCH_QUERY_CONCURRENCY')) {
+    define('CUSTOM_FETCH_QUERY_CONCURRENCY', 3);
+}
+if (!defined('CUSTOM_FETCH_ENABLE_PLATFORM_RELAXATION')) {
+    define('CUSTOM_FETCH_ENABLE_PLATFORM_RELAXATION', true);
+}
+if (!defined('CUSTOM_FETCH_PLATFORM_RELAX_THRESHOLD')) {
+    define('CUSTOM_FETCH_PLATFORM_RELAX_THRESHOLD', 0.20);
+}
+if (!defined('CUSTOM_FETCH_PLATFORM_RELAX_AFTER_QUERY_RATIO')) {
+    define('CUSTOM_FETCH_PLATFORM_RELAX_AFTER_QUERY_RATIO', 0.35);
 }
 if (!defined('CUSTOM_FETCH_ENABLE_QUICK_EMAIL_PROBE')) {
     define('CUSTOM_FETCH_ENABLE_QUICK_EMAIL_PROBE', true);
@@ -76,12 +97,81 @@ if (!defined('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_QUERY')) {
 if (!defined('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_PASS')) {
     define('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_PASS', 16);
 }
+if (!defined('CUSTOM_FETCH_DEFER_QUICK_EMAIL_PROBE')) {
+    define('CUSTOM_FETCH_DEFER_QUICK_EMAIL_PROBE', true);
+}
+if (!defined('CUSTOM_FETCH_TOPUP_USE_NO_KEY_FALLBACK')) {
+    define('CUSTOM_FETCH_TOPUP_USE_NO_KEY_FALLBACK', false);
+}
+if (!defined('NO_KEY_DISCOVERY_CONCURRENCY')) {
+    define('NO_KEY_DISCOVERY_CONCURRENCY', 16);
+}
+if (!defined('NO_KEY_PROVIDER_TIMEOUT_SEC')) {
+    define('NO_KEY_PROVIDER_TIMEOUT_SEC', 5);
+}
+if (!defined('NO_KEY_PROVIDER_RETRIES')) {
+    define('NO_KEY_PROVIDER_RETRIES', 0);
+}
+if (!defined('NO_KEY_TOPUP_MAX_PASSES')) {
+    define('NO_KEY_TOPUP_MAX_PASSES', 3);
+}
+if (!defined('NO_KEY_TOPUP_MAX_QUERIES')) {
+    define('NO_KEY_TOPUP_MAX_QUERIES', 30);
+}
+if (!defined('NO_KEY_STREAM_EMIT_BATCH_SIZE')) {
+    define('NO_KEY_STREAM_EMIT_BATCH_SIZE', 6);
+}
+if (!defined('NO_KEY_BLOCK_BACKOFF_MS')) {
+    define('NO_KEY_BLOCK_BACKOFF_MS', 200);
+}
+if (!defined('NO_KEY_TARGET_RATIO')) {
+    define('NO_KEY_TARGET_RATIO', 0.85);
+}
+if (!defined('NO_KEY_MAX_SEED_QUERIES')) {
+    define('NO_KEY_MAX_SEED_QUERIES', 25);
+}
+if (!defined('NO_KEY_ENABLE_TOPUP')) {
+    define('NO_KEY_ENABLE_TOPUP', true);
+}
+if (!defined('NO_KEY_DEFER_QUICK_PROBE')) {
+    define('NO_KEY_DEFER_QUICK_PROBE', true);
+}
+if (!defined('NO_KEY_MAX_EMPTY_SEED_CHUNKS')) {
+    define('NO_KEY_MAX_EMPTY_SEED_CHUNKS', 4);
+}
+if (!defined('NO_KEY_MAX_EMPTY_TOPUP_CHUNKS')) {
+    define('NO_KEY_MAX_EMPTY_TOPUP_CHUNKS', 3);
+}
 
-function customFetcherEnabled() {
+function customFetcherEnabled()
+{
     return defined('ENABLE_CUSTOM_ONE_SHOT_FETCHER') && ENABLE_CUSTOM_ONE_SHOT_FETCHER;
 }
 
-function customFetcherResolveSources() {
+function customFetcherEngineMode()
+{
+    $mode = strtolower(trim((string) (defined('CUSTOM_FETCH_ENGINE_MODE') ? CUSTOM_FETCH_ENGINE_MODE : 'current')));
+    if (!in_array($mode, ['current', 'no_key_outscraper_style'], true)) {
+        return 'current';
+    }
+    return $mode;
+}
+
+function customFetcherNoKeyOutscraperEnabled()
+{
+    return defined('ENABLE_NO_KEY_OUTSCRAPER_STYLE') && ENABLE_NO_KEY_OUTSCRAPER_STYLE;
+}
+
+function customFetcherUseNoKeyOutscraperStyle()
+{
+    return customFetcherNoKeyOutscraperEnabled() && customFetcherEngineMode() === 'no_key_outscraper_style';
+}
+
+function customFetcherResolveSources()
+{
+    if (customFetcherUseNoKeyOutscraperStyle()) {
+        return ['no_key'];
+    }
     $raw = defined('CUSTOM_FETCH_DISCOVERY_SOURCES') ? CUSTOM_FETCH_DISCOVERY_SOURCES : ['serper'];
     if (!is_array($raw)) {
         $raw = ['serper'];
@@ -89,21 +179,23 @@ function customFetcherResolveSources() {
 
     $normalized = [];
     foreach ($raw as $src) {
-        $key = strtolower(trim((string)$src));
+        $key = strtolower(trim((string) $src));
         if (in_array($key, ['serper', 'google', 'bing', 'no_key'], true) && !in_array($key, $normalized, true)) {
             $normalized[] = $key;
         }
     }
     $available = [];
     foreach ($normalized as $src) {
-        if ($src === 'serper' && defined('SERPER_API_KEY') && trim((string)SERPER_API_KEY) !== '') {
+        if ($src === 'serper' && defined('SERPER_API_KEY') && trim((string) SERPER_API_KEY) !== '') {
             $available[] = $src;
         }
-        if ($src === 'google' && defined('GOOGLE_API_KEY') && defined('GOOGLE_SEARCH_ENGINE_ID') &&
-            trim((string)GOOGLE_API_KEY) !== '' && trim((string)GOOGLE_SEARCH_ENGINE_ID) !== '') {
+        if (
+            $src === 'google' && defined('GOOGLE_API_KEY') && defined('GOOGLE_SEARCH_ENGINE_ID') &&
+            trim((string) GOOGLE_API_KEY) !== '' && trim((string) GOOGLE_SEARCH_ENGINE_ID) !== ''
+        ) {
             $available[] = $src;
         }
-        if ($src === 'bing' && defined('BING_API_KEY') && trim((string)BING_API_KEY) !== '') {
+        if ($src === 'bing' && defined('BING_API_KEY') && trim((string) BING_API_KEY) !== '') {
             $available[] = $src;
         }
         if ($src === 'no_key') {
@@ -113,82 +205,239 @@ function customFetcherResolveSources() {
     return $available;
 }
 
-function customFetcherTargetRatio() {
-    $ratio = defined('CUSTOM_FETCH_TARGET_RATIO') ? (float)CUSTOM_FETCH_TARGET_RATIO : 0.95;
-    if ($ratio < 0.50) $ratio = 0.50;
-    if ($ratio > 1.00) $ratio = 1.00;
+function customFetcherTargetRatio()
+{
+    $ratio = defined('CUSTOM_FETCH_TARGET_RATIO') ? (float) CUSTOM_FETCH_TARGET_RATIO : 0.95;
+    if ($ratio < 0.50)
+        $ratio = 0.50;
+    if ($ratio > 1.00)
+        $ratio = 1.00;
     return $ratio;
 }
 
-function customFetcherInlineEnrichmentEnabled() {
+function customFetcherInlineEnrichmentEnabled()
+{
     return defined('CUSTOM_FETCH_ENABLE_INLINE_ENRICHMENT') && CUSTOM_FETCH_ENABLE_INLINE_ENRICHMENT;
 }
 
-function customFetcherSerperOrganicTopupEnabled() {
+function customFetcherSerperOrganicTopupEnabled()
+{
     return defined('CUSTOM_FETCH_SERPER_ORGANIC_TOPUP') && CUSTOM_FETCH_SERPER_ORGANIC_TOPUP;
 }
 
-function customFetcherLowCoverageTopupEnabled() {
+function customFetcherSerperIncludeMaps()
+{
+    return defined('CUSTOM_FETCH_SERPER_INCLUDE_MAPS') ? (bool) CUSTOM_FETCH_SERPER_INCLUDE_MAPS : true;
+}
+
+function customFetcherLowCoverageTopupEnabled()
+{
     return defined('CUSTOM_FETCH_ENABLE_LOW_COVERAGE_TOPUP') && CUSTOM_FETCH_ENABLE_LOW_COVERAGE_TOPUP;
 }
 
-function customFetcherLowCoverageThreshold() {
-    $threshold = defined('CUSTOM_FETCH_LOW_COVERAGE_THRESHOLD') ? (float)CUSTOM_FETCH_LOW_COVERAGE_THRESHOLD : 0.80;
-    if ($threshold < 0.35) $threshold = 0.35;
-    if ($threshold > 0.98) $threshold = 0.98;
+function customFetcherLowCoverageThreshold()
+{
+    $threshold = defined('CUSTOM_FETCH_LOW_COVERAGE_THRESHOLD') ? (float) CUSTOM_FETCH_LOW_COVERAGE_THRESHOLD : 0.80;
+    if ($threshold < 0.35)
+        $threshold = 0.35;
+    if ($threshold > 0.98)
+        $threshold = 0.98;
     return $threshold;
 }
 
-function customFetcherMaxTopupQueries() {
-    $max = defined('CUSTOM_FETCH_MAX_TOPUP_QUERIES') ? (int)CUSTOM_FETCH_MAX_TOPUP_QUERIES : 18;
+function customFetcherMaxTopupQueries()
+{
+    $max = defined('CUSTOM_FETCH_MAX_TOPUP_QUERIES') ? (int) CUSTOM_FETCH_MAX_TOPUP_QUERIES : 18;
     return max(4, min(80, $max));
 }
 
-function customFetcherDiscoveryTimeout() {
-    $timeout = defined('CUSTOM_FETCH_DISCOVERY_TIMEOUT_SEC') ? (int)CUSTOM_FETCH_DISCOVERY_TIMEOUT_SEC : 6;
+function customFetcherDiscoveryTimeout()
+{
+    $timeout = defined('CUSTOM_FETCH_DISCOVERY_TIMEOUT_SEC') ? (int) CUSTOM_FETCH_DISCOVERY_TIMEOUT_SEC : 6;
     return max(3, min(12, $timeout));
 }
 
-function customFetcherStreamEmitBatchSize() {
-    $batch = defined('CUSTOM_FETCH_STREAM_EMIT_BATCH_SIZE') ? (int)CUSTOM_FETCH_STREAM_EMIT_BATCH_SIZE : 6;
+function customFetcherStreamEmitBatchSize()
+{
+    $batch = defined('CUSTOM_FETCH_STREAM_EMIT_BATCH_SIZE') ? (int) CUSTOM_FETCH_STREAM_EMIT_BATCH_SIZE : 6;
     return max(1, min(50, $batch));
 }
 
-function customFetcherQuickEmailProbeEnabled() {
+function customFetcherQueryConcurrency()
+{
+    $value = defined('CUSTOM_FETCH_QUERY_CONCURRENCY') ? (int) CUSTOM_FETCH_QUERY_CONCURRENCY : 3;
+    return max(1, min(8, $value));
+}
+
+function customFetcherPlatformRelaxationEnabled()
+{
+    return defined('CUSTOM_FETCH_ENABLE_PLATFORM_RELAXATION') ? (bool) CUSTOM_FETCH_ENABLE_PLATFORM_RELAXATION : true;
+}
+
+function customFetcherPlatformRelaxThreshold()
+{
+    $value = defined('CUSTOM_FETCH_PLATFORM_RELAX_THRESHOLD') ? (float) CUSTOM_FETCH_PLATFORM_RELAX_THRESHOLD : 0.20;
+    if ($value < 0.05)
+        $value = 0.05;
+    if ($value > 0.80)
+        $value = 0.80;
+    return $value;
+}
+
+function customFetcherPlatformRelaxAfterQueryRatio()
+{
+    $value = defined('CUSTOM_FETCH_PLATFORM_RELAX_AFTER_QUERY_RATIO') ? (float) CUSTOM_FETCH_PLATFORM_RELAX_AFTER_QUERY_RATIO : 0.35;
+    if ($value < 0.10)
+        $value = 0.10;
+    if ($value > 0.95)
+        $value = 0.95;
+    return $value;
+}
+
+function customFetcherMatchesWithOptionalPlatformRelaxation($lead, $filters, $relaxPlatformFiltering)
+{
+    if (!$relaxPlatformFiltering) {
+        return matchesSearchFilters($lead, $filters);
+    }
+
+    $filtersCopy = is_array($filters) ? $filters : [];
+    $filtersCopy['platforms'] = [];
+    return matchesSearchFilters($lead, $filtersCopy);
+}
+
+function customFetcherQuickEmailProbeEnabled()
+{
     return defined('CUSTOM_FETCH_ENABLE_QUICK_EMAIL_PROBE') && CUSTOM_FETCH_ENABLE_QUICK_EMAIL_PROBE;
 }
 
-function customFetcherQuickEmailTimeout() {
-    $timeout = defined('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC') ? (int)CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC : 2;
+function customFetcherQuickEmailTimeout()
+{
+    $timeout = defined('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC') ? (int) CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC : 2;
     return max(1, min(6, $timeout));
 }
 
-function customFetcherQuickEmailConcurrency() {
-    $c = defined('CUSTOM_FETCH_QUICK_EMAIL_CONCURRENCY') ? (int)CUSTOM_FETCH_QUICK_EMAIL_CONCURRENCY : 16;
+function customFetcherQuickEmailConcurrency()
+{
+    $c = defined('CUSTOM_FETCH_QUICK_EMAIL_CONCURRENCY') ? (int) CUSTOM_FETCH_QUICK_EMAIL_CONCURRENCY : 16;
     return max(2, min(20, $c));
 }
 
-function customFetcherQuickEmailMaxPerQuery() {
-    $m = defined('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_QUERY') ? (int)CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_QUERY : 120;
+function customFetcherQuickEmailMaxPerQuery()
+{
+    $m = defined('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_QUERY') ? (int) CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_QUERY : 120;
     return max(20, min(600, $m));
 }
 
-function customFetcherQuickEmailMaxPerPass() {
-    $m = defined('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_PASS') ? (int)CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_PASS : 16;
+function customFetcherQuickEmailMaxPerPass()
+{
+    $m = defined('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_PASS') ? (int) CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_PASS : 16;
     return max(1, min(100, $m));
 }
 
-function customFetcherEnrichConcurrency() {
-    $c = defined('CUSTOM_FETCH_ENRICH_CONCURRENCY') ? (int)CUSTOM_FETCH_ENRICH_CONCURRENCY : 5;
+function customFetcherDeferQuickProbe()
+{
+    return defined('CUSTOM_FETCH_DEFER_QUICK_EMAIL_PROBE') ? (bool) CUSTOM_FETCH_DEFER_QUICK_EMAIL_PROBE : true;
+}
+
+function customFetcherTopupUseNoKeyFallback()
+{
+    return defined('CUSTOM_FETCH_TOPUP_USE_NO_KEY_FALLBACK') ? (bool) CUSTOM_FETCH_TOPUP_USE_NO_KEY_FALLBACK : false;
+}
+
+function customFetcherEnrichConcurrency()
+{
+    $c = defined('CUSTOM_FETCH_ENRICH_CONCURRENCY') ? (int) CUSTOM_FETCH_ENRICH_CONCURRENCY : 5;
     return max(1, min(12, $c));
 }
 
-function customFetcherContactTimeout() {
-    $timeout = defined('CUSTOM_FETCH_CONTACT_TIMEOUT_SEC') ? (int)CUSTOM_FETCH_CONTACT_TIMEOUT_SEC : 7;
+function customFetcherContactTimeout()
+{
+    $timeout = defined('CUSTOM_FETCH_CONTACT_TIMEOUT_SEC') ? (int) CUSTOM_FETCH_CONTACT_TIMEOUT_SEC : 7;
     return max(3, min(15, $timeout));
 }
 
-function customFetcherBuildLocations($location, $limit, $filtersActive) {
+function customFetcherNoKeyDiscoveryConcurrency()
+{
+    $value = defined('NO_KEY_DISCOVERY_CONCURRENCY') ? (int) NO_KEY_DISCOVERY_CONCURRENCY : 6;
+    return max(1, min(20, $value));
+}
+
+function customFetcherNoKeyProviderTimeout()
+{
+    $value = defined('NO_KEY_PROVIDER_TIMEOUT_SEC') ? (int) NO_KEY_PROVIDER_TIMEOUT_SEC : 2;
+    return max(2, min(20, $value));
+}
+
+function customFetcherNoKeyProviderRetries()
+{
+    $value = defined('NO_KEY_PROVIDER_RETRIES') ? (int) NO_KEY_PROVIDER_RETRIES : 0;
+    return max(0, min(4, $value));
+}
+
+function customFetcherNoKeyTopupMaxPasses()
+{
+    $value = defined('NO_KEY_TOPUP_MAX_PASSES') ? (int) NO_KEY_TOPUP_MAX_PASSES : 0;
+    return max(0, min(6, $value));
+}
+
+function customFetcherNoKeyTopupMaxQueries()
+{
+    $value = defined('NO_KEY_TOPUP_MAX_QUERIES') ? (int) NO_KEY_TOPUP_MAX_QUERIES : 8;
+    return max(0, min(200, $value));
+}
+
+function customFetcherNoKeyStreamEmitBatchSize()
+{
+    $value = defined('NO_KEY_STREAM_EMIT_BATCH_SIZE') ? (int) NO_KEY_STREAM_EMIT_BATCH_SIZE : 3;
+    return max(1, min(30, $value));
+}
+
+function customFetcherNoKeyBlockBackoffMs()
+{
+    $value = defined('NO_KEY_BLOCK_BACKOFF_MS') ? (int) NO_KEY_BLOCK_BACKOFF_MS : 350;
+    return max(0, min(5000, $value));
+}
+
+function customFetcherNoKeyTargetRatio()
+{
+    $value = defined('NO_KEY_TARGET_RATIO') ? (float) NO_KEY_TARGET_RATIO : 0.50;
+    if ($value < 0.20)
+        $value = 0.20;
+    if ($value > 0.98)
+        $value = 0.98;
+    return $value;
+}
+
+function customFetcherNoKeyMaxSeedQueries()
+{
+    $value = defined('NO_KEY_MAX_SEED_QUERIES') ? (int) NO_KEY_MAX_SEED_QUERIES : 7;
+    return max(3, min(120, $value));
+}
+
+function customFetcherNoKeyTopupEnabled()
+{
+    return defined('NO_KEY_ENABLE_TOPUP') ? (bool) NO_KEY_ENABLE_TOPUP : false;
+}
+
+function customFetcherNoKeyDeferQuickProbe()
+{
+    return defined('NO_KEY_DEFER_QUICK_PROBE') ? (bool) NO_KEY_DEFER_QUICK_PROBE : true;
+}
+
+function customFetcherNoKeyMaxEmptySeedChunks()
+{
+    $value = defined('NO_KEY_MAX_EMPTY_SEED_CHUNKS') ? (int) NO_KEY_MAX_EMPTY_SEED_CHUNKS : 2;
+    return max(1, min(20, $value));
+}
+
+function customFetcherNoKeyMaxEmptyTopupChunks()
+{
+    $value = defined('NO_KEY_MAX_EMPTY_TOPUP_CHUNKS') ? (int) NO_KEY_MAX_EMPTY_TOPUP_CHUNKS : 1;
+    return max(1, min(20, $value));
+}
+
+function customFetcherBuildLocations($location, $limit, $filtersActive)
+{
     $locations = [$location];
     $expanded = buildLocationExpansions($location);
     if (!empty($expanded)) {
@@ -197,16 +446,22 @@ function customFetcherBuildLocations($location, $limit, $filtersActive) {
     $locations = customFetcherUniqueCleanArray($locations);
 
     $maxLocations = 3;
-    if ($limit >= 250) $maxLocations = 6;
-    if ($limit >= 500) $maxLocations = 10;
-    if ($limit >= 1000) $maxLocations = 16;
-    if ($limit >= 2000) $maxLocations = 24;
-    if ($filtersActive) $maxLocations = (int)ceil($maxLocations * 1.3);
+    if ($limit >= 250)
+        $maxLocations = 6;
+    if ($limit >= 500)
+        $maxLocations = 10;
+    if ($limit >= 1000)
+        $maxLocations = 16;
+    if ($limit >= 2000)
+        $maxLocations = 36;
+    if ($filtersActive)
+        $maxLocations = (int) ceil($maxLocations * 1.4);
 
     return array_slice($locations, 0, $maxLocations);
 }
 
-function customFetcherBuildServiceVariants($service, $limit, $filtersActive) {
+function customFetcherBuildServiceVariants($service, $limit, $filtersActive)
+{
     $variants = expandServiceSynonyms($service);
     if (empty($variants)) {
         $variants = [$service];
@@ -216,16 +471,22 @@ function customFetcherBuildServiceVariants($service, $limit, $filtersActive) {
     $variants = customFetcherUniqueCleanArray($variants);
 
     $maxVariants = 3;
-    if ($limit >= 250) $maxVariants = 6;
-    if ($limit >= 500) $maxVariants = 9;
-    if ($limit >= 1000) $maxVariants = 12;
-    if ($limit >= 2000) $maxVariants = 16;
-    if ($filtersActive) $maxVariants = (int)ceil($maxVariants * 1.35);
+    if ($limit >= 250)
+        $maxVariants = 6;
+    if ($limit >= 500)
+        $maxVariants = 9;
+    if ($limit >= 1000)
+        $maxVariants = 12;
+    if ($limit >= 2000)
+        $maxVariants = 22;
+    if ($filtersActive)
+        $maxVariants = (int) ceil($maxVariants * 1.5);
 
     return array_slice($variants, 0, $maxVariants);
 }
 
-function customFetcherBuildQueries($serviceVariants, $locations, $limit, $filtersActive) {
+function customFetcherBuildQueries($serviceVariants, $locations, $limit, $filtersActive)
+{
     $templates = [
         '%s in %s',
         '%s near %s',
@@ -238,7 +499,8 @@ function customFetcherBuildQueries($serviceVariants, $locations, $limit, $filter
         foreach ($serviceVariants as $serviceVariant) {
             foreach ($templates as $tpl) {
                 $query = preg_replace('/\s+/', ' ', trim(sprintf($tpl, $serviceVariant, $loc)));
-                if ($query === '') continue;
+                if ($query === '')
+                    continue;
                 $key = strtolower($query);
                 if (!isset($map[$key])) {
                     $map[$key] = ['query' => $query, 'location' => $loc];
@@ -248,28 +510,34 @@ function customFetcherBuildQueries($serviceVariants, $locations, $limit, $filter
     }
 
     $maxQueries = 14;
-    if ($limit >= 250) $maxQueries = 24;
-    if ($limit >= 500) $maxQueries = 40;
-    if ($limit >= 1000) $maxQueries = 60;
-    if ($limit >= 2000) $maxQueries = 90;
-    if ($filtersActive) $maxQueries = (int)ceil($maxQueries * 1.35);
+    if ($limit >= 250)
+        $maxQueries = 36;
+    if ($limit >= 500)
+        $maxQueries = 72;
+    if ($limit >= 1000)
+        $maxQueries = 120;
+    if ($limit >= 2000)
+        $maxQueries = 180;
+    if ($filtersActive)
+        $maxQueries = min(320, (int) ceil($maxQueries * 1.35));
 
     return array_slice(array_values($map), 0, $maxQueries);
 }
 
-function customFetcherBuildLowCoverageTopupQueries($service, $location, $limit, $filtersActive, $existingQueries) {
+function customFetcherBuildLowCoverageTopupQueries($service, $location, $limit, $filtersActive, $existingQueries)
+{
     $existingSet = [];
-    foreach ((array)$existingQueries as $existing) {
+    foreach ((array) $existingQueries as $existing) {
         if (is_array($existing)) {
             $existing = $existing['query'] ?? '';
         }
-        $key = strtolower(trim((string)$existing));
+        $key = strtolower(trim((string) $existing));
         if ($key !== '') {
             $existingSet[$key] = true;
         }
     }
 
-    $serviceVariants = customFetcherBuildServiceVariants($service, max(250, (int)($limit * 1.8)), $filtersActive);
+    $serviceVariants = customFetcherBuildServiceVariants($service, max(250, (int) ($limit * 1.8)), $filtersActive);
     $serviceVariants = customFetcherUniqueCleanArray(array_merge($serviceVariants, [
         $service . ' company',
         $service . ' contractor',
@@ -277,9 +545,9 @@ function customFetcherBuildLowCoverageTopupQueries($service, $location, $limit, 
         'local ' . $service,
     ]));
 
-    $locations = customFetcherBuildLocations($location, max(250, (int)($limit * 1.8)), $filtersActive);
+    $locations = customFetcherBuildLocations($location, max(250, (int) ($limit * 1.8)), $filtersActive);
     $expansions = buildLocationExpansions($location);
-    $expansionCap = min(40, max(10, (int)ceil($limit / 12)));
+    $expansionCap = min(40, max(10, (int) ceil($limit / 12)));
     $locations = customFetcherUniqueCleanArray(array_merge([$location], $locations, array_slice($expansions, 0, $expansionCap)));
 
     $templates = [
@@ -296,18 +564,24 @@ function customFetcherBuildLowCoverageTopupQueries($service, $location, $limit, 
 
     $queries = [];
     $maxQueries = customFetcherMaxTopupQueries();
-    if ($limit >= 250) $maxQueries = min(80, (int)ceil($maxQueries * 1.3));
-    if ($limit >= 500) $maxQueries = min(80, (int)ceil($maxQueries * 1.5));
-    if ($filtersActive) $maxQueries = min(80, (int)ceil($maxQueries * 1.2));
+    if ($limit >= 250)
+        $maxQueries = min(80, (int) ceil($maxQueries * 1.3));
+    if ($limit >= 500)
+        $maxQueries = min(80, (int) ceil($maxQueries * 1.5));
+    if ($filtersActive)
+        $maxQueries = min(80, (int) ceil($maxQueries * 1.2));
 
     foreach ($locations as $loc) {
         foreach ($serviceVariants as $variant) {
             foreach ($templates as $tpl) {
-                if (count($queries) >= $maxQueries) break 3;
+                if (count($queries) >= $maxQueries)
+                    break 3;
                 $query = preg_replace('/\s+/', ' ', trim(sprintf($tpl, $variant, $loc)));
-                if ($query === '') continue;
+                if ($query === '')
+                    continue;
                 $key = strtolower($query);
-                if (isset($existingSet[$key])) continue;
+                if (isset($existingSet[$key]))
+                    continue;
                 $existingSet[$key] = true;
                 $queries[] = [
                     'query' => $query,
@@ -320,11 +594,13 @@ function customFetcherBuildLowCoverageTopupQueries($service, $location, $limit, 
     return $queries;
 }
 
-function customFetcherUniqueCleanArray($values) {
+function customFetcherUniqueCleanArray($values)
+{
     $out = [];
-    foreach ((array)$values as $value) {
-        $clean = preg_replace('/\s+/', ' ', trim((string)$value));
-        if ($clean === '') continue;
+    foreach ((array) $values as $value) {
+        $clean = preg_replace('/\s+/', ' ', trim((string) $value));
+        if ($clean === '')
+            continue;
         if (!in_array($clean, $out, true)) {
             $out[] = $clean;
         }
@@ -332,7 +608,8 @@ function customFetcherUniqueCleanArray($values) {
     return $out;
 }
 
-function customFetcherNormalizeBusiness($item, $engine, $sourceName) {
+function customFetcherNormalizeBusiness($item, $engine, $sourceName)
+{
     $websiteUrl = '';
     $name = '';
     $address = '';
@@ -372,8 +649,10 @@ function customFetcherNormalizeBusiness($item, $engine, $sourceName) {
         $snippet = $item['snippet'] ?? ($item['categories'] ?? '');
         if (is_array($snippet)) {
             $snippet = implode(', ', array_map(function ($value) {
-                if (is_scalar($value)) return (string)$value;
-                if (is_array($value)) return (string)($value['title'] ?? $value['name'] ?? '');
+                if (is_scalar($value))
+                    return (string) $value;
+                if (is_array($value))
+                    return (string) ($value['title'] ?? $value['name'] ?? '');
                 return '';
             }, $snippet));
         }
@@ -429,13 +708,16 @@ function customFetcherNormalizeBusiness($item, $engine, $sourceName) {
     ];
 }
 
-function customFetcherExtractEmailFromText($text) {
-    if (!is_string($text) || $text === '') return '';
+function customFetcherExtractEmailFromText($text)
+{
+    if (!is_string($text) || $text === '')
+        return '';
     $emails = extractEmails($text);
-    return !empty($emails) ? (string)$emails[0] : '';
+    return !empty($emails) ? (string) $emails[0] : '';
 }
 
-function customFetcherQuickWebsiteCheck($url, $hintText = '') {
+function customFetcherQuickWebsiteCheck($url, $hintText = '')
+{
     if (empty($url)) {
         return [
             'hasWebsite' => false,
@@ -447,8 +729,8 @@ function customFetcherQuickWebsiteCheck($url, $hintText = '') {
         ];
     }
 
-    $host = strtolower((string)(parse_url($url, PHP_URL_HOST) ?? ''));
-    $hint = strtolower((string)$hintText);
+    $host = strtolower((string) (parse_url($url, PHP_URL_HOST) ?? ''));
+    $hint = strtolower((string) $hintText);
     $signals = trim($host . ' ' . $hint);
     $platform = null;
     $needsUpgrade = false;
@@ -494,56 +776,247 @@ function customFetcherQuickWebsiteCheck($url, $hintText = '') {
     ];
 }
 
-function customFetcherExtractPhoneFromText($text) {
-    if (!is_string($text) || $text === '') return '';
+function customFetcherExtractPhoneFromText($text)
+{
+    if (!is_string($text) || $text === '')
+        return '';
     $phones = extractPhoneNumbers($text);
-    return !empty($phones) ? (string)$phones[0] : '';
+    return !empty($phones) ? (string) $phones[0] : '';
 }
 
-function customFetcherSearchSerperPlaces($query, $limit) {
-    if (!defined('SERPER_API_KEY') || trim((string)SERPER_API_KEY) === '' || $limit <= 0) {
+function customFetcherSearchSerperPlaces($query, $limit)
+{
+    if (!defined('SERPER_API_KEY') || trim((string) SERPER_API_KEY) === '' || $limit <= 0) {
+        return [];
+    }
+    $timeout = customFetcherDiscoveryTimeout();
+    $payload = json_encode([
+        'q' => $query,
+        'gl' => 'us',
+        'hl' => 'en',
+    ]);
+    $headers = [
+        'X-API-KEY: ' . SERPER_API_KEY,
+        'Content-Type: application/json',
+    ];
+    $includeMaps = customFetcherSerperIncludeMaps();
+
+    $multi = curl_multi_init();
+    $placesHandle = curl_init();
+    curl_setopt_array($placesHandle, [
+        CURLOPT_URL => 'https://google.serper.dev/places',
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $payload,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => $timeout,
+        CURLOPT_CONNECTTIMEOUT => min(3, $timeout),
+        CURLOPT_HTTPHEADER => $headers,
+    ]);
+    curl_multi_add_handle($multi, $placesHandle);
+
+    $mapsHandle = null;
+    if ($includeMaps) {
+        $mapsHandle = curl_init();
+        curl_setopt_array($mapsHandle, [
+            CURLOPT_URL => 'https://google.serper.dev/maps',
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $payload,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => $timeout,
+            CURLOPT_CONNECTTIMEOUT => min(3, $timeout),
+            CURLOPT_HTTPHEADER => $headers,
+        ]);
+        curl_multi_add_handle($multi, $mapsHandle);
+    }
+
+    do {
+        $status = curl_multi_exec($multi, $running);
+        if ($running) {
+            curl_multi_select($multi, 0.6);
+        }
+    } while ($running && $status === CURLM_OK);
+
+    $parseSerperPlaces = function ($body, $sourceName, $cap) {
+        $rows = [];
+        if (!is_string($body) || $body === '') {
+            return $rows;
+        }
+        $json = json_decode($body, true);
+        $places = is_array($json) && isset($json['places']) && is_array($json['places']) ? $json['places'] : [];
+        foreach ($places as $item) {
+            if (count($rows) >= $cap) {
+                break;
+            }
+            $biz = customFetcherNormalizeBusiness($item, 'serper_places', $sourceName);
+            if ($biz) {
+                $rows[] = $biz;
+            }
+        }
+        return $rows;
+    };
+
+    $results = [];
+    $placesCode = (int) curl_getinfo($placesHandle, CURLINFO_HTTP_CODE);
+    $placesBody = (string) curl_multi_getcontent($placesHandle);
+    if ($placesCode === 200) {
+        $results = array_merge($results, $parseSerperPlaces($placesBody, 'Serper Places', $limit));
+    }
+    curl_multi_remove_handle($multi, $placesHandle);
+    curl_close($placesHandle);
+
+    if ($mapsHandle) {
+        $mapsCode = (int) curl_getinfo($mapsHandle, CURLINFO_HTTP_CODE);
+        $mapsBody = (string) curl_multi_getcontent($mapsHandle);
+        if ($mapsCode === 200) {
+            $results = array_merge($results, $parseSerperPlaces($mapsBody, 'Serper Maps', $limit));
+        }
+        curl_multi_remove_handle($multi, $mapsHandle);
+        curl_close($mapsHandle);
+    }
+
+    curl_multi_close($multi);
+    $results = customFetcherDedupeDiscoveryLeads($results, $limit);
+
+    // For higher-volume runs, use organic fallback when maps/places underfill.
+    $needsOrganicTopup = customFetcherSerperOrganicTopupEnabled() || $limit >= 80;
+    if ($needsOrganicTopup && count($results) < $limit) {
+        $organic = customFetcherSearchSerperOrganic($query, $limit - count($results));
+        $results = customFetcherDedupeDiscoveryLeads(array_merge($results, $organic), $limit);
+    }
+
+    return $results;
+}
+
+function customFetcherDiscoverSerperPlacesChunk($queryChunk, $perQueryLimit)
+{
+    if (!defined('SERPER_API_KEY') || trim((string) SERPER_API_KEY) === '' || $perQueryLimit <= 0) {
+        return [];
+    }
+    if (empty($queryChunk)) {
         return [];
     }
 
-    $response = curlRequest('https://google.serper.dev/places', [
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode([
+    $timeout = customFetcherDiscoveryTimeout();
+    $includeMaps = customFetcherSerperIncludeMaps();
+    $multi = curl_multi_init();
+    $handleMap = [];
+    $queryMeta = [];
+    $queryRows = [];
+
+    foreach ($queryChunk as $qIdx => $queryData) {
+        $query = trim((string) ($queryData['query'] ?? ''));
+        if ($query === '') {
+            continue;
+        }
+        $queryMeta[$qIdx] = [
+            'queryData' => $queryData,
+            'query' => $query,
+        ];
+        $queryRows[$qIdx] = [];
+
+        $payload = json_encode([
             'q' => $query,
             'gl' => 'us',
             'hl' => 'en',
-        ]),
-        CURLOPT_HTTPHEADER => [
+        ]);
+        $headers = [
             'X-API-KEY: ' . SERPER_API_KEY,
             'Content-Type: application/json',
-        ],
-    ], customFetcherDiscoveryTimeout());
+        ];
 
-    if ((int)($response['httpCode'] ?? 0) !== 200) {
-        return customFetcherSerperOrganicTopupEnabled()
-            ? customFetcherSearchSerperOrganic($query, $limit)
-            : [];
+        $placesHandle = curl_init();
+        curl_setopt_array($placesHandle, [
+            CURLOPT_URL => 'https://google.serper.dev/places',
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $payload,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => $timeout,
+            CURLOPT_CONNECTTIMEOUT => min(3, $timeout),
+            CURLOPT_HTTPHEADER => $headers,
+        ]);
+        curl_multi_add_handle($multi, $placesHandle);
+        $handleMap[(int) $placesHandle] = [
+            'handle' => $placesHandle,
+            'queryIndex' => $qIdx,
+            'kind' => 'places',
+        ];
+
+        if ($includeMaps) {
+            $mapsHandle = curl_init();
+            curl_setopt_array($mapsHandle, [
+                CURLOPT_URL => 'https://google.serper.dev/maps',
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => $payload,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => $timeout,
+                CURLOPT_CONNECTTIMEOUT => min(3, $timeout),
+                CURLOPT_HTTPHEADER => $headers,
+            ]);
+            curl_multi_add_handle($multi, $mapsHandle);
+            $handleMap[(int) $mapsHandle] = [
+                'handle' => $mapsHandle,
+                'queryIndex' => $qIdx,
+                'kind' => 'maps',
+            ];
+        }
     }
 
-    $json = json_decode((string)($response['response'] ?? ''), true);
-    $places = is_array($json) && isset($json['places']) && is_array($json['places']) ? $json['places'] : [];
-    $results = [];
-    foreach ($places as $item) {
-        if (count($results) >= $limit) break;
-        $biz = customFetcherNormalizeBusiness($item, 'serper_places', 'Serper Places');
-        if ($biz) $results[] = $biz;
+    do {
+        $status = curl_multi_exec($multi, $running);
+        if ($running) {
+            curl_multi_select($multi, 0.6);
+        }
+    } while ($running && $status === CURLM_OK);
+
+    foreach ($handleMap as $meta) {
+        $ch = $meta['handle'];
+        $qIdx = (int) ($meta['queryIndex'] ?? -1);
+        $kind = (string) ($meta['kind'] ?? 'places');
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $body = (string) curl_multi_getcontent($ch);
+
+        if ($qIdx >= 0 && isset($queryRows[$qIdx]) && $httpCode === 200 && $body !== '') {
+            $json = json_decode($body, true);
+            $places = is_array($json) && isset($json['places']) && is_array($json['places']) ? $json['places'] : [];
+            $sourceName = $kind === 'maps' ? 'Serper Maps' : 'Serper Places';
+            foreach ($places as $item) {
+                if (count($queryRows[$qIdx]) >= ($perQueryLimit * 2)) {
+                    break;
+                }
+                $biz = customFetcherNormalizeBusiness($item, 'serper_places', $sourceName);
+                if ($biz) {
+                    $queryRows[$qIdx][] = $biz;
+                }
+            }
+        }
+
+        curl_multi_remove_handle($multi, $ch);
+        curl_close($ch);
+    }
+    curl_multi_close($multi);
+
+    $out = [];
+    foreach ($queryChunk as $qIdx => $queryData) {
+        $results = customFetcherDedupeDiscoveryLeads($queryRows[$qIdx] ?? [], $perQueryLimit);
+        $query = (string) ($queryMeta[$qIdx]['query'] ?? ($queryData['query'] ?? ''));
+        $needsOrganicTopup = customFetcherSerperOrganicTopupEnabled() || $perQueryLimit >= 80;
+        if ($query !== '' && $needsOrganicTopup && count($results) < $perQueryLimit) {
+            $organic = customFetcherSearchSerperOrganic($query, $perQueryLimit - count($results));
+            $results = customFetcherDedupeDiscoveryLeads(array_merge($results, $organic), $perQueryLimit);
+        }
+
+        $out[] = [
+            'query' => $queryData,
+            'discovered' => $results,
+        ];
     }
 
-    // Speed-first default: avoid extra organic call per query unless explicitly enabled.
-    if (customFetcherSerperOrganicTopupEnabled() && count($results) < $limit) {
-        $organic = customFetcherSearchSerperOrganic($query, $limit - count($results));
-        $results = array_merge($results, $organic);
-    }
-
-    return customFetcherDedupeDiscoveryLeads($results, $limit);
+    return $out;
 }
 
-function customFetcherSearchSerperOrganic($query, $limit) {
-    if (!defined('SERPER_API_KEY') || trim((string)SERPER_API_KEY) === '' || $limit <= 0) {
+function customFetcherSearchSerperOrganic($query, $limit)
+{
+    if (!defined('SERPER_API_KEY') || trim((string) SERPER_API_KEY) === '' || $limit <= 0) {
         return [];
     }
 
@@ -551,7 +1024,7 @@ function customFetcherSearchSerperOrganic($query, $limit) {
         CURLOPT_POST => true,
         CURLOPT_POSTFIELDS => json_encode([
             'q' => $query,
-            'num' => min(100, max(10, (int)$limit)),
+            'num' => min(100, max(10, (int) $limit)),
             'gl' => 'us',
             'hl' => 'en',
         ]),
@@ -561,34 +1034,38 @@ function customFetcherSearchSerperOrganic($query, $limit) {
         ],
     ], customFetcherDiscoveryTimeout());
 
-    if ((int)($response['httpCode'] ?? 0) !== 200) {
+    if ((int) ($response['httpCode'] ?? 0) !== 200) {
         return [];
     }
 
-    $json = json_decode((string)($response['response'] ?? ''), true);
+    $json = json_decode((string) ($response['response'] ?? ''), true);
     $organic = is_array($json) && isset($json['organic']) && is_array($json['organic']) ? $json['organic'] : [];
     $results = [];
     foreach ($organic as $item) {
-        if (count($results) >= $limit) break;
+        if (count($results) >= $limit)
+            break;
         $biz = customFetcherNormalizeBusiness($item, 'serper_organic', 'Serper');
-        if ($biz) $results[] = $biz;
+        if ($biz)
+            $results[] = $biz;
     }
 
     return customFetcherDedupeDiscoveryLeads($results, $limit);
 }
 
-function customFetcherDecodeNoKeyResultUrl($url) {
-    $url = trim(html_entity_decode((string)$url, ENT_QUOTES | ENT_HTML5));
-    if ($url === '') return '';
+function customFetcherDecodeNoKeyResultUrl($url)
+{
+    $url = trim(html_entity_decode((string) $url, ENT_QUOTES | ENT_HTML5));
+    if ($url === '')
+        return '';
     if (strpos($url, '//') === 0) {
         $url = 'https:' . $url;
     }
 
     $parsed = parse_url($url);
     if ($parsed && !empty($parsed['host']) && stripos($parsed['host'], 'duckduckgo.com') !== false) {
-        parse_str((string)($parsed['query'] ?? ''), $q);
+        parse_str((string) ($parsed['query'] ?? ''), $q);
         if (!empty($q['uddg'])) {
-            $url = urldecode((string)$q['uddg']);
+            $url = urldecode((string) $q['uddg']);
         }
     }
 
@@ -598,22 +1075,27 @@ function customFetcherDecodeNoKeyResultUrl($url) {
     return filter_var($url, FILTER_VALIDATE_URL) ? $url : '';
 }
 
-function customFetcherParseDuckDuckGoHtml($html, $limit) {
-    if (!is_string($html) || $html === '') return [];
+function customFetcherParseDuckDuckGoHtml($html, $limit)
+{
+    if (!is_string($html) || $html === '')
+        return [];
     $results = [];
 
     preg_match_all('/<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="([^"]+)"[^>]*>(.*?)<\/a>/is', $html, $linkMatches, PREG_SET_ORDER);
     preg_match_all('/<a[^>]+class="[^"]*result__snippet[^"]*"[^>]*>(.*?)<\/a>|<div[^>]+class="[^"]*result__snippet[^"]*"[^>]*>(.*?)<\/div>/is', $html, $snippetMatches, PREG_SET_ORDER);
 
     foreach ($linkMatches as $idx => $match) {
-        if (count($results) >= $limit) break;
+        if (count($results) >= $limit)
+            break;
         $candidateUrl = customFetcherDecodeNoKeyResultUrl($match[1] ?? '');
-        if ($candidateUrl === '' || !customFetcherIsLikelyBusinessWebsite($candidateUrl)) continue;
+        if ($candidateUrl === '' || !customFetcherIsLikelyBusinessWebsite($candidateUrl))
+            continue;
 
-        $title = trim(html_entity_decode(strip_tags((string)($match[2] ?? '')), ENT_QUOTES | ENT_HTML5));
-        if ($title === '') continue;
+        $title = trim(html_entity_decode(strip_tags((string) ($match[2] ?? '')), ENT_QUOTES | ENT_HTML5));
+        if ($title === '')
+            continue;
 
-        $snippetRaw = (string)($snippetMatches[$idx][1] ?? $snippetMatches[$idx][2] ?? '');
+        $snippetRaw = (string) ($snippetMatches[$idx][1] ?? $snippetMatches[$idx][2] ?? '');
         $snippet = trim(html_entity_decode(strip_tags($snippetRaw), ENT_QUOTES | ENT_HTML5));
 
         $results[] = [
@@ -626,20 +1108,25 @@ function customFetcherParseDuckDuckGoHtml($html, $limit) {
     return $results;
 }
 
-function customFetcherParseBingHtml($html, $limit) {
-    if (!is_string($html) || $html === '') return [];
+function customFetcherParseBingHtml($html, $limit)
+{
+    if (!is_string($html) || $html === '')
+        return [];
     $results = [];
     preg_match_all('/<li[^>]+class="[^"]*b_algo[^"]*"[^>]*>.*?<h2[^>]*><a[^>]+href="([^"]+)"[^>]*>(.*?)<\/a><\/h2>.*?(?:<p>(.*?)<\/p>)?/is', $html, $matches, PREG_SET_ORDER);
 
     foreach ($matches as $match) {
-        if (count($results) >= $limit) break;
+        if (count($results) >= $limit)
+            break;
         $candidateUrl = customFetcherDecodeNoKeyResultUrl($match[1] ?? '');
-        if ($candidateUrl === '' || !customFetcherIsLikelyBusinessWebsite($candidateUrl)) continue;
+        if ($candidateUrl === '' || !customFetcherIsLikelyBusinessWebsite($candidateUrl))
+            continue;
 
-        $title = trim(html_entity_decode(strip_tags((string)($match[2] ?? '')), ENT_QUOTES | ENT_HTML5));
-        if ($title === '') continue;
+        $title = trim(html_entity_decode(strip_tags((string) ($match[2] ?? '')), ENT_QUOTES | ENT_HTML5));
+        if ($title === '')
+            continue;
 
-        $snippet = trim(html_entity_decode(strip_tags((string)($match[3] ?? '')), ENT_QUOTES | ENT_HTML5));
+        $snippet = trim(html_entity_decode(strip_tags((string) ($match[3] ?? '')), ENT_QUOTES | ENT_HTML5));
         $results[] = [
             'title' => $title,
             'link' => $candidateUrl,
@@ -650,63 +1137,464 @@ function customFetcherParseBingHtml($html, $limit) {
     return $results;
 }
 
-function customFetcherDedupeDiscoveryLeads($leads, $limit) {
+function customFetcherParseGoogleHtml($html, $limit)
+{
+    if (!is_string($html) || $html === '')
+        return [];
+    $results = [];
+
+    // Google organic results: <div class="g"> blocks with <h3> and <a href>
+    preg_match_all('/<div[^>]+class="[^"]*\bg\b[^"]*"[^>]*>(.*?)<\/div>\s*(?=<div[^>]+class="[^"]*\bg\b|$)/is', $html, $divMatches);
+    if (empty($divMatches[1])) {
+        // Fallback: try capturing <a href> + <h3> pairs directly
+        preg_match_all('/<a[^>]+href="(\/url\?q=([^&"]+)[^"]*|https?:\/\/[^"]+)"[^>]*>.*?<h3[^>]*>(.*?)<\/h3>/is', $html, $fallback, PREG_SET_ORDER);
+        foreach ($fallback as $match) {
+            if (count($results) >= $limit)
+                break;
+            $rawUrl = !empty($match[2]) ? urldecode($match[2]) : ($match[1] ?? '');
+            $candidateUrl = customFetcherDecodeNoKeyResultUrl($rawUrl);
+            if ($candidateUrl === '' || !customFetcherIsLikelyBusinessWebsite($candidateUrl))
+                continue;
+            $title = trim(html_entity_decode(strip_tags((string) ($match[3] ?? '')), ENT_QUOTES | ENT_HTML5));
+            if ($title === '')
+                continue;
+            $results[] = ['title' => $title, 'link' => $candidateUrl, 'snippet' => ''];
+        }
+        return $results;
+    }
+
+    foreach ($divMatches[1] as $block) {
+        if (count($results) >= $limit)
+            break;
+        // Extract URL
+        if (!preg_match('/<a[^>]+href="(\/url\?q=([^&"]+)[^"]*|https?:\/\/[^"]+)"[^>]*>/is', $block, $urlMatch))
+            continue;
+        $rawUrl = !empty($urlMatch[2]) ? urldecode($urlMatch[2]) : ($urlMatch[1] ?? '');
+        $candidateUrl = customFetcherDecodeNoKeyResultUrl($rawUrl);
+        if ($candidateUrl === '' || !customFetcherIsLikelyBusinessWebsite($candidateUrl))
+            continue;
+
+        // Extract title from <h3>
+        if (!preg_match('/<h3[^>]*>(.*?)<\/h3>/is', $block, $titleMatch))
+            continue;
+        $title = trim(html_entity_decode(strip_tags((string) ($titleMatch[1] ?? '')), ENT_QUOTES | ENT_HTML5));
+        if ($title === '')
+            continue;
+
+        // Extract snippet
+        $snippet = '';
+        if (preg_match('/<(?:span|div)[^>]+class="[^"]*(?:st|VwiC3b|IsZvec)[^"]*"[^>]*>(.*?)<\/(?:span|div)>/is', $block, $snippetMatch)) {
+            $snippet = trim(html_entity_decode(strip_tags((string) ($snippetMatch[1] ?? '')), ENT_QUOTES | ENT_HTML5));
+        }
+
+        $results[] = ['title' => $title, 'link' => $candidateUrl, 'snippet' => $snippet];
+    }
+
+    return $results;
+}
+
+function customFetcherParseStartpageHtml($html, $limit)
+{
+    if (!is_string($html) || $html === '')
+        return [];
+    $results = [];
+
+    // Startpage uses .w-gl__result containers or .result class
+    preg_match_all('/<a[^>]+class="[^"]*w-gl__result-url[^"]*"[^>]+href="([^"]+)"[^>]*>/is', $html, $urlMatches, PREG_SET_ORDER);
+    preg_match_all('/<h3[^>]*class="[^"]*w-gl__result-title[^"]*"[^>]*>(.*?)<\/h3>/is', $html, $titleMatches, PREG_SET_ORDER);
+    preg_match_all('/<p[^>]*class="[^"]*w-gl__description[^"]*"[^>]*>(.*?)<\/p>/is', $html, $snippetMatches, PREG_SET_ORDER);
+
+    $count = min(count($urlMatches), count($titleMatches));
+    for ($i = 0; $i < $count; $i++) {
+        if (count($results) >= $limit)
+            break;
+        $candidateUrl = customFetcherDecodeNoKeyResultUrl($urlMatches[$i][1] ?? '');
+        if ($candidateUrl === '' || !customFetcherIsLikelyBusinessWebsite($candidateUrl))
+            continue;
+
+        $title = trim(html_entity_decode(strip_tags((string) ($titleMatches[$i][1] ?? '')), ENT_QUOTES | ENT_HTML5));
+        if ($title === '')
+            continue;
+
+        $snippet = trim(html_entity_decode(strip_tags((string) ($snippetMatches[$i][1] ?? '')), ENT_QUOTES | ENT_HTML5));
+        $results[] = ['title' => $title, 'link' => $candidateUrl, 'snippet' => $snippet];
+    }
+
+    // Fallback: if structured parsing yields nothing, try generic link+heading extraction
+    if (empty($results)) {
+        preg_match_all('/<a[^>]+href="(https?:\/\/[^"]+)"[^>]*>.*?<h[23][^>]*>(.*?)<\/h[23]>/is', $html, $generic, PREG_SET_ORDER);
+        foreach ($generic as $match) {
+            if (count($results) >= $limit)
+                break;
+            $candidateUrl = customFetcherDecodeNoKeyResultUrl($match[1] ?? '');
+            if ($candidateUrl === '' || !customFetcherIsLikelyBusinessWebsite($candidateUrl))
+                continue;
+            $title = trim(html_entity_decode(strip_tags((string) ($match[2] ?? '')), ENT_QUOTES | ENT_HTML5));
+            if ($title === '')
+                continue;
+            $results[] = ['title' => $title, 'link' => $candidateUrl, 'snippet' => ''];
+        }
+    }
+
+    return $results;
+}
+
+function customFetcherDedupeDiscoveryLeads($leads, $limit)
+{
     $unique = [];
     $seen = [];
-    foreach ((array)$leads as $lead) {
-        if (!is_array($lead) || empty($lead['name'])) continue;
+    foreach ((array) $leads as $lead) {
+        if (!is_array($lead) || empty($lead['name']))
+            continue;
         $key = buildBusinessDedupeKey($lead, '');
-        if (isset($seen[$key])) continue;
+        if (isset($seen[$key]))
+            continue;
         $seen[$key] = true;
         $unique[] = $lead;
-        if (count($unique) >= $limit) break;
+        if (count($unique) >= $limit)
+            break;
     }
     return $unique;
 }
 
-function customFetcherSearchNoKey($query, $limit) {
-    if ($limit <= 0) return [];
-
-    $providers = [
-        [
-            'url' => 'https://duckduckgo.com/html/?q=' . urlencode($query),
+function customFetcherNoKeyProviders()
+{
+    return [
+        'duckduckgo' => [
+            'label' => 'No-Key DuckDuckGo',
+            'url_builder' => function ($query) {
+                return 'https://duckduckgo.com/html/?q=' . urlencode((string) $query);
+            },
             'parser' => 'customFetcherParseDuckDuckGoHtml',
         ],
-        [
-            'url' => 'https://www.bing.com/search?q=' . urlencode($query),
+        'bing_html' => [
+            'label' => 'No-Key Bing HTML',
+            'url_builder' => function ($query) {
+                return 'https://www.bing.com/search?q=' . urlencode((string) $query);
+            },
             'parser' => 'customFetcherParseBingHtml',
         ],
+        'google_html' => [
+            'label' => 'No-Key Google HTML',
+            'url_builder' => function ($query) {
+                return 'https://www.google.com/search?q=' . urlencode((string) $query) . '&num=20&hl=en';
+            },
+            'parser' => 'customFetcherParseGoogleHtml',
+        ],
+        'startpage' => [
+            'label' => 'No-Key Startpage',
+            'url_builder' => function ($query) {
+                return 'https://www.startpage.com/do/dsearch?query=' . urlencode((string) $query) . '&cat=web&language=english';
+            },
+            'parser' => 'customFetcherParseStartpageHtml',
+        ],
     ];
+}
 
-    $results = [];
-    foreach ($providers as $provider) {
-        if (count($results) >= $limit) break;
-        $resp = curlRequest($provider['url'], [
+function customFetcherNoKeyLooksBlocked($httpCode, $body)
+{
+    $httpCode = (int) $httpCode;
+    if (in_array($httpCode, [403, 429, 503], true)) {
+        return true;
+    }
+    $text = strtolower(substr((string) $body, 0, 2500));
+    if ($text === '')
+        return false;
+    $needles = [
+        'captcha',
+        'unusual traffic',
+        'automated queries',
+        'verify you are human',
+        'access denied',
+        'temporarily blocked',
+    ];
+    foreach ($needles as $needle) {
+        if (strpos($text, $needle) !== false)
+            return true;
+    }
+    return false;
+}
+
+function customFetcherRunNoKeyRequests($requests, $timeout)
+{
+    if (empty($requests))
+        return [];
+    $timeout = max(2, (int) $timeout);
+    $multi = curl_multi_init();
+    $handleMap = [];
+
+    foreach ($requests as $requestId => $request) {
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => (string) $request['url'],
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => $timeout,
+            CURLOPT_CONNECTTIMEOUT => max(1, min(2, $timeout - 1)),
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 3,
+            CURLOPT_NOSIGNAL => true,
             CURLOPT_HTTPHEADER => [
                 'User-Agent: BamLead-NoKeyDiscovery/1.0',
                 'Accept-Language: en-US,en;q=0.9',
             ],
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS => 3,
-        ], 15);
-        if ((int)($resp['httpCode'] ?? 0) !== 200) continue;
+        ]);
+        curl_multi_add_handle($multi, $ch);
+        $handleMap[(int) $ch] = ['handle' => $ch, 'requestId' => $requestId];
+    }
 
-        $raw = call_user_func($provider['parser'], (string)($resp['response'] ?? ''), $limit - count($results));
-        foreach ($raw as $item) {
-            if (count($results) >= $limit) break;
-            $biz = customFetcherNormalizeBusiness($item, 'no_key', 'No-Key Web');
-            if ($biz) $results[] = $biz;
+    do {
+        $status = curl_multi_exec($multi, $running);
+        if ($running) {
+            curl_multi_select($multi, 0.8);
         }
+    } while ($running && $status === CURLM_OK);
+
+    $responses = [];
+    foreach ($handleMap as $meta) {
+        $ch = $meta['handle'];
+        $responses[$meta['requestId']] = [
+            'httpCode' => (int) curl_getinfo($ch, CURLINFO_HTTP_CODE),
+            'body' => (string) curl_multi_getcontent($ch),
+            'curlErrNo' => (int) curl_errno($ch),
+            'curlError' => (string) curl_error($ch),
+        ];
+        curl_multi_remove_handle($multi, $ch);
+        curl_close($ch);
+    }
+    curl_multi_close($multi);
+    return $responses;
+}
+
+function customFetcherSearchNoKeyWithPolicy($query, $limit, $timeout, $retries, $backoffMs, &$stats = null)
+{
+    $stats = [
+        'provider_success' => 0,
+        'provider_fail' => 0,
+        'provider_blocked' => 0,
+    ];
+    if ($limit <= 0)
+        return [];
+    $providers = customFetcherNoKeyProviders();
+    $results = [];
+    $seen = [];
+    $pending = [];
+
+    foreach ($providers as $providerKey => $provider) {
+        $pending[] = [
+            'providerKey' => $providerKey,
+            'provider' => $provider,
+            'attempt' => 0,
+        ];
+    }
+
+    $retries = max(0, (int) $retries);
+    $backoffMs = max(0, (int) $backoffMs);
+
+    while (!empty($pending) && count($results) < $limit) {
+        $requestMap = [];
+        foreach ($pending as $idx => $task) {
+            $builder = $task['provider']['url_builder'];
+            $requestMap[$idx] = [
+                'url' => $builder($query),
+                'task' => $task,
+            ];
+        }
+        $responses = customFetcherRunNoKeyRequests($requestMap, $timeout);
+        $nextPending = [];
+
+        foreach ($requestMap as $idx => $request) {
+            $task = $request['task'];
+            $provider = $task['provider'];
+            $response = $responses[$idx] ?? ['httpCode' => 0, 'body' => '', 'curlErrNo' => 0];
+            $httpCode = (int) ($response['httpCode'] ?? 0);
+            $body = (string) ($response['body'] ?? '');
+            $blocked = customFetcherNoKeyLooksBlocked($httpCode, $body);
+            $ok = $httpCode >= 200 && $httpCode < 300 && !$blocked && $body !== '';
+
+            if ($ok) {
+                $stats['provider_success']++;
+                $raw = call_user_func($provider['parser'], $body, $limit);
+                foreach ($raw as $item) {
+                    if (count($results) >= $limit)
+                        break;
+                    $biz = customFetcherNormalizeBusiness($item, 'no_key', $provider['label']);
+                    if (!$biz)
+                        continue;
+                    $key = buildBusinessDedupeKey($biz, '');
+                    if (isset($seen[$key]))
+                        continue;
+                    $seen[$key] = true;
+                    $results[] = $biz;
+                }
+                continue;
+            }
+
+            if ($blocked) {
+                $stats['provider_blocked']++;
+            } else {
+                $stats['provider_fail']++;
+            }
+
+            $attempt = (int) $task['attempt'] + 1;
+            if ($attempt <= $retries) {
+                $task['attempt'] = $attempt;
+                $nextPending[] = $task;
+            }
+        }
+
+        if (!empty($nextPending) && $backoffMs > 0) {
+            usleep((int) ($backoffMs * 1000));
+        }
+        $pending = $nextPending;
     }
 
     return customFetcherDedupeDiscoveryLeads($results, $limit);
 }
 
-function customFetcherSearchGoogleCustom($query, $limit) {
-    if (!defined('GOOGLE_API_KEY') || !defined('GOOGLE_SEARCH_ENGINE_ID')) return [];
-    $key = trim((string)GOOGLE_API_KEY);
-    $cx = trim((string)GOOGLE_SEARCH_ENGINE_ID);
-    if ($key === '' || $cx === '' || $limit <= 0) return [];
+function customFetcherSearchNoKey($query, $limit)
+{
+    $stats = [];
+    return customFetcherSearchNoKeyWithPolicy(
+        $query,
+        $limit,
+        customFetcherNoKeyProviderTimeout(),
+        customFetcherNoKeyProviderRetries(),
+        customFetcherNoKeyBlockBackoffMs(),
+        $stats
+    );
+}
+
+function customFetcherDiscoverNoKeyChunk($queryChunk, $perQueryLimit, $timeout, $retries, $backoffMs)
+{
+    $out = [];
+    if (empty($queryChunk))
+        return $out;
+    $providers = customFetcherNoKeyProviders();
+    $pending = [];
+    $queryLeads = [];
+    $querySeen = [];
+    $queryStats = [];
+    $queryDone = [];
+
+    foreach ($queryChunk as $qIdx => $queryData) {
+        $query = (string) ($queryData['query'] ?? '');
+        if ($query === '')
+            continue;
+        $queryLeads[$qIdx] = [];
+        $querySeen[$qIdx] = [];
+        $queryDone[$qIdx] = false;
+        $queryStats[$qIdx] = [
+            'provider_success' => 0,
+            'provider_fail' => 0,
+            'provider_blocked' => 0,
+        ];
+        foreach ($providers as $providerKey => $provider) {
+            $pending[] = [
+                'queryIndex' => $qIdx,
+                'queryData' => $queryData,
+                'providerKey' => $providerKey,
+                'provider' => $provider,
+                'attempt' => 0,
+            ];
+        }
+    }
+
+    $retries = max(0, (int) $retries);
+    $backoffMs = max(0, (int) $backoffMs);
+
+    while (!empty($pending)) {
+        $requestMap = [];
+        foreach ($pending as $idx => $task) {
+            $taskQueryIndex = (int) ($task['queryIndex'] ?? -1);
+            if ($taskQueryIndex < 0 || !empty($queryDone[$taskQueryIndex])) {
+                continue;
+            }
+            $builder = $task['provider']['url_builder'];
+            $requestMap[$idx] = [
+                'url' => $builder((string) ($task['queryData']['query'] ?? '')),
+                'task' => $task,
+            ];
+        }
+        if (empty($requestMap)) {
+            break;
+        }
+        $responses = customFetcherRunNoKeyRequests($requestMap, $timeout);
+        $nextPending = [];
+
+        foreach ($requestMap as $idx => $request) {
+            $task = $request['task'];
+            $qIdx = (int) $task['queryIndex'];
+            if (!isset($queryStats[$qIdx]))
+                continue;
+
+            $response = $responses[$idx] ?? ['httpCode' => 0, 'body' => '', 'curlErrNo' => 0];
+            $httpCode = (int) ($response['httpCode'] ?? 0);
+            $body = (string) ($response['body'] ?? '');
+            $blocked = customFetcherNoKeyLooksBlocked($httpCode, $body);
+            $ok = $httpCode >= 200 && $httpCode < 300 && !$blocked && $body !== '';
+
+            if ($ok) {
+                $queryStats[$qIdx]['provider_success']++;
+                $rawItems = call_user_func($task['provider']['parser'], $body, $perQueryLimit);
+                foreach ($rawItems as $item) {
+                    if (count($queryLeads[$qIdx]) >= $perQueryLimit)
+                        break;
+                    $lead = customFetcherNormalizeBusiness($item, 'no_key', $task['provider']['label']);
+                    if (!$lead)
+                        continue;
+                    $leadKey = buildBusinessDedupeKey($lead, '');
+                    if (isset($querySeen[$qIdx][$leadKey]))
+                        continue;
+                    $querySeen[$qIdx][$leadKey] = true;
+                    $queryLeads[$qIdx][] = $lead;
+                }
+                if (count($queryLeads[$qIdx]) >= $perQueryLimit) {
+                    $queryDone[$qIdx] = true;
+                }
+                continue;
+            }
+
+            if ($blocked) {
+                $queryStats[$qIdx]['provider_blocked']++;
+            } else {
+                $queryStats[$qIdx]['provider_fail']++;
+            }
+
+            $nextAttempt = (int) $task['attempt'] + 1;
+            if (empty($queryDone[$qIdx]) && $nextAttempt <= $retries) {
+                $task['attempt'] = $nextAttempt;
+                $nextPending[] = $task;
+            }
+        }
+
+        if (!empty($nextPending) && $backoffMs > 0) {
+            usleep((int) ($backoffMs * 1000));
+        }
+        $pending = $nextPending;
+    }
+
+    foreach ($queryChunk as $qIdx => $queryData) {
+        $out[] = [
+            'query' => $queryData,
+            'discovered' => array_slice($queryLeads[$qIdx] ?? [], 0, $perQueryLimit),
+            'stats' => $queryStats[$qIdx] ?? [
+                'provider_success' => 0,
+                'provider_fail' => 0,
+                'provider_blocked' => 0,
+            ],
+        ];
+    }
+    return $out;
+}
+
+function customFetcherSearchGoogleCustom($query, $limit)
+{
+    if (!defined('GOOGLE_API_KEY') || !defined('GOOGLE_SEARCH_ENGINE_ID'))
+        return [];
+    $key = trim((string) GOOGLE_API_KEY);
+    $cx = trim((string) GOOGLE_SEARCH_ENGINE_ID);
+    if ($key === '' || $cx === '' || $limit <= 0)
+        return [];
 
     $results = [];
     $start = 1;
@@ -723,26 +1611,34 @@ function customFetcherSearchGoogleCustom($query, $limit) {
             'hl' => 'en',
         ]);
         $resp = curlRequest($url, [], 15);
-        if ((int)($resp['httpCode'] ?? 0) !== 200) break;
-        $json = json_decode((string)($resp['response'] ?? ''), true);
+        if ((int) ($resp['httpCode'] ?? 0) !== 200)
+            break;
+        $json = json_decode((string) ($resp['response'] ?? ''), true);
         $items = $json['items'] ?? [];
-        if (!is_array($items) || empty($items)) break;
+        if (!is_array($items) || empty($items))
+            break;
         foreach ($items as $item) {
-            if (count($results) >= $limit) break;
+            if (count($results) >= $limit)
+                break;
             $biz = customFetcherNormalizeBusiness($item, 'google_custom', 'Google Search');
-            if ($biz) $results[] = $biz;
+            if ($biz)
+                $results[] = $biz;
         }
-        if (empty($json['queries']['nextPage'])) break;
+        if (empty($json['queries']['nextPage']))
+            break;
         $start += $pageSize;
     }
 
     return $results;
 }
 
-function customFetcherSearchBingWeb($query, $limit) {
-    if (!defined('BING_API_KEY')) return [];
-    $key = trim((string)BING_API_KEY);
-    if ($key === '' || $limit <= 0) return [];
+function customFetcherSearchBingWeb($query, $limit)
+{
+    if (!defined('BING_API_KEY'))
+        return [];
+    $key = trim((string) BING_API_KEY);
+    if ($key === '' || $limit <= 0)
+        return [];
 
     $results = [];
     $offset = 0;
@@ -761,28 +1657,35 @@ function customFetcherSearchBingWeb($query, $limit) {
                 'Ocp-Apim-Subscription-Key: ' . $key,
             ],
         ], 15);
-        if ((int)($resp['httpCode'] ?? 0) !== 200) break;
+        if ((int) ($resp['httpCode'] ?? 0) !== 200)
+            break;
 
-        $json = json_decode((string)($resp['response'] ?? ''), true);
+        $json = json_decode((string) ($resp['response'] ?? ''), true);
         $items = $json['webPages']['value'] ?? [];
-        if (!is_array($items) || empty($items)) break;
+        if (!is_array($items) || empty($items))
+            break;
         foreach ($items as $item) {
-            if (count($results) >= $limit) break;
+            if (count($results) >= $limit)
+                break;
             $biz = customFetcherNormalizeBusiness($item, 'bing_web', 'Bing Search');
-            if ($biz) $results[] = $biz;
+            if ($biz)
+                $results[] = $biz;
         }
-        if (count($items) < $count) break;
+        if (count($items) < $count)
+            break;
         $offset += $count;
     }
     return $results;
 }
 
-function customFetcherDiscoverBySources($query, $limit, $sources) {
+function customFetcherDiscoverBySources($query, $limit, $sources)
+{
     $all = [];
     $seen = [];
 
     foreach ($sources as $source) {
-        if (count($all) >= $limit) break;
+        if (count($all) >= $limit)
+            break;
         $remaining = $limit - count($all);
         $runLimit = $remaining;
 
@@ -805,10 +1708,13 @@ function customFetcherDiscoverBySources($query, $limit, $sources) {
         }
 
         foreach ($discovered as $lead) {
-            if (count($all) >= $limit) break;
-            if (!is_array($lead) || empty($lead['name'])) continue;
+            if (count($all) >= $limit)
+                break;
+            if (!is_array($lead) || empty($lead['name']))
+                continue;
             $key = buildBusinessDedupeKey($lead, '');
-            if (isset($seen[$key])) continue;
+            if (isset($seen[$key]))
+                continue;
             $seen[$key] = true;
             $all[] = $lead;
         }
@@ -817,9 +1723,11 @@ function customFetcherDiscoverBySources($query, $limit, $sources) {
     return array_slice($all, 0, $limit);
 }
 
-function customFetcherNormalizePrimaryPhone($phone) {
-    $phone = trim((string)$phone);
-    if ($phone === '') return '';
+function customFetcherNormalizePrimaryPhone($phone)
+{
+    $phone = trim((string) $phone);
+    if ($phone === '')
+        return '';
     $digits = preg_replace('/\D+/', '', $phone);
     if (strlen($digits) === 11 && strpos($digits, '1') === 0) {
         $digits = substr($digits, 1);
@@ -830,9 +1738,10 @@ function customFetcherNormalizePrimaryPhone($phone) {
     return sprintf('(%s) %s-%s', substr($digits, 0, 3), substr($digits, 3, 3), substr($digits, 6));
 }
 
-function customFetcherBuildPendingEnrichment($lead) {
-    $email = trim((string)($lead['email'] ?? ''));
-    $phone = trim((string)($lead['phone'] ?? ''));
+function customFetcherBuildPendingEnrichment($lead)
+{
+    $email = trim((string) ($lead['email'] ?? ''));
+    $phone = trim((string) ($lead['phone'] ?? ''));
     return [
         'emails' => $email !== '' ? [$email] : [],
         'phones' => $phone !== '' ? [$phone] : [],
@@ -846,8 +1755,10 @@ function customFetcherBuildPendingEnrichment($lead) {
     ];
 }
 
-function customFetcherExtractSocials($html) {
-    if (!is_string($html) || $html === '') return [];
+function customFetcherExtractSocials($html)
+{
+    if (!is_string($html) || $html === '')
+        return [];
     $patterns = [
         'facebook' => '/https?:\/\/(?:www\.)?facebook\.com\/[^\s"\'<>()]+/i',
         'linkedin' => '/https?:\/\/(?:www\.)?linkedin\.com\/[^\s"\'<>()]+/i',
@@ -865,15 +1776,18 @@ function customFetcherExtractSocials($html) {
     return $socials;
 }
 
-function customFetcherPageUrls($url, $maxPages) {
+function customFetcherPageUrls($url, $maxPages)
+{
     $urls = [];
-    $baseUrl = trim((string)$url);
-    if ($baseUrl === '') return $urls;
+    $baseUrl = trim((string) $url);
+    if ($baseUrl === '')
+        return $urls;
     if (!preg_match('/^https?:\/\//i', $baseUrl)) {
         $baseUrl = 'https://' . $baseUrl;
     }
     $parsed = parse_url($baseUrl);
-    if (!$parsed || empty($parsed['host'])) return $urls;
+    if (!$parsed || empty($parsed['host']))
+        return $urls;
     $scheme = $parsed['scheme'] ?? 'https';
     $host = $parsed['host'];
     $root = $scheme . '://' . $host;
@@ -886,35 +1800,39 @@ function customFetcherPageUrls($url, $maxPages) {
     return customFetcherUniqueCleanArray($urls);
 }
 
-function customFetcherQuickProbeCacheKeyForUrl($url) {
-    $baseUrl = trim((string)$url);
-    if ($baseUrl === '') return '';
+function customFetcherQuickProbeCacheKeyForUrl($url)
+{
+    $baseUrl = trim((string) $url);
+    if ($baseUrl === '')
+        return '';
     if (!preg_match('/^https?:\/\//i', $baseUrl)) {
         $baseUrl = 'https://' . $baseUrl;
     }
     $parts = parse_url($baseUrl);
-    if (!$parts || empty($parts['host'])) return '';
+    if (!$parts || empty($parts['host']))
+        return '';
 
-    $scheme = strtolower((string)($parts['scheme'] ?? 'https'));
-    $host = strtolower((string)$parts['host']);
+    $scheme = strtolower((string) ($parts['scheme'] ?? 'https'));
+    $host = strtolower((string) $parts['host']);
     return $scheme . '://' . $host;
 }
 
-function customFetcherQuickProbeApplySignals($lead, $emails, $phones) {
-    $emails = customFetcherUniqueCleanArray(array_filter((array)$emails, function ($email) {
-        return trim((string)$email) !== '';
+function customFetcherQuickProbeApplySignals($lead, $emails, $phones)
+{
+    $emails = customFetcherUniqueCleanArray(array_filter((array) $emails, function ($email) {
+        return trim((string) $email) !== '';
     }));
-    $phones = customFetcherUniqueCleanArray(array_filter(array_map('customFetcherNormalizePrimaryPhone', (array)$phones), function ($phone) {
-        return trim((string)$phone) !== '';
+    $phones = customFetcherUniqueCleanArray(array_filter(array_map('customFetcherNormalizePrimaryPhone', (array) $phones), function ($phone) {
+        return trim((string) $phone) !== '';
     }));
 
-    $existingEmail = trim((string)($lead['email'] ?? ''));
-    $existingPhone = trim((string)($lead['phone'] ?? ''));
+    $existingEmail = trim((string) ($lead['email'] ?? ''));
+    $existingPhone = trim((string) ($lead['phone'] ?? ''));
     if ($existingEmail === '' && !empty($emails)) {
-        $lead['email'] = (string)$emails[0];
+        $lead['email'] = (string) $emails[0];
     }
     if ($existingPhone === '' && !empty($phones)) {
-        $lead['phone'] = (string)$phones[0];
+        $lead['phone'] = (string) $phones[0];
     }
 
     if (!isset($lead['enrichment']) || !is_array($lead['enrichment'])) {
@@ -939,16 +1857,20 @@ function customFetcherQuickProbeApplySignals($lead, $emails, $phones) {
     return $lead;
 }
 
-function customFetcherQuickEmailProbeLeads($leads, $timeout, $concurrency, $maxLeads) {
-    if (empty($leads) || $maxLeads <= 0) return $leads;
+function customFetcherQuickEmailProbeLeads($leads, $timeout, $concurrency, $maxLeads)
+{
+    if (empty($leads) || $maxLeads <= 0)
+        return $leads;
 
     $candidateMap = [];
     $networkTasks = [];
     foreach ($leads as $idx => $lead) {
-        if (count($candidateMap) >= $maxLeads) break;
-        $email = trim((string)($lead['email'] ?? ''));
-        $url = trim((string)($lead['url'] ?? ''));
-        if ($email !== '' || $url === '') continue;
+        if (count($candidateMap) >= $maxLeads)
+            break;
+        $email = trim((string) ($lead['email'] ?? ''));
+        $url = trim((string) ($lead['url'] ?? ''));
+        if ($email !== '' || $url === '')
+            continue;
 
         $cacheRoot = customFetcherQuickProbeCacheKeyForUrl($url);
         if ($cacheRoot !== '') {
@@ -992,8 +1914,8 @@ function customFetcherQuickEmailProbeLeads($leads, $timeout, $concurrency, $maxL
     $active = [];
     $taskCursor = 0;
     $taskCount = count($networkTasks);
-    $concurrency = max(1, (int)$concurrency);
-    $timeout = max(1, (int)$timeout);
+    $concurrency = max(1, (int) $concurrency);
+    $timeout = max(1, (int) $timeout);
 
     do {
         while (count($active) < $concurrency && $taskCursor < $taskCount) {
@@ -1010,7 +1932,7 @@ function customFetcherQuickEmailProbeLeads($leads, $timeout, $concurrency, $maxL
                 CURLOPT_USERAGENT => 'BamLead-QuickEmailProbe/1.0',
             ]);
             curl_multi_add_handle($multi, $ch);
-            $active[(int)$ch] = [
+            $active[(int) $ch] = [
                 'handle' => $ch,
                 'idx' => $task['idx'],
             ];
@@ -1022,7 +1944,7 @@ function customFetcherQuickEmailProbeLeads($leads, $timeout, $concurrency, $maxL
 
         while ($info = curl_multi_info_read($multi)) {
             $ch = $info['handle'];
-            $handleId = (int)$ch;
+            $handleId = (int) $ch;
             if (!isset($active[$handleId])) {
                 curl_multi_remove_handle($multi, $ch);
                 curl_close($ch);
@@ -1030,8 +1952,8 @@ function customFetcherQuickEmailProbeLeads($leads, $timeout, $concurrency, $maxL
             }
 
             $idx = $active[$handleId]['idx'];
-            $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $body = (string)curl_multi_getcontent($ch);
+            $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $body = (string) curl_multi_getcontent($ch);
             if ($httpCode >= 200 && $httpCode < 400 && $body !== '' && isset($candidateMap[$idx])) {
                 $candidateMap[$idx]['emails'] = array_merge($candidateMap[$idx]['emails'], extractEmails($body));
                 $candidateMap[$idx]['phones'] = array_merge($candidateMap[$idx]['phones'], extractPhoneNumbers($body));
@@ -1050,7 +1972,8 @@ function customFetcherQuickEmailProbeLeads($leads, $timeout, $concurrency, $maxL
     curl_multi_close($multi);
 
     foreach ($candidateMap as $idx => $signal) {
-        if (!isset($leads[$idx])) continue;
+        if (!isset($leads[$idx]))
+            continue;
         $emails = customFetcherUniqueCleanArray($signal['emails']);
         $phones = customFetcherUniqueCleanArray(array_map('customFetcherNormalizePrimaryPhone', $signal['phones']));
 
@@ -1067,8 +1990,10 @@ function customFetcherQuickEmailProbeLeads($leads, $timeout, $concurrency, $maxL
     return $leads;
 }
 
-function customFetcherEnrichLeadChunk($leads, $timeout) {
-    if (empty($leads)) return [];
+function customFetcherEnrichLeadChunk($leads, $timeout)
+{
+    if (empty($leads))
+        return [];
     // Keep per-lead crawl shallow for speed; fallback scraper handles gaps.
     $maxPages = count($leads) >= 8 ? 2 : 3;
 
@@ -1077,8 +2002,9 @@ function customFetcherEnrichLeadChunk($leads, $timeout) {
     $responses = [];
 
     foreach ($leads as $idx => $lead) {
-        $url = trim((string)($lead['url'] ?? ''));
-        if ($url === '') continue;
+        $url = trim((string) ($lead['url'] ?? ''));
+        if ($url === '')
+            continue;
         $pageUrls = customFetcherPageUrls($url, $maxPages);
         foreach ($pageUrls as $pageUrl) {
             $ch = curl_init();
@@ -1093,8 +2019,8 @@ function customFetcherEnrichLeadChunk($leads, $timeout) {
                 CURLOPT_USERAGENT => 'BamLead-CustomFetcher/1.0',
             ]);
             curl_multi_add_handle($multi, $ch);
-            $key = (string)$idx . '|' . $pageUrl;
-            $handleMap[(int)$ch] = ['handle' => $ch, 'key' => $key, 'idx' => $idx, 'url' => $pageUrl];
+            $key = (string) $idx . '|' . $pageUrl;
+            $handleMap[(int) $ch] = ['handle' => $ch, 'key' => $key, 'idx' => $idx, 'url' => $pageUrl];
         }
     }
 
@@ -1107,10 +2033,11 @@ function customFetcherEnrichLeadChunk($leads, $timeout) {
 
     foreach ($handleMap as $meta) {
         $ch = $meta['handle'];
-        $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $body = (string)curl_multi_getcontent($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $body = (string) curl_multi_getcontent($ch);
         if ($httpCode >= 200 && $httpCode < 400 && $body !== '') {
-            if (!isset($responses[$meta['idx']])) $responses[$meta['idx']] = [];
+            if (!isset($responses[$meta['idx']]))
+                $responses[$meta['idx']] = [];
             $responses[$meta['idx']][] = $body;
         }
         curl_multi_remove_handle($multi, $ch);
@@ -1120,7 +2047,7 @@ function customFetcherEnrichLeadChunk($leads, $timeout) {
 
     $enriched = [];
     foreach ($leads as $idx => $lead) {
-        $leadUrl = trim((string)($lead['url'] ?? ''));
+        $leadUrl = trim((string) ($lead['url'] ?? ''));
         $emails = [];
         $phones = [];
         $socials = [];
@@ -1157,13 +2084,13 @@ function customFetcherEnrichLeadChunk($leads, $timeout) {
             }
         }
 
-        $primaryEmail = trim((string)($lead['email'] ?? ''));
+        $primaryEmail = trim((string) ($lead['email'] ?? ''));
         if ($primaryEmail === '' && !empty($emails)) {
-            $primaryEmail = (string)$emails[0];
+            $primaryEmail = (string) $emails[0];
         }
-        $primaryPhone = trim((string)($lead['phone'] ?? ''));
+        $primaryPhone = trim((string) ($lead['phone'] ?? ''));
         if ($primaryPhone === '' && !empty($phones)) {
-            $primaryPhone = (string)$phones[0];
+            $primaryPhone = (string) $phones[0];
         }
 
         $lead['email'] = $primaryEmail;
@@ -1187,8 +2114,10 @@ function customFetcherEnrichLeadChunk($leads, $timeout) {
     return $enriched;
 }
 
-function customFetcherEnrichLeads($leads, $timeout, $concurrency) {
-    if (empty($leads)) return [];
+function customFetcherEnrichLeads($leads, $timeout, $concurrency)
+{
+    if (empty($leads))
+        return [];
     $out = [];
     $chunks = array_chunk($leads, max(1, $concurrency));
     foreach ($chunks as $chunk) {
@@ -1197,8 +2126,351 @@ function customFetcherEnrichLeads($leads, $timeout, $concurrency) {
     return $out;
 }
 
-function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $filtersActive, $targetCount, $onStatus = null, $onBatch = null) {
-    $limit = max(20, min(50000, (int)$limit));
+function customFetcherSearchAndEnrichNoKeyOutscraperStyle($service, $location, $limit, $filters, $filtersActive, $targetCount, $onStatus = null, $onBatch = null)
+{
+    $startedAt = microtime(true);
+    $limit = max(20, min(50000, (int) $limit));
+    $locations = customFetcherBuildLocations($location, $limit, $filtersActive);
+    $variants = customFetcherBuildServiceVariants($service, $limit, $filtersActive);
+    $queries = customFetcherBuildQueries($variants, $locations, $limit, $filtersActive);
+    if (empty($queries)) {
+        $queries = [['query' => "$service in $location", 'location' => $location]];
+    }
+    $queries = array_slice($queries, 0, customFetcherNoKeyMaxSeedQueries());
+
+    $noKeyTargetCount = (int) ceil($limit * customFetcherNoKeyTargetRatio());
+    if ($targetCount === null) {
+        $targetCount = $noKeyTargetCount;
+    } else {
+        $targetCount = min((int) $targetCount, $noKeyTargetCount);
+    }
+
+    $emitBatchSize = customFetcherNoKeyStreamEmitBatchSize();
+    $quickProbeEnabled = customFetcherQuickEmailProbeEnabled();
+    $quickProbeRemaining = $quickProbeEnabled ? min($limit, customFetcherQuickEmailMaxPerQuery()) : 0;
+    $quickProbePerPass = customFetcherQuickEmailMaxPerPass();
+    $quickProbeTimeout = customFetcherQuickEmailTimeout();
+    $quickProbeConcurrency = customFetcherQuickEmailConcurrency();
+
+    $discoveryConcurrency = customFetcherNoKeyDiscoveryConcurrency();
+    $providerTimeout = customFetcherNoKeyProviderTimeout();
+    $providerRetries = customFetcherNoKeyProviderRetries();
+    $blockBackoffMs = customFetcherNoKeyBlockBackoffMs();
+    $topupMaxPasses = customFetcherNoKeyTopupMaxPasses();
+    $topupMaxQueries = customFetcherNoKeyTopupMaxQueries();
+    $topupEnabled = customFetcherNoKeyTopupEnabled();
+    $deferQuickProbe = customFetcherNoKeyDeferQuickProbe();
+    $maxEmptySeedChunks = customFetcherNoKeyMaxEmptySeedChunks();
+    $maxEmptyTopupChunks = customFetcherNoKeyMaxEmptyTopupChunks();
+
+    $allResults = [];
+    $seen = [];
+    $resultIndexById = [];
+    $batchToEmit = [];
+    $deferredProbeQueue = [];
+    $milestoneTimes = ['25' => null, '50' => null, '100' => null];
+
+    $recordMilestones = function () use (&$milestoneTimes, &$allResults, $startedAt) {
+        $count = count($allResults);
+        foreach ([25, 50, 100] as $milestone) {
+            $key = (string) $milestone;
+            if ($milestoneTimes[$key] === null && $count >= $milestone) {
+                $milestoneTimes[$key] = (int) round((microtime(true) - $startedAt) * 1000);
+            }
+        }
+    };
+
+    $flushDeferredProbeUpdates = function ($force = false) use (&$deferredProbeQueue, &$quickProbeRemaining, $quickProbePerPass, $quickProbeTimeout, $quickProbeConcurrency, &$allResults, &$resultIndexById, $limit, $onBatch) {
+        if (empty($deferredProbeQueue) || $quickProbeRemaining <= 0) {
+            return;
+        }
+        $maxPerRun = $force
+            ? min(count($deferredProbeQueue), $quickProbeRemaining)
+            : min(count($deferredProbeQueue), $quickProbePerPass, $quickProbeRemaining);
+        if ($maxPerRun <= 0)
+            return;
+
+        $probeSlice = array_splice($deferredProbeQueue, 0, $maxPerRun);
+        $quickProbeRemaining -= $maxPerRun;
+        $enrichedSlice = customFetcherQuickEmailProbeLeads($probeSlice, $quickProbeTimeout, $quickProbeConcurrency, $maxPerRun);
+        $updates = [];
+
+        foreach ($enrichedSlice as $candidate) {
+            $leadId = (string) ($candidate['id'] ?? '');
+            if ($leadId === '' || !isset($resultIndexById[$leadId]))
+                continue;
+            $idx = $resultIndexById[$leadId];
+            if (!isset($allResults[$idx]) || !is_array($allResults[$idx]))
+                continue;
+            $lead = $allResults[$idx];
+            $changed = false;
+
+            $newEmail = trim((string) ($candidate['email'] ?? ''));
+            $oldEmail = trim((string) ($lead['email'] ?? ''));
+            if ($oldEmail === '' && $newEmail !== '') {
+                $lead['email'] = $newEmail;
+                $changed = true;
+            }
+
+            $newPhone = trim((string) ($candidate['phone'] ?? ''));
+            $oldPhone = trim((string) ($lead['phone'] ?? ''));
+            if ($oldPhone === '' && $newPhone !== '') {
+                $lead['phone'] = $newPhone;
+                $changed = true;
+            }
+
+            if (isset($candidate['enrichment']) && is_array($candidate['enrichment'])) {
+                $lead['enrichment'] = $candidate['enrichment'];
+                $changed = true;
+            }
+
+            if ($changed) {
+                $allResults[$idx] = $lead;
+                $updates[] = $lead;
+            }
+        }
+
+        if (!empty($updates) && is_callable($onBatch)) {
+            $onBatch($updates, count($allResults), $limit);
+        }
+    };
+
+    $ingestDiscovered = function ($discovered, $queryLocation) use (&$allResults, &$seen, &$resultIndexById, &$batchToEmit, &$deferredProbeQueue, $filters, $limit, $emitBatchSize, $onBatch, $quickProbeEnabled, $deferQuickProbe, &$quickProbeRemaining, $quickProbePerPass, $quickProbeTimeout, $quickProbeConcurrency, $recordMilestones) {
+        if (empty($discovered))
+            return;
+        $fresh = [];
+        foreach ($discovered as $lead) {
+            if (!is_array($lead) || empty($lead['name']))
+                continue;
+            $dedupeKey = buildBusinessDedupeKey($lead, (string) $queryLocation);
+            if (isset($seen[$dedupeKey]))
+                continue;
+            $seen[$dedupeKey] = true;
+            $fresh[] = $lead;
+        }
+        if (empty($fresh))
+            return;
+
+        if ($quickProbeEnabled && !$deferQuickProbe && $quickProbeRemaining > 0) {
+            $probeCandidates = 0;
+            foreach ($fresh as $probeLead) {
+                $leadEmail = trim((string) ($probeLead['email'] ?? ''));
+                $leadUrl = trim((string) ($probeLead['url'] ?? ''));
+                if ($leadEmail === '' && $leadUrl !== '') {
+                    $probeCandidates++;
+                }
+            }
+            if ($probeCandidates > 0) {
+                $probeBudget = min($quickProbeRemaining, $probeCandidates, $quickProbePerPass);
+                if ($probeBudget > 0) {
+                    $fresh = customFetcherQuickEmailProbeLeads($fresh, $quickProbeTimeout, $quickProbeConcurrency, $probeBudget);
+                    $quickProbeRemaining -= $probeBudget;
+                }
+            }
+        }
+
+        foreach ($fresh as $lead) {
+            if (!matchesSearchFilters($lead, $filters))
+                continue;
+            if (!isset($lead['enrichment']) || !is_array($lead['enrichment'])) {
+                $lead['enrichment'] = customFetcherBuildPendingEnrichment($lead);
+            }
+            $lead['enrichmentStatus'] = 'pending';
+            $allResults[] = $lead;
+            $idx = count($allResults) - 1;
+            $leadId = (string) ($lead['id'] ?? '');
+            if ($leadId !== '') {
+                $resultIndexById[$leadId] = $idx;
+            }
+            $batchToEmit[] = $lead;
+
+            $leadEmail = trim((string) ($lead['email'] ?? ''));
+            $leadUrl = trim((string) ($lead['url'] ?? ''));
+            if ($quickProbeEnabled && $leadEmail === '' && $leadUrl !== '') {
+                $deferredProbeQueue[] = $lead;
+            }
+
+            if (count($batchToEmit) >= $emitBatchSize && is_callable($onBatch)) {
+                $onBatch($batchToEmit, count($allResults), $limit);
+                $batchToEmit = [];
+            }
+
+            $recordMilestones();
+            if (count($allResults) >= $limit)
+                break;
+        }
+    };
+
+    $queryChunks = array_chunk($queries, $discoveryConcurrency);
+    $totalSeedChunks = count($queryChunks);
+    $emptySeedChunkStreak = 0;
+    foreach ($queryChunks as $chunkIndex => $queryChunk) {
+        if (count($allResults) >= $limit)
+            break;
+        $beforeChunkTotal = count($allResults);
+        $remaining = $limit - count($allResults);
+        $perQueryLimit = min(30, max(8, (int) ceil(($remaining * ($filtersActive ? 1.45 : 1.15)) / max(1, count($queryChunk)))));
+
+        if (is_callable($onStatus)) {
+            $onStatus([
+                'message' => 'No-key discovery chunk ' . ($chunkIndex + 1) . '/' . max(1, $totalSeedChunks),
+                'phase' => 'discovery',
+                'provider' => 'no_key',
+                'progress' => min(95, max(1, (int) round((count($allResults) / max(1, $limit)) * 100))),
+                'seedIndex' => $chunkIndex + 1,
+                'seedTotal' => $totalSeedChunks,
+            ]);
+        }
+
+        $chunkDiscovered = customFetcherDiscoverNoKeyChunk($queryChunk, $perQueryLimit, $providerTimeout, $providerRetries, $blockBackoffMs);
+        foreach ($chunkDiscovered as $item) {
+            if (count($allResults) >= $limit)
+                break;
+            $queryLocation = $item['query']['location'] ?? $location;
+            $ingestDiscovered($item['discovered'] ?? [], $queryLocation);
+        }
+
+        if ($deferQuickProbe) {
+            $flushDeferredProbeUpdates(false);
+        }
+        if (count($allResults) <= $beforeChunkTotal) {
+            $emptySeedChunkStreak++;
+            if ($emptySeedChunkStreak >= $maxEmptySeedChunks && $chunkIndex >= 1) {
+                if (is_callable($onStatus)) {
+                    $onStatus([
+                        'message' => 'Stopping no-key seed discovery early due to repeated low-yield chunks.',
+                        'phase' => 'discovery',
+                        'provider' => 'no_key',
+                        'progress' => min(95, max(1, (int) round((count($allResults) / max(1, $limit)) * 100))),
+                    ]);
+                }
+                break;
+            }
+        } else {
+            $emptySeedChunkStreak = 0;
+        }
+        if (count($allResults) >= $targetCount && $chunkIndex > 0) {
+            break;
+        }
+    }
+
+    if ($topupEnabled && count($allResults) < $targetCount && $topupMaxPasses > 0) {
+        $topupPool = customFetcherBuildLowCoverageTopupQueries($service, $location, $limit, $filtersActive, $queries);
+        for ($pass = 1; $pass <= $topupMaxPasses; $pass++) {
+            if (count($allResults) >= $limit || count($allResults) >= $targetCount)
+                break;
+            $offset = ($pass - 1) * $topupMaxQueries;
+            $passQueries = array_slice($topupPool, $offset, $topupMaxQueries);
+            if (empty($passQueries))
+                break;
+
+            $passChunks = array_chunk($passQueries, $discoveryConcurrency);
+            $passChunkTotal = count($passChunks);
+            $emptyTopupChunkStreak = 0;
+            foreach ($passChunks as $passChunkIndex => $queryChunk) {
+                if (count($allResults) >= $limit)
+                    break;
+                $beforePassChunkTotal = count($allResults);
+                $remaining = $limit - count($allResults);
+                $perQueryLimit = min(35, max(8, (int) ceil(($remaining * ($filtersActive ? 1.5 : 1.2)) / max(1, count($queryChunk)))));
+
+                if (is_callable($onStatus)) {
+                    $onStatus([
+                        'message' => 'No-key top-up pass ' . $pass . ': chunk ' . ($passChunkIndex + 1) . '/' . max(1, $passChunkTotal),
+                        'phase' => 'topup',
+                        'provider' => 'no_key',
+                        'topupPass' => $pass,
+                        'progress' => min(98, max(1, (int) round((count($allResults) / max(1, $limit)) * 100))),
+                        'seedIndex' => $passChunkIndex + 1,
+                        'seedTotal' => $passChunkTotal,
+                    ]);
+                }
+
+                $chunkDiscovered = customFetcherDiscoverNoKeyChunk($queryChunk, $perQueryLimit, $providerTimeout, $providerRetries, $blockBackoffMs);
+                foreach ($chunkDiscovered as $item) {
+                    if (count($allResults) >= $limit)
+                        break;
+                    $queryLocation = $item['query']['location'] ?? $location;
+                    $ingestDiscovered($item['discovered'] ?? [], $queryLocation);
+                }
+                if ($deferQuickProbe) {
+                    $flushDeferredProbeUpdates(false);
+                }
+                if (count($allResults) <= $beforePassChunkTotal) {
+                    $emptyTopupChunkStreak++;
+                    if ($emptyTopupChunkStreak >= $maxEmptyTopupChunks) {
+                        break;
+                    }
+                } else {
+                    $emptyTopupChunkStreak = 0;
+                }
+                if (count($allResults) >= $targetCount && $passChunkIndex > 0) {
+                    break;
+                }
+            }
+        }
+    }
+
+    if ($deferQuickProbe) {
+        while (!empty($deferredProbeQueue) && $quickProbeRemaining > 0) {
+            $flushDeferredProbeUpdates(true);
+        }
+    }
+
+    if (!empty($batchToEmit) && is_callable($onBatch)) {
+        $onBatch($batchToEmit, count($allResults), $limit);
+    }
+
+    $durationMs = (int) round((microtime(true) - $startedAt) * 1000);
+    $total = count($allResults);
+    $withEmail = 0;
+    $withPhone = 0;
+    $withEither = 0;
+    foreach ($allResults as $lead) {
+        $hasEmail = trim((string) ($lead['email'] ?? '')) !== '';
+        $hasPhone = trim((string) ($lead['phone'] ?? '')) !== '';
+        if ($hasEmail)
+            $withEmail++;
+        if ($hasPhone)
+            $withPhone++;
+        if ($hasEmail || $hasPhone)
+            $withEither++;
+    }
+
+    error_log('[CustomFetcherNoKey] ' . json_encode([
+        'mode' => 'no_key_outscraper_style',
+        'requested' => $limit,
+        'returned' => $total,
+        'target_count' => $targetCount,
+        'coverage_pct' => round(($total / max(1, $limit)) * 100, 2),
+        'email_pct' => round(($withEmail / max(1, $total)) * 100, 2),
+        'phone_pct' => round(($withPhone / max(1, $total)) * 100, 2),
+        'either_pct' => round(($withEither / max(1, $total)) * 100, 2),
+        'ms_to_25' => $milestoneTimes['25'],
+        'ms_to_50' => $milestoneTimes['50'],
+        'ms_to_100' => $milestoneTimes['100'],
+        'duration_ms' => $durationMs,
+    ]));
+
+    return array_slice($allResults, 0, $limit);
+}
+
+function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $filtersActive, $targetCount, $onStatus = null, $onBatch = null)
+{
+    if (customFetcherUseNoKeyOutscraperStyle()) {
+        return customFetcherSearchAndEnrichNoKeyOutscraperStyle(
+            $service,
+            $location,
+            $limit,
+            $filters,
+            $filtersActive,
+            $targetCount,
+            $onStatus,
+            $onBatch
+        );
+    }
+
+    $limit = max(20, min(50000, (int) $limit));
     $sources = customFetcherResolveSources();
     if (empty($sources)) {
         throw new Exception('No discovery source configured for custom fetcher.');
@@ -1217,7 +2489,7 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
     $batchToEmit = [];
     $timeout = customFetcherContactTimeout();
     $concurrency = customFetcherEnrichConcurrency();
-    $targetCount = $targetCount !== null ? (int)$targetCount : (int)ceil($limit * customFetcherTargetRatio());
+    $targetCount = $targetCount !== null ? (int) $targetCount : (int) ceil($limit * customFetcherTargetRatio());
     $emitBatchSize = customFetcherStreamEmitBatchSize();
     $inlineEnrichment = customFetcherInlineEnrichmentEnabled();
     $quickProbeEnabled = !$inlineEnrichment && customFetcherQuickEmailProbeEnabled();
@@ -1225,159 +2497,153 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
     $quickProbePerPass = customFetcherQuickEmailMaxPerPass();
     $quickProbeTimeout = customFetcherQuickEmailTimeout();
     $quickProbeConcurrency = customFetcherQuickEmailConcurrency();
+    $deferQuickProbe = customFetcherDeferQuickProbe();
+    $queryConcurrency = customFetcherQueryConcurrency();
     $lowCoverageTopupEnabled = customFetcherLowCoverageTopupEnabled();
     $lowCoverageThreshold = customFetcherLowCoverageThreshold();
+    $topupUseNoKeyFallback = customFetcherTopupUseNoKeyFallback();
+    $platformRelaxationEnabled = customFetcherPlatformRelaxationEnabled();
+    $platformRelaxThreshold = customFetcherPlatformRelaxThreshold();
+    $platformRelaxAfterQueryRatio = customFetcherPlatformRelaxAfterQueryRatio();
+    $platformMode = !empty($filters['platformMode']);
+    $hasPlatformSelection = !empty($filters['platforms']) && is_array($filters['platforms']) && count($filters['platforms']) > 0;
+    $relaxPlatformFiltering = false;
+    $resultIndexById = [];
+    $deferredProbeQueue = [];
 
-    // Fast-path mode: discovery runs on Serper only.
-    $primarySources = [];
-    if (in_array('serper', $sources, true)) {
-        $primarySources[] = 'serper';
-    }
+    // Primary discovery sources: use whatever is available.
+    $primarySources = $sources;
     if (empty($primarySources)) {
-        throw new Exception('Serper is not configured. Set SERPER_API_KEY for fast discovery mode.');
+        throw new Exception('No discovery source configured. Set CUSTOM_FETCH_DISCOVERY_SOURCES.');
     }
 
-    foreach ($queries as $i => $queryData) {
-        if (count($allResults) >= $limit) break;
-        $query = $queryData['query'];
-        $queryLocation = $queryData['location'] ?? $location;
+    $flushDeferredProbeUpdates = function ($force = false) use (&$deferredProbeQueue, &$quickProbeRemaining, $quickProbePerPass, $quickProbeTimeout, $quickProbeConcurrency, &$allResults, &$resultIndexById, $limit, $onBatch) {
+        if (empty($deferredProbeQueue) || $quickProbeRemaining <= 0) {
+            return;
+        }
+        $maxPerRun = $force
+            ? min(count($deferredProbeQueue), $quickProbeRemaining)
+            : min(count($deferredProbeQueue), $quickProbePerPass, $quickProbeRemaining);
+        if ($maxPerRun <= 0) {
+            return;
+        }
+
+        $probeSlice = array_splice($deferredProbeQueue, 0, $maxPerRun);
+        $quickProbeRemaining -= $maxPerRun;
+        $enrichedSlice = customFetcherQuickEmailProbeLeads($probeSlice, $quickProbeTimeout, $quickProbeConcurrency, $maxPerRun);
+        $updates = [];
+
+        foreach ($enrichedSlice as $candidate) {
+            $leadId = (string) ($candidate['id'] ?? '');
+            if ($leadId === '' || !isset($resultIndexById[$leadId])) {
+                continue;
+            }
+            $idx = $resultIndexById[$leadId];
+            if (!isset($allResults[$idx]) || !is_array($allResults[$idx])) {
+                continue;
+            }
+            $lead = $allResults[$idx];
+            $changed = false;
+
+            $newEmail = trim((string) ($candidate['email'] ?? ''));
+            $oldEmail = trim((string) ($lead['email'] ?? ''));
+            if ($oldEmail === '' && $newEmail !== '') {
+                $lead['email'] = $newEmail;
+                $changed = true;
+            }
+
+            $newPhone = trim((string) ($candidate['phone'] ?? ''));
+            $oldPhone = trim((string) ($lead['phone'] ?? ''));
+            if ($oldPhone === '' && $newPhone !== '') {
+                $lead['phone'] = $newPhone;
+                $changed = true;
+            }
+
+            if (isset($candidate['enrichment']) && is_array($candidate['enrichment'])) {
+                $lead['enrichment'] = $candidate['enrichment'];
+                $changed = true;
+            }
+
+            if ($changed) {
+                $allResults[$idx] = $lead;
+                $updates[] = $lead;
+            }
+        }
+
+        if (!empty($updates) && is_callable($onBatch)) {
+            $onBatch($updates, count($allResults), $limit);
+        }
+    };
+
+    $queryChunks = array_chunk($queries, $queryConcurrency);
+    $totalQueryChunks = count($queryChunks);
+    $processedQueryCount = 0;
+    foreach ($queryChunks as $chunkIndex => $queryChunk) {
+        if (count($allResults) >= $limit)
+            break;
         $remaining = $limit - count($allResults);
-        $discoveryLimit = min(160, max(30, (int)ceil($remaining * ($filtersActive ? 1.6 : 1.2))));
+        $perQueryDiscoveryLimit = min(120, max(20, (int) ceil(($remaining * ($filtersActive ? 1.6 : 1.2)) / max(1, count($queryChunk)))));
 
         if (is_callable($onStatus)) {
             $onStatus([
-                'message' => 'Custom one-shot search: ' . $query,
-                'progress' => min(95, max(1, (int)round((count($allResults) / max(1, $limit)) * 100))),
-                'queryIndex' => $i + 1,
-                'queryTotal' => $totalQueries,
+                'message' => 'Custom one-shot search chunk ' . ($chunkIndex + 1) . '/' . max(1, $totalQueryChunks),
+                'progress' => min(95, max(1, (int) round((count($allResults) / max(1, $limit)) * 100))),
+                'queryIndex' => $chunkIndex + 1,
+                'queryTotal' => $totalQueryChunks,
                 'sources' => $primarySources,
             ]);
         }
 
-        $discovered = customFetcherDiscoverBySources($query, $discoveryLimit, $primarySources);
-        if (empty($discovered)) continue;
-
-        $fresh = [];
-        foreach ($discovered as $lead) {
-            if (!is_array($lead) || empty($lead['name'])) continue;
-            $dedupeKey = buildBusinessDedupeKey($lead, $queryLocation);
-            if (isset($seen[$dedupeKey])) continue;
-            $seen[$dedupeKey] = true;
-            $fresh[] = $lead;
-        }
-        if (empty($fresh)) continue;
-
-        if (!$inlineEnrichment) {
-            if ($quickProbeEnabled && $quickProbeRemaining > 0) {
-                $probeCandidates = 0;
-                foreach ($fresh as $probeLead) {
-                    $leadEmail = trim((string)($probeLead['email'] ?? ''));
-                    $leadUrl = trim((string)($probeLead['url'] ?? ''));
-                    if ($leadEmail === '' && $leadUrl !== '') {
-                        $probeCandidates++;
-                    }
-                }
-                if ($probeCandidates > 0) {
-                    $probeBudget = min($quickProbeRemaining, $probeCandidates, $quickProbePerPass);
-                    $fresh = customFetcherQuickEmailProbeLeads($fresh, $quickProbeTimeout, $quickProbeConcurrency, $probeBudget);
-                    $quickProbeRemaining -= $probeBudget;
-                }
-            }
-
-            // Fast-path: stream discovery results immediately, skip inline website crawling.
-            foreach ($fresh as $lead) {
-                if (!matchesSearchFilters($lead, $filters)) continue;
-                if (!isset($lead['enrichment']) || !is_array($lead['enrichment'])) {
-                    $lead['enrichment'] = customFetcherBuildPendingEnrichment($lead);
-                }
-                $lead['enrichmentStatus'] = 'pending';
-                $allResults[] = $lead;
-                $batchToEmit[] = $lead;
-
-                if (count($batchToEmit) >= $emitBatchSize && is_callable($onBatch)) {
-                    $onBatch($batchToEmit, count($allResults), $limit);
-                    $batchToEmit = [];
-                }
-                if (count($allResults) >= $limit) break;
-            }
+        $chunkDiscoveries = [];
+        if (count($primarySources) === 1 && $primarySources[0] === 'serper') {
+            $chunkDiscoveries = customFetcherDiscoverSerperPlacesChunk($queryChunk, $perQueryDiscoveryLimit);
+        } elseif (count($primarySources) === 1 && $primarySources[0] === 'no_key') {
+            $chunkDiscoveries = customFetcherDiscoverNoKeyChunk(
+                $queryChunk,
+                $perQueryDiscoveryLimit,
+                customFetcherNoKeyProviderTimeout(),
+                customFetcherNoKeyProviderRetries(),
+                customFetcherNoKeyBlockBackoffMs()
+            );
         } else {
-            // Do not enrich more than needed for the remaining target window.
-            $remainingNeed = $limit - count($allResults);
-            $maxFreshToEnrich = max(20, (int)ceil($remainingNeed * ($filtersActive ? 2.0 : 1.3)));
-            if (count($fresh) > $maxFreshToEnrich) {
-                $fresh = array_slice($fresh, 0, $maxFreshToEnrich);
-            }
-
-            // Enrich in small chunks so results stream earlier instead of waiting for full query batch.
-            $freshChunks = array_chunk($fresh, max(10, $concurrency * 4));
-            foreach ($freshChunks as $freshChunk) {
-                $enriched = customFetcherEnrichLeads($freshChunk, $timeout, $concurrency);
-                foreach ($enriched as $lead) {
-                    if (!matchesSearchFilters($lead, $filters)) continue;
-                    $allResults[] = $lead;
-                    $batchToEmit[] = $lead;
-
-                    if (count($batchToEmit) >= $emitBatchSize && is_callable($onBatch)) {
-                        $onBatch($batchToEmit, count($allResults), $limit);
-                        $batchToEmit = [];
-                    }
-                    if (count($allResults) >= $limit) break;
-                }
-                if (count($allResults) >= $limit) break;
+            foreach ($queryChunk as $queryData) {
+                $query = $queryData['query'] ?? '';
+                $discovered = customFetcherDiscoverBySources($query, $perQueryDiscoveryLimit, $primarySources);
+                $chunkDiscoveries[] = [
+                    'query' => $queryData,
+                    'discovered' => $discovered,
+                ];
             }
         }
 
-        if (count($allResults) >= $targetCount && $i > 2) {
-            break;
-        }
-    }
-
-    $coverageRatio = count($allResults) / max(1, $limit);
-    if (
-        $lowCoverageTopupEnabled &&
-        count($allResults) < $targetCount &&
-        $coverageRatio < $lowCoverageThreshold
-    ) {
-        $topupQueries = customFetcherBuildLowCoverageTopupQueries($service, $location, $limit, $filtersActive, $queries);
-        $topupTotal = count($topupQueries);
-
-        foreach ($topupQueries as $tIdx => $queryData) {
-            if (count($allResults) >= $limit) break;
-            $query = $queryData['query'];
-            $queryLocation = $queryData['location'] ?? $location;
-            $remaining = $limit - count($allResults);
-            $discoveryLimit = min(120, max(25, (int)ceil($remaining * ($filtersActive ? 1.7 : 1.35))));
-
-            if (is_callable($onStatus)) {
-                $onStatus([
-                    'message' => 'Coverage top-up search: ' . $query,
-                    'progress' => min(97, max(1, (int)round((count($allResults) / max(1, $limit)) * 100))),
-                    'queryIndex' => $tIdx + 1,
-                    'queryTotal' => $topupTotal,
-                    'phase' => 'topup',
-                    'sources' => ['serper_organic'],
-                ]);
-            }
-
-            $discovered = customFetcherSearchSerperOrganic($query, $discoveryLimit);
-            if (empty($discovered)) continue;
+        foreach ($chunkDiscoveries as $queryResult) {
+            if (count($allResults) >= $limit)
+                break;
+            $processedQueryCount++;
+            $queryLocation = $queryResult['query']['location'] ?? $location;
+            $discovered = $queryResult['discovered'] ?? [];
+            if (empty($discovered))
+                continue;
 
             $fresh = [];
             foreach ($discovered as $lead) {
-                if (!is_array($lead) || empty($lead['name'])) continue;
+                if (!is_array($lead) || empty($lead['name']))
+                    continue;
                 $dedupeKey = buildBusinessDedupeKey($lead, $queryLocation);
-                if (isset($seen[$dedupeKey])) continue;
+                if (isset($seen[$dedupeKey]))
+                    continue;
                 $seen[$dedupeKey] = true;
                 $fresh[] = $lead;
             }
-            if (empty($fresh)) continue;
+            if (empty($fresh))
+                continue;
 
             if (!$inlineEnrichment) {
-                if ($quickProbeEnabled && $quickProbeRemaining > 0) {
+                if ($quickProbeEnabled && !$deferQuickProbe && $quickProbeRemaining > 0) {
                     $probeCandidates = 0;
                     foreach ($fresh as $probeLead) {
-                        $leadEmail = trim((string)($probeLead['email'] ?? ''));
-                        $leadUrl = trim((string)($probeLead['url'] ?? ''));
+                        $leadEmail = trim((string) ($probeLead['email'] ?? ''));
+                        $leadUrl = trim((string) ($probeLead['url'] ?? ''));
                         if ($leadEmail === '' && $leadUrl !== '') {
                             $probeCandidates++;
                         }
@@ -1389,33 +2655,52 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
                     }
                 }
 
+                // Fast-path: stream discovery results immediately, skip inline website crawling.
                 foreach ($fresh as $lead) {
-                    if (!matchesSearchFilters($lead, $filters)) continue;
+                    if (!customFetcherMatchesWithOptionalPlatformRelaxation($lead, $filters, $relaxPlatformFiltering))
+                        continue;
                     if (!isset($lead['enrichment']) || !is_array($lead['enrichment'])) {
                         $lead['enrichment'] = customFetcherBuildPendingEnrichment($lead);
                     }
                     $lead['enrichmentStatus'] = 'pending';
                     $allResults[] = $lead;
+                    $idx = count($allResults) - 1;
+                    $leadId = (string) ($lead['id'] ?? '');
+                    if ($leadId !== '') {
+                        $resultIndexById[$leadId] = $idx;
+                    }
                     $batchToEmit[] = $lead;
+
+                    if ($quickProbeEnabled && $deferQuickProbe) {
+                        $leadEmail = trim((string) ($lead['email'] ?? ''));
+                        $leadUrl = trim((string) ($lead['url'] ?? ''));
+                        if ($leadEmail === '' && $leadUrl !== '') {
+                            $deferredProbeQueue[] = $lead;
+                        }
+                    }
 
                     if (count($batchToEmit) >= $emitBatchSize && is_callable($onBatch)) {
                         $onBatch($batchToEmit, count($allResults), $limit);
                         $batchToEmit = [];
                     }
-                    if (count($allResults) >= $limit) break;
+                    if (count($allResults) >= $limit)
+                        break;
                 }
             } else {
+                // Do not enrich more than needed for the remaining target window.
                 $remainingNeed = $limit - count($allResults);
-                $maxFreshToEnrich = max(20, (int)ceil($remainingNeed * ($filtersActive ? 2.0 : 1.3)));
+                $maxFreshToEnrich = max(20, (int) ceil($remainingNeed * ($filtersActive ? 2.0 : 1.3)));
                 if (count($fresh) > $maxFreshToEnrich) {
                     $fresh = array_slice($fresh, 0, $maxFreshToEnrich);
                 }
 
+                // Enrich in small chunks so results stream earlier instead of waiting for full query batch.
                 $freshChunks = array_chunk($fresh, max(10, $concurrency * 4));
                 foreach ($freshChunks as $freshChunk) {
                     $enriched = customFetcherEnrichLeads($freshChunk, $timeout, $concurrency);
                     foreach ($enriched as $lead) {
-                        if (!matchesSearchFilters($lead, $filters)) continue;
+                        if (!customFetcherMatchesWithOptionalPlatformRelaxation($lead, $filters, $relaxPlatformFiltering))
+                            continue;
                         $allResults[] = $lead;
                         $batchToEmit[] = $lead;
 
@@ -1423,16 +2708,217 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
                             $onBatch($batchToEmit, count($allResults), $limit);
                             $batchToEmit = [];
                         }
-                        if (count($allResults) >= $limit) break;
+                        if (count($allResults) >= $limit)
+                            break;
                     }
-                    if (count($allResults) >= $limit) break;
+                    if (count($allResults) >= $limit)
+                        break;
+                }
+            }
+        } // end foreach discovery item
+
+        if ($deferQuickProbe) {
+            $flushDeferredProbeUpdates(false);
+        }
+
+        if (
+            !$relaxPlatformFiltering &&
+            $platformRelaxationEnabled &&
+            $platformMode &&
+            $hasPlatformSelection
+        ) {
+            $queryProgressRatio = $processedQueryCount / max(1, $totalQueries);
+            $coverageRatioNow = count($allResults) / max(1, $limit);
+            if ($queryProgressRatio >= $platformRelaxAfterQueryRatio && $coverageRatioNow < $platformRelaxThreshold) {
+                $relaxPlatformFiltering = true;
+                if (is_callable($onStatus)) {
+                    $onStatus([
+                        'message' => 'Low platform-match coverage detected. Broadening filter to include unknown-stack opportunities.',
+                        'phase' => 'platform_relaxation',
+                        'progress' => min(96, max(1, (int) round($coverageRatioNow * 100))),
+                    ]);
+                }
+            }
+        }
+
+        if (count($allResults) >= $targetCount && $processedQueryCount > 2) {
+            break;
+        }
+    }
+
+    $coverageRatio = count($allResults) / max(1, $limit);
+    if (
+        $lowCoverageTopupEnabled &&
+        count($allResults) < $targetCount &&
+        $coverageRatio < $lowCoverageThreshold
+    ) {
+        $topupQueries = customFetcherBuildLowCoverageTopupQueries($service, $location, $limit, $filtersActive, $queries);
+        $topupSources = $primarySources;
+        if ($topupUseNoKeyFallback && !in_array('no_key', $topupSources, true)) {
+            $topupSources[] = 'no_key';
+        }
+
+        $topupChunks = array_chunk($topupQueries, $queryConcurrency);
+        $topupChunkTotal = count($topupChunks);
+        foreach ($topupChunks as $topupChunkIndex => $queryChunk) {
+            if (count($allResults) >= $limit) {
+                break;
+            }
+            $remaining = $limit - count($allResults);
+            $discoveryLimit = min(120, max(25, (int) ceil(($remaining * ($filtersActive ? 1.7 : 1.35)) / max(1, count($queryChunk)))));
+
+            if (is_callable($onStatus)) {
+                $onStatus([
+                    'message' => 'Coverage top-up chunk ' . ($topupChunkIndex + 1) . '/' . max(1, $topupChunkTotal),
+                    'progress' => min(97, max(1, (int) round((count($allResults) / max(1, $limit)) * 100))),
+                    'queryIndex' => $topupChunkIndex + 1,
+                    'queryTotal' => $topupChunkTotal,
+                    'phase' => 'topup',
+                    'sources' => $topupSources,
+                ]);
+            }
+
+            $chunkDiscoveries = [];
+            if (count($topupSources) === 1 && $topupSources[0] === 'serper') {
+                $chunkDiscoveries = customFetcherDiscoverSerperPlacesChunk($queryChunk, $discoveryLimit);
+            } elseif (count($topupSources) === 1 && $topupSources[0] === 'no_key') {
+                $chunkDiscoveries = customFetcherDiscoverNoKeyChunk(
+                    $queryChunk,
+                    $discoveryLimit,
+                    customFetcherNoKeyProviderTimeout(),
+                    customFetcherNoKeyProviderRetries(),
+                    customFetcherNoKeyBlockBackoffMs()
+                );
+            } else {
+                foreach ($queryChunk as $queryData) {
+                    $query = $queryData['query'] ?? '';
+                    $discovered = customFetcherDiscoverBySources($query, $discoveryLimit, $topupSources);
+                    $chunkDiscoveries[] = [
+                        'query' => $queryData,
+                        'discovered' => $discovered,
+                    ];
                 }
             }
 
-            if (count($allResults) >= $targetCount && $tIdx > 2) {
+            foreach ($chunkDiscoveries as $queryResult) {
+                if (count($allResults) >= $limit) {
+                    break;
+                }
+                $queryLocation = $queryResult['query']['location'] ?? $location;
+                $discovered = $queryResult['discovered'] ?? [];
+                if (empty($discovered)) {
+                    continue;
+                }
+
+                $fresh = [];
+                foreach ($discovered as $lead) {
+                    if (!is_array($lead) || empty($lead['name'])) {
+                        continue;
+                    }
+                    $dedupeKey = buildBusinessDedupeKey($lead, $queryLocation);
+                    if (isset($seen[$dedupeKey])) {
+                        continue;
+                    }
+                    $seen[$dedupeKey] = true;
+                    $fresh[] = $lead;
+                }
+                if (empty($fresh)) {
+                    continue;
+                }
+
+                if (!$inlineEnrichment) {
+                    if ($quickProbeEnabled && !$deferQuickProbe && $quickProbeRemaining > 0) {
+                        $probeCandidates = 0;
+                        foreach ($fresh as $probeLead) {
+                            $leadEmail = trim((string) ($probeLead['email'] ?? ''));
+                            $leadUrl = trim((string) ($probeLead['url'] ?? ''));
+                            if ($leadEmail === '' && $leadUrl !== '') {
+                                $probeCandidates++;
+                            }
+                        }
+                        if ($probeCandidates > 0) {
+                            $probeBudget = min($quickProbeRemaining, $probeCandidates, $quickProbePerPass);
+                            $fresh = customFetcherQuickEmailProbeLeads($fresh, $quickProbeTimeout, $quickProbeConcurrency, $probeBudget);
+                            $quickProbeRemaining -= $probeBudget;
+                        }
+                    }
+
+                    foreach ($fresh as $lead) {
+                        if (!customFetcherMatchesWithOptionalPlatformRelaxation($lead, $filters, $relaxPlatformFiltering)) {
+                            continue;
+                        }
+                        if (!isset($lead['enrichment']) || !is_array($lead['enrichment'])) {
+                            $lead['enrichment'] = customFetcherBuildPendingEnrichment($lead);
+                        }
+                        $lead['enrichmentStatus'] = 'pending';
+                        $allResults[] = $lead;
+                        $idx = count($allResults) - 1;
+                        $leadId = (string) ($lead['id'] ?? '');
+                        if ($leadId !== '') {
+                            $resultIndexById[$leadId] = $idx;
+                        }
+                        $batchToEmit[] = $lead;
+
+                        if ($quickProbeEnabled && $deferQuickProbe) {
+                            $leadEmail = trim((string) ($lead['email'] ?? ''));
+                            $leadUrl = trim((string) ($lead['url'] ?? ''));
+                            if ($leadEmail === '' && $leadUrl !== '') {
+                                $deferredProbeQueue[] = $lead;
+                            }
+                        }
+
+                        if (count($batchToEmit) >= $emitBatchSize && is_callable($onBatch)) {
+                            $onBatch($batchToEmit, count($allResults), $limit);
+                            $batchToEmit = [];
+                        }
+                        if (count($allResults) >= $limit) {
+                            break;
+                        }
+                    }
+                } else {
+                    $remainingNeed = $limit - count($allResults);
+                    $maxFreshToEnrich = max(20, (int) ceil($remainingNeed * ($filtersActive ? 2.0 : 1.3)));
+                    if (count($fresh) > $maxFreshToEnrich) {
+                        $fresh = array_slice($fresh, 0, $maxFreshToEnrich);
+                    }
+
+                    $freshChunks = array_chunk($fresh, max(10, $concurrency * 4));
+                    foreach ($freshChunks as $freshChunk) {
+                        $enriched = customFetcherEnrichLeads($freshChunk, $timeout, $concurrency);
+                        foreach ($enriched as $lead) {
+                            if (!customFetcherMatchesWithOptionalPlatformRelaxation($lead, $filters, $relaxPlatformFiltering)) {
+                                continue;
+                            }
+                            $allResults[] = $lead;
+                            $batchToEmit[] = $lead;
+
+                            if (count($batchToEmit) >= $emitBatchSize && is_callable($onBatch)) {
+                                $onBatch($batchToEmit, count($allResults), $limit);
+                                $batchToEmit = [];
+                            }
+                            if (count($allResults) >= $limit) {
+                                break;
+                            }
+                        }
+                        if (count($allResults) >= $limit) {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if ($deferQuickProbe) {
+                $flushDeferredProbeUpdates(false);
+            }
+
+            if (count($allResults) >= $targetCount && $topupChunkIndex > 1) {
                 break;
             }
         }
+    }
+
+    if ($deferQuickProbe) {
+        $flushDeferredProbeUpdates(false);
     }
 
     if (!empty($batchToEmit) && is_callable($onBatch)) {
@@ -1442,13 +2928,18 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
     return array_slice($allResults, 0, $limit);
 }
 
-function streamCustomOneShotSearch($service, $location, $limit, $filters, $filtersActive, $targetCount) {
+function streamCustomOneShotSearch($service, $location, $limit, $filters, $filtersActive, $targetCount)
+{
+    $engineMode = customFetcherEngineMode();
+    $useNoKeyOutscraper = customFetcherUseNoKeyOutscraperStyle();
     $sources = customFetcherResolveSources();
     if (empty($sources)) {
         sendSSE('error', ['error' => 'Custom fetcher has no available discovery sources.']);
         return;
     }
-    $streamSources = in_array('serper', $sources, true) ? ['serper'] : $sources;
+    $streamSources = $useNoKeyOutscraper
+        ? ['no_key']
+        : $sources;
     $inlineEnrichment = customFetcherInlineEnrichmentEnabled();
 
     $locations = customFetcherBuildLocations($location, $limit, $filtersActive);
@@ -1460,10 +2951,14 @@ function streamCustomOneShotSearch($service, $location, $limit, $filters, $filte
         'limit' => $limit,
         'targetCount' => $targetCount,
         'sources' => array_map(function ($s) {
-            if ($s === 'serper') return 'Serper';
-            if ($s === 'google') return 'Google CSE';
-            if ($s === 'bing') return 'Bing Web';
-            if ($s === 'no_key') return 'No-Key Web';
+            if ($s === 'serper')
+                return 'Serper';
+            if ($s === 'google')
+                return 'Google CSE';
+            if ($s === 'bing')
+                return 'Bing Web';
+            if ($s === 'no_key')
+                return 'No-Key Web';
             return strtoupper($s);
         }, $streamSources),
         'estimatedSources' => count($streamSources),
@@ -1473,6 +2968,8 @@ function streamCustomOneShotSearch($service, $location, $limit, $filters, $filte
         'enrichmentEnabled' => false,
         'enrichmentSessionId' => null,
         'inlineEnrichment' => $inlineEnrichment,
+        'engineMode' => $engineMode,
+        'noKeyOutscraperStyle' => $useNoKeyOutscraper,
     ]);
 
     try {
@@ -1487,7 +2984,7 @@ function streamCustomOneShotSearch($service, $location, $limit, $filters, $filte
                 sendSSE('status', $status);
             },
             function ($batch, $total, $requested) {
-                $progress = min(100, (int)round(($total / max(1, $requested)) * 100));
+                $progress = min(100, (int) round(($total / max(1, $requested)) * 100));
                 sendSSE('results', [
                     'leads' => $batch,
                     'total' => $total,
@@ -1517,7 +3014,8 @@ function streamCustomOneShotSearch($service, $location, $limit, $filters, $filte
     }
 }
 
-function searchCustomOneShotNonStream($service, $location, $limit, $filters, $filtersActive, $targetCount = null) {
+function searchCustomOneShotNonStream($service, $location, $limit, $filters, $filtersActive, $targetCount = null)
+{
     return customFetcherSearchAndEnrich(
         $service,
         $location,
@@ -1528,13 +3026,26 @@ function searchCustomOneShotNonStream($service, $location, $limit, $filters, $fi
     );
 }
 
-function customFetcherIsLikelyBusinessWebsite($url) {
-    $host = strtolower((string)parse_url($url, PHP_URL_HOST));
-    if ($host === '') return false;
+function customFetcherIsLikelyBusinessWebsite($url)
+{
+    $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+    if ($host === '')
+        return false;
     $blocked = [
-        'facebook.com', 'linkedin.com', 'instagram.com', 'youtube.com', 'tiktok.com',
-        'yelp.com', 'mapquest.com', 'yellowpages.com', 'bbb.org', 'manta.com',
-        'google.com', 'bing.com', 'maps.google.com', 'duckduckgo.com',
+        'facebook.com',
+        'linkedin.com',
+        'instagram.com',
+        'youtube.com',
+        'tiktok.com',
+        'yelp.com',
+        'mapquest.com',
+        'yellowpages.com',
+        'bbb.org',
+        'manta.com',
+        'google.com',
+        'bing.com',
+        'maps.google.com',
+        'duckduckgo.com',
     ];
     foreach ($blocked as $domain) {
         if ($host === $domain || customFetcherEndsWith($host, '.' . $domain)) {
@@ -1544,56 +3055,66 @@ function customFetcherIsLikelyBusinessWebsite($url) {
     return true;
 }
 
-function customFetcherEndsWith($haystack, $needle) {
-    $haystack = (string)$haystack;
-    $needle = (string)$needle;
-    if ($needle === '') return true;
+function customFetcherEndsWith($haystack, $needle)
+{
+    $haystack = (string) $haystack;
+    $needle = (string) $needle;
+    if ($needle === '')
+        return true;
     $len = strlen($needle);
-    if ($len > strlen($haystack)) return false;
+    if ($len > strlen($haystack))
+        return false;
     return substr($haystack, -$len) === $needle;
 }
 
-function customFetcherDiscoverWebsiteForBusiness($businessName, $location = '') {
+function customFetcherDiscoverWebsiteForBusiness($businessName, $location = '')
+{
     $query = trim($businessName . ' ' . $location . ' official website');
-    if ($query === '') return '';
+    if ($query === '')
+        return '';
 
     $sources = customFetcherResolveSources();
     if (in_array('serper', $sources, true)) {
         $rows = customFetcherSearchSerperOrganic($query, 10);
         foreach ($rows as $row) {
-            $candidate = trim((string)($row['url'] ?? ''));
-            if ($candidate !== '' && customFetcherIsLikelyBusinessWebsite($candidate)) return $candidate;
+            $candidate = trim((string) ($row['url'] ?? ''));
+            if ($candidate !== '' && customFetcherIsLikelyBusinessWebsite($candidate))
+                return $candidate;
         }
     }
 
     if (in_array('google', $sources, true)) {
         $rows = customFetcherSearchGoogleCustom($query, 10);
         foreach ($rows as $row) {
-            $candidate = trim((string)($row['url'] ?? ''));
-            if ($candidate !== '' && customFetcherIsLikelyBusinessWebsite($candidate)) return $candidate;
+            $candidate = trim((string) ($row['url'] ?? ''));
+            if ($candidate !== '' && customFetcherIsLikelyBusinessWebsite($candidate))
+                return $candidate;
         }
     }
     if (in_array('bing', $sources, true)) {
         $rows = customFetcherSearchBingWeb($query, 10);
         foreach ($rows as $row) {
-            $candidate = trim((string)($row['url'] ?? ''));
-            if ($candidate !== '' && customFetcherIsLikelyBusinessWebsite($candidate)) return $candidate;
+            $candidate = trim((string) ($row['url'] ?? ''));
+            if ($candidate !== '' && customFetcherIsLikelyBusinessWebsite($candidate))
+                return $candidate;
         }
     }
     // Manual fallback only: try no-key discovery as a last resort.
     $rows = customFetcherSearchNoKey($query, 10);
     foreach ($rows as $row) {
-        $candidate = trim((string)($row['url'] ?? ''));
-        if ($candidate !== '' && customFetcherIsLikelyBusinessWebsite($candidate)) return $candidate;
+        $candidate = trim((string) ($row['url'] ?? ''));
+        if ($candidate !== '' && customFetcherIsLikelyBusinessWebsite($candidate))
+            return $candidate;
     }
 
     return '';
 }
 
-function customFetcherEnrichSingle($url, $businessName = '', $location = '') {
-    $url = trim((string)$url);
-    $businessName = trim((string)$businessName);
-    $location = trim((string)$location);
+function customFetcherEnrichSingle($url, $businessName = '', $location = '')
+{
+    $url = trim((string) $url);
+    $businessName = trim((string) $businessName);
+    $location = trim((string) $location);
 
     if ($url === '' && $businessName !== '') {
         $url = customFetcherDiscoverWebsiteForBusiness($businessName, $location);

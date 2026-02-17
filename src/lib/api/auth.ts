@@ -52,6 +52,13 @@ function isBackendUnreachableError(error: unknown): boolean {
   return false;
 }
 
+function clearLocalSmtpCache(): void {
+  localStorage.removeItem('bamlead_smtp_config');
+  localStorage.removeItem('smtp_config');
+  localStorage.removeItem('bamlead_smtp_status');
+  localStorage.removeItem('smtp_verified');
+}
+
 function getMockUser(): User | null {
   const stored = localStorage.getItem(MOCK_STORAGE_KEY);
   if (stored) {
@@ -163,6 +170,7 @@ export async function logout(): Promise<void> {
     });
   } finally {
     localStorage.removeItem('auth_token');
+    clearLocalSmtpCache();
   }
 }
 
@@ -227,6 +235,7 @@ export async function getCurrentUser(): Promise<User | null> {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     void error;
     localStorage.removeItem('auth_token');
+    clearLocalSmtpCache();
     return null;
   }
 }

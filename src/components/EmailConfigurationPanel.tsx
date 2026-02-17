@@ -269,12 +269,34 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
           broadcastSMTPChange();
           return; // Server config loaded successfully
         }
+
+        if (result.success && !result.config) {
+          localStorage.removeItem(SMTP_CONFIG_KEY);
+          localStorage.removeItem('smtp_config');
+          localStorage.removeItem('smtp_verified');
+          localStorage.setItem(SMTP_STATUS_KEY, JSON.stringify({
+            isConnected: false,
+            isVerified: false,
+          }));
+          setSMTPConfig({
+            host: 'smtp.hostinger.com',
+            port: '465',
+            username: '',
+            password: '',
+            fromEmail: 'noreply@bamlead.com',
+            fromName: 'BamLead',
+            secure: true,
+          });
+          setIsConnected(false);
+          broadcastSMTPChange();
+          return;
+        }
       } catch (e) {
         // Server unavailable, fall back to localStorage
       }
 
       // Fallback: localStorage
-      const savedConfig = localStorage.getItem('smtp_config');
+      const savedConfig = localStorage.getItem(SMTP_CONFIG_KEY) || localStorage.getItem('smtp_config');
       if (savedConfig) {
         try {
           const parsed = JSON.parse(savedConfig);
@@ -292,15 +314,30 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
     void loadEmailHistory(false);
   }, [loadEmailHistory]);
 
-  const saveToServer = async (config: SMTPConfig) => {
+  const saveToServer = async (config: SMTPConfig): Promise<{ success: boolean; error?: string }> => {
     try {
-      await fetch(`${API_BASE_URL}/email-outreach.php?action=save_smtp_config`, {
+      const response = await fetch(`${API_BASE_URL}/email-outreach.php?action=save_smtp_config`, {
         method: 'POST',
         headers: { ...getAuthHeaders() },
         body: JSON.stringify(config),
       });
+      const text = await response.text();
+      let payload: any = null;
+      try {
+        payload = text ? JSON.parse(text) : null;
+      } catch {
+        payload = null;
+      }
+
+      if (!response.ok || !payload?.success) {
+        return {
+          success: false,
+          error: payload?.error || `Server returned ${response.status}`,
+        };
+      }
+      return { success: true };
     } catch {
-      // Silent fail — localStorage is the fallback
+      return { success: false, error: 'Unable to reach server' };
     }
   };
 
@@ -317,7 +354,13 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
     broadcastSMTPChange();
 
     // Persist to server so it survives browser clears
-    await saveToServer(smtpConfig);
+    const saved = await saveToServer(smtpConfig);
+    if (!saved.success) {
+      toast.warning('Saved locally only', {
+        description: saved.error || 'Server save failed. It may not persist across devices.',
+      });
+      return;
+    }
     toast.success('SMTP configuration saved to your account!');
   };
 
@@ -356,7 +399,12 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
         persistSMTPStatus(true, true);
         broadcastSMTPChange();
         // Also persist to server after successful verification
-        saveToServer(smtpConfig);
+        const saveResult = await saveToServer(smtpConfig);
+        if (!saveResult.success) {
+          toast.warning('SMTP verified, but server save failed', {
+            description: saveResult.error || 'Config is local only for now.',
+          });
+        }
       } else {
         toast.error('Connection failed', {
           description: result.error || 'Please check your SMTP credentials',
@@ -435,7 +483,12 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
         setIsConnected(true);
         persistSMTPStatus(true, true);
         broadcastSMTPChange();
-        saveToServer(smtpConfig);
+        const saveResult = await saveToServer(smtpConfig);
+        if (!saveResult.success) {
+          toast.warning('Test email sent, but server save failed', {
+            description: saveResult.error || 'Config is local only for now.',
+          });
+        }
         setShowTestEmailInput(false);
         setTestEmailAddress('');
         void loadEmailHistory(false);

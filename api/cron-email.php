@@ -18,6 +18,70 @@ require_once __DIR__ . '/includes/database.php';
 require_once __DIR__ . '/includes/email.php';
 require_once __DIR__ . '/includes/functions.php';
 
+function cronNormalizeSmtpConfig($config) {
+    if (!is_array($config)) return null;
+    $normalized = [
+        'host' => trim((string)($config['host'] ?? '')),
+        'port' => (string)($config['port'] ?? ''),
+        'username' => trim((string)($config['username'] ?? '')),
+        'password' => (string)($config['password'] ?? ''),
+        'fromEmail' => trim((string)($config['fromEmail'] ?? $config['from_email'] ?? '')),
+        'fromName' => trim((string)($config['fromName'] ?? $config['from_name'] ?? '')),
+        'secure' => $config['secure'] ?? true,
+    ];
+    if ($normalized['host'] === '' || $normalized['username'] === '' || $normalized['password'] === '') {
+        return null;
+    }
+    return $normalized;
+}
+
+function cronUnknownSmtpColumnError($exception) {
+    $message = strtolower((string)($exception instanceof Throwable ? $exception->getMessage() : $exception));
+    return strpos($message, 'unknown column') !== false && strpos($message, 'smtp_config') !== false;
+}
+
+function cronEnsureUserSmtpFallbackTable($db) {
+    $db->query(
+        "CREATE TABLE IF NOT EXISTS user_smtp_configs (
+            user_id INT NOT NULL PRIMARY KEY,
+            smtp_config TEXT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            INDEX idx_user_id (user_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+}
+
+function cronLoadUserSmtpConfig($db, $userId) {
+    try {
+        $row = $db->fetchOne("SELECT smtp_config FROM users WHERE id = ?", [$userId]);
+        if ($row && !empty($row['smtp_config'])) {
+            $config = json_decode((string)$row['smtp_config'], true);
+            $normalized = cronNormalizeSmtpConfig($config);
+            if ($normalized) return $normalized;
+        }
+    } catch (Exception $e) {
+        if (!cronUnknownSmtpColumnError($e)) {
+            throw $e;
+        }
+    }
+
+    try {
+        cronEnsureUserSmtpFallbackTable($db);
+        $row = $db->fetchOne("SELECT smtp_config FROM user_smtp_configs WHERE user_id = ?", [$userId]);
+        if ($row && !empty($row['smtp_config'])) {
+            $config = json_decode((string)$row['smtp_config'], true);
+            $normalized = cronNormalizeSmtpConfig($config);
+            if ($normalized) return $normalized;
+        }
+    } catch (Exception $e) {
+        error_log('Cron SMTP fallback load failed: ' . $e->getMessage());
+    }
+
+    return null;
+}
+
 // Security: Check IP whitelist AND cron key if called via HTTP
 if (php_sapi_name() !== 'cli') {
     // Check IP whitelist first
@@ -64,16 +128,39 @@ try {
     $failed = 0;
     $details = [];
     
+    $smtpByUser = [];
     foreach ($pendingEmails as $email) {
         $textBody = $email['template_body_text'] ?? strip_tags($email['body_html']);
         
-        // Use per-email SMTP config if stored (from drip/scheduled sends), otherwise fall back to server default
-        $storedSmtp = !empty($email['smtp_config']) ? json_decode($email['smtp_config'], true) : null;
-        if ($storedSmtp && is_array($storedSmtp)) {
-            $sent = sendEmailWithCustomSMTP($email['recipient_email'], $email['subject'], $email['body_html'], $textBody, $storedSmtp);
-        } else {
-            $sent = sendEmail($email['recipient_email'], $email['subject'], $email['body_html'], $textBody);
+        // Use per-email SMTP config if stored; otherwise load this user's saved SMTP config.
+        $smtpOverride = null;
+        if (!empty($email['smtp_config'])) {
+            $smtpOverride = cronNormalizeSmtpConfig(json_decode((string)$email['smtp_config'], true));
         }
+        $uid = (int)($email['user_id'] ?? 0);
+        if (!$smtpOverride && $uid > 0) {
+            if (!array_key_exists($uid, $smtpByUser)) {
+                $smtpByUser[$uid] = cronLoadUserSmtpConfig($db, $uid);
+            }
+            $smtpOverride = $smtpByUser[$uid];
+        }
+
+        if (!$smtpOverride) {
+            $db->update(
+                "UPDATE email_sends SET status = 'failed', error_message = 'No SMTP config saved for this user' WHERE id = ?",
+                [$email['id']]
+            );
+            $failed++;
+            $details[] = [
+                'id' => $email['id'],
+                'email' => $email['recipient_email'],
+                'status' => 'failed',
+                'reason' => 'Missing user SMTP config'
+            ];
+            continue;
+        }
+
+        $sent = sendEmailWithCustomSMTP($email['recipient_email'], $email['subject'], $email['body_html'], $textBody, $smtpOverride);
         
         if ($sent) {
             $db->update(

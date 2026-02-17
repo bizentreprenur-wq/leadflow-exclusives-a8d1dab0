@@ -48,6 +48,7 @@ import EmailVerificationRequired from '@/components/EmailVerificationRequired';
 import bamMascot from '@/assets/bamlead-mascot.png';
 import { LeadForEmail } from '@/lib/api/email';
 import { searchGMB, GMBResult } from '@/lib/api/gmb';
+import type { StreamProgressMeta } from '@/lib/api/gmb';
 import type { EnrichmentCallback } from '@/lib/api/gmb';
 import { useSMTPConfig } from '@/hooks/useSMTPConfig';
 import { searchPlatforms, PlatformResult } from '@/lib/api/platforms';
@@ -199,7 +200,7 @@ export default function Dashboard() {
   const [location, setLocation] = useState(() => sessionStorage.getItem('bamlead_location') || '');
   const [isSearching, setIsSearching] = useState(false);
   const [searchProgress, setSearchProgress] = useState(0);
-  const [searchCoverageMeta, setSearchCoverageMeta] = useState<{ locationCount?: number; variantCount?: number; estimatedQueries?: number } | null>(null);
+  const [searchCoverageMeta, setSearchCoverageMeta] = useState<StreamProgressMeta | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const getResultsMap = () => {
     try {
@@ -1005,11 +1006,15 @@ export default function Dashboard() {
       let finalResults: SearchResult[] = [];
       
       // Progress callback for streaming results
-      const handleProgress = (partialResults: any[], progress: number, meta?: { locationCount?: number; variantCount?: number; estimatedQueries?: number }) => {
-        console.log('[BamLead] Search progress:', progress, 'results:', partialResults.length);
-        setSearchProgress(progress);
-        if (meta) setSearchCoverageMeta(meta);
-        const mapped = partialResults.map((r: any, index: number) => ({
+      let pendingPartialResults: any[] | null = null;
+      let progressFlushScheduled = false;
+      const flushProgressResults = () => {
+        progressFlushScheduled = false;
+        const snapshot = pendingPartialResults;
+        pendingPartialResults = null;
+        if (!snapshot) return;
+
+        const mapped = snapshot.map((r: any, index: number) => ({
           id: r.id || `result-${index}`,
           name: r.name || 'Unknown Business',
           address: r.address,
@@ -1020,7 +1025,6 @@ export default function Dashboard() {
           source: searchType as 'gmb' | 'platform',
           platform: r.websiteAnalysis?.platform || undefined,
           websiteAnalysis: r.websiteAnalysis,
-          // Include enrichment data if available
           enrichment: r.enrichment,
           enrichmentStatus: r.enrichmentStatus,
           facebookUrl: r.enrichment?.socials?.facebook,
@@ -1029,6 +1033,7 @@ export default function Dashboard() {
           youtubeUrl: r.enrichment?.socials?.youtube,
           tiktokUrl: r.enrichment?.socials?.tiktok,
         }));
+
         if (append) {
           const merged = mergeLeads(latestMergedResults, mapped);
           latestMergedResults = merged;
@@ -1036,6 +1041,25 @@ export default function Dashboard() {
         } else {
           setSearchResults(mapped);
         }
+      };
+      const scheduleProgressFlush = () => {
+        if (progressFlushScheduled) return;
+        progressFlushScheduled = true;
+        if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+          window.requestAnimationFrame(flushProgressResults);
+        } else {
+          setTimeout(flushProgressResults, 16);
+        }
+      };
+
+      const handleProgress = (partialResults: any[], progress: number, meta?: StreamProgressMeta) => {
+        console.log('[BamLead] Search progress:', progress, 'results:', partialResults.length);
+        setSearchProgress(progress);
+        if (meta) {
+          setSearchCoverageMeta(prev => ({ ...(prev || {}), ...meta }));
+        }
+        pendingPartialResults = partialResults;
+        scheduleProgressFlush();
       };
       
       // Handle real-time enrichment updates from Firecrawl
@@ -2383,6 +2407,8 @@ export default function Dashboard() {
                               locationCount={searchCoverageMeta?.locationCount}
                               variantCount={searchCoverageMeta?.variantCount}
                               estimatedQueries={searchCoverageMeta?.estimatedQueries}
+                              sourceLabel={searchCoverageMeta?.sourceLabel}
+                              statusMessage={searchCoverageMeta?.statusMessage}
                             />
                           </div>
                         )}

@@ -312,7 +312,16 @@ function generateMockResults(service: string, location: string, count: number = 
 }
 
 // Callback for progressive loading
-export type ProgressCallback = (results: GMBResult[], progress: number, meta?: { locationCount?: number; variantCount?: number; estimatedQueries?: number }) => void;
+export interface StreamProgressMeta {
+  locationCount?: number;
+  variantCount?: number;
+  estimatedQueries?: number;
+  sourceLabel?: string;
+  statusMessage?: string;
+  phase?: string;
+}
+
+export type ProgressCallback = (results: GMBResult[], progress: number, meta?: StreamProgressMeta) => void;
 
 export interface GMBSearchFilters {
   phoneOnly?: boolean;
@@ -373,9 +382,9 @@ export async function searchGMB(
   let lastError: Error | null = null;
   let lastPartialResults: GMBResult[] = [];
   const progressWrapper: ProgressCallback | undefined = onProgress
-    ? (results, progress) => {
+    ? (results, progress, meta) => {
         lastPartialResults = results;
-        onProgress(results, progress);
+        onProgress(results, progress, meta);
       }
     : (results) => {
         lastPartialResults = results;
@@ -537,14 +546,18 @@ async function searchGMBStreaming(
         // Throttle onProgress to batch UI updates (fire at most every 300ms)
         let progressTimer: ReturnType<typeof setTimeout> | null = null;
         let lastProgress = 0;
+        let progressMeta: StreamProgressMeta | undefined;
         const flushProgress = () => {
           progressTimer = null;
           if (onProgress) {
-            onProgress([...allResults], lastProgress);
+            onProgress([...allResults], lastProgress, progressMeta);
           }
         };
-        const throttledProgress = (progress: number) => {
+        const throttledProgress = (progress: number, meta?: StreamProgressMeta) => {
           lastProgress = progress;
+          if (meta) {
+            progressMeta = { ...(progressMeta || {}), ...meta };
+          }
           if (!progressTimer) {
             progressTimer = setTimeout(flushProgress, 100);
           }
@@ -712,14 +725,32 @@ async function searchGMBStreaming(
                   enrichmentSessionId = data.enrichmentSessionId;
                   console.log(`[GMB API] Enrichment enabled, session: ${enrichmentSessionId}`);
                 }
+                const sourceLabel = Array.isArray(data.sources) && data.sources.length > 0
+                  ? data.sources.join(' + ')
+                  : undefined;
+                progressMeta = {
+                  ...(progressMeta || {}),
+                  sourceLabel,
+                  statusMessage: data.query ? `Starting search: ${data.query}` : 'Starting search...',
+                  phase: 'start',
+                };
                 // Emit coverage metadata to progress callback
                 if (onProgress && (data.locationCount || data.variantCount || data.estimatedQueries)) {
                   onProgress([], 0, {
                     locationCount: data.locationCount,
                     variantCount: data.variantCount,
                     estimatedQueries: data.estimatedQueries,
+                    sourceLabel,
+                    statusMessage: progressMeta.statusMessage,
+                    phase: progressMeta.phase,
                   });
                 }
+              } else if (eventType === 'status') {
+                throttledProgress(data.progress ?? lastProgress, {
+                  statusMessage: data.message || progressMeta?.statusMessage,
+                  phase: data.phase || progressMeta?.phase,
+                  sourceLabel: data.source || data.provider || progressMeta?.sourceLabel,
+                });
               } else if (eventType === 'enrichment') {
                 // Handle enrichment results streaming in
                 if (data.results && Array.isArray(data.results) && onEnrichment) {
@@ -759,7 +790,11 @@ async function searchGMBStreaming(
                   }
                   
                   // Throttled progress for enrichment updates too
-                  throttledProgress(data.progress || 0);
+                throttledProgress(data.progress || 0, {
+                  sourceLabel: data.source || progressMeta?.sourceLabel,
+                  statusMessage: data.message || progressMeta?.statusMessage,
+                  phase: data.phase || progressMeta?.phase,
+                });
                   
                   console.log(`[GMB API] Enrichment: ${data.results.length} leads enriched`);
                 }
@@ -775,7 +810,11 @@ async function searchGMBStreaming(
                 // Flush any pending throttled progress, then send final 100%
                 if (progressTimer) { clearTimeout(progressTimer); progressTimer = null; }
                 if (onProgress) {
-                  onProgress([...allResults], 100);
+                  onProgress([...allResults], 100, {
+                    ...(progressMeta || {}),
+                    statusMessage: data.message || 'Search complete',
+                    phase: 'complete',
+                  });
                 }
                 try {
                   await reader.cancel();

@@ -304,26 +304,25 @@ export const sendTestEmail = async (toEmail: string): Promise<TestResult> => {
 
   try {
     const smtpOverride = getSMTPConfig();
-    
-    if (!smtpOverride?.username || !smtpOverride?.password) {
-      return { success: false, error: 'SMTP not configured. Please save your settings first.' };
+    const payload: Record<string, unknown> = {
+      to_email: toEmail,
+    };
+    if (smtpOverride?.host && smtpOverride?.username && smtpOverride?.password) {
+      payload.smtp_override = {
+        host: smtpOverride.host,
+        port: smtpOverride.port || '465',
+        username: smtpOverride.username,
+        password: smtpOverride.password,
+        secure: smtpOverride.secure ?? true,
+        from_email: smtpOverride.fromEmail || smtpOverride.username,
+        from_name: smtpOverride.fromName || 'BamLead',
+      };
     }
-    
+
     const response = await fetch(`${API_BASE}/email-outreach.php?action=send_test`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({
-        to_email: toEmail,
-        smtp_override: {
-          host: smtpOverride.host,
-          port: smtpOverride.port || '465',
-          username: smtpOverride.username,
-          password: smtpOverride.password,
-          secure: smtpOverride.secure ?? true,
-          from_email: smtpOverride.fromEmail || smtpOverride.username,
-          from_name: smtpOverride.fromName || 'BamLead',
-        },
-      }),
+      body: JSON.stringify(payload),
     });
     
     if (!response.ok) {
@@ -374,17 +373,8 @@ export const sendSingleEmail = async (params: SendEmailParams): Promise<SendResu
     };
   }
 
-  // Check SMTP config first
-  const smtpConfig = getSMTPConfig();
-  if (!smtpConfig?.username || !smtpConfig?.password) {
-    return {
-      success: false,
-      failed: 1,
-      error: 'SMTP not configured. Please set up your email settings first.',
-    };
-  }
-
   try {
+    const smtpConfig = getSMTPConfig();
     // Apply branding if enabled
     let finalHtml = params.bodyHtml;
     if (params.applyBranding !== false) {
@@ -394,29 +384,33 @@ export const sendSingleEmail = async (params: SendEmailParams): Promise<SendResu
       }
     }
     
+    const payload: Record<string, unknown> = {
+      to: params.to,
+      subject: params.subject,
+      body_html: finalHtml,
+      body_text: params.bodyText,
+      lead_id: params.leadId,
+      template_id: params.templateId,
+      campaign_id: params.campaignId,
+      personalization: params.personalization,
+      track_opens: true,
+    };
+    if (smtpConfig?.host && smtpConfig?.username && smtpConfig?.password) {
+      payload.smtp_override = {
+        host: smtpConfig.host,
+        port: smtpConfig.port,
+        username: smtpConfig.username,
+        password: smtpConfig.password,
+        secure: smtpConfig.secure,
+        from_email: smtpConfig.fromEmail || smtpConfig.username,
+        from_name: smtpConfig.fromName || 'BamLead',
+      };
+    }
+
     const response = await fetch(`${API_BASE}/email-outreach.php?action=send`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({
-        to: params.to,
-        subject: params.subject,
-        body_html: finalHtml,
-        body_text: params.bodyText,
-        lead_id: params.leadId,
-        template_id: params.templateId,
-        campaign_id: params.campaignId,
-        personalization: params.personalization,
-        track_opens: true,
-        smtp_override: {
-          host: smtpConfig.host,
-          port: smtpConfig.port,
-          username: smtpConfig.username,
-          password: smtpConfig.password,
-          secure: smtpConfig.secure,
-          from_email: smtpConfig.fromEmail || smtpConfig.username,
-          from_name: smtpConfig.fromName || 'BamLead',
-        },
-      }),
+      body: JSON.stringify(payload),
     });
     
     if (!response.ok) {
@@ -477,16 +471,8 @@ export const sendBulkEmails = async (params: BulkSendParams): Promise<SendResult
     return { success: false, error: 'Template or custom content required' };
   }
   
-  // Check SMTP config first - customers must configure their own SMTP
-  const smtpConfig = getSMTPConfig();
-  if (!smtpConfig?.username || !smtpConfig?.password) {
-    return {
-      success: false,
-      error: 'SMTP not configured. Please set up your email settings first.',
-    };
-  }
-  
   try {
+    const smtpConfig = getSMTPConfig();
     // Apply branding to custom body if enabled
     let finalBody = params.customBody;
     if (params.applyBranding !== false && finalBody) {
@@ -496,27 +482,31 @@ export const sendBulkEmails = async (params: BulkSendParams): Promise<SendResult
       }
     }
     
+    const payload: Record<string, unknown> = {
+      leads: params.leads,
+      template_id: params.templateId,
+      custom_subject: params.customSubject,
+      custom_body: finalBody,
+      send_mode: params.sendMode || 'instant',
+      drip_config: params.dripConfig,
+      scheduled_for: params.scheduledFor,
+    };
+    if (smtpConfig?.host && smtpConfig?.username && smtpConfig?.password) {
+      payload.smtp_override = {
+        host: smtpConfig.host,
+        port: smtpConfig.port,
+        username: smtpConfig.username,
+        password: smtpConfig.password,
+        secure: smtpConfig.secure,
+        from_email: smtpConfig.fromEmail || smtpConfig.username,
+        from_name: smtpConfig.fromName || 'BamLead',
+      };
+    }
+
     const response = await fetch(`${API_BASE}/email-outreach.php?action=send-bulk`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({
-        leads: params.leads,
-        template_id: params.templateId,
-        custom_subject: params.customSubject,
-        custom_body: finalBody,
-        send_mode: params.sendMode || 'instant',
-        drip_config: params.dripConfig,
-        scheduled_for: params.scheduledFor,
-        smtp_override: {
-          host: smtpConfig.host,
-          port: smtpConfig.port,
-          username: smtpConfig.username,
-          password: smtpConfig.password,
-          secure: smtpConfig.secure,
-          from_email: smtpConfig.fromEmail || smtpConfig.username,
-          from_name: smtpConfig.fromName || 'BamLead',
-        },
-      }),
+      body: JSON.stringify(payload),
     });
     
     const data = await response.json();
