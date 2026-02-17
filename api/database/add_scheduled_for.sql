@@ -8,4 +8,4 @@ ADD INDEX idx_scheduled_emails (status, scheduled_for);
 -- Add cancelled status support
 -- The status enum should already support 'pending', 'sent', 'delivered', etc.
 -- If not, run:
--- ALTER TABLE email_sends MODIFY COLUMN status ENUM('pending', 'scheduled', 'sent', 'delivered', 'opened', 'clicked', 'replied', 'bounced', 'failed', 'cancelled') DEFAULT 'pending';
+-- ALTER TABLE email_sends MODIFY COLUMN status ENUM('pending', 'scheduled', 'sending', 'sent', 'delivered', 'opened', 'clicked', 'replied', 'bounced', 'failed', 'paused', 'cancelled') DEFAULT 'pending';

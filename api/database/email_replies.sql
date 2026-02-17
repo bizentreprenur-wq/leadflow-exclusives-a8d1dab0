@@ -50,4 +50,4 @@ ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMP NULL;
 
 -- Modify status enum to include paused and cancelled
 ALTER TABLE email_sends 
-MODIFY COLUMN status ENUM('pending', 'scheduled', 'sending', 'sent', 'delivered', 'opened', 'clicked', 'bounced', 'failed', 'paused', 'cancelled') DEFAULT 'pending';
+MODIFY COLUMN status ENUM('pending', 'scheduled', 'sending', 'sent', 'delivered', 'opened', 'clicked', 'replied', 'bounced', 'failed', 'paused', 'cancelled') DEFAULT 'pending';
