@@ -1378,18 +1378,6 @@ Best regards,
                     </p>
                   </div>
                   <div className="flex items-center gap-2 mr-8">
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setVisualEditorTemplate(previewTemplate);
-                        setShowVisualEditor(true);
-                        closePreview();
-                      }}
-                      className="gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white"
-                    >
-                      <Palette className="w-4 h-4" />
-                      Edit Template
-                    </Button>
                   </div>
                 </div>
               </div>
@@ -1507,19 +1495,30 @@ Best regards,
                       />
                     </div>
 
-                    {/* Subject Line Preview */}
-                    <div className="bg-muted/50 rounded-lg p-3">
-                      <p className="text-xs text-muted-foreground mb-1">Subject Line</p>
-                      <p className="font-medium text-sm">{editedSubject || previewTemplate.subject}</p>
+                    {/* Editable Subject Line - inline */}
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Subject Line</Label>
+                      <Input
+                        value={editedSubject}
+                        onChange={(e) => setEditedSubject(e.target.value)}
+                        placeholder="Enter your email subject..."
+                        className="font-medium"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Use placeholders: {"{{first_name}}"}, {"{{business_name}}"}, {"{{website}}"}
+                      </p>
                     </div>
 
-                    {/* Email Preview - Constrained images */}
-                    <ScrollArea className="h-[350px] border rounded-lg">
-                      <div
-                        className="bg-background p-4 [&_img]:max-w-[200px] [&_img]:h-auto [&_img]:mx-auto [&_img]:block [&_img]:rounded"
-                        dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(previewTemplate.body_html || "") }}
+                    {/* Editable Body - inline */}
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Email Body</Label>
+                      <Textarea
+                        value={editedBody}
+                        onChange={(e) => setEditedBody(e.target.value)}
+                        placeholder="Write your email content..."
+                        className="min-h-[250px] max-h-[350px] font-mono text-sm"
                       />
-                    </ScrollArea>
+                    </div>
                   </>
                 )}
 
@@ -1550,21 +1549,19 @@ Best regards,
                         Copy HTML
                       </Button>
                       <Button 
-                        onClick={() => {
-                          setVisualEditorTemplate(previewTemplate);
-                          setShowVisualEditor(true);
-                          closePreview();
-                        }} 
-                        className="gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+                        variant="outline"
+                        onClick={handleSaveCustomTemplate}
+                        className="gap-2"
                       >
-                        <Palette className="w-4 h-4" />
-                        Edit Template
+                        <Check className="w-4 h-4" />
+                        Save
                       </Button>
                       {onSelectTemplate && (
                         <Button
                           size="lg"
                           className="gap-2 bg-gradient-to-r from-success to-success/80 hover:from-success/90 hover:to-success/70 text-success-foreground font-semibold px-8"
                           onClick={() => {
+                            handleSaveCustomTemplate();
                             handleSelect(previewTemplate);
                             closePreview();
                           }}
