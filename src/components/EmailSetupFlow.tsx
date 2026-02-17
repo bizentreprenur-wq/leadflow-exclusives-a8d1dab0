@@ -455,6 +455,7 @@ export default function EmailSetupFlow({
   const [demoSentCount, setDemoSentCount] = useState(0);
   const [demoIsActive, setDemoIsActive] = useState(false);
   const [realSendingMode, setRealSendingMode] = useState(false);
+  const [isSendingPaused, setIsSendingPaused] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [campaignId, setCampaignId] = useState<string | null>(null);
   const [sendHealth, setSendHealth] = useState<SendHealth | null>(null);
@@ -1116,6 +1117,15 @@ export default function EmailSetupFlow({
                           leads={mailboxLeads}
                           realSendingMode={realSendingMode}
                           campaignId={campaignId || undefined}
+                          isPaused={isSendingPaused}
+                          onPause={() => {
+                            setIsSendingPaused(true);
+                            toast.info('Campaign paused');
+                          }}
+                          onResume={() => {
+                            setIsSendingPaused(false);
+                            toast.success('Campaign resumed');
+                          }}
                           onEmailStatusUpdate={(statuses) => {
                             const sentCount = Object.values(statuses).filter(s => s === 'sent' || s === 'delivered').length;
                             setDemoSentCount(sentCount);
@@ -1750,6 +1760,7 @@ export default function EmailSetupFlow({
                 setActiveTab('mailbox');
                 setRealSendingMode(true);
                 setDemoIsActive(true);
+                setIsSendingPaused(false);
                 smartDripRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 
                 setIsSending(true);

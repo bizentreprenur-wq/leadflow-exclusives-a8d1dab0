@@ -112,7 +112,7 @@ try {
         "SELECT es.*, es.smtp_config, et.body_text as template_body_text
          FROM email_sends es
          LEFT JOIN email_templates et ON es.template_id = et.id
-         WHERE es.status = 'scheduled' 
+         WHERE (es.status = 'scheduled' OR es.status = '')
          AND es.scheduled_for <= NOW()
          ORDER BY es.scheduled_for ASC
          LIMIT 20",
@@ -131,10 +131,11 @@ try {
     $smtpByUser = [];
     foreach ($pendingEmails as $email) {
         // Claim row before sending to avoid duplicate sends from concurrent workers.
+        // Use "pending" claim status to remain compatible with older enum definitions.
         $claimed = $db->update(
             "UPDATE email_sends
-             SET status = 'sending', error_message = NULL
-             WHERE id = ? AND status = 'scheduled'",
+             SET status = 'pending', error_message = NULL
+             WHERE id = ? AND (status = 'scheduled' OR status = '')",
             [$email['id']]
         );
         if ($claimed < 1) {
