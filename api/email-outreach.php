@@ -82,6 +82,10 @@ try {
         case 'stats':
             handleStats($db, $user);
             break;
+
+        case 'send-health':
+            handleSendHealthCheck($db, $user);
+            break;
             
         // ===== SCHEDULED EMAILS =====
         case 'scheduled':
@@ -110,6 +114,10 @@ try {
                 exit();
             }
             handleProcessScheduled($db);
+            break;
+
+        case 'process-my-scheduled':
+            handleProcessMyScheduled($db, $user);
             break;
             
         // ===== SMTP TEST ENDPOINTS =====
@@ -788,6 +796,96 @@ function handleStats($db, $user) {
     ]);
 }
 
+function handleSendHealthCheck($db, $user) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+        return;
+    }
+
+    $data = json_decode(file_get_contents('php://input'), true) ?: [];
+    $leads = is_array($data['leads'] ?? null) ? $data['leads'] : [];
+    $requestedTotal = isset($data['total_leads']) ? max(0, (int)$data['total_leads']) : count($leads);
+
+    $validEmailCount = 0;
+    foreach ($leads as $lead) {
+        $email = trim((string)($lead['email'] ?? ''));
+        if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $validEmailCount++;
+        }
+    }
+
+    $effectiveSmtp = resolveEffectiveSmtpOverride($db, (int)$user['id'], $data);
+    $smtpConfigured = !empty($effectiveSmtp);
+
+    $scheduledTotal = 0;
+    $scheduledDue = 0;
+    $processedRecently = 0;
+    try {
+        $queueStats = $db->fetchOne(
+            "SELECT
+                COUNT(*) AS scheduled_total,
+                SUM(CASE WHEN scheduled_for IS NOT NULL AND scheduled_for <= NOW() THEN 1 ELSE 0 END) AS scheduled_due
+             FROM email_sends
+             WHERE user_id = ? AND status = 'scheduled'",
+            [(int)$user['id']]
+        );
+        $scheduledTotal = (int)($queueStats['scheduled_total'] ?? 0);
+        $scheduledDue = (int)($queueStats['scheduled_due'] ?? 0);
+    } catch (Exception $e) {
+        error_log('[send-health] queue stats failed: ' . $e->getMessage());
+    }
+
+    try {
+        $recentStats = $db->fetchOne(
+            "SELECT COUNT(*) AS processed_recently
+             FROM email_sends
+             WHERE user_id = ?
+               AND (
+                 (status = 'sent' AND sent_at >= DATE_SUB(NOW(), INTERVAL 15 MINUTE))
+                 OR (status = 'failed' AND updated_at >= DATE_SUB(NOW(), INTERVAL 15 MINUTE))
+               )",
+            [(int)$user['id']]
+        );
+        $processedRecently = (int)($recentStats['processed_recently'] ?? 0);
+    } catch (Exception $e) {
+        error_log('[send-health] recent processing stats failed: ' . $e->getMessage());
+    }
+
+    $workerLikelyStalled = ($scheduledDue > 0 && $processedRecently === 0);
+    $hasValidRecipients = ($validEmailCount > 0);
+    $readyToSend = ($smtpConfigured && $hasValidRecipients && !$workerLikelyStalled);
+
+    $warnings = [];
+    if (!$smtpConfigured) {
+        $warnings[] = 'SMTP is not configured for this user.';
+    }
+    if (!$hasValidRecipients) {
+        $warnings[] = 'No valid recipient emails found in selected leads.';
+    }
+    if ($workerLikelyStalled) {
+        $warnings[] = 'Scheduled queue is due but sender worker may not be processing.';
+    }
+
+    echo json_encode([
+        'success' => true,
+        'health' => [
+            'ready' => $readyToSend,
+            'timestamp' => date('Y-m-d H:i:s'),
+            'checks' => [
+                'smtp_configured' => $smtpConfigured,
+                'requested_total' => $requestedTotal,
+                'valid_recipients' => $validEmailCount,
+                'scheduled_total' => $scheduledTotal,
+                'scheduled_due' => $scheduledDue,
+                'processed_recently' => $processedRecently,
+                'worker_likely_stalled' => $workerLikelyStalled,
+            ],
+            'warnings' => $warnings,
+        ]
+    ]);
+}
+
 // ===== SCHEDULED EMAIL HANDLERS =====
 
 function handleScheduledEmails($db, $user) {
@@ -856,17 +954,87 @@ function handleProcessScheduled($db) {
          LIMIT 20",
         []
     );
-    
-    if (!$pendingEmails || count($pendingEmails) === 0) {
+
+    $result = processScheduledEmailBatch($db, $pendingEmails, 'SMTP error during scheduled send');
+    if (($result['processed'] + $result['failed']) === 0) {
         echo json_encode(['success' => true, 'processed' => 0, 'message' => 'No emails to process']);
         return;
     }
-    
+
+    echo json_encode([
+        'success' => true,
+        'processed' => $result['processed'],
+        'failed' => $result['failed'],
+        'message' => "Processed {$result['processed']} emails, {$result['failed']} failed"
+    ]);
+}
+
+function handleProcessMyScheduled($db, $user) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'error' => 'Method not allowed']);
+        return;
+    }
+
+    $data = json_decode(file_get_contents('php://input'), true) ?: [];
+    $limit = isset($data['limit']) ? (int)$data['limit'] : 10;
+    if ($limit < 1) {
+        $limit = 1;
+    } elseif ($limit > 20) {
+        $limit = 20;
+    }
+
+    $pendingEmails = $db->fetchAll(
+        "SELECT es.*, et.body_text as template_body_text
+         FROM email_sends es
+         LEFT JOIN email_templates et ON es.template_id = et.id
+         WHERE es.user_id = ?
+         AND es.status = 'scheduled'
+         AND es.scheduled_for <= NOW()
+         ORDER BY es.scheduled_for ASC
+         LIMIT ?",
+        [(int)$user['id'], $limit]
+    );
+
+    $result = processScheduledEmailBatch($db, $pendingEmails ?: [], 'SMTP error during user fallback send');
+
+    echo json_encode([
+        'success' => true,
+        'processed' => $result['processed'],
+        'failed' => $result['failed'],
+        'claimed' => $result['claimed'],
+        'message' => "Processed {$result['processed']} emails, {$result['failed']} failed"
+    ]);
+}
+
+function processScheduledEmailBatch($db, array $pendingEmails, $failureReason) {
+    if (!$pendingEmails || count($pendingEmails) === 0) {
+        return ['processed' => 0, 'failed' => 0, 'claimed' => 0];
+    }
+
     $processed = 0;
     $failed = 0;
-    
+    $claimed = 0;
     $userSmtpCache = [];
+
     foreach ($pendingEmails as $email) {
+        $emailId = (int)($email['id'] ?? 0);
+        if ($emailId <= 0) {
+            continue;
+        }
+
+        // Claim this row first to avoid duplicate processing across cron/fallback workers.
+        $didClaim = $db->update(
+            "UPDATE email_sends
+             SET status = 'sending', error_message = NULL
+             WHERE id = ? AND status = 'scheduled'",
+            [$emailId]
+        );
+        if ($didClaim < 1) {
+            continue;
+        }
+        $claimed++;
+
         $textBody = $email['template_body_text'] ?? strip_tags($email['body_html']);
         $smtpOverride = null;
         if (!empty($email['smtp_config'])) {
@@ -887,38 +1055,39 @@ function handleProcessScheduled($db) {
         if (!$smtpOverride) {
             $db->update(
                 "UPDATE email_sends SET status = 'failed', error_message = 'No SMTP config saved for this user' WHERE id = ?",
-                [$email['id']]
+                [$emailId]
             );
             $failed++;
             continue;
         }
 
-        $sent = sendEmailWithCustomSMTP($email['recipient_email'], $email['subject'], $email['body_html'], $textBody, $smtpOverride);
-        
+        $sent = sendEmailWithCustomSMTP(
+            $email['recipient_email'],
+            $email['subject'],
+            $email['body_html'],
+            $textBody,
+            $smtpOverride
+        );
+
         if ($sent) {
             $db->update(
                 "UPDATE email_sends SET status = 'sent', sent_at = NOW() WHERE id = ?",
-                [$email['id']]
+                [$emailId]
             );
             $processed++;
         } else {
             $db->update(
-                "UPDATE email_sends SET status = 'failed', error_message = 'SMTP error during scheduled send' WHERE id = ?",
-                [$email['id']]
+                "UPDATE email_sends SET status = 'failed', error_message = ? WHERE id = ?",
+                [$failureReason, $emailId]
             );
             $failed++;
         }
-        
+
         // Small delay between sends
         usleep(200000); // 200ms
     }
-    
-    echo json_encode([
-        'success' => true, 
-        'processed' => $processed, 
-        'failed' => $failed,
-        'message' => "Processed $processed emails, $failed failed"
-    ]);
+
+    return ['processed' => $processed, 'failed' => $failed, 'claimed' => $claimed];
 }
 
 // ===== HELPER FUNCTIONS =====

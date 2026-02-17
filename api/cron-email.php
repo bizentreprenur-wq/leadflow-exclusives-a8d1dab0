@@ -130,6 +130,17 @@ try {
     
     $smtpByUser = [];
     foreach ($pendingEmails as $email) {
+        // Claim row before sending to avoid duplicate sends from concurrent workers.
+        $claimed = $db->update(
+            "UPDATE email_sends
+             SET status = 'sending', error_message = NULL
+             WHERE id = ? AND status = 'scheduled'",
+            [$email['id']]
+        );
+        if ($claimed < 1) {
+            continue;
+        }
+
         $textBody = $email['template_body_text'] ?? strip_tags($email['body_html']);
         
         // Use per-email SMTP config if stored; otherwise load this user's saved SMTP config.

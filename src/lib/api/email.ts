@@ -45,8 +45,9 @@ export interface EmailSend {
   business_name?: string;
   subject: string;
   body_html?: string;
-  status: 'pending' | 'sent' | 'delivered' | 'opened' | 'clicked' | 'replied' | 'bounced' | 'failed';
+  status: 'pending' | 'scheduled' | 'sending' | 'sent' | 'delivered' | 'opened' | 'clicked' | 'replied' | 'bounced' | 'failed' | 'cancelled';
   tracking_id?: string;
+  scheduled_for?: string;
   sent_at?: string;
   opened_at?: string;
   clicked_at?: string;
@@ -96,6 +97,21 @@ export interface BulkSendResult {
   }>;
 }
 
+export interface SendHealth {
+  ready: boolean;
+  timestamp: string;
+  checks: {
+    smtp_configured: boolean;
+    requested_total: number;
+    valid_recipients: number;
+    scheduled_total: number;
+    scheduled_due: number;
+    processed_recently: number;
+    worker_likely_stalled: boolean;
+  };
+  warnings: string[];
+}
+
 export interface DripSendConfig {
   emailsPerHour: number;
   delayMinutes: number;
@@ -124,7 +140,9 @@ const EMAIL_ENDPOINTS = {
   scheduled: `${API_BASE_URL}/email-outreach.php?action=scheduled`,
   queueScheduled: `${API_BASE_URL}/email-outreach.php?action=send`,
   cancelScheduled: (id: number) => `${API_BASE_URL}/email-outreach.php?action=cancel-scheduled&id=${id}`,
+  processMyScheduled: `${API_BASE_URL}/email-outreach.php?action=process-my-scheduled`,
   stats: (period?: number) => `${API_BASE_URL}/email-outreach.php?action=stats${period ? `&period=${period}` : ''}`,
+  sendHealth: `${API_BASE_URL}/email-outreach.php?action=send-health`,
 };
 
 // Template API
@@ -255,6 +273,20 @@ export async function sendBulkEmails(params: BulkSendParams): Promise<{ success:
   }
 }
 
+export async function getSendHealth(params: { leads?: Array<{ email?: string }>; total_leads?: number }): Promise<{ success: boolean; health?: SendHealth; error?: string }> {
+  try {
+    return await apiRequest(EMAIL_ENDPOINTS.sendHealth, {
+      method: 'POST',
+      body: JSON.stringify({
+        leads: params.leads || [],
+        total_leads: params.total_leads || 0,
+      }),
+    });
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
 // Save custom template for one-time use
 export async function saveCustomTemplate(params: {
   subject: string;
@@ -323,6 +355,17 @@ export async function cancelScheduledEmail(id: number): Promise<{ success: boole
   try {
     return await apiRequest(EMAIL_ENDPOINTS.cancelScheduled(id), {
       method: 'DELETE',
+    });
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
+
+export async function processMyScheduledEmails(limit = 10): Promise<{ success: boolean; processed?: number; failed?: number; claimed?: number; error?: string }> {
+  try {
+    return await apiRequest(EMAIL_ENDPOINTS.processMyScheduled, {
+      method: 'POST',
+      body: JSON.stringify({ limit }),
     });
   } catch (error: any) {
     return { success: false, error: error.message };

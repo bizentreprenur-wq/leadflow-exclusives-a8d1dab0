@@ -42,7 +42,7 @@ import EmailConfigurationPanel from './EmailConfigurationPanel';
 import LeadIntelligenceReviewPanel from './LeadIntelligenceReviewPanel';
 import PersonalizedLeadPreview from './PersonalizedLeadPreview';
 import AIStrategyReviewPanel from './AIStrategyReviewPanel';
-import { LeadForEmail, sendBulkEmails } from '@/lib/api/email';
+import { LeadForEmail, SendHealth, getSendHealth, sendBulkEmails } from '@/lib/api/email';
 import { addLeadsToCRM } from '@/lib/customTemplates';
 import EmailDeliveryNotifications from './EmailDeliveryNotifications';
 import { useAuth } from '@/contexts/AuthContext';
@@ -424,6 +424,8 @@ export default function EmailSetupFlow({
   const [realSendingMode, setRealSendingMode] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [campaignId, setCampaignId] = useState<string | null>(null);
+  const [sendHealth, setSendHealth] = useState<SendHealth | null>(null);
+  const [isHealthChecking, setIsHealthChecking] = useState(false);
 
   useEffect(() => {
     if (currentPhase !== 'send') return;
@@ -524,6 +526,48 @@ export default function EmailSetupFlow({
     const body = selectedTemplate?.body_html || selectedTemplate?.body || selectedTemplate?.preview || '';
     return String(body).replace(/<[^>]*>/g, '');
   };
+
+  const runSendHealthCheck = useCallback(async (params?: { silent?: boolean }) => {
+    setIsHealthChecking(true);
+    try {
+      const result = await getSendHealth({
+        leads: leadsWithEmail.map((lead) => ({ email: lead.email })),
+        total_leads: leadsWithEmail.length,
+      });
+
+      if (!result.success || !result.health) {
+        if (!params?.silent) {
+          toast.error(result.error || 'Failed to run send health check');
+        }
+        return null;
+      }
+
+      setSendHealth(result.health);
+      if (!params?.silent) {
+        if (result.health.ready) {
+          toast.success('Send health check passed');
+        } else if (result.health.warnings.length > 0) {
+          toast.warning(result.health.warnings[0]);
+        } else {
+          toast.warning('Send health check found issues');
+        }
+      }
+
+      return result.health;
+    } catch (error) {
+      if (!params?.silent) {
+        toast.error('Failed to run send health check');
+      }
+      return null;
+    } finally {
+      setIsHealthChecking(false);
+    }
+  }, [leadsWithEmail]);
+
+  useEffect(() => {
+    if (currentPhase !== 'send') return;
+    runSendHealthCheck({ silent: true });
+  }, [currentPhase, runSendHealthCheck]);
 
   const renderPhaseContent = () => {
     switch (currentPhase) {
@@ -1083,6 +1127,39 @@ export default function EmailSetupFlow({
                               </div>
                             )}
 
+                            <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/40 border border-border">
+                              <div>
+                                <p className="text-sm font-semibold text-foreground">Send Health Check</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Verifies SMTP, recipient coverage, and queued sender status.
+                                </p>
+                              </div>
+                              <Button
+                                variant="outline"
+                                onClick={() => runSendHealthCheck()}
+                                disabled={isHealthChecking}
+                                className="gap-2"
+                              >
+                                {isHealthChecking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+                                Check
+                              </Button>
+                            </div>
+
+                            {sendHealth && (
+                              <div className={`p-3 rounded-lg border ${sendHealth.ready ? 'bg-success/10 border-success/30' : 'bg-warning/10 border-warning/30'}`}>
+                                <p className={`text-sm font-medium ${sendHealth.ready ? 'text-success' : 'text-warning'}`}>
+                                  {sendHealth.ready ? 'Ready to send' : 'Send checks need attention'}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Valid recipients: {sendHealth.checks.valid_recipients} / {sendHealth.checks.requested_total}
+                                  {' '}• Due queue: {sendHealth.checks.scheduled_due}
+                                </p>
+                                {sendHealth.warnings.length > 0 && (
+                                  <p className="text-xs text-warning mt-1">{sendHealth.warnings[0]}</p>
+                                )}
+                              </div>
+                            )}
+
                             <div className="flex items-center justify-between">
                               <div>
                                 <p className="font-semibold text-foreground">Ready to launch your campaign?</p>
@@ -1110,7 +1187,7 @@ export default function EmailSetupFlow({
                                 {/* Real Send Button */}
                                 <Button 
                                   size="lg"
-                                  onClick={() => {
+                                  onClick={async () => {
                                     // Validate SMTP
                                     if (!smtpConfigured) {
                                       toast.error('Please configure SMTP settings first');
@@ -1139,6 +1216,14 @@ export default function EmailSetupFlow({
                                       return;
                                     }
 
+                                    const health = await runSendHealthCheck({ silent: true });
+                                    if (!health?.ready) {
+                                      toast.error(
+                                        health?.warnings?.[0] || 'Send health check failed. Run checks and fix issues before sending.'
+                                      );
+                                      return;
+                                    }
+
                                     setPendingSendData({
                                       validLeads,
                                       emailSubject,
@@ -1146,7 +1231,7 @@ export default function EmailSetupFlow({
                                     });
                                     setShowSendConfirmation(true);
                                   }}
-                                  disabled={isSending || !smtpConfigured || !selectedTemplate}
+                                  disabled={isSending || isHealthChecking || !smtpConfigured || !selectedTemplate}
                                   className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground font-bold px-8 py-6 text-lg shadow-lg shadow-primary/30"
                                 >
                                   {isSending ? (

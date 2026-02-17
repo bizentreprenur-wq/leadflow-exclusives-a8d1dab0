@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, CheckCircle2, Clock, Zap, Shield, AlertCircle, RefreshCw, Pause, Play, Send, ChevronDown, User, Building2, Inbox, ArrowRight, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { getSends } from '@/lib/api/email';
+import { getSends, processMyScheduledEmails } from '@/lib/api/email';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,7 +11,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type EmailStatus = 'pending' | 'sending' | 'sent' | 'delivered' | 'failed' | 'bounced';
+type EmailStatus =
+  | 'pending'
+  | 'scheduled'
+  | 'sending'
+  | 'sent'
+  | 'delivered'
+  | 'opened'
+  | 'clicked'
+  | 'replied'
+  | 'failed'
+  | 'bounced'
+  | 'cancelled';
 type LeadCategory = 'hot' | 'warm' | 'cold';
 type LeadScope = 'hot' | 'warm' | 'cold' | 'hot_warm' | 'all';
 
@@ -65,6 +76,7 @@ export default function MailboxDripAnimation({
   const [isPolling, setIsPolling] = useState(false);
   const [lastPollTime, setLastPollTime] = useState<Date | null>(null);
   const [deliveryStats, setDeliveryStats] = useState({ sent: 0, delivered: 0, failed: 0, bounced: 0 });
+  const [backendQueueStats, setBackendQueueStats] = useState({ scheduledTotal: 0, scheduledDue: 0 });
   const [leadScope, setLeadScope] = useState<LeadScope>('all');
   const [lastSentTime, setLastSentTime] = useState<Date | null>(null);
 
@@ -97,6 +109,23 @@ export default function MailboxDripAnimation({
   const filteredLeads = getFilteredLeads();
   const verifiedCount = filteredLeads.filter(l => l.verified !== false).length;
   const userApprovedCount = filteredLeads.filter(l => l.verified === false).length;
+  const COMPLETED_STATUSES = new Set<EmailStatus>(['sent', 'delivered', 'opened', 'clicked', 'replied']);
+  const PENDING_STATUSES = new Set<EmailStatus>(['pending', 'scheduled', 'sending']);
+
+  const normalizeStatus = useCallback((value: string | undefined): EmailStatus => {
+    const v = String(value || '').toLowerCase();
+    if (v === 'scheduled') return 'scheduled';
+    if (v === 'sending') return 'sending';
+    if (v === 'sent') return 'sent';
+    if (v === 'delivered') return 'delivered';
+    if (v === 'opened') return 'opened';
+    if (v === 'clicked') return 'clicked';
+    if (v === 'replied') return 'replied';
+    if (v === 'bounced') return 'bounced';
+    if (v === 'failed') return 'failed';
+    if (v === 'cancelled') return 'cancelled';
+    return 'pending';
+  }, []);
 
   // Initialize email statuses from leads
   useEffect(() => {
@@ -118,27 +147,65 @@ export default function MailboxDripAnimation({
     
     setIsPolling(true);
     try {
+      if (!isPaused) {
+        await processMyScheduledEmails(12);
+      }
+
       const result = await getSends({ limit: 100, status: undefined });
       
       if (result.success && result.sends) {
-        const newStatuses: Record<string, EmailStatus> = { ...emailStatuses };
-        let sentCount = 0, deliveredCount = 0, failedCount = 0, bouncedCount = 0;
-        
-        result.sends.forEach(send => {
-          const matchingLead = leads.find(l => l.email === send.recipient_email);
-          if (matchingLead) {
-            const status = send.status as EmailStatus;
-            newStatuses[matchingLead.id] = status;
-            
-            if (status === 'sent') sentCount++;
-            else if (status === 'delivered') deliveredCount++;
-            else if (status === 'failed') failedCount++;
-            else if (status === 'bounced') bouncedCount++;
+        const normalizeEmail = (email?: string) => String(email || '').trim().toLowerCase();
+        const leadsByEmail = new Map<string, Lead>();
+        filteredLeads.forEach((lead) => {
+          const key = normalizeEmail(lead.email);
+          if (key && !leadsByEmail.has(key)) {
+            leadsByEmail.set(key, lead);
           }
         });
-        
+
+        // Default all visible leads to pending each poll, then override from backend.
+        const newStatuses: Record<string, EmailStatus> = {};
+        filteredLeads.forEach((lead) => {
+          newStatuses[lead.id] = 'pending';
+        });
+
+        let sentCount = 0;
+        let deliveredCount = 0;
+        let failedCount = 0;
+        let bouncedCount = 0;
+        let scheduledTotal = 0;
+        let scheduledDue = 0;
+        const nowTs = Date.now();
+        const seenLeadIds = new Set<string>();
+
+        result.sends.forEach((send: any) => {
+          const key = normalizeEmail(send.recipient_email);
+          const matchingLead = leadsByEmail.get(key);
+          if (!matchingLead || seenLeadIds.has(matchingLead.id)) {
+            return;
+          }
+
+          const status = normalizeStatus(send.status);
+          newStatuses[matchingLead.id] = status;
+          seenLeadIds.add(matchingLead.id);
+
+          if (status === 'sent') sentCount++;
+          else if (status === 'delivered') deliveredCount++;
+          else if (status === 'failed') failedCount++;
+          else if (status === 'bounced') bouncedCount++;
+
+          if (status === 'scheduled') {
+            scheduledTotal++;
+            const scheduledFor = send.scheduled_for ? new Date(send.scheduled_for).getTime() : NaN;
+            if (!Number.isNaN(scheduledFor) && scheduledFor <= nowTs) {
+              scheduledDue++;
+            }
+          }
+        });
+
         setEmailStatuses(newStatuses);
         setDeliveryStats({ sent: sentCount, delivered: deliveredCount, failed: failedCount, bounced: bouncedCount });
+        setBackendQueueStats({ scheduledTotal, scheduledDue });
         onEmailStatusUpdate?.(newStatuses);
         setLastPollTime(new Date());
       }
@@ -147,7 +214,7 @@ export default function MailboxDripAnimation({
     } finally {
       setIsPolling(false);
     }
-  }, [realSendingMode, isActive, leads, emailStatuses, onEmailStatusUpdate]);
+  }, [realSendingMode, isActive, isPaused, filteredLeads, normalizeStatus, onEmailStatusUpdate]);
 
   // Auto-poll every 5 seconds in real sending mode
   useEffect(() => {
@@ -202,18 +269,35 @@ export default function MailboxDripAnimation({
   }, [isActive, isPaused, emailId]);
 
   // Calculate stats
-  const actualSentCount = Object.values(emailStatuses).filter(s => s === 'sent' || s === 'delivered').length;
+  const actualSentCount = Object.values(emailStatuses).filter((s) => COMPLETED_STATUSES.has(s)).length;
   const progress = filteredLeads.length > 0 ? (actualSentCount / filteredLeads.length) * 100 : 0;
-  const pendingCount = filteredLeads.length - actualSentCount;
+  const pendingCount = filteredLeads.reduce((count, lead) => {
+    const status = emailStatuses[lead.id] || 'pending';
+    return count + (PENDING_STATUSES.has(status) ? 1 : 0);
+  }, 0);
   const etaMinutes = Math.ceil(pendingCount / emailsPerHour * 60);
   const etaHours = Math.floor(etaMinutes / 60);
   const etaRemainingMins = etaMinutes % 60;
 
   // Get current sending, last sent, and up next leads
-  const sendingNowIndex = filteredLeads.findIndex(l => emailStatuses[l.id] === 'sending');
-  const lastSentLead = currentSendingIndex > 0 ? filteredLeads[currentSendingIndex - 1] : null;
-  const sendingNowLead = sendingNowIndex >= 0 ? filteredLeads[sendingNowIndex] : (currentSendingIndex < filteredLeads.length ? filteredLeads[currentSendingIndex] : null);
-  const upNextLead = currentSendingIndex + 1 < filteredLeads.length ? filteredLeads[currentSendingIndex + 1] : null;
+  const sendingNowIndex = filteredLeads.findIndex((l) => {
+    const status = emailStatuses[l.id] || 'pending';
+    return status === 'sending' || status === 'scheduled' || status === 'pending';
+  });
+  const lastSentIndex = (() => {
+    for (let i = filteredLeads.length - 1; i >= 0; i--) {
+      const status = emailStatuses[filteredLeads[i].id] || 'pending';
+      if (COMPLETED_STATUSES.has(status)) {
+        return i;
+      }
+    }
+    return -1;
+  })();
+  const lastSentLead = lastSentIndex >= 0 ? filteredLeads[lastSentIndex] : null;
+  const sendingNowLead = sendingNowIndex >= 0 ? filteredLeads[sendingNowIndex] : null;
+  const upNextLead = sendingNowIndex >= 0 && sendingNowIndex + 1 < filteredLeads.length ? filteredLeads[sendingNowIndex + 1] : null;
+  const sendingNowStatus: EmailStatus = sendingNowLead ? (emailStatuses[sendingNowLead.id] || 'pending') : 'pending';
+  const likelyStalledQueue = realSendingMode && isActive && backendQueueStats.scheduledDue > 0 && actualSentCount === 0;
 
   // Time since last sent
   const getTimeSince = (date: Date | null) => {
@@ -473,7 +557,7 @@ export default function MailboxDripAnimation({
               {sendingNowLead && isActive && !isPaused ? (
                 <div className="flex items-start gap-3">
                   <motion.div
-                    animate={{ scale: [1, 1.1, 1] }}
+                    animate={{ scale: sendingNowStatus === 'sending' ? [1, 1.1, 1] : 1 }}
                     transition={{ repeat: Infinity, duration: 1.5 }}
                     className="w-10 h-10 rounded-full bg-cyan-500/30 flex items-center justify-center flex-shrink-0"
                   >
@@ -486,13 +570,17 @@ export default function MailboxDripAnimation({
                       {sendingNowLead.business || 'Unknown Business'}
                     </p>
                     <p className="text-xs text-slate-500 truncate">{sendingNowLead.email}</p>
-                    <motion.p
-                      animate={{ opacity: [1, 0.5, 1] }}
-                      transition={{ repeat: Infinity, duration: 1 }}
-                      className="text-xs text-cyan-400 mt-1"
-                    >
-                      Sending...
-                    </motion.p>
+                    {sendingNowStatus === 'sending' ? (
+                      <motion.p
+                        animate={{ opacity: [1, 0.5, 1] }}
+                        transition={{ repeat: Infinity, duration: 1 }}
+                        className="text-xs text-cyan-400 mt-1"
+                      >
+                        Sending...
+                      </motion.p>
+                    ) : (
+                      <p className="text-xs text-amber-400 mt-1">Queued...</p>
+                    )}
                   </div>
                 </div>
               ) : (
@@ -627,6 +715,19 @@ export default function MailboxDripAnimation({
               <p className="text-xs text-slate-400">Sending test batch to optimize timing</p>
             </div>
           </motion.div>
+        )}
+
+        {likelyStalledQueue && (
+          <div className="mt-4 p-3 bg-red-500/10 rounded-lg border border-red-500/30 flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-red-400" />
+            <div>
+              <p className="text-sm font-medium text-red-400">Queue is due but sender worker is not processing</p>
+              <p className="text-xs text-slate-400">
+                Scheduled emails are ready. Check `cron-email.php`/`process-scheduled` cron job on the server.
+                ({backendQueueStats.scheduledDue} due / {backendQueueStats.scheduledTotal} scheduled)
+              </p>
+            </div>
+          </div>
         )}
 
         {/* Campaign speed summary */}

@@ -36,7 +36,8 @@ interface OutgoingMailboxProps {
 // Convert API EmailSend to our local OutgoingEmail format
 const mapEmailSendToOutgoing = (send: EmailSend): OutgoingEmail => {
   let status: OutgoingEmail['status'] = 'sent';
-  if (send.status === 'pending') status = 'queued';
+  if (send.status === 'pending' || send.status === 'scheduled') status = 'queued';
+  else if (send.status === 'sending') status = 'sending';
   else if (send.status === 'failed' || send.status === 'bounced') status = 'failed';
   else if (send.status === 'sent' || send.status === 'delivered' || send.status === 'opened' || send.status === 'clicked' || send.status === 'replied') status = 'sent';
   
