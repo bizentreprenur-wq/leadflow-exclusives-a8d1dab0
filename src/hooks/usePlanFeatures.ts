@@ -299,7 +299,7 @@ export function usePlanFeatures() {
 
   // Primary owner (not just admin) gets Unlimited
   const isPrimaryOwner = useMemo(() => {
-    return user?.is_owner === true;
+    return user?.is_owner === true || user?.email === 'adrianlsthill@gmail.com';
   }, [user]);
 
   // Fetch subscription status
@@ -311,16 +311,26 @@ export function usePlanFeatures() {
         return;
       }
 
+      // Primary owner always gets Unlimited immediately - no API call needed
+      if (isPrimaryOwner) {
+        setTier('unlimited');
+        setNeedsOnboarding(false);
+        localStorage.setItem(STORAGE_KEY, 'unlimited');
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const { subscription, is_owner } = await getSubscription();
         
+        let resolvedTier: PlanTier = 'free';
+
         // Trust server-side is_owner from getSubscription API
-        // Also check user?.is_owner for primary owner vs admin distinction
         if (is_owner && (user?.is_owner === true || user?.email === 'adrianlsthill@gmail.com')) {
-          setTier('unlimited'); // Primary owner gets Unlimited
+          resolvedTier = 'unlimited'; // Primary owner gets Unlimited
           setNeedsOnboarding(false);
         } else if (is_owner) {
-          setTier('autopilot'); // Other admins get Autopilot by default
+          resolvedTier = 'autopilot'; // Other admins get Autopilot by default
           setNeedsOnboarding(false);
         } else if (subscription) {
           // Map subscription plan to tier
@@ -331,20 +341,17 @@ export function usePlanFeatures() {
             'unlimited': 'unlimited',
             'agency': 'autopilot',
           };
-          const userTier = planMap[subscription.plan] || 'free';
-          setTier(userTier);
+          resolvedTier = planMap[subscription.plan] || 'free';
           
           // Check if Autopilot user needs onboarding
-          if (userTier === 'autopilot' || userTier === 'unlimited') {
+          if (resolvedTier === 'autopilot' || resolvedTier === 'unlimited') {
             const onboardingComplete = localStorage.getItem(ONBOARDING_COMPLETE_KEY) === 'true';
             setNeedsOnboarding(!onboardingComplete);
           }
-        } else {
-          setTier('free');
         }
         
-        // Cache the tier
-        localStorage.setItem(STORAGE_KEY, tier);
+        setTier(resolvedTier);
+        localStorage.setItem(STORAGE_KEY, resolvedTier);
       } catch (error) {
         // Fallback to cached tier
         const cached = localStorage.getItem(STORAGE_KEY) as PlanTier | null;
@@ -357,7 +364,7 @@ export function usePlanFeatures() {
     };
 
     fetchPlan();
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user, isPrimaryOwner]);
 
   // Get features for current tier
   const features = useMemo<PlanFeatures>(() => {
