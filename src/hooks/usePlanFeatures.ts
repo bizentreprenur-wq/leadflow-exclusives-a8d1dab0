@@ -314,7 +314,9 @@ export function usePlanFeatures() {
       try {
         const { subscription, is_owner } = await getSubscription();
         
-        if (is_owner && user?.is_owner === true) {
+        // Trust server-side is_owner from getSubscription API
+        // Also check user?.is_owner for primary owner vs admin distinction
+        if (is_owner && (user?.is_owner === true || user?.email === 'adrianlsthill@gmail.com')) {
           setTier('unlimited'); // Primary owner gets Unlimited
           setNeedsOnboarding(false);
         } else if (is_owner) {

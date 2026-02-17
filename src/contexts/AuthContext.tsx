@@ -130,7 +130,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           id: currentUser.id,
           email: currentUser.email,
           name: currentUser.name,
-          // Authorization fields excluded from cache
+          is_owner: currentUser.is_owner,
+          role: currentUser.role,
         };
         localStorage.setItem('bamlead_user_cache', JSON.stringify(safeCache));
       } else {
