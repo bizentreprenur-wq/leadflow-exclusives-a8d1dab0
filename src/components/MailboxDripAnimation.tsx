@@ -48,6 +48,7 @@ interface MailboxDripAnimationProps {
   onPause?: () => void;
   onResume?: () => void;
   onSend?: () => void;
+  onPreview?: () => void;
   showControls?: boolean;
   renderAfterBanner?: React.ReactNode;
   onOpenMailbox?: () => void;
@@ -65,6 +66,7 @@ export default function MailboxDripAnimation({
   onPause,
   onResume,
   onSend,
+  onPreview,
   showControls = true,
   renderAfterBanner,
   onOpenMailbox,
@@ -138,7 +140,14 @@ export default function MailboxDripAnimation({
       });
       setEmailStatuses(initialStatuses);
       setCurrentSendingIndex(0);
+      return;
     }
+
+    setEmailStatuses({});
+    setCurrentSendingIndex(0);
+    setDeliveryStats({ sent: 0, delivered: 0, failed: 0, bounced: 0 });
+    setBackendQueueStats({ scheduledTotal: 0, scheduledDue: 0 });
+    setLastSentTime(null);
   }, [leads]);
 
   // Poll backend for real delivery status
@@ -380,10 +389,15 @@ export default function MailboxDripAnimation({
                 Send Now
               </Button>
               {!realSendingMode && (
-                <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/50">
-                  <Eye className="w-3 h-3 mr-1" />
-                  PREVIEW
-                </Badge>
+                <Button
+                  onClick={onPreview}
+                  size="sm"
+                  variant="outline"
+                  className="gap-2 border-amber-500/50 text-amber-400 hover:bg-amber-500/10"
+                >
+                  <Eye className="w-3 h-3" />
+                  Preview
+                </Button>
               )}
             </div>
           )}

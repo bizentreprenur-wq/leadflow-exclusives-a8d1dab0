@@ -448,6 +448,24 @@ export default function EmailSetupFlow({
       setEmailLeads(converted);
       sessionStorage.setItem('bamlead_email_leads', JSON.stringify(converted));
       addLeadsToCRM(leads);
+      return;
+    }
+
+    // Clear stale in-memory lead/send state when all persisted lead sources are empty.
+    const hasStoredLeads = Boolean(
+      sessionStorage.getItem('bamlead_email_leads') ||
+      localStorage.getItem('bamlead_email_leads') ||
+      sessionStorage.getItem('bamlead_search_results') ||
+      localStorage.getItem('bamlead_search_results')
+    );
+
+    if (!hasStoredLeads) {
+      setEmailLeads([]);
+      setDemoSentCount(0);
+      setDemoIsActive(false);
+      setRealSendingMode(false);
+      setIsSendingPaused(false);
+      setPendingSendData(null);
     }
   }, [leads]);
 
@@ -629,6 +647,59 @@ export default function EmailSetupFlow({
       toast.success('Moved to Smart Drip campaign.');
     }
   }, [smtpConfigured, selectedTemplate, currentPhase, handleTabChange]);
+
+  const handleActivatePreviewMode = useCallback(() => {
+    setMailboxAnimationSeed((prev) => prev + 1);
+    setActiveTab('mailbox');
+    setIsSendingPaused(false);
+    setDemoSentCount(0);
+    setRealSendingMode(false);
+    setDemoIsActive(false);
+    window.setTimeout(() => setDemoIsActive(true), 0);
+    smartDripRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    toast.info('👀 Preview mode activated - simulating email delivery');
+  }, []);
+
+  const handlePrepareRealSend = useCallback(async () => {
+    if (!smtpConfigured) {
+      toast.error('Please configure SMTP settings first');
+      handleTabChange('settings');
+      return;
+    }
+
+    if (!selectedTemplate) {
+      toast.error('Please select an email template first');
+      setCurrentPhase('template');
+      return;
+    }
+
+    const validLeads = leadsWithEmail.filter((l) => l.email && l.email.includes('@'));
+    if (validLeads.length === 0) {
+      toast.error('No leads with valid email addresses. Please go back and add leads first.');
+      return;
+    }
+
+    const emailBody = getSelectedTemplateBodyHtml();
+    const emailSubject = getSelectedTemplateSubject();
+    if (!emailSubject || !emailBody) {
+      toast.error('Email subject and body are required');
+      return;
+    }
+
+    const health = await runSendHealthCheck({ silent: true });
+    if (!health?.ready) {
+      toast.error(health?.warnings?.[0] || 'Send health check failed. Run checks and fix issues before sending.');
+      return;
+    }
+
+    setActiveTab('mailbox');
+    setPendingSendData({
+      validLeads,
+      emailSubject,
+      emailBody,
+    });
+    setShowSendConfirmation(true);
+  }, [smtpConfigured, selectedTemplate, leadsWithEmail, runSendHealthCheck, handleTabChange, getSelectedTemplateBodyHtml, getSelectedTemplateSubject]);
 
   const renderPhaseContent = () => {
     switch (currentPhase) {
@@ -1128,6 +1199,8 @@ export default function EmailSetupFlow({
                             setIsSendingPaused(false);
                             toast.success('Campaign resumed');
                           }}
+                          onSend={handlePrepareRealSend}
+                          onPreview={handleActivatePreviewMode}
                           onEmailStatusUpdate={(statuses) => {
                             const sentCount = Object.values(statuses).filter(s => s === 'sent' || s === 'delivered').length;
                             setDemoSentCount(sentCount);
@@ -1243,17 +1316,7 @@ export default function EmailSetupFlow({
                                 <Button 
                                   variant="outline"
                                   size="lg"
-                                  onClick={() => {
-                                    setMailboxAnimationSeed((prev) => prev + 1);
-                                    setActiveTab('mailbox');
-                                    setIsSendingPaused(false);
-                                    setDemoSentCount(0);
-                                    setRealSendingMode(false);
-                                    setDemoIsActive(false);
-                                    setDemoIsActive(true);
-                                    smartDripRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                    toast.info('👀 Preview mode activated - simulating email delivery');
-                                  }}
+                                  onClick={handleActivatePreviewMode}
                                   disabled={isSending}
                                   className="gap-2"
                                 >
@@ -1264,50 +1327,7 @@ export default function EmailSetupFlow({
                                 {/* Real Send Button */}
                                 <Button 
                                   size="lg"
-                                  onClick={async () => {
-                                    // Validate SMTP
-                                    if (!smtpConfigured) {
-                                      toast.error('Please configure SMTP settings first');
-                                      handleTabChange('settings');
-                                      return;
-                                    }
-                                    // Validate template
-                                    if (!selectedTemplate) {
-                                      toast.error('Please select an email template first');
-                                      setCurrentPhase('template');
-                                      return;
-                                    }
-                                    // Validate leads with valid emails
-                                    const validLeads = leadsWithEmail.filter(l => l.email && l.email.includes('@'));
-                                    if (validLeads.length === 0) {
-                                      toast.error('No leads with valid email addresses. Please go back and add leads first.');
-                                      return;
-                                    }
-                                    
-                                    // Ensure we have body content
-                                    const emailBody = getSelectedTemplateBodyHtml();
-                                    const emailSubject = getSelectedTemplateSubject();
-                                    
-                                    if (!emailSubject || !emailBody) {
-                                      toast.error('Email subject and body are required');
-                                      return;
-                                    }
-
-                                    const health = await runSendHealthCheck({ silent: true });
-                                    if (!health?.ready) {
-                                      toast.error(
-                                        health?.warnings?.[0] || 'Send health check failed. Run checks and fix issues before sending.'
-                                      );
-                                      return;
-                                    }
-
-                                    setPendingSendData({
-                                      validLeads,
-                                      emailSubject,
-                                      emailBody,
-                                    });
-                                    setShowSendConfirmation(true);
-                                  }}
+                                  onClick={handlePrepareRealSend}
                                   disabled={isSending || isHealthChecking || !smtpConfigured || !selectedTemplate}
                                   className="gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground font-bold px-8 py-6 text-lg shadow-lg shadow-primary/30"
                                 >
@@ -1591,10 +1611,10 @@ export default function EmailSetupFlow({
           refreshInboxUnreadCount();
         }}
         campaignContext={
-          (demoIsActive || realSendingMode) ? {
+          realSendingMode ? {
             isActive: true,
             sentCount: demoSentCount,
-            totalLeads: emailLeads.length
+            totalLeads: leadsWithEmail.length
           } : undefined
         }
         searchType={searchType}
