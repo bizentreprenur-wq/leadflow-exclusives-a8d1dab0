@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, CheckCircle2, Clock, Zap, Shield, AlertCircle, RefreshCw, Pause, Play, Send, ChevronDown, User, Building2, Inbox, ArrowRight, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -72,7 +72,7 @@ export default function MailboxDripAnimation({
   onOpenMailbox,
 }: MailboxDripAnimationProps) {
   const [flyingEmails, setFlyingEmails] = useState<number[]>([]);
-  const [emailId, setEmailId] = useState(0);
+  const emailIdRef = useRef(0);
   const [currentSendingIndex, setCurrentSendingIndex] = useState(0);
   const [emailStatuses, setEmailStatuses] = useState<Record<string, EmailStatus>>({});
   const [isPolling, setIsPolling] = useState(false);
@@ -339,13 +339,16 @@ export default function MailboxDripAnimation({
 
   // Flying email animation
   useEffect(() => {
-    const hasPendingQueue = filteredLeads.some((lead) => {
-      const status = emailStatuses[lead.id] || 'pending';
-      return PENDING_STATUSES.has(status);
-    });
-
     if (realSendingMode) {
-      if (isPaused || !hasPendingQueue) {
+      const hasProcessingStarted =
+        backendQueueStats.trackedLeads > 0 ||
+        deliveryStats.sent > 0 ||
+        deliveryStats.delivered > 0 ||
+        deliveryStats.failed > 0 ||
+        deliveryStats.bounced > 0;
+      const hasPendingQueue = backendQueueStats.scheduledTotal > 0;
+
+      if (isPaused || !hasProcessingStarted || !hasPendingQueue) {
         setFlyingEmails([]);
         return;
       }
@@ -355,16 +358,17 @@ export default function MailboxDripAnimation({
     }
 
     const interval = setInterval(() => {
-      setEmailId(prev => prev + 1);
-      setFlyingEmails(prev => [...prev, emailId]);
-      
+      emailIdRef.current += 1;
+      const nextId = emailIdRef.current;
+      setFlyingEmails(prev => [...prev, nextId]);
+
       setTimeout(() => {
-        setFlyingEmails(prev => prev.filter(id => id !== emailId));
+        setFlyingEmails(prev => prev.filter(id => id !== nextId));
       }, 2000);
     }, 800);
 
     return () => clearInterval(interval);
-  }, [isActive, isPaused, emailId, filteredLeads, emailStatuses, realSendingMode, currentSendingIndex]);
+  }, [isActive, isPaused, filteredLeads, realSendingMode, currentSendingIndex, backendQueueStats, deliveryStats]);
 
   // Calculate stats
   const actualSentCount = Object.values(emailStatuses).filter((s) => COMPLETED_STATUSES.has(s)).length;
@@ -373,10 +377,16 @@ export default function MailboxDripAnimation({
     const status = emailStatuses[lead.id] || 'pending';
     return count + (PENDING_STATUSES.has(status) ? 1 : 0);
   }, 0);
-  const isQueueAnimating =
-    (realSendingMode || isActive) &&
-    !isPaused &&
-    pendingCount > 0;
+  const hasRealQueueStarted =
+    backendQueueStats.trackedLeads > 0 ||
+    deliveryStats.sent > 0 ||
+    deliveryStats.delivered > 0 ||
+    deliveryStats.failed > 0 ||
+    deliveryStats.bounced > 0;
+  const isQueueAnimating = realSendingMode
+    ? hasRealQueueStarted && backendQueueStats.scheduledTotal > 0 && !isPaused
+    : isActive && !isPaused && pendingCount > 0;
+  const deliveredDisplayCount = deliveryStats.delivered + deliveryStats.sent;
   const etaMinutes = Math.ceil(pendingCount / emailsPerHour * 60);
   const etaHours = Math.floor(etaMinutes / 60);
   const etaRemainingMins = etaMinutes % 60;
@@ -787,7 +797,7 @@ export default function MailboxDripAnimation({
               <p className="text-xs text-slate-400">Sent</p>
             </div>
             <div className="text-center">
-              <p className="text-xl font-bold text-emerald-400">{deliveryStats.delivered}</p>
+              <p className="text-xl font-bold text-emerald-400">{deliveredDisplayCount}</p>
               <p className="text-xs text-slate-400">Delivered</p>
             </div>
             <div className="text-center">
