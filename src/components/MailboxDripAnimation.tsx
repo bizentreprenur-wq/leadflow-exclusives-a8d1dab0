@@ -115,7 +115,7 @@ export default function MailboxDripAnimation({
   const PENDING_STATUSES = new Set<EmailStatus>(['pending', 'scheduled', 'sending']);
 
   const normalizeStatus = useCallback((value: string | undefined): EmailStatus => {
-    const v = String(value || '').toLowerCase();
+    const v = String(value || '').trim().toLowerCase();
     if (v === 'scheduled') return 'scheduled';
     if (v === 'sending') return 'sending';
     if (v === 'sent') return 'sent';
@@ -202,22 +202,10 @@ export default function MailboxDripAnimation({
         let scheduledDue = 0;
         const nowTs = Date.now();
         let newestSentAtTs = 0;
-        const leadDueScheduled = new Set<string>();
-        const leadSignals = new Map<string, { status: EmailStatus; rank: number; sentAtTs: number }>();
-
-        const statusRank = (status: EmailStatus): number => {
-          if (status === 'replied') return 80;
-          if (status === 'clicked') return 70;
-          if (status === 'opened') return 60;
-          if (status === 'delivered') return 50;
-          if (status === 'sent') return 45;
-          if (status === 'failed') return 35;
-          if (status === 'bounced') return 34;
-          if (status === 'cancelled') return 33;
-          if (status === 'sending') return 25;
-          if (status === 'scheduled') return 20;
-          return 10; // pending/default
-        };
+        const leadSignals = new Map<
+          string,
+          { status: EmailStatus; sentAtTs: number; scheduledForTs: number; rowId: number }
+        >();
 
         result.sends.forEach((send: any) => {
           const status = normalizeStatus(send.status);
@@ -235,19 +223,17 @@ export default function MailboxDripAnimation({
           const scheduledFor = send.scheduled_for ? new Date(send.scheduled_for).getTime() : NaN;
           const sentAtTs = send.sent_at ? new Date(send.sent_at).getTime() : 0;
 
+          const rowId = Number(send.id || 0);
           matchingLeadIds.forEach((leadId) => {
-            const rank = statusRank(status);
+            // Always track the latest row for the lead so stats reflect the current queued group.
             const existing = leadSignals.get(leadId);
-            if (!existing || rank > existing.rank || (rank === existing.rank && sentAtTs > existing.sentAtTs)) {
-              leadSignals.set(leadId, { status, rank, sentAtTs });
-            }
-
-            const isDuePending =
-              status === 'pending' ||
-              status === 'sending' ||
-              (status === 'scheduled' && !Number.isNaN(scheduledFor) && scheduledFor <= nowTs);
-            if (isDuePending) {
-              leadDueScheduled.add(leadId);
+            if (!existing || rowId > existing.rowId) {
+              leadSignals.set(leadId, {
+                status,
+                sentAtTs,
+                scheduledForTs: Number.isNaN(scheduledFor) ? 0 : scheduledFor,
+                rowId,
+              });
             }
           });
         });
@@ -279,7 +265,13 @@ export default function MailboxDripAnimation({
 
           if (status === 'scheduled' || status === 'pending' || status === 'sending') {
             scheduledTotal++;
-            if (status === 'pending' || status === 'sending' || leadDueScheduled.has(leadId)) {
+            const signal = leadSignals.get(leadId);
+            const isDueScheduled =
+              status === 'scheduled' &&
+              !!signal &&
+              signal.scheduledForTs > 0 &&
+              signal.scheduledForTs <= nowTs;
+            if (status === 'pending' || status === 'sending' || isDueScheduled) {
               scheduledDue++;
             }
           }
@@ -339,7 +331,23 @@ export default function MailboxDripAnimation({
 
   // Flying email animation
   useEffect(() => {
-    if (!isActive || isPaused) return;
+    if (!isActive || isPaused) {
+      setFlyingEmails([]);
+      return;
+    }
+
+    const hasPendingQueue = filteredLeads.some((lead) => {
+      const status = emailStatuses[lead.id] || 'pending';
+      return PENDING_STATUSES.has(status);
+    });
+    if (realSendingMode && !hasPendingQueue) {
+      setFlyingEmails([]);
+      return;
+    }
+    if (!realSendingMode && currentSendingIndex >= filteredLeads.length) {
+      setFlyingEmails([]);
+      return;
+    }
 
     const interval = setInterval(() => {
       setEmailId(prev => prev + 1);
@@ -351,7 +359,7 @@ export default function MailboxDripAnimation({
     }, 800);
 
     return () => clearInterval(interval);
-  }, [isActive, isPaused, emailId]);
+  }, [isActive, isPaused, emailId, filteredLeads, emailStatuses, realSendingMode, currentSendingIndex]);
 
   // Calculate stats
   const actualSentCount = Object.values(emailStatuses).filter((s) => COMPLETED_STATUSES.has(s)).length;
@@ -360,6 +368,7 @@ export default function MailboxDripAnimation({
     const status = emailStatuses[lead.id] || 'pending';
     return count + (PENDING_STATUSES.has(status) ? 1 : 0);
   }, 0);
+  const isQueueAnimating = isActive && !isPaused && pendingCount > 0;
   const etaMinutes = Math.ceil(pendingCount / emailsPerHour * 60);
   const etaHours = Math.floor(etaMinutes / 60);
   const etaRemainingMins = etaMinutes % 60;
@@ -520,16 +529,16 @@ export default function MailboxDripAnimation({
         <div className="flex items-center justify-center mb-8">
           <div className="relative">
             <motion.div
-              animate={{ scale: isActive && !isPaused ? [1, 1.02, 1] : 1 }}
+              animate={{ scale: isQueueAnimating ? [1, 1.02, 1] : 1 }}
               transition={{ repeat: Infinity, duration: 2 }}
               className="w-32 h-32 rounded-full bg-gradient-to-br from-cyan-500/30 to-teal-500/30 border-4 border-cyan-400/50 flex items-center justify-center"
             >
               <div className="text-center">
-                <p className="text-4xl font-bold text-cyan-400">{filteredLeads.length}</p>
+                <p className="text-4xl font-bold text-cyan-400">{pendingCount}</p>
                 <p className="text-xs text-slate-400">leads queued</p>
               </div>
             </motion.div>
-            {isActive && !isPaused && (
+            {isQueueAnimating && (
               <motion.div
                 className="absolute inset-0 rounded-full border-2 border-cyan-400/30"
                 animate={{ scale: [1, 1.2], opacity: [0.5, 0] }}
@@ -562,7 +571,7 @@ export default function MailboxDripAnimation({
                 <motion.div
                   className="h-full bg-gradient-to-r from-cyan-500 via-teal-400 to-emerald-500 rounded-full"
                   style={{ width: `${progress}%` }}
-                  animate={{ opacity: isActive ? [0.8, 1, 0.8] : 1 }}
+                  animate={{ opacity: isQueueAnimating ? [0.8, 1, 0.8] : 1 }}
                   transition={{ repeat: Infinity, duration: 1.5 }}
                 />
               </div>

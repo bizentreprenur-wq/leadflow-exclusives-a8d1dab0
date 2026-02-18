@@ -79,6 +79,15 @@ interface EmailSetupFlowProps {
 }
 
 type SmartDripTab = 'mailbox' | 'intelligence' | 'preview' | 'crm' | 'ab-testing' | 'settings' | 'inbox';
+interface PersistedStep3CampaignState {
+  active: boolean;
+  leads: LeadForEmail[];
+  updatedAt: string;
+}
+
+const EMAIL_SETUP_PHASE_STORAGE_KEY = 'bamlead_email_setup_current_phase';
+const EMAIL_SETUP_ACTIVE_TAB_STORAGE_KEY = 'bamlead_email_setup_active_tab';
+const EMAIL_SETUP_CAMPAIGN_STATE_STORAGE_KEY = 'bamlead_step3_campaign_state';
 
 export default function EmailSetupFlow({
   leads,
@@ -122,7 +131,13 @@ export default function EmailSetupFlow({
 
   sanitizeLocalStorageJson();
 
-  const [currentPhase, setCurrentPhase] = useState<'smtp' | 'template' | 'send'>('template');
+  const [currentPhase, setCurrentPhase] = useState<'smtp' | 'template' | 'send'>(() => {
+    const saved = localStorage.getItem(EMAIL_SETUP_PHASE_STORAGE_KEY);
+    if (saved === 'smtp' || saved === 'template' || saved === 'send') {
+      return saved;
+    }
+    return 'template';
+  });
   const [selectedTemplate, setSelectedTemplate] = useState<any>(() => {
     return safeJsonParse(localStorage.getItem('bamlead_selected_template'), null);
   });
@@ -188,9 +203,37 @@ export default function EmailSetupFlow({
   // Ref for Smart Drip Mailbox section
   const smartDripRef = useRef<HTMLDivElement>(null);
   
-  // Unified mailbox tab tracking - default to mailbox view
-  const [activeTab, setActiveTab] = useState<SmartDripTab>('mailbox');
-  const [visitedTabs, setVisitedTabs] = useState<SmartDripTab[]>(['mailbox']);
+  // Unified mailbox tab tracking - restore last active tab when possible
+  const [activeTab, setActiveTab] = useState<SmartDripTab>(() => {
+    const saved = localStorage.getItem(EMAIL_SETUP_ACTIVE_TAB_STORAGE_KEY);
+    if (
+      saved === 'mailbox' ||
+      saved === 'intelligence' ||
+      saved === 'preview' ||
+      saved === 'crm' ||
+      saved === 'ab-testing' ||
+      saved === 'settings' ||
+      saved === 'inbox'
+    ) {
+      return saved;
+    }
+    return 'mailbox';
+  });
+  const [visitedTabs, setVisitedTabs] = useState<SmartDripTab[]>(() => {
+    const saved = localStorage.getItem(EMAIL_SETUP_ACTIVE_TAB_STORAGE_KEY);
+    if (
+      saved === 'mailbox' ||
+      saved === 'intelligence' ||
+      saved === 'preview' ||
+      saved === 'crm' ||
+      saved === 'ab-testing' ||
+      saved === 'settings' ||
+      saved === 'inbox'
+    ) {
+      return saved === 'mailbox' ? ['mailbox'] : ['mailbox', saved];
+    }
+    return ['mailbox'];
+  });
   const [mailboxUnreadCount, setMailboxUnreadCount] = useState(1);
   
   const markTabVisited = useCallback((tab: SmartDripTab) => {
@@ -435,6 +478,69 @@ export default function EmailSetupFlow({
     });
   }, [leads, effectiveMailboxEmailLeads]);
 
+  // Persist basic Step 3 UI state so refresh keeps the same view.
+  useEffect(() => {
+    localStorage.setItem(EMAIL_SETUP_PHASE_STORAGE_KEY, currentPhase);
+  }, [currentPhase]);
+
+  useEffect(() => {
+    localStorage.setItem(EMAIL_SETUP_ACTIVE_TAB_STORAGE_KEY, activeTab);
+  }, [activeTab]);
+
+  // Restore active real-send campaign state on refresh.
+  useEffect(() => {
+    if (realSendingMode) return;
+    const raw =
+      sessionStorage.getItem(EMAIL_SETUP_CAMPAIGN_STATE_STORAGE_KEY) ||
+      localStorage.getItem(EMAIL_SETUP_CAMPAIGN_STATE_STORAGE_KEY);
+    if (!raw) return;
+
+    const parsed = safeJsonParse<PersistedStep3CampaignState | null>(raw, null);
+    if (!parsed || !parsed.active || !Array.isArray(parsed.leads) || parsed.leads.length === 0) {
+      return;
+    }
+
+    const restoredLeads = parsed.leads
+      .filter((lead) => Boolean((lead?.email || '').trim()))
+      .map((lead) => ({
+        email: String(lead.email || '').trim(),
+        business_name: String(lead.business_name || ''),
+        contact_name: String(lead.contact_name || ''),
+        website: String(lead.website || ''),
+        phone: String(lead.phone || ''),
+      }));
+    if (restoredLeads.length === 0) return;
+
+    // Guard against restoring unrelated stale campaign state.
+    const currentEmails = new Set(
+      leadsWithEmail.map((lead) => String(lead.email || '').trim().toLowerCase()).filter(Boolean)
+    );
+    if (currentEmails.size > 0) {
+      const hasOverlap = restoredLeads.some((lead) => currentEmails.has(String(lead.email || '').trim().toLowerCase()));
+      if (!hasOverlap) return;
+    }
+
+    setActiveCampaignLeads(restoredLeads);
+    setRealSendingMode(true);
+    setDemoIsActive(true);
+    setIsSendingPaused(false);
+    setCurrentPhase('send');
+    handleTabChange('mailbox');
+  }, [realSendingMode, leadsWithEmail, handleTabChange]);
+
+  // Keep campaign state persisted while real sending mode is active.
+  useEffect(() => {
+    if (!realSendingMode || !activeCampaignLeads?.length) return;
+    const payload: PersistedStep3CampaignState = {
+      active: true,
+      leads: activeCampaignLeads,
+      updatedAt: new Date().toISOString(),
+    };
+    const serialized = JSON.stringify(payload);
+    sessionStorage.setItem(EMAIL_SETUP_CAMPAIGN_STATE_STORAGE_KEY, serialized);
+    localStorage.setItem(EMAIL_SETUP_CAMPAIGN_STATE_STORAGE_KEY, serialized);
+  }, [realSendingMode, activeCampaignLeads]);
+
   useEffect(() => {
     if (currentPhase !== 'send') return;
     const stored = sessionStorage.getItem(DRIP_SETTINGS_KEY) || localStorage.getItem(DRIP_SETTINGS_KEY);
@@ -483,6 +589,8 @@ export default function EmailSetupFlow({
       setIsSendingPaused(false);
       setPendingSendData(null);
       setActiveCampaignLeads(null);
+      sessionStorage.removeItem(EMAIL_SETUP_CAMPAIGN_STATE_STORAGE_KEY);
+      localStorage.removeItem(EMAIL_SETUP_CAMPAIGN_STATE_STORAGE_KEY);
     }
   }, [leads]);
 
@@ -637,6 +745,8 @@ export default function EmailSetupFlow({
     setRealSendingMode(false);
     setDemoIsActive(false);
     setActiveCampaignLeads(null);
+    sessionStorage.removeItem(EMAIL_SETUP_CAMPAIGN_STATE_STORAGE_KEY);
+    localStorage.removeItem(EMAIL_SETUP_CAMPAIGN_STATE_STORAGE_KEY);
     window.setTimeout(() => setDemoIsActive(true), 0);
     smartDripRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     toast.info('👀 Preview mode activated - simulating email delivery');
@@ -1882,6 +1992,8 @@ export default function EmailSetupFlow({
                     setRealSendingMode(false);
                     setDemoIsActive(false);
                     setActiveCampaignLeads(null);
+                    sessionStorage.removeItem(EMAIL_SETUP_CAMPAIGN_STATE_STORAGE_KEY);
+                    localStorage.removeItem(EMAIL_SETUP_CAMPAIGN_STATE_STORAGE_KEY);
                   }
                 } catch (error) {
                   console.error('Send error:', error);
@@ -1889,6 +2001,8 @@ export default function EmailSetupFlow({
                   setRealSendingMode(false);
                   setDemoIsActive(false);
                   setActiveCampaignLeads(null);
+                  sessionStorage.removeItem(EMAIL_SETUP_CAMPAIGN_STATE_STORAGE_KEY);
+                  localStorage.removeItem(EMAIL_SETUP_CAMPAIGN_STATE_STORAGE_KEY);
                 } finally {
                   setIsSending(false);
                   setPendingSendData(null);
