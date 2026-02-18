@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { sanitizeEmailHTML } from '@/lib/sanitize';
-import { EmailTemplate } from '@/lib/highConvertingTemplates';
+import { EmailTemplate, getHeroImageChoices } from '@/lib/highConvertingTemplates';
 import { saveCustomTemplate, getCustomTemplates, CustomTemplate } from '@/lib/customTemplates';
 
 interface VisualTemplateEditorProps {
@@ -57,6 +57,7 @@ export default function VisualTemplateEditor({
   
   // Hero image
   const [heroImageUrl, setHeroImageUrl] = useState(template.previewImage);
+  const [heroImageChoices, setHeroImageChoices] = useState<string[]>([]);
   const [showHeroImage, setShowHeroImage] = useState(true);
   
   // Editable content
@@ -100,6 +101,7 @@ export default function VisualTemplateEditor({
     if (template) {
       setEditedSubject(template.subject);
       setHeroImageUrl(template.previewImage);
+      setHeroImageChoices(template.heroImages || getHeroImageChoices(template.industry));
       setShowHeroImage(true);
       
       // Extract headline
@@ -419,15 +421,50 @@ export default function VisualTemplateEditor({
                         )}
                       </div>
                       {showHeroImage && (
-                        <div className="relative mt-2">
-                          <Link className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-                          <Input
-                            value={heroImageUrl}
-                            onChange={(e) => setHeroImageUrl(e.target.value)}
-                            placeholder="Paste image URL..."
-                            className="pl-7 text-xs h-8"
-                          />
-                        </div>
+                        <>
+                          <div className="relative mt-2">
+                            <Link className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                            <Input
+                              value={heroImageUrl}
+                              onChange={(e) => setHeroImageUrl(e.target.value)}
+                              placeholder="Paste image URL..."
+                              className="pl-7 text-xs h-8"
+                            />
+                          </div>
+                          {heroImageChoices.length > 0 && (
+                            <div className="mt-2">
+                              <Label className="text-[10px] text-muted-foreground mb-1 block">Choose a hero image:</Label>
+                              <div className="grid grid-cols-3 gap-2">
+                                {heroImageChoices.map((imgUrl, idx) => (
+                                  <button
+                                    key={idx}
+                                    onClick={() => {
+                                      setHeroImageUrl(imgUrl);
+                                      toast.success(`Image ${idx + 1} selected!`);
+                                    }}
+                                    className={`relative rounded-md overflow-hidden border-2 transition-all hover:scale-105 ${
+                                      heroImageUrl === imgUrl 
+                                        ? 'border-primary ring-2 ring-primary/30' 
+                                        : 'border-border hover:border-primary/50'
+                                    }`}
+                                  >
+                                    <img
+                                      src={imgUrl}
+                                      alt={`Hero option ${idx + 1}`}
+                                      className="w-full h-16 object-cover"
+                                      loading="lazy"
+                                    />
+                                    {heroImageUrl === imgUrl && (
+                                      <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                                        <Check className="w-4 h-4 text-primary-foreground drop-shadow-md" />
+                                      </div>
+                                    )}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
 
