@@ -1065,10 +1065,19 @@ function handleProcessMyScheduled($db, $user) {
     $data = json_decode(file_get_contents('php://input'), true) ?: [];
     $limit = isset($data['limit']) ? (int)$data['limit'] : 30;
     $maxLimit = defined('EMAIL_DRIP_PROCESS_MY_MAX_LIMIT') ? max(20, (int)EMAIL_DRIP_PROCESS_MY_MAX_LIMIT) : 100;
+    $lookaheadSec = isset($data['lookahead_sec']) ? (int)$data['lookahead_sec'] : 0;
+    $maxLookaheadSec = defined('EMAIL_DRIP_PROCESS_MY_MAX_LOOKAHEAD_SEC')
+        ? max(0, (int)EMAIL_DRIP_PROCESS_MY_MAX_LOOKAHEAD_SEC)
+        : 7200;
     if ($limit < 1) {
         $limit = 1;
     } elseif ($limit > $maxLimit) {
         $limit = $maxLimit;
+    }
+    if ($lookaheadSec < 0) {
+        $lookaheadSec = 0;
+    } elseif ($lookaheadSec > $maxLookaheadSec) {
+        $lookaheadSec = $maxLookaheadSec;
     }
 
     $pendingEmails = $db->fetchAll(
@@ -1079,10 +1088,13 @@ function handleProcessMyScheduled($db, $user) {
            AND (es.status IN ('scheduled', 'pending', 'sending') OR es.status = '')
            AND es.sent_at IS NULL
            AND es.scheduled_for IS NOT NULL
-           AND es.scheduled_for <= NOW()
+           AND (
+             es.scheduled_for <= NOW()
+             OR (? > 0 AND es.scheduled_for <= DATE_ADD(NOW(), INTERVAL ? SECOND))
+           )
          ORDER BY es.scheduled_for ASC
          LIMIT ?",
-        [(int)$user['id'], $limit]
+        [(int)$user['id'], $lookaheadSec, $lookaheadSec, $limit]
     );
 
     $result = processScheduledEmailBatch($db, $pendingEmails ?: [], 'SMTP error during user fallback send');

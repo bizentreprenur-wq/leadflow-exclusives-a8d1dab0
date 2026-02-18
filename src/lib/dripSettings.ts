@@ -12,8 +12,8 @@ export const DRIP_SETTINGS_KEY = 'bamlead_drip_settings';
 
 const DEFAULT_SETTINGS: DripSettings = {
   enabled: true,
-  emailsPerHour: 80,
-  intervalSeconds: Math.round(3600 / 80),
+  emailsPerHour: 300,
+  intervalSeconds: Math.round(3600 / 300),
   updatedAt: new Date(0).toISOString(),
   source: 'step3',
 };
@@ -26,7 +26,9 @@ export const loadDripSettings = (): DripSettings => {
     }
     const parsed = JSON.parse(raw) as Partial<DripSettings>;
     const emailsPerHour = Number(parsed.emailsPerHour);
-    const normalizedEmails = Number.isFinite(emailsPerHour) && emailsPerHour > 0 ? emailsPerHour : DEFAULT_SETTINGS.emailsPerHour;
+    const normalizedEmails = Number.isFinite(emailsPerHour) && emailsPerHour > 0
+      ? Math.max(300, emailsPerHour)
+      : DEFAULT_SETTINGS.emailsPerHour;
     return {
       ...DEFAULT_SETTINGS,
       ...parsed,
@@ -46,8 +48,8 @@ export const saveDripSettings = (next: Partial<DripSettings>): DripSettings => {
     ...current,
     ...next,
     emailsPerHour: Number.isFinite(next.emailsPerHour as number) && (next.emailsPerHour as number) > 0
-      ? (next.emailsPerHour as number)
-      : current.emailsPerHour,
+      ? Math.max(300, (next.emailsPerHour as number))
+      : Math.max(300, current.emailsPerHour),
     intervalSeconds: Number.isFinite(next.intervalSeconds as number) && (next.intervalSeconds as number) > 0
       ? (next.intervalSeconds as number)
       : Math.round(3600 / (Number.isFinite(next.emailsPerHour as number) && (next.emailsPerHour as number) > 0 ? (next.emailsPerHour as number) : current.emailsPerHour)),

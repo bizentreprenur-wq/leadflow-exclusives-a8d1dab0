@@ -157,7 +157,9 @@ export default function MailboxDripAnimation({
     setIsPolling(true);
     try {
       if (!isPaused) {
-        await processMyScheduledEmails(40);
+        // Fast-lane: process a larger chunk and pull a near-future window forward
+        // so drip queues don't appear stalled between schedule slots.
+        await processMyScheduledEmails(100, 7200);
       }
 
       const pollLimit = Math.min(Math.max(filteredLeads.length * 4, 200), 5000);
@@ -303,7 +305,7 @@ export default function MailboxDripAnimation({
   useEffect(() => {
     if (!realSendingMode || filteredLeads.length === 0) return;
     pollDeliveryStatus();
-    const pollInterval = setInterval(pollDeliveryStatus, 5000);
+    const pollInterval = setInterval(pollDeliveryStatus, 2500);
     return () => clearInterval(pollInterval);
   }, [realSendingMode, filteredLeads.length, pollDeliveryStatus]);
 

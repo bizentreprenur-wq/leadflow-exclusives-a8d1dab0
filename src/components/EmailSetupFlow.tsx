@@ -547,8 +547,8 @@ export default function EmailSetupFlow({
     if (!stored) {
       const next = saveDripSettings({
         enabled: true,
-        emailsPerHour: 80,
-        intervalSeconds: Math.round(3600 / 80),
+        emailsPerHour: 300,
+        intervalSeconds: Math.round(3600 / 300),
         source: 'step3',
       });
       setDripSettings(next);
@@ -805,7 +805,7 @@ export default function EmailSetupFlow({
     }
 
     try {
-      const result = await processMyScheduledEmails(100);
+      const result = await processMyScheduledEmails(300, 21600);
       if (!result.success) {
         toast.error(result.error || 'Failed to sync queued emails');
         return;
@@ -1333,7 +1333,7 @@ export default function EmailSetupFlow({
                           totalEmails={effectiveMailboxEmailLeads.length}
                           sentCount={demoSentCount}
                           isActive={demoIsActive || realSendingMode}
-                          emailsPerHour={dripSettings.emailsPerHour}
+                          emailsPerHour={Math.max(300, dripSettings.emailsPerHour)}
                           leads={mailboxLeads}
                           realSendingMode={realSendingMode}
                           campaignId={campaignId || undefined}
@@ -1964,8 +1964,8 @@ export default function EmailSetupFlow({
                     custom_body: emailBody,
                     send_mode: 'drip',
                     drip_config: {
-                      emailsPerHour: dripSettings.emailsPerHour,
-                      delayMinutes: Math.max(1, Math.floor(60 / dripSettings.emailsPerHour)),
+                      emailsPerHour: Math.max(300, dripSettings.emailsPerHour),
+                      delayMinutes: Math.max(1, Math.floor(60 / Math.max(300, dripSettings.emailsPerHour))),
                     },
                   });
                   

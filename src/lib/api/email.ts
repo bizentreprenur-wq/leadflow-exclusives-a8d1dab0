@@ -375,11 +375,14 @@ export async function clearQueuedEmails(): Promise<{ success: boolean; deleted?:
   }
 }
 
-export async function processMyScheduledEmails(limit = 10): Promise<{ success: boolean; processed?: number; failed?: number; claimed?: number; error?: string }> {
+export async function processMyScheduledEmails(
+  limit = 10,
+  lookaheadSec = 0
+): Promise<{ success: boolean; processed?: number; failed?: number; claimed?: number; error?: string }> {
   try {
     return await apiRequest(EMAIL_ENDPOINTS.processMyScheduled, {
       method: 'POST',
-      body: JSON.stringify({ limit }),
+      body: JSON.stringify({ limit, lookahead_sec: lookaheadSec }),
     });
   } catch (error: any) {
     return { success: false, error: error.message };

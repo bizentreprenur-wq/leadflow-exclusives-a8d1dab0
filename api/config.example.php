@@ -296,7 +296,7 @@ define('CRON_ALLOWED_IPS', [
 // EMAIL DRIP THROUGHPUT SETTINGS
 // =====================================
 if (!defined('EMAIL_DRIP_DEFAULT_PER_HOUR')) {
-    define('EMAIL_DRIP_DEFAULT_PER_HOUR', 80);
+    define('EMAIL_DRIP_DEFAULT_PER_HOUR', 300);
 }
 if (!defined('EMAIL_DRIP_MAX_PER_REQUEST')) {
     define('EMAIL_DRIP_MAX_PER_REQUEST', 1000);
@@ -311,10 +311,13 @@ if (!defined('EMAIL_DRIP_KICKOFF_BATCH_SIZE')) {
     define('EMAIL_DRIP_KICKOFF_BATCH_SIZE', 20);
 }
 if (!defined('EMAIL_DRIP_PROCESS_MY_MAX_LIMIT')) {
-    define('EMAIL_DRIP_PROCESS_MY_MAX_LIMIT', 100);
+    define('EMAIL_DRIP_PROCESS_MY_MAX_LIMIT', 300);
 }
 if (!defined('EMAIL_DRIP_INTER_SEND_DELAY_US')) {
-    define('EMAIL_DRIP_INTER_SEND_DELAY_US', 50000); // 50ms
+    define('EMAIL_DRIP_INTER_SEND_DELAY_US', 0); // 0ms (fastest)
+}
+if (!defined('EMAIL_DRIP_PROCESS_MY_MAX_LOOKAHEAD_SEC')) {
+    define('EMAIL_DRIP_PROCESS_MY_MAX_LOOKAHEAD_SEC', 21600); // 6 hours
 }
 
 // =====================================
