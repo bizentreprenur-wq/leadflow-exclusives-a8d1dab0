@@ -457,10 +457,10 @@ export default function VisualTemplateEditor({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex overflow-hidden min-h-0">
           {/* Editor Panel */}
-          <div className={`${showPreview ? 'w-1/2' : 'w-full'} border-r overflow-hidden flex flex-col`}>
-            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 flex flex-col">
+          <div className={`${showPreview ? 'w-1/2' : 'w-full'} border-r flex flex-col min-h-0`}>
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 flex flex-col min-h-0">
               <TabsList className="mx-4 mt-4 grid grid-cols-4 shrink-0">
                 <TabsTrigger value="visual" className="gap-1.5 text-xs">
                   <Edit3 className="w-3.5 h-3.5" />
@@ -480,7 +480,7 @@ export default function VisualTemplateEditor({
                 </TabsTrigger>
               </TabsList>
 
-              <ScrollArea className="flex-1 p-4">
+              <div className="flex-1 min-h-0 overflow-y-auto p-4">
                 {/* Content Tab */}
                 <TabsContent value="visual" className="mt-0 space-y-4">
                   <div className="space-y-2">
@@ -855,7 +855,7 @@ export default function VisualTemplateEditor({
                     ))}
                   </div>
                 </TabsContent>
-              </ScrollArea>
+              </div>
             </Tabs>
           </div>
 
