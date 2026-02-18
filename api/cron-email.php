@@ -107,13 +107,16 @@ header('Content-Type: application/json');
 try {
     $db = getDB();
     
-    // Get emails scheduled for now or earlier (include smtp_config for per-user SMTP)
+    // Get emails due for sending (include smtp_config for per-user SMTP).
+    // Include legacy/transient queue states so stalled rows can recover.
     $pendingEmails = $db->fetchAll(
         "SELECT es.*, es.smtp_config, et.body_text as template_body_text
          FROM email_sends es
          LEFT JOIN email_templates et ON es.template_id = et.id
-         WHERE (es.status = 'scheduled' OR es.status = '')
-         AND es.scheduled_for <= NOW()
+         WHERE (es.status IN ('scheduled', 'pending', 'sending') OR es.status = '')
+           AND es.sent_at IS NULL
+           AND es.scheduled_for IS NOT NULL
+           AND es.scheduled_for <= NOW()
          ORDER BY es.scheduled_for ASC
          LIMIT 20",
         []
@@ -135,7 +138,9 @@ try {
         $claimed = $db->update(
             "UPDATE email_sends
              SET status = 'pending', error_message = NULL
-             WHERE id = ? AND (status = 'scheduled' OR status = '')",
+             WHERE id = ?
+               AND sent_at IS NULL
+               AND (status IN ('scheduled', 'pending', 'sending') OR status = '')",
             [$email['id']]
         );
         if ($claimed < 1) {

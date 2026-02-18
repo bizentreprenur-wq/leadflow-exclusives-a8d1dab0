@@ -42,7 +42,7 @@ import EmailConfigurationPanel from './EmailConfigurationPanel';
 import LeadIntelligenceReviewPanel from './LeadIntelligenceReviewPanel';
 import PersonalizedLeadPreview from './PersonalizedLeadPreview';
 import AIStrategyReviewPanel from './AIStrategyReviewPanel';
-import { LeadForEmail, SendHealth, getSendHealth, sendBulkEmails } from '@/lib/api/email';
+import { LeadForEmail, SendHealth, getSendHealth, processMyScheduledEmails, sendBulkEmails } from '@/lib/api/email';
 import { addLeadsToCRM } from '@/lib/customTemplates';
 import EmailDeliveryNotifications from './EmailDeliveryNotifications';
 import { useAuth } from '@/contexts/AuthContext';
@@ -701,6 +701,37 @@ export default function EmailSetupFlow({
     setShowSendConfirmation(true);
   }, [smtpConfigured, selectedTemplate, leadsWithEmail, runSendHealthCheck, handleTabChange, getSelectedTemplateBodyHtml, getSelectedTemplateSubject]);
 
+  const handleSyncQueuedSend = useCallback(async () => {
+    if (!realSendingMode) {
+      await handlePrepareRealSend();
+      return;
+    }
+
+    if (isSendingPaused) {
+      toast.info('Campaign is paused. Resume to continue processing the queue.');
+      return;
+    }
+
+    try {
+      const result = await processMyScheduledEmails(20);
+      if (!result.success) {
+        toast.error(result.error || 'Failed to sync queued emails');
+        return;
+      }
+
+      const processed = Number(result.processed || 0);
+      const failed = Number(result.failed || 0);
+      if (processed > 0 || failed > 0) {
+        toast.success(`Queue sync complete: ${processed} sent, ${failed} failed`);
+      } else {
+        toast.info('No due emails to process right now');
+      }
+    } catch (error) {
+      console.error('Failed to sync queued emails:', error);
+      toast.error('Failed to sync queued emails');
+    }
+  }, [realSendingMode, handlePrepareRealSend, isSendingPaused]);
+
   const renderPhaseContent = () => {
     switch (currentPhase) {
       case 'smtp':
@@ -1199,7 +1230,7 @@ export default function EmailSetupFlow({
                             setIsSendingPaused(false);
                             toast.success('Campaign resumed');
                           }}
-                          onSend={handlePrepareRealSend}
+                          onSend={handleSyncQueuedSend}
                           onPreview={handleActivatePreviewMode}
                           onEmailStatusUpdate={(statuses) => {
                             const sentCount = Object.values(statuses).filter(s => s === 'sent' || s === 'delivered').length;
@@ -1822,12 +1853,13 @@ export default function EmailSetupFlow({
                   
                   if (result.success) {
                     sessionStorage.setItem('emails_sent', 'true');
+                    const scheduledCount = result.results?.scheduled || 0;
                     const sentCount = result.results?.sent || 0;
-                    toast.success(`🚀 Emails sent successfully! ${sentCount} of ${validLeads.length} delivered`, {
-                      description: 'Click "Sent Box" tab in the mailbox to see all sent emails',
+                    toast.success(`🚀 Campaign queued! ${scheduledCount || sentCount} of ${validLeads.length} added to drip queue`, {
+                      description: 'The sender worker will deliver due emails automatically.',
                       duration: 6000,
                     });
-                    setDemoSentCount(sentCount);
+                    setDemoSentCount(0);
                     onComplete();
                   } else {
                     console.error('Send failed:', result.error);

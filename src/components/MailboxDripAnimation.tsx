@@ -160,7 +160,8 @@ export default function MailboxDripAnimation({
         await processMyScheduledEmails(12);
       }
 
-      const result = await getSends({ limit: 100, status: undefined });
+      const pollLimit = Math.min(Math.max(filteredLeads.length * 4, 200), 5000);
+      const result = await getSends({ limit: pollLimit, status: undefined });
       
       if (result.success && result.sends) {
         const normalizeEmail = (email?: string) => String(email || '').trim().toLowerCase();
@@ -186,6 +187,7 @@ export default function MailboxDripAnimation({
         let scheduledDue = 0;
         const nowTs = Date.now();
         const seenLeadIds = new Set<string>();
+        let newestSentAtTs = 0;
 
         result.sends.forEach((send: any) => {
           const key = normalizeEmail(send.recipient_email);
@@ -203,11 +205,18 @@ export default function MailboxDripAnimation({
           else if (status === 'failed') failedCount++;
           else if (status === 'bounced') bouncedCount++;
 
-          if (status === 'scheduled') {
+          if (status === 'scheduled' || status === 'pending' || status === 'sending') {
             scheduledTotal++;
             const scheduledFor = send.scheduled_for ? new Date(send.scheduled_for).getTime() : NaN;
             if (!Number.isNaN(scheduledFor) && scheduledFor <= nowTs) {
               scheduledDue++;
+            }
+          }
+
+          if (status === 'sent' || status === 'delivered' || status === 'opened' || status === 'clicked' || status === 'replied') {
+            const sentAtTs = send.sent_at ? new Date(send.sent_at).getTime() : nowTs;
+            if (!Number.isNaN(sentAtTs)) {
+              newestSentAtTs = Math.max(newestSentAtTs, sentAtTs);
             }
           }
         });
@@ -215,6 +224,9 @@ export default function MailboxDripAnimation({
         setEmailStatuses(newStatuses);
         setDeliveryStats({ sent: sentCount, delivered: deliveredCount, failed: failedCount, bounced: bouncedCount });
         setBackendQueueStats({ scheduledTotal, scheduledDue });
+        if (newestSentAtTs > 0) {
+          setLastSentTime(new Date(newestSentAtTs));
+        }
         onEmailStatusUpdate?.(newStatuses);
         setLastPollTime(new Date());
       }
@@ -289,10 +301,19 @@ export default function MailboxDripAnimation({
   const etaRemainingMins = etaMinutes % 60;
 
   // Get current sending, last sent, and up next leads
-  const sendingNowIndex = filteredLeads.findIndex((l) => {
-    const status = emailStatuses[l.id] || 'pending';
-    return status === 'sending' || status === 'scheduled' || status === 'pending';
-  });
+  const sendingNowIndex = (() => {
+    if (!isActive) return -1;
+    if (realSendingMode) {
+      return filteredLeads.findIndex((l) => {
+        const status = emailStatuses[l.id] || 'pending';
+        return status === 'sending' || status === 'scheduled' || status === 'pending';
+      });
+    }
+    return filteredLeads.findIndex((l) => {
+      const status = emailStatuses[l.id] || 'pending';
+      return status === 'sending' || status === 'scheduled' || status === 'pending';
+    });
+  })();
   const lastSentIndex = (() => {
     for (let i = filteredLeads.length - 1; i >= 0; i--) {
       const status = emailStatuses[filteredLeads[i].id] || 'pending';
@@ -304,7 +325,19 @@ export default function MailboxDripAnimation({
   })();
   const lastSentLead = lastSentIndex >= 0 ? filteredLeads[lastSentIndex] : null;
   const sendingNowLead = sendingNowIndex >= 0 ? filteredLeads[sendingNowIndex] : null;
-  const upNextLead = sendingNowIndex >= 0 && sendingNowIndex + 1 < filteredLeads.length ? filteredLeads[sendingNowIndex + 1] : null;
+  const upNextLead = (() => {
+    if (!isActive) return null;
+    if (realSendingMode) {
+      for (let i = Math.max(0, sendingNowIndex + 1); i < filteredLeads.length; i++) {
+        const status = emailStatuses[filteredLeads[i].id] || 'pending';
+        if (status === 'pending') {
+          return filteredLeads[i];
+        }
+      }
+      return null;
+    }
+    return sendingNowIndex >= 0 && sendingNowIndex + 1 < filteredLeads.length ? filteredLeads[sendingNowIndex + 1] : null;
+  })();
   const sendingNowStatus: EmailStatus = sendingNowLead ? (emailStatuses[sendingNowLead.id] || 'pending') : 'pending';
   const likelyStalledQueue = realSendingMode && isActive && backendQueueStats.scheduledDue > 0 && actualSentCount === 0;
 
@@ -384,9 +417,14 @@ export default function MailboxDripAnimation({
                   Pause
                 </Button>
               )}
-              <Button onClick={onSend} size="sm" className="gap-2 bg-primary hover:bg-primary/90" disabled={isActive && !isPaused}>
+              <Button
+                onClick={onSend}
+                size="sm"
+                className="gap-2 bg-primary hover:bg-primary/90"
+                disabled={!realSendingMode && isActive && !isPaused}
+              >
                 <Send className="w-4 h-4" />
-                Send Now
+                {realSendingMode ? 'Sync Now' : 'Send Now'}
               </Button>
               {!realSendingMode && (
                 <Button

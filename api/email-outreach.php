@@ -474,7 +474,10 @@ function handleSendBulk($db, $user) {
     $maxPerRequest = ($sendMode === 'drip' || $sendMode === 'scheduled') ? 100 : 50;
     $leads = array_slice($data['leads'], 0, $maxPerRequest);
     
-    $currentTime = new DateTime();
+    // Use DB server time as the scheduling anchor to avoid PHP/MySQL timezone drift.
+    $dbNowRow = $db->fetchOne("SELECT NOW() AS now_ts");
+    $dbNow = isset($dbNowRow['now_ts']) ? (string)$dbNowRow['now_ts'] : null;
+    $currentTime = $dbNow ? new DateTime($dbNow) : new DateTime();
     $emailIndex = 0;
     
     foreach ($leads as $lead) {
@@ -595,11 +598,6 @@ function handleSendBulk($db, $user) {
         $completionTime = clone $currentTime;
         $completionTime->add(new DateInterval('PT' . $totalMinutes . 'M'));
         $results['estimated_completion'] = $completionTime->format('Y-m-d H:i:s');
-    }
-    
-    // Update sent count to include scheduled for reporting
-    if ($sendMode !== 'instant') {
-        $results['sent'] = $results['scheduled'];
     }
     
     echo json_encode(['success' => true, 'results' => $results]);
@@ -831,7 +829,10 @@ function handleSendHealthCheck($db, $user) {
                 COUNT(*) AS scheduled_total,
                 SUM(CASE WHEN scheduled_for IS NOT NULL AND scheduled_for <= NOW() THEN 1 ELSE 0 END) AS scheduled_due
              FROM email_sends
-             WHERE user_id = ? AND (status = 'scheduled' OR status = '')",
+             WHERE user_id = ?
+               AND sent_at IS NULL
+               AND scheduled_for IS NOT NULL
+               AND (status IN ('scheduled', 'pending', 'sending') OR status = '')",
             [(int)$user['id']]
         );
         $scheduledTotal = (int)($queueStats['scheduled_total'] ?? 0);
@@ -902,7 +903,10 @@ function handleScheduledEmails($db, $user) {
     $emails = $db->fetchAll(
         "SELECT id, recipient_email, recipient_name, business_name, subject, scheduled_for, created_at
          FROM email_sends 
-         WHERE user_id = ? AND (status = 'scheduled' OR status = '') AND scheduled_for IS NOT NULL
+         WHERE user_id = ?
+           AND sent_at IS NULL
+           AND scheduled_for IS NOT NULL
+           AND (status IN ('scheduled', 'pending', 'sending') OR status = '')
          ORDER BY scheduled_for ASC",
         [$user['id']]
     );
@@ -926,7 +930,11 @@ function handleCancelScheduled($db, $user) {
     
     // Verify ownership and status
     $email = $db->fetchOne(
-        "SELECT id FROM email_sends WHERE id = ? AND user_id = ? AND (status = 'scheduled' OR status = '')",
+        "SELECT id FROM email_sends
+         WHERE id = ?
+           AND user_id = ?
+           AND sent_at IS NULL
+           AND (status IN ('scheduled', 'pending', 'sending') OR status = '')",
         [$id, $user['id']]
     );
     
@@ -977,8 +985,10 @@ function handleProcessScheduled($db) {
         "SELECT es.*, et.body_text as template_body_text
          FROM email_sends es
          LEFT JOIN email_templates et ON es.template_id = et.id
-         WHERE (es.status = 'scheduled' OR es.status = '')
-         AND es.scheduled_for <= NOW()
+         WHERE (es.status IN ('scheduled', 'pending', 'sending') OR es.status = '')
+           AND es.sent_at IS NULL
+           AND es.scheduled_for IS NOT NULL
+           AND es.scheduled_for <= NOW()
          ORDER BY es.scheduled_for ASC
          LIMIT 20",
         []
@@ -1018,8 +1028,10 @@ function handleProcessMyScheduled($db, $user) {
          FROM email_sends es
          LEFT JOIN email_templates et ON es.template_id = et.id
          WHERE es.user_id = ?
-         AND (es.status = 'scheduled' OR es.status = '')
-         AND es.scheduled_for <= NOW()
+           AND (es.status IN ('scheduled', 'pending', 'sending') OR es.status = '')
+           AND es.sent_at IS NULL
+           AND es.scheduled_for IS NOT NULL
+           AND es.scheduled_for <= NOW()
          ORDER BY es.scheduled_for ASC
          LIMIT ?",
         [(int)$user['id'], $limit]
@@ -1057,7 +1069,9 @@ function processScheduledEmailBatch($db, array $pendingEmails, $failureReason) {
         $didClaim = $db->update(
             "UPDATE email_sends
              SET status = 'pending', error_message = NULL
-             WHERE id = ? AND (status = 'scheduled' OR status = '')",
+             WHERE id = ?
+               AND sent_at IS NULL
+               AND (status IN ('scheduled', 'pending', 'sending') OR status = '')",
             [$emailId]
         );
         if ($didClaim < 1) {
