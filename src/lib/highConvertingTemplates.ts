@@ -11,6 +11,8 @@ export interface EmailTemplate {
   description: string;
   previewImage: string;
   conversionTip: string;
+  // 3 hero image choices for the template editor
+  heroImages?: string[];
   // A/B test performance labels (industry benchmarks)
   openRate?: number;
   replyRate?: number;
@@ -115,6 +117,121 @@ const IMAGES = {
   electrician: "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=600&h=300&fit=crop",
   roofer: "https://images.unsplash.com/photo-1632759145328-86d4f8b90501?w=600&h=300&fit=crop",
   homeServices: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&h=300&fit=crop",
+};
+
+// 3 hero image choices per industry for the template editor
+export const HERO_IMAGE_CHOICES: Record<string, string[]> = {
+  'Web Design': [
+    "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1467232004584-a241de8bcf5d?w=600&h=300&fit=crop",
+  ],
+  'Restaurant': [
+    "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&h=300&fit=crop",
+  ],
+  'Plumber': [
+    "https://images.unsplash.com/photo-1585704032915-c3400ca199e7?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=600&h=300&fit=crop",
+  ],
+  'Contractor': [
+    "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1541888946425-d81bb19240f5?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=600&h=300&fit=crop",
+  ],
+  'Dentist': [
+    "https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=600&h=300&fit=crop",
+  ],
+  'Real Estate': [
+    "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1582407947304-fd86f028f716?w=600&h=300&fit=crop",
+  ],
+  'Gym': [
+    "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1571902943202-507ec2618e8f?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1540497077202-7c8a3999166f?w=600&h=300&fit=crop",
+  ],
+  'Salon': [
+    "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1521590832167-7228fcb7c33e?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1633681122956-fbe43d1b9f09?w=600&h=300&fit=crop",
+  ],
+  'Lawyer': [
+    "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1505664194779-8beaceb93744?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1436450412740-6b988f486c6b?w=600&h=300&fit=crop",
+  ],
+  'Accountant': [
+    "https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&h=300&fit=crop",
+  ],
+  'Cleaning': [
+    "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1628177142898-93e36e4e3a50?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1585421514738-01798e348b17?w=600&h=300&fit=crop",
+  ],
+  'HVAC': [
+    "https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1621460248083-6271cc4437a8?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=600&h=300&fit=crop",
+  ],
+  'Auto Repair': [
+    "https://images.unsplash.com/photo-1619642751034-765dfdf7c58e?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1487754180451-c456f719a1fc?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1530046339160-ce3e530c7d2f?w=600&h=300&fit=crop",
+  ],
+  'Day Spa': [
+    "https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1540555700478-4be289fbec6c?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1600334129128-685c5582fd35?w=600&h=300&fit=crop",
+  ],
+  'Medical Spa': [
+    "https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1629909615957-be38d6ed6e46?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=600&h=300&fit=crop",
+  ],
+  'Electrician': [
+    "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1555664424-778a1e5e1b48?w=600&h=300&fit=crop",
+  ],
+  'Roofer': [
+    "https://images.unsplash.com/photo-1632759145328-86d4f8b90501?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1635424709498-bb6f9d0fd64e?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1600585152220-90363fe7e115?w=600&h=300&fit=crop",
+  ],
+  'Home Services': [
+    "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1558618666-fcd25c85f82e?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=600&h=300&fit=crop",
+  ],
+  'Landscaping': [
+    "https://images.unsplash.com/photo-1558904541-efa843a96f01?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=600&h=300&fit=crop",
+  ],
+  'Photography': [
+    "https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1542038784456-1ea8e935640e?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1471341971476-ae15ff5dd4ea?w=600&h=300&fit=crop",
+  ],
+  // Default fallback for any industry not listed
+  'default': [
+    "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1553877522-43269d4ea984?w=600&h=300&fit=crop",
+    "https://images.unsplash.com/photo-1557804506-669a67965ba0?w=600&h=300&fit=crop",
+  ],
+};
+
+// Helper to get hero image choices for any template
+export const getHeroImageChoices = (industry: string): string[] => {
+  return HERO_IMAGE_CHOICES[industry] || HERO_IMAGE_CHOICES['default'];
 };
 
 // Template Style Variants - Each creates a unique visual design
