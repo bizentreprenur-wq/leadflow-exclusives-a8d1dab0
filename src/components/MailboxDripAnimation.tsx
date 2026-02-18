@@ -78,7 +78,7 @@ export default function MailboxDripAnimation({
   const [isPolling, setIsPolling] = useState(false);
   const [lastPollTime, setLastPollTime] = useState<Date | null>(null);
   const [deliveryStats, setDeliveryStats] = useState({ sent: 0, delivered: 0, failed: 0, bounced: 0 });
-  const [backendQueueStats, setBackendQueueStats] = useState({ scheduledTotal: 0, scheduledDue: 0 });
+  const [backendQueueStats, setBackendQueueStats] = useState({ scheduledTotal: 0, scheduledDue: 0, trackedLeads: 0 });
   const [leadScope, setLeadScope] = useState<LeadScope>('all');
   const [lastSentTime, setLastSentTime] = useState<Date | null>(null);
 
@@ -146,7 +146,7 @@ export default function MailboxDripAnimation({
     setEmailStatuses({});
     setCurrentSendingIndex(0);
     setDeliveryStats({ sent: 0, delivered: 0, failed: 0, bounced: 0 });
-    setBackendQueueStats({ scheduledTotal: 0, scheduledDue: 0 });
+    setBackendQueueStats({ scheduledTotal: 0, scheduledDue: 0, trackedLeads: 0 });
     setLastSentTime(null);
   }, [leads]);
 
@@ -202,6 +202,7 @@ export default function MailboxDripAnimation({
         let scheduledDue = 0;
         const nowTs = Date.now();
         let newestSentAtTs = 0;
+        const matchedLeadIds = new Set<string>();
         const leadSignals = new Map<
           string,
           { status: EmailStatus; sentAtTs: number; scheduledForTs: number; rowId: number }
@@ -226,6 +227,7 @@ export default function MailboxDripAnimation({
           const rowId = Number(send.id || 0);
           matchingLeadIds.forEach((leadId) => {
             // Always track the latest row for the lead so stats reflect the current queued group.
+            matchedLeadIds.add(leadId);
             const existing = leadSignals.get(leadId);
             if (!existing || rowId > existing.rowId) {
               leadSignals.set(leadId, {
@@ -264,6 +266,10 @@ export default function MailboxDripAnimation({
           }
 
           if (status === 'scheduled' || status === 'pending' || status === 'sending') {
+            // Ignore UI default "pending" rows that were never matched to backend sends.
+            if (!matchedLeadIds.has(leadId)) {
+              return;
+            }
             scheduledTotal++;
             const signal = leadSignals.get(leadId);
             const isDueScheduled =
@@ -279,7 +285,7 @@ export default function MailboxDripAnimation({
 
         setEmailStatuses(newStatuses);
         setDeliveryStats({ sent: sentCount, delivered: deliveredCount, failed: failedCount, bounced: bouncedCount });
-        setBackendQueueStats({ scheduledTotal, scheduledDue });
+        setBackendQueueStats({ scheduledTotal, scheduledDue, trackedLeads: matchedLeadIds.size });
         if (newestSentAtTs > 0) {
           setLastSentTime(new Date(newestSentAtTs));
         }
@@ -412,7 +418,11 @@ export default function MailboxDripAnimation({
     return sendingNowIndex >= 0 && sendingNowIndex + 1 < filteredLeads.length ? filteredLeads[sendingNowIndex + 1] : null;
   })();
   const sendingNowStatus: EmailStatus = sendingNowLead ? (emailStatuses[sendingNowLead.id] || 'pending') : 'pending';
-  const likelyStalledQueue = realSendingMode && isActive && backendQueueStats.scheduledDue > 0 && actualSentCount === 0;
+  const likelyStalledQueue =
+    realSendingMode &&
+    backendQueueStats.trackedLeads > 0 &&
+    backendQueueStats.scheduledDue > 0 &&
+    actualSentCount === 0;
 
   // Time since last sent
   const getTimeSince = (date: Date | null) => {
