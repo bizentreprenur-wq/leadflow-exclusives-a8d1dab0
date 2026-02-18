@@ -157,7 +157,7 @@ export default function MailboxDripAnimation({
     setIsPolling(true);
     try {
       if (!isPaused) {
-        await processMyScheduledEmails(12);
+        await processMyScheduledEmails(40);
       }
 
       const pollLimit = Math.min(Math.max(filteredLeads.length * 4, 200), 5000);

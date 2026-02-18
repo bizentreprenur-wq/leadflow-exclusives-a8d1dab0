@@ -466,12 +466,15 @@ function handleSendBulk($db, $user) {
         return;
     }
 
-    // For drip sending, we queue emails with scheduled times
-    $emailsPerHour = $dripConfig['emailsPerHour'] ?? 20;
-    $delayMinutes = $dripConfig['delayMinutes'] ?? 3;
+    // For drip sending, we queue emails with scheduled times.
+    // Tune via config.php to balance throughput vs deliverability.
+    $defaultDripPerHour = defined('EMAIL_DRIP_DEFAULT_PER_HOUR') ? max(1, (int)EMAIL_DRIP_DEFAULT_PER_HOUR) : 80;
+    $emailsPerHour = max(1, (int)($dripConfig['emailsPerHour'] ?? $defaultDripPerHour));
     
-    // Rate limiting - max 100 emails per request for drip, 50 for instant
-    $maxPerRequest = ($sendMode === 'drip' || $sendMode === 'scheduled') ? 100 : 50;
+    // Rate limiting - configurable caps for drip/scheduled vs instant.
+    $dripMaxPerRequest = defined('EMAIL_DRIP_MAX_PER_REQUEST') ? max(100, (int)EMAIL_DRIP_MAX_PER_REQUEST) : 1000;
+    $instantMaxPerRequest = defined('EMAIL_INSTANT_MAX_PER_REQUEST') ? max(1, (int)EMAIL_INSTANT_MAX_PER_REQUEST) : 50;
+    $maxPerRequest = ($sendMode === 'drip' || $sendMode === 'scheduled') ? $dripMaxPerRequest : $instantMaxPerRequest;
     $leads = array_slice($data['leads'], 0, $maxPerRequest);
     
     // Use DB server time as the scheduling anchor to avoid PHP/MySQL timezone drift.
@@ -518,10 +521,12 @@ function handleSendBulk($db, $user) {
         $status = 'pending';
         
         if ($sendMode === 'drip') {
-            // Stagger emails: add delay based on position
-            $minutesToAdd = floor($emailIndex * (60 / $emailsPerHour));
+            // Stagger by seconds for smoother/high-rate drip (not minute-rounded).
+            $secondsToAdd = (int) floor($emailIndex * (3600 / $emailsPerHour));
             $sendAtTime = clone $currentTime;
-            $sendAtTime->add(new DateInterval('PT' . $minutesToAdd . 'M'));
+            if ($secondsToAdd > 0) {
+                $sendAtTime->add(new DateInterval('PT' . $secondsToAdd . 'S'));
+            }
             $sendAt = $sendAtTime->format('Y-m-d H:i:s');
             $status = 'scheduled';
         } elseif ($sendMode === 'scheduled' && $scheduledFor) {
@@ -594,9 +599,11 @@ function handleSendBulk($db, $user) {
     
     // For drip mode, also return estimated completion time
     if ($sendMode === 'drip' && count($leads) > 0) {
-        $totalMinutes = floor(count($leads) * (60 / $emailsPerHour));
+        $totalSeconds = (int) floor(count($leads) * (3600 / $emailsPerHour));
         $completionTime = clone $currentTime;
-        $completionTime->add(new DateInterval('PT' . $totalMinutes . 'M'));
+        if ($totalSeconds > 0) {
+            $completionTime->add(new DateInterval('PT' . $totalSeconds . 'S'));
+        }
         $results['estimated_completion'] = $completionTime->format('Y-m-d H:i:s');
     }
 
@@ -604,7 +611,7 @@ function handleSendBulk($db, $user) {
     // even if cron is delayed/misconfigured.
     if ($sendMode !== 'instant' && $results['scheduled'] > 0) {
         try {
-            $kickoffLimit = 5;
+            $kickoffLimit = defined('EMAIL_DRIP_KICKOFF_BATCH_SIZE') ? max(1, (int)EMAIL_DRIP_KICKOFF_BATCH_SIZE) : 20;
             $dueNow = $db->fetchAll(
                 "SELECT es.*, et.body_text as template_body_text
                  FROM email_sends es
@@ -1030,7 +1037,7 @@ function handleProcessScheduled($db) {
            AND es.scheduled_for IS NOT NULL
            AND es.scheduled_for <= NOW()
          ORDER BY es.scheduled_for ASC
-         LIMIT 20",
+         LIMIT " . (defined('EMAIL_DRIP_WORKER_BATCH_SIZE') ? max(1, (int)EMAIL_DRIP_WORKER_BATCH_SIZE) : 60),
         []
     );
 
@@ -1056,11 +1063,12 @@ function handleProcessMyScheduled($db, $user) {
     }
 
     $data = json_decode(file_get_contents('php://input'), true) ?: [];
-    $limit = isset($data['limit']) ? (int)$data['limit'] : 10;
+    $limit = isset($data['limit']) ? (int)$data['limit'] : 30;
+    $maxLimit = defined('EMAIL_DRIP_PROCESS_MY_MAX_LIMIT') ? max(20, (int)EMAIL_DRIP_PROCESS_MY_MAX_LIMIT) : 100;
     if ($limit < 1) {
         $limit = 1;
-    } elseif ($limit > 20) {
-        $limit = 20;
+    } elseif ($limit > $maxLimit) {
+        $limit = $maxLimit;
     }
 
     $pendingEmails = $db->fetchAll(
@@ -1167,8 +1175,11 @@ function processScheduledEmailBatch($db, array $pendingEmails, $failureReason) {
             $failed++;
         }
 
-        // Small delay between sends
-        usleep(200000); // 200ms
+        // Small delay between sends (tunable for throughput).
+        $interSendDelayUs = defined('EMAIL_DRIP_INTER_SEND_DELAY_US') ? max(0, (int)EMAIL_DRIP_INTER_SEND_DELAY_US) : 50000;
+        if ($interSendDelayUs > 0) {
+            usleep($interSendDelayUs);
+        }
     }
 
     return ['processed' => $processed, 'failed' => $failed, 'claimed' => $claimed];

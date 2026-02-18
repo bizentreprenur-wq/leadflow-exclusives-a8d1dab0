@@ -441,8 +441,8 @@ export default function EmailSetupFlow({
     if (!stored) {
       const next = saveDripSettings({
         enabled: true,
-        emailsPerHour: 50,
-        intervalSeconds: Math.round(3600 / 50),
+        emailsPerHour: 80,
+        intervalSeconds: Math.round(3600 / 80),
         source: 'step3',
       });
       setDripSettings(next);
@@ -695,7 +695,7 @@ export default function EmailSetupFlow({
     }
 
     try {
-      const result = await processMyScheduledEmails(20);
+      const result = await processMyScheduledEmails(100);
       if (!result.success) {
         toast.error(result.error || 'Failed to sync queued emails');
         return;

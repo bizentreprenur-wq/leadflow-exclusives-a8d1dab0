@@ -106,6 +106,8 @@ header('Content-Type: application/json');
 
 try {
     $db = getDB();
+    $workerBatchLimit = defined('EMAIL_DRIP_WORKER_BATCH_SIZE') ? max(1, (int)EMAIL_DRIP_WORKER_BATCH_SIZE) : 60;
+    $interSendDelayUs = defined('EMAIL_DRIP_INTER_SEND_DELAY_US') ? max(0, (int)EMAIL_DRIP_INTER_SEND_DELAY_US) : 50000;
     
     // Get emails due for sending (include smtp_config for per-user SMTP).
     // Include legacy/transient queue states so stalled rows can recover.
@@ -118,7 +120,7 @@ try {
            AND es.scheduled_for IS NOT NULL
            AND es.scheduled_for <= NOW()
          ORDER BY es.scheduled_for ASC
-         LIMIT 20",
+         LIMIT {$workerBatchLimit}",
         []
     );
     
@@ -203,8 +205,10 @@ try {
             ];
         }
         
-        // Small delay between sends to avoid rate limiting
-        usleep(200000); // 200ms
+        // Small delay between sends to avoid rate limiting (tunable via config).
+        if ($interSendDelayUs > 0) {
+            usleep($interSendDelayUs);
+        }
     }
     
     // Log results

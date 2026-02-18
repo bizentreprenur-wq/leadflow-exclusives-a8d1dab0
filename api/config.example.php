@@ -293,6 +293,31 @@ define('CRON_ALLOWED_IPS', [
 ]);
 
 // =====================================
+// EMAIL DRIP THROUGHPUT SETTINGS
+// =====================================
+if (!defined('EMAIL_DRIP_DEFAULT_PER_HOUR')) {
+    define('EMAIL_DRIP_DEFAULT_PER_HOUR', 80);
+}
+if (!defined('EMAIL_DRIP_MAX_PER_REQUEST')) {
+    define('EMAIL_DRIP_MAX_PER_REQUEST', 1000);
+}
+if (!defined('EMAIL_INSTANT_MAX_PER_REQUEST')) {
+    define('EMAIL_INSTANT_MAX_PER_REQUEST', 50);
+}
+if (!defined('EMAIL_DRIP_WORKER_BATCH_SIZE')) {
+    define('EMAIL_DRIP_WORKER_BATCH_SIZE', 60);
+}
+if (!defined('EMAIL_DRIP_KICKOFF_BATCH_SIZE')) {
+    define('EMAIL_DRIP_KICKOFF_BATCH_SIZE', 20);
+}
+if (!defined('EMAIL_DRIP_PROCESS_MY_MAX_LIMIT')) {
+    define('EMAIL_DRIP_PROCESS_MY_MAX_LIMIT', 100);
+}
+if (!defined('EMAIL_DRIP_INTER_SEND_DELAY_US')) {
+    define('EMAIL_DRIP_INTER_SEND_DELAY_US', 50000); // 50ms
+}
+
+// =====================================
 // SESSION SETTINGS
 // =====================================
 define('SESSION_LIFETIME', 604800); // 7 days in seconds

@@ -12,8 +12,8 @@ export const DRIP_SETTINGS_KEY = 'bamlead_drip_settings';
 
 const DEFAULT_SETTINGS: DripSettings = {
   enabled: true,
-  emailsPerHour: 50,
-  intervalSeconds: Math.round(3600 / 50),
+  emailsPerHour: 80,
+  intervalSeconds: Math.round(3600 / 80),
   updatedAt: new Date(0).toISOString(),
   source: 'step3',
 };
