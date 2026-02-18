@@ -386,6 +386,10 @@ export default function EmailSetupFlow({
 
   const leadsWithEmail = emailLeads.filter(l => l.email);
   const leadsWithPhone = leads.filter(l => l.phone);
+  const effectiveMailboxEmailLeads = useMemo(
+    () => (realSendingMode && activeCampaignLeads?.length ? activeCampaignLeads : leadsWithEmail),
+    [realSendingMode, activeCampaignLeads, leadsWithEmail]
+  );
 
   const mailboxLeads = useMemo(() => {
     const sourceByEmail = new Map<string, SearchResult>();
@@ -481,10 +485,6 @@ export default function EmailSetupFlow({
   const [campaignId, setCampaignId] = useState<string | null>(null);
   const [sendHealth, setSendHealth] = useState<SendHealth | null>(null);
   const [isHealthChecking, setIsHealthChecking] = useState(false);
-  const effectiveMailboxEmailLeads = useMemo(
-    () => (realSendingMode && activeCampaignLeads?.length ? activeCampaignLeads : leadsWithEmail),
-    [realSendingMode, activeCampaignLeads, leadsWithEmail]
-  );
 
   useEffect(() => {
     if (currentPhase !== 'send') return;
