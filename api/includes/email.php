@@ -358,6 +358,205 @@ function sendEmailWithCustomSMTP($to, $subject, $htmlBody, $textBody = '', $smtp
 }
 
 /**
+ * Send multiple emails over a reused SMTP connection.
+ * Each message is still sent individually (separate recipient), but SMTP auth/connection
+ * is reused to improve throughput.
+ *
+ * @param array $messages [{id,to,subject,html,text}]
+ * @param array $smtpConfig custom SMTP credentials
+ * @param array $options ['inter_send_delay_us' => int]
+ * @return array{success:bool,sent:int,failed:int,results:array<string,array{success:bool,error?:string}>}
+ */
+function sendEmailBatchWithCustomSMTP(array $messages, array $smtpConfig, array $options = []) {
+    $result = [
+        'success' => true,
+        'sent' => 0,
+        'failed' => 0,
+        'results' => [],
+    ];
+
+    if (count($messages) === 0) {
+        return $result;
+    }
+
+    $autoloadPath = __DIR__ . '/../vendor/autoload.php';
+    if (!class_exists('PHPMailer\\PHPMailer\\PHPMailer') && file_exists($autoloadPath)) {
+        require_once $autoloadPath;
+    }
+
+    if (!class_exists('PHPMailer\\PHPMailer\\PHPMailer')) {
+        foreach ($messages as $idx => $message) {
+            $id = (string)($message['id'] ?? $idx);
+            $result['results'][$id] = ['success' => false, 'error' => 'PHPMailer not installed'];
+            $result['failed']++;
+        }
+        $result['success'] = false;
+        logEmail('ERROR', 'PHPMailer not installed for custom SMTP batch send');
+        return $result;
+    }
+
+    $smtpHost = trim((string)($smtpConfig['host'] ?? ''));
+    $smtpPort = (int)($smtpConfig['port'] ?? 587);
+    $smtpUser = strtolower(trim((string)($smtpConfig['username'] ?? '')));
+    $smtpPass = (string)($smtpConfig['password'] ?? '');
+    $fromEmail = trim((string)($smtpConfig['from_email'] ?? $smtpConfig['fromEmail'] ?? ''));
+    $fromName = trim((string)($smtpConfig['from_name'] ?? $smtpConfig['fromName'] ?? ''));
+    $smtpSecureRaw = $smtpConfig['secure'] ?? '';
+    if (is_string($smtpSecureRaw)) {
+        $smtpSecure = strtolower(trim($smtpSecureRaw));
+    } elseif ($smtpSecureRaw) {
+        $smtpSecure = ($smtpPort === 465) ? 'ssl' : 'tls';
+    } else {
+        $smtpSecure = '';
+    }
+
+    if ($fromEmail === '') {
+        $fromEmail = $smtpUser;
+    }
+    if ($fromName === '') {
+        $fromName = MAIL_FROM_NAME;
+    }
+
+    if ($smtpHost === '' || $smtpUser === '' || $smtpPass === '') {
+        foreach ($messages as $idx => $message) {
+            $id = (string)($message['id'] ?? $idx);
+            $result['results'][$id] = ['success' => false, 'error' => 'Custom SMTP configuration incomplete'];
+            $result['failed']++;
+        }
+        $result['success'] = false;
+        logEmail('ERROR', 'Custom SMTP batch config incomplete', [
+            'host_set' => $smtpHost ? 'yes' : 'no',
+            'user_set' => $smtpUser ? 'yes' : 'no',
+            'pass_set' => $smtpPass ? 'yes' : 'no',
+            'port' => $smtpPort,
+            'secure' => $smtpSecure ?: 'not set',
+        ]);
+        return $result;
+    }
+
+    $interSendDelayUs = max(0, (int)($options['inter_send_delay_us'] ?? 0));
+    $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
+    $sslRelaxed = false;
+
+    try {
+        $mail->isSMTP();
+        $mail->Host = $smtpHost;
+        $mail->SMTPAuth = true;
+        $mail->Username = $smtpUser;
+        $mail->Password = $smtpPass;
+
+        if ($smtpSecure === 'ssl' || $smtpSecure === 'smtps' || ($smtpSecure === '' && $smtpPort === 465)) {
+            $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
+        } elseif ($smtpSecure === 'tls' || $smtpSecure === 'starttls' || $smtpSecure === '') {
+            $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        } else {
+            $mail->SMTPSecure = '';
+        }
+
+        $mail->Port = $smtpPort;
+        $mail->SMTPAutoTLS = !($smtpPort === 465 || $mail->SMTPSecure === \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS);
+        $mail->Timeout = 10;
+        $mail->CharSet = 'UTF-8';
+        $mail->SMTPKeepAlive = true;
+        $mail->setFrom($fromEmail, $fromName);
+        $mail->isHTML(true);
+
+        foreach ($messages as $idx => $message) {
+            $id = (string)($message['id'] ?? $idx);
+            $to = trim((string)($message['to'] ?? ''));
+            $subject = (string)($message['subject'] ?? '');
+            $html = (string)($message['html'] ?? '');
+            $text = (string)($message['text'] ?? strip_tags($html));
+
+            if ($to === '') {
+                $result['results'][$id] = ['success' => false, 'error' => 'Missing recipient email'];
+                $result['failed']++;
+                $result['success'] = false;
+                continue;
+            }
+
+            try {
+                $mail->clearAllRecipients();
+                $mail->clearAttachments();
+                $mail->addAddress($to);
+                $mail->Subject = $subject;
+                $mail->Body = $html;
+                $mail->AltBody = $text !== '' ? $text : strip_tags($html);
+                $mail->send();
+                $result['results'][$id] = ['success' => true];
+                $result['sent']++;
+            } catch (Exception $e) {
+                $errorInfo = (string)($mail->ErrorInfo ?? $e->getMessage());
+                $combined = strtolower($errorInfo . ' ' . (string)$e->getMessage());
+                $looksLikeTls = (strpos($combined, 'ssl') !== false) ||
+                                (strpos($combined, 'tls') !== false) ||
+                                (strpos($combined, 'certificate') !== false) ||
+                                (strpos($combined, 'stream_socket_client') !== false);
+
+                // Retry once with relaxed SSL verification for shared-host TLS chain issues.
+                if (!$sslRelaxed && $looksLikeTls) {
+                    $mail->SMTPOptions = [
+                        'ssl' => [
+                            'verify_peer' => false,
+                            'verify_peer_name' => false,
+                            'allow_self_signed' => true,
+                        ],
+                    ];
+                    $sslRelaxed = true;
+                    try {
+                        $mail->clearAllRecipients();
+                        $mail->clearAttachments();
+                        $mail->addAddress($to);
+                        $mail->Subject = $subject;
+                        $mail->Body = $html;
+                        $mail->AltBody = $text !== '' ? $text : strip_tags($html);
+                        $mail->send();
+                        $result['results'][$id] = ['success' => true];
+                        $result['sent']++;
+                        if ($interSendDelayUs > 0) {
+                            usleep($interSendDelayUs);
+                        }
+                        continue;
+                    } catch (Exception $retryEx) {
+                        $errorInfo = (string)($mail->ErrorInfo ?: $retryEx->getMessage());
+                    }
+                }
+
+                $result['results'][$id] = ['success' => false, 'error' => $errorInfo];
+                $result['failed']++;
+                $result['success'] = false;
+                logEmail('ERROR', 'Custom SMTP batch send failed', [
+                    'to' => $to,
+                    'error' => $errorInfo,
+                ]);
+            }
+
+            if ($interSendDelayUs > 0) {
+                usleep($interSendDelayUs);
+            }
+        }
+    } catch (Exception $e) {
+        foreach ($messages as $idx => $message) {
+            $id = (string)($message['id'] ?? $idx);
+            if (!isset($result['results'][$id])) {
+                $result['results'][$id] = ['success' => false, 'error' => $e->getMessage()];
+                $result['failed']++;
+            }
+        }
+        $result['success'] = false;
+        logEmail('ERROR', 'Custom SMTP batch initialization failed', ['error' => $e->getMessage()]);
+    } finally {
+        try {
+            $mail->smtpClose();
+        } catch (Throwable $ignored) {
+            // noop
+        }
+    }
+
+    return $result;
+}
+
+/**
  * Generate a verification token
  */
 function generateVerificationToken($userId, $type, $expiresInHours = 24) {

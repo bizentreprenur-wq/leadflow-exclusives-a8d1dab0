@@ -1105,6 +1105,7 @@ function processScheduledEmailBatch($db, array $pendingEmails, $failureReason) {
     $failed = 0;
     $claimed = 0;
     $userSmtpCache = [];
+    $smtpGroups = [];
 
     foreach ($pendingEmails as $email) {
         $emailId = (int)($email['id'] ?? 0);
@@ -1153,32 +1154,64 @@ function processScheduledEmailBatch($db, array $pendingEmails, $failureReason) {
             continue;
         }
 
-        $sent = sendEmailWithCustomSMTP(
-            $email['recipient_email'],
-            $email['subject'],
-            $email['body_html'],
-            $textBody,
-            $smtpOverride
-        );
+        // Group by effective SMTP config so we can reuse one SMTP connection for many messages.
+        $smtpKey = hash('sha256', json_encode([
+            'host' => (string)($smtpOverride['host'] ?? ''),
+            'port' => (string)($smtpOverride['port'] ?? ''),
+            'username' => (string)($smtpOverride['username'] ?? ''),
+            'password' => (string)($smtpOverride['password'] ?? ''),
+            'fromEmail' => (string)($smtpOverride['fromEmail'] ?? $smtpOverride['from_email'] ?? ''),
+            'fromName' => (string)($smtpOverride['fromName'] ?? $smtpOverride['from_name'] ?? ''),
+            'secure' => is_bool($smtpOverride['secure'] ?? null)
+                ? (($smtpOverride['secure'] ?? false) ? '1' : '0')
+                : (string)($smtpOverride['secure'] ?? ''),
+        ]));
+        if (!isset($smtpGroups[$smtpKey])) {
+            $smtpGroups[$smtpKey] = [
+                'smtp' => $smtpOverride,
+                'messages' => [],
+            ];
+        }
+        $smtpGroups[$smtpKey]['messages'][] = [
+            'id' => (string)$emailId,
+            'to' => (string)($email['recipient_email'] ?? ''),
+            'subject' => (string)($email['subject'] ?? ''),
+            'html' => (string)($email['body_html'] ?? ''),
+            'text' => (string)$textBody,
+        ];
+    }
 
-        if ($sent) {
-            $db->update(
-                "UPDATE email_sends SET status = 'sent', sent_at = NOW() WHERE id = ?",
-                [$emailId]
-            );
-            $processed++;
-        } else {
+    $interSendDelayUs = defined('EMAIL_DRIP_INTER_SEND_DELAY_US') ? max(0, (int)EMAIL_DRIP_INTER_SEND_DELAY_US) : 50000;
+    foreach ($smtpGroups as $group) {
+        $batchResult = sendEmailBatchWithCustomSMTP(
+            $group['messages'],
+            $group['smtp'],
+            ['inter_send_delay_us' => $interSendDelayUs]
+        );
+        $messageResults = (isset($batchResult['results']) && is_array($batchResult['results']))
+            ? $batchResult['results']
+            : [];
+
+        foreach ($group['messages'] as $message) {
+            $emailId = (int)$message['id'];
+            $rowResult = $messageResults[(string)$message['id']] ?? null;
+            $sent = is_array($rowResult) && !empty($rowResult['success']);
+
+            if ($sent) {
+                $db->update(
+                    "UPDATE email_sends SET status = 'sent', sent_at = NOW() WHERE id = ?",
+                    [$emailId]
+                );
+                $processed++;
+                continue;
+            }
+
+            $rowError = is_array($rowResult) ? (string)($rowResult['error'] ?? '') : '';
             $db->update(
                 "UPDATE email_sends SET status = 'failed', error_message = ? WHERE id = ?",
-                [$failureReason, $emailId]
+                [$rowError !== '' ? $rowError : $failureReason, $emailId]
             );
             $failed++;
-        }
-
-        // Small delay between sends (tunable for throughput).
-        $interSendDelayUs = defined('EMAIL_DRIP_INTER_SEND_DELAY_US') ? max(0, (int)EMAIL_DRIP_INTER_SEND_DELAY_US) : 50000;
-        if ($interSendDelayUs > 0) {
-            usleep($interSendDelayUs);
         }
     }
 

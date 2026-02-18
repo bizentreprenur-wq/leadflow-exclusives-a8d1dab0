@@ -134,7 +134,13 @@ try {
     $details = [];
     
     $smtpByUser = [];
+    $smtpGroups = [];
     foreach ($pendingEmails as $email) {
+        $emailId = (int)($email['id'] ?? 0);
+        if ($emailId <= 0) {
+            continue;
+        }
+
         // Claim row before sending to avoid duplicate sends from concurrent workers.
         // Use "pending" claim status to remain compatible with older enum definitions.
         $claimed = $db->update(
@@ -143,14 +149,14 @@ try {
              WHERE id = ?
                AND sent_at IS NULL
                AND (status IN ('scheduled', 'pending', 'sending') OR status = '')",
-            [$email['id']]
+            [$emailId]
         );
         if ($claimed < 1) {
             continue;
         }
 
         $textBody = $email['template_body_text'] ?? strip_tags($email['body_html']);
-        
+
         // Use per-email SMTP config if stored; otherwise load this user's saved SMTP config.
         $smtpOverride = null;
         if (!empty($email['smtp_config'])) {
@@ -167,11 +173,11 @@ try {
         if (!$smtpOverride) {
             $db->update(
                 "UPDATE email_sends SET status = 'failed', error_message = 'No SMTP config saved for this user' WHERE id = ?",
-                [$email['id']]
+                [$emailId]
             );
             $failed++;
             $details[] = [
-                'id' => $email['id'],
+                'id' => $emailId,
                 'email' => $email['recipient_email'],
                 'status' => 'failed',
                 'reason' => 'Missing user SMTP config'
@@ -179,35 +185,75 @@ try {
             continue;
         }
 
-        $sent = sendEmailWithCustomSMTP($email['recipient_email'], $email['subject'], $email['body_html'], $textBody, $smtpOverride);
-        
-        if ($sent) {
-            $db->update(
-                "UPDATE email_sends SET status = 'sent', sent_at = NOW() WHERE id = ?",
-                [$email['id']]
-            );
-            $processed++;
-            $details[] = [
-                'id' => $email['id'],
-                'email' => $email['recipient_email'],
-                'status' => 'sent'
+        // Group by SMTP config so we can reuse one SMTP connection per customer/config.
+        $smtpKey = hash('sha256', json_encode([
+            'host' => (string)($smtpOverride['host'] ?? ''),
+            'port' => (string)($smtpOverride['port'] ?? ''),
+            'username' => (string)($smtpOverride['username'] ?? ''),
+            'password' => (string)($smtpOverride['password'] ?? ''),
+            'fromEmail' => (string)($smtpOverride['fromEmail'] ?? $smtpOverride['from_email'] ?? ''),
+            'fromName' => (string)($smtpOverride['fromName'] ?? $smtpOverride['from_name'] ?? ''),
+            'secure' => is_bool($smtpOverride['secure'] ?? null)
+                ? (($smtpOverride['secure'] ?? false) ? '1' : '0')
+                : (string)($smtpOverride['secure'] ?? ''),
+        ]));
+        if (!isset($smtpGroups[$smtpKey])) {
+            $smtpGroups[$smtpKey] = [
+                'smtp' => $smtpOverride,
+                'messages' => [],
             ];
-        } else {
+        }
+        $smtpGroups[$smtpKey]['messages'][] = [
+            'id' => (string)$emailId,
+            'to' => (string)($email['recipient_email'] ?? ''),
+            'subject' => (string)($email['subject'] ?? ''),
+            'html' => (string)($email['body_html'] ?? ''),
+            'text' => (string)$textBody,
+        ];
+    }
+
+    foreach ($smtpGroups as $group) {
+        $batchResult = sendEmailBatchWithCustomSMTP(
+            $group['messages'],
+            $group['smtp'],
+            ['inter_send_delay_us' => $interSendDelayUs]
+        );
+        $messageResults = (isset($batchResult['results']) && is_array($batchResult['results']))
+            ? $batchResult['results']
+            : [];
+
+        foreach ($group['messages'] as $message) {
+            $emailId = (int)$message['id'];
+            $recipient = (string)$message['to'];
+            $rowResult = $messageResults[(string)$message['id']] ?? null;
+            $sent = is_array($rowResult) && !empty($rowResult['success']);
+
+            if ($sent) {
+                $db->update(
+                    "UPDATE email_sends SET status = 'sent', sent_at = NOW() WHERE id = ?",
+                    [$emailId]
+                );
+                $processed++;
+                $details[] = [
+                    'id' => $emailId,
+                    'email' => $recipient,
+                    'status' => 'sent'
+                ];
+                continue;
+            }
+
+            $rowError = is_array($rowResult) ? (string)($rowResult['error'] ?? '') : '';
             $db->update(
-                "UPDATE email_sends SET status = 'failed', error_message = 'SMTP error during cron send' WHERE id = ?",
-                [$email['id']]
+                "UPDATE email_sends SET status = 'failed', error_message = ? WHERE id = ?",
+                [$rowError !== '' ? $rowError : 'SMTP error during cron send', $emailId]
             );
             $failed++;
             $details[] = [
-                'id' => $email['id'],
-                'email' => $email['recipient_email'],
-                'status' => 'failed'
+                'id' => $emailId,
+                'email' => $recipient,
+                'status' => 'failed',
+                'reason' => $rowError !== '' ? $rowError : 'SMTP error during cron send'
             ];
-        }
-        
-        // Small delay between sends to avoid rate limiting (tunable via config).
-        if ($interSendDelayUs > 0) {
-            usleep($interSendDelayUs);
         }
     }
     
