@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { Textarea } from '@/components/ui/textarea';
 import { 
   Palette, Type, Hash, Image, Save, Eye, Edit3, 
   RotateCcw, Check, X, Sparkles, Wand2, Copy,
@@ -52,7 +53,7 @@ export default function VisualTemplateEditor({
   onSave,
   onSelect,
 }: VisualTemplateEditorProps) {
-  const [activeTab, setActiveTab] = useState<'wysiwyg' | 'colors' | 'stats' | 'features'>('wysiwyg');
+  const [activeTab, setActiveTab] = useState<'edit' | 'colors' | 'stats' | 'features'>('edit');
   
   // Hero image
   const [heroImageUrl, setHeroImageUrl] = useState(template.previewImage);
@@ -77,9 +78,6 @@ export default function VisualTemplateEditor({
   
   // Template name for saving
   const [newTemplateName, setNewTemplateName] = useState('');
-
-  // WYSIWYG refs
-  const previewRef = useRef<HTMLDivElement>(null);
 
   // Parse stats from HTML template
   const parseStatsFromHTML = (html: string): StatItem[] => {
@@ -107,11 +105,14 @@ export default function VisualTemplateEditor({
       // Extract headline
       const h1Match = template.body_html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
       if (h1Match) setEditedHeadline(h1Match[1].replace(/\{\{[^}]+\}\}/g, '{{placeholder}}'));
+      else setEditedHeadline('Your Business Deserves Better');
       
       // Extract paragraphs
       const paragraphs = template.body_html.match(/<p[^>]*>([^<]{20,})<\/p>/gi);
       if (paragraphs) {
         setEditedBody(paragraphs.slice(0, 3).map(p => p.replace(/<[^>]+>/g, '').trim()).filter(p => p.length > 20).join('\n\n'));
+      } else {
+        setEditedBody('I noticed {{business_name}} could benefit from our professional services.');
       }
       
       // Extract CTA
@@ -132,9 +133,9 @@ export default function VisualTemplateEditor({
       }
 
       // Extract features
-      const featureMatches = template.body_html.match(/✓\s*([^<\n]+)/g);
+      const featureMatches = template.body_html.match(/[✓▸●—]\s*([^<\n]+)/g);
       if (featureMatches) {
-        setEditedFeatures(featureMatches.map(f => f.replace('✓', '').trim()));
+        setEditedFeatures(featureMatches.map(f => f.replace(/^[✓▸●—]\s*/, '').trim()));
       } else {
         setEditedFeatures(['Mobile-responsive design', 'SEO optimization included', 'Fast loading speeds', '24/7 support']);
       }
@@ -163,6 +164,8 @@ export default function VisualTemplateEditor({
       `<tr><td style="padding:8px 0;color:#ffffff;font-size:15px;">✓ ${f}</td></tr>`
     ).join('');
 
+    const bodyParagraphs = editedBody.split('\n').filter(p => p.trim().length > 0);
+
     return `
 <!DOCTYPE html>
 <html>
@@ -190,9 +193,9 @@ export default function VisualTemplateEditor({
         <h1 style="color:${headlineColor};font-size:28px;margin:0 0 20px;line-height:1.3;">
           ${editedHeadline || '{{first_name}}, Your Business Deserves Better'}
         </h1>
-        <p style="color:${bodyTextColor};font-size:16px;line-height:1.6;margin:0 0 20px;">
-          ${editedBody.split('\n')[0] || 'I noticed {{business_name}} could benefit from our professional services.'}
-        </p>
+        ${bodyParagraphs.map(p => 
+          `<p style="color:${bodyTextColor};font-size:16px;line-height:1.6;margin:0 0 20px;">${p}</p>`
+        ).join('')}
         
         ${editedStats.length > 0 ? `
         <table width="100%" style="margin:25px 0;" cellpadding="0" cellspacing="0">
@@ -208,10 +211,6 @@ export default function VisualTemplateEditor({
             </td>
           </tr>
         </table>` : ''}
-        
-        ${editedBody.split('\n').slice(1).map(p => 
-          `<p style="color:${bodyTextColor};font-size:16px;line-height:1.6;margin:0 0 20px;">${p}</p>`
-        ).join('')}
         
         <table width="100%">
           <tr>
@@ -238,44 +237,6 @@ export default function VisualTemplateEditor({
 </body>
 </html>`;
   }, [editedHeadline, editedBody, editedCTA, editedStats, editedFeatures, primaryColor, accentColor, ctaColor, statColor, headlineColor, bodyTextColor, backgroundColor, heroImageUrl, showHeroImage]);
-
-  // WYSIWYG: Sync contentEditable changes back to state
-  const handleWysiwygBlur = useCallback(() => {
-    if (!previewRef.current) return;
-    
-    // Extract headline from contentEditable
-    const h1 = previewRef.current.querySelector('h1');
-    if (h1) setEditedHeadline(h1.textContent || '');
-    
-    // Extract body paragraphs
-    const paragraphs = previewRef.current.querySelectorAll('p');
-    const bodyTexts: string[] = [];
-    paragraphs.forEach(p => {
-      const text = p.textContent?.trim() || '';
-      // Skip signature, footer, and "What You Get" label
-      if (text.length > 15 && !text.includes('Best regards') && !text.includes('Sent with') && !text.includes('Unsubscribe') && !text.includes('WHAT YOU GET') && text !== 'Your Solutions Partner') {
-        bodyTexts.push(text);
-      }
-    });
-    if (bodyTexts.length) setEditedBody(bodyTexts.join('\n'));
-    
-    // Extract CTA
-    const cta = previewRef.current.querySelector('a[style*="border-radius"]');
-    if (cta && cta.textContent && cta.textContent.trim().length > 2 && cta.textContent.trim() !== 'Unsubscribe') {
-      setEditedCTA(cta.textContent.trim());
-    }
-
-    // Extract features
-    const allTds = previewRef.current.querySelectorAll('td');
-    const features: string[] = [];
-    allTds.forEach(td => {
-      const text = td.textContent?.trim() || '';
-      if (text.startsWith('✓') && text.length > 3) {
-        features.push(text.replace('✓', '').trim());
-      }
-    });
-    if (features.length) setEditedFeatures(features);
-  }, []);
 
   const handleStatChange = (id: string, field: 'value' | 'label' | 'color', newValue: string) => {
     setEditedStats(prev => prev.map(stat => 
@@ -369,124 +330,28 @@ export default function VisualTemplateEditor({
             <div>
               <DialogTitle className="flex items-center gap-2 text-base">
                 <Edit3 className="w-5 h-5 text-primary" />
-                Edit Template — Click any text to edit
+                Edit Template
               </DialogTitle>
               <DialogDescription className="text-xs">
-                Click directly on the preview to edit text like a word processor. Use tabs for stats, colors & features.
+                Edit every field on the left. Live preview updates on the right.
               </DialogDescription>
             </div>
             <Badge variant="outline" className="gap-1.5 text-xs bg-primary/10 border-primary/30 text-primary">
-              <MousePointerClick className="w-3.5 h-3.5" />
-              Click to Edit
+              <Edit3 className="w-3.5 h-3.5" />
+              Full Edit Mode
             </Badge>
           </div>
         </DialogHeader>
 
-        {/* Subject Line - always visible */}
-        <div className="px-6 py-2 border-b shrink-0 bg-muted/30">
-          <div className="flex items-center gap-3">
-            <Label className="text-xs font-medium shrink-0 w-16">Subject:</Label>
-            <Input
-              value={editedSubject}
-              onChange={(e) => setEditedSubject(e.target.value)}
-              placeholder="Email subject line..."
-              className="h-8 text-sm flex-1"
-            />
-          </div>
-        </div>
-
         <div className="flex-1 flex overflow-hidden min-h-0">
-          {/* WYSIWYG Preview Panel — THE MAIN EDITOR */}
-          <div className="flex-1 flex flex-col min-h-0">
-            {/* Toolbar */}
-            <div className="px-4 py-2 border-b shrink-0 flex items-center gap-2 bg-muted/20">
-              {/* Hero Image toggle */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowHeroImage(!showHeroImage)}
-                className="gap-1.5 text-xs h-7"
-              >
-                {showHeroImage ? <ImageOff className="w-3.5 h-3.5" /> : <Image className="w-3.5 h-3.5" />}
-                {showHeroImage ? 'Remove Image' : 'Add Image'}
-              </Button>
-              
-              {showHeroImage && (
-                <>
-                  <label className="cursor-pointer">
-                    <Button size="sm" variant="outline" className="gap-1.5 text-xs h-7 pointer-events-none" asChild>
-                      <span>
-                        <Upload className="w-3.5 h-3.5" />
-                        Upload
-                      </span>
-                    </Button>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (ev) => {
-                            setHeroImageUrl(ev.target?.result as string);
-                            toast.success('Image uploaded!');
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-                  </label>
-                  <div className="relative flex-1 max-w-[250px]">
-                    <Link className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
-                    <Input
-                      value={heroImageUrl}
-                      onChange={(e) => setHeroImageUrl(e.target.value)}
-                      placeholder="Paste image URL..."
-                      className="pl-7 text-[11px] h-7"
-                    />
-                  </div>
-                </>
-              )}
-
-              <div className="flex-1" />
-              
-              {/* Quick color presets in toolbar */}
-              <span className="text-xs text-muted-foreground">Colors:</span>
-              <div className="flex gap-1">
-                {COLOR_PRESETS.slice(0, 6).map((preset) => (
-                  <button
-                    key={preset.name}
-                    onClick={() => handleApplyColorToAll(preset.value)}
-                    className="w-5 h-5 rounded-full border border-border hover:scale-125 transition-transform"
-                    style={{ backgroundColor: preset.value }}
-                    title={preset.name}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* WYSIWYG Editable Preview */}
-            <div className="flex-1 overflow-y-auto p-4 bg-neutral-900">
-              <div 
-                ref={previewRef}
-                contentEditable
-                suppressContentEditableWarning
-                onBlur={handleWysiwygBlur}
-                className="bg-background rounded-lg border shadow-lg overflow-hidden mx-auto max-w-[620px] outline-none cursor-text [&_*]:outline-none [&_h1]:cursor-text [&_p]:cursor-text [&_a]:cursor-text [&_td]:cursor-text [&_span]:cursor-text"
-                style={{ caretColor: primaryColor }}
-                dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(generateUpdatedHTML) }}
-              />
-              <p className="text-center text-xs text-muted-foreground mt-3">
-                ☝️ Click on any text above to edit it directly
-              </p>
-            </div>
-          </div>
-
-          {/* Side Panel — Stats, Colors, Features */}
-          <div className="w-[320px] border-l flex flex-col min-h-0 shrink-0">
+          {/* LEFT: All Editable Fields */}
+          <div className="w-[400px] border-r flex flex-col min-h-0 shrink-0">
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 flex flex-col min-h-0">
-              <TabsList className="mx-3 mt-3 grid grid-cols-3 shrink-0">
+              <TabsList className="mx-3 mt-3 grid grid-cols-4 shrink-0">
+                <TabsTrigger value="edit" className="gap-1 text-xs">
+                  <Edit3 className="w-3.5 h-3.5" />
+                  Content
+                </TabsTrigger>
                 <TabsTrigger value="stats" className="gap-1 text-xs">
                   <Hash className="w-3.5 h-3.5" />
                   Stats
@@ -502,6 +367,112 @@ export default function VisualTemplateEditor({
               </TabsList>
 
               <div className="flex-1 min-h-0 overflow-y-auto p-3">
+                {/* Content Tab - Subject, Headline, Body, CTA */}
+                {activeTab === 'edit' && (
+                  <div className="space-y-4">
+                    {/* Subject Line */}
+                    <div>
+                      <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Subject Line</Label>
+                      <Input
+                        value={editedSubject}
+                        onChange={(e) => setEditedSubject(e.target.value)}
+                        placeholder="Email subject line..."
+                        className="mt-1 text-sm"
+                      />
+                    </div>
+
+                    {/* Hero Image */}
+                    <div>
+                      <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Hero Image</Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowHeroImage(!showHeroImage)}
+                          className="gap-1.5 text-xs h-8"
+                        >
+                          {showHeroImage ? <ImageOff className="w-3.5 h-3.5" /> : <Image className="w-3.5 h-3.5" />}
+                          {showHeroImage ? 'Remove' : 'Add'}
+                        </Button>
+                        {showHeroImage && (
+                          <label className="cursor-pointer">
+                            <Button size="sm" variant="outline" className="gap-1.5 text-xs h-8 pointer-events-none" asChild>
+                              <span><Upload className="w-3.5 h-3.5" /> Upload</span>
+                            </Button>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  const reader = new FileReader();
+                                  reader.onload = (ev) => {
+                                    setHeroImageUrl(ev.target?.result as string);
+                                    toast.success('Image uploaded!');
+                                  };
+                                  reader.readAsDataURL(file);
+                                }
+                              }}
+                            />
+                          </label>
+                        )}
+                      </div>
+                      {showHeroImage && (
+                        <div className="relative mt-2">
+                          <Link className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                          <Input
+                            value={heroImageUrl}
+                            onChange={(e) => setHeroImageUrl(e.target.value)}
+                            placeholder="Paste image URL..."
+                            className="pl-7 text-xs h-8"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    <Separator />
+
+                    {/* Headline */}
+                    <div>
+                      <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Headline</Label>
+                      <Input
+                        value={editedHeadline}
+                        onChange={(e) => setEditedHeadline(e.target.value)}
+                        placeholder="Main headline..."
+                        className="mt-1 text-sm font-bold"
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">Use {'{{first_name}}'}, {'{{business_name}}'} for personalization</p>
+                    </div>
+
+                    {/* Body Text */}
+                    <div>
+                      <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Body Text</Label>
+                      <Textarea
+                        value={editedBody}
+                        onChange={(e) => setEditedBody(e.target.value)}
+                        placeholder="Write your email body here. Use multiple lines for separate paragraphs..."
+                        className="mt-1 text-sm min-h-[180px] resize-y"
+                        rows={8}
+                      />
+                      <p className="text-[10px] text-muted-foreground mt-1">Each line becomes a new paragraph. Use {'{{business_name}}'}, {'{{first_name}}'} tokens.</p>
+                    </div>
+
+                    <Separator />
+
+                    {/* CTA Button */}
+                    <div>
+                      <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Call-to-Action Button</Label>
+                      <Input
+                        value={editedCTA}
+                        onChange={(e) => setEditedCTA(e.target.value)}
+                        placeholder="CTA button text..."
+                        className="mt-1 text-sm font-semibold"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 {/* Stats Tab */}
                 {activeTab === 'stats' && (
                   <div className="space-y-3">
@@ -643,6 +614,34 @@ export default function VisualTemplateEditor({
                 )}
               </div>
             </Tabs>
+          </div>
+
+          {/* RIGHT: Live Preview */}
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="px-4 py-2 border-b shrink-0 flex items-center gap-2 bg-muted/20">
+              <Eye className="w-4 h-4 text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">Live Preview</span>
+              <div className="flex-1" />
+              <span className="text-xs text-muted-foreground">Colors:</span>
+              <div className="flex gap-1">
+                {COLOR_PRESETS.slice(0, 6).map((preset) => (
+                  <button
+                    key={preset.name}
+                    onClick={() => handleApplyColorToAll(preset.value)}
+                    className="w-5 h-5 rounded-full border border-border hover:scale-125 transition-transform"
+                    style={{ backgroundColor: preset.value }}
+                    title={preset.name}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 bg-neutral-900">
+              <div 
+                className="bg-background rounded-lg border shadow-lg overflow-hidden mx-auto max-w-[620px]"
+                dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(generateUpdatedHTML) }}
+              />
+            </div>
           </div>
         </div>
 
