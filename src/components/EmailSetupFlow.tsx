@@ -140,6 +140,17 @@ export default function EmailSetupFlow({
     emailBody: string;
   } | null>(null);
   const [activeCampaignLeads, setActiveCampaignLeads] = useState<LeadForEmail[] | null>(null);
+  
+  // Sending state management
+  const [demoSentCount, setDemoSentCount] = useState(0);
+  const [demoIsActive, setDemoIsActive] = useState(false);
+  const [mailboxAnimationSeed, setMailboxAnimationSeed] = useState(0);
+  const [realSendingMode, setRealSendingMode] = useState(false);
+  const [isSendingPaused, setIsSendingPaused] = useState(false);
+  const [isSending, setIsSending] = useState(false);
+  const [campaignId, setCampaignId] = useState<string | null>(null);
+  const [sendHealth, setSendHealth] = useState<SendHealth | null>(null);
+  const [isHealthChecking, setIsHealthChecking] = useState(false);
   const [dripSettings, setDripSettings] = useState(() => loadDripSettings());
   // Intelligence panel state removed - now only in Step 2
   const [appliedStrategy, setAppliedStrategy] = useState<{
@@ -475,16 +486,6 @@ export default function EmailSetupFlow({
     }
   }, [leads]);
 
-  // Sending state management
-  const [demoSentCount, setDemoSentCount] = useState(0);
-  const [demoIsActive, setDemoIsActive] = useState(false);
-  const [mailboxAnimationSeed, setMailboxAnimationSeed] = useState(0);
-  const [realSendingMode, setRealSendingMode] = useState(false);
-  const [isSendingPaused, setIsSendingPaused] = useState(false);
-  const [isSending, setIsSending] = useState(false);
-  const [campaignId, setCampaignId] = useState<string | null>(null);
-  const [sendHealth, setSendHealth] = useState<SendHealth | null>(null);
-  const [isHealthChecking, setIsHealthChecking] = useState(false);
 
   useEffect(() => {
     if (currentPhase !== 'send') return;
