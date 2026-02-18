@@ -88,6 +88,8 @@ export interface BulkSendResult {
   failed: number;
   skipped: number;
   scheduled?: number;
+  processed_now?: number;
+  kickoff_failed?: number;
   estimated_completion?: string;
   details: Array<{
     business: string;

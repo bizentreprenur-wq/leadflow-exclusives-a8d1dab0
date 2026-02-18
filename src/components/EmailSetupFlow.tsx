@@ -629,32 +629,6 @@ export default function EmailSetupFlow({
     runSendHealthCheck({ silent: true });
   }, [currentPhase, runSendHealthCheck]);
 
-  const handleContinueToDrip = useCallback(() => {
-    if (!smtpConfigured) {
-      setCurrentPhase('smtp');
-      toast.info('Configure SMTP first to launch drip sending.');
-      return;
-    }
-
-    if (!selectedTemplate) {
-      setCurrentPhase('template');
-      toast.info('Choose a template first before launching drip sending.');
-      return;
-    }
-
-    const alreadyOnSendPhase = currentPhase === 'send';
-    setCurrentPhase('send');
-    handleTabChange('mailbox');
-
-    window.setTimeout(() => {
-      smartDripRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 80);
-
-    if (alreadyOnSendPhase) {
-      toast.success('Moved to Smart Drip campaign.');
-    }
-  }, [smtpConfigured, selectedTemplate, currentPhase, handleTabChange]);
-
   const handleActivatePreviewMode = useCallback(() => {
     setMailboxAnimationSeed((prev) => prev + 1);
     setActiveTab('mailbox');
@@ -739,6 +713,30 @@ export default function EmailSetupFlow({
       toast.error('Failed to sync queued emails');
     }
   }, [realSendingMode, handlePrepareRealSend, isSendingPaused]);
+
+  const handleContinueToDrip = useCallback(() => {
+    if (!smtpConfigured) {
+      setCurrentPhase('smtp');
+      toast.info('Configure SMTP first to launch drip sending.');
+      return;
+    }
+
+    if (!selectedTemplate) {
+      setCurrentPhase('template');
+      toast.info('Choose a template first before launching drip sending.');
+      return;
+    }
+
+    setCurrentPhase('send');
+    handleTabChange('mailbox');
+
+    window.setTimeout(() => {
+      smartDripRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+
+    // Step-3 CTA should move to send phase and immediately open the real-send confirmation.
+    void handlePrepareRealSend();
+  }, [smtpConfigured, selectedTemplate, handleTabChange, handlePrepareRealSend]);
 
   const renderPhaseContent = () => {
     switch (currentPhase) {
@@ -1865,11 +1863,18 @@ export default function EmailSetupFlow({
                     sessionStorage.setItem('emails_sent', 'true');
                     const scheduledCount = result.results?.scheduled || 0;
                     const sentCount = result.results?.sent || 0;
-                    toast.success(`🚀 Campaign queued! ${scheduledCount || sentCount} of ${validLeads.length} added to drip queue`, {
-                      description: 'The sender worker will deliver due emails automatically.',
+                    const processedNow = Number(result.results?.processed_now || 0);
+                    const kickoffFailed = Number(result.results?.kickoff_failed || 0);
+                    const queueMsg = `🚀 Campaign queued! ${scheduledCount + processedNow + kickoffFailed} recipients prepared`;
+                    const detailMsg =
+                      processedNow > 0
+                        ? `${processedNow} sent immediately, ${scheduledCount} queued${kickoffFailed > 0 ? `, ${kickoffFailed} failed` : ''}.`
+                        : `Queued ${scheduledCount} for drip delivery${kickoffFailed > 0 ? `, ${kickoffFailed} failed` : ''}.`;
+                    toast.success(queueMsg, {
+                      description: detailMsg,
                       duration: 6000,
                     });
-                    setDemoSentCount(0);
+                    setDemoSentCount(Math.max(0, sentCount));
                     onComplete();
                   } else {
                     console.error('Send failed:', result.error);

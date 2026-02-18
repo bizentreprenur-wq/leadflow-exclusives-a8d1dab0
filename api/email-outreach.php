@@ -599,6 +599,46 @@ function handleSendBulk($db, $user) {
         $completionTime->add(new DateInterval('PT' . $totalMinutes . 'M'));
         $results['estimated_completion'] = $completionTime->format('Y-m-d H:i:s');
     }
+
+    // Kickoff pass: immediately process a small due-now batch so campaigns visibly start
+    // even if cron is delayed/misconfigured.
+    if ($sendMode !== 'instant' && $results['scheduled'] > 0) {
+        try {
+            $kickoffLimit = 5;
+            $dueNow = $db->fetchAll(
+                "SELECT es.*, et.body_text as template_body_text
+                 FROM email_sends es
+                 LEFT JOIN email_templates et ON es.template_id = et.id
+                 WHERE es.user_id = ?
+                   AND (es.status IN ('scheduled', 'pending', 'sending') OR es.status = '')
+                   AND es.sent_at IS NULL
+                   AND es.scheduled_for IS NOT NULL
+                   AND es.scheduled_for <= NOW()
+                 ORDER BY es.scheduled_for ASC
+                 LIMIT ?",
+                [(int)$user['id'], $kickoffLimit]
+            );
+
+            if ($dueNow && count($dueNow) > 0) {
+                $kickoff = processScheduledEmailBatch($db, $dueNow, 'SMTP error during kickoff send');
+                $processedNow = (int)($kickoff['processed'] ?? 0);
+                $failedNow = (int)($kickoff['failed'] ?? 0);
+
+                $results['processed_now'] = $processedNow;
+                $results['kickoff_failed'] = $failedNow;
+                $results['sent'] += $processedNow;
+                $results['failed'] += $failedNow;
+                $results['scheduled'] = max(0, $results['scheduled'] - $processedNow - $failedNow);
+            } else {
+                $results['processed_now'] = 0;
+                $results['kickoff_failed'] = 0;
+            }
+        } catch (Exception $kickoffEx) {
+            error_log('[email-outreach] kickoff send failed: ' . $kickoffEx->getMessage());
+            $results['processed_now'] = 0;
+            $results['kickoff_failed'] = 0;
+        }
+    }
     
     echo json_encode(['success' => true, 'results' => $results]);
 }
