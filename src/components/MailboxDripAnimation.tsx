@@ -152,7 +152,7 @@ export default function MailboxDripAnimation({
 
   // Poll backend for real delivery status
   const pollDeliveryStatus = useCallback(async () => {
-    if (!realSendingMode || !isActive) return;
+    if (!realSendingMode || filteredLeads.length === 0) return;
     
     setIsPolling(true);
     try {
@@ -291,15 +291,15 @@ export default function MailboxDripAnimation({
     } finally {
       setIsPolling(false);
     }
-  }, [realSendingMode, isActive, isPaused, filteredLeads, normalizeStatus, onEmailStatusUpdate]);
+  }, [realSendingMode, isPaused, filteredLeads, normalizeStatus, onEmailStatusUpdate]);
 
   // Auto-poll every 5 seconds in real sending mode
   useEffect(() => {
-    if (!realSendingMode || !isActive) return;
+    if (!realSendingMode || filteredLeads.length === 0) return;
     pollDeliveryStatus();
     const pollInterval = setInterval(pollDeliveryStatus, 5000);
     return () => clearInterval(pollInterval);
-  }, [realSendingMode, isActive, pollDeliveryStatus]);
+  }, [realSendingMode, filteredLeads.length, pollDeliveryStatus]);
 
   // Simulate sending each lead's email (demo mode only)
   useEffect(() => {
@@ -331,20 +331,17 @@ export default function MailboxDripAnimation({
 
   // Flying email animation
   useEffect(() => {
-    if (!isActive || isPaused) {
-      setFlyingEmails([]);
-      return;
-    }
-
     const hasPendingQueue = filteredLeads.some((lead) => {
       const status = emailStatuses[lead.id] || 'pending';
       return PENDING_STATUSES.has(status);
     });
-    if (realSendingMode && !hasPendingQueue) {
-      setFlyingEmails([]);
-      return;
-    }
-    if (!realSendingMode && currentSendingIndex >= filteredLeads.length) {
+
+    if (realSendingMode) {
+      if (isPaused || !hasPendingQueue) {
+        setFlyingEmails([]);
+        return;
+      }
+    } else if (!isActive || isPaused || currentSendingIndex >= filteredLeads.length) {
       setFlyingEmails([]);
       return;
     }
@@ -368,7 +365,10 @@ export default function MailboxDripAnimation({
     const status = emailStatuses[lead.id] || 'pending';
     return count + (PENDING_STATUSES.has(status) ? 1 : 0);
   }, 0);
-  const isQueueAnimating = isActive && !isPaused && pendingCount > 0;
+  const isQueueAnimating =
+    (realSendingMode || isActive) &&
+    !isPaused &&
+    pendingCount > 0;
   const etaMinutes = Math.ceil(pendingCount / emailsPerHour * 60);
   const etaHours = Math.floor(etaMinutes / 60);
   const etaRemainingMins = etaMinutes % 60;
