@@ -165,11 +165,26 @@ export default function MailboxDripAnimation({
       
       if (result.success && result.sends) {
         const normalizeEmail = (email?: string) => String(email || '').trim().toLowerCase();
-        const leadsByEmail = new Map<string, Lead>();
+        const normalizeBusiness = (business?: string) =>
+          String(business || '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, ' ')
+            .trim();
+        const leadsByEmail = new Map<string, string[]>();
+        const leadsByBusiness = new Map<string, string[]>();
         filteredLeads.forEach((lead) => {
-          const key = normalizeEmail(lead.email);
-          if (key && !leadsByEmail.has(key)) {
-            leadsByEmail.set(key, lead);
+          const emailKey = normalizeEmail(lead.email);
+          if (emailKey) {
+            const existing = leadsByEmail.get(emailKey) || [];
+            existing.push(lead.id);
+            leadsByEmail.set(emailKey, existing);
+          }
+
+          const businessKey = normalizeBusiness(lead.business);
+          if (businessKey) {
+            const existing = leadsByBusiness.get(businessKey) || [];
+            existing.push(lead.id);
+            leadsByBusiness.set(businessKey, existing);
           }
         });
 
@@ -186,37 +201,86 @@ export default function MailboxDripAnimation({
         let scheduledTotal = 0;
         let scheduledDue = 0;
         const nowTs = Date.now();
-        const seenLeadIds = new Set<string>();
         let newestSentAtTs = 0;
+        const leadDueScheduled = new Set<string>();
+        const leadSignals = new Map<string, { status: EmailStatus; rank: number; sentAtTs: number }>();
+
+        const statusRank = (status: EmailStatus): number => {
+          if (status === 'replied') return 80;
+          if (status === 'clicked') return 70;
+          if (status === 'opened') return 60;
+          if (status === 'delivered') return 50;
+          if (status === 'sent') return 45;
+          if (status === 'failed') return 35;
+          if (status === 'bounced') return 34;
+          if (status === 'cancelled') return 33;
+          if (status === 'sending') return 25;
+          if (status === 'scheduled') return 20;
+          return 10; // pending/default
+        };
 
         result.sends.forEach((send: any) => {
-          const key = normalizeEmail(send.recipient_email);
-          const matchingLead = leadsByEmail.get(key);
-          if (!matchingLead || seenLeadIds.has(matchingLead.id)) {
+          const status = normalizeStatus(send.status);
+          const emailKey = normalizeEmail(send.recipient_email);
+          const businessKey = normalizeBusiness(send.business_name);
+
+          let matchingLeadIds: string[] | undefined = emailKey ? leadsByEmail.get(emailKey) : undefined;
+          if ((!matchingLeadIds || matchingLeadIds.length === 0) && businessKey) {
+            matchingLeadIds = leadsByBusiness.get(businessKey);
+          }
+          if (!matchingLeadIds || matchingLeadIds.length === 0) {
             return;
           }
 
-          const status = normalizeStatus(send.status);
-          newStatuses[matchingLead.id] = status;
-          seenLeadIds.add(matchingLead.id);
+          const scheduledFor = send.scheduled_for ? new Date(send.scheduled_for).getTime() : NaN;
+          const sentAtTs = send.sent_at ? new Date(send.sent_at).getTime() : 0;
 
-          if (status === 'sent') sentCount++;
-          else if (status === 'delivered') deliveredCount++;
-          else if (status === 'failed') failedCount++;
-          else if (status === 'bounced') bouncedCount++;
+          matchingLeadIds.forEach((leadId) => {
+            const rank = statusRank(status);
+            const existing = leadSignals.get(leadId);
+            if (!existing || rank > existing.rank || (rank === existing.rank && sentAtTs > existing.sentAtTs)) {
+              leadSignals.set(leadId, { status, rank, sentAtTs });
+            }
+
+            const isDuePending =
+              status === 'pending' ||
+              status === 'sending' ||
+              (status === 'scheduled' && !Number.isNaN(scheduledFor) && scheduledFor <= nowTs);
+            if (isDuePending) {
+              leadDueScheduled.add(leadId);
+            }
+          });
+        });
+
+        leadSignals.forEach((signal, leadId) => {
+          newStatuses[leadId] = signal.status;
+          if (
+            (signal.status === 'sent' ||
+              signal.status === 'delivered' ||
+              signal.status === 'opened' ||
+              signal.status === 'clicked' ||
+              signal.status === 'replied') &&
+            signal.sentAtTs > 0
+          ) {
+            newestSentAtTs = Math.max(newestSentAtTs, signal.sentAtTs);
+          }
+        });
+
+        Object.entries(newStatuses).forEach(([leadId, status]) => {
+          if (status === 'sent') {
+            sentCount++;
+          } else if (status === 'delivered' || status === 'opened' || status === 'clicked' || status === 'replied') {
+            deliveredCount++;
+          } else if (status === 'failed') {
+            failedCount++;
+          } else if (status === 'bounced') {
+            bouncedCount++;
+          }
 
           if (status === 'scheduled' || status === 'pending' || status === 'sending') {
             scheduledTotal++;
-            const scheduledFor = send.scheduled_for ? new Date(send.scheduled_for).getTime() : NaN;
-            if (!Number.isNaN(scheduledFor) && scheduledFor <= nowTs) {
+            if (status === 'pending' || status === 'sending' || leadDueScheduled.has(leadId)) {
               scheduledDue++;
-            }
-          }
-
-          if (status === 'sent' || status === 'delivered' || status === 'opened' || status === 'clicked' || status === 'replied') {
-            const sentAtTs = send.sent_at ? new Date(send.sent_at).getTime() : nowTs;
-            if (!Number.isNaN(sentAtTs)) {
-              newestSentAtTs = Math.max(newestSentAtTs, sentAtTs);
             }
           }
         });

@@ -139,6 +139,7 @@ export default function EmailSetupFlow({
     emailSubject: string;
     emailBody: string;
   } | null>(null);
+  const [activeCampaignLeads, setActiveCampaignLeads] = useState<LeadForEmail[] | null>(null);
   const [dripSettings, setDripSettings] = useState(() => loadDripSettings());
   // Intelligence panel state removed - now only in Step 2
   const [appliedStrategy, setAppliedStrategy] = useState<{
@@ -395,7 +396,7 @@ export default function EmailSetupFlow({
       }
     });
 
-    return leadsWithEmail.map((lead, index) => {
+    return effectiveMailboxEmailLeads.map((lead, index) => {
       const emailKey = String(lead.email || '').trim().toLowerCase();
       const sourceLead = sourceByEmail.get(emailKey);
       const resolvedName =
@@ -417,7 +418,7 @@ export default function EmailSetupFlow({
             : true),
       };
     });
-  }, [leads, leadsWithEmail]);
+  }, [leads, effectiveMailboxEmailLeads]);
 
   useEffect(() => {
     if (currentPhase !== 'send') return;
@@ -466,6 +467,7 @@ export default function EmailSetupFlow({
       setRealSendingMode(false);
       setIsSendingPaused(false);
       setPendingSendData(null);
+      setActiveCampaignLeads(null);
     }
   }, [leads]);
 
@@ -479,6 +481,10 @@ export default function EmailSetupFlow({
   const [campaignId, setCampaignId] = useState<string | null>(null);
   const [sendHealth, setSendHealth] = useState<SendHealth | null>(null);
   const [isHealthChecking, setIsHealthChecking] = useState(false);
+  const effectiveMailboxEmailLeads = useMemo(
+    () => (realSendingMode && activeCampaignLeads?.length ? activeCampaignLeads : leadsWithEmail),
+    [realSendingMode, activeCampaignLeads, leadsWithEmail]
+  );
 
   useEffect(() => {
     if (currentPhase !== 'send') return;
@@ -655,6 +661,7 @@ export default function EmailSetupFlow({
     setDemoSentCount(0);
     setRealSendingMode(false);
     setDemoIsActive(false);
+    setActiveCampaignLeads(null);
     window.setTimeout(() => setDemoIsActive(true), 0);
     smartDripRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     toast.info('👀 Preview mode activated - simulating email delivery');
@@ -1213,8 +1220,8 @@ export default function EmailSetupFlow({
 
                         {/* The Mailbox Animation - THE STAR OF THE SHOW */}
                         <MailboxDripAnimation
-                          key={`mailbox-${realSendingMode ? 'real' : 'demo'}-${mailboxAnimationSeed}-${leadsWithEmail.length}`}
-                          totalEmails={leadsWithEmail.length}
+                          key={`mailbox-${realSendingMode ? 'real' : 'demo'}-${mailboxAnimationSeed}-${effectiveMailboxEmailLeads.length}`}
+                          totalEmails={effectiveMailboxEmailLeads.length}
                           sentCount={demoSentCount}
                           isActive={demoIsActive || realSendingMode}
                           emailsPerHour={dripSettings.emailsPerHour}
@@ -1828,8 +1835,8 @@ export default function EmailSetupFlow({
                   console.log('Sending emails to:', validLeads.length, 'leads');
                   
                   // Format leads properly for the email API
-                  const formattedLeads = validLeads.map(lead => ({
-                    email: lead.email || '',
+                    const formattedLeads = validLeads.map(lead => ({
+                      email: lead.email || '',
                     business_name: lead.business_name || 'Business',
                     contact_name: lead.contact_name || 'Contact',
                     website: lead.website || '',
@@ -1840,6 +1847,8 @@ export default function EmailSetupFlow({
                     emailValid: true,
                   }));
                   
+                  setActiveCampaignLeads(validLeads);
+
                   const result = await sendBulkEmails({
                     leads: formattedLeads,
                     custom_subject: emailSubject,
@@ -1866,12 +1875,14 @@ export default function EmailSetupFlow({
                     toast.error(result.error || 'Failed to send emails');
                     setRealSendingMode(false);
                     setDemoIsActive(false);
+                    setActiveCampaignLeads(null);
                   }
                 } catch (error) {
                   console.error('Send error:', error);
                   toast.error('Failed to send emails. Check your connection.');
                   setRealSendingMode(false);
                   setDemoIsActive(false);
+                  setActiveCampaignLeads(null);
                 } finally {
                   setIsSending(false);
                   setPendingSendData(null);
