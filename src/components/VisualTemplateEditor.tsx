@@ -1,19 +1,15 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { 
   Palette, Type, Hash, Image, Save, Eye, Edit3, 
   RotateCcw, Check, X, Sparkles, Wand2, Copy,
-  ChevronDown, ChevronUp, Plus, Trash2, Star,
-  Upload, ImageOff, Link
+  Plus, Trash2, Star, Upload, ImageOff, Link, MousePointerClick
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { sanitizeEmailHTML } from '@/lib/sanitize';
@@ -34,108 +30,6 @@ interface StatItem {
   label: string;
   color: string;
 }
-
-interface EditableSection {
-  id: string;
-  type: 'headline' | 'subheadline' | 'paragraph' | 'cta' | 'stats' | 'features';
-  content: string;
-  color?: string;
-  backgroundColor?: string;
-}
-
-// Parse stats from HTML template (like 97%, 3x, 24h, 10+)
-const parseStatsFromHTML = (html: string): StatItem[] => {
-  const stats: StatItem[] = [];
-  
-  // Match stat patterns - looking for numbers with labels below them
-  const statPatterns = [
-    // Pattern: <span style="...">97%</span>...Score improvement
-    /<span[^>]*style="[^"]*color[^"]*"[^>]*>([^<]+)<\/span>[\s\S]*?<span[^>]*>([^<]+)<\/span>/gi,
-    // Pattern: <td style="...">97%<br/>Score improvement
-    /<td[^>]*>[\s\S]*?<span[^>]*style="[^"]*color[^"]*"[^>]*>([^<]+)<\/span>[\s\S]*?<br[^>]*\/>[\s\S]*?([^<]+)<\/td>/gi,
-  ];
-
-  // Simple extraction - find pairs of large numbers and labels
-  const simplePattern = /(\d+[%x+]?|[\d.]+[xX]?)[\s\S]*?<(?:br|\/span|span)[^>]*>[\s\S]*?([A-Za-z][^<]{2,25})/gi;
-  let match;
-  let id = 1;
-  
-  while ((match = simplePattern.exec(html)) !== null) {
-    const value = match[1].trim();
-    const label = match[2].trim();
-    
-    // Only add if it looks like a stat (number with optional suffix)
-    if (/^\d+[%xX+]?$|^\d+\.\d+[xX]?$/.test(value) && label.length > 2 && label.length < 30) {
-      stats.push({
-        id: `stat-${id++}`,
-        value,
-        label,
-        color: '#14b8a6' // Default teal color
-      });
-    }
-  }
-
-  // If no stats found, check for common stat box patterns
-  if (stats.length === 0) {
-    // Try to find stats in table cells
-    const cellPattern = /<td[^>]*>[\s\S]*?<(?:p|div|span)[^>]*[^>]*>(\d+[%x+]?)[\s\S]*?<\/(?:p|div|span)>[\s\S]*?<(?:p|div|span)[^>]*>([^<]+)<\/(?:p|div|span)>/gi;
-    while ((match = cellPattern.exec(html)) !== null) {
-      stats.push({
-        id: `stat-${id++}`,
-        value: match[1].trim(),
-        label: match[2].trim(),
-        color: '#14b8a6'
-      });
-    }
-  }
-
-  return stats;
-};
-
-// Extract editable text sections from HTML
-const extractEditableSections = (html: string): EditableSection[] => {
-  const sections: EditableSection[] = [];
-  
-  // Extract main headline (h1)
-  const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
-  if (h1Match) {
-    sections.push({
-      id: 'headline',
-      type: 'headline',
-      content: h1Match[1].replace(/\{\{[^}]+\}\}/g, '{{placeholder}}'),
-      color: '#ffffff'
-    });
-  }
-
-  // Extract paragraphs
-  const paragraphs = html.match(/<p[^>]*>([^<]{20,})<\/p>/gi);
-  if (paragraphs) {
-    paragraphs.slice(0, 3).forEach((p, i) => {
-      const content = p.replace(/<[^>]+>/g, '').trim();
-      if (content.length > 20) {
-        sections.push({
-          id: `paragraph-${i}`,
-          type: 'paragraph',
-          content,
-          color: '#a0a0a0'
-        });
-      }
-    });
-  }
-
-  // Extract CTA button text
-  const ctaMatch = html.match(/<a[^>]*>([^<]{3,30})<\/a>/i);
-  if (ctaMatch) {
-    sections.push({
-      id: 'cta',
-      type: 'cta',
-      content: ctaMatch[1].trim(),
-      backgroundColor: '#14b8a6'
-    });
-  }
-
-  return sections;
-};
 
 // Color presets for quick selection
 const COLOR_PRESETS = [
@@ -158,8 +52,7 @@ export default function VisualTemplateEditor({
   onSave,
   onSelect,
 }: VisualTemplateEditorProps) {
-  const [activeTab, setActiveTab] = useState<'visual' | 'content' | 'colors' | 'stats'>('visual');
-  const [showPreview, setShowPreview] = useState(true);
+  const [activeTab, setActiveTab] = useState<'wysiwyg' | 'colors' | 'stats' | 'features'>('wysiwyg');
   
   // Hero image
   const [heroImageUrl, setHeroImageUrl] = useState(template.previewImage);
@@ -185,28 +78,51 @@ export default function VisualTemplateEditor({
   // Template name for saving
   const [newTemplateName, setNewTemplateName] = useState('');
 
+  // WYSIWYG refs
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  // Parse stats from HTML template
+  const parseStatsFromHTML = (html: string): StatItem[] => {
+    const stats: StatItem[] = [];
+    const simplePattern = /(\d+[%x+]?|[\d.]+[xX]?)[\s\S]*?<(?:br|\/span|span)[^>]*>[\s\S]*?([A-Za-z][^<]{2,25})/gi;
+    let match;
+    let id = 1;
+    while ((match = simplePattern.exec(html)) !== null) {
+      const value = match[1].trim();
+      const label = match[2].trim();
+      if (/^\d+[%xX+]?$|^\d+\.\d+[xX]?$/.test(value) && label.length > 2 && label.length < 30) {
+        stats.push({ id: `stat-${id++}`, value, label, color: '#14b8a6' });
+      }
+    }
+    return stats;
+  };
+
   // Initialize from template
   useEffect(() => {
     if (template) {
       setEditedSubject(template.subject);
       setHeroImageUrl(template.previewImage);
       setShowHeroImage(true);
-      // Extract sections from HTML
-      const sections = extractEditableSections(template.body_html);
-      const headline = sections.find(s => s.type === 'headline');
-      const paragraphs = sections.filter(s => s.type === 'paragraph');
-      const cta = sections.find(s => s.type === 'cta');
       
-      if (headline) setEditedHeadline(headline.content);
-      if (paragraphs.length) setEditedBody(paragraphs.map(p => p.content).join('\n\n'));
-      if (cta) setEditedCTA(cta.content);
+      // Extract headline
+      const h1Match = template.body_html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+      if (h1Match) setEditedHeadline(h1Match[1].replace(/\{\{[^}]+\}\}/g, '{{placeholder}}'));
+      
+      // Extract paragraphs
+      const paragraphs = template.body_html.match(/<p[^>]*>([^<]{20,})<\/p>/gi);
+      if (paragraphs) {
+        setEditedBody(paragraphs.slice(0, 3).map(p => p.replace(/<[^>]+>/g, '').trim()).filter(p => p.length > 20).join('\n\n'));
+      }
+      
+      // Extract CTA
+      const ctaMatch = template.body_html.match(/<a[^>]*>([^<]{3,30})<\/a>/i);
+      if (ctaMatch) setEditedCTA(ctaMatch[1].trim());
       
       // Extract stats
       const stats = parseStatsFromHTML(template.body_html);
       if (stats.length > 0) {
         setEditedStats(stats);
       } else {
-        // Default stats if none found
         setEditedStats([
           { id: '1', value: '97%', label: 'Score improvement', color: '#14b8a6' },
           { id: '2', value: '3x', label: 'More conversions', color: '#14b8a6' },
@@ -220,15 +136,10 @@ export default function VisualTemplateEditor({
       if (featureMatches) {
         setEditedFeatures(featureMatches.map(f => f.replace('✓', '').trim()));
       } else {
-        setEditedFeatures([
-          'Mobile-responsive design',
-          'SEO optimization included',
-          'Fast loading speeds',
-          '24/7 support'
-        ]);
+        setEditedFeatures(['Mobile-responsive design', 'SEO optimization included', 'Fast loading speeds', '24/7 support']);
       }
 
-      // Extract colors from template
+      // Extract colors
       const colorMatch = template.body_html.match(/background:\s*(?:linear-gradient\([^)]*,\s*)?#([a-f0-9]{6})/i);
       if (colorMatch) {
         setPrimaryColor(`#${colorMatch[1]}`);
@@ -241,7 +152,6 @@ export default function VisualTemplateEditor({
 
   // Generate updated HTML with edits
   const generateUpdatedHTML = useMemo(() => {
-    // Build stats HTML
     const statsHTML = editedStats.map(stat => `
       <td style="padding:15px;text-align:center;background:${backgroundColor};border-radius:8px;">
         <span style="color:${stat.color || statColor};font-size:28px;font-weight:bold;display:block;">${stat.value}</span>
@@ -249,7 +159,6 @@ export default function VisualTemplateEditor({
       </td>
     `).join('<td style="width:10px;"></td>');
 
-    // Build features HTML
     const featuresHTML = editedFeatures.map(f => 
       `<tr><td style="padding:8px 0;color:#ffffff;font-size:15px;">✓ ${f}</td></tr>`
     ).join('');
@@ -261,13 +170,11 @@ export default function VisualTemplateEditor({
 <body style="margin:0;padding:0;background:#0a0a0a;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:${backgroundColor};">
     ${showHeroImage && heroImageUrl ? `
-    <!-- Hero Image -->
     <tr>
       <td>
         <img src="${heroImageUrl}" alt="Header" style="width:100%;height:auto;display:block;"/>
       </td>
     </tr>` : ''}
-    <!-- Logo Strip -->
     <tr>
       <td style="background:linear-gradient(135deg,${primaryColor} 0%,${accentColor} 100%);padding:15px 30px;">
         <table width="100%">
@@ -278,44 +185,34 @@ export default function VisualTemplateEditor({
         </table>
       </td>
     </tr>
-    <!-- Content -->
     <tr>
       <td style="padding:40px 30px;">
         <h1 style="color:${headlineColor};font-size:28px;margin:0 0 20px;line-height:1.3;">
           ${editedHeadline || '{{first_name}}, Your Business Deserves Better'}
         </h1>
         <p style="color:${bodyTextColor};font-size:16px;line-height:1.6;margin:0 0 20px;">
-          ${editedBody.split('\n')[0] || 'I noticed {{business_name}} could benefit from our professional services. Our team specializes in helping businesses like yours succeed.'}
+          ${editedBody.split('\n')[0] || 'I noticed {{business_name}} could benefit from our professional services.'}
         </p>
         
         ${editedStats.length > 0 ? `
-        <!-- Stats Section -->
         <table width="100%" style="margin:25px 0;" cellpadding="0" cellspacing="0">
-          <tr>
-            ${statsHTML}
-          </tr>
-        </table>
-        ` : ''}
+          <tr>${statsHTML}</tr>
+        </table>` : ''}
         
         ${editedFeatures.length > 0 ? `
-        <!-- Features Box -->
         <table width="100%" style="background:#262626;border-radius:12px;margin:25px 0;">
           <tr>
             <td style="padding:25px;">
               <p style="color:${primaryColor};font-size:14px;font-weight:600;margin:0 0 10px;text-transform:uppercase;">What You Get</p>
-              <table width="100%">
-                ${featuresHTML}
-              </table>
+              <table width="100%">${featuresHTML}</table>
             </td>
           </tr>
-        </table>
-        ` : ''}
+        </table>` : ''}
         
         ${editedBody.split('\n').slice(1).map(p => 
           `<p style="color:${bodyTextColor};font-size:16px;line-height:1.6;margin:0 0 20px;">${p}</p>`
         ).join('')}
         
-        <!-- CTA Button -->
         <table width="100%">
           <tr>
             <td>
@@ -330,7 +227,6 @@ export default function VisualTemplateEditor({
         </p>
       </td>
     </tr>
-    <!-- Footer -->
     <tr>
       <td style="background:#0f0f0f;padding:20px 30px;border-top:1px solid #262626;">
         <p style="color:#666666;font-size:12px;margin:0;text-align:center;">
@@ -343,6 +239,44 @@ export default function VisualTemplateEditor({
 </html>`;
   }, [editedHeadline, editedBody, editedCTA, editedStats, editedFeatures, primaryColor, accentColor, ctaColor, statColor, headlineColor, bodyTextColor, backgroundColor, heroImageUrl, showHeroImage]);
 
+  // WYSIWYG: Sync contentEditable changes back to state
+  const handleWysiwygBlur = useCallback(() => {
+    if (!previewRef.current) return;
+    
+    // Extract headline from contentEditable
+    const h1 = previewRef.current.querySelector('h1');
+    if (h1) setEditedHeadline(h1.textContent || '');
+    
+    // Extract body paragraphs
+    const paragraphs = previewRef.current.querySelectorAll('p');
+    const bodyTexts: string[] = [];
+    paragraphs.forEach(p => {
+      const text = p.textContent?.trim() || '';
+      // Skip signature, footer, and "What You Get" label
+      if (text.length > 15 && !text.includes('Best regards') && !text.includes('Sent with') && !text.includes('Unsubscribe') && !text.includes('WHAT YOU GET') && text !== 'Your Solutions Partner') {
+        bodyTexts.push(text);
+      }
+    });
+    if (bodyTexts.length) setEditedBody(bodyTexts.join('\n'));
+    
+    // Extract CTA
+    const cta = previewRef.current.querySelector('a[style*="border-radius"]');
+    if (cta && cta.textContent && cta.textContent.trim().length > 2 && cta.textContent.trim() !== 'Unsubscribe') {
+      setEditedCTA(cta.textContent.trim());
+    }
+
+    // Extract features
+    const allTds = previewRef.current.querySelectorAll('td');
+    const features: string[] = [];
+    allTds.forEach(td => {
+      const text = td.textContent?.trim() || '';
+      if (text.startsWith('✓') && text.length > 3) {
+        features.push(text.replace('✓', '').trim());
+      }
+    });
+    if (features.length) setEditedFeatures(features);
+  }, []);
+
   const handleStatChange = (id: string, field: 'value' | 'label' | 'color', newValue: string) => {
     setEditedStats(prev => prev.map(stat => 
       stat.id === id ? { ...stat, [field]: newValue } : stat
@@ -350,12 +284,7 @@ export default function VisualTemplateEditor({
   };
 
   const handleAddStat = () => {
-    setEditedStats(prev => [...prev, {
-      id: `stat-${Date.now()}`,
-      value: '99%',
-      label: 'New metric',
-      color: statColor
-    }]);
+    setEditedStats(prev => [...prev, { id: `stat-${Date.now()}`, value: '99%', label: 'New metric', color: statColor }]);
   };
 
   const handleRemoveStat = (id: string) => {
@@ -399,7 +328,6 @@ export default function VisualTemplateEditor({
       toast.error('Please enter a name for your template');
       return;
     }
-
     const newTemplate = saveCustomTemplate({
       id: '',
       name: newTemplateName,
@@ -414,7 +342,6 @@ export default function VisualTemplateEditor({
       replyRate: 0,
       folderId: undefined,
     });
-
     toast.success('🎉 Template saved to your library!');
     onSelect?.(newTemplate);
     onOpenChange(false);
@@ -433,468 +360,306 @@ export default function VisualTemplateEditor({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-6xl h-[90vh] p-0 flex flex-col overflow-hidden">
-        <DialogHeader className="px-6 py-4 border-b shrink-0">
+      <DialogContent 
+        className="max-w-6xl h-[90vh] p-0 flex flex-col overflow-hidden"
+        onPointerDownOutside={(e) => e.preventDefault()}
+      >
+        <DialogHeader className="px-6 py-3 border-b shrink-0">
           <div className="flex items-center justify-between">
             <div>
-              <DialogTitle className="flex items-center gap-2">
-                <Palette className="w-5 h-5 text-primary" />
-                Visual Template Editor
+              <DialogTitle className="flex items-center gap-2 text-base">
+                <Edit3 className="w-5 h-5 text-primary" />
+                Edit Template — Click any text to edit
               </DialogTitle>
-              <DialogDescription>
-                Customize every aspect of your email template - colors, text, stats, and more
+              <DialogDescription className="text-xs">
+                Click directly on the preview to edit text like a word processor. Use tabs for stats, colors & features.
               </DialogDescription>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowPreview(!showPreview)}
-              className="gap-2"
-            >
-              <Eye className="w-4 h-4" />
-              {showPreview ? 'Hide Preview' : 'Show Preview'}
-            </Button>
+            <Badge variant="outline" className="gap-1.5 text-xs bg-primary/10 border-primary/30 text-primary">
+              <MousePointerClick className="w-3.5 h-3.5" />
+              Click to Edit
+            </Badge>
           </div>
         </DialogHeader>
 
+        {/* Subject Line - always visible */}
+        <div className="px-6 py-2 border-b shrink-0 bg-muted/30">
+          <div className="flex items-center gap-3">
+            <Label className="text-xs font-medium shrink-0 w-16">Subject:</Label>
+            <Input
+              value={editedSubject}
+              onChange={(e) => setEditedSubject(e.target.value)}
+              placeholder="Email subject line..."
+              className="h-8 text-sm flex-1"
+            />
+          </div>
+        </div>
+
         <div className="flex-1 flex overflow-hidden min-h-0">
-          {/* Editor Panel */}
-          <div className={`${showPreview ? 'w-1/2' : 'w-full'} border-r flex flex-col min-h-0`}>
+          {/* WYSIWYG Preview Panel — THE MAIN EDITOR */}
+          <div className="flex-1 flex flex-col min-h-0">
+            {/* Toolbar */}
+            <div className="px-4 py-2 border-b shrink-0 flex items-center gap-2 bg-muted/20">
+              {/* Hero Image toggle */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowHeroImage(!showHeroImage)}
+                className="gap-1.5 text-xs h-7"
+              >
+                {showHeroImage ? <ImageOff className="w-3.5 h-3.5" /> : <Image className="w-3.5 h-3.5" />}
+                {showHeroImage ? 'Remove Image' : 'Add Image'}
+              </Button>
+              
+              {showHeroImage && (
+                <>
+                  <label className="cursor-pointer">
+                    <Button size="sm" variant="outline" className="gap-1.5 text-xs h-7 pointer-events-none" asChild>
+                      <span>
+                        <Upload className="w-3.5 h-3.5" />
+                        Upload
+                      </span>
+                    </Button>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            setHeroImageUrl(ev.target?.result as string);
+                            toast.success('Image uploaded!');
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                  <div className="relative flex-1 max-w-[250px]">
+                    <Link className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                    <Input
+                      value={heroImageUrl}
+                      onChange={(e) => setHeroImageUrl(e.target.value)}
+                      placeholder="Paste image URL..."
+                      className="pl-7 text-[11px] h-7"
+                    />
+                  </div>
+                </>
+              )}
+
+              <div className="flex-1" />
+              
+              {/* Quick color presets in toolbar */}
+              <span className="text-xs text-muted-foreground">Colors:</span>
+              <div className="flex gap-1">
+                {COLOR_PRESETS.slice(0, 6).map((preset) => (
+                  <button
+                    key={preset.name}
+                    onClick={() => handleApplyColorToAll(preset.value)}
+                    className="w-5 h-5 rounded-full border border-border hover:scale-125 transition-transform"
+                    style={{ backgroundColor: preset.value }}
+                    title={preset.name}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* WYSIWYG Editable Preview */}
+            <div className="flex-1 overflow-y-auto p-4 bg-neutral-900">
+              <div 
+                ref={previewRef}
+                contentEditable
+                suppressContentEditableWarning
+                onBlur={handleWysiwygBlur}
+                className="bg-background rounded-lg border shadow-lg overflow-hidden mx-auto max-w-[620px] outline-none cursor-text [&_*]:outline-none [&_h1]:cursor-text [&_p]:cursor-text [&_a]:cursor-text [&_td]:cursor-text [&_span]:cursor-text"
+                style={{ caretColor: primaryColor }}
+                dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(generateUpdatedHTML) }}
+              />
+              <p className="text-center text-xs text-muted-foreground mt-3">
+                ☝️ Click on any text above to edit it directly
+              </p>
+            </div>
+          </div>
+
+          {/* Side Panel — Stats, Colors, Features */}
+          <div className="w-[320px] border-l flex flex-col min-h-0 shrink-0">
             <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="flex-1 flex flex-col min-h-0">
-              <TabsList className="mx-4 mt-4 grid grid-cols-4 shrink-0">
-                <TabsTrigger value="visual" className="gap-1.5 text-xs">
-                  <Edit3 className="w-3.5 h-3.5" />
-                  Content
-                </TabsTrigger>
-                <TabsTrigger value="stats" className="gap-1.5 text-xs">
+              <TabsList className="mx-3 mt-3 grid grid-cols-3 shrink-0">
+                <TabsTrigger value="stats" className="gap-1 text-xs">
                   <Hash className="w-3.5 h-3.5" />
                   Stats
                 </TabsTrigger>
-                <TabsTrigger value="colors" className="gap-1.5 text-xs">
+                <TabsTrigger value="colors" className="gap-1 text-xs">
                   <Palette className="w-3.5 h-3.5" />
                   Colors
                 </TabsTrigger>
-                <TabsTrigger value="content" className="gap-1.5 text-xs">
+                <TabsTrigger value="features" className="gap-1 text-xs">
                   <Type className="w-3.5 h-3.5" />
                   Features
                 </TabsTrigger>
               </TabsList>
 
-              <div className="flex-1 min-h-0 overflow-y-auto p-4">
-                {/* Content Tab */}
-                <TabsContent value="visual" className="mt-0 space-y-4">
-                  <div className="space-y-2">
-                    <Label>Subject Line</Label>
-                    <Input
-                      value={editedSubject}
-                      onChange={(e) => setEditedSubject(e.target.value)}
-                      placeholder="Email subject..."
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Variables: {'{{first_name}}'}, {'{{business_name}}'}, {'{{website}}'}
-                    </p>
-                  </div>
-
-                  <Separator />
-
-                  {/* Hero Image - compact */}
-                  <div className="space-y-2">
+              <div className="flex-1 min-h-0 overflow-y-auto p-3">
+                {/* Stats Tab */}
+                {activeTab === 'stats' && (
+                  <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <Label className="flex items-center gap-2 text-xs">
-                        <Image className="w-3.5 h-3.5" />
-                        Hero Image
-                      </Label>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowHeroImage(!showHeroImage)}
-                          className="gap-1 text-[10px] h-7 px-2"
-                        >
-                          {showHeroImage ? <ImageOff className="w-3 h-3" /> : <Image className="w-3 h-3" />}
-                          {showHeroImage ? 'Remove' : 'Show'}
-                        </Button>
-                      </div>
+                      <h3 className="font-medium text-sm">Statistics</h3>
+                      <Button size="sm" onClick={handleAddStat} className="gap-1 h-7 text-xs">
+                        <Plus className="w-3 h-3" />
+                        Add
+                      </Button>
                     </div>
-                    
-                    {showHeroImage && (
-                      <div className="relative rounded-lg overflow-hidden border bg-muted/30 group">
-                        <img 
-                          src={heroImageUrl} 
-                          alt="Hero preview" 
-                          className="w-full h-20 object-cover"
-                          onError={(e) => { (e.target as HTMLImageElement).src = '/placeholder.svg'; }}
-                        />
-                        <div className="absolute inset-0 bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                          <label className="cursor-pointer">
-                            <Button size="sm" variant="secondary" className="gap-1 pointer-events-none" asChild>
-                              <span>
-                                <Upload className="w-3.5 h-3.5" />
-                                Upload
-                              </span>
-                            </Button>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  const reader = new FileReader();
-                                  reader.onload = (ev) => {
-                                    setHeroImageUrl(ev.target?.result as string);
-                                    toast.success('Image uploaded!');
-                                  };
-                                  reader.readAsDataURL(file);
-                                }
-                              }}
-                            />
-                          </label>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="gap-1"
-                            onClick={() => {
-                              setHeroImageUrl(template.previewImage);
-                              toast.success('Reset to original');
-                            }}
-                          >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                            Reset
-                          </Button>
-                        </div>
-                        <div className="flex gap-1 mt-1">
-                          <div className="relative flex-1">
-                            <Link className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground" />
+                    {editedStats.map((stat) => (
+                      <div key={stat.id} className="p-2.5 rounded-lg border bg-muted/30 space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Value</Label>
                             <Input
-                              value={heroImageUrl}
-                              onChange={(e) => setHeroImageUrl(e.target.value)}
-                              placeholder="Paste image URL..."
-                              className="pl-7 text-[11px] h-7"
+                              value={stat.value}
+                              onChange={(e) => handleStatChange(stat.id, 'value', e.target.value)}
+                              placeholder="97%"
+                              className="h-7 text-sm font-bold"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-muted-foreground">Label</Label>
+                            <Input
+                              value={stat.label}
+                              onChange={(e) => handleStatChange(stat.id, 'label', e.target.value)}
+                              placeholder="Score"
+                              className="h-7 text-sm"
                             />
                           </div>
                         </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={stat.color}
+                              onChange={(e) => handleStatChange(stat.id, 'color', e.target.value)}
+                              className="w-6 h-6 rounded cursor-pointer border"
+                            />
+                            <span className="text-[10px] text-muted-foreground">{stat.color}</span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-destructive hover:text-destructive"
+                            onClick={() => handleRemoveStat(stat.id)}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {editedStats.length === 0 && (
+                      <div className="text-center py-6 text-muted-foreground text-sm">
+                        <Hash className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                        <p>No stats yet</p>
                       </div>
                     )}
                   </div>
-
-                  <Separator />
-
-                  {/* Headline */}
-                  <div className="space-y-1">
-                    <Label className="text-xs">Headline</Label>
-                    <Input
-                      value={editedHeadline}
-                      onChange={(e) => setEditedHeadline(e.target.value)}
-                      placeholder="Main headline text..."
-                      className="h-8 text-sm"
-                    />
-                  </div>
-
-                  {/* Body Text - immediately visible */}
-                  <div className="space-y-1">
-                    <Label className="text-xs">Body Text</Label>
-                    <Textarea
-                      value={editedBody}
-                      onChange={(e) => setEditedBody(e.target.value)}
-                      placeholder="Main email content..."
-                      className="min-h-[120px] text-sm"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Call-to-Action Button</Label>
-                    <Input
-                      value={editedCTA}
-                      onChange={(e) => setEditedCTA(e.target.value)}
-                      placeholder="Button text..."
-                    />
-                  </div>
-                </TabsContent>
-
-                {/* Stats Tab */}
-                <TabsContent value="stats" className="mt-0 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-medium">Statistics Section</h3>
-                      <p className="text-sm text-muted-foreground">Edit the numbers and labels shown in your template</p>
-                    </div>
-                    <Button size="sm" onClick={handleAddStat} className="gap-1">
-                      <Plus className="w-3.5 h-3.5" />
-                      Add Stat
-                    </Button>
-                  </div>
-
-                  <div className="space-y-3">
-                    {editedStats.map((stat, index) => (
-                      <Card key={stat.id} className="p-3">
-                        <div className="flex items-start gap-3">
-                          <div className="flex-1 grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                              <Label className="text-xs">Value</Label>
-                              <Input
-                                value={stat.value}
-                                onChange={(e) => handleStatChange(stat.id, 'value', e.target.value)}
-                                placeholder="97%"
-                                className="font-bold text-lg"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs">Label</Label>
-                              <Input
-                                value={stat.label}
-                                onChange={(e) => handleStatChange(stat.id, 'label', e.target.value)}
-                                placeholder="Score improvement"
-                              />
-                            </div>
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-xs">Color</Label>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="color"
-                                value={stat.color}
-                                onChange={(e) => handleStatChange(stat.id, 'color', e.target.value)}
-                                className="w-8 h-8 rounded cursor-pointer border"
-                              />
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-destructive hover:text-destructive"
-                                onClick={() => handleRemoveStat(stat.id)}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-
-                  {editedStats.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Hash className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                      <p>No stats added yet</p>
-                      <Button size="sm" variant="outline" onClick={handleAddStat} className="mt-2">
-                        Add Your First Stat
-                      </Button>
-                    </div>
-                  )}
-                </TabsContent>
+                )}
 
                 {/* Colors Tab */}
-                <TabsContent value="colors" className="mt-0 space-y-4">
-                  <div className="space-y-2">
-                    <Label>Quick Color Presets</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {COLOR_PRESETS.map((preset) => (
-                        <button
-                          key={preset.name}
-                          onClick={() => handleApplyColorToAll(preset.value)}
-                          className="w-8 h-8 rounded-full border-2 border-border hover:scale-110 transition-transform"
-                          style={{ backgroundColor: preset.value }}
-                          title={preset.name}
-                        />
-                      ))}
+                {activeTab === 'colors' && (
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-xs">Quick Presets</Label>
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {COLOR_PRESETS.map((preset) => (
+                          <button
+                            key={preset.name}
+                            onClick={() => handleApplyColorToAll(preset.value)}
+                            className="w-7 h-7 rounded-full border-2 border-border hover:scale-110 transition-transform"
+                            style={{ backgroundColor: preset.value }}
+                            title={preset.name}
+                          />
+                        ))}
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground">Click to apply to all elements</p>
+                    <Separator />
+                    {[
+                      { label: 'Primary', value: primaryColor, set: setPrimaryColor },
+                      { label: 'CTA Button', value: ctaColor, set: setCtaColor },
+                      { label: 'Stats', value: statColor, set: (v: string) => { setStatColor(v); setEditedStats(prev => prev.map(s => ({ ...s, color: v }))); } },
+                      { label: 'Headline', value: headlineColor, set: setHeadlineColor },
+                      { label: 'Body Text', value: bodyTextColor, set: setBodyTextColor },
+                      { label: 'Background', value: backgroundColor, set: setBackgroundColor },
+                    ].map(({ label, value, set }) => (
+                      <div key={label} className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={value}
+                          onChange={(e) => set(e.target.value)}
+                          className="w-7 h-7 rounded cursor-pointer border shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <Label className="text-xs">{label}</Label>
+                          <Input
+                            value={value}
+                            onChange={(e) => set(e.target.value)}
+                            className="h-6 text-[10px] font-mono"
+                          />
+                        </div>
+                      </div>
+                    ))}
                   </div>
-
-                  <Separator />
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Primary Color</Label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={primaryColor}
-                          onChange={(e) => setPrimaryColor(e.target.value)}
-                          className="w-10 h-10 rounded cursor-pointer border"
-                        />
-                        <Input
-                          value={primaryColor}
-                          onChange={(e) => setPrimaryColor(e.target.value)}
-                          placeholder="#14b8a6"
-                          className="font-mono"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>CTA Button Color</Label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={ctaColor}
-                          onChange={(e) => setCtaColor(e.target.value)}
-                          className="w-10 h-10 rounded cursor-pointer border"
-                        />
-                        <Input
-                          value={ctaColor}
-                          onChange={(e) => setCtaColor(e.target.value)}
-                          placeholder="#14b8a6"
-                          className="font-mono"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Stats Color</Label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={statColor}
-                          onChange={(e) => {
-                            setStatColor(e.target.value);
-                            setEditedStats(prev => prev.map(s => ({ ...s, color: e.target.value })));
-                          }}
-                          className="w-10 h-10 rounded cursor-pointer border"
-                        />
-                        <Input
-                          value={statColor}
-                          onChange={(e) => {
-                            setStatColor(e.target.value);
-                            setEditedStats(prev => prev.map(s => ({ ...s, color: e.target.value })));
-                          }}
-                          placeholder="#14b8a6"
-                          className="font-mono"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Headline Color</Label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={headlineColor}
-                          onChange={(e) => setHeadlineColor(e.target.value)}
-                          className="w-10 h-10 rounded cursor-pointer border"
-                        />
-                        <Input
-                          value={headlineColor}
-                          onChange={(e) => setHeadlineColor(e.target.value)}
-                          placeholder="#ffffff"
-                          className="font-mono"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Body Text Color</Label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={bodyTextColor}
-                          onChange={(e) => setBodyTextColor(e.target.value)}
-                          className="w-10 h-10 rounded cursor-pointer border"
-                        />
-                        <Input
-                          value={bodyTextColor}
-                          onChange={(e) => setBodyTextColor(e.target.value)}
-                          placeholder="#a0a0a0"
-                          className="font-mono"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Background Color</Label>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="color"
-                          value={backgroundColor}
-                          onChange={(e) => setBackgroundColor(e.target.value)}
-                          className="w-10 h-10 rounded cursor-pointer border"
-                        />
-                        <Input
-                          value={backgroundColor}
-                          onChange={(e) => setBackgroundColor(e.target.value)}
-                          placeholder="#1a1a1a"
-                          className="font-mono"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </TabsContent>
+                )}
 
                 {/* Features Tab */}
-                <TabsContent value="content" className="mt-0 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-medium">Feature List</h3>
-                      <p className="text-sm text-muted-foreground">Edit the bullet points in your template</p>
+                {activeTab === 'features' && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-medium text-sm">Features List</h3>
+                      <Button size="sm" onClick={handleAddFeature} className="gap-1 h-7 text-xs">
+                        <Plus className="w-3 h-3" />
+                        Add
+                      </Button>
                     </div>
-                    <Button size="sm" onClick={handleAddFeature} className="gap-1">
-                      <Plus className="w-3.5 h-3.5" />
-                      Add Feature
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2">
                     {editedFeatures.map((feature, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <span className="text-success">✓</span>
+                      <div key={index} className="flex items-center gap-1.5">
+                        <span className="text-emerald-500 shrink-0">✓</span>
                         <Input
                           value={feature}
                           onChange={(e) => handleFeatureChange(index, e.target.value)}
                           placeholder="Feature benefit..."
-                          className="flex-1"
+                          className="flex-1 h-7 text-sm"
                         />
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          className="h-6 w-6 text-destructive hover:text-destructive shrink-0"
                           onClick={() => handleRemoveFeature(index)}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3 h-3" />
                         </Button>
                       </div>
                     ))}
                   </div>
-                </TabsContent>
+                )}
               </div>
             </Tabs>
           </div>
-
-          {/* Preview Panel */}
-          {showPreview && (
-            <div className="w-1/2 flex flex-col bg-muted/30">
-              <div className="p-3 border-b bg-background/50 shrink-0">
-                <div className="flex items-center justify-between">
-                  <Badge variant="outline" className="gap-1">
-                    <Eye className="w-3 h-3" />
-                    Live Preview
-                  </Badge>
-                  <Badge variant="secondary">{template.name}</Badge>
-                </div>
-              </div>
-              <ScrollArea className="flex-1 p-4">
-                <div className="bg-background rounded-lg border shadow-lg overflow-hidden">
-                  <div
-                    dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(generateUpdatedHTML) }}
-                  />
-                </div>
-              </ScrollArea>
-            </div>
-          )}
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-4 border-t bg-background shrink-0">
+        <div className="px-6 py-3 border-t bg-background shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Input
                 value={newTemplateName}
                 onChange={(e) => setNewTemplateName(e.target.value)}
                 placeholder="Template name to save..."
-                className="w-64"
+                className="w-56 h-9"
               />
               <Button
                 onClick={handleSaveAsNew}
                 disabled={!newTemplateName.trim()}
+                size="sm"
                 className="gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
               >
                 <Star className="w-4 h-4" />
@@ -902,11 +667,12 @@ export default function VisualTemplateEditor({
               </Button>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
+              <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
               <Button
                 onClick={handleUseNow}
+                size="sm"
                 className="gap-2 bg-gradient-to-r from-primary to-primary/80"
               >
                 <Check className="w-4 h-4" />
