@@ -28,9 +28,16 @@ interface SearchResult {
   phone?: string;
   website?: string;
   email?: string;
+  contactName?: string;
+  contact_name?: string;
   rating?: number;
   source: 'gmb' | 'platform';
   platform?: string;
+  enrichment?: {
+    emails?: string[];
+    contactName?: string;
+    [key: string]: any;
+  };
   websiteAnalysis?: {
     hasWebsite: boolean;
     platform: string | null;
@@ -128,6 +135,17 @@ export default function LeadReportModal({
   const coldLeads = classifiedLeads.filter(l => l.classification === 'cold');
   const noWebsiteLeads = leads.filter(l => !l.website || l.websiteAnalysis?.hasWebsite === false);
   const needsUpgradeLeads = leads.filter(l => l.websiteAnalysis?.needsUpgrade);
+  const leadsWithEmail = leads.filter(l => l.email || l.enrichment?.emails?.length);
+
+  // Helper to get email for a lead
+  const getLeadEmail = (lead: SearchResult): string => {
+    return lead.email || lead.enrichment?.emails?.[0] || '';
+  };
+
+  // Helper to get contact/owner name for a lead
+  const getLeadContact = (lead: SearchResult): string => {
+    return lead.contactName || lead.contact_name || lead.enrichment?.contactName || '';
+  };
 
   // Platform distribution
   const platformStats = useMemo(() => {
@@ -170,7 +188,9 @@ export default function LeadReportModal({
     return classifiedLeads.filter(l =>
       l.name?.toLowerCase().includes(q) ||
       l.address?.toLowerCase().includes(q) ||
-      l.phone?.includes(q)
+      l.phone?.includes(q) ||
+      getLeadEmail(l)?.toLowerCase().includes(q) ||
+      getLeadContact(l)?.toLowerCase().includes(q)
     );
   }, [classifiedLeads, searchFilter]);
 
@@ -233,6 +253,8 @@ export default function LeadReportModal({
     // Leads table
     const tableData = leads.slice(0, 100).map(l => [
       l.name?.substring(0, 25) || '',
+      getLeadContact(l) || 'N/A',
+      getLeadEmail(l) || 'N/A',
       l.phone || 'N/A',
       l.website ? 'Yes' : 'No',
       l.rating?.toString() || 'N/A',
@@ -240,10 +262,10 @@ export default function LeadReportModal({
     ]);
 
     autoTable(doc, {
-      head: [['Business Name', 'Phone', 'Website', 'Rating', 'Priority']],
+      head: [['Business Name', 'Contact', 'Email', 'Phone', 'Website', 'Rating', 'Priority']],
       body: tableData,
       startY: 95,
-      styles: { fontSize: 8 },
+      styles: { fontSize: 7 },
       headStyles: { fillColor: [59, 130, 246] },
     });
 
@@ -252,9 +274,11 @@ export default function LeadReportModal({
   };
 
   const exportToCSV = () => {
-    const headers = ['Name', 'Address', 'Phone', 'Website', 'Rating', 'Platform', 'Priority', 'Score', 'Issues'];
+    const headers = ['Name', 'Contact', 'Email', 'Address', 'Phone', 'Website', 'Rating', 'Platform', 'Priority', 'Score', 'Issues'];
     const rows = classifiedLeads.map(l => [
       `"${l.name || ''}"`,
+      `"${getLeadContact(l)}"`,
+      `"${getLeadEmail(l)}"`,
       `"${l.address || ''}"`,
       `"${l.phone || ''}"`,
       `"${l.website || ''}"`,
@@ -413,6 +437,15 @@ export default function LeadReportModal({
                       <div className="text-3xl font-bold text-orange-600">{needsUpgradeLeads.length}</div>
                       <div className="text-sm text-muted-foreground">Needs Upgrade</div>
                       <div className="text-xs text-orange-600 mt-1">Website issues</div>
+                    </CardContent>
+                  </Card>
+
+                   <Card className="border-2 border-green-500/30 bg-green-500/5">
+                    <CardContent className="p-4 text-center">
+                      <Mail className="w-8 h-8 mx-auto text-green-500 mb-2" />
+                      <div className="text-3xl font-bold text-green-600">{leadsWithEmail.length}</div>
+                      <div className="text-sm text-muted-foreground">With Email</div>
+                      <div className="text-xs text-green-600 mt-1">Ready to email</div>
                     </CardContent>
                   </Card>
 
@@ -575,10 +608,11 @@ export default function LeadReportModal({
                           </th>
                           <th className="p-3 text-left">#</th>
                           <th className="p-3 text-left">Business Name</th>
+                          <th className="p-3 text-left">Contact</th>
+                          <th className="p-3 text-left">Email</th>
                           <th className="p-3 text-left">Phone</th>
                           <th className="p-3 text-left">Website</th>
                           <th className="p-3 text-left">Rating</th>
-                          <th className="p-3 text-left">Platform</th>
                           <th className="p-3 text-left">Priority</th>
                           <th className="p-3 text-left">Score</th>
                         </tr>
@@ -605,6 +639,15 @@ export default function LeadReportModal({
                               {(currentPage - 1) * LEADS_PER_PAGE + idx + 1}
                             </td>
                             <td className="p-3 font-medium">{lead.name}</td>
+                            <td className="p-3 text-xs">{getLeadContact(lead) || '—'}</td>
+                            <td className="p-3 text-xs max-w-[160px] truncate" title={getLeadEmail(lead)}>
+                              {getLeadEmail(lead) ? (
+                                <span className="flex items-center gap-1 text-green-600">
+                                  <Mail className="w-3 h-3 shrink-0" />
+                                  {getLeadEmail(lead)}
+                                </span>
+                              ) : '—'}
+                            </td>
                             <td className="p-3">{lead.phone || '—'}</td>
                             <td className="p-3">
                               {lead.website ? (
@@ -621,7 +664,6 @@ export default function LeadReportModal({
                                 </span>
                               ) : '—'}
                             </td>
-                            <td className="p-3 text-xs">{lead.websiteAnalysis?.platform || '—'}</td>
                             <td className="p-3">
                               <Badge className={
                                 lead.classification === 'hot' 
