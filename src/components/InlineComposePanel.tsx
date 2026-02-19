@@ -277,10 +277,11 @@ export default function InlineComposePanel({
       return;
     }
 
-    const subject = effectiveTemplate?.rawSubject || effectiveTemplate?.subject || effectiveSequence?.steps?.[0]?.subject;
-    const body = effectiveTemplate?.rawBody || effectiveTemplate?.body || effectiveSequence?.steps?.[0]?.body;
+    const subject = email.subject || effectiveTemplate?.rawSubject || effectiveTemplate?.subject || effectiveSequence?.steps?.[0]?.subject;
+    const body = bodyHtml || email.body || effectiveTemplate?.rawBody || effectiveTemplate?.body || effectiveSequence?.steps?.[0]?.body;
     if (!subject || !body) {
-      toast.error('No template or sequence content available.');
+      toast.error('No template or sequence content available. Please add a subject and body.');
+      setIsLaunching(false);
       return;
     }
 
