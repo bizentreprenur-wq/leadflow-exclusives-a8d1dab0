@@ -635,22 +635,31 @@ export default function InlineComposePanel({
             </Button>
             <div className="w-px h-5 bg-border mx-1" />
             <div className="flex items-center gap-0.5">
-              {[Bold, Italic, Underline].map((Icon, i) => (
-                <Button key={i} variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+              {[
+                { Icon: Bold, color: 'text-blue-400' },
+                { Icon: Italic, color: 'text-purple-400' },
+                { Icon: Underline, color: 'text-pink-400' },
+              ].map(({ Icon, color }, i) => (
+                <Button key={i} variant="ghost" size="icon" className={`h-7 w-7 ${color} hover:brightness-125`}>
                   <Icon className="w-3.5 h-3.5" />
                 </Button>
               ))}
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-400 hover:brightness-125">
                 <AlignLeft className="w-3.5 h-3.5" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-teal-400 hover:brightness-125">
                 <List className="w-3.5 h-3.5" />
               </Button>
             </div>
             <div className="w-px h-5 bg-border mx-1" />
             <div className="flex items-center gap-0.5">
-              {[Link2, Smile, Paperclip, Image].map((Icon, i) => (
-                <Button key={i} variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+              {[
+                { Icon: Link2, color: 'text-cyan-400' },
+                { Icon: Smile, color: 'text-yellow-400' },
+                { Icon: Paperclip, color: 'text-orange-400' },
+                { Icon: Image, color: 'text-emerald-400' },
+              ].map(({ Icon, color }, i) => (
+                <Button key={i} variant="ghost" size="icon" className={`h-7 w-7 ${color} hover:brightness-125`}>
                   <Icon className="w-3.5 h-3.5" />
                 </Button>
               ))}
