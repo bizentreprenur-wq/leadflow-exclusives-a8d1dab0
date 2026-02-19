@@ -569,12 +569,21 @@ export default function InlineComposePanel({
         {/* Email Body - the template content lives here */}
         <div className="flex-1 min-h-0 flex flex-col">
           <ScrollArea className="flex-1">
-            <div className="p-4">
+            <div className="p-4 relative">
+              {!email.body && (
+                <div className="absolute inset-0 p-4 pointer-events-none flex flex-col items-center justify-center text-center gap-3 opacity-60">
+                  <FileText className="w-8 h-8 text-cyan-400/50" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Compose your email…</p>
+                    <p className="text-[11px] text-muted-foreground/70 mt-1">Your Email Template will be placed here.<br/>Select a template from <span className="text-cyan-400 font-medium">Step 2</span> or type manually.</p>
+                  </div>
+                </div>
+              )}
               <Textarea
                 value={email.body}
                 onChange={(e) => setEmail(prev => ({ ...prev, body: e.target.value }))}
                 className="border-0 bg-transparent min-h-[300px] p-0 focus-visible:ring-0 shadow-none text-sm resize-none w-full"
-                placeholder="Compose your email..."
+                placeholder=""
               />
             </div>
           </ScrollArea>
