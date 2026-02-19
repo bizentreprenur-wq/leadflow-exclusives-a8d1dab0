@@ -785,9 +785,9 @@ export default function InlineComposePanel({
             <Button
               onClick={handleLaunch}
               disabled={eligibleLeads.length === 0 || isLaunching}
-              className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-5 h-8 text-xs font-semibold gap-1.5"
+              className="bg-amber-600 hover:bg-amber-700 text-white rounded-full px-7 h-10 text-sm font-semibold gap-2 shadow-[0_0_16px_hsl(38_92%_50%_/_0.3)] animate-pulse-slow"
             >
-              {isLaunching ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+              {isLaunching ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               Send
             </Button>
             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
