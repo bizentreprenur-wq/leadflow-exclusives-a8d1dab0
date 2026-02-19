@@ -100,6 +100,31 @@ export default function InlineComposePanel({
   const [selectedSequence, setSelectedSequence] = useState<EmailSequence | null>(null);
   const [email, setEmail] = useState({ subject: '', body: '' });
   const [showSendingFeed, setShowSendingFeed] = useState(false);
+  const [manualToInput, setManualToInput] = useState('');
+  const [manualRecipients, setManualRecipients] = useState<Array<{ email: string; label: string; initial: string }>>([]);
+
+  const handleAddManualRecipient = (value: string) => {
+    const trimmed = value.trim();
+    if (trimmed && EMAIL_REGEX.test(trimmed) && !manualRecipients.some(r => r.email === trimmed)) {
+      setManualRecipients(prev => [...prev, {
+        email: trimmed,
+        label: trimmed,
+        initial: trimmed[0].toUpperCase(),
+      }]);
+      setManualToInput('');
+    }
+  };
+
+  const handleRemoveManualRecipient = (emailToRemove: string) => {
+    setManualRecipients(prev => prev.filter(r => r.email !== emailToRemove));
+  };
+
+  const handleManualToKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',' || e.key === 'Tab') {
+      e.preventDefault();
+      handleAddManualRecipient(manualToInput);
+    }
+  };
 
   const { status: trialStatus } = useAutopilotTrial();
 
@@ -531,11 +556,25 @@ export default function InlineComposePanel({
           </div>
         </div>
 
-        {/* To Field - Gmail-style chips */}
+        {/* To Field - Gmail-style chips + manual input */}
         <div className="px-4 py-2 border-b border-border/50 shrink-0">
           <div className="flex items-start gap-2">
             <span className="text-xs text-muted-foreground pt-1 shrink-0">To</span>
-            <div className="flex-1 flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+            <div className="flex-1 flex flex-wrap gap-1 max-h-32 overflow-y-auto items-center">
+              {/* Manual recipients */}
+              {manualRecipients.map((chip, i) => (
+                <span
+                  key={`manual-${i}`}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-[11px] text-foreground"
+                >
+                  <span className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white bg-cyan-600">
+                    {chip.initial}
+                  </span>
+                  <span className="truncate max-w-[140px]">{chip.label}</span>
+                  <X className="w-2.5 h-2.5 text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => handleRemoveManualRecipient(chip.email)} />
+                </span>
+              ))}
+              {/* Drip feed recipients */}
               {recipientChips.map((chip, i) => (
                 <span
                   key={i}
@@ -551,6 +590,16 @@ export default function InlineComposePanel({
               {eligibleLeads.length > 20 && (
                 <span className="text-[10px] text-muted-foreground self-center">+{eligibleLeads.length - 20} more</span>
               )}
+              {/* Inline manual email input */}
+              <input
+                type="email"
+                value={manualToInput}
+                onChange={(e) => setManualToInput(e.target.value)}
+                onKeyDown={handleManualToKeyDown}
+                onBlur={() => { if (manualToInput.trim()) handleAddManualRecipient(manualToInput); }}
+                className="flex-1 min-w-[160px] bg-transparent border-0 outline-none text-sm text-foreground placeholder:text-muted-foreground/50 h-6"
+                placeholder={recipientChips.length === 0 && manualRecipients.length === 0 ? "Type email address…" : "Add more…"}
+              />
             </div>
             <span className="text-[10px] text-muted-foreground pt-1 cursor-pointer hover:text-foreground">Cc Bcc</span>
           </div>
@@ -569,12 +618,21 @@ export default function InlineComposePanel({
         {/* Email Body - the template content lives here */}
         <div className="flex-1 min-h-0 flex flex-col">
           <ScrollArea className="flex-1">
-            <div className="p-4">
+            <div className="p-4 relative">
+              {!email.body && (
+                <div className="absolute inset-0 p-4 pointer-events-none flex flex-col items-center justify-center text-center gap-3 opacity-60">
+                  <FileText className="w-8 h-8 text-cyan-400/50" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Compose your email…</p>
+                    <p className="text-[11px] text-muted-foreground/70 mt-1">Your Email Template will be placed here.<br/>Select a template from <span className="text-cyan-400 font-medium">Step 2</span> or type manually.</p>
+                  </div>
+                </div>
+              )}
               <Textarea
                 value={email.body}
                 onChange={(e) => setEmail(prev => ({ ...prev, body: e.target.value }))}
                 className="border-0 bg-transparent min-h-[300px] p-0 focus-visible:ring-0 shadow-none text-sm resize-none w-full"
-                placeholder="Compose your email..."
+                placeholder=""
               />
             </div>
           </ScrollArea>
@@ -635,22 +693,31 @@ export default function InlineComposePanel({
             </Button>
             <div className="w-px h-5 bg-border mx-1" />
             <div className="flex items-center gap-0.5">
-              {[Bold, Italic, Underline].map((Icon, i) => (
-                <Button key={i} variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+              {[
+                { Icon: Bold, color: 'text-blue-400' },
+                { Icon: Italic, color: 'text-purple-400' },
+                { Icon: Underline, color: 'text-pink-400' },
+              ].map(({ Icon, color }, i) => (
+                <Button key={i} variant="ghost" size="icon" className={`h-7 w-7 ${color} hover:brightness-125`}>
                   <Icon className="w-3.5 h-3.5" />
                 </Button>
               ))}
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-400 hover:brightness-125">
                 <AlignLeft className="w-3.5 h-3.5" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-teal-400 hover:brightness-125">
                 <List className="w-3.5 h-3.5" />
               </Button>
             </div>
             <div className="w-px h-5 bg-border mx-1" />
             <div className="flex items-center gap-0.5">
-              {[Link2, Smile, Paperclip, Image].map((Icon, i) => (
-                <Button key={i} variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+              {[
+                { Icon: Link2, color: 'text-cyan-400' },
+                { Icon: Smile, color: 'text-yellow-400' },
+                { Icon: Paperclip, color: 'text-orange-400' },
+                { Icon: Image, color: 'text-emerald-400' },
+              ].map(({ Icon, color }, i) => (
+                <Button key={i} variant="ghost" size="icon" className={`h-7 w-7 ${color} hover:brightness-125`}>
                   <Icon className="w-3.5 h-3.5" />
                 </Button>
               ))}
