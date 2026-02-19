@@ -69,9 +69,16 @@ if (!defined('LEAD_HARVEST_AUTONOMOUS_INTERVAL_MINUTES')) {
 if (!defined('LEAD_HARVEST_STALE_RUNNING_MINUTES')) {
     define('LEAD_HARVEST_STALE_RUNNING_MINUTES', 30);
 }
+if (!defined('LEAD_HARVEST_ONCE_BATCH_JOBS')) {
+    define('LEAD_HARVEST_ONCE_BATCH_JOBS', 6);
+}
+if (!defined('LEAD_HARVEST_FALLBACK_QUERY_MAX')) {
+    define('LEAD_HARVEST_FALLBACK_QUERY_MAX', 16);
+}
 
 $options = getopt('', [
     'once',
+    'once-jobs:',
     'job-id:',
     'sleep:',
     'max-jobs:',
@@ -88,6 +95,9 @@ $runOnce = array_key_exists('once', $options);
 $forcedJobId = isset($options['job-id']) ? (int) $options['job-id'] : null;
 $idleSleep = isset($options['sleep']) ? max(2, (int) $options['sleep']) : (int) LEAD_HARVEST_WORKER_IDLE_SLEEP_SEC;
 $maxJobs = isset($options['max-jobs']) ? max(1, (int) $options['max-jobs']) : 0;
+$onceBatchJobs = isset($options['once-jobs'])
+    ? max(1, (int) $options['once-jobs'])
+    : max(1, (int) LEAD_HARVEST_ONCE_BATCH_JOBS);
 
 $pdo = getDbConnection();
 
@@ -109,6 +119,7 @@ $processedJobs = 0;
 
 while (true) {
     recoverStaleRunningJobs($pdo);
+    queueAutonomousJobsIfEnabled($pdo);
 
     try {
         $job = acquireDueJob($pdo, $forcedJobId);
@@ -122,13 +133,8 @@ while (true) {
     }
 
     if (!$job) {
-        $autoInserted = queueAutonomousJobsIfEnabled($pdo);
-        if ($autoInserted > 0) {
-            workerLog("Autonomous mode queued {$autoInserted} new job(s).");
-            continue;
-        }
         if ($runOnce) {
-            workerLog('No due job found. Exiting (--once).');
+            workerLog("No due job found. Exiting (--once, processed {$processedJobs} job(s)).");
             break;
         }
         sleep($idleSleep);
@@ -148,7 +154,7 @@ while (true) {
             (int) $result['runtime_ms']
         ));
 
-        if ($runOnce) {
+        if ($runOnce && $processedJobs >= $onceBatchJobs) {
             break;
         }
         if ($maxJobs > 0 && $processedJobs >= $maxJobs) {
@@ -747,31 +753,59 @@ function processHarvestJob(PDO $pdo, array $job)
     $filtersActive = false;
     $targetCount = $targetLimit;
 
-    $leads = customFetcherSearchAndEnrich(
-        $keyword,
-        $location,
-        $targetLimit,
-        $filters,
-        $filtersActive,
-        $targetCount
-    );
-
-    if (!is_array($leads)) {
-        $leads = [];
+    $leads = [];
+    $primaryError = null;
+    try {
+        $leads = customFetcherSearchAndEnrich(
+            $keyword,
+            $location,
+            $targetLimit,
+            $filters,
+            $filtersActive,
+            $targetCount
+        );
+        if (!is_array($leads)) {
+            $leads = [];
+        }
+    } catch (Throwable $e) {
+        $primaryError = $e->getMessage();
+        workerLog("Job #{$jobId} primary discovery failed, switching to fallback: {$primaryError}");
     }
 
-    // Fallback: if primary pipeline returns nothing, attempt a no-key query.
-    if (empty($leads) && function_exists('customFetcherSearchNoKey')) {
-        $fallbackQuery = trim($keyword . ' in ' . $location);
-        if ($fallbackQuery !== '') {
-            $fallbackLimit = max(20, min((int) $targetLimit, 150));
-            $fallback = customFetcherSearchNoKey($fallbackQuery, $fallbackLimit);
-            if (is_array($fallback) && !empty($fallback) && function_exists('customFetcherEnrichLeads')) {
-                $timeout = function_exists('customFetcherContactTimeout') ? (int) customFetcherContactTimeout() : 6;
-                $concurrency = function_exists('customFetcherEnrichConcurrency') ? (int) customFetcherEnrichConcurrency() : 4;
-                $leads = customFetcherEnrichLeads($fallback, max(3, $timeout), max(1, min(6, $concurrency)));
-            } elseif (is_array($fallback) && !empty($fallback)) {
-                $leads = $fallback;
+    // Strong fallback matrix for better volume if primary failed or returned very low.
+    $lowYieldThreshold = max(8, (int) ceil($targetLimit * 0.15));
+    if (count($leads) < $lowYieldThreshold) {
+        $needed = max(0, $targetLimit - count($leads));
+        if ($needed > 0) {
+            $fallbackLeads = runNoKeyFallbackMatrix($keyword, $location, min($targetLimit, $needed + 40));
+            if (!empty($fallbackLeads)) {
+                if (function_exists('customFetcherEnrichLeads')) {
+                    $timeout = function_exists('customFetcherContactTimeout') ? (int) customFetcherContactTimeout() : 6;
+                    $concurrency = function_exists('customFetcherEnrichConcurrency') ? (int) customFetcherEnrichConcurrency() : 4;
+                    $fallbackLeads = customFetcherEnrichLeads($fallbackLeads, max(3, $timeout), max(1, min(6, $concurrency)));
+                }
+                $seen = [];
+                foreach ($leads as $lead) {
+                    if (!is_array($lead)) {
+                        continue;
+                    }
+                    $k = buildBusinessDedupeKey($lead, $location);
+                    $seen[$k] = true;
+                }
+                foreach ($fallbackLeads as $lead) {
+                    if (!is_array($lead)) {
+                        continue;
+                    }
+                    $k = buildBusinessDedupeKey($lead, $location);
+                    if (isset($seen[$k])) {
+                        continue;
+                    }
+                    $seen[$k] = true;
+                    $leads[] = $lead;
+                    if (count($leads) >= $targetLimit) {
+                        break;
+                    }
+                }
             }
         }
     }
@@ -838,6 +872,91 @@ function processHarvestJob(PDO $pdo, array $job)
         'record_count' => $recordCount,
         'runtime_ms' => (int) round((microtime(true) - $startedAt) * 1000),
     ];
+}
+
+function runNoKeyFallbackMatrix($keyword, $location, $targetLimit)
+{
+    if (!function_exists('customFetcherSearchNoKey')) {
+        return [];
+    }
+
+    $targetLimit = max(20, min(400, (int) $targetLimit));
+    $maxQueries = max(4, (int) LEAD_HARVEST_FALLBACK_QUERY_MAX);
+
+    $queries = [];
+    $baseKeyword = trim((string) $keyword);
+    $baseLocation = trim((string) $location);
+    if ($baseKeyword !== '' && $baseLocation !== '') {
+        $queries[] = "{$baseKeyword} in {$baseLocation}";
+        $queries[] = "{$baseKeyword} {$baseLocation}";
+        $queries[] = "{$baseKeyword} near {$baseLocation}";
+        $queries[] = "{$baseKeyword} company {$baseLocation}";
+        $queries[] = "{$baseKeyword} service {$baseLocation}";
+    }
+
+    if (function_exists('expandServiceSynonyms') && $baseKeyword !== '') {
+        $synonyms = array_slice((array) expandServiceSynonyms($baseKeyword), 0, 10);
+        foreach ($synonyms as $synonym) {
+            $synonym = trim((string) $synonym);
+            if ($synonym === '') {
+                continue;
+            }
+            if ($baseLocation !== '') {
+                $queries[] = "{$synonym} in {$baseLocation}";
+            } else {
+                $queries[] = $synonym;
+            }
+        }
+    }
+
+    if (function_exists('buildLocationExpansions') && $baseKeyword !== '' && $baseLocation !== '') {
+        $locations = array_slice((array) buildLocationExpansions($baseLocation), 0, 10);
+        foreach ($locations as $loc) {
+            $loc = trim((string) $loc);
+            if ($loc === '') {
+                continue;
+            }
+            $queries[] = "{$baseKeyword} in {$loc}";
+        }
+    }
+
+    $unique = [];
+    $seenQueries = [];
+    foreach ($queries as $q) {
+        $q = trim(preg_replace('/\s+/', ' ', (string) $q));
+        $key = normalizeIndexValue($q);
+        if ($q === '' || $key === '' || isset($seenQueries[$key])) {
+            continue;
+        }
+        $seenQueries[$key] = true;
+        $unique[] = $q;
+        if (count($unique) >= $maxQueries) {
+            break;
+        }
+    }
+
+    $results = [];
+    $seenLeads = [];
+    $perQueryLimit = max(20, min(100, (int) ceil($targetLimit / max(1, count($unique))) + 10));
+    foreach ($unique as $query) {
+        $found = customFetcherSearchNoKey($query, $perQueryLimit);
+        foreach ((array) $found as $lead) {
+            if (!is_array($lead)) {
+                continue;
+            }
+            $k = buildBusinessDedupeKey($lead, $location);
+            if (isset($seenLeads[$k])) {
+                continue;
+            }
+            $seenLeads[$k] = true;
+            $results[] = $lead;
+            if (count($results) >= $targetLimit) {
+                break 2;
+            }
+        }
+    }
+
+    return $results;
 }
 
 function markHarvestJobFailed(PDO $pdo, $jobId, $errorMessage)
