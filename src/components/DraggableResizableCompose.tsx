@@ -5,9 +5,26 @@ import { GripHorizontal, Maximize2, Minimize2, Minus } from 'lucide-react';
 interface DraggableResizableComposeProps {
   children: React.ReactNode;
   onClose: () => void;
+  tier?: 'free' | 'basic' | 'pro' | 'autopilot' | 'unlimited';
 }
 
-export default function DraggableResizableCompose({ children, onClose }: DraggableResizableComposeProps) {
+const TIER_COLORS: Record<string, string> = {
+  free: 'bg-muted/80 border-border',
+  basic: 'bg-blue-600 border-blue-500',
+  pro: 'bg-emerald-600 border-emerald-500',
+  autopilot: 'bg-amber-600 border-amber-500',
+  unlimited: 'bg-gradient-to-r from-red-600 to-red-500 border-red-500',
+};
+
+const TIER_TEXT: Record<string, string> = {
+  free: 'text-muted-foreground',
+  basic: 'text-white',
+  pro: 'text-white',
+  autopilot: 'text-white',
+  unlimited: 'text-white',
+};
+
+export default function DraggableResizableCompose({ children, onClose, tier = 'free' }: DraggableResizableComposeProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Position & size state
@@ -120,11 +137,14 @@ export default function DraggableResizableCompose({ children, onClose }: Draggab
     >
       {/* Draggable title bar */}
       <div
-        className="flex items-center justify-between px-3 py-1.5 bg-muted/50 border-b border-border cursor-move select-none shrink-0"
+        className={cn(
+          "flex items-center justify-between px-3 py-1.5 border-b cursor-move select-none shrink-0 transition-colors duration-200",
+          isMinimized ? cn(TIER_COLORS[tier], "border-transparent") : "bg-muted/50 border-border"
+        )}
         onMouseDown={isMinimized ? undefined : onDragStart}
         onDoubleClick={() => isMinimized && setIsMinimized(false)}
       >
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className={cn("flex items-center gap-2 text-xs", isMinimized ? TIER_TEXT[tier] : "text-muted-foreground")}>
           <GripHorizontal className="w-3.5 h-3.5" />
           <span className="font-medium">Compose</span>
         </div>
