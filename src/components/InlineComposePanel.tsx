@@ -285,11 +285,11 @@ export default function InlineComposePanel({
     }
   };
 
-  const sideTabs: { id: SideTab; label: string; icon: React.ReactNode; shortLabel: string }[] = [
-    { id: 'strategy', label: 'AI Strategy', icon: <Brain className="w-3.5 h-3.5" />, shortLabel: 'Strategy' },
-    { id: 'template', label: 'Template', icon: <FileText className="w-3.5 h-3.5" />, shortLabel: 'Template' },
-    { id: 'sequence', label: 'Sequence', icon: <Layers className="w-3.5 h-3.5" />, shortLabel: 'Sequence' },
-    { id: 'launch', label: 'Launch', icon: <Rocket className="w-3.5 h-3.5" />, shortLabel: 'Launch' },
+  const sideTabs: { id: SideTab; label: string; icon: React.ReactNode; shortLabel: string; color: string; activeColor: string; activeBg: string; borderColor: string }[] = [
+    { id: 'strategy', label: 'AI Strategy', icon: <Brain className="w-3.5 h-3.5" />, shortLabel: 'Strategy', color: 'text-purple-400', activeColor: 'text-purple-300', activeBg: 'bg-purple-500/10', borderColor: 'bg-purple-500' },
+    { id: 'template', label: 'Template', icon: <FileText className="w-3.5 h-3.5" />, shortLabel: 'Template', color: 'text-cyan-400', activeColor: 'text-cyan-300', activeBg: 'bg-cyan-500/10', borderColor: 'bg-cyan-500' },
+    { id: 'sequence', label: 'Sequence', icon: <Layers className="w-3.5 h-3.5" />, shortLabel: 'Sequence', color: 'text-amber-400', activeColor: 'text-amber-300', activeBg: 'bg-amber-500/10', borderColor: 'bg-amber-500' },
+    { id: 'launch', label: 'Launch', icon: <Rocket className="w-3.5 h-3.5" />, shortLabel: 'Launch', color: 'text-emerald-400', activeColor: 'text-emerald-300', activeBg: 'bg-emerald-500/10', borderColor: 'bg-emerald-500' },
   ];
 
   const colorMap: Record<string, string> = {
@@ -311,13 +311,13 @@ export default function InlineComposePanel({
             className={cn(
               "flex flex-col items-center gap-0.5 py-2.5 px-0.5 transition-all relative",
               activeSideTab === tab.id
-                ? "text-red-400 bg-red-500/10"
-                : "text-muted-foreground hover:bg-muted/40"
+                ? `${tab.activeColor} ${tab.activeBg}`
+                : `${tab.color} hover:bg-muted/40`
             )}
             title={tab.label}
           >
             {activeSideTab === tab.id && (
-              <div className="absolute left-0 top-1 bottom-1 w-0.5 rounded-r bg-red-500" />
+              <div className={cn("absolute left-0 top-1 bottom-1 w-0.5 rounded-r", tab.borderColor)} />
             )}
             {tab.icon}
             <span className="text-[7px] font-medium leading-tight text-center">{tab.shortLabel}</span>
