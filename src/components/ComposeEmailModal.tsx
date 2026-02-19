@@ -18,7 +18,7 @@ import {
   Settings2, Users, TrendingUp, Rocket, Search, Globe, Store,
   CreditCard, Wand2, Layers, MailPlus, Briefcase, Crown,
   X, Maximize2, Minimize2, Eye, AlertCircle, Lightbulb, Brain,
-  CheckSquare, Square, Edit3, ExternalLink, Shield
+  CheckSquare, Square, Edit3, ExternalLink, Shield, BarChart3
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -169,6 +169,10 @@ export default function ComposeEmailModal({
   const [autopilotLaunchProgress, setAutopilotLaunchProgress] = useState(0);
   const [showLeadsPreview, setShowLeadsPreview] = useState(false);
   const [autopilotTab, setAutopilotTab] = useState<AutopilotTab>('leads');
+  
+  // Live stats & sent tracking for Unlimited view
+  const [showLiveStats, setShowLiveStats] = useState(false);
+  const [sentEmailsList, setSentEmailsList] = useState<Array<{ email: string; name: string; sentAt: string }>>([]);
   const subjectInputRef = useRef<HTMLInputElement>(null);
   
   // Campaign selection state
@@ -870,182 +874,175 @@ export default function ComposeEmailModal({
           </div>
         </div>
 
-        {/* MODE SELECTOR - 3 OPTIONS */}
+        {/* MODE SELECTOR */}
         <div className="p-4 border-b border-border space-y-4">
-          {/* SMTP Status Indicator - Shows which email account will be used */}
+          {/* SMTP Status Indicator */}
           <SMTPStatusIndicator 
             showConfigureButton={true}
             onConfigure={() => {
-              // Navigate to SMTP setup
               onClose();
               sessionStorage.setItem('bamlead_navigate_to', 'smtp-setup');
               window.dispatchEvent(new CustomEvent('bamlead-navigate', { detail: { target: 'smtp-setup' } }));
             }}
           />
-          <div className="grid gap-3 grid-cols-4">
-            {/* Mode 1: Basic Single Email */}
-            <button
-              onClick={() => !isUnlimitedPlan && setComposeMode('regular')}
-              className={cn(
-                "p-4 rounded-xl border-2 transition-all text-left",
-                isUnlimitedPlan
-                  ? "border-border bg-muted/20 opacity-50 cursor-not-allowed"
-                  : composeMode === 'regular'
+
+          {/* Unlimited users: Single level indicator instead of mode grid */}
+          {isUnlimitedPlan ? (
+            <div className="p-4 rounded-xl border-2 border-red-500 bg-gradient-to-br from-red-500/10 to-red-900/10">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center">
+                    <Shield className="w-5 h-5 text-red-500" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-foreground">Unlimited Mode</span>
+                      <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[9px]">Active</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      AI manages everything • No credit limits • Dedicated agent
+                    </p>
+                  </div>
+                </div>
+                <Badge className="text-[10px] bg-red-500/20 text-red-400 border-red-500/30">
+                  <Crown className="w-3 h-3 mr-1" />
+                  $999/mo
+                </Badge>
+              </div>
+
+              {/* To field showing comma-separated emails */}
+              {autopilotEligibleLeads.length > 0 && (
+                <div className="mt-3 p-3 rounded-lg bg-background/50 border border-border">
+                  <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block mb-1">To</label>
+                  <p className="text-xs text-foreground leading-relaxed break-all">
+                    {autopilotEligibleLeads
+                      .filter(l => l.email)
+                      .map(l => l.email)
+                      .join(', ')}
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Non-Unlimited users: Show mode grid */
+            <div className="grid gap-3 grid-cols-4">
+              {/* Mode 1: Basic Single Email */}
+              <button
+                onClick={() => setComposeMode('regular')}
+                className={cn(
+                  "p-4 rounded-xl border-2 transition-all text-left",
+                  composeMode === 'regular'
                     ? "border-blue-500 bg-blue-500/10"
                     : "border-border hover:border-blue-500/50 bg-muted/30"
-              )}
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <Mail className="w-5 h-5 text-blue-500" />
-                <span className="font-semibold text-foreground text-sm">Basic Email</span>
-                <Badge className="text-[8px] px-1.5 bg-blue-500/20 text-blue-500 border-blue-500/30">
-                  Manual Mode
-                </Badge>
-              </div>
-              <p className="text-[10px] text-muted-foreground leading-relaxed">
-                Send a single email to one customer. You control everything.
-              </p>
-            </button>
+                )}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Mail className="w-5 h-5 text-blue-500" />
+                  <span className="font-semibold text-foreground text-sm">Basic Email</span>
+                  <Badge className="text-[8px] px-1.5 bg-blue-500/20 text-blue-500 border-blue-500/30">
+                    Manual Mode
+                  </Badge>
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  Send a single email to one customer. You control everything.
+                </p>
+              </button>
 
-            {/* Mode 2: Co-Pilot Mode Campaign */}
-            <button
-              onClick={() => {
-                if (isUnlimitedPlan) return;
-                setSelectedCampaignType('manual');
-                setComposeMode('campaign');
-                try {
-                  const auditLog = JSON.parse(localStorage.getItem('bamlead_campaign_audit') || '[]');
-                  auditLog.push({
-                    type: 'copilot',
-                    timestamp: new Date().toISOString(),
-                    leadCount: safeLeads.length,
-                  });
-                  localStorage.setItem('bamlead_campaign_audit', JSON.stringify(auditLog));
-                } catch {}
-              }}
-              className={cn(
-                "p-4 rounded-xl border-2 transition-all text-left relative",
-                isUnlimitedPlan
-                  ? "border-border bg-muted/20 opacity-50 cursor-not-allowed"
-                  : composeMode === 'campaign' && selectedCampaignType === 'manual'
+              {/* Mode 2: Co-Pilot Mode */}
+              <button
+                onClick={() => {
+                  setSelectedCampaignType('manual');
+                  setComposeMode('campaign');
+                  try {
+                    const auditLog = JSON.parse(localStorage.getItem('bamlead_campaign_audit') || '[]');
+                    auditLog.push({ type: 'copilot', timestamp: new Date().toISOString(), leadCount: safeLeads.length });
+                    localStorage.setItem('bamlead_campaign_audit', JSON.stringify(auditLog));
+                  } catch {}
+                }}
+                className={cn(
+                  "p-4 rounded-xl border-2 transition-all text-left relative",
+                  composeMode === 'campaign' && selectedCampaignType === 'manual'
                     ? "border-primary bg-primary/10"
                     : "border-border hover:border-primary/50 bg-muted/30"
-              )}
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <Rocket className="w-5 h-5 text-primary" />
-                <span className="font-semibold text-foreground text-sm">Co-Pilot Mode</span>
-                <Badge className="text-[8px] px-1.5 bg-primary/20 text-primary border-primary/30">
-                  Co-Pilot
-                </Badge>
-              </div>
-              <p className="text-[10px] text-muted-foreground leading-relaxed">
-                AI assists with writing — you click 'Send'. Send to one or many leads.
-              </p>
-              {!isUnlimitedPlan && safeLeads.length > 0 && (
-                <Badge className="absolute top-2 right-2 bg-primary/20 text-primary border-primary/30 text-[9px]">
-                  {safeLeads.length} leads
-                </Badge>
-              )}
-            </button>
+                )}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Rocket className="w-5 h-5 text-primary" />
+                  <span className="font-semibold text-foreground text-sm">Co-Pilot Mode</span>
+                  <Badge className="text-[8px] px-1.5 bg-primary/20 text-primary border-primary/30">Co-Pilot</Badge>
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  AI assists with writing — you click 'Send'. Send to one or many leads.
+                </p>
+                {safeLeads.length > 0 && (
+                  <Badge className="absolute top-2 right-2 bg-primary/20 text-primary border-primary/30 text-[9px]">
+                    {safeLeads.length} leads
+                  </Badge>
+                )}
+              </button>
 
-            {/* Mode 3: AI Autopilot Campaign */}
-            <button
-              onClick={() => {
-                if (isUnlimitedPlan) return;
-                if (!hasAutopilotSubscription) {
-                  setShowPaymentRequired(true);
-                  return;
-                }
-                setSelectedCampaignType('autopilot');
-                setComposeMode('autopilot');
-                try {
-                  const auditLog = JSON.parse(localStorage.getItem('bamlead_campaign_audit') || '[]');
-                  auditLog.push({
-                    type: 'autopilot',
-                    timestamp: new Date().toISOString(),
-                    leadCount: safeLeads.length,
-                    subscriptionStatus: hasAutopilotSubscription ? 'active' : 'none',
-                  });
-                  localStorage.setItem('bamlead_campaign_audit', JSON.stringify(auditLog));
-                } catch {}
-              }}
-              className={cn(
-                "p-4 rounded-xl border-2 transition-all text-left relative",
-                isUnlimitedPlan
-                  ? "border-border bg-muted/20 opacity-50 cursor-not-allowed"
-                  : composeMode === 'autopilot'
+              {/* Mode 3: AI Autopilot */}
+              <button
+                onClick={() => {
+                  if (!hasAutopilotSubscription) { setShowPaymentRequired(true); return; }
+                  setSelectedCampaignType('autopilot');
+                  setComposeMode('autopilot');
+                  try {
+                    const auditLog = JSON.parse(localStorage.getItem('bamlead_campaign_audit') || '[]');
+                    auditLog.push({ type: 'autopilot', timestamp: new Date().toISOString(), leadCount: safeLeads.length, subscriptionStatus: hasAutopilotSubscription ? 'active' : 'none' });
+                    localStorage.setItem('bamlead_campaign_audit', JSON.stringify(auditLog));
+                  } catch {}
+                }}
+                className={cn(
+                  "p-4 rounded-xl border-2 transition-all text-left relative",
+                  composeMode === 'autopilot'
                     ? "border-amber-500 bg-gradient-to-br from-amber-500/10 to-orange-500/10"
                     : workflowContext.isFromWorkflow 
                       ? "border-amber-500/50 bg-amber-500/5 animate-pulse"
                       : "border-border hover:border-amber-500/50 bg-muted/30"
-              )}
-            >
-              {!isUnlimitedPlan && workflowContext.isFromWorkflow && composeMode !== 'autopilot' && (
-                <div className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-center">
-                  <Crown className="w-3 h-3 text-white" />
+                )}
+              >
+                {workflowContext.isFromWorkflow && composeMode !== 'autopilot' && (
+                  <div className="absolute -top-2 -left-2 w-5 h-5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 flex items-center justify-center">
+                    <Crown className="w-3 h-3 text-white" />
+                  </div>
+                )}
+                <div className="flex items-center gap-2 mb-2">
+                  <Crown className="w-5 h-5 text-amber-400" />
+                  <span className="font-semibold text-foreground text-sm">AI Autopilot</span>
+                  <Badge className="text-[8px] px-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">PREMIUM</Badge>
                 </div>
-              )}
-              <div className="flex items-center gap-2 mb-2">
-                <Crown className="w-5 h-5 text-amber-400" />
-                <span className="font-semibold text-foreground text-sm">AI Autopilot</span>
-                <Badge className="text-[8px] px-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">
-                  PREMIUM
-                </Badge>
-              </div>
-              <p className="text-[10px] text-muted-foreground leading-relaxed">
-                AI sends emails, manages follow-ups, responds to customers on your behalf. Full automation.
-              </p>
-              {!isUnlimitedPlan && safeLeads.length > 0 && (
-                <Badge className="absolute top-2 right-2 bg-amber-500/20 text-amber-400 border-amber-500/30 text-[9px]">
-                  {safeLeads.length} leads
-                </Badge>
-              )}
-            </button>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  AI sends emails, manages follow-ups, responds to customers on your behalf. Full automation.
+                </p>
+                {safeLeads.length > 0 && (
+                  <Badge className="absolute top-2 right-2 bg-amber-500/20 text-amber-400 border-amber-500/30 text-[9px]">
+                    {safeLeads.length} leads
+                  </Badge>
+                )}
+              </button>
 
-            {/* Mode 4: Unlimited Mode - always visible */}
-            <button
-              onClick={() => {
-                if (!isUnlimitedPlan) {
-                  toast.info('Upgrade to Unlimited ($999/mo) for full managed services, no credit limits, and a dedicated AI agent.', {
-                    action: {
-                      label: 'View Plans',
-                      onClick: () => {
-                        onClose();
-                        window.location.href = '/pricing';
-                      },
-                    },
+              {/* Mode 4: Unlimited - upgrade prompt */}
+              <button
+                onClick={() => {
+                  toast.info('Upgrade to Unlimited ($999/mo) for full managed services.', {
+                    action: { label: 'View Plans', onClick: () => { onClose(); window.location.href = '/pricing'; } },
                   });
-                  return;
-                }
-                setComposeMode('autopilot');
-              }}
-              className={cn(
-                "p-4 rounded-xl border-2 transition-all text-left relative",
-                isUnlimitedPlan
-                  ? "border-red-500 bg-gradient-to-br from-red-500/10 to-red-900/10"
-                  : "border-red-500/30 bg-muted/20 opacity-70 hover:opacity-90"
-              )}
-            >
-              {isUnlimitedPlan ? (
-                <Badge className="absolute top-2 right-2 bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[8px]">
-                  Active
-                </Badge>
-              ) : (
-                <Badge className="absolute top-2 right-2 bg-red-500/20 text-red-400 border-red-500/30 text-[8px]">
-                  Upgrade
-                </Badge>
-              )}
-              <div className="flex items-center gap-2 mb-2">
-                <Shield className="w-5 h-5 text-red-500" />
-                <span className="font-semibold text-foreground text-sm">Unlimited Mode</span>
-                <Badge className="text-[8px] px-1.5 bg-red-500 text-white border-0">$999/mo</Badge>
-              </div>
-              <p className="text-[10px] text-muted-foreground leading-relaxed">
-                All features unlocked. No credit limits. A dedicated agent guides your setup.
-              </p>
-            </button>
-          </div>
+                }}
+                className="p-4 rounded-xl border-2 border-red-500/30 bg-muted/20 opacity-70 hover:opacity-90 transition-all text-left relative"
+              >
+                <Badge className="absolute top-2 right-2 bg-red-500/20 text-red-400 border-red-500/30 text-[8px]">Upgrade</Badge>
+                <div className="flex items-center gap-2 mb-2">
+                  <Shield className="w-5 h-5 text-red-500" />
+                  <span className="font-semibold text-foreground text-sm">Unlimited Mode</span>
+                  <Badge className="text-[8px] px-1.5 bg-red-500 text-white border-0">$999/mo</Badge>
+                </div>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  All features unlocked. No credit limits. A dedicated agent guides your setup.
+                </p>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* MAIN CONTENT */}
@@ -1868,302 +1865,112 @@ export default function ComposeEmailModal({
             {/* ===================== AUTOPILOT MODE ===================== */}
             {composeMode === 'autopilot' && (
               <div className="space-y-4">
-                {/* Autopilot Tabs - ALWAYS show at top for consistent positioning */}
-                <Tabs value={autopilotTab} onValueChange={(v) => setAutopilotTab(v as AutopilotTab)}>
-                  <TabsList className="bg-muted/50 border border-amber-500/30 p-1 w-full">
-                      <TabsTrigger value="leads" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-amber-500 data-[state=active]:text-white">
-                        <Users className="w-3.5 h-3.5" />
-                      1. Leads ({autopilotEligibleLeads.length})
-                      </TabsTrigger>
-                    <TabsTrigger value="template" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-amber-500 data-[state=active]:text-white">
-                      <FileText className="w-3.5 h-3.5" />
-                      2. Template
-                    </TabsTrigger>
-                    <TabsTrigger value="sequence" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-amber-500 data-[state=active]:text-white">
-                      <Layers className="w-3.5 h-3.5" />
-                      3. Sequence
-                    </TabsTrigger>
-                    <TabsTrigger value="launch" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-amber-500 data-[state=active]:text-white">
-                      <Rocket className="w-3.5 h-3.5" />
-                      4. Launch
-                    </TabsTrigger>
-                  </TabsList>
+                {/* Unlimited users: Streamlined review-and-launch */}
+                {isUnlimitedPlan ? (
+                  <div className="space-y-4">
+                    {/* Tabs for review: Strategy, Template, Sequence, Launch */}
+                    <Tabs value={autopilotTab} onValueChange={(v) => setAutopilotTab(v as AutopilotTab)}>
+                      <TabsList className="bg-muted/50 border border-red-500/30 p-1 w-full">
+                        <TabsTrigger value="leads" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-red-500 data-[state=active]:text-white">
+                          <Brain className="w-3.5 h-3.5" />
+                          AI Strategy
+                        </TabsTrigger>
+                        <TabsTrigger value="template" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-red-500 data-[state=active]:text-white">
+                          <FileText className="w-3.5 h-3.5" />
+                          Template
+                        </TabsTrigger>
+                        <TabsTrigger value="sequence" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-red-500 data-[state=active]:text-white">
+                          <Layers className="w-3.5 h-3.5" />
+                          Sequence
+                        </TabsTrigger>
+                        <TabsTrigger value="launch" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-red-500 data-[state=active]:text-white">
+                          <Rocket className="w-3.5 h-3.5" />
+                          Launch
+                        </TabsTrigger>
+                      </TabsList>
 
-                  {/* ONLY show trial expired promo AFTER 7-day trial ends */}
-                  {trialStatus.isExpired && (
-                    <div className="mt-4 p-6 rounded-xl text-center bg-muted/50 border-2 border-red-500/30">
-                      <Crown className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-                      <h3 className="text-xl font-bold text-foreground mb-2">
-                        AI Autopilot Trial Expired
-                      </h3>
-                      <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
-                        Your 7-day free trial has ended. Subscribe to continue using AI-powered automated outreach.
-                      </p>
-                      <div className="flex items-center justify-center gap-3 mb-4">
-                        <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
-                          {`$${MONTHLY_PRICE}/month`}
-                        </Badge>
-                      </div>
-                      <Button 
-                        onClick={upgradeToPaid}
-                        className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white gap-2"
-                      >
-                        <CreditCard className="w-4 h-4" />
-                        {`Subscribe Now - $${MONTHLY_PRICE}/month`}
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Trial/Expired Warning Banner - only show during active trial */}
-                  {trialStatus.hasStartedTrial && !trialStatus.isPaid && !trialStatus.isExpired && (
-                    <div className="mt-4">
-                      <AutopilotTrialWarning 
-                        variant="banner" 
-                        showUpgradeButton={true}
-                        onUpgrade={upgradeToPaid}
-                      />
-                    </div>
-                  )}
-                
-                  {/* Active subscription/trial content - show when access granted */}
-                  {hasAutopilotSubscription && !trialStatus.isExpired && (
-                    <>
-                      {/* Status banner */}
-                      <div className={cn(
-                        "mt-4 p-4 rounded-xl flex items-center gap-4",
-                        trialStatus.isPaid 
-                          ? "bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30"
-                          : "bg-emerald-500/10 border border-emerald-500/30"
-                      )}>
-                        <div className={cn(
-                          "w-12 h-12 rounded-xl flex items-center justify-center",
-                          trialStatus.isPaid ? "bg-amber-500/20" : "bg-emerald-500/20"
-                        )}>
-                          {trialStatus.isPaid ? (
-                            <Crown className="w-6 h-6 text-amber-400" />
-                          ) : (
-                            <CheckCircle2 className="w-6 h-6 text-emerald-400" />
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h4 className="font-bold text-foreground">
-                              {isUnlimitedPlan ? 'Unlimited Mode Active' : trialStatus.isPaid ? 'AI Autopilot Pro Active' : 'AI Autopilot Trial Active'}
-                            </h4>
-                            <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]">
-                              {isUnlimitedPlan ? '$999/mo' : `$${MONTHLY_PRICE}/mo`}
-                            </Badge>
-                          </div>
-                          <p className="text-xs text-muted-foreground">
-                            AI manages entire outreach: sequences, follow-ups, and responses
-                          </p>
-                        </div>
-                        {trialStatus.isTrialActive && (
-                          <Badge className={cn(
-                            "text-xs",
-                            trialStatus.trialDaysRemaining <= 3 
-                              ? "bg-red-500/20 text-red-400 border-red-500/30 animate-pulse" 
-                              : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                          )}>
-                            <Clock className="w-3 h-3 mr-1" />
-                            {trialStatus.trialDaysRemaining} day{trialStatus.trialDaysRemaining !== 1 ? 's' : ''} left
-                          </Badge>
-                        )}
-                      </div>
-                    </>
-                  )}
-
-                  {/* Step 1: Leads - Show for active subscription/trial */}
-                  {hasAutopilotSubscription && !trialStatus.isExpired && (
-                    <>
+                      {/* AI Strategy Review */}
                       <TabsContent value="leads" className="mt-4 space-y-4">
-                        <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                        <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/20">
                           <div className="flex items-center gap-2 mb-3">
-                            <Bot className="w-5 h-5 text-amber-400" />
-                            <h4 className="font-semibold text-foreground">AI Autopilot Lead Queue</h4>
-                            {getSearchBadge()}
+                            <Brain className="w-5 h-5 text-red-500" />
+                            <h4 className="font-semibold text-foreground">AI-Selected Strategy</h4>
+                            <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Pre-configured</Badge>
                           </div>
                           <p className="text-xs text-muted-foreground mb-4">
-                            AI will only include leads that have both a valid email and phone number.
+                            AI has analyzed your {autopilotEligibleLeads.length} leads and selected the optimal strategy.
                           </p>
-                          {autopilotExcludedCount > 0 && (
-                            <p className="text-xs text-amber-400 mb-3">
-                              {autopilotExcludedCount} lead{autopilotExcludedCount !== 1 ? 's are' : ' is'} excluded (missing valid email or phone).
-                            </p>
-                          )}
-                          
-                          {/* Lead Stats */}
-                          <div className="grid grid-cols-4 gap-2 mb-4">
-                            <div className="p-3 rounded-lg bg-background border border-border text-center">
-                              <div className="text-lg font-bold text-foreground">{autopilotEligibleLeads.length}</div>
-                              <div className="text-[10px] text-muted-foreground">Total</div>
-                            </div>
-                            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-center">
-                              <div className="text-lg font-bold text-red-400">{autopilotEligibleLeads.filter(l => l.aiClassification === 'hot').length}</div>
-                              <div className="text-[10px] text-muted-foreground">Hot</div>
-                            </div>
-                            <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
-                              <div className="text-lg font-bold text-amber-400">{autopilotEligibleLeads.filter(l => l.aiClassification === 'warm').length}</div>
-                              <div className="text-[10px] text-muted-foreground">Warm</div>
-                            </div>
-                            <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-center">
-                              <div className="text-lg font-bold text-blue-400">{autopilotEligibleLeads.filter(l => l.aiClassification === 'cold' || !l.aiClassification).length}</div>
-                              <div className="text-[10px] text-muted-foreground">Cold</div>
-                            </div>
-                          </div>
-                          
-                          {/* Lead List */}
-                          <ScrollArea className="h-[250px]">
-                            <div className="space-y-2">
-                              {autopilotEligibleLeads.map((lead, idx) => (
-                                <div 
-                                  key={lead.id || idx}
-                                  className="flex items-center gap-3 p-3 rounded-lg bg-background border border-border"
-                                >
-                                  <div className={cn(
-                                    "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
-                                    lead.aiClassification === 'hot' ? "bg-red-500/20 text-red-400" :
-                                    lead.aiClassification === 'warm' ? "bg-amber-500/20 text-amber-400" :
-                                    "bg-blue-500/20 text-blue-400"
-                                  )}>
-                                    {idx + 1}
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-foreground truncate">
-                                      {lead.business_name || lead.name || 'Unknown'}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground truncate">{lead.email}</p>
-                                  </div>
-                                  <Badge variant="outline" className={cn(
-                                    "text-[10px] gap-1",
-                                    lead.aiClassification === 'hot' && "border-red-500/30 text-red-400",
-                                    lead.aiClassification === 'warm' && "border-amber-500/30 text-amber-400",
-                                    (!lead.aiClassification || lead.aiClassification === 'cold') && "border-blue-500/30 text-blue-400"
-                                  )}>
-                                    {getPriorityIcon(lead.aiClassification)}
-                                    {lead.aiClassification || 'cold'}
-                                  </Badge>
-                                </div>
-                              ))}
-                            </div>
-                          </ScrollArea>
+                          <AIStrategySelector
+                            mode="autopilot"
+                            searchType={detectedSearchType}
+                            leads={autopilotEligibleLeads}
+                            selectedTemplate={selectedCampaignTemplate || effectiveTemplate || undefined}
+                            onSelectStrategy={(strategy) => setSelectedStrategy(strategy)}
+                            selectedStrategy={selectedStrategy || autoSelectStrategy(buildStrategyContext(detectedSearchType, autopilotEligibleLeads))}
+                          />
                         </div>
-                        <Button 
-                          onClick={() => setAutopilotTab('template')} 
-                          disabled={autopilotEligibleLeads.length === 0}
-                          className="w-full bg-amber-500 hover:bg-amber-600 gap-2"
-                        >
-                          Continue to Templates <ArrowRight className="w-4 h-4" />
+                        <Button onClick={() => setAutopilotTab('template')} className="w-full bg-red-500 hover:bg-red-600 gap-2">
+                          Review Template <ArrowRight className="w-4 h-4" />
                         </Button>
                       </TabsContent>
 
-                      {/* Step 2: Template */}
+                      {/* Template Review */}
                       <TabsContent value="template" className="mt-4 space-y-4">
-                        <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                        <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/20">
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
-                              <Sparkles className="w-5 h-5 text-amber-400" />
-                              <h4 className="font-semibold text-foreground">AI Template Selection</h4>
+                              <Sparkles className="w-5 h-5 text-red-500" />
+                              <h4 className="font-semibold text-foreground">AI-Selected Template</h4>
+                              <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Pre-configured</Badge>
                             </div>
-                            <Badge variant="outline" className="text-[10px] gap-1">
-                              <Brain className="w-3 h-3" />
-                              AI Auto-Personalizes
-                            </Badge>
+                            <Button size="sm" variant="ghost" onClick={() => setShowTemplateSelector(true)} className="text-xs h-7 gap-1">
+                              <Edit3 className="w-3 h-3" /> Change
+                            </Button>
                           </div>
-                          <p className="text-xs text-muted-foreground mb-4">
-                            AI will automatically personalize emails based on each lead's website status, pain points, and business type.
-                          </p>
-                          
                           {effectiveTemplate ? (
-                            <div className="p-4 rounded-lg bg-background border border-amber-500/30 mb-4">
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                  <p className="text-sm font-medium text-foreground">{effectiveTemplate.name}</p>
-                                  {!selectedCampaignTemplate && (
-                                    <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-amber-500/30">
-                                      AI Selected
-                                    </Badge>
-                                  )}
-                                </div>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => setShowTemplateSelector(true)}
-                                  className="text-xs h-7 gap-1"
-                                >
-                                  <Edit3 className="w-3 h-3" />
-                                  Change
-                                </Button>
-                              </div>
+                            <div className="p-4 rounded-lg bg-background border border-red-500/30">
+                              <p className="text-sm font-medium text-foreground mb-1">{effectiveTemplate.name}</p>
                               {effectiveTemplate.subject && (
-                                <p className="text-xs text-muted-foreground">Subject: {effectiveTemplate.subject}</p>
+                                <p className="text-xs text-muted-foreground mb-2">Subject: {effectiveTemplate.subject}</p>
+                              )}
+                              {effectiveTemplate.body && (
+                                <p className="text-xs text-muted-foreground line-clamp-3">{effectiveTemplate.body.substring(0, 200)}...</p>
                               )}
                             </div>
                           ) : (
-                            <div className="p-4 rounded-lg bg-background border-2 border-dashed border-amber-500/30 text-center mb-4">
+                            <div className="p-4 rounded-lg bg-background border-2 border-dashed border-red-500/30 text-center">
                               <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                              <p className="text-sm text-foreground font-medium">No template selected</p>
-                              <p className="text-xs text-muted-foreground mb-3">AI will use intelligent defaults based on lead type</p>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setShowTemplateSelector(true)}
-                                className="text-xs gap-1"
-                              >
-                                <FileText className="w-3 h-3" />
-                                Browse Templates
-                              </Button>
+                              <p className="text-sm text-foreground font-medium">AI will use smart defaults</p>
+                              <p className="text-xs text-muted-foreground">Based on lead analysis and pain points</p>
                             </div>
                           )}
-                          
-                          {/* AI Personalization Preview */}
-                          <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                          <div className="mt-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
                             <p className="text-xs text-muted-foreground flex items-center gap-1">
                               <Sparkles className="w-3 h-3 text-primary" />
                               <span className="font-medium text-foreground">AI Personalization:</span>
-                              Each email will include business name, website status, and tailored value propositions.
+                              Each email auto-includes business name, website status, and tailored value props.
                             </p>
                           </div>
                         </div>
                         <div className="flex gap-3">
-                          <Button variant="outline" onClick={() => setAutopilotTab('leads')} className="flex-1">
-                            Back
-                          </Button>
-                          <Button 
-                            onClick={() => setAutopilotTab('sequence')} 
-                            className="flex-1 bg-amber-500 hover:bg-amber-600 gap-2"
-                          >
-                            Configure Sequence <ArrowRight className="w-4 h-4" />
+                          <Button variant="outline" onClick={() => setAutopilotTab('leads')} className="flex-1">Back</Button>
+                          <Button onClick={() => setAutopilotTab('sequence')} className="flex-1 bg-red-500 hover:bg-red-600 gap-2">
+                            Review Sequence <ArrowRight className="w-4 h-4" />
                           </Button>
                         </div>
                       </TabsContent>
 
-                      {/* Step 3: Sequence */}
+                      {/* Sequence Review */}
                       <TabsContent value="sequence" className="mt-4 space-y-4">
-                        {/* AI Strategy Panel - Autopilot Mode (Auto-Selected) */}
-                        <AIStrategySelector
-                          mode="autopilot"
-                          searchType={detectedSearchType}
-                          leads={autopilotEligibleLeads}
-                          selectedTemplate={selectedCampaignTemplate || effectiveTemplate || undefined}
-                          onSelectStrategy={(strategy) => setSelectedStrategy(strategy)}
-                          selectedStrategy={selectedStrategy || autoSelectStrategy(buildStrategyContext(detectedSearchType, autopilotEligibleLeads))}
-                        />
-                        
-                        <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                        <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/20">
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
-                              <Layers className="w-5 h-5 text-amber-400" />
-                              <h4 className="font-semibold text-foreground">AI Sequence Selection</h4>
+                              <Layers className="w-5 h-5 text-red-500" />
+                              <h4 className="font-semibold text-foreground">AI-Selected Sequence</h4>
+                              <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Pre-configured</Badge>
                             </div>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => setShowSequenceSelector(!showSequenceSelector)}
-                              className="text-xs gap-1"
-                            >
-                              <Eye className="w-3 h-3" />
-                              Browse All
+                            <Button size="sm" variant="outline" onClick={() => setShowSequenceSelector(!showSequenceSelector)} className="text-xs gap-1">
+                              <Eye className="w-3 h-3" /> Browse All
                             </Button>
                           </div>
                           
@@ -2172,33 +1979,30 @@ export default function ComposeEmailModal({
                               <AISequenceRecommendationEngine
                                 searchType={detectedSearchType}
                                 mode="autopilot"
-                                onSelectSequence={(seq) => {
-                                  setSelectedSequence(seq);
-                                  toast.success(`Selected: ${seq.name}`);
-                                }}
+                                onSelectSequence={(seq) => { setSelectedSequence(seq); toast.success(`Selected: ${seq.name}`); }}
                                 compact
                               />
                             </div>
                           )}
 
-                          {selectedSequence ? (
-                            <div className="p-4 rounded-lg bg-background border border-amber-500/30 mb-3">
+                          {effectiveSequence ? (
+                            <div className="p-4 rounded-lg bg-background border border-red-500/30">
                               <div className="flex items-center gap-2 mb-3">
-                                <span>{selectedSequence.emoji}</span>
-                                <span className="font-medium text-foreground">{selectedSequence.name}</span>
+                                <span>{effectiveSequence.emoji}</span>
+                                <span className="font-medium text-foreground">{effectiveSequence.name}</span>
                                 <Badge className={cn(
                                   "text-[10px] ml-auto",
-                                  selectedSequence.priority === 'hot' && "bg-red-500/20 text-red-400 border-red-500/30",
-                                  selectedSequence.priority === 'warm' && "bg-amber-500/20 text-amber-400 border-amber-500/30",
-                                  selectedSequence.priority === 'cold' && "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                                  effectiveSequence.priority === 'hot' && "bg-red-500/20 text-red-400 border-red-500/30",
+                                  effectiveSequence.priority === 'warm' && "bg-amber-500/20 text-amber-400 border-amber-500/30",
+                                  effectiveSequence.priority === 'cold' && "bg-blue-500/20 text-blue-400 border-blue-500/30"
                                 )}>
-                                  {selectedSequence.steps.length} emails
+                                  {effectiveSequence.steps.length} emails
                                 </Badge>
                               </div>
                               <div className="space-y-2">
-                                {selectedSequence.steps.map((step, idx) => (
+                                {effectiveSequence.steps.map((step, idx) => (
                                   <div key={idx} className="flex items-center gap-2 text-sm">
-                                    <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
+                                    <div className="w-6 h-6 rounded-full bg-red-500/10 flex items-center justify-center text-[10px] font-bold text-red-400">
                                       D{step.day}
                                     </div>
                                     <span className="text-muted-foreground">{step.action}</span>
@@ -2207,65 +2011,37 @@ export default function ComposeEmailModal({
                               </div>
                             </div>
                           ) : (
-                            <div className="p-4 rounded-lg bg-background border-2 border-dashed border-amber-500/30 text-center mb-3">
+                            <div className="p-4 rounded-lg bg-background border-2 border-dashed border-red-500/30 text-center">
                               <Layers className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                               <p className="text-sm text-foreground font-medium">AI will select optimal sequence</p>
                               <p className="text-xs text-muted-foreground">Based on lead classification and search type</p>
                             </div>
                           )}
-                          
-                          {/* AI Controls */}
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
-                              <div>
-                                <p className="text-sm font-medium text-foreground">Done-For-You Mode</p>
-                                <p className="text-xs text-muted-foreground">AI handles entire outreach automatically</p>
-                              </div>
-                              <Switch
-                                checked={automationSettings.doneForYouMode}
-                                onCheckedChange={(v) => onAutomationChange({ ...automationSettings, doneForYouMode: v })}
-                                className="data-[state=checked]:bg-emerald-500"
-                              />
-                            </div>
-                            <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
-                              <div>
-                                <p className="text-sm font-medium text-foreground">Smart Follow-Ups</p>
-                                <p className="text-xs text-muted-foreground">AI sends follow-ups based on engagement</p>
-                              </div>
-                              <Switch
-                                checked={automationSettings.autoFollowUps}
-                                onCheckedChange={(v) => onAutomationChange({ ...automationSettings, autoFollowUps: v })}
-                                className="data-[state=checked]:bg-amber-500"
-                              />
-                            </div>
-                          </div>
                         </div>
                         <div className="flex gap-3">
-                          <Button variant="outline" onClick={() => setAutopilotTab('template')} className="flex-1">
-                            Back
-                          </Button>
-                          <Button 
-                            onClick={() => setAutopilotTab('launch')} 
-                            className="flex-1 bg-amber-500 hover:bg-amber-600 gap-2"
-                          >
-                            Review & Launch <ArrowRight className="w-4 h-4" />
+                          <Button variant="outline" onClick={() => setAutopilotTab('template')} className="flex-1">Back</Button>
+                          <Button onClick={() => setAutopilotTab('launch')} className="flex-1 bg-red-500 hover:bg-red-600 gap-2">
+                            Ready to Launch <ArrowRight className="w-4 h-4" />
                           </Button>
                         </div>
                       </TabsContent>
 
-                      {/* Step 4: Launch */}
+                      {/* Launch */}
                       <TabsContent value="launch" className="mt-4 space-y-4">
-                        {/* Summary Card */}
-                        <div className="p-4 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/30">
+                        {/* Quick Summary */}
+                        <div className="p-4 rounded-xl bg-gradient-to-br from-red-500/10 to-red-900/10 border border-red-500/30">
                           <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                            AI Autopilot Summary
+                            Campaign Ready
                           </h4>
-
                           <div className="space-y-3 text-sm">
                             <div className="flex justify-between">
-                              <span className="text-muted-foreground">Total Leads:</span>
+                              <span className="text-muted-foreground">Leads:</span>
                               <span className="font-medium text-foreground">{autopilotEligibleLeads.length}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Strategy:</span>
+                              <span className="font-medium text-foreground">{selectedStrategy?.name || 'AI Auto-Selected'}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">Template:</span>
@@ -2277,54 +2053,61 @@ export default function ComposeEmailModal({
                             </div>
                             <div className="flex justify-between">
                               <span className="text-muted-foreground">Mode:</span>
-                              <span className="font-medium text-foreground">
-                                {automationSettings.doneForYouMode ? 'Full Automation' : 'Semi-Automated'}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-muted-foreground">Search Type:</span>
-                              <span className="font-medium text-foreground">
-                                {isSearchA ? 'Option A (Super AI)' : isSearchB ? 'Option B (Agency)' : 'Custom'}
-                              </span>
+                              <span className="font-medium text-red-400">Full Automation (Unlimited)</span>
                             </div>
                           </div>
                         </div>
 
-                        {/* Recipients Preview */}
-                        <div className="p-4 rounded-xl bg-muted/30 border border-border">
-                          <div className="flex items-center justify-between mb-3">
-                            <h4 className="font-semibold text-foreground text-sm flex items-center gap-2">
-                              <Users className="w-4 h-4 text-amber-400" />
-                              Recipients ({autopilotEligibleLeads.length})
-                            </h4>
-                          </div>
-                          
-                          <div className="space-y-2">
-                            {autopilotEligibleLeads.slice(0, 5).map((lead, idx) => (
-                              <div key={lead?.id ?? idx} className="flex items-center gap-3 p-2 rounded-lg bg-background border border-border">
-                                <div className={cn(
-                                  "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
-                                  lead.aiClassification === 'hot' ? "bg-red-500/20 text-red-400" :
-                                  lead.aiClassification === 'warm' ? "bg-amber-500/20 text-amber-400" :
-                                  "bg-blue-500/20 text-blue-400"
-                                )}>
-                                  {idx + 1}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-foreground truncate">
-                                    {lead.business_name || lead.name || 'Unknown'}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground truncate">{lead.email}</p>
-                                </div>
+                        {/* Sent Emails List - shows during/after campaign */}
+                        {sentEmailsList.length > 0 && (
+                          <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="font-semibold text-foreground text-sm flex items-center gap-2">
+                                <Send className="w-4 h-4 text-emerald-400" />
+                                Sent ({sentEmailsList.length})
+                              </h4>
+                            </div>
+                            <ScrollArea className="h-[120px]">
+                              <div className="space-y-1">
+                                {sentEmailsList.map((item, idx) => (
+                                  <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-background border border-border text-xs">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                                    <span className="text-foreground truncate">{item.name}</span>
+                                    <span className="text-muted-foreground truncate ml-auto">{item.email}</span>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
-                            {autopilotEligibleLeads.length > 5 && (
-                              <p className="text-xs text-center text-muted-foreground py-2">
-                                + {autopilotEligibleLeads.length - 5} more recipients
-                              </p>
-                            )}
+                            </ScrollArea>
                           </div>
-                        </div>
+                        )}
+
+                        {/* Live Stats Toggle */}
+                        {showLiveStats && (
+                          <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                            <h4 className="font-semibold text-foreground text-sm flex items-center gap-2 mb-3">
+                              <TrendingUp className="w-4 h-4 text-primary" />
+                              Live Campaign Stats
+                            </h4>
+                            <div className="grid grid-cols-4 gap-2">
+                              <div className="p-3 rounded-lg bg-background border border-border text-center">
+                                <div className="text-lg font-bold text-foreground">{autopilotEligibleLeads.length}</div>
+                                <div className="text-[10px] text-muted-foreground">Queued</div>
+                              </div>
+                              <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-center">
+                                <div className="text-lg font-bold text-emerald-400">{sentEmailsList.length}</div>
+                                <div className="text-[10px] text-muted-foreground">Sent</div>
+                              </div>
+                              <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-center">
+                                <div className="text-lg font-bold text-blue-400">0</div>
+                                <div className="text-[10px] text-muted-foreground">Opened</div>
+                              </div>
+                              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
+                                <div className="text-lg font-bold text-amber-400">0</div>
+                                <div className="text-[10px] text-muted-foreground">Replied</div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
                         {/* AI Info Banner */}
                         <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
@@ -2341,33 +2124,537 @@ export default function ComposeEmailModal({
                           </div>
                         </div>
 
-                        {/* Launch Buttons */}
+                        {/* Launch + Stats Buttons */}
                         <div className="flex gap-3">
-                          <Button variant="outline" onClick={() => setAutopilotTab('sequence')} className="flex-1">
-                            Back
+                          <Button variant="outline" onClick={() => setAutopilotTab('sequence')} className="flex-1">Back</Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => setShowLiveStats(!showLiveStats)}
+                            className="gap-1"
+                          >
+                            <BarChart3 className="w-4 h-4" />
+                            {showLiveStats ? 'Hide Stats' : 'Live Stats'}
                           </Button>
                           <Button 
                             onClick={handleStartAutopilot}
                             disabled={autopilotEligibleLeads.length === 0 || isLaunchingAutopilot}
-                            className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white gap-2"
+                            className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white gap-2"
                           >
                             {isLaunchingAutopilot ? (
-                              <>
-                                <RefreshCw className="w-4 h-4 animate-spin" />
-                                Launching AI...
-                              </>
+                              <><RefreshCw className="w-4 h-4 animate-spin" /> Launching...</>
                             ) : (
-                              <>
-                                <Wand2 className="w-4 h-4" />
-                                Launch AI Autopilot ({autopilotEligibleLeads.length} leads)
-                              </>
+                              <><Rocket className="w-4 h-4" /> Launch Campaign ({autopilotEligibleLeads.length} leads)</>
                             )}
                           </Button>
                         </div>
                       </TabsContent>
-                    </>
-                  )}
-                </Tabs>
+                    </Tabs>
+                  </div>
+                ) : (
+                  /* Non-Unlimited: Original Autopilot experience */
+                  <Tabs value={autopilotTab} onValueChange={(v) => setAutopilotTab(v as AutopilotTab)}>
+                    <TabsList className="bg-muted/50 border border-amber-500/30 p-1 w-full">
+                        <TabsTrigger value="leads" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-amber-500 data-[state=active]:text-white">
+                          <Users className="w-3.5 h-3.5" />
+                        1. Leads ({autopilotEligibleLeads.length})
+                        </TabsTrigger>
+                      <TabsTrigger value="template" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-amber-500 data-[state=active]:text-white">
+                        <FileText className="w-3.5 h-3.5" />
+                        2. Template
+                      </TabsTrigger>
+                      <TabsTrigger value="sequence" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-amber-500 data-[state=active]:text-white">
+                        <Layers className="w-3.5 h-3.5" />
+                        3. Sequence
+                      </TabsTrigger>
+                      <TabsTrigger value="launch" className="flex-1 gap-1.5 text-xs data-[state=active]:bg-amber-500 data-[state=active]:text-white">
+                        <Rocket className="w-3.5 h-3.5" />
+                        4. Launch
+                      </TabsTrigger>
+                    </TabsList>
+
+                    {/* ONLY show trial expired promo AFTER 7-day trial ends */}
+                    {trialStatus.isExpired && (
+                      <div className="mt-4 p-6 rounded-xl text-center bg-muted/50 border-2 border-red-500/30">
+                        <Crown className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+                        <h3 className="text-xl font-bold text-foreground mb-2">
+                          AI Autopilot Trial Expired
+                        </h3>
+                        <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
+                          Your 7-day free trial has ended. Subscribe to continue using AI-powered automated outreach.
+                        </p>
+                        <div className="flex items-center justify-center gap-3 mb-4">
+                          <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                            {`$${MONTHLY_PRICE}/month`}
+                          </Badge>
+                        </div>
+                        <Button 
+                          onClick={upgradeToPaid}
+                          className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white gap-2"
+                        >
+                          <CreditCard className="w-4 h-4" />
+                          {`Subscribe Now - $${MONTHLY_PRICE}/month`}
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* Trial/Expired Warning Banner - only show during active trial */}
+                    {trialStatus.hasStartedTrial && !trialStatus.isPaid && !trialStatus.isExpired && (
+                      <div className="mt-4">
+                        <AutopilotTrialWarning 
+                          variant="banner" 
+                          showUpgradeButton={true}
+                          onUpgrade={upgradeToPaid}
+                        />
+                      </div>
+                    )}
+                  
+                    {/* Active subscription/trial content - show when access granted */}
+                    {hasAutopilotSubscription && !trialStatus.isExpired && (
+                      <>
+                        {/* Status banner */}
+                        <div className={cn(
+                          "mt-4 p-4 rounded-xl flex items-center gap-4",
+                          trialStatus.isPaid 
+                            ? "bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30"
+                            : "bg-emerald-500/10 border border-emerald-500/30"
+                        )}>
+                          <div className={cn(
+                            "w-12 h-12 rounded-xl flex items-center justify-center",
+                            trialStatus.isPaid ? "bg-amber-500/20" : "bg-emerald-500/20"
+                          )}>
+                            {trialStatus.isPaid ? (
+                              <Crown className="w-6 h-6 text-amber-400" />
+                            ) : (
+                              <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                            )}
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-foreground">
+                                {trialStatus.isPaid ? 'AI Autopilot Pro Active' : 'AI Autopilot Trial Active'}
+                              </h4>
+                              <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]">
+                                {`$${MONTHLY_PRICE}/mo`}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              AI manages entire outreach: sequences, follow-ups, and responses
+                            </p>
+                          </div>
+                          {trialStatus.isTrialActive && (
+                            <Badge className={cn(
+                              "text-xs",
+                              trialStatus.trialDaysRemaining <= 3 
+                                ? "bg-red-500/20 text-red-400 border-red-500/30 animate-pulse" 
+                                : "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                            )}>
+                              <Clock className="w-3 h-3 mr-1" />
+                              {trialStatus.trialDaysRemaining} day{trialStatus.trialDaysRemaining !== 1 ? 's' : ''} left
+                            </Badge>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    {/* Step 1: Leads - Show for active subscription/trial */}
+                    {hasAutopilotSubscription && !trialStatus.isExpired && (
+                      <>
+                        <TabsContent value="leads" className="mt-4 space-y-4">
+                          <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Bot className="w-5 h-5 text-amber-400" />
+                              <h4 className="font-semibold text-foreground">AI Autopilot Lead Queue</h4>
+                              {getSearchBadge()}
+                            </div>
+                            <p className="text-xs text-muted-foreground mb-4">
+                              AI will only include leads that have both a valid email and phone number.
+                            </p>
+                            {autopilotExcludedCount > 0 && (
+                              <p className="text-xs text-amber-400 mb-3">
+                                {autopilotExcludedCount} lead{autopilotExcludedCount !== 1 ? 's are' : ' is'} excluded (missing valid email or phone).
+                              </p>
+                            )}
+                            
+                            {/* Lead Stats */}
+                            <div className="grid grid-cols-4 gap-2 mb-4">
+                              <div className="p-3 rounded-lg bg-background border border-border text-center">
+                                <div className="text-lg font-bold text-foreground">{autopilotEligibleLeads.length}</div>
+                                <div className="text-[10px] text-muted-foreground">Total</div>
+                              </div>
+                              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-center">
+                                <div className="text-lg font-bold text-red-400">{autopilotEligibleLeads.filter(l => l.aiClassification === 'hot').length}</div>
+                                <div className="text-[10px] text-muted-foreground">Hot</div>
+                              </div>
+                              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
+                                <div className="text-lg font-bold text-amber-400">{autopilotEligibleLeads.filter(l => l.aiClassification === 'warm').length}</div>
+                                <div className="text-[10px] text-muted-foreground">Warm</div>
+                              </div>
+                              <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-center">
+                                <div className="text-lg font-bold text-blue-400">{autopilotEligibleLeads.filter(l => l.aiClassification === 'cold' || !l.aiClassification).length}</div>
+                                <div className="text-[10px] text-muted-foreground">Cold</div>
+                              </div>
+                            </div>
+                            
+                            {/* Lead List */}
+                            <ScrollArea className="h-[250px]">
+                              <div className="space-y-2">
+                                {autopilotEligibleLeads.map((lead, idx) => (
+                                  <div 
+                                    key={lead.id || idx}
+                                    className="flex items-center gap-3 p-3 rounded-lg bg-background border border-border"
+                                  >
+                                    <div className={cn(
+                                      "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
+                                      lead.aiClassification === 'hot' ? "bg-red-500/20 text-red-400" :
+                                      lead.aiClassification === 'warm' ? "bg-amber-500/20 text-amber-400" :
+                                      "bg-blue-500/20 text-blue-400"
+                                    )}>
+                                      {idx + 1}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-foreground truncate">
+                                        {lead.business_name || lead.name || 'Unknown'}
+                                      </p>
+                                      <p className="text-xs text-muted-foreground truncate">{lead.email}</p>
+                                    </div>
+                                    <Badge variant="outline" className={cn(
+                                      "text-[10px] gap-1",
+                                      lead.aiClassification === 'hot' && "border-red-500/30 text-red-400",
+                                      lead.aiClassification === 'warm' && "border-amber-500/30 text-amber-400",
+                                      (!lead.aiClassification || lead.aiClassification === 'cold') && "border-blue-500/30 text-blue-400"
+                                    )}>
+                                      {getPriorityIcon(lead.aiClassification)}
+                                      {lead.aiClassification || 'cold'}
+                                    </Badge>
+                                  </div>
+                                ))}
+                              </div>
+                            </ScrollArea>
+                          </div>
+                          <Button 
+                            onClick={() => setAutopilotTab('template')} 
+                            disabled={autopilotEligibleLeads.length === 0}
+                            className="w-full bg-amber-500 hover:bg-amber-600 gap-2"
+                          >
+                            Continue to Templates <ArrowRight className="w-4 h-4" />
+                          </Button>
+                        </TabsContent>
+
+                        {/* Step 2: Template */}
+                        <TabsContent value="template" className="mt-4 space-y-4">
+                          <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <Sparkles className="w-5 h-5 text-amber-400" />
+                                <h4 className="font-semibold text-foreground">AI Template Selection</h4>
+                              </div>
+                              <Badge variant="outline" className="text-[10px] gap-1">
+                                <Brain className="w-3 h-3" />
+                                AI Auto-Personalizes
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground mb-4">
+                              AI will automatically personalize emails based on each lead's website status, pain points, and business type.
+                            </p>
+                            
+                            {effectiveTemplate ? (
+                              <div className="p-4 rounded-lg bg-background border border-amber-500/30 mb-4">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-sm font-medium text-foreground">{effectiveTemplate.name}</p>
+                                    {!selectedCampaignTemplate && (
+                                      <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-amber-500/30">
+                                        AI Selected
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => setShowTemplateSelector(true)}
+                                    className="text-xs h-7 gap-1"
+                                  >
+                                    <Edit3 className="w-3 h-3" />
+                                    Change
+                                  </Button>
+                                </div>
+                                {effectiveTemplate.subject && (
+                                  <p className="text-xs text-muted-foreground">Subject: {effectiveTemplate.subject}</p>
+                                )}
+                                {effectiveTemplate.body && (
+                                  <p className="text-xs text-muted-foreground mt-1 line-clamp-3">{effectiveTemplate.body.substring(0, 200)}...</p>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="p-4 rounded-lg bg-background border-2 border-dashed border-amber-500/30 text-center mb-4">
+                                <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                                <p className="text-sm text-foreground font-medium">No template selected</p>
+                                <p className="text-xs text-muted-foreground mb-3">AI will use intelligent defaults based on lead type</p>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setShowTemplateSelector(true)}
+                                  className="text-xs gap-1"
+                                >
+                                  <FileText className="w-3 h-3" />
+                                  Browse Templates
+                                </Button>
+                              </div>
+                            )}
+                            
+                            {/* AI Personalization Preview */}
+                            <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+                              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Sparkles className="w-3 h-3 text-primary" />
+                                <span className="font-medium text-foreground">AI Personalization:</span>
+                                Each email will include business name, website status, and tailored value propositions.
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex gap-3">
+                            <Button variant="outline" onClick={() => setAutopilotTab('leads')} className="flex-1">
+                              Back
+                            </Button>
+                            <Button 
+                              onClick={() => setAutopilotTab('sequence')} 
+                              className="flex-1 bg-amber-500 hover:bg-amber-600 gap-2"
+                            >
+                              Configure Sequence <ArrowRight className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TabsContent>
+
+                        {/* Step 3: Sequence */}
+                        <TabsContent value="sequence" className="mt-4 space-y-4">
+                          {/* AI Strategy Panel - Autopilot Mode (Auto-Selected) */}
+                          <AIStrategySelector
+                            mode="autopilot"
+                            searchType={detectedSearchType}
+                            leads={autopilotEligibleLeads}
+                            selectedTemplate={selectedCampaignTemplate || effectiveTemplate || undefined}
+                            onSelectStrategy={(strategy) => setSelectedStrategy(strategy)}
+                            selectedStrategy={selectedStrategy || autoSelectStrategy(buildStrategyContext(detectedSearchType, autopilotEligibleLeads))}
+                          />
+                          
+                          <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <Layers className="w-5 h-5 text-amber-400" />
+                                <h4 className="font-semibold text-foreground">AI Sequence Selection</h4>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setShowSequenceSelector(!showSequenceSelector)}
+                                className="text-xs gap-1"
+                              >
+                                <Eye className="w-3 h-3" />
+                                Browse All
+                              </Button>
+                            </div>
+                            
+                            {showSequenceSelector && (
+                              <div className="mb-4 border border-border rounded-lg p-3 bg-background">
+                                <AISequenceRecommendationEngine
+                                  searchType={detectedSearchType}
+                                  mode="autopilot"
+                                  onSelectSequence={(seq) => {
+                                    setSelectedSequence(seq);
+                                    toast.success(`Selected: ${seq.name}`);
+                                  }}
+                                  compact
+                                />
+                              </div>
+                            )}
+
+                            {selectedSequence ? (
+                              <div className="p-4 rounded-lg bg-background border border-amber-500/30 mb-3">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <span>{selectedSequence.emoji}</span>
+                                  <span className="font-medium text-foreground">{selectedSequence.name}</span>
+                                  <Badge className={cn(
+                                    "text-[10px] ml-auto",
+                                    selectedSequence.priority === 'hot' && "bg-red-500/20 text-red-400 border-red-500/30",
+                                    selectedSequence.priority === 'warm' && "bg-amber-500/20 text-amber-400 border-amber-500/30",
+                                    selectedSequence.priority === 'cold' && "bg-blue-500/20 text-blue-400 border-blue-500/30"
+                                  )}>
+                                    {selectedSequence.steps.length} emails
+                                  </Badge>
+                                </div>
+                                <div className="space-y-2">
+                                  {selectedSequence.steps.map((step, idx) => (
+                                    <div key={idx} className="flex items-center gap-2 text-sm">
+                                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
+                                        D{step.day}
+                                      </div>
+                                      <span className="text-muted-foreground">{step.action}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="p-4 rounded-lg bg-background border-2 border-dashed border-amber-500/30 text-center mb-3">
+                                <Layers className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                                <p className="text-sm text-foreground font-medium">AI will select optimal sequence</p>
+                                <p className="text-xs text-muted-foreground">Based on lead classification and search type</p>
+                              </div>
+                            )}
+                            
+                            {/* AI Controls */}
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
+                                <div>
+                                  <p className="text-sm font-medium text-foreground">Done-For-You Mode</p>
+                                  <p className="text-xs text-muted-foreground">AI handles entire outreach automatically</p>
+                                </div>
+                                <Switch
+                                  checked={automationSettings.doneForYouMode}
+                                  onCheckedChange={(v) => onAutomationChange({ ...automationSettings, doneForYouMode: v })}
+                                  className="data-[state=checked]:bg-emerald-500"
+                                />
+                              </div>
+                              <div className="flex items-center justify-between p-3 rounded-lg bg-background border border-border">
+                                <div>
+                                  <p className="text-sm font-medium text-foreground">Smart Follow-Ups</p>
+                                  <p className="text-xs text-muted-foreground">AI sends follow-ups based on engagement</p>
+                                </div>
+                                <Switch
+                                  checked={automationSettings.autoFollowUps}
+                                  onCheckedChange={(v) => onAutomationChange({ ...automationSettings, autoFollowUps: v })}
+                                  className="data-[state=checked]:bg-amber-500"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex gap-3">
+                            <Button variant="outline" onClick={() => setAutopilotTab('template')} className="flex-1">
+                              Back
+                            </Button>
+                            <Button 
+                              onClick={() => setAutopilotTab('launch')} 
+                              className="flex-1 bg-amber-500 hover:bg-amber-600 gap-2"
+                            >
+                              Review & Launch <ArrowRight className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TabsContent>
+
+                        {/* Step 4: Launch */}
+                        <TabsContent value="launch" className="mt-4 space-y-4">
+                          {/* Summary Card */}
+                          <div className="p-4 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/30">
+                            <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                              AI Autopilot Summary
+                            </h4>
+
+                            <div className="space-y-3 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Total Leads:</span>
+                                <span className="font-medium text-foreground">{autopilotEligibleLeads.length}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Template:</span>
+                                <span className="font-medium text-foreground">{effectiveTemplate?.name || 'AI Smart Selection'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Sequence:</span>
+                                <span className="font-medium text-foreground">{effectiveSequence?.name || 'AI Optimized'}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Mode:</span>
+                                <span className="font-medium text-foreground">
+                                  {automationSettings.doneForYouMode ? 'Full Automation' : 'Semi-Automated'}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Search Type:</span>
+                                <span className="font-medium text-foreground">
+                                  {isSearchA ? 'Option A (Super AI)' : isSearchB ? 'Option B (Agency)' : 'Custom'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Recipients Preview */}
+                          <div className="p-4 rounded-xl bg-muted/30 border border-border">
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="font-semibold text-foreground text-sm flex items-center gap-2">
+                                <Users className="w-4 h-4 text-amber-400" />
+                                Recipients ({autopilotEligibleLeads.length})
+                              </h4>
+                            </div>
+                            
+                            <div className="space-y-2">
+                              {autopilotEligibleLeads.slice(0, 5).map((lead, idx) => (
+                                <div key={lead?.id ?? idx} className="flex items-center gap-3 p-2 rounded-lg bg-background border border-border">
+                                  <div className={cn(
+                                    "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
+                                    lead.aiClassification === 'hot' ? "bg-red-500/20 text-red-400" :
+                                    lead.aiClassification === 'warm' ? "bg-amber-500/20 text-amber-400" :
+                                    "bg-blue-500/20 text-blue-400"
+                                  )}>
+                                    {idx + 1}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-foreground truncate">
+                                      {lead.business_name || lead.name || 'Unknown'}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground truncate">{lead.email}</p>
+                                  </div>
+                                </div>
+                              ))}
+                              {autopilotEligibleLeads.length > 5 && (
+                                <p className="text-xs text-center text-muted-foreground py-2">
+                                  + {autopilotEligibleLeads.length - 5} more recipients
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* AI Info Banner */}
+                          <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                                <Bot className="w-5 h-5 text-emerald-400" />
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-medium text-foreground text-sm">AI Takes Over After Launch</p>
+                                <p className="text-xs text-muted-foreground">
+                                  No further action needed. AI will send sequences, detect responses, and pause when leads reply.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Launch Buttons */}
+                          <div className="flex gap-3">
+                            <Button variant="outline" onClick={() => setAutopilotTab('sequence')} className="flex-1">
+                              Back
+                            </Button>
+                            <Button 
+                              onClick={handleStartAutopilot}
+                              disabled={autopilotEligibleLeads.length === 0 || isLaunchingAutopilot}
+                              className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white gap-2"
+                            >
+                              {isLaunchingAutopilot ? (
+                                <>
+                                  <RefreshCw className="w-4 h-4 animate-spin" />
+                                  Launching AI...
+                                </>
+                              ) : (
+                                <>
+                                  <Wand2 className="w-4 h-4" />
+                                  Launch AI Autopilot ({autopilotEligibleLeads.length} leads)
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </TabsContent>
+                      </>
+                    )}
+                  </Tabs>
+                )}
               </div>
             )}
           </div>
@@ -2427,7 +2714,7 @@ export default function ComposeEmailModal({
           </div>
         )}
         {/* FOOTER for AI Autopilot Mode */}
-        {composeMode === 'autopilot' && hasAutopilotSubscription && (
+        {composeMode === 'autopilot' && hasAutopilotSubscription && !isUnlimitedPlan && (
           <div className="p-4 border-t border-border bg-muted/30">
             {/* Launch Progress Animation */}
             {isLaunchingAutopilot ? (
@@ -2475,6 +2762,68 @@ export default function ComposeEmailModal({
                   >
                     <Send className="w-4 h-4" />
                     Launch AI Campaign
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {/* FOOTER for Unlimited Mode */}
+        {composeMode === 'autopilot' && isUnlimitedPlan && (
+          <div className="p-4 border-t border-border bg-muted/30">
+            {isLaunchingAutopilot ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center animate-pulse">
+                    <Rocket className="w-5 h-5 text-red-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-foreground">
+                      {autopilotLaunchProgress < 30 ? 'Analyzing lead profiles...' :
+                       autopilotLaunchProgress < 50 ? 'Preparing personalized sequences...' :
+                       autopilotLaunchProgress < 70 ? 'Configuring AI decision engine...' :
+                       autopilotLaunchProgress < 90 ? 'Setting up response detection...' :
+                       autopilotLaunchProgress < 100 ? 'Activating autopilot...' :
+                       '🚀 Launch complete!'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {autopilotEligibleLeads.length} leads • Unlimited Mode
+                    </p>
+                  </div>
+                  <Badge className="bg-red-500/20 text-red-400 border-red-500/30 animate-pulse">
+                    {autopilotLaunchProgress}%
+                  </Badge>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-red-500 to-red-600 transition-all duration-300 ease-out"
+                    style={{ width: `${autopilotLaunchProgress}%` }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Shield className="w-4 h-4 text-red-500" />
+                  <span>{autopilotEligibleLeads.length} leads • Unlimited Mode</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Button variant="outline" onClick={onClose}>Cancel</Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowLiveStats(!showLiveStats)}
+                    className="gap-1"
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    Stats
+                  </Button>
+                  <Button
+                    onClick={handleStartAutopilot}
+                    disabled={autopilotEligibleLeads.length === 0 || isLaunchingAutopilot}
+                    className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white gap-2"
+                  >
+                    <Rocket className="w-4 h-4" />
+                    Launch Campaign
                   </Button>
                 </div>
               </div>
