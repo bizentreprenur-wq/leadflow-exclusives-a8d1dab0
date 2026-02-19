@@ -776,29 +776,40 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
           </div>
         </header>
 
+        {/* FLOATING INLINE COMPOSE (Unlimited users) */}
+        {showInlineCompose && isUnlimited && (
+          <div className="fixed inset-0 z-[100] flex items-end justify-center pointer-events-none">
+            {/* Backdrop */}
+            <div
+              className="absolute inset-0 bg-background/40 backdrop-blur-sm pointer-events-auto"
+              onClick={() => setShowInlineCompose(false)}
+            />
+            {/* Pop-out compose window */}
+            <div className="relative pointer-events-auto w-[90vw] max-w-5xl h-[80vh] mb-6 rounded-xl border border-border shadow-2xl bg-background overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-300">
+              <InlineComposePanel
+                leads={campaignLeads}
+                currentLeadIndex={currentLeadIndex}
+                lastSentIndex={lastSentLeadIndex}
+                onLeadIndexChange={setCurrentLeadIndex}
+                onEmailSent={(idx) => {
+                  setLastSentLeadIndex(idx);
+                  setCampaignAnalytics(prev => ({
+                    ...prev,
+                    sent: prev.sent + 1,
+                    delivered: prev.delivered + 1,
+                  }));
+                }}
+                onClose={() => setShowInlineCompose(false)}
+                automationSettings={automation}
+                onAutomationChange={setAutomation}
+                searchType={searchType}
+              />
+            </div>
+          </div>
+        )}
+
         {/* MAIN CONTENT */}
         <div className="flex-1 overflow-hidden">
-          {/* INLINE COMPOSE (Unlimited users) */}
-          {showInlineCompose && isUnlimited ? (
-            <InlineComposePanel
-              leads={campaignLeads}
-              currentLeadIndex={currentLeadIndex}
-              lastSentIndex={lastSentLeadIndex}
-              onLeadIndexChange={setCurrentLeadIndex}
-              onEmailSent={(idx) => {
-                setLastSentLeadIndex(idx);
-                setCampaignAnalytics(prev => ({
-                  ...prev,
-                  sent: prev.sent + 1,
-                  delivered: prev.delivered + 1,
-                }));
-              }}
-              onClose={() => setShowInlineCompose(false)}
-              automationSettings={automation}
-              onAutomationChange={setAutomation}
-              searchType={searchType}
-            />
-          ) : (
           <>
           {/* INBOX VIEW */}
           {mainTab === 'inbox' && (
@@ -1605,7 +1616,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
             </div>
           )}
           </>
-          )}
+
         </div>
       </div>
 
