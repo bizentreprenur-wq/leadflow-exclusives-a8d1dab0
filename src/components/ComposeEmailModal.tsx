@@ -890,21 +890,22 @@ export default function ComposeEmailModal({
           {isUnlimitedPlan ? (
             <div className="p-4 rounded-xl border-2 border-red-500 bg-gradient-to-br from-red-500/10 to-red-900/10">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center">
-                    <Shield className="w-5 h-5 text-red-500" />
+                 <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500/30 to-red-700/30 flex items-center justify-center">
+                    <Crown className="w-5 h-5 text-red-400" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-foreground">Unlimited Mode</span>
+                      <span className="font-bold text-foreground">Unlimited</span>
                       <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[9px]">Active</Badge>
+                      <Badge className="text-[8px] bg-red-500/10 text-red-400 border-red-500/20">Fully Managed</Badge>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      AI manages everything • No credit limits • Dedicated agent
+                      Dedicated agent • AI Sales Brain • Done-for-you campaigns • No limits
                     </p>
                   </div>
                 </div>
-                <Badge className="text-[10px] bg-red-500/20 text-red-400 border-red-500/30">
+                <Badge className="text-[10px] bg-gradient-to-r from-red-500/20 to-red-700/20 text-red-400 border-red-500/30">
                   <Crown className="w-3 h-3 mr-1" />
                   $999/mo
                 </Badge>
@@ -1008,12 +1009,12 @@ export default function ComposeEmailModal({
                   </div>
                 )}
                 <div className="flex items-center gap-2 mb-2">
-                  <Crown className="w-5 h-5 text-amber-400" />
+                  <Bot className="w-5 h-5 text-amber-400" />
                   <span className="font-semibold text-foreground text-sm">AI Autopilot</span>
-                  <Badge className="text-[8px] px-1.5 bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0">PREMIUM</Badge>
+                  <Badge className="text-[8px] px-1.5 bg-amber-500 text-white border-0">$249/mo</Badge>
                 </div>
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  AI sends emails, manages follow-ups, responds to customers on your behalf. Full automation.
+                  Self-service AI automation. Sends emails, manages follow-ups & responds automatically.
                 </p>
                 {safeLeads.length > 0 && (
                   <Badge className="absolute top-2 right-2 bg-amber-500/20 text-amber-400 border-amber-500/30 text-[9px]">
@@ -1033,12 +1034,12 @@ export default function ComposeEmailModal({
               >
                 <Badge className="absolute top-2 right-2 bg-red-500/20 text-red-400 border-red-500/30 text-[8px]">Upgrade</Badge>
                 <div className="flex items-center gap-2 mb-2">
-                  <Shield className="w-5 h-5 text-red-500" />
-                  <span className="font-semibold text-foreground text-sm">Unlimited Mode</span>
-                  <Badge className="text-[8px] px-1.5 bg-red-500 text-white border-0">$999/mo</Badge>
+                  <Crown className="w-5 h-5 text-red-500" />
+                  <span className="font-semibold text-foreground text-sm">Unlimited</span>
+                  <Badge className="text-[8px] px-1.5 bg-gradient-to-r from-red-500 to-red-700 text-white border-0">$999/mo</Badge>
                 </div>
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  All features unlocked. No credit limits. A dedicated agent guides your setup.
+                  Fully managed by a dedicated agent. Done-for-you campaigns, AI Sales Brain & no limits.
                 </p>
               </button>
             </div>
@@ -2033,6 +2034,7 @@ export default function ComposeEmailModal({
                           <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                             Campaign Ready
+                            <Badge className="text-[9px] bg-red-500/20 text-red-400 border-red-500/30">Unlimited</Badge>
                           </h4>
                           <div className="space-y-3 text-sm">
                             <div className="flex justify-between">
@@ -2231,14 +2233,17 @@ export default function ComposeEmailModal({
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <h4 className="font-bold text-foreground">
-                                {trialStatus.isPaid ? 'AI Autopilot Pro Active' : 'AI Autopilot Trial Active'}
+                                {trialStatus.isPaid ? 'AI Autopilot Active' : 'AI Autopilot Trial Active'}
                               </h4>
                               <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]">
-                                {`$${MONTHLY_PRICE}/mo`}
+                                $249/mo
+                              </Badge>
+                              <Badge className="bg-amber-500/10 text-amber-300 border-amber-500/20 text-[9px]">
+                                Self-Service
                               </Badge>
                             </div>
                             <p className="text-xs text-muted-foreground">
-                              AI manages entire outreach: sequences, follow-ups, and responses
+                              Self-service AI automation: sequences, follow-ups, and response management
                             </p>
                           </div>
                           {trialStatus.isTrialActive && (
@@ -2546,6 +2551,7 @@ export default function ComposeEmailModal({
                             <h4 className="font-semibold text-foreground mb-4 flex items-center gap-2">
                               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                               AI Autopilot Summary
+                              <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-amber-500/30">$249/mo</Badge>
                             </h4>
 
                             <div className="space-y-3 text-sm">
