@@ -66,6 +66,9 @@ if (!defined('LEAD_HARVEST_AUTONOMOUS_DEFAULT_LIMIT')) {
 if (!defined('LEAD_HARVEST_AUTONOMOUS_INTERVAL_MINUTES')) {
     define('LEAD_HARVEST_AUTONOMOUS_INTERVAL_MINUTES', 120);
 }
+if (!defined('LEAD_HARVEST_STALE_RUNNING_MINUTES')) {
+    define('LEAD_HARVEST_STALE_RUNNING_MINUTES', 30);
+}
 
 $options = getopt('', [
     'once',
@@ -105,6 +108,8 @@ workerLog('Lead harvest worker started');
 $processedJobs = 0;
 
 while (true) {
+    recoverStaleRunningJobs($pdo);
+
     try {
         $job = acquireDueJob($pdo, $forcedJobId);
     } catch (Throwable $e) {
@@ -214,6 +219,19 @@ function normalizePhone($phone)
         return sprintf('(%s) %s-%s', substr($digits, 0, 3), substr($digits, 3, 3), substr($digits, 6));
     }
     return $digits;
+}
+
+function safeJsonEncode($value)
+{
+    $encoded = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+    if ($encoded !== false) {
+        return $encoded;
+    }
+    $encoded = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_PARTIAL_OUTPUT_ON_ERROR);
+    if ($encoded !== false) {
+        return $encoded;
+    }
+    return null;
 }
 
 function normalizeUrlValue($url)
@@ -362,6 +380,28 @@ function acquireDueJob(PDO $pdo, $forcedJobId = null)
             $pdo->rollBack();
         }
         throw $e;
+    }
+}
+
+function recoverStaleRunningJobs(PDO $pdo)
+{
+    $minutes = max(5, (int) LEAD_HARVEST_STALE_RUNNING_MINUTES);
+    $stmt = $pdo->prepare(
+        "UPDATE lead_harvest_jobs
+         SET status = 'failed',
+             last_finished_at = NOW(),
+             next_run_at = NOW(),
+             last_error = 'Auto-recovered stale running job',
+             updated_at = CURRENT_TIMESTAMP
+         WHERE status = 'running'
+           AND last_started_at IS NOT NULL
+           AND last_started_at < DATE_SUB(NOW(), INTERVAL :minutes MINUTE)"
+    );
+    $stmt->bindValue(':minutes', $minutes, PDO::PARAM_INT);
+    $stmt->execute();
+    $count = (int) $stmt->rowCount();
+    if ($count > 0) {
+        workerLog("Recovered {$count} stale running job(s).");
     }
 }
 
@@ -720,6 +760,22 @@ function processHarvestJob(PDO $pdo, array $job)
         $leads = [];
     }
 
+    // Fallback: if primary pipeline returns nothing, attempt a no-key query.
+    if (empty($leads) && function_exists('customFetcherSearchNoKey')) {
+        $fallbackQuery = trim($keyword . ' in ' . $location);
+        if ($fallbackQuery !== '') {
+            $fallbackLimit = max(20, min((int) $targetLimit, 150));
+            $fallback = customFetcherSearchNoKey($fallbackQuery, $fallbackLimit);
+            if (is_array($fallback) && !empty($fallback) && function_exists('customFetcherEnrichLeads')) {
+                $timeout = function_exists('customFetcherContactTimeout') ? (int) customFetcherContactTimeout() : 6;
+                $concurrency = function_exists('customFetcherEnrichConcurrency') ? (int) customFetcherEnrichConcurrency() : 4;
+                $leads = customFetcherEnrichLeads($fallback, max(3, $timeout), max(1, min(6, $concurrency)));
+            } elseif (is_array($fallback) && !empty($fallback)) {
+                $leads = $fallback;
+            }
+        }
+    }
+
     $locationParts = parseLocationParts($location);
     $cityFromJob = $locationParts['city'];
     $stateFromJob = $locationParts['state'];
@@ -957,7 +1013,7 @@ function persistHarvestLead(
         'city' => $city,
         'state_code' => $stateCode,
         'source' => valueOrNull($lead['source'] ?? 'custom_one_shot_fetcher', 120),
-        'raw_payload' => json_encode($lead),
+        'raw_payload' => safeJsonEncode($lead),
     ]);
 
     $recordId = (int) $pdo->lastInsertId();
