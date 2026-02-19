@@ -1528,12 +1528,8 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                   </Badge>
                 </div>
                 
-                <Tabs defaultValue="smtp" className="w-full">
+                <Tabs defaultValue="branding" className="w-full">
                   <TabsList className="bg-muted/50 border border-border p-1 mb-6">
-                    <TabsTrigger value="smtp" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
-                      <Mail className="w-4 h-4" />
-                      Email / SMTP
-                    </TabsTrigger>
                     <TabsTrigger value="branding" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
                       <Palette className="w-4 h-4" />
                       Branding
@@ -1542,23 +1538,11 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                       <Cloud className="w-4 h-4" />
                       CRM & Integrations
                     </TabsTrigger>
+                    <TabsTrigger value="smtp" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-2">
+                      <Mail className="w-4 h-4" />
+                      Email / SMTP
+                    </TabsTrigger>
                   </TabsList>
-
-                  {/* SMTP Tab */}
-                  <TabsContent value="smtp">
-                    <div className="rounded-xl bg-card border border-border overflow-hidden">
-                      <div className="p-4 border-b border-border">
-                        <h3 className="font-semibold text-foreground flex items-center gap-2">
-                          <Mail className="w-4 h-4 text-primary" />
-                          Email / SMTP Configuration
-                        </h3>
-                        <p className="text-xs text-muted-foreground">Configure your email server to send campaigns</p>
-                      </div>
-                      <div className="p-4">
-                        <SMTPConfigPanel />
-                      </div>
-                    </div>
-                  </TabsContent>
 
                   {/* Branding Tab */}
                   <TabsContent value="branding">
@@ -1605,6 +1589,22 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                             <p className="text-xs text-muted-foreground">Real-time lead notifications</p>
                           </div>
                         </div>
+                      </div>
+                    </div>
+                  </TabsContent>
+
+                  {/* SMTP Tab */}
+                  <TabsContent value="smtp">
+                    <div className="rounded-xl bg-card border border-border overflow-hidden">
+                      <div className="p-4 border-b border-border">
+                        <h3 className="font-semibold text-foreground flex items-center gap-2">
+                          <Mail className="w-4 h-4 text-primary" />
+                          Email / SMTP Configuration
+                        </h3>
+                        <p className="text-xs text-muted-foreground">Configure your email server to send campaigns</p>
+                      </div>
+                      <div className="p-4">
+                        <SMTPConfigPanel />
                       </div>
                     </div>
                   </TabsContent>
