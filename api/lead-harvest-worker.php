@@ -73,7 +73,19 @@ if (!defined('LEAD_HARVEST_ONCE_BATCH_JOBS')) {
     define('LEAD_HARVEST_ONCE_BATCH_JOBS', 6);
 }
 if (!defined('LEAD_HARVEST_FALLBACK_QUERY_MAX')) {
-    define('LEAD_HARVEST_FALLBACK_QUERY_MAX', 16);
+    define('LEAD_HARVEST_FALLBACK_QUERY_MAX', 40);
+}
+if (!defined('LEAD_HARVEST_AUTONOMOUS_MAX_DUE_JOBS')) {
+    define('LEAD_HARVEST_AUTONOMOUS_MAX_DUE_JOBS', 120);
+}
+if (!defined('LEAD_HARVEST_DIRECT_AUTONOMOUS_MODE')) {
+    define('LEAD_HARVEST_DIRECT_AUTONOMOUS_MODE', true);
+}
+if (!defined('LEAD_HARVEST_DIRECT_BATCH_JOBS')) {
+    define('LEAD_HARVEST_DIRECT_BATCH_JOBS', 3);
+}
+if (!defined('LEAD_HARVEST_DB_RECONNECT_RETRIES')) {
+    define('LEAD_HARVEST_DB_RECONNECT_RETRIES', 2);
 }
 
 $options = getopt('', [
@@ -118,18 +130,84 @@ workerLog('Lead harvest worker started');
 $processedJobs = 0;
 
 while (true) {
-    recoverStaleRunningJobs($pdo);
-    queueAutonomousJobsIfEnabled($pdo);
-
     try {
-        $job = acquireDueJob($pdo, $forcedJobId);
+        if (!ensurePdoAlive($pdo, 'main_loop_preflight')) {
+            throw new RuntimeException('Unable to re-establish DB connection');
+        }
+        recoverStaleRunningJobs($pdo);
     } catch (Throwable $e) {
-        workerLog('Failed acquiring job: ' . $e->getMessage());
+        workerLog('Failed preflight DB check: ' . $e->getMessage());
         if ($runOnce) {
             exit(1);
         }
         sleep($idleSleep);
         continue;
+    }
+
+    if ($forcedJobId === null && LEAD_HARVEST_DIRECT_AUTONOMOUS_MODE) {
+        $directBatchSize = $runOnce
+            ? $onceBatchJobs
+            : max(1, (int) LEAD_HARVEST_DIRECT_BATCH_JOBS);
+        try {
+            $directProcessed = runDirectAutonomousBatch($pdo, $directBatchSize);
+        } catch (Throwable $e) {
+            workerLog('Direct autonomous batch failed: ' . $e->getMessage());
+            if ($runOnce) {
+                exit(1);
+            }
+            sleep($idleSleep);
+            continue;
+        }
+        if ($directProcessed > 0) {
+            $processedJobs += $directProcessed;
+            if ($runOnce) {
+                break;
+            }
+            if ($maxJobs > 0 && $processedJobs >= $maxJobs) {
+                workerLog("Reached --max-jobs={$maxJobs}. Exiting.");
+                break;
+            }
+            continue;
+        }
+    }
+
+    try {
+        queueAutonomousJobsIfEnabled($pdo);
+    } catch (Throwable $e) {
+        if (isMysqlGoneAwayException($e) && reconnectPdo($pdo, 'queue_autonomous_jobs')) {
+            try {
+                queueAutonomousJobsIfEnabled($pdo);
+            } catch (Throwable $retryError) {
+                workerLog('Failed queueing autonomous jobs after reconnect: ' . $retryError->getMessage());
+            }
+        } else {
+            workerLog('Failed queueing autonomous jobs: ' . $e->getMessage());
+        }
+    }
+
+    $job = null;
+    try {
+        $job = acquireDueJob($pdo, $forcedJobId);
+    } catch (Throwable $e) {
+        if (isMysqlGoneAwayException($e) && reconnectPdo($pdo, 'acquire_due_job')) {
+            try {
+                $job = acquireDueJob($pdo, $forcedJobId);
+            } catch (Throwable $retryError) {
+                workerLog('Failed acquiring job after reconnect: ' . $retryError->getMessage());
+                if ($runOnce) {
+                    exit(1);
+                }
+                sleep($idleSleep);
+                continue;
+            }
+        } else {
+            workerLog('Failed acquiring job: ' . $e->getMessage());
+            if ($runOnce) {
+                exit(1);
+            }
+            sleep($idleSleep);
+            continue;
+        }
     }
 
     if (!$job) {
@@ -171,7 +249,19 @@ while (true) {
                 markHarvestJobFailed($pdo, $jobId, $errorMessage);
             }
         } catch (Throwable $markError) {
-            workerLog("Failed to mark job #{$jobId} as failed: " . $markError->getMessage());
+            if (
+                $jobId > 0 &&
+                isMysqlGoneAwayException($markError) &&
+                reconnectPdo($pdo, "mark_failed_job_{$jobId}")
+            ) {
+                try {
+                    markHarvestJobFailed($pdo, $jobId, $errorMessage);
+                } catch (Throwable $retryMarkError) {
+                    workerLog("Failed to mark job #{$jobId} as failed after reconnect: " . $retryMarkError->getMessage());
+                }
+            } else {
+                workerLog("Failed to mark job #{$jobId} as failed: " . $markError->getMessage());
+            }
         }
 
         if ($runOnce) {
@@ -189,6 +279,68 @@ function workerLog($message)
     $line = sprintf("[%s] [LeadHarvestWorker] %s", gmdate('Y-m-d H:i:s'), (string) $message);
     echo $line . PHP_EOL;
     error_log($line);
+}
+
+function isMysqlGoneAwayException(Throwable $e)
+{
+    $message = strtolower((string) $e->getMessage());
+    if ($message === '') {
+        return false;
+    }
+
+    $needles = [
+        'mysql server has gone away',
+        'lost connection to mysql server',
+        'sqlstate[hy000]: general error: 2006',
+        'sqlstate[hy000]: general error: 2013',
+    ];
+    foreach ($needles as $needle) {
+        if (strpos($message, $needle) !== false) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function reconnectPdo(&$pdo, $context = '')
+{
+    $retries = max(1, (int) LEAD_HARVEST_DB_RECONNECT_RETRIES);
+    for ($attempt = 1; $attempt <= $retries; $attempt++) {
+        try {
+            $pdo = getDbConnection();
+            $pdo->query('SELECT 1');
+            if ($context !== '') {
+                workerLog("DB reconnect succeeded ({$context}) on attempt {$attempt}.");
+            }
+            return true;
+        } catch (Throwable $e) {
+            if ($attempt >= $retries) {
+                if ($context !== '') {
+                    workerLog("DB reconnect failed ({$context}): " . $e->getMessage());
+                }
+                return false;
+            }
+            usleep(250000);
+        }
+    }
+    return false;
+}
+
+function ensurePdoAlive(&$pdo, $context = '')
+{
+    try {
+        $pdo->query('SELECT 1');
+        return true;
+    } catch (Throwable $e) {
+        if (!isMysqlGoneAwayException($e)) {
+            throw $e;
+        }
+        if ($context !== '') {
+            workerLog("DB connection dropped ({$context}), attempting reconnect.");
+        }
+        return reconnectPdo($pdo, $context);
+    }
 }
 
 function clampInt($value, $min, $max)
@@ -343,7 +495,9 @@ function acquireDueJob(PDO $pdo, $forcedJobId = null)
         if ($forcedJobId !== null) {
             $stmt = $pdo->prepare(
                 "SELECT * FROM lead_harvest_jobs
-                 WHERE id = :id AND enabled = 1 AND status <> 'paused'
+                 WHERE id = :id
+                   AND enabled = 1
+                   AND status IN ('pending', 'completed', 'failed')
                  LIMIT 1
                  FOR UPDATE"
             );
@@ -615,6 +769,18 @@ function queueAutonomousJobsIfEnabled(PDO $pdo)
         return 0;
     }
 
+    $dueStmt = $pdo->query(
+        "SELECT COUNT(*) AS c
+         FROM lead_harvest_jobs
+         WHERE enabled = 1
+           AND status IN ('pending', 'completed', 'failed')
+           AND next_run_at <= NOW()"
+    );
+    $dueCount = (int) (($dueStmt->fetch(PDO::FETCH_ASSOC)['c'] ?? 0));
+    if ($dueCount >= max(10, (int) LEAD_HARVEST_AUTONOMOUS_MAX_DUE_JOBS)) {
+        return 0;
+    }
+
     $keywords = autonomousKeywordSeeds();
     $locations = autonomousLocationSeeds();
     if (empty($keywords) || empty($locations)) {
@@ -626,36 +792,35 @@ function queueAutonomousJobsIfEnabled(PDO $pdo)
         $maxJobs - $currentEnabled
     );
 
-    $combinations = [];
+    $keywordPool = [];
     foreach ($keywords as $seed) {
         $keyword = trim((string) ($seed['keyword'] ?? ''));
         $category = trim((string) ($seed['category'] ?? 'general'));
         if ($keyword === '') {
             continue;
         }
-        foreach ($locations as $location) {
-            $location = trim((string) $location);
-            if ($location === '') {
-                continue;
-            }
-            $combinations[] = [
-                'keyword' => $keyword,
-                'category' => $category,
-                'location' => $location,
-            ];
-        }
+        $keywordPool[] = [
+            'keyword' => $keyword,
+            'category' => $category,
+        ];
     }
-    if (empty($combinations)) {
+    $locationPool = [];
+    foreach ($locations as $location) {
+        $location = trim((string) $location);
+        if ($location === '') {
+            continue;
+        }
+        $locationPool[] = $location;
+    }
+    if (empty($keywordPool) || empty($locationPool)) {
         return 0;
     }
 
-    // Rotate combinations deterministically over time to avoid always seeding the same first subset.
-    $combinationCount = count($combinations);
-    $rotationOffset = (int) (time() / 300) % $combinationCount;
-    $rotated = array_merge(
-        array_slice($combinations, $rotationOffset),
-        array_slice($combinations, 0, $rotationOffset)
-    );
+    // Balanced round-robin over keywords so inserted jobs are not skewed to a single keyword.
+    $keywordCount = count($keywordPool);
+    $locationCount = count($locationPool);
+    $seedTick = (int) floor(time() / 300);
+    $maxCandidateSteps = min($keywordCount * $locationCount, max(200, $slots * 30));
 
     $limit = clampInt(
         (int) LEAD_HARVEST_AUTONOMOUS_DEFAULT_LIMIT,
@@ -689,10 +854,18 @@ function queueAutonomousJobsIfEnabled(PDO $pdo)
     );
 
     $inserted = 0;
-    foreach ($rotated as $combo) {
+    for ($step = 0; $step < $maxCandidateSteps; $step++) {
         if ($inserted >= $slots) {
             break;
         }
+
+        $kwIdx = ($seedTick + $step) % $keywordCount;
+        $locIdx = ((int) floor($seedTick / max(1, $keywordCount)) + $step) % $locationCount;
+        $combo = [
+            'keyword' => $keywordPool[$kwIdx]['keyword'],
+            'category' => $keywordPool[$kwIdx]['category'],
+            'location' => $locationPool[$locIdx],
+        ];
 
         $keywordNorm = normalizeIndexValue($combo['keyword']);
         $locationNorm = normalizeIndexValue($combo['location']);
@@ -726,7 +899,121 @@ function queueAutonomousJobsIfEnabled(PDO $pdo)
     return $inserted;
 }
 
-function processHarvestJob(PDO $pdo, array $job)
+function runDirectAutonomousBatch(PDO &$pdo, $batchSize)
+{
+    $batchSize = max(1, (int) $batchSize);
+    $keywords = autonomousKeywordSeeds();
+    $locations = autonomousLocationSeeds();
+    if (empty($keywords) || empty($locations)) {
+        return 0;
+    }
+
+    $processed = 0;
+    $keywordCount = count($keywords);
+    $locationCount = count($locations);
+    $seedTick = (int) floor(time() / 300);
+
+    for ($i = 0; $i < $batchSize; $i++) {
+        if (!ensurePdoAlive($pdo, "direct_batch_iter_{$i}")) {
+            workerLog('Direct batch stopping early: DB connection unavailable');
+            break;
+        }
+
+        $kwIdx = ($seedTick + $i) % $keywordCount;
+        $locIdx = (($seedTick * 7) + ($i * 13)) % $locationCount;
+
+        $seed = $keywords[$kwIdx];
+        $keyword = trim((string) ($seed['keyword'] ?? ''));
+        $category = trim((string) ($seed['category'] ?? 'general'));
+        $location = trim((string) ($locations[$locIdx] ?? ''));
+        if ($keyword === '' || $location === '') {
+            continue;
+        }
+
+        $jobPayload = [
+            'keyword' => $keyword,
+            'location' => $location,
+            'category' => $category,
+            'limit' => (int) LEAD_HARVEST_AUTONOMOUS_DEFAULT_LIMIT,
+            'interval' => (int) LEAD_HARVEST_AUTONOMOUS_INTERVAL_MINUTES,
+        ];
+
+        try {
+            $jobId = upsertHarvestJobFromCli($pdo, $jobPayload);
+        } catch (Throwable $e) {
+            if (isMysqlGoneAwayException($e) && reconnectPdo($pdo, "direct_batch_upsert_{$i}")) {
+                try {
+                    $jobId = upsertHarvestJobFromCli($pdo, $jobPayload);
+                } catch (Throwable $retryError) {
+                    workerLog("Direct batch upsert failed after reconnect: " . $retryError->getMessage());
+                    continue;
+                }
+            } else {
+                workerLog("Direct batch upsert failed: " . $e->getMessage());
+                continue;
+            }
+        }
+        if ($jobId <= 0) {
+            continue;
+        }
+
+        try {
+            $forcedJob = acquireDueJob($pdo, $jobId);
+        } catch (Throwable $e) {
+            if (isMysqlGoneAwayException($e) && reconnectPdo($pdo, "direct_batch_acquire_{$jobId}")) {
+                try {
+                    $forcedJob = acquireDueJob($pdo, $jobId);
+                } catch (Throwable $retryError) {
+                    workerLog("Direct batch acquire failed after reconnect for job #{$jobId}: " . $retryError->getMessage());
+                    continue;
+                }
+            } else {
+                workerLog("Direct batch acquire failed for job #{$jobId}: " . $e->getMessage());
+                continue;
+            }
+        }
+        if (!$forcedJob) {
+            continue;
+        }
+
+        try {
+            $result = processHarvestJob($pdo, $forcedJob);
+            $processed++;
+            workerLog(sprintf(
+                'Direct batch job #%d (%s | %s) done: discovered=%d touched_records=%d runtime=%dms',
+                (int) $forcedJob['id'],
+                (string) ($forcedJob['keyword'] ?? ''),
+                (string) ($forcedJob['location'] ?? ''),
+                (int) ($result['discovered_count'] ?? 0),
+                (int) ($result['record_count'] ?? 0),
+                (int) ($result['runtime_ms'] ?? 0)
+            ));
+        } catch (Throwable $e) {
+            $error = $e->getMessage();
+            workerLog("Direct batch job #{$jobId} failed: {$error}");
+            try {
+                markHarvestJobFailed($pdo, $jobId, $error);
+            } catch (Throwable $markError) {
+                if (
+                    isMysqlGoneAwayException($markError) &&
+                    reconnectPdo($pdo, "direct_batch_mark_failed_{$jobId}")
+                ) {
+                    try {
+                        markHarvestJobFailed($pdo, $jobId, $error);
+                    } catch (Throwable $retryMarkError) {
+                        workerLog("Direct batch failed marking job #{$jobId} after reconnect: " . $retryMarkError->getMessage());
+                    }
+                } else {
+                    workerLog("Direct batch failed marking job #{$jobId}: " . $markError->getMessage());
+                }
+            }
+        }
+    }
+
+    return $processed;
+}
+
+function processHarvestJob(PDO &$pdo, array $job)
 {
     $startedAt = microtime(true);
 
@@ -819,26 +1106,55 @@ function processHarvestJob(PDO $pdo, array $job)
     $deepScrapeUsed = 0;
     $touchedRecordIds = [];
 
+    if (!ensurePdoAlive($pdo, "job_{$jobId}_before_persist")) {
+        throw new RuntimeException("Job #{$jobId} cannot persist leads: DB reconnect failed");
+    }
+
     foreach ($leads as $lead) {
         if (!is_array($lead)) {
             continue;
         }
 
-        $persisted = persistHarvestLead(
-            $pdo,
-            $jobId,
-            $category,
-            $keyword,
-            $keywordNorm,
-            $location,
-            $locationNorm,
-            $lead,
-            $cityFromJob,
-            $stateFromJob,
-            $websiteSignalsCache,
-            $deepScrapeBudget,
-            $deepScrapeUsed
-        );
+        try {
+            $persisted = persistHarvestLead(
+                $pdo,
+                $jobId,
+                $category,
+                $keyword,
+                $keywordNorm,
+                $location,
+                $locationNorm,
+                $lead,
+                $cityFromJob,
+                $stateFromJob,
+                $websiteSignalsCache,
+                $deepScrapeBudget,
+                $deepScrapeUsed
+            );
+        } catch (Throwable $persistError) {
+            if (
+                isMysqlGoneAwayException($persistError) &&
+                reconnectPdo($pdo, "job_{$jobId}_persist")
+            ) {
+                $persisted = persistHarvestLead(
+                    $pdo,
+                    $jobId,
+                    $category,
+                    $keyword,
+                    $keywordNorm,
+                    $location,
+                    $locationNorm,
+                    $lead,
+                    $cityFromJob,
+                    $stateFromJob,
+                    $websiteSignalsCache,
+                    $deepScrapeBudget,
+                    $deepScrapeUsed
+                );
+            } else {
+                throw $persistError;
+            }
+        }
 
         if ($persisted !== null) {
             $touchedRecordIds[$persisted] = true;
@@ -846,25 +1162,52 @@ function processHarvestJob(PDO $pdo, array $job)
     }
 
     $recordCount = count($touchedRecordIds);
-    $nextRunAt = gmdate('Y-m-d H:i:s', time() + ($intervalMinutes * 60));
-
-    $done = $pdo->prepare(
-        "UPDATE lead_harvest_jobs
-         SET status = 'completed',
-             last_finished_at = NOW(),
-             next_run_at = :next_run_at,
-             last_result_count = :last_result_count,
-             total_result_count = total_result_count + :last_result_count,
-             last_error = NULL,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = :id"
-    );
-
-    $done->execute([
-        'next_run_at' => $nextRunAt,
-        'last_result_count' => $recordCount,
-        'id' => $jobId,
-    ]);
+    if ($recordCount > 0) {
+        $nextRunAt = gmdate('Y-m-d H:i:s', time() + ($intervalMinutes * 60));
+        $doneSql =
+            "UPDATE lead_harvest_jobs
+             SET status = 'completed',
+                 last_finished_at = NOW(),
+                 next_run_at = :next_run_at,
+                 last_result_count = :last_result_count,
+                 total_result_count = total_result_count + :last_result_count,
+                 last_error = NULL,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id";
+        $doneParams = [
+            'next_run_at' => $nextRunAt,
+            'last_result_count' => $recordCount,
+            'id' => $jobId,
+        ];
+        try {
+            $done = $pdo->prepare($doneSql);
+            $done->execute($doneParams);
+        } catch (Throwable $doneError) {
+            if (
+                isMysqlGoneAwayException($doneError) &&
+                reconnectPdo($pdo, "job_{$jobId}_complete")
+            ) {
+                $done = $pdo->prepare($doneSql);
+                $done->execute($doneParams);
+            } else {
+                throw $doneError;
+            }
+        }
+    } else {
+        $reason = $primaryError ? ('No records persisted; primary error: ' . $primaryError) : 'No records persisted from discovery/fallback.';
+        try {
+            markHarvestJobFailed($pdo, $jobId, $reason);
+        } catch (Throwable $failError) {
+            if (
+                isMysqlGoneAwayException($failError) &&
+                reconnectPdo($pdo, "job_{$jobId}_no_records")
+            ) {
+                markHarvestJobFailed($pdo, $jobId, $reason);
+            } else {
+                throw $failError;
+            }
+        }
+    }
 
     return [
         'job_id' => $jobId,
