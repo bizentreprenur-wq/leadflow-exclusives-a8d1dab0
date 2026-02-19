@@ -31,6 +31,7 @@ import EmailPerformanceReport from './EmailPerformanceReport';
 import LeadQueueIndicator from './LeadQueueIndicator';
 import CampaignPerformanceDashboard from './CampaignPerformanceDashboard';
 import ComposeEmailModal from './ComposeEmailModal';
+import InlineComposePanel from './InlineComposePanel';
 import EmailABTestingSystem from './EmailABTestingSystem';
 import LeadResponseDetection from './LeadResponseDetection';
 import EmailSequenceSelector from './EmailSequenceSelector';
@@ -126,6 +127,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
     return DEMO_REPLIES;
   });
   const [showComposeModal, setShowComposeModal] = useState(false);
+  const [showInlineCompose, setShowInlineCompose] = useState(false);
   const [showAutopilotSubscription, setShowAutopilotSubscription] = useState(false);
   const [composeInitialEmail, setComposeInitialEmail] = useState<{
     to: string;
@@ -309,9 +311,12 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
     const autoOpen = sessionStorage.getItem('bamlead_auto_open_compose');
     if (autoOpen === 'true') {
       sessionStorage.removeItem('bamlead_auto_open_compose');
-      // Small delay to ensure leads are loaded
       setTimeout(() => {
-        setShowComposeModal(true);
+        if (isUnlimited) {
+          setShowInlineCompose(true);
+        } else {
+          setShowComposeModal(true);
+        }
       }, 100);
     }
   }, []);
@@ -390,7 +395,11 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
 
   const openCompose = (initial?: { to: string; subject: string; body: string }) => {
     setComposeInitialEmail(initial || null);
-    setShowComposeModal(true);
+    if (isUnlimited) {
+      setShowInlineCompose(true);
+    } else {
+      setShowComposeModal(true);
+    }
   };
 
   const formatForwardBody = (reply: EmailReply) => {
@@ -769,6 +778,28 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
 
         {/* MAIN CONTENT */}
         <div className="flex-1 overflow-hidden">
+          {/* INLINE COMPOSE (Unlimited users) */}
+          {showInlineCompose && isUnlimited ? (
+            <InlineComposePanel
+              leads={campaignLeads}
+              currentLeadIndex={currentLeadIndex}
+              lastSentIndex={lastSentLeadIndex}
+              onLeadIndexChange={setCurrentLeadIndex}
+              onEmailSent={(idx) => {
+                setLastSentLeadIndex(idx);
+                setCampaignAnalytics(prev => ({
+                  ...prev,
+                  sent: prev.sent + 1,
+                  delivered: prev.delivered + 1,
+                }));
+              }}
+              onClose={() => setShowInlineCompose(false)}
+              automationSettings={automation}
+              onAutomationChange={setAutomation}
+              searchType={searchType}
+            />
+          ) : (
+          <>
           {/* INBOX VIEW */}
           {mainTab === 'inbox' && (
             <div className="h-full flex">
@@ -1572,6 +1603,8 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                 </Tabs>
               </div>
             </div>
+          )}
+          </>
           )}
         </div>
       </div>
