@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -7,12 +7,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { loadDripSettings, saveDripSettings } from '@/lib/dripSettings';
+import { getUserLogoFromStorage } from '@/hooks/useUserBranding';
 import {
   Crown, Brain, FileText, Layers, Rocket, Send, ArrowRight,
   CheckCircle2, RefreshCw, Bot, Sparkles, BarChart3, Mail, Clock,
   TrendingUp, X, Flame, ThermometerSun, Snowflake, Bold, Italic,
   Underline, AlignLeft, List, Link2, Image, Paperclip, Smile, MoreHorizontal,
-  Trash2, ChevronDown
+  Trash2, ChevronDown, Code, Eye
 } from 'lucide-react';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { useAutopilotTrial } from '@/hooks/useAutopilotTrial';
@@ -99,9 +100,41 @@ export default function InlineComposePanel({
   const [selectedStrategy, setSelectedStrategy] = useState<AIStrategy | null>(null);
   const [selectedSequence, setSelectedSequence] = useState<EmailSequence | null>(null);
   const [email, setEmail] = useState({ subject: '', body: '' });
+  const [bodyHtml, setBodyHtml] = useState<string | null>(null); // stores rich HTML template
+  const [isEditingSource, setIsEditingSource] = useState(false); // toggle between visual & source
   const [showSendingFeed, setShowSendingFeed] = useState(false);
   const [manualToInput, setManualToInput] = useState('');
   const [manualRecipients, setManualRecipients] = useState<Array<{ email: string; label: string; initial: string }>>([]);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const isHtmlContent = useMemo(() => {
+    return bodyHtml !== null || (email.body && /<[a-z][\s\S]*>/i.test(email.body));
+  }, [bodyHtml, email.body]);
+
+  const userLogo = useMemo(() => getUserLogoFromStorage(), []);
+
+  // Build the visual HTML for the iframe preview
+  const visualHtml = useMemo(() => {
+    const html = bodyHtml || email.body;
+    if (!html || !isHtmlContent) return '';
+    // Wrap with user logo header if not already present
+    const logoBlock = userLogo
+      ? `<div style="text-align:center;padding:16px 0 8px;"><img src="${userLogo}" alt="Logo" style="max-height:48px;max-width:200px;object-fit:contain;" /></div>`
+      : '';
+    const hasLogo = html.includes(userLogo || '__no_logo__');
+    const wrappedHtml = `
+      <!DOCTYPE html>
+      <html><head><meta charset="utf-8"><style>
+        body { margin:0; padding:16px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#1a1a2e; color:#e0e0e0; font-size:14px; line-height:1.6; }
+        img { max-width:100%; height:auto; border-radius:8px; }
+        a { color:#38bdf8; }
+        table { border-collapse:collapse; }
+      </style></head><body>
+        ${!hasLogo ? logoBlock : ''}
+        ${html}
+      </body></html>`;
+    return wrappedHtml;
+  }, [bodyHtml, email.body, isHtmlContent, userLogo]);
 
   const handleAddManualRecipient = (value: string) => {
     const trimmed = value.trim();
@@ -202,9 +235,29 @@ export default function InlineComposePanel({
   }, []);
   useEffect(() => { setDripInterval(Math.round(3600 / Math.max(1, dripRate))); }, [dripRate]);
 
-  // Auto-populate email from template
+  // Auto-populate email from template (check for visual HTML template first)
   useEffect(() => {
-    if (effectiveTemplate && !email.subject && !email.body) {
+    if (email.subject || email.body || bodyHtml) return; // already populated
+
+    // Check for a visual HTML template from the template gallery/editor
+    try {
+      const stored = localStorage.getItem('bamlead_selected_template');
+      if (stored) {
+        const template = JSON.parse(stored);
+        if (template.body_html) {
+          setBodyHtml(template.body_html);
+          setEmail({ subject: template.subject || '', body: template.body_html });
+          return;
+        }
+        if (template.body) {
+          setEmail({ subject: template.subject || '', body: template.body || template.body_text || '' });
+          return;
+        }
+      }
+    } catch (e) {}
+
+    // Fallback to auto-suggested template
+    if (effectiveTemplate) {
       setEmail({ subject: effectiveTemplate.subject || '', body: effectiveTemplate.body || '' });
     }
   }, [effectiveTemplate]);
@@ -406,8 +459,23 @@ export default function InlineComposePanel({
                     size="sm"
                     className="w-full text-[11px]"
                     onClick={() => {
+                      // Try visual template from localStorage first
+                      try {
+                        const stored = localStorage.getItem('bamlead_selected_template');
+                        if (stored) {
+                          const t = JSON.parse(stored);
+                          if (t.body_html) {
+                            setBodyHtml(t.body_html);
+                            setEmail({ subject: t.subject || '', body: t.body_html });
+                            setIsEditingSource(false);
+                            toast.success('Visual template restored');
+                            return;
+                          }
+                        }
+                      } catch (e) {}
                       if (effectiveTemplate) {
                         setEmail({ subject: effectiveTemplate.subject, body: effectiveTemplate.body });
+                        setBodyHtml(null);
                         toast.success('Template applied to email body');
                       }
                     }}
@@ -615,11 +683,34 @@ export default function InlineComposePanel({
           />
         </div>
 
-        {/* Email Body - the template content lives here */}
+        {/* Email Body - visual template or editable text */}
         <div className="flex-1 min-h-0 flex flex-col">
+          {/* Visual/Source toggle */}
+          {isHtmlContent && (
+            <div className="px-4 py-1 border-b border-border/50 flex items-center gap-2 shrink-0">
+              <Button
+                variant={!isEditingSource ? "secondary" : "ghost"}
+                size="sm"
+                className="h-6 text-[10px] gap-1"
+                onClick={() => setIsEditingSource(false)}
+              >
+                <Eye className="w-3 h-3" /> Visual
+              </Button>
+              <Button
+                variant={isEditingSource ? "secondary" : "ghost"}
+                size="sm"
+                className="h-6 text-[10px] gap-1"
+                onClick={() => setIsEditingSource(true)}
+              >
+                <Code className="w-3 h-3" /> Edit Source
+              </Button>
+              <span className="text-[9px] text-muted-foreground ml-auto">Template loaded</span>
+            </div>
+          )}
+
           <ScrollArea className="flex-1">
             <div className="p-4 relative">
-              {!email.body && (
+              {!email.body && !bodyHtml && (
                 <div className="absolute inset-0 p-4 pointer-events-none flex flex-col items-center justify-center text-center gap-3 opacity-60">
                   <FileText className="w-8 h-8 text-cyan-400/50" />
                   <div>
@@ -628,12 +719,38 @@ export default function InlineComposePanel({
                   </div>
                 </div>
               )}
-              <Textarea
-                value={email.body}
-                onChange={(e) => setEmail(prev => ({ ...prev, body: e.target.value }))}
-                className="border-0 bg-transparent min-h-[300px] p-0 focus-visible:ring-0 shadow-none text-sm resize-none w-full"
-                placeholder=""
-              />
+
+              {/* Visual HTML preview mode */}
+              {isHtmlContent && !isEditingSource ? (
+                <div className="rounded-lg overflow-hidden border border-border/30 bg-[#1a1a2e]">
+                  <iframe
+                    ref={iframeRef}
+                    srcDoc={visualHtml}
+                    className="w-full border-0"
+                    style={{ minHeight: '350px', height: '100%' }}
+                    sandbox="allow-same-origin"
+                    title="Email template preview"
+                    onLoad={() => {
+                      // Auto-resize iframe to content
+                      if (iframeRef.current?.contentDocument?.body) {
+                        const h = iframeRef.current.contentDocument.body.scrollHeight;
+                        iframeRef.current.style.height = `${Math.max(350, h + 32)}px`;
+                      }
+                    }}
+                  />
+                </div>
+              ) : (
+                <Textarea
+                  value={email.body}
+                  onChange={(e) => {
+                    setEmail(prev => ({ ...prev, body: e.target.value }));
+                    // If editing source of an HTML template, sync bodyHtml
+                    if (bodyHtml !== null) setBodyHtml(e.target.value);
+                  }}
+                  className="border-0 bg-transparent min-h-[300px] p-0 focus-visible:ring-0 shadow-none text-sm resize-none w-full"
+                  placeholder=""
+                />
+              )}
             </div>
           </ScrollArea>
 
