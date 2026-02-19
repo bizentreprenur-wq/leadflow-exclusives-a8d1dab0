@@ -102,10 +102,10 @@ export default function InlineComposePanel({
   const [email, setEmail] = useState({ subject: '', body: '' });
   const [bodyHtml, setBodyHtml] = useState<string | null>(null); // stores rich HTML template
   const [isEditingSource, setIsEditingSource] = useState(false); // toggle between visual & source
-  const [showSendingFeed, setShowSendingFeed] = useState(false);
+  const editableRef = useRef<HTMLDivElement>(null);
   const [manualToInput, setManualToInput] = useState('');
   const [manualRecipients, setManualRecipients] = useState<Array<{ email: string; label: string; initial: string }>>([]);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [showSendingFeed, setShowSendingFeed] = useState(false);
 
   const isHtmlContent = useMemo(() => {
     return bodyHtml !== null || (email.body && /<[a-z][\s\S]*>/i.test(email.body));
@@ -113,28 +113,24 @@ export default function InlineComposePanel({
 
   const userLogo = useMemo(() => getUserLogoFromStorage(), []);
 
-  // Build the visual HTML for the iframe preview
-  const visualHtml = useMemo(() => {
-    const html = bodyHtml || email.body;
-    if (!html || !isHtmlContent) return '';
-    // Wrap with user logo header if not already present
-    const logoBlock = userLogo
-      ? `<div style="text-align:center;padding:16px 0 8px;"><img src="${userLogo}" alt="Logo" style="max-height:48px;max-width:200px;object-fit:contain;" /></div>`
-      : '';
-    const hasLogo = html.includes(userLogo || '__no_logo__');
-    const wrappedHtml = `
-      <!DOCTYPE html>
-      <html><head><meta charset="utf-8"><style>
-        body { margin:0; padding:16px; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#1a1a2e; color:#e0e0e0; font-size:14px; line-height:1.6; }
-        img { max-width:100%; height:auto; border-radius:8px; }
-        a { color:#38bdf8; }
-        table { border-collapse:collapse; }
-      </style></head><body>
-        ${!hasLogo ? logoBlock : ''}
-        ${html}
-      </body></html>`;
-    return wrappedHtml;
-  }, [bodyHtml, email.body, isHtmlContent, userLogo]);
+  // Sync contentEditable changes back to state
+  const handleEditableInput = useCallback(() => {
+    if (editableRef.current) {
+      const html = editableRef.current.innerHTML;
+      setBodyHtml(html);
+      setEmail(prev => ({ ...prev, body: html }));
+    }
+  }, []);
+
+  // Set editable content when template loads
+  useEffect(() => {
+    if (editableRef.current && isHtmlContent && !isEditingSource) {
+      const html = bodyHtml || email.body;
+      if (html && editableRef.current.innerHTML !== html) {
+        editableRef.current.innerHTML = html;
+      }
+    }
+  }, [bodyHtml, isHtmlContent, isEditingSource]);
 
   const handleAddManualRecipient = (value: string) => {
     const trimmed = value.trim();
@@ -683,9 +679,9 @@ export default function InlineComposePanel({
           />
         </div>
 
-        {/* Email Body - visual template or editable text */}
+        {/* Email Body - editable template or plain text */}
         <div className="flex-1 min-h-0 flex flex-col">
-          {/* Visual/Source toggle */}
+          {/* Source toggle for HTML content */}
           {isHtmlContent && (
             <div className="px-4 py-1 border-b border-border/50 flex items-center gap-2 shrink-0">
               <Button
@@ -694,7 +690,7 @@ export default function InlineComposePanel({
                 className="h-6 text-[10px] gap-1"
                 onClick={() => setIsEditingSource(false)}
               >
-                <Eye className="w-3 h-3" /> Visual
+                <Eye className="w-3 h-3" /> Edit
               </Button>
               <Button
                 variant={isEditingSource ? "secondary" : "ghost"}
@@ -702,9 +698,8 @@ export default function InlineComposePanel({
                 className="h-6 text-[10px] gap-1"
                 onClick={() => setIsEditingSource(true)}
               >
-                <Code className="w-3 h-3" /> Edit Source
+                <Code className="w-3 h-3" /> HTML Source
               </Button>
-              <span className="text-[9px] text-muted-foreground ml-auto">Template loaded</span>
             </div>
           )}
 
@@ -720,35 +715,25 @@ export default function InlineComposePanel({
                 </div>
               )}
 
-              {/* Visual HTML preview mode */}
+              {/* Editable rich HTML content */}
               {isHtmlContent && !isEditingSource ? (
-                <div className="rounded-lg overflow-hidden border border-border/30 bg-[#1a1a2e]">
-                  <iframe
-                    ref={iframeRef}
-                    srcDoc={visualHtml}
-                    className="w-full border-0"
-                    style={{ minHeight: '350px', height: '100%' }}
-                    sandbox="allow-same-origin"
-                    title="Email template preview"
-                    onLoad={() => {
-                      // Auto-resize iframe to content
-                      if (iframeRef.current?.contentDocument?.body) {
-                        const h = iframeRef.current.contentDocument.body.scrollHeight;
-                        iframeRef.current.style.height = `${Math.max(350, h + 32)}px`;
-                      }
-                    }}
-                  />
-                </div>
+                <div
+                  ref={editableRef}
+                  contentEditable
+                  suppressContentEditableWarning
+                  onInput={handleEditableInput}
+                  className="min-h-[400px] outline-none text-sm leading-relaxed text-foreground [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg [&_a]:text-blue-400 [&_a]:underline [&_table]:border-collapse [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mb-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:mb-2 [&_h3]:text-lg [&_h3]:font-medium [&_h3]:mb-1 [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-1"
+                  style={{ wordBreak: 'break-word' }}
+                />
               ) : (
                 <Textarea
                   value={email.body}
                   onChange={(e) => {
                     setEmail(prev => ({ ...prev, body: e.target.value }));
-                    // If editing source of an HTML template, sync bodyHtml
                     if (bodyHtml !== null) setBodyHtml(e.target.value);
                   }}
-                  className="border-0 bg-transparent min-h-[300px] p-0 focus-visible:ring-0 shadow-none text-sm resize-none w-full"
-                  placeholder=""
+                  className="border-0 bg-transparent min-h-[400px] p-0 focus-visible:ring-0 shadow-none text-sm resize-none w-full"
+                  placeholder="Compose your email here..."
                 />
               )}
             </div>
