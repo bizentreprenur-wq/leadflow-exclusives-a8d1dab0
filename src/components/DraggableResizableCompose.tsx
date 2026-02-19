@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { GripHorizontal, Maximize2, Minimize2 } from 'lucide-react';
+import { GripHorizontal, Maximize2, Minimize2, Minus } from 'lucide-react';
 
 interface DraggableResizableComposeProps {
   children: React.ReactNode;
@@ -14,6 +14,7 @@ export default function DraggableResizableCompose({ children, onClose }: Draggab
   const [pos, setPos] = useState({ x: window.innerWidth - 560, y: window.innerHeight - 540 });
   const [size, setSize] = useState({ w: 520, h: 500 });
   const [isMaximized, setIsMaximized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   const [prevState, setPrevState] = useState<{ pos: typeof pos; size: typeof size } | null>(null);
 
   // Drag state
@@ -104,25 +105,24 @@ export default function DraggableResizableCompose({ children, onClose }: Draggab
     }
   };
 
-  const style: React.CSSProperties = {
-    position: 'fixed',
-    left: pos.x,
-    top: pos.y,
-    width: size.w,
-    height: size.h,
-    zIndex: 100,
-  };
+  const style: React.CSSProperties = isMinimized
+    ? { position: 'fixed', bottom: 0, right: 24, width: 280, height: 36, zIndex: 100 }
+    : { position: 'fixed', left: pos.x, top: pos.y, width: size.w, height: size.h, zIndex: 100 };
 
   return (
     <div
       ref={containerRef}
       style={style}
-      className="rounded-xl border border-border shadow-2xl bg-background overflow-hidden flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300"
+      className={cn(
+        "rounded-t-xl border border-border shadow-2xl bg-background overflow-hidden flex flex-col transition-all duration-200",
+        isMinimized ? "rounded-xl" : "animate-in slide-in-from-bottom-4 fade-in duration-300"
+      )}
     >
       {/* Draggable title bar */}
       <div
         className="flex items-center justify-between px-3 py-1.5 bg-muted/50 border-b border-border cursor-move select-none shrink-0"
-        onMouseDown={onDragStart}
+        onMouseDown={isMinimized ? undefined : onDragStart}
+        onDoubleClick={() => isMinimized && setIsMinimized(false)}
       >
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <GripHorizontal className="w-3.5 h-3.5" />
@@ -130,21 +130,32 @@ export default function DraggableResizableCompose({ children, onClose }: Draggab
         </div>
         <div className="flex items-center gap-1">
           <button
-            onClick={toggleMaximize}
+            onClick={() => setIsMinimized(!isMinimized)}
             className="p-1 rounded hover:bg-muted transition-colors"
+            title={isMinimized ? "Restore" : "Minimize"}
           >
-            {isMaximized ? <Minimize2 className="w-3.5 h-3.5 text-muted-foreground" /> : <Maximize2 className="w-3.5 h-3.5 text-muted-foreground" />}
+            <Minus className="w-3.5 h-3.5 text-muted-foreground" />
           </button>
+          {!isMinimized && (
+            <button
+              onClick={toggleMaximize}
+              className="p-1 rounded hover:bg-muted transition-colors"
+            >
+              {isMaximized ? <Minimize2 className="w-3.5 h-3.5 text-muted-foreground" /> : <Maximize2 className="w-3.5 h-3.5 text-muted-foreground" />}
+            </button>
+          )}
         </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-hidden">
-        {children}
-      </div>
+      {!isMinimized && (
+        <div className="flex-1 overflow-hidden">
+          {children}
+        </div>
+      )}
 
       {/* Resize handles */}
-      {!isMaximized && (
+      {!isMaximized && !isMinimized && (
         <>
           {/* Edges */}
           <div className="absolute top-0 left-2 right-2 h-1 cursor-n-resize" onMouseDown={(e) => onResizeStart(e, 'n')} />
