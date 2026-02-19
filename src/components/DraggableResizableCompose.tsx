@@ -131,7 +131,7 @@ export default function DraggableResizableCompose({ children, onClose, tier = 'f
       ref={containerRef}
       style={style}
       className={cn(
-        "rounded-t-xl border border-border shadow-2xl bg-background overflow-hidden flex flex-col transition-all duration-200",
+        "rounded-t-xl border border-border/60 shadow-2xl bg-card overflow-hidden flex flex-col transition-all duration-200",
         isMinimized ? "rounded-xl" : "animate-in slide-in-from-bottom-4 fade-in duration-300"
       )}
     >
