@@ -32,6 +32,7 @@ import LeadQueueIndicator from './LeadQueueIndicator';
 import CampaignPerformanceDashboard from './CampaignPerformanceDashboard';
 import ComposeEmailModal from './ComposeEmailModal';
 import InlineComposePanel from './InlineComposePanel';
+import DraggableResizableCompose from './DraggableResizableCompose';
 import EmailABTestingSystem from './EmailABTestingSystem';
 import LeadResponseDetection from './LeadResponseDetection';
 import EmailSequenceSelector from './EmailSequenceSelector';
@@ -776,9 +777,11 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
           </div>
         </header>
 
-        {/* GMAIL-STYLE POP-OUT COMPOSE - bottom-right, non-blocking */}
+        {/* DRAGGABLE & RESIZABLE POP-OUT COMPOSE */}
         {showInlineCompose && (
-          <div className="fixed bottom-0 right-6 z-[100] w-[520px] h-[520px] rounded-t-xl border border-border shadow-2xl bg-background overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-300 flex flex-col">
+          <DraggableResizableCompose
+            onClose={() => setShowInlineCompose(false)}
+          >
             <InlineComposePanel
               leads={campaignLeads}
               currentLeadIndex={currentLeadIndex}
@@ -797,7 +800,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
               onAutomationChange={setAutomation}
               searchType={searchType}
             />
-          </div>
+          </DraggableResizableCompose>
         )}
 
         {/* MAIN CONTENT */}
