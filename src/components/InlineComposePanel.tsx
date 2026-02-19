@@ -17,7 +17,6 @@ import {
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { useAutopilotTrial } from '@/hooks/useAutopilotTrial';
 import { isSMTPConfigured, getSMTPConfig, personalizeContent } from '@/lib/emailService';
-import SMTPStatusIndicator from './SMTPStatusIndicator';
 import { sendBulkEmails, LeadForEmail } from '@/lib/api/email';
 import { EmailSequence, getSuggestedSequence } from '@/lib/emailSequences';
 import { 
@@ -475,7 +474,57 @@ export default function InlineComposePanel({
             </Badge>
           </div>
           <div className="flex items-center gap-1.5">
-            <SMTPStatusIndicator showConfigureButton={false} />
+            {/* Sending Status Cards */}
+            <div className="flex items-center gap-2">
+              {/* Last Sent */}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card min-w-[120px]">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-semibold text-foreground">Last Sent</span>
+                  <span className="text-[9px] text-muted-foreground truncate max-w-[100px]">
+                    {lastSentIndex >= 0 && lastSentIndex < eligibleLeads.length
+                      ? (eligibleLeads[lastSentIndex]?.business_name || eligibleLeads[lastSentIndex]?.email || 'Sent')
+                      : 'No emails sent yet'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Sending Now */}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-cyan-500/40 bg-cyan-500/10 min-w-[130px]">
+                <Mail className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] font-semibold text-cyan-300">Sending Now</span>
+                    {isLaunching && (
+                      <span className="flex gap-0.5">
+                        <span className="w-1 h-1 rounded-full bg-cyan-400 animate-pulse" />
+                        <span className="w-1 h-1 rounded-full bg-cyan-400 animate-pulse [animation-delay:150ms]" />
+                        <span className="w-1 h-1 rounded-full bg-cyan-400 animate-pulse [animation-delay:300ms]" />
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[9px] text-muted-foreground truncate max-w-[100px]">
+                    {isLaunching && currentLeadIndex < eligibleLeads.length
+                      ? (eligibleLeads[currentLeadIndex]?.business_name || eligibleLeads[currentLeadIndex]?.email || 'Sending...')
+                      : 'Ready to send'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Up Next */}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card min-w-[110px]">
+                <ArrowRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-semibold text-foreground">Up Next</span>
+                  <span className="text-[9px] text-muted-foreground truncate max-w-[100px]">
+                    {currentLeadIndex + 1 < eligibleLeads.length
+                      ? (eligibleLeads[currentLeadIndex + 1]?.business_name || eligibleLeads[currentLeadIndex + 1]?.email || 'Queued')
+                      : 'Queue complete'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
             <Button size="icon" variant="ghost" onClick={onClose} className="h-6 w-6">
               <X className="w-3.5 h-3.5" />
             </Button>
