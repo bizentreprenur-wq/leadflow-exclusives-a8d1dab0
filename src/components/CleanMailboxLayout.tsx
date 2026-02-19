@@ -103,7 +103,8 @@ interface CleanMailboxLayoutProps {
 }
 
 export default function CleanMailboxLayout({ searchType, campaignContext }: CleanMailboxLayoutProps) {
-  const { isUnlimited } = usePlanFeatures();
+  const { isUnlimited, isAutopilot, isPro, isPaid } = usePlanFeatures();
+  const currentTier = isUnlimited ? 'unlimited' : isAutopilot ? 'autopilot' : isPro ? 'pro' : isPaid ? 'basic' : 'free';
   const [mainTab, setMainTab] = useState<MainTab>('inbox');
   const [inboxFilter, setInboxFilter] = useState<InboxFilter>('all');
   const [selectedReply, setSelectedReply] = useState<EmailReply | null>(null);
@@ -781,6 +782,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
         {showInlineCompose && (
           <DraggableResizableCompose
             onClose={() => setShowInlineCompose(false)}
+            tier={currentTier as any}
           >
             <InlineComposePanel
               leads={campaignLeads}
