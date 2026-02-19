@@ -67,8 +67,8 @@ export default function DraggableResizableCompose({ children, onClose, tier = 'f
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
       if (isDragging.current) {
-        const newX = Math.max(0, Math.min(window.innerWidth - 100, e.clientX - dragOffset.current.x));
-        const newY = Math.max(0, Math.min(window.innerHeight - 40, e.clientY - dragOffset.current.y));
+        const newX = e.clientX - dragOffset.current.x;
+        const newY = e.clientY - dragOffset.current.y;
         setPos({ x: newX, y: newY });
       }
       if (isResizing.current) {
