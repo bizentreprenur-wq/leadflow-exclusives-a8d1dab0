@@ -571,13 +571,13 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
     toast.success('Campaign status updated');
   };
 
-  // Main navigation tabs
+  // Main navigation tabs — hide items that live inside the Unlimited inline compose panel
   const navTabs = [
     { id: 'inbox' as MainTab, label: 'Inbox', icon: Inbox },
     { id: 'campaigns' as MainTab, label: 'Campaigns', icon: Send },
-    { id: 'sequences' as MainTab, label: 'Sequences', icon: Layers },
-    { id: 'strategy' as MainTab, label: 'AI Strategy', icon: Brain, isBrain: true },
-    { id: 'automation' as MainTab, label: isUnlimited ? 'Unlimited' : 'AI Autopilot', icon: Crown, isPro: !isUnlimited },
+    ...(!isUnlimited ? [{ id: 'sequences' as MainTab, label: 'Sequences', icon: Layers }] : []),
+    ...(!isUnlimited ? [{ id: 'strategy' as MainTab, label: 'AI Strategy', icon: Brain, isBrain: true }] : []),
+    ...(!isUnlimited ? [{ id: 'automation' as MainTab, label: 'AI Autopilot', icon: Crown, isPro: true }] : []),
     { id: 'analytics' as MainTab, label: 'Analytics', icon: BarChart3 },
     { id: 'documents' as MainTab, label: 'PreDone Docs', icon: FolderOpen },
     { id: 'settings' as MainTab, label: 'Settings', icon: Settings },
