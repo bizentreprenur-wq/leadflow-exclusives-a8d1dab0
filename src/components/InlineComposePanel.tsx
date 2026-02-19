@@ -1,17 +1,18 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { loadDripSettings, saveDripSettings } from '@/lib/dripSettings';
 import {
-  Crown, Brain, FileText, Layers, Rocket, Send, ArrowRight, ArrowLeft,
+  Crown, Brain, FileText, Layers, Rocket, Send, ArrowRight,
   CheckCircle2, RefreshCw, Bot, Sparkles, BarChart3, Mail, Clock,
-  TrendingUp, Eye, X, ChevronRight, Flame, ThermometerSun, Snowflake
+  TrendingUp, X, Flame, ThermometerSun, Snowflake, Bold, Italic,
+  Underline, AlignLeft, List, Link2, Image, Paperclip, Smile, MoreHorizontal,
+  Trash2, ChevronDown
 } from 'lucide-react';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { useAutopilotTrial } from '@/hooks/useAutopilotTrial';
@@ -70,7 +71,7 @@ interface InlineComposePanelProps {
   searchType?: 'gmb' | 'platform' | null;
 }
 
-type UnlimitedTab = 'strategy' | 'template' | 'sequence' | 'launch';
+type SideTab = 'strategy' | 'template' | 'sequence' | 'launch';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function hasValidEmail(email?: string): boolean {
@@ -92,14 +93,14 @@ export default function InlineComposePanel({
   onAutomationChange,
   searchType,
 }: InlineComposePanelProps) {
-  const [activeTab, setActiveTab] = useState<UnlimitedTab>('strategy');
+  const [activeSideTab, setActiveSideTab] = useState<SideTab | null>(null);
   const [isLaunching, setIsLaunching] = useState(false);
   const [launchProgress, setLaunchProgress] = useState(0);
-  const [showLiveStats, setShowLiveStats] = useState(false);
   const [sentEmailsList, setSentEmailsList] = useState<Array<{ email: string; name: string; sentAt: string }>>([]);
   const [selectedStrategy, setSelectedStrategy] = useState<AIStrategy | null>(null);
   const [selectedSequence, setSelectedSequence] = useState<EmailSequence | null>(null);
   const [email, setEmail] = useState({ subject: '', body: '' });
+  const [showSendingFeed, setShowSendingFeed] = useState(false);
 
   const { status: trialStatus } = useAutopilotTrial();
 
@@ -184,9 +185,13 @@ export default function InlineComposePanel({
     }
   }, [effectiveTemplate]);
 
-  // Comma-separated "To" display
-  const toFieldDisplay = useMemo(() => {
-    return eligibleLeads.map(l => l.email).filter(Boolean).join(', ');
+  // Recipient chips
+  const recipientChips = useMemo(() => {
+    return eligibleLeads.slice(0, 20).map(l => ({
+      email: l.email || '',
+      label: l.business_name || l.name || l.first_name || l.email || '',
+      initial: (l.business_name || l.name || l.first_name || l.email || 'U')[0].toUpperCase(),
+    }));
   }, [eligibleLeads]);
 
   const handleLaunch = async () => {
@@ -208,6 +213,7 @@ export default function InlineComposePanel({
 
     setIsLaunching(true);
     setLaunchProgress(0);
+    setShowSendingFeed(true);
 
     const steps = [
       { progress: 15, delay: 200 }, { progress: 35, delay: 400 },
@@ -279,365 +285,335 @@ export default function InlineComposePanel({
     }
   };
 
-  const tabs: { id: UnlimitedTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'strategy', label: 'AI Strategy', icon: <Brain className="w-4 h-4" /> },
-    { id: 'template', label: 'Template', icon: <FileText className="w-4 h-4" /> },
-    { id: 'sequence', label: 'Sequence', icon: <Layers className="w-4 h-4" /> },
-    { id: 'launch', label: 'Launch', icon: <Rocket className="w-4 h-4" /> },
+  const sideTabs: { id: SideTab; label: string; icon: React.ReactNode; shortLabel: string }[] = [
+    { id: 'strategy', label: 'AI Strategy', icon: <Brain className="w-3.5 h-3.5" />, shortLabel: 'Strategy' },
+    { id: 'template', label: 'Template', icon: <FileText className="w-3.5 h-3.5" />, shortLabel: 'Template' },
+    { id: 'sequence', label: 'Sequence', icon: <Layers className="w-3.5 h-3.5" />, shortLabel: 'Sequence' },
+    { id: 'launch', label: 'Launch', icon: <Rocket className="w-3.5 h-3.5" />, shortLabel: 'Launch' },
   ];
 
-  const tabIndex = tabs.findIndex(t => t.id === activeTab);
+  const colorMap: Record<string, string> = {
+    A: 'bg-blue-600', B: 'bg-rose-600', C: 'bg-emerald-600', D: 'bg-purple-600',
+    E: 'bg-amber-600', F: 'bg-cyan-600', G: 'bg-pink-600', H: 'bg-teal-600',
+    I: 'bg-indigo-600', J: 'bg-orange-600', K: 'bg-lime-600', L: 'bg-red-600',
+    M: 'bg-sky-600', N: 'bg-violet-600', O: 'bg-fuchsia-600', P: 'bg-green-600',
+  };
+  const getChipColor = (initial: string) => colorMap[initial.toUpperCase()] || 'bg-muted-foreground';
 
   return (
-    <div className="h-full flex flex-col bg-background">
-      {/* Top Bar - Unlimited branding + To field + close */}
-      <div className="border-b border-border bg-card px-4 py-3 flex-shrink-0">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center">
-              <Crown className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <span className="font-bold text-foreground text-sm">New Message</span>
-              <Badge className="ml-2 text-[8px] bg-red-500/10 text-red-400 border-red-500/20">Unlimited</Badge>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <SMTPStatusIndicator showConfigureButton={false} />
-            <Button size="icon" variant="ghost" onClick={onClose} className="h-7 w-7">
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-        {/* To field */}
-        <div className="flex items-start gap-2">
-          <span className="text-xs text-muted-foreground pt-1.5 shrink-0">To:</span>
-          <div className="flex-1 p-1.5 rounded-md bg-muted/30 border border-border text-xs text-foreground leading-relaxed max-h-16 overflow-y-auto break-all">
-            {toFieldDisplay || <span className="text-muted-foreground italic">No eligible leads</span>}
-          </div>
-          <Badge variant="outline" className="text-[10px] shrink-0 mt-1">
-            {eligibleLeads.length} recipients
-          </Badge>
-        </div>
+    <div className="h-full flex bg-background">
+      {/* Left Vertical Tabs */}
+      <div className="w-11 border-r border-border bg-card flex flex-col py-1 shrink-0">
+        {sideTabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveSideTab(activeSideTab === tab.id ? null : tab.id)}
+            className={cn(
+              "flex flex-col items-center gap-0.5 py-2.5 px-0.5 transition-all relative",
+              activeSideTab === tab.id
+                ? "text-red-400 bg-red-500/10"
+                : "text-muted-foreground hover:bg-muted/40"
+            )}
+            title={tab.label}
+          >
+            {activeSideTab === tab.id && (
+              <div className="absolute left-0 top-1 bottom-1 w-0.5 rounded-r bg-red-500" />
+            )}
+            {tab.icon}
+            <span className="text-[7px] font-medium leading-tight text-center">{tab.shortLabel}</span>
+          </button>
+        ))}
+        <div className="flex-1" />
+        <button
+          onClick={() => setShowSendingFeed(!showSendingFeed)}
+          className={cn(
+            "flex flex-col items-center gap-0.5 py-2.5 px-0.5 transition-all",
+            showSendingFeed ? "text-emerald-400 bg-emerald-500/10" : "text-muted-foreground hover:bg-muted/40"
+          )}
+          title="Sending Feed"
+        >
+          <BarChart3 className="w-3.5 h-3.5" />
+          <span className="text-[7px] font-medium">Feed</span>
+        </button>
       </div>
 
-      {/* Main body: vertical tabs left + content right */}
-      <div className="flex-1 flex min-h-0">
-        {/* Vertical Tabs */}
-        <div className="w-[52px] border-r border-border bg-card flex flex-col py-2 shrink-0">
-          {tabs.map((tab, idx) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                "flex flex-col items-center gap-0.5 py-3 px-1 transition-all relative",
-                activeTab === tab.id
-                  ? "text-red-400 bg-red-500/10"
-                  : idx <= tabIndex
-                    ? "text-emerald-400 hover:bg-muted/40"
-                    : "text-muted-foreground hover:bg-muted/40"
+      {/* Side Panel (when a tab is active) */}
+      {activeSideTab && (
+        <div className="w-64 border-r border-border bg-card flex flex-col shrink-0">
+          <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+            <span className="text-xs font-semibold text-foreground">
+              {sideTabs.find(t => t.id === activeSideTab)?.label}
+            </span>
+            <Button size="icon" variant="ghost" onClick={() => setActiveSideTab(null)} className="h-5 w-5">
+              <X className="w-3 h-3" />
+            </Button>
+          </div>
+          <ScrollArea className="flex-1">
+            <div className="p-3 space-y-3">
+              {activeSideTab === 'strategy' && (
+                <AIStrategySelector
+                  mode="autopilot"
+                  searchType={detectedSearchType}
+                  leads={safeLeads}
+                  selectedTemplate={effectiveTemplate || undefined}
+                  onSelectStrategy={(s) => {
+                    setSelectedStrategy(s);
+                    toast.success(`Strategy: ${s.name}`);
+                  }}
+                  selectedStrategy={selectedStrategy}
+                  compact
+                />
               )}
-              title={tab.label}
-            >
-              {activeTab === tab.id && (
-                <div className="absolute left-0 top-1 bottom-1 w-0.5 rounded-r bg-red-500" />
-              )}
-              {idx < tabIndex && (
-                <div className="absolute top-1 right-1">
-                  <CheckCircle2 className="w-2.5 h-2.5 text-emerald-400" />
-                </div>
-              )}
-              {tab.icon}
-              <span className="text-[8px] font-medium leading-tight text-center">{tab.label.split(' ').pop()}</span>
-            </button>
-          ))}
 
-          <div className="flex-1" />
-
-          {/* Stats button */}
-          <button
-            onClick={() => setShowLiveStats(!showLiveStats)}
-            className={cn(
-              "flex flex-col items-center gap-0.5 py-3 px-1 transition-all",
-              showLiveStats ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted/40"
-            )}
-            title="Live Stats"
-          >
-            <BarChart3 className="w-4 h-4" />
-            <span className="text-[8px] font-medium">Stats</span>
-          </button>
-        </div>
-
-        {/* Content Area */}
-        <div className="flex-1 flex flex-col min-h-0">
-          <ScrollArea className="flex-1 min-h-0">
-            <div className="p-4 space-y-4">
-
-              {/* ===== STRATEGY TAB ===== */}
-              {activeTab === 'strategy' && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Brain className="w-4 h-4 text-red-400" />
-                    <span className="text-sm font-semibold text-foreground">AI Strategy</span>
-                    <Badge className="text-[8px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Pre-configured</Badge>
-                  </div>
-                  <AIStrategySelector
-                    mode="autopilot"
-                    searchType={detectedSearchType}
-                    leads={safeLeads}
-                    selectedTemplate={effectiveTemplate || undefined}
-                    onSelectStrategy={(s) => {
-                      setSelectedStrategy(s);
-                      toast.success(`Strategy: ${s.name}`);
+              {activeSideTab === 'template' && (
+                <div className="space-y-2">
+                  <p className="text-[10px] text-muted-foreground">Current template is shown in the email body. Edit directly or select a different one below.</p>
+                  {effectiveTemplate && (
+                    <div className="p-2 rounded-lg border border-red-500/20 bg-red-500/5">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <Sparkles className="w-3 h-3 text-red-400" />
+                        <span className="text-[11px] font-medium text-foreground">{effectiveTemplate.name}</span>
+                      </div>
+                      <Badge className="text-[8px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20">AI Selected</Badge>
+                    </div>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-[11px]"
+                    onClick={() => {
+                      if (effectiveTemplate) {
+                        setEmail({ subject: effectiveTemplate.subject, body: effectiveTemplate.body });
+                        toast.success('Template applied to email body');
+                      }
                     }}
-                    selectedStrategy={selectedStrategy}
-                    compact
-                  />
-                  <div className="flex justify-end">
-                    <Button onClick={() => setActiveTab('template')} className="bg-red-500 hover:bg-red-600 gap-2 text-sm">
-                      Next: Template <ArrowRight className="w-3.5 h-3.5" />
-                    </Button>
+                  >
+                    <RefreshCw className="w-3 h-3 mr-1" /> Reset to AI Template
+                  </Button>
+                </div>
+              )}
+
+              {activeSideTab === 'sequence' && effectiveSequence && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm">{effectiveSequence.emoji}</span>
+                    <div>
+                      <p className="text-xs font-medium text-foreground">{effectiveSequence.name}</p>
+                      <p className="text-[9px] text-muted-foreground">{effectiveSequence.steps.length} steps</p>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    {effectiveSequence.steps.map((step, idx) => (
+                      <div key={idx} className="flex items-center gap-1.5 p-1.5 rounded bg-muted/30 text-[10px]">
+                        <div className="w-5 h-5 rounded-full bg-red-500/10 flex items-center justify-center text-[9px] font-bold text-red-400 shrink-0">
+                          D{step.day}
+                        </div>
+                        <span className="text-muted-foreground">{step.action}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
 
-              {/* ===== TEMPLATE TAB ===== */}
-              {activeTab === 'template' && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <FileText className="w-4 h-4 text-red-400" />
-                    <span className="text-sm font-semibold text-foreground">Email Template</span>
-                    <Badge className="text-[8px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Pre-configured</Badge>
-                  </div>
-
-                  {effectiveTemplate ? (
-                    <div className="rounded-xl border border-border bg-card overflow-hidden">
-                      <div className="p-3 bg-muted/30 border-b border-border flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Mail className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-xs font-medium text-foreground">{effectiveTemplate.name}</span>
-                        </div>
-                        <Badge className="text-[8px] bg-red-500/10 text-red-400 border-red-500/20">AI Selected</Badge>
-                      </div>
-                      {/* Subject */}
-                      <div className="px-4 py-2 border-b border-border/50">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground shrink-0">Subject:</span>
-                          <Input
-                            value={email.subject}
-                            onChange={(e) => setEmail(prev => ({ ...prev, subject: e.target.value }))}
-                            className="border-0 bg-transparent h-7 text-sm p-0 focus-visible:ring-0 shadow-none"
-                            placeholder="Email subject..."
-                          />
-                        </div>
-                      </div>
-                      {/* Body */}
-                      <div className="p-4">
-                        <Textarea
-                          value={email.body}
-                          onChange={(e) => setEmail(prev => ({ ...prev, body: e.target.value }))}
-                          className="border-0 bg-transparent min-h-[200px] p-0 focus-visible:ring-0 shadow-none text-sm resize-none"
-                          placeholder="Email body..."
-                        />
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="p-8 text-center rounded-xl border-2 border-dashed border-border">
-                      <FileText className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">AI will auto-select the best template</p>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between">
-                    <Button variant="outline" onClick={() => setActiveTab('strategy')} className="gap-2 text-sm">
-                      <ArrowLeft className="w-3.5 h-3.5" /> Strategy
-                    </Button>
-                    <Button onClick={() => setActiveTab('sequence')} className="bg-red-500 hover:bg-red-600 gap-2 text-sm">
-                      Next: Sequence <ArrowRight className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* ===== SEQUENCE TAB ===== */}
-              {activeTab === 'sequence' && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Layers className="w-4 h-4 text-red-400" />
-                    <span className="text-sm font-semibold text-foreground">Email Sequence</span>
-                    <Badge className="text-[8px] bg-emerald-500/10 text-emerald-400 border-emerald-500/20">Pre-configured</Badge>
-                  </div>
-
-                  {effectiveSequence ? (
-                    <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">{effectiveSequence.emoji}</span>
-                          <div>
-                            <p className="font-medium text-foreground text-sm">{effectiveSequence.name}</p>
-                            <p className="text-[10px] text-muted-foreground">{effectiveSequence.steps.length} emails in sequence</p>
-                          </div>
-                        </div>
-                        <Badge className={cn(
-                          "text-[10px]",
-                          effectiveSequence.priority === 'hot' && "bg-red-500/20 text-red-400 border-red-500/30",
-                          effectiveSequence.priority === 'warm' && "bg-amber-500/20 text-amber-400 border-amber-500/30",
-                          effectiveSequence.priority === 'cold' && "bg-blue-500/20 text-blue-400 border-blue-500/30"
-                        )}>
-                          {effectiveSequence.priority.toUpperCase()}
-                        </Badge>
-                      </div>
-                      <div className="space-y-2">
-                        {effectiveSequence.steps.map((step, idx) => (
-                          <div key={idx} className="flex items-center gap-2 text-sm">
-                            <div className="w-6 h-6 rounded-full bg-red-500/10 flex items-center justify-center text-[10px] font-bold text-red-400">
-                              D{step.day}
-                            </div>
-                            <span className="text-muted-foreground text-xs">{step.action}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="p-8 text-center rounded-xl border-2 border-dashed border-border">
-                      <Layers className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">AI will select the optimal sequence</p>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between">
-                    <Button variant="outline" onClick={() => setActiveTab('template')} className="gap-2 text-sm">
-                      <ArrowLeft className="w-3.5 h-3.5" /> Template
-                    </Button>
-                    <Button onClick={() => setActiveTab('launch')} className="bg-red-500 hover:bg-red-600 gap-2 text-sm">
-                      Ready to Launch <ArrowRight className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* ===== LAUNCH TAB ===== */}
-              {activeTab === 'launch' && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Rocket className="w-4 h-4 text-red-400" />
-                    <span className="text-sm font-semibold text-foreground">Launch Campaign</span>
-                  </div>
-
-                  {/* Summary */}
-                  <div className="rounded-xl bg-gradient-to-br from-red-500/5 to-red-900/5 border border-red-500/20 p-4 space-y-2 text-sm">
+              {activeSideTab === 'launch' && (
+                <div className="space-y-3">
+                  <div className="rounded-lg bg-gradient-to-br from-red-500/5 to-red-900/5 border border-red-500/20 p-3 space-y-1.5 text-[11px]">
                     <div className="flex justify-between"><span className="text-muted-foreground">Leads:</span><span className="font-medium text-foreground">{eligibleLeads.length}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Strategy:</span><span className="font-medium text-foreground">{selectedStrategy?.name || 'AI Auto-Selected'}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Template:</span><span className="font-medium text-foreground">{effectiveTemplate?.name || 'AI Smart Selection'}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Sequence:</span><span className="font-medium text-foreground">{effectiveSequence?.name || 'AI Optimized'}</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Mode:</span><span className="font-medium text-red-400">Full Automation (Unlimited)</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Strategy:</span><span className="font-medium text-foreground">{selectedStrategy?.name || 'Auto'}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Template:</span><span className="font-medium text-foreground">{effectiveTemplate?.name || 'Auto'}</span></div>
+                    <div className="flex justify-between"><span className="text-muted-foreground">Sequence:</span><span className="font-medium text-foreground">{effectiveSequence?.name || 'Auto'}</span></div>
                   </div>
 
-                  {/* Lead Queue - Last Sent / Sending / Next */}
                   {eligibleLeads.length > 0 && (
-                    <div className="rounded-xl border border-border bg-card p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Send className="w-3.5 h-3.5 text-emerald-400" />
-                        <span className="text-xs font-medium text-foreground">Sending Queue</span>
-                      </div>
-                      <LeadQueueIndicator
-                        leads={eligibleLeads}
-                        currentIndex={currentLeadIndex}
-                        lastSentIndex={lastSentIndex}
-                        variant="horizontal"
-                      />
-                    </div>
+                    <LeadQueueIndicator
+                      leads={eligibleLeads}
+                      currentIndex={currentLeadIndex}
+                      lastSentIndex={lastSentIndex}
+                      variant="horizontal"
+                    />
                   )}
 
-                  {/* Sent emails tracker */}
-                  {sentEmailsList.length > 0 && (
-                    <div className="rounded-xl border border-border bg-card p-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                        <span className="text-xs font-medium text-foreground">Sent ({sentEmailsList.length})</span>
-                      </div>
-                      <ScrollArea className="max-h-[100px]">
-                        <div className="space-y-1">
-                          {sentEmailsList.map((item, idx) => (
-                            <div key={idx} className="flex items-center gap-2 p-1.5 rounded bg-muted/30 text-[11px]">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
-                              <span className="text-foreground truncate">{item.name}</span>
-                              <span className="text-muted-foreground truncate ml-auto">{item.email}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </ScrollArea>
-                    </div>
-                  )}
-
-                  {/* AI Info */}
-                  <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-                    <div className="flex items-center gap-2">
-                      <Bot className="w-4 h-4 text-emerald-400" />
-                      <div>
-                        <p className="text-xs font-medium text-foreground">AI Takes Over After Launch</p>
-                        <p className="text-[10px] text-muted-foreground">Sends sequences, detects responses, pauses on replies.</p>
-                      </div>
+                  <div className="p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+                    <div className="flex items-center gap-1.5">
+                      <Bot className="w-3.5 h-3.5 text-emerald-400" />
+                      <p className="text-[10px] text-foreground">AI handles follow-ups & replies</p>
                     </div>
                   </div>
 
-                  {/* Launch + Back */}
-                  <div className="flex gap-3">
-                    <Button variant="outline" onClick={() => setActiveTab('sequence')} className="text-sm">Back</Button>
-                    <Button
-                      onClick={handleLaunch}
-                      disabled={eligibleLeads.length === 0 || isLaunching}
-                      className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white gap-2 text-sm"
-                    >
-                      {isLaunching ? (
-                        <><RefreshCw className="w-4 h-4 animate-spin" /> Launching... {launchProgress}%</>
-                      ) : (
-                        <><Rocket className="w-4 h-4" /> Launch Campaign ({eligibleLeads.length} leads)</>
-                      )}
-                    </Button>
-                  </div>
+                  <Button
+                    onClick={handleLaunch}
+                    disabled={eligibleLeads.length === 0 || isLaunching}
+                    className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white gap-1.5 text-xs"
+                  >
+                    {isLaunching ? (
+                      <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> {launchProgress}%</>
+                    ) : (
+                      <><Rocket className="w-3.5 h-3.5" /> Launch ({eligibleLeads.length})</>
+                    )}
+                  </Button>
 
-                  {/* Launch progress bar */}
                   {isLaunching && (
-                    <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-red-500 to-red-600 transition-all duration-300"
-                        style={{ width: `${launchProgress}%` }}
-                      />
+                    <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-red-500 to-red-600 transition-all duration-300" style={{ width: `${launchProgress}%` }} />
                     </div>
                   )}
                 </div>
               )}
             </div>
           </ScrollArea>
+        </div>
+      )}
 
-          {/* Live Stats Panel (bottom drawer) */}
-          {showLiveStats && (
-            <div className="border-t border-border bg-card p-3 shrink-0">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="w-3.5 h-3.5 text-primary" />
-                <span className="text-xs font-medium text-foreground">Live Stats</span>
+      {/* Main Compose Area (always visible) */}
+      <div className="flex-1 flex flex-col min-h-0 min-w-0">
+        {/* Header */}
+        <div className="px-4 py-2 border-b border-border flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-foreground">New Message</span>
+            <Badge className="text-[8px] bg-red-500/10 text-red-400 border-red-500/20">
+              <Crown className="w-2.5 h-2.5 mr-0.5" /> Unlimited
+            </Badge>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <SMTPStatusIndicator showConfigureButton={false} />
+            <Button size="icon" variant="ghost" onClick={onClose} className="h-6 w-6">
+              <X className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </div>
+
+        {/* To Field - Gmail-style chips */}
+        <div className="px-4 py-2 border-b border-border/50 shrink-0">
+          <div className="flex items-start gap-2">
+            <span className="text-xs text-muted-foreground pt-1 shrink-0">To</span>
+            <div className="flex-1 flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+              {recipientChips.map((chip, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/50 border border-border text-[11px] text-foreground"
+                >
+                  <span className={cn("w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white", getChipColor(chip.initial))}>
+                    {chip.initial}
+                  </span>
+                  <span className="truncate max-w-[140px]">{chip.label}</span>
+                  <X className="w-2.5 h-2.5 text-muted-foreground cursor-pointer hover:text-foreground" />
+                </span>
+              ))}
+              {eligibleLeads.length > 20 && (
+                <span className="text-[10px] text-muted-foreground self-center">+{eligibleLeads.length - 20} more</span>
+              )}
+            </div>
+            <span className="text-[10px] text-muted-foreground pt-1 cursor-pointer hover:text-foreground">Cc Bcc</span>
+          </div>
+        </div>
+
+        {/* Subject */}
+        <div className="px-4 py-1.5 border-b border-border/50 shrink-0">
+          <Input
+            value={email.subject}
+            onChange={(e) => setEmail(prev => ({ ...prev, subject: e.target.value }))}
+            className="border-0 bg-transparent h-8 text-sm p-0 focus-visible:ring-0 shadow-none"
+            placeholder="Subject"
+          />
+        </div>
+
+        {/* Email Body - the template content lives here */}
+        <div className="flex-1 min-h-0 flex flex-col">
+          <ScrollArea className="flex-1">
+            <div className="p-4">
+              <Textarea
+                value={email.body}
+                onChange={(e) => setEmail(prev => ({ ...prev, body: e.target.value }))}
+                className="border-0 bg-transparent min-h-[300px] p-0 focus-visible:ring-0 shadow-none text-sm resize-none w-full"
+                placeholder="Compose your email..."
+              />
+            </div>
+          </ScrollArea>
+
+          {/* Sending Feed (when active) */}
+          {showSendingFeed && (
+            <div className="border-t border-border bg-card px-4 py-2 shrink-0 max-h-36">
+              <div className="flex items-center gap-2 mb-1.5">
+                <Send className="w-3 h-3 text-emerald-400" />
+                <span className="text-[10px] font-semibold text-foreground">Live Sending Feed</span>
+                <div className="flex-1" />
+                <div className="flex gap-3 text-[9px]">
+                  <span className="text-muted-foreground">Queued: <span className="text-foreground font-medium">{eligibleLeads.length}</span></span>
+                  <span className="text-muted-foreground">Sent: <span className="text-emerald-400 font-medium">{sentEmailsList.length}</span></span>
+                  <span className="text-muted-foreground">Opened: <span className="text-blue-400 font-medium">0</span></span>
+                </div>
               </div>
-              <div className="grid grid-cols-4 gap-2">
-                <div className="p-2 rounded-lg bg-muted/30 border border-border text-center">
-                  <div className="text-base font-bold text-foreground">{eligibleLeads.length}</div>
-                  <div className="text-[9px] text-muted-foreground">Queued</div>
+              {eligibleLeads.length > 0 && (
+                <div className="space-y-1 overflow-y-auto max-h-20">
+                  {lastSentIndex >= 0 && lastSentIndex < eligibleLeads.length && (
+                    <div className="flex items-center gap-2 p-1 rounded bg-emerald-500/5 text-[10px]">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                      <span className="text-muted-foreground">Last Sent:</span>
+                      <span className="text-foreground font-medium truncate">{eligibleLeads[lastSentIndex]?.business_name || eligibleLeads[lastSentIndex]?.email}</span>
+                    </div>
+                  )}
+                  {currentLeadIndex < eligibleLeads.length && (
+                    <div className="flex items-center gap-2 p-1 rounded bg-amber-500/5 text-[10px]">
+                      <Clock className="w-3 h-3 text-amber-400 shrink-0 animate-pulse" />
+                      <span className="text-muted-foreground">Sending Now:</span>
+                      <span className="text-foreground font-medium truncate">{eligibleLeads[currentLeadIndex]?.business_name || eligibleLeads[currentLeadIndex]?.email}</span>
+                    </div>
+                  )}
+                  {currentLeadIndex + 1 < eligibleLeads.length && (
+                    <div className="flex items-center gap-2 p-1 rounded bg-muted/30 text-[10px]">
+                      <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
+                      <span className="text-muted-foreground">Next:</span>
+                      <span className="text-foreground font-medium truncate">{eligibleLeads[currentLeadIndex + 1]?.business_name || eligibleLeads[currentLeadIndex + 1]?.email}</span>
+                    </div>
+                  )}
                 </div>
-                <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-center">
-                  <div className="text-base font-bold text-emerald-400">{sentEmailsList.length}</div>
-                  <div className="text-[9px] text-muted-foreground">Sent</div>
-                </div>
-                <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-center">
-                  <div className="text-base font-bold text-blue-400">0</div>
-                  <div className="text-[9px] text-muted-foreground">Opened</div>
-                </div>
-                <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-center">
-                  <div className="text-base font-bold text-amber-400">0</div>
-                  <div className="text-[9px] text-muted-foreground">Replied</div>
-                </div>
-              </div>
+              )}
             </div>
           )}
+
+          {/* Bottom Toolbar - Gmail style */}
+          <div className="border-t border-border px-3 py-1.5 flex items-center gap-1 shrink-0 bg-card">
+            <Button
+              onClick={handleLaunch}
+              disabled={eligibleLeads.length === 0 || isLaunching}
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-5 h-8 text-xs font-semibold gap-1.5"
+            >
+              {isLaunching ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+              Send
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+              <ChevronDown className="w-3 h-3" />
+            </Button>
+            <div className="w-px h-5 bg-border mx-1" />
+            <div className="flex items-center gap-0.5">
+              {[Bold, Italic, Underline].map((Icon, i) => (
+                <Button key={i} variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                  <Icon className="w-3.5 h-3.5" />
+                </Button>
+              ))}
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                <AlignLeft className="w-3.5 h-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                <List className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+            <div className="w-px h-5 bg-border mx-1" />
+            <div className="flex items-center gap-0.5">
+              {[Link2, Smile, Paperclip, Image].map((Icon, i) => (
+                <Button key={i} variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+                  <Icon className="w-3.5 h-3.5" />
+                </Button>
+              ))}
+            </div>
+            <div className="flex-1" />
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
+              <MoreHorizontal className="w-3.5 h-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive">
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          </div>
         </div>
       </div>
     </div>
