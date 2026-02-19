@@ -100,6 +100,31 @@ export default function InlineComposePanel({
   const [selectedSequence, setSelectedSequence] = useState<EmailSequence | null>(null);
   const [email, setEmail] = useState({ subject: '', body: '' });
   const [showSendingFeed, setShowSendingFeed] = useState(false);
+  const [manualToInput, setManualToInput] = useState('');
+  const [manualRecipients, setManualRecipients] = useState<Array<{ email: string; label: string; initial: string }>>([]);
+
+  const handleAddManualRecipient = (value: string) => {
+    const trimmed = value.trim();
+    if (trimmed && EMAIL_REGEX.test(trimmed) && !manualRecipients.some(r => r.email === trimmed)) {
+      setManualRecipients(prev => [...prev, {
+        email: trimmed,
+        label: trimmed,
+        initial: trimmed[0].toUpperCase(),
+      }]);
+      setManualToInput('');
+    }
+  };
+
+  const handleRemoveManualRecipient = (emailToRemove: string) => {
+    setManualRecipients(prev => prev.filter(r => r.email !== emailToRemove));
+  };
+
+  const handleManualToKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',' || e.key === 'Tab') {
+      e.preventDefault();
+      handleAddManualRecipient(manualToInput);
+    }
+  };
 
   const { status: trialStatus } = useAutopilotTrial();
 
@@ -531,11 +556,25 @@ export default function InlineComposePanel({
           </div>
         </div>
 
-        {/* To Field - Gmail-style chips */}
+        {/* To Field - Gmail-style chips + manual input */}
         <div className="px-4 py-2 border-b border-border/50 shrink-0">
           <div className="flex items-start gap-2">
             <span className="text-xs text-muted-foreground pt-1 shrink-0">To</span>
-            <div className="flex-1 flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+            <div className="flex-1 flex flex-wrap gap-1 max-h-32 overflow-y-auto items-center">
+              {/* Manual recipients */}
+              {manualRecipients.map((chip, i) => (
+                <span
+                  key={`manual-${i}`}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-[11px] text-foreground"
+                >
+                  <span className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white bg-cyan-600">
+                    {chip.initial}
+                  </span>
+                  <span className="truncate max-w-[140px]">{chip.label}</span>
+                  <X className="w-2.5 h-2.5 text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => handleRemoveManualRecipient(chip.email)} />
+                </span>
+              ))}
+              {/* Drip feed recipients */}
               {recipientChips.map((chip, i) => (
                 <span
                   key={i}
@@ -551,6 +590,16 @@ export default function InlineComposePanel({
               {eligibleLeads.length > 20 && (
                 <span className="text-[10px] text-muted-foreground self-center">+{eligibleLeads.length - 20} more</span>
               )}
+              {/* Inline manual email input */}
+              <input
+                type="email"
+                value={manualToInput}
+                onChange={(e) => setManualToInput(e.target.value)}
+                onKeyDown={handleManualToKeyDown}
+                onBlur={() => { if (manualToInput.trim()) handleAddManualRecipient(manualToInput); }}
+                className="flex-1 min-w-[160px] bg-transparent border-0 outline-none text-sm text-foreground placeholder:text-muted-foreground/50 h-6"
+                placeholder={recipientChips.length === 0 && manualRecipients.length === 0 ? "Type email address…" : "Add more…"}
+              />
             </div>
             <span className="text-[10px] text-muted-foreground pt-1 cursor-pointer hover:text-foreground">Cc Bcc</span>
           </div>
