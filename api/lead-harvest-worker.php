@@ -51,6 +51,21 @@ if (!defined('LEAD_HARVEST_DEEP_SCRAPE_MAX_PER_JOB')) {
 if (!defined('LEAD_HARVEST_FAILURE_RETRY_MINUTES')) {
     define('LEAD_HARVEST_FAILURE_RETRY_MINUTES', 15);
 }
+if (!defined('LEAD_HARVEST_AUTONOMOUS_MODE')) {
+    define('LEAD_HARVEST_AUTONOMOUS_MODE', true);
+}
+if (!defined('LEAD_HARVEST_AUTONOMOUS_MAX_ACTIVE_JOBS')) {
+    define('LEAD_HARVEST_AUTONOMOUS_MAX_ACTIVE_JOBS', 3000);
+}
+if (!defined('LEAD_HARVEST_AUTONOMOUS_INSERT_PER_IDLE')) {
+    define('LEAD_HARVEST_AUTONOMOUS_INSERT_PER_IDLE', 10);
+}
+if (!defined('LEAD_HARVEST_AUTONOMOUS_DEFAULT_LIMIT')) {
+    define('LEAD_HARVEST_AUTONOMOUS_DEFAULT_LIMIT', 120);
+}
+if (!defined('LEAD_HARVEST_AUTONOMOUS_INTERVAL_MINUTES')) {
+    define('LEAD_HARVEST_AUTONOMOUS_INTERVAL_MINUTES', 120);
+}
 
 $options = getopt('', [
     'once',
@@ -102,6 +117,11 @@ while (true) {
     }
 
     if (!$job) {
+        $autoInserted = queueAutonomousJobsIfEnabled($pdo);
+        if ($autoInserted > 0) {
+            workerLog("Autonomous mode queued {$autoInserted} new job(s).");
+            continue;
+        }
         if ($runOnce) {
             workerLog('No due job found. Exiting (--once).');
             break;
@@ -428,6 +448,236 @@ function upsertHarvestJobFromCli(PDO $pdo, array $options)
     ]);
 
     return (int) $pdo->lastInsertId();
+}
+
+function autonomousKeywordSeeds()
+{
+    return [
+        ['keyword' => 'plumbers', 'category' => 'home_services'],
+        ['keyword' => 'electricians', 'category' => 'home_services'],
+        ['keyword' => 'hvac contractors', 'category' => 'home_services'],
+        ['keyword' => 'roofing companies', 'category' => 'home_services'],
+        ['keyword' => 'landscaping services', 'category' => 'home_services'],
+        ['keyword' => 'pest control', 'category' => 'home_services'],
+        ['keyword' => 'auto repair shops', 'category' => 'automotive'],
+        ['keyword' => 'collision repair', 'category' => 'automotive'],
+        ['keyword' => 'car detailing', 'category' => 'automotive'],
+        ['keyword' => 'dentists', 'category' => 'healthcare'],
+        ['keyword' => 'chiropractors', 'category' => 'healthcare'],
+        ['keyword' => 'physical therapy clinics', 'category' => 'healthcare'],
+        ['keyword' => 'family law attorneys', 'category' => 'legal'],
+        ['keyword' => 'personal injury attorneys', 'category' => 'legal'],
+        ['keyword' => 'accounting firms', 'category' => 'finance'],
+        ['keyword' => 'bookkeeping services', 'category' => 'finance'],
+        ['keyword' => 'real estate agents', 'category' => 'real_estate'],
+        ['keyword' => 'property management companies', 'category' => 'real_estate'],
+        ['keyword' => 'restaurants', 'category' => 'food'],
+        ['keyword' => 'coffee shops', 'category' => 'food'],
+        ['keyword' => 'marketing agencies', 'category' => 'b2b_services'],
+        ['keyword' => 'web design agencies', 'category' => 'b2b_services'],
+        ['keyword' => 'software development companies', 'category' => 'b2b_services'],
+        ['keyword' => 'cleaning services', 'category' => 'local_services'],
+        ['keyword' => 'moving companies', 'category' => 'local_services'],
+        ['keyword' => 'security system installers', 'category' => 'local_services'],
+        ['keyword' => 'salons', 'category' => 'beauty'],
+        ['keyword' => 'med spas', 'category' => 'beauty'],
+        ['keyword' => 'tattoo studios', 'category' => 'beauty'],
+        ['keyword' => 'gyms', 'category' => 'fitness'],
+    ];
+}
+
+function autonomousLocationSeeds()
+{
+    $stateToAnchorCity = [
+        'AL' => 'Birmingham', 'AK' => 'Anchorage', 'AZ' => 'Phoenix', 'AR' => 'Little Rock', 'CA' => 'Los Angeles',
+        'CO' => 'Denver', 'CT' => 'Bridgeport', 'DE' => 'Wilmington', 'DC' => 'Washington', 'FL' => 'Miami',
+        'GA' => 'Atlanta', 'HI' => 'Honolulu', 'ID' => 'Boise', 'IL' => 'Chicago', 'IN' => 'Indianapolis',
+        'IA' => 'Des Moines', 'KS' => 'Wichita', 'KY' => 'Louisville', 'LA' => 'New Orleans', 'ME' => 'Portland',
+        'MD' => 'Baltimore', 'MA' => 'Boston', 'MI' => 'Detroit', 'MN' => 'Minneapolis', 'MS' => 'Jackson',
+        'MO' => 'Kansas City', 'MT' => 'Billings', 'NE' => 'Omaha', 'NV' => 'Las Vegas', 'NH' => 'Manchester',
+        'NJ' => 'Newark', 'NM' => 'Albuquerque', 'NY' => 'New York', 'NC' => 'Charlotte', 'ND' => 'Fargo',
+        'OH' => 'Columbus', 'OK' => 'Oklahoma City', 'OR' => 'Portland', 'PA' => 'Philadelphia', 'RI' => 'Providence',
+        'SC' => 'Charleston', 'SD' => 'Sioux Falls', 'TN' => 'Nashville', 'TX' => 'Houston', 'UT' => 'Salt Lake City',
+        'VT' => 'Burlington', 'VA' => 'Virginia Beach', 'WA' => 'Seattle', 'WV' => 'Charleston', 'WI' => 'Milwaukee',
+        'WY' => 'Cheyenne',
+    ];
+
+    $stateNames = [
+        'AL' => 'Alabama', 'AK' => 'Alaska', 'AZ' => 'Arizona', 'AR' => 'Arkansas', 'CA' => 'California',
+        'CO' => 'Colorado', 'CT' => 'Connecticut', 'DE' => 'Delaware', 'DC' => 'District of Columbia', 'FL' => 'Florida',
+        'GA' => 'Georgia', 'HI' => 'Hawaii', 'ID' => 'Idaho', 'IL' => 'Illinois', 'IN' => 'Indiana',
+        'IA' => 'Iowa', 'KS' => 'Kansas', 'KY' => 'Kentucky', 'LA' => 'Louisiana', 'ME' => 'Maine',
+        'MD' => 'Maryland', 'MA' => 'Massachusetts', 'MI' => 'Michigan', 'MN' => 'Minnesota', 'MS' => 'Mississippi',
+        'MO' => 'Missouri', 'MT' => 'Montana', 'NE' => 'Nebraska', 'NV' => 'Nevada', 'NH' => 'New Hampshire',
+        'NJ' => 'New Jersey', 'NM' => 'New Mexico', 'NY' => 'New York', 'NC' => 'North Carolina', 'ND' => 'North Dakota',
+        'OH' => 'Ohio', 'OK' => 'Oklahoma', 'OR' => 'Oregon', 'PA' => 'Pennsylvania', 'RI' => 'Rhode Island',
+        'SC' => 'South Carolina', 'SD' => 'South Dakota', 'TN' => 'Tennessee', 'TX' => 'Texas', 'UT' => 'Utah',
+        'VT' => 'Vermont', 'VA' => 'Virginia', 'WA' => 'Washington', 'WV' => 'West Virginia', 'WI' => 'Wisconsin',
+        'WY' => 'Wyoming',
+    ];
+
+    $seeds = [];
+    foreach ($stateToAnchorCity as $stateCode => $city) {
+        $seeds[] = "{$city}, {$stateCode}";
+    }
+
+    // Add state-wide targets so every U.S. state can be covered even when city-level search is sparse.
+    foreach ($stateNames as $stateCode => $stateName) {
+        $seeds[] = "{$stateName}, US";
+        $seeds[] = "{$stateCode}, US";
+
+        if (function_exists('getStateCityShards')) {
+            $shards = getStateCityShards($stateCode);
+            foreach ((array) $shards as $shard) {
+                $shard = trim((string) $shard);
+                if ($shard !== '') {
+                    $seeds[] = $shard;
+                }
+            }
+        }
+    }
+
+    // Keep deterministic order while removing duplicates.
+    $unique = [];
+    $seen = [];
+    foreach ($seeds as $seed) {
+        $normalized = normalizeIndexValue($seed);
+        if ($normalized === '' || isset($seen[$normalized])) {
+            continue;
+        }
+        $seen[$normalized] = true;
+        $unique[] = $seed;
+    }
+
+    return $unique;
+}
+
+function queueAutonomousJobsIfEnabled(PDO $pdo)
+{
+    if (!LEAD_HARVEST_AUTONOMOUS_MODE) {
+        return 0;
+    }
+
+    $countStmt = $pdo->query(
+        "SELECT COUNT(*) AS c
+         FROM lead_harvest_jobs
+         WHERE enabled = 1"
+    );
+    $currentEnabled = (int) (($countStmt->fetch(PDO::FETCH_ASSOC)['c'] ?? 0));
+    $maxJobs = max(10, (int) LEAD_HARVEST_AUTONOMOUS_MAX_ACTIVE_JOBS);
+    if ($currentEnabled >= $maxJobs) {
+        return 0;
+    }
+
+    $keywords = autonomousKeywordSeeds();
+    $locations = autonomousLocationSeeds();
+    if (empty($keywords) || empty($locations)) {
+        return 0;
+    }
+
+    $slots = min(
+        max(1, (int) LEAD_HARVEST_AUTONOMOUS_INSERT_PER_IDLE),
+        $maxJobs - $currentEnabled
+    );
+
+    $combinations = [];
+    foreach ($keywords as $seed) {
+        $keyword = trim((string) ($seed['keyword'] ?? ''));
+        $category = trim((string) ($seed['category'] ?? 'general'));
+        if ($keyword === '') {
+            continue;
+        }
+        foreach ($locations as $location) {
+            $location = trim((string) $location);
+            if ($location === '') {
+                continue;
+            }
+            $combinations[] = [
+                'keyword' => $keyword,
+                'category' => $category,
+                'location' => $location,
+            ];
+        }
+    }
+    if (empty($combinations)) {
+        return 0;
+    }
+
+    // Rotate combinations deterministically over time to avoid always seeding the same first subset.
+    $combinationCount = count($combinations);
+    $rotationOffset = (int) (time() / 300) % $combinationCount;
+    $rotated = array_merge(
+        array_slice($combinations, $rotationOffset),
+        array_slice($combinations, 0, $rotationOffset)
+    );
+
+    $limit = clampInt(
+        (int) LEAD_HARVEST_AUTONOMOUS_DEFAULT_LIMIT,
+        (int) LEAD_HARVEST_MIN_LIMIT_PER_JOB,
+        (int) LEAD_HARVEST_MAX_LIMIT_PER_JOB
+    );
+    $interval = max(10, (int) LEAD_HARVEST_AUTONOMOUS_INTERVAL_MINUTES);
+
+    $existsStmt = $pdo->prepare(
+        "SELECT id
+         FROM lead_harvest_jobs
+         WHERE owner_user_id IS NULL
+           AND keyword_norm = :keyword_norm
+           AND location_norm = :location_norm
+           AND category = :category
+         LIMIT 1"
+    );
+    $pokeStmt = $pdo->prepare(
+        "UPDATE lead_harvest_jobs
+         SET enabled = 1,
+             status = CASE WHEN status = 'paused' THEN 'pending' ELSE status END,
+             next_run_at = LEAST(next_run_at, NOW()),
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = :id"
+    );
+    $insertStmt = $pdo->prepare(
+        "INSERT INTO lead_harvest_jobs
+         (owner_user_id, keyword, location, category, keyword_norm, location_norm, target_limit, run_interval_minutes, enabled, status, next_run_at)
+         VALUES
+         (NULL, :keyword, :location, :category, :keyword_norm, :location_norm, :target_limit, :run_interval_minutes, 1, 'pending', NOW())"
+    );
+
+    $inserted = 0;
+    foreach ($rotated as $combo) {
+        if ($inserted >= $slots) {
+            break;
+        }
+
+        $keywordNorm = normalizeIndexValue($combo['keyword']);
+        $locationNorm = normalizeIndexValue($combo['location']);
+        if ($keywordNorm === '' || $locationNorm === '') {
+            continue;
+        }
+
+        $existsStmt->execute([
+            'keyword_norm' => $keywordNorm,
+            'location_norm' => $locationNorm,
+            'category' => $combo['category'],
+        ]);
+        $existingId = (int) (($existsStmt->fetch(PDO::FETCH_ASSOC)['id'] ?? 0));
+        if ($existingId > 0) {
+            $pokeStmt->execute(['id' => $existingId]);
+            continue;
+        }
+
+        $insertStmt->execute([
+            'keyword' => $combo['keyword'],
+            'location' => $combo['location'],
+            'category' => $combo['category'],
+            'keyword_norm' => $keywordNorm,
+            'location_norm' => $locationNorm,
+            'target_limit' => $limit,
+            'run_interval_minutes' => $interval,
+        ]);
+        $inserted++;
+    }
+
+    return $inserted;
 }
 
 function processHarvestJob(PDO $pdo, array $job)
