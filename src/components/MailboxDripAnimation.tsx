@@ -285,7 +285,29 @@ export default function MailboxDripAnimation({
           }
         });
 
-        setEmailStatuses(newStatuses);
+        setEmailStatuses(prev => {
+          // Write newly-sent leads to shared sent log so Mailbox "Sent" tab stays in sync
+          const SENT_LOG_KEY = 'bamlead_sent_emails_log';
+          try {
+            const existing: any[] = JSON.parse(localStorage.getItem(SENT_LOG_KEY) || '[]');
+            const existingEmails = new Set(existing.map(e => e.email));
+            let added = false;
+            filteredLeads.forEach(lead => {
+              const ns = newStatuses[lead.id];
+              const ps = prev[lead.id];
+              if ((ns === 'sent' || ns === 'delivered') && ps !== 'sent' && ps !== 'delivered' && lead.email && !existingEmails.has(lead.email)) {
+                existing.push({ email: lead.email, name: lead.business || lead.name || lead.email, sentAt: new Date().toISOString() });
+                existingEmails.add(lead.email);
+                added = true;
+              }
+            });
+            if (added) {
+              localStorage.setItem(SENT_LOG_KEY, JSON.stringify(existing));
+              window.dispatchEvent(new Event('bamlead_sent_update'));
+            }
+          } catch { /* ignore */ }
+          return newStatuses;
+        });
         setDeliveryStats({ sent: sentCount, delivered: deliveredCount, failed: failedCount, bounced: bouncedCount });
         setBackendQueueStats({ scheduledTotal, scheduledDue, trackedLeads: matchedLeadIds.size });
         if (newestSentAtTs > 0) {

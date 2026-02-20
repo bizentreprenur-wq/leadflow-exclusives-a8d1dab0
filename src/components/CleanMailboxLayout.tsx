@@ -53,7 +53,7 @@ import {
 import { AutonomousSequence } from '@/lib/autonomousSequences';
 
 // Tab types for main navigation
-type MainTab = 'inbox' | 'campaigns' | 'sequences' | 'automation' | 'analytics' | 'documents' | 'settings' | 'strategy';
+type MainTab = 'inbox' | 'sent' | 'campaigns' | 'sequences' | 'automation' | 'analytics' | 'documents' | 'settings' | 'strategy';
 type InboxFilter = 'all' | 'hot' | 'unread';
 
 // Demo sequence types
@@ -573,9 +573,37 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
     toast.success('Campaign status updated');
   };
 
+  // Sent emails log — shared between compose box and Step 3
+  const SENT_LOG_KEY = 'bamlead_sent_emails_log';
+  const [sentEmailsLog, setSentEmailsLog] = useState<Array<{ email: string; name: string; sentAt: string; subject?: string }>>(() => {
+    try {
+      const stored = localStorage.getItem(SENT_LOG_KEY);
+      return stored ? JSON.parse(stored) : [];
+    } catch { return []; }
+  });
+
+  // Sync sent log from localStorage (updated by compose box or Step 3)
+  useEffect(() => {
+    const sync = () => {
+      try {
+        const stored = localStorage.getItem(SENT_LOG_KEY);
+        setSentEmailsLog(stored ? JSON.parse(stored) : []);
+      } catch { /* ignore */ }
+    };
+    window.addEventListener('storage', sync);
+    window.addEventListener('bamlead_sent_update', sync);
+    window.addEventListener('focus', sync);
+    return () => {
+      window.removeEventListener('storage', sync);
+      window.removeEventListener('bamlead_sent_update', sync);
+      window.removeEventListener('focus', sync);
+    };
+  }, []);
+
   // Main navigation tabs — hide items that live inside the Unlimited inline compose panel
   const navTabs = [
     { id: 'inbox' as MainTab, label: 'Inbox', icon: Inbox },
+    { id: 'sent' as MainTab, label: 'Sent', icon: CheckCircle2 },
     { id: 'campaigns' as MainTab, label: 'Campaigns', icon: Send },
     ...(!isUnlimited ? [{ id: 'sequences' as MainTab, label: 'Sequences', icon: Layers }] : []),
     ...(!isUnlimited ? [{ id: 'strategy' as MainTab, label: 'AI Strategy', icon: Brain, isBrain: true }] : []),
@@ -664,6 +692,11 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                   {tab.id === 'inbox' && (
                     <Badge className="ml-auto bg-red-500 text-white text-[10px] px-1.5">
                       {replies.filter(r => !r.isRead).length}
+                    </Badge>
+                  )}
+                  {tab.id === 'sent' && sentEmailsLog.length > 0 && (
+                    <Badge className="ml-auto bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] px-1.5">
+                      {sentEmailsLog.length}
                     </Badge>
                   )}
                   {tab.id === 'automation' && isUnlimited && (
@@ -1003,6 +1036,84 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                       </p>
                     </div>
                   </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* SENT VIEW */}
+          {mainTab === 'sent' && (
+            <div className="h-full overflow-auto p-6">
+              <div className="max-w-4xl mx-auto space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                    Sent Emails
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-xs">
+                      {sentEmailsLog.length} sent
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        localStorage.removeItem(SENT_LOG_KEY);
+                        setSentEmailsLog([]);
+                        toast.success('Sent log cleared');
+                      }}
+                      className="text-xs text-muted-foreground"
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                </div>
+
+                {sentEmailsLog.length === 0 ? (
+                  <div className="text-center py-16">
+                    <Mail className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
+                    <p className="text-sm text-muted-foreground">No sent emails yet</p>
+                    <p className="text-xs text-muted-foreground/70 mt-1">
+                      Emails will appear here as they are drip-sent from the compose box or Step 3.
+                    </p>
+                  </div>
+                ) : (
+                  <ScrollArea className="h-[calc(100vh-220px)]">
+                    <div className="space-y-1">
+                      {[...sentEmailsLog].reverse().map((item, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-center gap-3 p-3 rounded-lg border border-border/40 bg-card hover:bg-muted/30 transition-colors"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-xs font-bold text-emerald-400 shrink-0">
+                            {(item.name || item.email || 'U')[0].toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {item.name || item.email}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">{item.email}</p>
+                            {item.subject && (
+                              <p className="text-xs text-muted-foreground/70 truncate mt-0.5">Re: {item.subject}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[9px]">
+                              Sent
+                            </Badge>
+                            <span className="text-[10px] text-muted-foreground">
+                              {(() => {
+                                try {
+                                  const d = new Date(item.sentAt);
+                                  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                } catch { return ''; }
+                              })()}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
                 )}
               </div>
             </div>
