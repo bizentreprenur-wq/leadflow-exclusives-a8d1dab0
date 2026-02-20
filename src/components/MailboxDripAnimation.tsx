@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, CheckCircle2, Clock, Zap, Shield, AlertCircle, RefreshCw, Pause, Play, Send, ChevronDown, User, Building2, Inbox, ArrowRight, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -91,8 +91,8 @@ export default function MailboxDripAnimation({
     all: 'All Verified Leads',
   };
 
-  // Filter leads by scope
-  const getFilteredLeads = useCallback(() => {
+  // Filter leads by scope (memoized to prevent infinite re-render loops)
+  const filteredLeads = useMemo(() => {
     const leadsWithEmail = leads.filter(l => l.email);
     switch (leadScope) {
       case 'hot':
@@ -107,8 +107,6 @@ export default function MailboxDripAnimation({
         return leadsWithEmail;
     }
   }, [leads, leadScope]);
-
-  const filteredLeads = getFilteredLeads();
   const verifiedCount = filteredLeads.filter(l => l.verified !== false).length;
   const userApprovedCount = filteredLeads.filter(l => l.verified === false).length;
   const COMPLETED_STATUSES = new Set<EmailStatus>(['sent', 'delivered', 'opened', 'clicked', 'replied']);
