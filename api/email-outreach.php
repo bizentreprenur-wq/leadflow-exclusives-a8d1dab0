@@ -1266,17 +1266,26 @@ function normalizeSmtpConfigPayload($config) {
         return null;
     }
 
+    $port = normalizeSmtpPort($config['port'] ?? null, 587);
+    if ($port === null) {
+        return null;
+    }
+
     $normalized = [
         'host' => trim((string)($config['host'] ?? '')),
-        'port' => (string)($config['port'] ?? ''),
+        'port' => (string)$port,
         'username' => trim((string)($config['username'] ?? '')),
         'password' => (string)($config['password'] ?? ''),
         'fromEmail' => trim((string)($config['fromEmail'] ?? $config['from_email'] ?? '')),
         'fromName' => trim((string)($config['fromName'] ?? $config['from_name'] ?? '')),
-        'secure' => $config['secure'] ?? true,
+        'secure' => normalizeSmtpSecureMode($config['secure'] ?? true, $port) !== '',
     ];
 
     if ($normalized['host'] === '' || $normalized['username'] === '' || $normalized['password'] === '') {
+        return null;
+    }
+
+    if ($normalized['fromEmail'] !== '' && !filter_var($normalized['fromEmail'], FILTER_VALIDATE_EMAIL)) {
         return null;
     }
 
@@ -1291,6 +1300,39 @@ function resolveEffectiveSmtpOverride($db, $userId, $requestData) {
 
     $loaded = loadUserSmtpConfigForUser($db, (int)$userId);
     return normalizeSmtpConfigPayload($loaded['config'] ?? null);
+}
+
+function normalizeSmtpPort($rawPort, $defaultPort = 587) {
+    $value = trim((string)$rawPort);
+    if ($value === '') {
+        $value = (string)$defaultPort;
+    }
+    if (!preg_match('/^\d+$/', $value)) {
+        return null;
+    }
+    $port = (int)$value;
+    if ($port < 1 || $port > 65535) {
+        return null;
+    }
+    return $port;
+}
+
+function normalizeSmtpSecureMode($secure, $port) {
+    if (is_bool($secure)) {
+        if (!$secure) {
+            return '';
+        }
+        return ((int)$port === 465) ? 'ssl' : 'tls';
+    }
+
+    $secureLower = strtolower(trim((string)$secure));
+    if ($secureLower === 'ssl' || $secureLower === 'smtps') {
+        return 'ssl';
+    }
+    if ($secureLower === 'tls' || $secureLower === 'starttls') {
+        return 'tls';
+    }
+    return '';
 }
 
 /**
@@ -1333,15 +1375,21 @@ function handleTestSMTP($db, $user) {
     $username = $data['username'] ?? (defined('SMTP_USER') ? SMTP_USER : '');
     $password = $data['password'] ?? (defined('SMTP_PASS') ? SMTP_PASS : '');
     $secure = $data['secure'] ?? (defined('SMTP_SECURE') ? SMTP_SECURE : 'ssl');
-    if (is_bool($secure)) {
-        $secure = $secure ? ((int)$port === 465 ? 'ssl' : 'tls') : '';
-    }
     
     if (empty($host) || empty($username) || empty($password)) {
         http_response_code(400);
         echo json_encode(['success' => false, 'error' => 'SMTP host, username, and password are required']);
         return;
     }
+
+    $normalizedPort = normalizeSmtpPort($port, 465);
+    if ($normalizedPort === null) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Invalid SMTP port. Use a value between 1 and 65535.']);
+        return;
+    }
+    $port = $normalizedPort;
+    $secure = normalizeSmtpSecureMode($secure, $port);
     
     // Prefer a real SMTP auth test via PHPMailer (ensures credentials are valid)
     $autoloadPath = __DIR__ . '/vendor/autoload.php';
@@ -1354,15 +1402,14 @@ function handleTestSMTP($db, $user) {
             $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
             $mail->isSMTP();
             $mail->Host = $host;
-            $mail->Port = (int)$port;
+            $mail->Port = $port;
             $mail->SMTPAuth = true;
             $mail->Username = $username;
             $mail->Password = $password;
 
-            $secureLower = strtolower((string)$secure);
-            if ($secureLower === 'ssl' || $secureLower === 'smtps' || (int)$port === 465) {
+            if ($secure === 'ssl' || (int)$port === 465) {
                 $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
-            } elseif ($secureLower === 'tls' || $secureLower === 'starttls') {
+            } elseif ($secure === 'tls') {
                 $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
             } else {
                 $mail->SMTPSecure = '';
@@ -1552,20 +1599,40 @@ function handleSaveSMTPConfig($db, $user) {
         return;
     }
 
-    // Whitelist allowed fields
-    $allowed = ['host', 'port', 'username', 'password', 'fromEmail', 'fromName', 'secure'];
-    $config = [];
-    foreach ($allowed as $key) {
-        if (isset($data[$key])) {
-            $config[$key] = $data[$key];
-        }
-    }
+    $host = trim((string)($data['host'] ?? ''));
+    $username = trim((string)($data['username'] ?? ''));
+    $password = (string)($data['password'] ?? '');
+    $fromEmail = trim((string)($data['fromEmail'] ?? ''));
+    $fromName = trim((string)($data['fromName'] ?? ''));
+    $port = normalizeSmtpPort($data['port'] ?? null, 587);
 
-    if (empty($config['host']) || empty($config['username']) || empty($config['password'])) {
+    if ($host === '' || $username === '' || $password === '') {
         http_response_code(400);
         echo json_encode(['success' => false, 'error' => 'Host, username, and password are required']);
         return;
     }
+
+    if ($port === null) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'Invalid SMTP port. Use a value between 1 and 65535.']);
+        return;
+    }
+
+    if ($fromEmail !== '' && !filter_var($fromEmail, FILTER_VALIDATE_EMAIL)) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'From Email must be a valid email address']);
+        return;
+    }
+
+    $config = [
+        'host' => $host,
+        'port' => (string)$port,
+        'username' => $username,
+        'password' => $password,
+        'fromEmail' => $fromEmail,
+        'fromName' => $fromName,
+        'secure' => normalizeSmtpSecureMode($data['secure'] ?? true, $port) !== '',
+    ];
 
     $configJson = json_encode($config);
 

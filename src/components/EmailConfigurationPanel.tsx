@@ -187,6 +187,20 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
     );
   };
 
+  const isValidPort = (port: string) => {
+    const value = Number(port);
+    return Number.isInteger(value) && value >= 1 && value <= 65535;
+  };
+
+  const hasRequiredSMTPFields = () => {
+    return (
+      !!smtpConfig.host.trim() &&
+      !!smtpConfig.username.trim() &&
+      !!smtpConfig.password &&
+      isValidPort(smtpConfig.port)
+    );
+  };
+
   const toPreviewText = (htmlOrText: string) => {
     return htmlOrText
       .replace(/<[^>]*>/g, ' ')
@@ -342,8 +356,12 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
   };
 
   const handleSaveConfig = async () => {
-    if (!smtpConfig.host || !smtpConfig.username || !smtpConfig.password) {
+    if (!smtpConfig.host.trim() || !smtpConfig.username.trim() || !smtpConfig.password) {
       toast.error('Please fill in all required SMTP fields');
+      return;
+    }
+    if (!isValidPort(smtpConfig.port)) {
+      toast.error('SMTP port must be between 1 and 65535');
       return;
     }
 
@@ -365,6 +383,15 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
   };
 
   const handleTestConnection = async () => {
+    if (!smtpConfig.host.trim() || !smtpConfig.username.trim() || !smtpConfig.password) {
+      toast.error('SMTP host, username, and password are required');
+      return;
+    }
+    if (!isValidPort(smtpConfig.port)) {
+      toast.error('SMTP port must be between 1 and 65535');
+      return;
+    }
+
     setIsTesting(true);
     
     try {
@@ -433,8 +460,12 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
       return;
     }
     
-    if (!smtpConfig.username || !smtpConfig.password) {
+    if (!smtpConfig.host.trim() || !smtpConfig.username.trim() || !smtpConfig.password) {
       toast.error('Please configure SMTP credentials first');
+      return;
+    }
+    if (!isValidPort(smtpConfig.port)) {
+      toast.error('SMTP port must be between 1 and 65535');
       return;
     }
 
@@ -1111,7 +1142,7 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
               <div className="flex items-center justify-center gap-3">
                 <Button
                   onClick={handleTestConnection}
-                  disabled={isTesting || !smtpConfig.username || !smtpConfig.password}
+                  disabled={isTesting || !hasRequiredSMTPFields()}
                   className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/30"
                 >
                   {isTesting ? (
@@ -1139,7 +1170,7 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
                 <div className="flex flex-wrap gap-3">
                   <Button
                     onClick={handleTestConnection}
-                    disabled={isTesting || !smtpConfig.username || !smtpConfig.password}
+                    disabled={isTesting || !hasRequiredSMTPFields()}
                     variant="outline"
                     className="gap-2"
                   >
@@ -1152,7 +1183,7 @@ export default function EmailConfigurationPanel({ leads = [], hideTabBar = false
                   </Button>
                   <Button
                     onClick={() => setShowTestEmailInput(!showTestEmailInput)}
-                    disabled={!smtpConfig.username || !smtpConfig.password}
+                    disabled={!hasRequiredSMTPFields()}
                     variant="outline"
                     className="gap-2 border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/10"
                   >
