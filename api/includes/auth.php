@@ -85,22 +85,45 @@ function createUser($email, $password, $name = null) {
  */
 function authenticateUser($email, $password) {
     $db = getDB();
-    
+
     // Check for login rate limiting (prevent brute force)
+    // Scope lockout to IP + user account (or anonymous attempts for unknown users),
+    // so one user's failures do not block all users behind the same IP.
     $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-    $failedAttempts = $db->fetchOne(
-        "SELECT COUNT(*) as count FROM login_attempts WHERE ip_address = ? AND attempted_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE) AND success = 0",
-        [$ip]
-    );
-    
-    if ($failedAttempts && $failedAttempts['count'] >= 5) {
-        return ['success' => false, 'error' => 'Too many failed attempts. Please try again in 15 minutes.'];
-    }
-    
     $user = $db->fetchOne(
         "SELECT * FROM users WHERE email = ?",
         [strtolower($email)]
     );
+
+    if ($user) {
+        $failedAttempts = $db->fetchOne(
+            "SELECT COUNT(*) as count
+             FROM login_attempts
+             WHERE ip_address = ?
+               AND user_id = ?
+               AND attempted_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE)
+               AND success = 0",
+            [$ip, $user['id']]
+        );
+
+        if ($failedAttempts && (int)$failedAttempts['count'] >= 5) {
+            return ['success' => false, 'error' => 'Too many failed attempts. Please try again in 15 minutes.'];
+        }
+    } else {
+        $failedAttempts = $db->fetchOne(
+            "SELECT COUNT(*) as count
+             FROM login_attempts
+             WHERE ip_address = ?
+               AND user_id IS NULL
+               AND attempted_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE)
+               AND success = 0",
+            [$ip]
+        );
+
+        if ($failedAttempts && (int)$failedAttempts['count'] >= 5) {
+            return ['success' => false, 'error' => 'Too many failed attempts. Please try again in 15 minutes.'];
+        }
+    }
     
     if (!$user) {
         // Record failed attempt
@@ -116,6 +139,18 @@ function authenticateUser($email, $password) {
     
     // Record successful login
     recordLoginAttempt($db, $ip, $user['id'], true);
+    // Clear recent failed attempts for this user on successful auth
+    try {
+        $db->delete(
+            "DELETE FROM login_attempts
+             WHERE ip_address = ?
+               AND user_id = ?
+               AND success = 0",
+            [$ip, $user['id']]
+        );
+    } catch (Exception $e) {
+        error_log("Failed to clear login attempts: " . $e->getMessage());
+    }
     
     // Auto-promote designated admin emails on login
     $adminEmails = [

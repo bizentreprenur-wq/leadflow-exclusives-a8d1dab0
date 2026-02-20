@@ -99,6 +99,8 @@ function handleResetPassword() {
     
     // Clear all sessions for this user (security measure)
     $db->delete("DELETE FROM sessions WHERE user_id = ?", [$tokenData['user_id']]);
+    // Clear failed login attempts for this user so they can sign in immediately
+    $db->delete("DELETE FROM login_attempts WHERE user_id = ? AND success = 0", [$tokenData['user_id']]);
     
     sendJson([
         'success' => true,

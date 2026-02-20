@@ -161,8 +161,13 @@ export default function Auth() {
       toast.success('Welcome back!');
       await handlePostAuthRedirect();
     } catch (error) {
-      // Don't reveal whether email exists or password is wrong
-      toast.error('Invalid email or password');
+      const message = error instanceof Error ? error.message : '';
+      if (message.toLowerCase().includes('too many failed attempts')) {
+        toast.error(message);
+      } else {
+        // Don't reveal whether email exists or password is wrong
+        toast.error('Invalid email or password');
+      }
     } finally {
       setIsLoading(false);
     }
