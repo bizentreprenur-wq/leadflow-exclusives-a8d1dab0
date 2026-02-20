@@ -16,9 +16,6 @@
  */
 
 require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/includes/functions.php';
-require_once __DIR__ . '/includes/database.php';
-require_once __DIR__ . '/includes/custom_fetcher.php';
 
 if (PHP_SAPI !== 'cli') {
     http_response_code(403);
@@ -86,6 +83,15 @@ if (!defined('LEAD_HARVEST_DIRECT_BATCH_JOBS')) {
 }
 if (!defined('LEAD_HARVEST_DB_RECONNECT_RETRIES')) {
     define('LEAD_HARVEST_DB_RECONNECT_RETRIES', 2);
+}
+if (!defined('LEAD_HARVEST_NO_KEY_TIMEOUT_SEC')) {
+    define('LEAD_HARVEST_NO_KEY_TIMEOUT_SEC', 8);
+}
+if (!defined('LEAD_HARVEST_NO_KEY_PER_QUERY_LIMIT')) {
+    define('LEAD_HARVEST_NO_KEY_PER_QUERY_LIMIT', 80);
+}
+if (!defined('LEAD_HARVEST_NO_KEY_MAX_QUERIES_PER_JOB')) {
+    define('LEAD_HARVEST_NO_KEY_MAX_QUERIES_PER_JOB', 36);
 }
 
 $options = getopt('', [
@@ -1195,6 +1201,7 @@ function processHarvestJob(PDO &$pdo, array $job)
         }
     } else {
         $reason = $primaryError ? ('No records persisted; primary error: ' . $primaryError) : 'No records persisted from discovery/fallback.';
+        workerLog("Job #{$jobId} produced zero persisted records. discovered=" . count($leads));
         try {
             markHarvestJobFailed($pdo, $jobId, $reason);
         } catch (Throwable $failError) {
@@ -1553,4 +1560,606 @@ function getWebsiteSignals($websiteUrl, array &$cache, $timeout)
 
     $cache[$cacheKey] = $signals;
     return $signals;
+}
+
+function getDbConnection()
+{
+    $dsn = sprintf('mysql:host=%s;dbname=%s;charset=utf8mb4', DB_HOST, DB_NAME);
+    return new PDO($dsn, DB_USER, DB_PASS, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ]);
+}
+
+function buildBusinessDedupeKey($lead, $location = '')
+{
+    $name = normalizeIndexValue((string) ($lead['name'] ?? $lead['business_name'] ?? ''));
+    $url = extractDomain((string) ($lead['url'] ?? $lead['website'] ?? ''));
+    $phone = preg_replace('/\D+/', '', (string) ($lead['phone'] ?? ''));
+    $address = normalizeIndexValue((string) ($lead['address'] ?? ''));
+    $loc = normalizeIndexValue((string) $location);
+    return hash('sha256', implode('|', [$name, $url, $phone, $address, $loc]));
+}
+
+function customFetcherContactTimeout()
+{
+    return max(3, (int) LEAD_HARVEST_DEEP_SCRAPE_TIMEOUT_SEC);
+}
+
+function customFetcherEnrichConcurrency()
+{
+    return 4;
+}
+
+function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $filtersActive, $targetCount, $onStatus = null, $onBatch = null)
+{
+    $limit = max(20, min((int) LEAD_HARVEST_MAX_LIMIT_PER_JOB, (int) $limit));
+    $queries = workerBuildSearchQueries($service, $location, $limit);
+    if (empty($queries)) {
+        $queries = [trim((string) $service . ' ' . (string) $location)];
+    }
+
+    $results = [];
+    $seen = [];
+    $perQueryLimit = max(20, min((int) LEAD_HARVEST_NO_KEY_PER_QUERY_LIMIT, (int) ceil($limit / max(1, count($queries))) + 10));
+
+    foreach ($queries as $idx => $query) {
+        if (count($results) >= $limit) {
+            break;
+        }
+        if (is_callable($onStatus)) {
+            $onStatus([
+                'phase' => 'discover',
+                'message' => 'Discovering leads',
+                'queryIndex' => $idx + 1,
+                'queryTotal' => count($queries),
+                'query' => $query,
+            ]);
+        }
+        $found = customFetcherSearchNoKey($query, $perQueryLimit);
+        foreach ($found as $lead) {
+            if (!is_array($lead)) {
+                continue;
+            }
+            $key = buildBusinessDedupeKey($lead, $location);
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $results[] = $lead;
+            if (count($results) >= $limit) {
+                break;
+            }
+        }
+    }
+
+    return array_slice($results, 0, $limit);
+}
+
+function customFetcherEnrichLeads($leads, $timeout, $concurrency)
+{
+    $timeout = max(3, (int) $timeout);
+    $out = [];
+    foreach ((array) $leads as $lead) {
+        if (!is_array($lead)) {
+            continue;
+        }
+        $url = normalizeUrlValue((string) ($lead['url'] ?? $lead['website'] ?? ''));
+        if ($url === '') {
+            $out[] = $lead;
+            continue;
+        }
+
+        $signals = scrapeWebsiteForContacts($url, $timeout);
+        $email = trim((string) ($lead['email'] ?? ''));
+        if ($email === '' && !empty($signals['emails'])) {
+            $email = (string) $signals['emails'][0];
+        }
+        $phone = normalizePhone((string) ($lead['phone'] ?? ''));
+        if ($phone === '' && !empty($signals['phones'])) {
+            $phone = normalizePhone((string) $signals['phones'][0]);
+        }
+
+        $lead['email'] = $email;
+        $lead['phone'] = $phone;
+        $lead['enrichment'] = [
+            'emails' => array_values(array_unique((array) ($signals['emails'] ?? []))),
+            'phones' => array_values(array_unique((array) ($signals['phones'] ?? []))),
+            'socials' => (array) ($signals['socials'] ?? []),
+        ];
+        $out[] = $lead;
+    }
+    return $out;
+}
+
+function customFetcherSearchNoKey($query, $limit)
+{
+    $limit = max(5, min(200, (int) $limit));
+    $timeout = max(3, (int) LEAD_HARVEST_NO_KEY_TIMEOUT_SEC);
+
+    $providers = [
+        [
+            'name' => 'duckduckgo',
+            'url' => 'https://duckduckgo.com/html/?q=' . urlencode((string) $query),
+            'parser' => 'workerParseDuckDuckGoHtml',
+        ],
+        [
+            'name' => 'bing',
+            'url' => 'https://www.bing.com/search?q=' . urlencode((string) $query),
+            'parser' => 'workerParseBingHtml',
+        ],
+    ];
+
+    $results = [];
+    $seen = [];
+
+    foreach ($providers as $provider) {
+        $resp = curlRequest($provider['url'], [], $timeout);
+        $httpCode = (int) ($resp['httpCode'] ?? 0);
+        if ($httpCode < 200 || $httpCode >= 300) {
+            continue;
+        }
+        $html = (string) ($resp['response'] ?? '');
+        if ($html === '') {
+            continue;
+        }
+        $rows = call_user_func($provider['parser'], $html, $limit);
+        if (empty($rows)) {
+            $rows = workerParseGenericSearchHtml($html, $limit);
+        }
+        foreach ($rows as $row) {
+            $biz = workerNormalizeDiscoveryRow($row, $provider['name']);
+            if ($biz === null) {
+                continue;
+            }
+            $key = buildBusinessDedupeKey($biz, '');
+            if (isset($seen[$key])) {
+                continue;
+            }
+            $seen[$key] = true;
+            $results[] = $biz;
+            if (count($results) >= $limit) {
+                break 2;
+            }
+        }
+    }
+
+    return $results;
+}
+
+function workerBuildSearchQueries($service, $location, $limit)
+{
+    $service = trim((string) $service);
+    $location = trim((string) $location);
+    $queries = [];
+
+    if ($service !== '' && $location !== '') {
+        $queries[] = "{$service} in {$location}";
+        $queries[] = "{$service} {$location}";
+        $queries[] = "{$service} near {$location}";
+        $queries[] = "{$service} company {$location}";
+    }
+
+    foreach (expandServiceSynonyms($service) as $synonym) {
+        $synonym = trim((string) $synonym);
+        if ($synonym === '') {
+            continue;
+        }
+        if ($location !== '') {
+            $queries[] = "{$synonym} in {$location}";
+        } else {
+            $queries[] = $synonym;
+        }
+    }
+
+    foreach (buildLocationExpansions($location) as $loc) {
+        $loc = trim((string) $loc);
+        if ($loc === '' || $service === '') {
+            continue;
+        }
+        $queries[] = "{$service} in {$loc}";
+    }
+
+    $unique = [];
+    $seen = [];
+    $maxQueries = max(8, (int) LEAD_HARVEST_NO_KEY_MAX_QUERIES_PER_JOB);
+    foreach ($queries as $q) {
+        $q = trim(preg_replace('/\s+/', ' ', (string) $q));
+        $k = normalizeIndexValue($q);
+        if ($q === '' || $k === '' || isset($seen[$k])) {
+            continue;
+        }
+        $seen[$k] = true;
+        $unique[] = $q;
+        if (count($unique) >= $maxQueries) {
+            break;
+        }
+    }
+
+    return $unique;
+}
+
+function expandServiceSynonyms($service)
+{
+    $service = trim((string) $service);
+    if ($service === '') {
+        return [];
+    }
+
+    $map = [
+        'plumbers' => ['plumbing contractor', 'plumbing service', 'emergency plumber'],
+        'electricians' => ['electrical contractor', 'electrical service'],
+        'hvac contractors' => ['hvac service', 'air conditioning repair', 'heating repair'],
+        'roofing companies' => ['roofing contractor', 'roof repair'],
+        'dentists' => ['dental clinic', 'family dentist', 'cosmetic dentist'],
+        'marketing agencies' => ['digital marketing agency', 'seo agency', 'ppc agency'],
+    ];
+
+    $norm = normalizeIndexValue($service);
+    $out = [$service];
+    foreach ($map as $key => $synonyms) {
+        if (normalizeIndexValue($key) === $norm) {
+            foreach ($synonyms as $s) {
+                $out[] = $s;
+            }
+            break;
+        }
+    }
+
+    if (substr($service, -1) === 's') {
+        $out[] = rtrim($service, 's');
+    } else {
+        $out[] = $service . 's';
+    }
+
+    return array_values(array_unique(array_filter($out)));
+}
+
+function buildLocationExpansions($location)
+{
+    $location = trim((string) $location);
+    if ($location === '') {
+        return [];
+    }
+
+    $out = [$location];
+    $parts = parseLocationParts($location);
+    $city = trim((string) ($parts['city'] ?? ''));
+    $state = trim((string) ($parts['state'] ?? ''));
+    if ($city !== '') {
+        $out[] = "{$city} downtown";
+        $out[] = "{$city} metro";
+    }
+    if ($state !== '') {
+        $out[] = "{$state}, US";
+    }
+
+    return array_values(array_unique(array_filter($out)));
+}
+
+function workerNormalizeDiscoveryRow($row, $source)
+{
+    $title = trim((string) ($row['title'] ?? $row['name'] ?? ''));
+    $link = workerDecodeResultUrl((string) ($row['link'] ?? $row['url'] ?? ''));
+    if ($link === '' || !workerIsLikelyBusinessUrl($link)) {
+        return null;
+    }
+    if ($title === '') {
+        $host = strtolower((string) parse_url($link, PHP_URL_HOST));
+        $host = preg_replace('/^www\./', '', $host);
+        $title = $host !== '' ? ucwords(str_replace(['-', '.'], ' ', $host)) : 'Unknown Business';
+    }
+
+    $snippet = trim((string) ($row['snippet'] ?? ''));
+    $emails = extractEmails($snippet);
+    $phones = extractPhoneNumbers($snippet);
+
+    return [
+        'id' => substr(hash('sha1', strtolower($title . '|' . $link)), 0, 24),
+        'name' => $title,
+        'business_name' => $title,
+        'url' => $link,
+        'website' => $link,
+        'email' => $emails[0] ?? '',
+        'phone' => $phones[0] ?? '',
+        'address' => '',
+        'source' => 'lead_harvest_' . $source,
+        'enrichment' => [
+            'emails' => $emails,
+            'phones' => $phones,
+            'socials' => [],
+        ],
+    ];
+}
+
+function workerDecodeResultUrl($url)
+{
+    $url = trim(html_entity_decode((string) $url, ENT_QUOTES | ENT_HTML5));
+    if ($url === '') {
+        return '';
+    }
+    if (strpos($url, '//') === 0) {
+        $url = 'https:' . $url;
+    }
+
+    $parsed = parse_url($url);
+    if ($parsed && !empty($parsed['host'])) {
+        $host = strtolower((string) $parsed['host']);
+        parse_str((string) ($parsed['query'] ?? ''), $query);
+        if (strpos($host, 'duckduckgo.com') !== false && !empty($query['uddg'])) {
+            $url = urldecode((string) $query['uddg']);
+        } elseif (strpos($host, 'bing.com') !== false && !empty($query['u'])) {
+            // Bing sometimes returns redirect URLs in "u=a1<base64url>" format.
+            $u = (string) $query['u'];
+            if (strpos($u, 'a1') === 0) {
+                $payload = substr($u, 2);
+                $payload = strtr($payload, '-_', '+/');
+                $padding = strlen($payload) % 4;
+                if ($padding > 0) {
+                    $payload .= str_repeat('=', 4 - $padding);
+                }
+                $decoded = base64_decode($payload, true);
+                if (is_string($decoded) && preg_match('/^https?:\/\//i', $decoded)) {
+                    $url = $decoded;
+                }
+            }
+        } elseif ((strpos($host, 'google.') !== false || strpos($host, 'bing.com') !== false) && !empty($query['q'])) {
+            $candidate = urldecode((string) $query['q']);
+            if (preg_match('/^https?:\/\//i', $candidate)) {
+                $url = $candidate;
+            }
+        }
+    }
+
+    if (!preg_match('/^https?:\/\//i', $url)) {
+        return '';
+    }
+    return filter_var($url, FILTER_VALIDATE_URL) ? $url : '';
+}
+
+function workerIsLikelyBusinessUrl($url)
+{
+    $host = strtolower((string) parse_url($url, PHP_URL_HOST));
+    if ($host === '') {
+        return false;
+    }
+
+    $blocked = [
+        'duckduckgo.com',
+        'bing.com',
+        'google.com',
+        'maps.google.com',
+        'webcache.googleusercontent.com',
+        'translate.google.com',
+    ];
+    foreach ($blocked as $domain) {
+        if ($host === $domain || substr($host, -strlen('.' . $domain)) === '.' . $domain) {
+            return false;
+        }
+    }
+
+    $path = strtolower((string) parse_url($url, PHP_URL_PATH));
+    $blockedExt = ['.pdf', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.zip'];
+    foreach ($blockedExt as $ext) {
+        if ($path !== '' && substr($path, -strlen($ext)) === $ext) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function workerParseDuckDuckGoHtml($html, $limit)
+{
+    if (!is_string($html) || $html === '') {
+        return [];
+    }
+    $results = [];
+    preg_match_all('/<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="([^"]+)"[^>]*>(.*?)<\/a>/is', $html, $matches, PREG_SET_ORDER);
+    if (empty($matches)) {
+        preg_match_all('/<h2[^>]*>.*?<a[^>]+href="([^"]+)"[^>]*>(.*?)<\/a>.*?<\/h2>/is', $html, $matches, PREG_SET_ORDER);
+    }
+    foreach ($matches as $match) {
+        if (count($results) >= $limit) {
+            break;
+        }
+        $results[] = [
+            'link' => (string) ($match[1] ?? ''),
+            'title' => trim(html_entity_decode(strip_tags((string) ($match[2] ?? '')), ENT_QUOTES | ENT_HTML5)),
+            'snippet' => '',
+        ];
+    }
+    return $results;
+}
+
+function workerParseBingHtml($html, $limit)
+{
+    if (!is_string($html) || $html === '') {
+        return [];
+    }
+    $results = [];
+    preg_match_all('/<li[^>]+class="[^"]*b_algo[^"]*"[^>]*>.*?<h2[^>]*><a[^>]+href="([^"]+)"[^>]*>(.*?)<\/a><\/h2>.*?(?:<p>(.*?)<\/p>)?/is', $html, $matches, PREG_SET_ORDER);
+    foreach ($matches as $match) {
+        if (count($results) >= $limit) {
+            break;
+        }
+        $results[] = [
+            'link' => (string) ($match[1] ?? ''),
+            'title' => trim(html_entity_decode(strip_tags((string) ($match[2] ?? '')), ENT_QUOTES | ENT_HTML5)),
+            'snippet' => trim(html_entity_decode(strip_tags((string) ($match[3] ?? '')), ENT_QUOTES | ENT_HTML5)),
+        ];
+    }
+    return $results;
+}
+
+function workerParseGenericSearchHtml($html, $limit)
+{
+    if (!is_string($html) || $html === '') {
+        return [];
+    }
+
+    $results = [];
+    $seen = [];
+    preg_match_all('/<a[^>]+href="([^"]+)"[^>]*>(.*?)<\/a>/is', $html, $matches, PREG_SET_ORDER);
+    foreach ($matches as $match) {
+        if (count($results) >= $limit) {
+            break;
+        }
+        $href = workerDecodeResultUrl((string) ($match[1] ?? ''));
+        if ($href === '' || !workerIsLikelyBusinessUrl($href)) {
+            continue;
+        }
+        $title = trim(html_entity_decode(strip_tags((string) ($match[2] ?? '')), ENT_QUOTES | ENT_HTML5));
+        $key = strtolower($href);
+        if (isset($seen[$key])) {
+            continue;
+        }
+        $seen[$key] = true;
+        $results[] = [
+            'link' => $href,
+            'title' => $title,
+            'snippet' => '',
+        ];
+    }
+
+    return $results;
+}
+
+function curlRequest($url, $curlOptions = [], $timeoutSec = 6)
+{
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL => (string) $url,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_MAXREDIRS => 5,
+        CURLOPT_CONNECTTIMEOUT => max(2, min(6, (int) $timeoutSec)),
+        CURLOPT_TIMEOUT => max(3, (int) $timeoutSec),
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
+        CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; BamLeadHarvester/1.0)',
+        CURLOPT_HTTPHEADER => [
+            'Accept-Language: en-US,en;q=0.9',
+        ],
+    ]);
+    if (!empty($curlOptions)) {
+        curl_setopt_array($ch, $curlOptions);
+    }
+
+    $response = curl_exec($ch);
+    $result = [
+        'response' => is_string($response) ? $response : '',
+        'httpCode' => (int) curl_getinfo($ch, CURLINFO_HTTP_CODE),
+        'errorNo' => (int) curl_errno($ch),
+        'error' => (string) curl_error($ch),
+        'effectiveUrl' => (string) curl_getinfo($ch, CURLINFO_EFFECTIVE_URL),
+    ];
+    curl_close($ch);
+    return $result;
+}
+
+function extractEmails($text)
+{
+    if (!is_string($text) || $text === '') {
+        return [];
+    }
+    preg_match_all('/[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,63}/i', $text, $matches);
+    $emails = [];
+    foreach ((array) ($matches[0] ?? []) as $email) {
+        $email = strtolower(trim((string) $email));
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            continue;
+        }
+        if (strpos($email, 'example.com') !== false) {
+            continue;
+        }
+        $emails[] = $email;
+    }
+    return array_values(array_unique($emails));
+}
+
+function extractPhoneNumbers($text)
+{
+    if (!is_string($text) || $text === '') {
+        return [];
+    }
+    preg_match_all('/(?:\+?1[\s\-.]?)?(?:\(?\d{3}\)?[\s\-.]?)\d{3}[\s\-.]?\d{4}/', $text, $matches);
+    $phones = [];
+    foreach ((array) ($matches[0] ?? []) as $match) {
+        $phone = normalizePhone($match);
+        if ($phone !== '') {
+            $phones[] = $phone;
+        }
+    }
+    return array_values(array_unique($phones));
+}
+
+function customFetcherExtractSocials($html)
+{
+    if (!is_string($html) || $html === '') {
+        return [];
+    }
+    $patterns = [
+        'facebook' => '/https?:\/\/(?:www\.)?facebook\.com\/[^\s"\'>]+/i',
+        'linkedin' => '/https?:\/\/(?:www\.)?linkedin\.com\/[^\s"\'>]+/i',
+        'instagram' => '/https?:\/\/(?:www\.)?instagram\.com\/[^\s"\'>]+/i',
+        'youtube' => '/https?:\/\/(?:www\.)?(?:youtube\.com|youtu\.be)\/[^\s"\'>]+/i',
+    ];
+    $socials = [];
+    foreach ($patterns as $platform => $pattern) {
+        if (preg_match($pattern, $html, $m)) {
+            $socials[$platform] = $m[0];
+        }
+    }
+    return $socials;
+}
+
+function scrapeWebsiteForContacts($websiteUrl, $timeoutSec = 6)
+{
+    $websiteUrl = normalizeUrlValue((string) $websiteUrl);
+    if ($websiteUrl === '') {
+        return ['emails' => [], 'phones' => [], 'socials' => []];
+    }
+
+    $targets = [
+        $websiteUrl,
+        rtrim($websiteUrl, '/') . '/contact',
+        rtrim($websiteUrl, '/') . '/contact-us',
+        rtrim($websiteUrl, '/') . '/about',
+        rtrim($websiteUrl, '/') . '/about-us',
+    ];
+
+    $emails = [];
+    $phones = [];
+    $socials = [];
+    $seen = [];
+
+    foreach ($targets as $url) {
+        $url = normalizeUrlValue($url);
+        if ($url === '' || isset($seen[$url])) {
+            continue;
+        }
+        $seen[$url] = true;
+
+        $resp = curlRequest($url, [CURLOPT_SSL_VERIFYPEER => false], max(3, (int) $timeoutSec));
+        $httpCode = (int) ($resp['httpCode'] ?? 0);
+        if ($httpCode < 200 || $httpCode >= 400) {
+            continue;
+        }
+        $html = (string) ($resp['response'] ?? '');
+        if ($html === '') {
+            continue;
+        }
+
+        $emails = array_merge($emails, extractEmails($html));
+        $phones = array_merge($phones, extractPhoneNumbers($html));
+        $socials = array_merge($socials, customFetcherExtractSocials($html));
+    }
+
+    return [
+        'emails' => array_values(array_unique($emails)),
+        'phones' => array_values(array_unique($phones)),
+        'socials' => $socials,
+    ];
 }
