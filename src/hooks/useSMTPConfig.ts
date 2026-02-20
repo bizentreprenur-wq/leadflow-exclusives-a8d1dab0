@@ -25,7 +25,7 @@ const DEFAULT_CONFIG: SMTPConfig = {
   port: '465',
   username: '',
   password: '',
-  fromEmail: 'noreply@bamlead.com',
+  fromEmail: '',
   fromName: 'BamLead',
   secure: true,
 };

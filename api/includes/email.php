@@ -293,7 +293,14 @@ function sendEmailWithCustomSMTP($to, $subject, $htmlBody, $textBody = '', $smtp
         return false;
     }
 
-    if ($fromEmail === '') {
+    // Always use the SMTP username as From address - most providers reject mismatched senders
+    if ($fromEmail === '' || strtolower($fromEmail) !== $smtpUser) {
+        if ($fromEmail !== '' && strtolower($fromEmail) !== $smtpUser) {
+            logEmail('WARN', 'From email does not match SMTP user, forcing match to prevent rejection', [
+                'requested_from' => $fromEmail,
+                'smtp_user' => $smtpUser,
+            ]);
+        }
         $fromEmail = $smtpUser;
     }
     if ($fromName === '') {
@@ -410,7 +417,8 @@ function sendEmailBatchWithCustomSMTP(array $messages, array $smtpConfig, array 
         $smtpSecure = '';
     }
 
-    if ($fromEmail === '') {
+    // Always use the SMTP username as From address - most providers reject mismatched senders
+    if ($fromEmail === '' || strtolower($fromEmail) !== $smtpUser) {
         $fromEmail = $smtpUser;
     }
     if ($fromName === '') {
