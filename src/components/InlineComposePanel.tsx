@@ -1042,33 +1042,55 @@ export default function InlineComposePanel({
             <div className="w-px h-5 bg-border mx-1" />
             <div className="flex items-center gap-0.5">
               {[
-                { Icon: Bold, color: 'text-blue-400' },
-                { Icon: Italic, color: 'text-purple-400' },
-                { Icon: Underline, color: 'text-pink-400' },
-              ].map(({ Icon, color }, i) => (
-                <Button key={i} variant="ghost" size="icon" className={`h-7 w-7 ${color} hover:brightness-125`}>
+                { Icon: Bold, color: 'text-blue-400', cmd: 'bold' },
+                { Icon: Italic, color: 'text-purple-400', cmd: 'italic' },
+                { Icon: Underline, color: 'text-pink-400', cmd: 'underline' },
+              ].map(({ Icon, color, cmd }, i) => (
+                <Button key={i} variant="ghost" size="icon" className={`h-7 w-7 ${color} hover:brightness-125`}
+                  onMouseDown={(e) => { e.preventDefault(); document.execCommand(cmd, false); }}>
                   <Icon className="w-3.5 h-3.5" />
                 </Button>
               ))}
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-400 hover:brightness-125">
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-400 hover:brightness-125"
+                onMouseDown={(e) => { e.preventDefault(); document.execCommand('justifyLeft', false); }}>
                 <AlignLeft className="w-3.5 h-3.5" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-teal-400 hover:brightness-125">
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-teal-400 hover:brightness-125"
+                onMouseDown={(e) => { e.preventDefault(); document.execCommand('insertUnorderedList', false); }}>
                 <List className="w-3.5 h-3.5" />
               </Button>
             </div>
             <div className="w-px h-5 bg-border mx-1" />
             <div className="flex items-center gap-0.5">
-              {[
-                { Icon: Link2, color: 'text-cyan-400' },
-                { Icon: Smile, color: 'text-yellow-400' },
-                { Icon: Paperclip, color: 'text-orange-400' },
-                { Icon: Image, color: 'text-emerald-400' },
-              ].map(({ Icon, color }, i) => (
-                <Button key={i} variant="ghost" size="icon" className={`h-7 w-7 ${color} hover:brightness-125`}>
-                  <Icon className="w-3.5 h-3.5" />
-                </Button>
-              ))}
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-cyan-400 hover:brightness-125"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  const url = prompt('Enter URL:');
+                  if (url) document.execCommand('createLink', false, url);
+                }}>
+                <Link2 className="w-3.5 h-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-yellow-400 hover:brightness-125"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  const emojis = ['😊','👋','🔥','⭐','💡','🎯','✅','🚀','💪','❤️'];
+                  const pick = emojis[Math.floor(Math.random() * emojis.length)];
+                  document.execCommand('insertText', false, pick);
+                }}>
+                <Smile className="w-3.5 h-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-orange-400 hover:brightness-125"
+                onMouseDown={(e) => { e.preventDefault(); toast.info('Attachments coming soon'); }}>
+                <Paperclip className="w-3.5 h-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-400 hover:brightness-125"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  const url = prompt('Enter image URL:');
+                  if (url) document.execCommand('insertImage', false, url);
+                }}>
+                <Image className="w-3.5 h-3.5" />
+              </Button>
             </div>
             <div className="flex-1" />
             <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
