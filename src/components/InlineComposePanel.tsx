@@ -340,7 +340,6 @@ export default function InlineComposePanel({
 
     setIsLaunching(true);
     setLaunchProgress(0);
-    setShowSendingFeed(true);
     setSentEmailsList([]);
     setLocalSendingIndex(0);
     setLocalLastSentIndex(-1);
@@ -369,8 +368,10 @@ export default function InlineComposePanel({
       }));
       const leadsForSend: LeadForEmail[] = [...leadsFromSearch, ...leadsFromManual];
 
+      // Determine send mode: if only manual recipients (no search leads), always instant
+      const isManualOnlyEmail = leadsFromSearch.length === 0 && leadsFromManual.length > 0;
       const dripConfig = { emailsPerHour: Math.max(1, dripRate), delayMinutes: Math.max(1, Math.floor(60 / Math.max(1, dripRate))) };
-      const isManualMode = !automationSettings.doneForYouMode;
+      const isManualMode = isManualOnlyEmail || !automationSettings.doneForYouMode;
       const sendMode = isManualMode ? 'instant' : 'drip';
 
       setLaunchProgress(25);
@@ -426,75 +427,108 @@ export default function InlineComposePanel({
         toast.warning(`⚠️ ${failedCount} of ${leadsForSend.length} emails failed to send. Check SMTP settings.`);
       }
       const sentItems: Array<{ email: string; name: string; sentAt: string }> = [];
-      const dripDelayMs = Math.max(2000, dripInterval * 1000); // actual drip interval (min 2s for UX)
       
-      for (let i = 0; i < Math.min(sentCount, allRecipients.length); i++) {
-        setLocalSendingIndex(i);
-        setLocalLastSentIndex(i - 1);
-        
-        const sentItem = { 
-          email: allRecipients[i].email, 
-          name: allRecipients[i].name, 
-          sentAt: new Date().toISOString(),
-          subject: subject,
-        };
-        sentItems.push(sentItem);
-        setSentEmailsList([...sentItems]);
-        setLaunchProgress(60 + Math.round((i / allRecipients.length) * 35));
-        
-        // Mark this chip as sent (removes from To field)
-        if (i < eligibleLeads.length) {
-          setSentRecipientIndices(prev => new Set([...prev, i]));
-          onEmailSent?.(i);
-        } else {
-          const manualIdx = i - eligibleLeads.length;
-          setSentManualIndices(prev => new Set([...prev, manualIdx]));
+      // For instant mode (manual emails): mark all as sent immediately, no drip feed
+      if (sendMode === 'instant') {
+        for (let i = 0; i < Math.min(sentCount, allRecipients.length); i++) {
+          const sentItem = { 
+            email: allRecipients[i].email, 
+            name: allRecipients[i].name, 
+            sentAt: new Date().toISOString(),
+            subject: subject,
+          };
+          sentItems.push(sentItem);
+          
+          if (i < eligibleLeads.length) {
+            setSentRecipientIndices(prev => new Set([...prev, i]));
+            onEmailSent?.(i);
+          } else {
+            const manualIdx = i - eligibleLeads.length;
+            setSentManualIndices(prev => new Set([...prev, manualIdx]));
+          }
+          
+          try {
+            const existing = JSON.parse(localStorage.getItem(SENT_LOG_KEY) || '[]');
+            existing.push(sentItem);
+            localStorage.setItem(SENT_LOG_KEY, JSON.stringify(existing));
+            window.dispatchEvent(new Event('bamlead_sent_update'));
+          } catch { /* ignore */ }
         }
+        setSentEmailsList(sentItems);
+        setLocalSendingIndex(-1);
+        setLocalLastSentIndex(Math.min(sentCount, allRecipients.length) - 1);
+        setLaunchProgress(100);
+        setIsLaunching(false);
+        toast.success(`✅ Email sent to ${sentCount} recipient${sentCount > 1 ? 's' : ''}${failedCount > 0 ? ` (${failedCount} failed)` : ''}`);
+      } else {
+        // Drip mode: show live feed with delays
+        setShowSendingFeed(true);
+        const dripDelayMs = Math.max(2000, dripInterval * 1000);
         
-        // Persist to shared localStorage so Sent tab and Step 3 see it
-        try {
-          const existing = JSON.parse(localStorage.getItem(SENT_LOG_KEY) || '[]');
-          existing.push(sentItem);
-          localStorage.setItem(SENT_LOG_KEY, JSON.stringify(existing));
-          window.dispatchEvent(new Event('bamlead_sent_update'));
-        } catch { /* ignore */ }
-        
-        // Wait for drip interval before next (skip on last)
-        if (i < allRecipients.length - 1) {
-          await new Promise(r => setTimeout(r, dripDelayMs));
+        for (let i = 0; i < Math.min(sentCount, allRecipients.length); i++) {
+          setLocalSendingIndex(i);
+          setLocalLastSentIndex(i - 1);
+          
+          const sentItem = { 
+            email: allRecipients[i].email, 
+            name: allRecipients[i].name, 
+            sentAt: new Date().toISOString(),
+            subject: subject,
+          };
+          sentItems.push(sentItem);
+          setSentEmailsList([...sentItems]);
+          setLaunchProgress(60 + Math.round((i / allRecipients.length) * 35));
+          
+          if (i < eligibleLeads.length) {
+            setSentRecipientIndices(prev => new Set([...prev, i]));
+            onEmailSent?.(i);
+          } else {
+            const manualIdx = i - eligibleLeads.length;
+            setSentManualIndices(prev => new Set([...prev, manualIdx]));
+          }
+          
+          try {
+            const existing = JSON.parse(localStorage.getItem(SENT_LOG_KEY) || '[]');
+            existing.push(sentItem);
+            localStorage.setItem(SENT_LOG_KEY, JSON.stringify(existing));
+            window.dispatchEvent(new Event('bamlead_sent_update'));
+          } catch { /* ignore */ }
+          
+          if (i < allRecipients.length - 1) {
+            await new Promise(r => setTimeout(r, dripDelayMs));
+          }
         }
+        setLocalLastSentIndex(Math.min(sentCount, allRecipients.length) - 1);
+        setLocalSendingIndex(-1);
+        setLaunchProgress(100);
+
+        const now = new Date().toISOString();
+        const campaignId = `unlimited_${Date.now()}`;
+        saveAutopilotCampaign({
+          id: campaignId, status: 'active', searchType: detectedSearchType || null,
+          createdAt: now, startedAt: now,
+          template: { id: effectiveTemplate?.id, name: effectiveTemplate?.name || 'AI Smart Selection', subject, body, rawSubject: subject, rawBody: body, source: 'auto' },
+          sequence: effectiveSequence, leads: eligibleLeads, totalLeads: eligibleLeads.length,
+          sentCount: sentCount, lastSentAt: now, dripConfig,
+        });
+
+        localStorage.setItem('bamlead_drip_active', JSON.stringify({
+          active: true, autopilot: true, campaignId,
+          leads: eligibleLeads.map(l => l?.id ?? ''),
+          currentIndex: currentLeadIndex, interval: dripInterval,
+          searchType: detectedSearchType, startedAt: now,
+          templateName: effectiveTemplate?.name || 'AI Smart Selection',
+          sentCount: sentCount,
+        }));
+
+        onAutomationChange({ ...automationSettings, doneForYouMode: true });
+        await new Promise(r => setTimeout(r, 500));
+        setIsLaunching(false);
+        const statusMsg = actualSent > 0 && actualScheduled > 0
+          ? `${actualSent} sent, ${actualScheduled} queued`
+          : actualSent > 0 ? `${actualSent} sent` : `${actualScheduled} queued`;
+        toast.success(`🚀 Campaign launched! ${statusMsg}${failedCount > 0 ? `, ${failedCount} failed` : ''}.`);
       }
-      setLocalLastSentIndex(Math.min(sentCount, allRecipients.length) - 1);
-      setLocalSendingIndex(-1);
-
-      setLaunchProgress(100);
-
-      const now = new Date().toISOString();
-      const campaignId = `unlimited_${Date.now()}`;
-      saveAutopilotCampaign({
-        id: campaignId, status: 'active', searchType: detectedSearchType || null,
-        createdAt: now, startedAt: now,
-        template: { id: effectiveTemplate?.id, name: effectiveTemplate?.name || 'AI Smart Selection', subject, body, rawSubject: subject, rawBody: body, source: 'auto' },
-        sequence: effectiveSequence, leads: eligibleLeads, totalLeads: eligibleLeads.length,
-        sentCount: sentCount, lastSentAt: now, dripConfig,
-      });
-
-      localStorage.setItem('bamlead_drip_active', JSON.stringify({
-        active: true, autopilot: true, campaignId,
-        leads: eligibleLeads.map(l => l?.id ?? ''),
-        currentIndex: currentLeadIndex, interval: dripInterval,
-        searchType: detectedSearchType, startedAt: now,
-        templateName: effectiveTemplate?.name || 'AI Smart Selection',
-        sentCount: sentCount,
-      }));
-
-      onAutomationChange({ ...automationSettings, doneForYouMode: true });
-      await new Promise(r => setTimeout(r, 500));
-      setIsLaunching(false);
-      const statusMsg = actualSent > 0 && actualScheduled > 0
-        ? `${actualSent} sent, ${actualScheduled} queued`
-        : actualSent > 0 ? `${actualSent} sent` : `${actualScheduled} queued`;
-      toast.success(`🚀 Campaign launched! ${statusMsg}${failedCount > 0 ? `, ${failedCount} failed` : ''}.`);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Launch failed. Unknown error.';
       console.error('[BamLead] Send error:', msg, error);
