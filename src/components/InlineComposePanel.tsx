@@ -18,7 +18,7 @@ import {
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { useAutopilotTrial } from '@/hooks/useAutopilotTrial';
 import { isSMTPConfigured, getSMTPConfig, personalizeContent } from '@/lib/emailService';
-import { sendBulkEmails, LeadForEmail } from '@/lib/api/email';
+import { sendBulkEmails, LeadForEmail, processMyScheduledEmails } from '@/lib/api/email';
 import { EmailSequence, getSuggestedSequence } from '@/lib/emailSequences';
 import { 
   getLeadContextByEmail, 
@@ -289,19 +289,11 @@ export default function InlineComposePanel({
     setLaunchProgress(0);
     setShowSendingFeed(true);
 
-    const steps = [
-      { progress: 15, delay: 200 }, { progress: 35, delay: 400 },
-      { progress: 55, delay: 300 }, { progress: 75, delay: 350 },
-      { progress: 90, delay: 250 }, { progress: 100, delay: 200 },
-    ];
-    for (const s of steps) {
-      await new Promise(r => setTimeout(r, s.delay));
-      setLaunchProgress(s.progress);
-    }
-
     try {
       const leadsWithContext = getStoredLeadContext();
       saveCampaignLeadsWithContext(leadsWithContext);
+
+      setLaunchProgress(10);
 
       const leadsForSend: LeadForEmail[] = eligibleLeads.map(l => ({
         id: typeof l.id === 'number' ? l.id : undefined,
@@ -317,6 +309,9 @@ export default function InlineComposePanel({
 
       const dripConfig = { emailsPerHour: Math.max(1, dripRate), delayMinutes: Math.max(1, Math.floor(60 / Math.max(1, dripRate))) };
 
+      setLaunchProgress(25);
+      console.log('[BamLead] Sending bulk emails:', { leadsCount: leadsForSend.length, subject, sendMode: 'drip', dripConfig });
+
       const result = await sendBulkEmails({
         leads: leadsForSend,
         custom_subject: subject,
@@ -325,7 +320,21 @@ export default function InlineComposePanel({
         drip_config: dripConfig,
       });
 
-      if (!result.success) throw new Error(result.error || 'Failed to launch.');
+      console.log('[BamLead] Bulk send result:', result);
+
+      if (!result.success) throw new Error(result.error || 'Failed to launch campaign. Check SMTP settings and try again.');
+
+      setLaunchProgress(60);
+
+      // Trigger immediate processing of scheduled emails
+      try {
+        const processResult = await processMyScheduledEmails(10, 300);
+        console.log('[BamLead] Process scheduled result:', processResult);
+      } catch (procErr) {
+        console.warn('[BamLead] Could not trigger immediate processing:', procErr);
+      }
+
+      setLaunchProgress(100);
 
       const now = new Date().toISOString();
       const campaignId = `unlimited_${Date.now()}`;
