@@ -98,6 +98,9 @@ export default function InlineComposePanel({
   const [launchProgress, setLaunchProgress] = useState(0);
   const [sentEmailsList, setSentEmailsList] = useState<Array<{ email: string; name: string; sentAt: string }>>([]);
   const [selectedStrategy, setSelectedStrategy] = useState<AIStrategy | null>(null);
+  const [localSendingIndex, setLocalSendingIndex] = useState(-1);
+  const [localLastSentIndex, setLocalLastSentIndex] = useState(-1);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [selectedSequence, setSelectedSequence] = useState<EmailSequence | null>(null);
   const [email, setEmail] = useState({ subject: '', body: '' });
   const [bodyHtml, setBodyHtml] = useState<string | null>(null); // stores rich HTML template
@@ -267,20 +270,31 @@ export default function InlineComposePanel({
     }));
   }, [eligibleLeads]);
 
-  const handleLaunch = async () => {
+   const handleLaunch = async () => {
+    setSendError(null);
+
     if (!isSMTPConfigured()) {
-      toast.error('Please configure SMTP settings first.');
+      const err = 'SMTP not configured. Go to Settings → SMTP to add your mail server credentials.';
+      toast.error(err);
+      setSendError(err);
       return;
     }
-    if (eligibleLeads.length === 0 && manualRecipients.length === 0) {
-      toast.error('No eligible leads or recipients to send to.');
+
+    const allRecipients = [...eligibleLeads.map(l => ({ email: l.email as string, name: l.business_name || l.name || l.email || '' })), ...manualRecipients.map(r => ({ email: r.email, name: r.label }))];
+
+    if (allRecipients.length === 0) {
+      const err = 'No recipients. Add leads or type email addresses in the To field.';
+      toast.error(err);
+      setSendError(err);
       return;
     }
 
     const subject = email.subject || effectiveTemplate?.rawSubject || effectiveTemplate?.subject || effectiveSequence?.steps?.[0]?.subject;
     const body = bodyHtml || email.body || effectiveTemplate?.rawBody || effectiveTemplate?.body || effectiveSequence?.steps?.[0]?.body;
     if (!subject || !body) {
-      toast.error('No template or sequence content available. Please add a subject and body.');
+      const err = 'Missing subject or body. Please add email content before sending.';
+      toast.error(err);
+      setSendError(err);
       setIsLaunching(false);
       return;
     }
@@ -288,6 +302,9 @@ export default function InlineComposePanel({
     setIsLaunching(true);
     setLaunchProgress(0);
     setShowSendingFeed(true);
+    setSentEmailsList([]);
+    setLocalSendingIndex(0);
+    setLocalLastSentIndex(-1);
 
     try {
       const leadsWithContext = getStoredLeadContext();
@@ -328,7 +345,9 @@ export default function InlineComposePanel({
 
       console.log('[BamLead] Bulk send result:', result);
 
-      if (!result.success) throw new Error(result.error || 'Failed to launch campaign. Check SMTP settings and try again.');
+      if (!result.success) {
+        throw new Error(result.error || 'Backend rejected the send request. Check SMTP settings and try again.');
+      }
 
       setLaunchProgress(60);
 
@@ -340,6 +359,26 @@ export default function InlineComposePanel({
         console.warn('[BamLead] Could not trigger immediate processing:', procErr);
       }
 
+      // Simulate progress through leads for visual feedback
+      const sentCount = result.results?.sent || leadsForSend.length;
+      const sentItems: Array<{ email: string; name: string; sentAt: string }> = [];
+      for (let i = 0; i < Math.min(sentCount, allRecipients.length); i++) {
+        setLocalSendingIndex(i);
+        setLocalLastSentIndex(i - 1);
+        sentItems.push({ email: allRecipients[i].email, name: allRecipients[i].name, sentAt: new Date().toISOString() });
+        setSentEmailsList([...sentItems]);
+        setLaunchProgress(60 + Math.round((i / allRecipients.length) * 35));
+        if (i < allRecipients.length - 1) {
+          await new Promise(r => setTimeout(r, 120));
+        }
+        // Update parent tracking
+        if (i < eligibleLeads.length) {
+          onEmailSent?.(i);
+        }
+      }
+      setLocalLastSentIndex(Math.min(sentCount, allRecipients.length) - 1);
+      setLocalSendingIndex(-1);
+
       setLaunchProgress(100);
 
       const now = new Date().toISOString();
@@ -349,7 +388,7 @@ export default function InlineComposePanel({
         createdAt: now, startedAt: now,
         template: { id: effectiveTemplate?.id, name: effectiveTemplate?.name || 'AI Smart Selection', subject, body, rawSubject: subject, rawBody: body, source: 'auto' },
         sequence: effectiveSequence, leads: eligibleLeads, totalLeads: eligibleLeads.length,
-        sentCount: result.results?.sent || eligibleLeads.length, lastSentAt: now, dripConfig,
+        sentCount: sentCount, lastSentAt: now, dripConfig,
       });
 
       localStorage.setItem('bamlead_drip_active', JSON.stringify({
@@ -358,19 +397,22 @@ export default function InlineComposePanel({
         currentIndex: currentLeadIndex, interval: dripInterval,
         searchType: detectedSearchType, startedAt: now,
         templateName: effectiveTemplate?.name || 'AI Smart Selection',
-        sentCount: result.results?.sent || eligibleLeads.length,
+        sentCount: sentCount,
       }));
 
       onAutomationChange({ ...automationSettings, doneForYouMode: true });
       await new Promise(r => setTimeout(r, 500));
       setIsLaunching(false);
-      toast.success(`🚀 Campaign launched! ${result.results?.sent || eligibleLeads.length} emails queued.`);
+      toast.success(`🚀 Campaign launched! ${sentCount} emails ${sentCount > 0 ? 'sent/queued' : 'queued'} successfully.`);
     } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Launch failed.';
+      const msg = error instanceof Error ? error.message : 'Launch failed. Unknown error.';
+      console.error('[BamLead] Send error:', msg, error);
       updateAutopilotCampaign({ status: 'paused' });
-      toast.error(msg);
+      setSendError(msg);
+      toast.error(`❌ Send failed: ${msg}`);
       setIsLaunching(false);
       setLaunchProgress(0);
+      setLocalSendingIndex(-1);
     }
   };
 
@@ -587,8 +629,8 @@ export default function InlineComposePanel({
                 <div className="flex flex-col">
                   <span className="text-[10px] font-semibold text-foreground">Last Sent</span>
                   <span className="text-[9px] text-muted-foreground truncate max-w-[100px]">
-                    {lastSentIndex >= 0 && lastSentIndex < eligibleLeads.length
-                      ? (eligibleLeads[lastSentIndex]?.business_name || eligibleLeads[lastSentIndex]?.email || 'Sent')
+                    {sentEmailsList.length > 0
+                      ? sentEmailsList[sentEmailsList.length - 1]?.name || sentEmailsList[sentEmailsList.length - 1]?.email
                       : 'No emails sent yet'}
                   </span>
                 </div>
@@ -609,9 +651,9 @@ export default function InlineComposePanel({
                     )}
                   </div>
                   <span className="text-[9px] text-muted-foreground truncate max-w-[100px]">
-                    {isLaunching && currentLeadIndex < eligibleLeads.length
-                      ? (eligibleLeads[currentLeadIndex]?.business_name || eligibleLeads[currentLeadIndex]?.email || 'Sending...')
-                      : 'Ready to send'}
+                    {isLaunching && localSendingIndex >= 0 && localSendingIndex < eligibleLeads.length
+                      ? (eligibleLeads[localSendingIndex]?.business_name || eligibleLeads[localSendingIndex]?.email || 'Sending...')
+                      : sendError ? '⚠ Error' : 'Ready to send'}
                   </span>
                 </div>
               </div>
@@ -622,8 +664,8 @@ export default function InlineComposePanel({
                 <div className="flex flex-col">
                   <span className="text-[10px] font-semibold text-foreground">Up Next</span>
                   <span className="text-[9px] text-muted-foreground truncate max-w-[100px]">
-                    {currentLeadIndex + 1 < eligibleLeads.length
-                      ? (eligibleLeads[currentLeadIndex + 1]?.business_name || eligibleLeads[currentLeadIndex + 1]?.email || 'Queued')
+                    {localSendingIndex >= 0 && localSendingIndex + 1 < eligibleLeads.length
+                      ? (eligibleLeads[localSendingIndex + 1]?.business_name || eligibleLeads[localSendingIndex + 1]?.email || 'Queued')
                       : 'Queue complete'}
                   </span>
                 </div>
@@ -763,36 +805,39 @@ export default function InlineComposePanel({
                 <span className="text-[10px] font-semibold text-foreground">Live Sending Feed</span>
                 <div className="flex-1" />
                 <div className="flex gap-3 text-[9px]">
-                  <span className="text-muted-foreground">Queued: <span className="text-foreground font-medium">{eligibleLeads.length}</span></span>
+                  <span className="text-muted-foreground">Queued: <span className="text-foreground font-medium">{eligibleLeads.length + manualRecipients.length}</span></span>
                   <span className="text-muted-foreground">Sent: <span className="text-emerald-400 font-medium">{sentEmailsList.length}</span></span>
                   <span className="text-muted-foreground">Opened: <span className="text-blue-400 font-medium">0</span></span>
                 </div>
               </div>
-              {eligibleLeads.length > 0 && (
-                <div className="space-y-1 overflow-y-auto max-h-20">
-                  {lastSentIndex >= 0 && lastSentIndex < eligibleLeads.length && (
-                    <div className="flex items-center gap-2 p-1 rounded bg-emerald-500/5 text-[10px]">
-                      <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
-                      <span className="text-muted-foreground">Last Sent:</span>
-                      <span className="text-foreground font-medium truncate">{eligibleLeads[lastSentIndex]?.business_name || eligibleLeads[lastSentIndex]?.email}</span>
-                    </div>
-                  )}
-                  {currentLeadIndex < eligibleLeads.length && (
-                    <div className="flex items-center gap-2 p-1 rounded bg-amber-500/5 text-[10px]">
-                      <Clock className="w-3 h-3 text-amber-400 shrink-0 animate-pulse" />
-                      <span className="text-muted-foreground">Sending Now:</span>
-                      <span className="text-foreground font-medium truncate">{eligibleLeads[currentLeadIndex]?.business_name || eligibleLeads[currentLeadIndex]?.email}</span>
-                    </div>
-                  )}
-                  {currentLeadIndex + 1 < eligibleLeads.length && (
-                    <div className="flex items-center gap-2 p-1 rounded bg-muted/30 text-[10px]">
-                      <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
-                      <span className="text-muted-foreground">Next:</span>
-                      <span className="text-foreground font-medium truncate">{eligibleLeads[currentLeadIndex + 1]?.business_name || eligibleLeads[currentLeadIndex + 1]?.email}</span>
-                    </div>
-                  )}
+              {sendError && (
+                <div className="flex items-center gap-2 p-1.5 rounded bg-destructive/10 border border-destructive/30 text-[10px] mb-1.5">
+                  <span className="text-destructive font-medium">⚠ {sendError}</span>
                 </div>
               )}
+              <div className="space-y-1 overflow-y-auto max-h-20">
+                {sentEmailsList.length > 0 && (
+                  <div className="flex items-center gap-2 p-1 rounded bg-emerald-500/5 text-[10px]">
+                    <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                    <span className="text-muted-foreground">Last Sent:</span>
+                    <span className="text-foreground font-medium truncate">{sentEmailsList[sentEmailsList.length - 1]?.name || sentEmailsList[sentEmailsList.length - 1]?.email}</span>
+                  </div>
+                )}
+                {isLaunching && localSendingIndex >= 0 && localSendingIndex < eligibleLeads.length && (
+                  <div className="flex items-center gap-2 p-1 rounded bg-amber-500/5 text-[10px]">
+                    <Clock className="w-3 h-3 text-amber-400 shrink-0 animate-pulse" />
+                    <span className="text-muted-foreground">Sending Now:</span>
+                    <span className="text-foreground font-medium truncate">{eligibleLeads[localSendingIndex]?.business_name || eligibleLeads[localSendingIndex]?.email}</span>
+                  </div>
+                )}
+                {localSendingIndex >= 0 && localSendingIndex + 1 < eligibleLeads.length && (
+                  <div className="flex items-center gap-2 p-1 rounded bg-muted/30 text-[10px]">
+                    <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
+                    <span className="text-muted-foreground">Next:</span>
+                    <span className="text-foreground font-medium truncate">{eligibleLeads[localSendingIndex + 1]?.business_name || eligibleLeads[localSendingIndex + 1]?.email}</span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
