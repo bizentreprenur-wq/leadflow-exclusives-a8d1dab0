@@ -15,7 +15,8 @@ import {
   Inbox, PenTool, Sparkles, Target, Rocket,
   Calendar, Shield, CheckCircle2, X, FolderOpen,
   Palette, Link2, Cloud, BarChart3, MousePointer, Eye, Reply, TrendingUp,
-  PanelLeftClose, PanelLeft, MailOpen, Zap, Crown, Layers, Brain
+  PanelLeftClose, PanelLeft, MailOpen, Zap, Crown, Layers, Brain,
+  Star, AlertCircle, Archive, Trash2, FileEdit
 } from 'lucide-react';
 import SMTPConfigPanel from './SMTPConfigPanel';
 import BrandingSettingsPanel from './BrandingSettingsPanel';
@@ -53,7 +54,7 @@ import {
 import { AutonomousSequence } from '@/lib/autonomousSequences';
 
 // Tab types for main navigation
-type MainTab = 'inbox' | 'sent' | 'campaigns' | 'sequences' | 'automation' | 'analytics' | 'documents' | 'settings' | 'strategy';
+type MainTab = 'inbox' | 'starred' | 'sent' | 'spam' | 'archive' | 'trash' | 'scheduled' | 'drafts' | 'campaigns' | 'sequences' | 'automation' | 'analytics' | 'documents' | 'settings' | 'strategy';
 type InboxFilter = 'all' | 'hot' | 'unread';
 
 // Demo sequence types
@@ -628,10 +629,24 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   }, []);
 
   // Main navigation tabs — hide items that live inside the Unlimited inline compose panel
+  // Standard mailbox folder counts
+  const starredCount = replies.filter(r => (r as any).starred).length;
+  const spamCount = 0;
+  const archiveCount = 0;
+  const trashCount = 0;
+  const scheduledCount = sentEmailsLog.filter((e: any) => e.scheduledFor && new Date(e.scheduledFor) > new Date()).length;
+  const draftsCount = (() => { try { const d = localStorage.getItem('bamlead_drafts'); return d ? JSON.parse(d).length : 0; } catch { return 0; } })();
+
   const navTabs = [
-    { id: 'inbox' as MainTab, label: 'Inbox', icon: Inbox },
-    { id: 'sent' as MainTab, label: 'Sent', icon: CheckCircle2 },
-    { id: 'campaigns' as MainTab, label: 'Campaigns', icon: Send },
+    { id: 'inbox' as MainTab, label: 'Inbox', icon: Inbox, count: replies.filter(r => !r.isRead).length, countColor: 'bg-red-500 text-white' },
+    { id: 'starred' as MainTab, label: 'Starred', icon: Star },
+    { id: 'sent' as MainTab, label: 'Sent', icon: Send, count: sentEmailsLog.length, countColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+    { id: 'drafts' as MainTab, label: 'Drafts', icon: FileEdit, count: draftsCount },
+    { id: 'scheduled' as MainTab, label: 'Scheduled', icon: Calendar, count: scheduledCount },
+    { id: 'spam' as MainTab, label: 'Spam', icon: AlertCircle },
+    { id: 'archive' as MainTab, label: 'Archive', icon: Archive },
+    { id: 'trash' as MainTab, label: 'Trash', icon: Trash2 },
+    { id: 'campaigns' as MainTab, label: 'Campaigns', icon: Rocket },
     ...(!isUnlimited ? [{ id: 'sequences' as MainTab, label: 'Sequences', icon: Layers }] : []),
     ...(!isUnlimited ? [{ id: 'strategy' as MainTab, label: 'AI Strategy', icon: Brain, isBrain: true }] : []),
     ...(!isUnlimited ? [{ id: 'automation' as MainTab, label: 'AI Autopilot', icon: Crown, isPro: true }] : []),
@@ -691,53 +706,54 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 px-3 space-y-1">
-               {navTabs.map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setMainTab(tab.id)}
-                  className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
-                    mainTab === tab.id
-                      ? tab.id === 'automation' 
-                        ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/20"
-                        : tab.id === 'strategy'
-                        ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg shadow-purple-500/20"
-                        : "bg-emerald-600 text-white"
-                      : tab.id === 'automation'
-                        ? "text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 border border-transparent hover:border-amber-500/30"
-                        : tab.id === 'strategy'
-                        ? "text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 border border-transparent hover:border-purple-500/30"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                  )}
-                >
-                  <tab.icon className={cn("w-4 h-4", 
-                    tab.id === 'automation' && mainTab !== 'automation' && "text-amber-400",
-                    tab.id === 'strategy' && mainTab !== 'strategy' && "text-purple-400"
-                  )} />
-                  {tab.label}
-                  {tab.id === 'inbox' && (
-                    <Badge className="ml-auto bg-red-500 text-white text-[10px] px-1.5">
-                      {replies.filter(r => !r.isRead).length}
-                    </Badge>
-                  )}
-                  {tab.id === 'sent' && sentEmailsLog.length > 0 && (
-                    <Badge className="ml-auto bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[10px] px-1.5">
-                      {sentEmailsLog.length}
-                    </Badge>
-                  )}
-                  {tab.id === 'automation' && isUnlimited && (
-                    <Badge className="ml-auto bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[8px] px-1.5">
-                      Active
-                    </Badge>
-                  )}
-                  {(tab as any).isPro && (
-                    <Badge className="ml-auto bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[8px] px-1.5 border-0">
-                      PRO
-                    </Badge>
-                  )}
-                </button>
-              ))}
+            <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto">
+              {navTabs.map((tab, idx) => {
+                // Add separator before "Campaigns" to split mail folders from tools
+                const showSeparator = tab.id === 'campaigns';
+                return (
+                  <div key={tab.id}>
+                    {showSeparator && <Separator className="my-2" />}
+                    <button
+                      onClick={() => setMainTab(tab.id)}
+                      className={cn(
+                        "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all",
+                        mainTab === tab.id
+                          ? tab.id === 'automation' 
+                            ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/20"
+                            : tab.id === 'strategy'
+                            ? "bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-lg shadow-purple-500/20"
+                            : "bg-emerald-600 text-white"
+                          : tab.id === 'automation'
+                            ? "text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 border border-transparent hover:border-amber-500/30"
+                            : tab.id === 'strategy'
+                            ? "text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 border border-transparent hover:border-purple-500/30"
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                      )}
+                    >
+                      <tab.icon className={cn("w-4 h-4", 
+                        tab.id === 'automation' && mainTab !== 'automation' && "text-amber-400",
+                        tab.id === 'strategy' && mainTab !== 'strategy' && "text-purple-400"
+                      )} />
+                      {tab.label}
+                      {(tab as any).count > 0 && (
+                        <Badge className={cn("ml-auto text-[10px] px-1.5", (tab as any).countColor || "bg-muted text-muted-foreground")}>
+                          {(tab as any).count}
+                        </Badge>
+                      )}
+                      {tab.id === 'automation' && isUnlimited && (
+                        <Badge className="ml-auto bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[8px] px-1.5">
+                          Active
+                        </Badge>
+                      )}
+                      {(tab as any).isPro && (
+                        <Badge className="ml-auto bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[8px] px-1.5 border-0">
+                          PRO
+                        </Badge>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
             </nav>
 
             {/* AI Autopilot Mode Indicator - Yellow Theme */}
