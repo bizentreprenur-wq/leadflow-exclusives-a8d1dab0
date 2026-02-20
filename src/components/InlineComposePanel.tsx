@@ -159,7 +159,7 @@ export default function InlineComposePanel({
 
   const safeLeads = useMemo(() => leads?.filter((l): l is Lead => l != null) ?? [], [leads]);
   const eligibleLeads = useMemo(
-    () => safeLeads.filter((l) => hasValidEmail(l.email) && hasValidPhone(l.phone)),
+    () => safeLeads.filter((l) => hasValidEmail(l.email)),
     [safeLeads]
   );
 
@@ -272,8 +272,8 @@ export default function InlineComposePanel({
       toast.error('Please configure SMTP settings first.');
       return;
     }
-    if (eligibleLeads.length === 0) {
-      toast.error('No eligible leads to send to.');
+    if (eligibleLeads.length === 0 && manualRecipients.length === 0) {
+      toast.error('No eligible leads or recipients to send to.');
       return;
     }
 
@@ -295,7 +295,8 @@ export default function InlineComposePanel({
 
       setLaunchProgress(10);
 
-      const leadsForSend: LeadForEmail[] = eligibleLeads.map(l => ({
+      // Combine search leads + manual recipients
+      const leadsFromSearch: LeadForEmail[] = eligibleLeads.map(l => ({
         id: typeof l.id === 'number' ? l.id : undefined,
         email: l.email as string,
         business_name: l.business_name || l.name,
@@ -306,6 +307,11 @@ export default function InlineComposePanel({
         phone: (l as any).phone,
         leadScore: l.leadScore,
       }));
+      const leadsFromManual: LeadForEmail[] = manualRecipients.map(r => ({
+        email: r.email,
+        business_name: r.label !== r.email ? r.label : undefined,
+      }));
+      const leadsForSend: LeadForEmail[] = [...leadsFromSearch, ...leadsFromManual];
 
       const dripConfig = { emailsPerHour: Math.max(1, dripRate), delayMinutes: Math.max(1, Math.floor(60 / Math.max(1, dripRate))) };
 
@@ -540,7 +546,7 @@ export default function InlineComposePanel({
 
                   <Button
                     onClick={handleLaunch}
-                    disabled={eligibleLeads.length === 0 || isLaunching}
+                    disabled={(eligibleLeads.length === 0 && manualRecipients.length === 0) || isLaunching}
                     className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white gap-1.5 text-xs"
                   >
                     {isLaunching ? (
@@ -794,7 +800,7 @@ export default function InlineComposePanel({
           <div className="border-t border-border px-3 py-1.5 flex items-center gap-1 shrink-0 bg-card">
             <Button
               onClick={handleLaunch}
-              disabled={eligibleLeads.length === 0 || isLaunching}
+              disabled={(eligibleLeads.length === 0 && manualRecipients.length === 0) || isLaunching}
               className="bg-amber-600 hover:bg-amber-700 text-white rounded-full px-7 h-10 text-sm font-semibold gap-2 shadow-[0_0_16px_hsl(38_92%_50%_/_0.3)] animate-pulse-slow"
             >
               {isLaunching ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
