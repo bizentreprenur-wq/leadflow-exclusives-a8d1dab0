@@ -597,31 +597,22 @@ function upsertHarvestJobFromCli(PDO $pdo, array $options)
         $findSql =
             "SELECT id
              FROM lead_harvest_jobs
-             WHERE keyword_norm = :keyword_norm
-               AND location_norm = :location_norm
-               AND category = :category
+             WHERE keyword_norm = ?
+               AND location_norm = ?
+               AND category = ?
                AND owner_user_id IS NULL
              LIMIT 1";
-        $findParams = [
-            'keyword_norm' => $keywordNorm,
-            'location_norm' => $locationNorm,
-            'category' => $category,
-        ];
+        $findParams = [$keywordNorm, $locationNorm, $category];
     } else {
         $findSql =
             "SELECT id
              FROM lead_harvest_jobs
-             WHERE keyword_norm = :keyword_norm
-               AND location_norm = :location_norm
-               AND category = :category
-               AND owner_user_id = :owner_user_id
+             WHERE keyword_norm = ?
+               AND location_norm = ?
+               AND category = ?
+               AND owner_user_id = ?
              LIMIT 1";
-        $findParams = [
-            'keyword_norm' => $keywordNorm,
-            'location_norm' => $locationNorm,
-            'category' => $category,
-            'owner_user_id' => $ownerUserId,
-        ];
+        $findParams = [$keywordNorm, $locationNorm, $category, $ownerUserId];
     }
 
     $findStmt = $pdo->prepare($findSql);
@@ -632,22 +623,22 @@ function upsertHarvestJobFromCli(PDO $pdo, array $options)
     if ($existing) {
         $update = $pdo->prepare(
             "UPDATE lead_harvest_jobs
-             SET keyword = :keyword,
-                 location = :location,
-                 target_limit = :target_limit,
-                 run_interval_minutes = :run_interval_minutes,
+             SET keyword = ?,
+                 location = ?,
+                 target_limit = ?,
+                 run_interval_minutes = ?,
                  enabled = 1,
                  status = 'pending',
                  next_run_at = NOW(),
                  updated_at = CURRENT_TIMESTAMP
-             WHERE id = :id"
+             WHERE id = ?"
         );
         $update->execute([
-            'keyword' => $keyword,
-            'location' => $location,
-            'target_limit' => $targetLimit,
-            'run_interval_minutes' => $interval,
-            'id' => (int) $existing['id'],
+            $keyword,
+            $location,
+            $targetLimit,
+            $interval,
+            (int) $existing['id'],
         ]);
         return (int) $existing['id'];
     }
@@ -656,18 +647,18 @@ function upsertHarvestJobFromCli(PDO $pdo, array $options)
         "INSERT INTO lead_harvest_jobs
          (owner_user_id, keyword, location, category, keyword_norm, location_norm, target_limit, run_interval_minutes, enabled, status, next_run_at)
          VALUES
-         (:owner_user_id, :keyword, :location, :category, :keyword_norm, :location_norm, :target_limit, :run_interval_minutes, 1, 'pending', NOW())"
+         (?, ?, ?, ?, ?, ?, ?, ?, 1, 'pending', NOW())"
     );
 
     $insert->execute([
-        'owner_user_id' => $ownerUserId,
-        'keyword' => $keyword,
-        'location' => $location,
-        'category' => $category,
-        'keyword_norm' => $keywordNorm,
-        'location_norm' => $locationNorm,
-        'target_limit' => $targetLimit,
-        'run_interval_minutes' => $interval,
+        $ownerUserId,
+        $keyword,
+        $location,
+        $category,
+        $keywordNorm,
+        $locationNorm,
+        $targetLimit,
+        $interval,
     ]);
 
     return (int) $pdo->lastInsertId();
