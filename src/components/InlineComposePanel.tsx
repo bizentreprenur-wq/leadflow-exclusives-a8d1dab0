@@ -113,6 +113,39 @@ export default function InlineComposePanel({
   const [sentRecipientIndices, setSentRecipientIndices] = useState<Set<number>>(new Set());
   const [sentManualIndices, setSentManualIndices] = useState<Set<number>>(new Set());
   const [removedLeadEmails, setRemovedLeadEmails] = useState<Set<string>>(new Set());
+  const [showCc, setShowCc] = useState(false);
+  const [showBcc, setShowBcc] = useState(false);
+  const [ccInput, setCcInput] = useState('');
+  const [bccInput, setBccInput] = useState('');
+  const [ccRecipients, setCcRecipients] = useState<Array<{ email: string; label: string; initial: string }>>([]);
+  const [bccRecipients, setBccRecipients] = useState<Array<{ email: string; label: string; initial: string }>>([]);
+
+  const handleAddCcRecipient = (value: string) => {
+    const trimmed = value.trim();
+    if (trimmed && EMAIL_REGEX.test(trimmed) && !ccRecipients.some(r => r.email === trimmed)) {
+      setCcRecipients(prev => [...prev, { email: trimmed, label: trimmed, initial: trimmed[0].toUpperCase() }]);
+      setCcInput('');
+    }
+  };
+  const handleAddBccRecipient = (value: string) => {
+    const trimmed = value.trim();
+    if (trimmed && EMAIL_REGEX.test(trimmed) && !bccRecipients.some(r => r.email === trimmed)) {
+      setBccRecipients(prev => [...prev, { email: trimmed, label: trimmed, initial: trimmed[0].toUpperCase() }]);
+      setBccInput('');
+    }
+  };
+  const handleCcKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if ((e.key === 'Enter' || e.key === ',' || e.key === 'Tab') && ccInput.trim()) {
+      e.preventDefault();
+      handleAddCcRecipient(ccInput);
+    }
+  };
+  const handleBccKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if ((e.key === 'Enter' || e.key === ',' || e.key === 'Tab') && bccInput.trim()) {
+      e.preventDefault();
+      handleAddBccRecipient(bccInput);
+    }
+  };
 
   const SENT_LOG_KEY = 'bamlead_sent_emails_log';
 
@@ -792,9 +825,92 @@ export default function InlineComposePanel({
                 placeholder={recipientChips.length === 0 && manualRecipients.length === 0 ? "Type email address…" : "Add more…"}
               />
             </div>
-            <span className="text-[10px] text-muted-foreground pt-1 cursor-pointer hover:text-foreground">Cc Bcc</span>
+            <div className="flex items-center gap-1 pt-1 shrink-0">
+              {!showCc && (
+                <span
+                  className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground px-1 py-0.5 rounded hover:bg-muted transition-colors"
+                  onClick={() => setShowCc(true)}
+                >
+                  Cc
+                </span>
+              )}
+              {!showBcc && (
+                <span
+                  className="text-[10px] text-muted-foreground cursor-pointer hover:text-foreground px-1 py-0.5 rounded hover:bg-muted transition-colors"
+                  onClick={() => setShowBcc(true)}
+                >
+                  Bcc
+                </span>
+              )}
+            </div>
           </div>
         </div>
+
+        {/* Cc Field */}
+        {showCc && (
+          <div className="px-4 py-1.5 border-b border-border/50 shrink-0">
+            <div className="flex items-start gap-2">
+              <span className="text-xs text-muted-foreground pt-1 shrink-0">Cc</span>
+              <div className="flex-1 flex flex-wrap gap-1 items-center">
+                {ccRecipients.map((chip, i) => (
+                  <span
+                    key={`cc-${i}`}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-[11px] text-foreground"
+                  >
+                    <span className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white bg-blue-600">
+                      {chip.initial}
+                    </span>
+                    <span className="truncate max-w-[140px]">{chip.label}</span>
+                    <X className="w-2.5 h-2.5 text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => setCcRecipients(prev => prev.filter(r => r.email !== chip.email))} />
+                  </span>
+                ))}
+                <input
+                  type="email"
+                  value={ccInput}
+                  onChange={(e) => setCcInput(e.target.value)}
+                  onKeyDown={handleCcKeyDown}
+                  onBlur={() => { if (ccInput.trim()) handleAddCcRecipient(ccInput); }}
+                  className="flex-1 min-w-[120px] bg-transparent border-0 outline-none text-sm text-foreground placeholder:text-muted-foreground/50 h-6"
+                  placeholder="Add Cc…"
+                />
+              </div>
+              <X className="w-3 h-3 text-muted-foreground cursor-pointer hover:text-foreground mt-1.5 shrink-0" onClick={() => { setShowCc(false); setCcRecipients([]); setCcInput(''); }} />
+            </div>
+          </div>
+        )}
+
+        {/* Bcc Field */}
+        {showBcc && (
+          <div className="px-4 py-1.5 border-b border-border/50 shrink-0">
+            <div className="flex items-start gap-2">
+              <span className="text-xs text-muted-foreground pt-1 shrink-0">Bcc</span>
+              <div className="flex-1 flex flex-wrap gap-1 items-center">
+                {bccRecipients.map((chip, i) => (
+                  <span
+                    key={`bcc-${i}`}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-[11px] text-foreground"
+                  >
+                    <span className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white bg-amber-600">
+                      {chip.initial}
+                    </span>
+                    <span className="truncate max-w-[140px]">{chip.label}</span>
+                    <X className="w-2.5 h-2.5 text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => setBccRecipients(prev => prev.filter(r => r.email !== chip.email))} />
+                  </span>
+                ))}
+                <input
+                  type="email"
+                  value={bccInput}
+                  onChange={(e) => setBccInput(e.target.value)}
+                  onKeyDown={handleBccKeyDown}
+                  onBlur={() => { if (bccInput.trim()) handleAddBccRecipient(bccInput); }}
+                  className="flex-1 min-w-[120px] bg-transparent border-0 outline-none text-sm text-foreground placeholder:text-muted-foreground/50 h-6"
+                  placeholder="Add Bcc…"
+                />
+              </div>
+              <X className="w-3 h-3 text-muted-foreground cursor-pointer hover:text-foreground mt-1.5 shrink-0" onClick={() => { setShowBcc(false); setBccRecipients([]); setBccInput(''); }} />
+            </div>
+          </div>
+        )}
 
         {/* Subject */}
         <div className="px-4 py-1.5 border-b border-border/50 shrink-0">
