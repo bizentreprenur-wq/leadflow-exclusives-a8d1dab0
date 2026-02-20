@@ -103,12 +103,17 @@ export default function InlineComposePanel({
   const [sendError, setSendError] = useState<string | null>(null);
   const [selectedSequence, setSelectedSequence] = useState<EmailSequence | null>(null);
   const [email, setEmail] = useState({ subject: '', body: '' });
-  const [bodyHtml, setBodyHtml] = useState<string | null>(null); // stores rich HTML template
-  const [isEditingSource, setIsEditingSource] = useState(false); // toggle between visual & source
+  const [bodyHtml, setBodyHtml] = useState<string | null>(null);
+  const [isEditingSource, setIsEditingSource] = useState(false);
   const editableRef = useRef<HTMLDivElement>(null);
   const [manualToInput, setManualToInput] = useState('');
   const [manualRecipients, setManualRecipients] = useState<Array<{ email: string; label: string; initial: string }>>([]);
   const [showSendingFeed, setShowSendingFeed] = useState(false);
+  // Track which recipient indices have been sent (for removing chips)
+  const [sentRecipientIndices, setSentRecipientIndices] = useState<Set<number>>(new Set());
+  const [sentManualIndices, setSentManualIndices] = useState<Set<number>>(new Set());
+
+  const SENT_LOG_KEY = 'bamlead_sent_emails_log';
 
   const isHtmlContent = useMemo(() => {
     return bodyHtml !== null || (email.body && /<[a-z][\s\S]*>/i.test(email.body));
@@ -359,21 +364,45 @@ export default function InlineComposePanel({
         console.warn('[BamLead] Could not trigger immediate processing:', procErr);
       }
 
-      // Simulate progress through leads for visual feedback
+      // Drip-feed visual progress — remove chips one by one, store to shared sent log
       const sentCount = result.results?.sent || leadsForSend.length;
       const sentItems: Array<{ email: string; name: string; sentAt: string }> = [];
+      const dripDelayMs = Math.max(2000, dripInterval * 1000); // actual drip interval (min 2s for UX)
+      
       for (let i = 0; i < Math.min(sentCount, allRecipients.length); i++) {
         setLocalSendingIndex(i);
         setLocalLastSentIndex(i - 1);
-        sentItems.push({ email: allRecipients[i].email, name: allRecipients[i].name, sentAt: new Date().toISOString() });
+        
+        const sentItem = { 
+          email: allRecipients[i].email, 
+          name: allRecipients[i].name, 
+          sentAt: new Date().toISOString(),
+          subject: subject,
+        };
+        sentItems.push(sentItem);
         setSentEmailsList([...sentItems]);
         setLaunchProgress(60 + Math.round((i / allRecipients.length) * 35));
-        if (i < allRecipients.length - 1) {
-          await new Promise(r => setTimeout(r, 120));
-        }
-        // Update parent tracking
+        
+        // Mark this chip as sent (removes from To field)
         if (i < eligibleLeads.length) {
+          setSentRecipientIndices(prev => new Set([...prev, i]));
           onEmailSent?.(i);
+        } else {
+          const manualIdx = i - eligibleLeads.length;
+          setSentManualIndices(prev => new Set([...prev, manualIdx]));
+        }
+        
+        // Persist to shared localStorage so Sent tab and Step 3 see it
+        try {
+          const existing = JSON.parse(localStorage.getItem(SENT_LOG_KEY) || '[]');
+          existing.push(sentItem);
+          localStorage.setItem(SENT_LOG_KEY, JSON.stringify(existing));
+          window.dispatchEvent(new Event('bamlead_sent_update'));
+        } catch { /* ignore */ }
+        
+        // Wait for drip interval before next (skip on last)
+        if (i < allRecipients.length - 1) {
+          await new Promise(r => setTimeout(r, dripDelayMs));
         }
       }
       setLocalLastSentIndex(Math.min(sentCount, allRecipients.length) - 1);
@@ -683,8 +712,9 @@ export default function InlineComposePanel({
           <div className="flex items-start gap-2">
             <span className="text-xs text-muted-foreground pt-1 shrink-0">To</span>
             <div className="flex-1 flex flex-wrap gap-1 max-h-32 overflow-y-auto items-center">
-              {/* Manual recipients */}
+              {/* Manual recipients - hide sent ones */}
               {manualRecipients.map((chip, i) => (
+                sentManualIndices.has(i) ? null : (
                 <span
                   key={`manual-${i}`}
                   className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-[11px] text-foreground"
@@ -695,12 +725,19 @@ export default function InlineComposePanel({
                   <span className="truncate max-w-[140px]">{chip.label}</span>
                   <X className="w-2.5 h-2.5 text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => handleRemoveManualRecipient(chip.email)} />
                 </span>
+                )
               ))}
-              {/* Drip feed recipients */}
+              {/* Drip feed recipients - hide sent ones */}
               {recipientChips.map((chip, i) => (
+                sentRecipientIndices.has(i) ? null : (
                 <span
                   key={i}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted/50 border border-border text-[11px] text-foreground"
+                  className={cn(
+                    "inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] text-foreground transition-all",
+                    localSendingIndex === i
+                      ? "bg-cyan-500/20 border-cyan-500/50 animate-pulse"
+                      : "bg-muted/50 border-border"
+                  )}
                 >
                   <span className={cn("w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white", getChipColor(chip.initial))}>
                     {chip.initial}
@@ -708,9 +745,12 @@ export default function InlineComposePanel({
                   <span className="truncate max-w-[140px]">{chip.label}</span>
                   <X className="w-2.5 h-2.5 text-muted-foreground cursor-pointer hover:text-foreground" />
                 </span>
+                )
               ))}
               {eligibleLeads.length > 20 && (
-                <span className="text-[10px] text-muted-foreground self-center">+{eligibleLeads.length - 20} more</span>
+                <span className="text-[10px] text-muted-foreground self-center">
+                  +{Math.max(0, eligibleLeads.length - 20 - sentRecipientIndices.size)} more
+                </span>
               )}
               {/* Inline manual email input */}
               <input
