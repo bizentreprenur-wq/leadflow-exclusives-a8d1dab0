@@ -436,6 +436,64 @@ function customFetcherNoKeyMaxEmptyTopupChunks()
     return max(1, min(20, $value));
 }
 
+function customFetcherAdaptiveNoKeySeedQueryCap($limit, $filtersActive)
+{
+    $cap = customFetcherNoKeyMaxSeedQueries();
+    $limit = max(20, (int) $limit);
+    if ($limit >= 250)
+        $cap = max($cap, 36);
+    if ($limit >= 500)
+        $cap = max($cap, 54);
+    if ($limit >= 1000)
+        $cap = max($cap, 78);
+    if ($limit >= 2000)
+        $cap = max($cap, 110);
+    if ($filtersActive)
+        $cap = (int) ceil($cap * 1.18);
+    return max(8, min(180, (int) $cap));
+}
+
+function customFetcherAdaptiveNoKeyTopupQueryCap($limit, $filtersActive)
+{
+    $cap = customFetcherNoKeyTopupMaxQueries();
+    $limit = max(20, (int) $limit);
+    if ($limit >= 250)
+        $cap = max($cap, 45);
+    if ($limit >= 500)
+        $cap = max($cap, 70);
+    if ($limit >= 1000)
+        $cap = max($cap, 95);
+    if ($limit >= 2000)
+        $cap = max($cap, 120);
+    if ($filtersActive)
+        $cap = (int) ceil($cap * 1.15);
+    return max(12, min(180, (int) $cap));
+}
+
+function customFetcherAdaptiveNoKeyTargetCount($limit, $filtersActive, $requestedTargetCount = null)
+{
+    $limit = max(20, (int) $limit);
+    $ratio = customFetcherNoKeyTargetRatio();
+    if ($limit >= 250)
+        $ratio = max($ratio, 0.88);
+    if ($limit >= 500)
+        $ratio = max($ratio, 0.91);
+    if ($limit >= 1000)
+        $ratio = max($ratio, 0.94);
+    if ($limit >= 2000)
+        $ratio = max($ratio, 0.96);
+    if ($filtersActive)
+        $ratio = max(0.82, $ratio - 0.02);
+    $derived = (int) ceil($limit * min(0.98, $ratio));
+
+    if ($requestedTargetCount === null) {
+        return min($limit, max(1, $derived));
+    }
+
+    $requested = max(1, (int) $requestedTargetCount);
+    return min($limit, max($requested, $derived));
+}
+
 function customFetcherBuildLocations($location, $limit, $filtersActive)
 {
     $locations = [$location];
@@ -606,6 +664,214 @@ function customFetcherUniqueCleanArray($values)
         }
     }
     return $out;
+}
+
+function customFetcherTokenizeText($value)
+{
+    $text = strtolower((string) $value);
+    $text = preg_replace('/https?:\/\/\S+/', ' ', $text);
+    $text = preg_replace('/[^a-z0-9\s]/', ' ', $text);
+    $text = preg_replace('/\s+/', ' ', trim($text));
+    if ($text === '') {
+        return [];
+    }
+
+    $stopWords = [
+        'the', 'and', 'for', 'with', 'from', 'that', 'this', 'your', 'you', 'our', 'are',
+        'was', 'were', 'have', 'has', 'had', 'not', 'near', 'best', 'top', 'local', 'new',
+        'inc', 'llc', 'ltd', 'co', 'corp', 'company', 'services', 'service', 'business',
+        'in', 'at', 'on', 'by', 'to', 'or', 'of', 'a', 'an', 'us', 'usa',
+    ];
+    $stopMap = array_fill_keys($stopWords, true);
+
+    $tokens = [];
+    foreach (explode(' ', $text) as $token) {
+        $token = trim($token);
+        if ($token === '' || strlen($token) < 2) {
+            continue;
+        }
+        if (isset($stopMap[$token])) {
+            continue;
+        }
+        $tokens[] = $token;
+    }
+    return customFetcherUniqueCleanArray($tokens);
+}
+
+function customFetcherTokenCoverage($tokens, $haystack)
+{
+    $tokens = (array) $tokens;
+    if (empty($tokens)) {
+        return 0.0;
+    }
+    $haystack = strtolower((string) $haystack);
+    if ($haystack === '') {
+        return 0.0;
+    }
+    $hits = 0;
+    foreach ($tokens as $token) {
+        $token = trim((string) $token);
+        if ($token === '') {
+            continue;
+        }
+        if (strpos($haystack, $token) !== false) {
+            $hits++;
+        }
+    }
+    return $hits / max(1, count($tokens));
+}
+
+function customFetcherLeadContactCompletenessScore($lead)
+{
+    $email = trim((string) ($lead['email'] ?? ''));
+    $phone = trim((string) ($lead['phone'] ?? ''));
+    $url = trim((string) ($lead['url'] ?? ''));
+    $address = trim((string) ($lead['address'] ?? ''));
+
+    $score = 0.0;
+    if ($email !== '') {
+        $score += 0.55;
+    }
+    if ($phone !== '') {
+        $score += 0.45;
+    }
+    if ($url !== '') {
+        $score += 0.08;
+    }
+    if ($address !== '') {
+        $score += 0.05;
+    }
+    if ($email !== '' && $phone !== '') {
+        $score += 0.15;
+    }
+    return min(1.0, $score);
+}
+
+function customFetcherLeadRelevanceScore($lead, $service, $baseLocation, $queryLocation = '', $queryText = '')
+{
+    $name = strtolower(trim((string) ($lead['name'] ?? '')));
+    $snippet = strtolower(trim((string) ($lead['snippet'] ?? '')));
+    $address = strtolower(trim((string) ($lead['address'] ?? '')));
+    $url = strtolower(trim((string) ($lead['url'] ?? '')));
+    $displayLink = strtolower(trim((string) ($lead['displayLink'] ?? '')));
+    $haystack = trim(implode(' ', [$name, $snippet, $address, $url, $displayLink]));
+
+    if ($haystack === '') {
+        return 0.0;
+    }
+
+    $serviceText = strtolower(trim((string) $service));
+    $locationText = strtolower(trim((string) $baseLocation . ' ' . $queryLocation));
+    $queryText = strtolower(trim((string) $queryText));
+
+    $serviceTokens = customFetcherTokenizeText($serviceText);
+    $locationTokens = customFetcherTokenizeText($locationText);
+    $queryTokens = customFetcherTokenizeText($queryText);
+
+    $score = 0.0;
+    if ($serviceText !== '' && strpos($haystack, $serviceText) !== false) {
+        $score += 0.35;
+    }
+
+    $serviceCoverage = customFetcherTokenCoverage($serviceTokens, $haystack);
+    $locationCoverage = customFetcherTokenCoverage($locationTokens, $haystack);
+    $queryCoverage = customFetcherTokenCoverage($queryTokens, $haystack);
+
+    $score += min(0.38, $serviceCoverage * 0.38);
+    $score += min(0.22, $locationCoverage * 0.22);
+    $score += min(0.15, $queryCoverage * 0.15);
+
+    if ($address !== '' && $locationCoverage > 0.0) {
+        $score += 0.06;
+    }
+
+    if ($name !== '' && $serviceCoverage > 0.0) {
+        $score += 0.06;
+    }
+
+    return max(0.0, min(1.0, $score));
+}
+
+function customFetcherMinimumRelevanceScore($filtersActive, $currentCount, $targetCount, $limit)
+{
+    $base = 0.18;
+    if ($filtersActive) {
+        $base += 0.04;
+    }
+    if ($limit <= 100) {
+        $base += 0.03;
+    } elseif ($limit >= 1000) {
+        $base -= 0.03;
+    }
+
+    $needRatio = 1.0;
+    if ($targetCount > 0) {
+        $needRatio = max(0.0, min(1.0, ($targetCount - $currentCount) / max(1, $targetCount)));
+    }
+    if ($needRatio < 0.35) {
+        $base += 0.08;
+    } elseif ($needRatio > 0.80) {
+        $base -= 0.04;
+    }
+
+    if ($base < 0.08) {
+        $base = 0.08;
+    }
+    if ($base > 0.42) {
+        $base = 0.42;
+    }
+    return $base;
+}
+
+function customFetcherPrepareDiscoveredLeads($leads, $service, $baseLocation, $queryLocation, $queryText, $filtersActive, $currentCount, $targetCount, $limit)
+{
+    if (empty($leads)) {
+        return [];
+    }
+
+    $minScore = customFetcherMinimumRelevanceScore($filtersActive, (int) $currentCount, (int) $targetCount, (int) $limit);
+    $scored = [];
+
+    foreach ((array) $leads as $lead) {
+        if (!is_array($lead) || empty($lead['name'])) {
+            continue;
+        }
+
+        $relevance = customFetcherLeadRelevanceScore($lead, $service, $baseLocation, (string) $queryLocation, (string) $queryText);
+        $contact = customFetcherLeadContactCompletenessScore($lead);
+
+        // Keep strongly relevant leads, and allow mildly relevant ones when contacts are present.
+        if ($relevance < $minScore && $contact < 0.45) {
+            continue;
+        }
+        if ($relevance < ($minScore * 0.65) && $contact <= 0.0) {
+            continue;
+        }
+
+        $websiteBonus = trim((string) ($lead['url'] ?? '')) !== '' ? 0.04 : 0.0;
+        $addressBonus = trim((string) ($lead['address'] ?? '')) !== '' ? 0.03 : 0.0;
+        $rank = ($relevance * 0.72) + ($contact * 0.24) + $websiteBonus + $addressBonus;
+
+        $lead['_cf_rank'] = $rank;
+        $lead['_cf_relevance'] = $relevance;
+        $scored[] = $lead;
+    }
+
+    usort($scored, function ($a, $b) {
+        $aRank = (float) ($a['_cf_rank'] ?? 0.0);
+        $bRank = (float) ($b['_cf_rank'] ?? 0.0);
+        if ($aRank === $bRank) {
+            return 0;
+        }
+        return ($aRank > $bRank) ? -1 : 1;
+    });
+
+    foreach ($scored as &$lead) {
+        unset($lead['_cf_rank'], $lead['_cf_relevance']);
+    }
+    unset($lead);
+
+    return $scored;
 }
 
 function customFetcherNormalizeBusiness($item, $engine, $sourceName)
@@ -1291,6 +1557,103 @@ function customFetcherNoKeyProviders()
     ];
 }
 
+function customFetcherRotateNoKeyProviders($providers, $seed)
+{
+    if (empty($providers) || count($providers) <= 1) {
+        return $providers;
+    }
+    $keys = array_keys($providers);
+    $seedHash = sprintf('%u', crc32(strtolower(trim((string) $seed))));
+    $offset = (int) ($seedHash % max(1, count($keys)));
+    $rotated = [];
+    $keyCount = count($keys);
+    for ($i = 0; $i < $keyCount; $i++) {
+        $providerKey = $keys[($offset + $i) % $keyCount];
+        if (isset($providers[$providerKey])) {
+            $rotated[$providerKey] = $providers[$providerKey];
+        }
+    }
+    return $rotated;
+}
+
+function customFetcherNoKeyProviderRuntimeState($providerKey)
+{
+    $providerKey = trim((string) $providerKey);
+    if ($providerKey === '') {
+        return [
+            'cooldown_until_ms' => 0,
+            'fail_streak' => 0,
+            'blocked_count' => 0,
+            'success_count' => 0,
+        ];
+    }
+    if (!isset($GLOBALS['__custom_fetch_no_key_provider_runtime']) || !is_array($GLOBALS['__custom_fetch_no_key_provider_runtime'])) {
+        $GLOBALS['__custom_fetch_no_key_provider_runtime'] = [];
+    }
+    if (!isset($GLOBALS['__custom_fetch_no_key_provider_runtime'][$providerKey])) {
+        $GLOBALS['__custom_fetch_no_key_provider_runtime'][$providerKey] = [
+            'cooldown_until_ms' => 0,
+            'fail_streak' => 0,
+            'blocked_count' => 0,
+            'success_count' => 0,
+        ];
+    }
+    return $GLOBALS['__custom_fetch_no_key_provider_runtime'][$providerKey];
+}
+
+function customFetcherNoKeyProviderRuntimeStateSet($providerKey, $state)
+{
+    $providerKey = trim((string) $providerKey);
+    if ($providerKey === '') {
+        return;
+    }
+    if (!isset($GLOBALS['__custom_fetch_no_key_provider_runtime']) || !is_array($GLOBALS['__custom_fetch_no_key_provider_runtime'])) {
+        $GLOBALS['__custom_fetch_no_key_provider_runtime'] = [];
+    }
+    $GLOBALS['__custom_fetch_no_key_provider_runtime'][$providerKey] = $state;
+}
+
+function customFetcherNoKeyProviderIsCoolingDown($providerKey)
+{
+    $state = customFetcherNoKeyProviderRuntimeState($providerKey);
+    $nowMs = (int) round(microtime(true) * 1000);
+    return ((int) ($state['cooldown_until_ms'] ?? 0)) > $nowMs;
+}
+
+function customFetcherNoKeyProviderMarkSuccess($providerKey)
+{
+    $state = customFetcherNoKeyProviderRuntimeState($providerKey);
+    $state['success_count'] = (int) ($state['success_count'] ?? 0) + 1;
+    $state['fail_streak'] = 0;
+    $state['cooldown_until_ms'] = 0;
+    customFetcherNoKeyProviderRuntimeStateSet($providerKey, $state);
+}
+
+function customFetcherNoKeyProviderMarkFailed($providerKey, $backoffMs)
+{
+    $state = customFetcherNoKeyProviderRuntimeState($providerKey);
+    $nowMs = (int) round(microtime(true) * 1000);
+    $failStreak = min(10, (int) ($state['fail_streak'] ?? 0) + 1);
+    $penalty = max(150, (int) ceil($backoffMs * 0.6));
+    $penalty *= max(1, (int) floor($failStreak / 2));
+    $state['fail_streak'] = $failStreak;
+    $state['cooldown_until_ms'] = max((int) ($state['cooldown_until_ms'] ?? 0), $nowMs + min(12000, $penalty));
+    customFetcherNoKeyProviderRuntimeStateSet($providerKey, $state);
+}
+
+function customFetcherNoKeyProviderMarkBlocked($providerKey, $backoffMs, $attempt)
+{
+    $state = customFetcherNoKeyProviderRuntimeState($providerKey);
+    $nowMs = (int) round(microtime(true) * 1000);
+    $failStreak = min(12, (int) ($state['fail_streak'] ?? 0) + 2);
+    $state['blocked_count'] = (int) ($state['blocked_count'] ?? 0) + 1;
+    $state['fail_streak'] = $failStreak;
+    $multiplier = max(1, (int) $attempt + 1) * max(1, (int) floor($failStreak / 2));
+    $penalty = max(350, (int) $backoffMs) * $multiplier;
+    $state['cooldown_until_ms'] = max((int) ($state['cooldown_until_ms'] ?? 0), $nowMs + min(25000, $penalty));
+    customFetcherNoKeyProviderRuntimeStateSet($providerKey, $state);
+}
+
 function customFetcherNoKeyLooksBlocked($httpCode, $body)
 {
     $httpCode = (int) $httpCode;
@@ -1374,17 +1737,37 @@ function customFetcherSearchNoKeyWithPolicy($query, $limit, $timeout, $retries, 
     ];
     if ($limit <= 0)
         return [];
-    $providers = customFetcherNoKeyProviders();
+    $providers = customFetcherRotateNoKeyProviders(customFetcherNoKeyProviders(), $query);
     $results = [];
     $seen = [];
     $pending = [];
+    $coolingDown = [];
 
     foreach ($providers as $providerKey => $provider) {
+        if (customFetcherNoKeyProviderIsCoolingDown($providerKey)) {
+            $coolingDown[] = [
+                'providerKey' => $providerKey,
+                'provider' => $provider,
+            ];
+            continue;
+        }
         $pending[] = [
             'providerKey' => $providerKey,
             'provider' => $provider,
             'attempt' => 0,
         ];
+    }
+    if (empty($pending)) {
+        foreach ($coolingDown as $item) {
+            $pending[] = [
+                'providerKey' => $item['providerKey'],
+                'provider' => $item['provider'],
+                'attempt' => 0,
+            ];
+            if (count($pending) >= 2) {
+                break;
+            }
+        }
     }
 
     $retries = max(0, (int) $retries);
@@ -1413,6 +1796,7 @@ function customFetcherSearchNoKeyWithPolicy($query, $limit, $timeout, $retries, 
 
             if ($ok) {
                 $stats['provider_success']++;
+                customFetcherNoKeyProviderMarkSuccess((string) ($task['providerKey'] ?? ''));
                 $raw = call_user_func($provider['parser'], $body, $limit);
                 foreach ($raw as $item) {
                     if (count($results) >= $limit)
@@ -1431,8 +1815,10 @@ function customFetcherSearchNoKeyWithPolicy($query, $limit, $timeout, $retries, 
 
             if ($blocked) {
                 $stats['provider_blocked']++;
+                customFetcherNoKeyProviderMarkBlocked((string) ($task['providerKey'] ?? ''), $backoffMs, (int) ($task['attempt'] ?? 0));
             } else {
                 $stats['provider_fail']++;
+                customFetcherNoKeyProviderMarkFailed((string) ($task['providerKey'] ?? ''), $backoffMs);
             }
 
             $attempt = (int) $task['attempt'] + 1;
@@ -1488,7 +1874,26 @@ function customFetcherDiscoverNoKeyChunk($queryChunk, $perQueryLimit, $timeout, 
             'provider_fail' => 0,
             'provider_blocked' => 0,
         ];
-        foreach ($providers as $providerKey => $provider) {
+        $rotatedProviders = customFetcherRotateNoKeyProviders($providers, $query);
+        $activeProviders = [];
+        $coolingProviders = [];
+        foreach ($rotatedProviders as $providerKey => $provider) {
+            if (customFetcherNoKeyProviderIsCoolingDown($providerKey)) {
+                $coolingProviders[$providerKey] = $provider;
+                continue;
+            }
+            $activeProviders[$providerKey] = $provider;
+        }
+        if (empty($activeProviders)) {
+            foreach ($coolingProviders as $providerKey => $provider) {
+                $activeProviders[$providerKey] = $provider;
+                if (count($activeProviders) >= 2) {
+                    break;
+                }
+            }
+        }
+
+        foreach ($activeProviders as $providerKey => $provider) {
             $pending[] = [
                 'queryIndex' => $qIdx,
                 'queryData' => $queryData,
@@ -1535,6 +1940,7 @@ function customFetcherDiscoverNoKeyChunk($queryChunk, $perQueryLimit, $timeout, 
 
             if ($ok) {
                 $queryStats[$qIdx]['provider_success']++;
+                customFetcherNoKeyProviderMarkSuccess((string) ($task['providerKey'] ?? ''));
                 $rawItems = call_user_func($task['provider']['parser'], $body, $perQueryLimit);
                 foreach ($rawItems as $item) {
                     if (count($queryLeads[$qIdx]) >= $perQueryLimit)
@@ -1556,8 +1962,10 @@ function customFetcherDiscoverNoKeyChunk($queryChunk, $perQueryLimit, $timeout, 
 
             if ($blocked) {
                 $queryStats[$qIdx]['provider_blocked']++;
+                customFetcherNoKeyProviderMarkBlocked((string) ($task['providerKey'] ?? ''), $backoffMs, (int) ($task['attempt'] ?? 0));
             } else {
                 $queryStats[$qIdx]['provider_fail']++;
+                customFetcherNoKeyProviderMarkFailed((string) ($task['providerKey'] ?? ''), $backoffMs);
             }
 
             $nextAttempt = (int) $task['attempt'] + 1;
@@ -2136,14 +2544,10 @@ function customFetcherSearchAndEnrichNoKeyOutscraperStyle($service, $location, $
     if (empty($queries)) {
         $queries = [['query' => "$service in $location", 'location' => $location]];
     }
-    $queries = array_slice($queries, 0, customFetcherNoKeyMaxSeedQueries());
+    $queries = array_slice($queries, 0, customFetcherAdaptiveNoKeySeedQueryCap($limit, $filtersActive));
 
-    $noKeyTargetCount = (int) ceil($limit * customFetcherNoKeyTargetRatio());
-    if ($targetCount === null) {
-        $targetCount = $noKeyTargetCount;
-    } else {
-        $targetCount = min((int) $targetCount, $noKeyTargetCount);
-    }
+    $targetCount = customFetcherAdaptiveNoKeyTargetCount($limit, $filtersActive, $targetCount);
+    $noKeyTargetCount = $targetCount;
 
     $emitBatchSize = customFetcherNoKeyStreamEmitBatchSize();
     $quickProbeEnabled = customFetcherQuickEmailProbeEnabled();
@@ -2157,8 +2561,14 @@ function customFetcherSearchAndEnrichNoKeyOutscraperStyle($service, $location, $
     $providerRetries = customFetcherNoKeyProviderRetries();
     $blockBackoffMs = customFetcherNoKeyBlockBackoffMs();
     $topupMaxPasses = customFetcherNoKeyTopupMaxPasses();
-    $topupMaxQueries = customFetcherNoKeyTopupMaxQueries();
-    $topupEnabled = customFetcherNoKeyTopupEnabled();
+    $topupMaxQueries = customFetcherAdaptiveNoKeyTopupQueryCap($limit, $filtersActive);
+    $topupEnabled = customFetcherNoKeyTopupEnabled() || $limit >= 250;
+    if ($limit >= 500 && $topupMaxPasses < 2)
+        $topupMaxPasses = 2;
+    if ($limit >= 1000 && $topupMaxPasses < 3)
+        $topupMaxPasses = 3;
+    if ($limit >= 2000 && $topupMaxPasses < 4)
+        $topupMaxPasses = 4;
     $deferQuickProbe = customFetcherNoKeyDeferQuickProbe();
     $maxEmptySeedChunks = customFetcherNoKeyMaxEmptySeedChunks();
     $maxEmptyTopupChunks = customFetcherNoKeyMaxEmptyTopupChunks();
@@ -2235,7 +2645,7 @@ function customFetcherSearchAndEnrichNoKeyOutscraperStyle($service, $location, $
         }
     };
 
-    $ingestDiscovered = function ($discovered, $queryLocation) use (&$allResults, &$seen, &$resultIndexById, &$batchToEmit, &$deferredProbeQueue, $filters, $limit, $emitBatchSize, $onBatch, $quickProbeEnabled, $deferQuickProbe, &$quickProbeRemaining, $quickProbePerPass, $quickProbeTimeout, $quickProbeConcurrency, $recordMilestones) {
+    $ingestDiscovered = function ($discovered, $queryLocation, $queryText = '') use (&$allResults, &$seen, &$resultIndexById, &$batchToEmit, &$deferredProbeQueue, $filters, $limit, $emitBatchSize, $onBatch, $quickProbeEnabled, $deferQuickProbe, &$quickProbeRemaining, $quickProbePerPass, $quickProbeTimeout, $quickProbeConcurrency, $recordMilestones, $service, $location, $filtersActive, $targetCount) {
         if (empty($discovered))
             return;
         $fresh = [];
@@ -2268,6 +2678,19 @@ function customFetcherSearchAndEnrichNoKeyOutscraperStyle($service, $location, $
                 }
             }
         }
+        $fresh = customFetcherPrepareDiscoveredLeads(
+            $fresh,
+            $service,
+            $location,
+            (string) $queryLocation,
+            (string) $queryText,
+            $filtersActive,
+            count($allResults),
+            $targetCount,
+            $limit
+        );
+        if (empty($fresh))
+            return;
 
         foreach ($fresh as $lead) {
             if (!matchesSearchFilters($lead, $filters))
@@ -2327,7 +2750,7 @@ function customFetcherSearchAndEnrichNoKeyOutscraperStyle($service, $location, $
             if (count($allResults) >= $limit)
                 break;
             $queryLocation = $item['query']['location'] ?? $location;
-            $ingestDiscovered($item['discovered'] ?? [], $queryLocation);
+            $ingestDiscovered($item['discovered'] ?? [], $queryLocation, (string) ($item['query']['query'] ?? ''));
         }
 
         if ($deferQuickProbe) {
@@ -2391,7 +2814,7 @@ function customFetcherSearchAndEnrichNoKeyOutscraperStyle($service, $location, $
                     if (count($allResults) >= $limit)
                         break;
                     $queryLocation = $item['query']['location'] ?? $location;
-                    $ingestDiscovered($item['discovered'] ?? [], $queryLocation);
+                    $ingestDiscovered($item['discovered'] ?? [], $queryLocation, (string) ($item['query']['query'] ?? ''));
                 }
                 if ($deferQuickProbe) {
                     $flushDeferredProbeUpdates(false);
@@ -2654,6 +3077,20 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
                         $quickProbeRemaining -= $probeBudget;
                     }
                 }
+                $fresh = customFetcherPrepareDiscoveredLeads(
+                    $fresh,
+                    $service,
+                    $location,
+                    (string) $queryLocation,
+                    (string) ($queryResult['query']['query'] ?? ''),
+                    $filtersActive,
+                    count($allResults),
+                    $targetCount,
+                    $limit
+                );
+                if (empty($fresh)) {
+                    continue;
+                }
 
                 // Fast-path: stream discovery results immediately, skip inline website crawling.
                 foreach ($fresh as $lead) {
@@ -2687,6 +3124,20 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
                         break;
                 }
             } else {
+                $fresh = customFetcherPrepareDiscoveredLeads(
+                    $fresh,
+                    $service,
+                    $location,
+                    (string) $queryLocation,
+                    (string) ($queryResult['query']['query'] ?? ''),
+                    $filtersActive,
+                    count($allResults),
+                    $targetCount,
+                    $limit
+                );
+                if (empty($fresh)) {
+                    continue;
+                }
                 // Do not enrich more than needed for the remaining target window.
                 $remainingNeed = $limit - count($allResults);
                 $maxFreshToEnrich = max(20, (int) ceil($remainingNeed * ($filtersActive ? 2.0 : 1.3)));
@@ -2755,6 +3206,9 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
         $topupQueries = customFetcherBuildLowCoverageTopupQueries($service, $location, $limit, $filtersActive, $queries);
         $topupSources = $primarySources;
         if ($topupUseNoKeyFallback && !in_array('no_key', $topupSources, true)) {
+            $topupSources[] = 'no_key';
+        }
+        if (!in_array('no_key', $topupSources, true) && count($allResults) < (int) ceil($targetCount * 0.55)) {
             $topupSources[] = 'no_key';
         }
 
@@ -2842,6 +3296,20 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
                             $quickProbeRemaining -= $probeBudget;
                         }
                     }
+                    $fresh = customFetcherPrepareDiscoveredLeads(
+                        $fresh,
+                        $service,
+                        $location,
+                        (string) $queryLocation,
+                        (string) ($queryResult['query']['query'] ?? ''),
+                        $filtersActive,
+                        count($allResults),
+                        $targetCount,
+                        $limit
+                    );
+                    if (empty($fresh)) {
+                        continue;
+                    }
 
                     foreach ($fresh as $lead) {
                         if (!customFetcherMatchesWithOptionalPlatformRelaxation($lead, $filters, $relaxPlatformFiltering)) {
@@ -2876,6 +3344,20 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
                         }
                     }
                 } else {
+                    $fresh = customFetcherPrepareDiscoveredLeads(
+                        $fresh,
+                        $service,
+                        $location,
+                        (string) $queryLocation,
+                        (string) ($queryResult['query']['query'] ?? ''),
+                        $filtersActive,
+                        count($allResults),
+                        $targetCount,
+                        $limit
+                    );
+                    if (empty($fresh)) {
+                        continue;
+                    }
                     $remainingNeed = $limit - count($allResults);
                     $maxFreshToEnrich = max(20, (int) ceil($remainingNeed * ($filtersActive ? 2.0 : 1.3)));
                     if (count($fresh) > $maxFreshToEnrich) {
