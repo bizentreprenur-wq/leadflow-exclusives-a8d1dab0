@@ -112,6 +112,7 @@ export default function InlineComposePanel({
   // Track which recipient indices have been sent (for removing chips)
   const [sentRecipientIndices, setSentRecipientIndices] = useState<Set<number>>(new Set());
   const [sentManualIndices, setSentManualIndices] = useState<Set<number>>(new Set());
+  const [removedLeadEmails, setRemovedLeadEmails] = useState<Set<string>>(new Set());
 
   const SENT_LOG_KEY = 'bamlead_sent_emails_log';
 
@@ -167,8 +168,8 @@ export default function InlineComposePanel({
 
   const safeLeads = useMemo(() => leads?.filter((l): l is Lead => l != null) ?? [], [leads]);
   const eligibleLeads = useMemo(
-    () => safeLeads.filter((l) => hasValidEmail(l.email)),
-    [safeLeads]
+    () => safeLeads.filter((l) => hasValidEmail(l.email) && !removedLeadEmails.has((l.email || '').toLowerCase())),
+    [safeLeads, removedLeadEmails]
   );
 
   const detectedSearchType = useMemo(() => {
@@ -743,7 +744,7 @@ export default function InlineComposePanel({
                     {chip.initial}
                   </span>
                   <span className="truncate max-w-[140px]">{chip.label}</span>
-                  <X className="w-2.5 h-2.5 text-muted-foreground cursor-pointer hover:text-foreground" />
+                  <X className="w-2.5 h-2.5 text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => setRemovedLeadEmails(prev => new Set([...prev, (chip.email || '').toLowerCase()]))} />
                 </span>
                 )
               ))}
