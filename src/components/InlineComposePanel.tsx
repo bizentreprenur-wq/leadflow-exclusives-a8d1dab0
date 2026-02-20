@@ -337,16 +337,18 @@ export default function InlineComposePanel({
       const leadsForSend: LeadForEmail[] = [...leadsFromSearch, ...leadsFromManual];
 
       const dripConfig = { emailsPerHour: Math.max(1, dripRate), delayMinutes: Math.max(1, Math.floor(60 / Math.max(1, dripRate))) };
+      const isManualMode = !automationSettings.doneForYouMode;
+      const sendMode = isManualMode ? 'instant' : 'drip';
 
       setLaunchProgress(25);
-      console.log('[BamLead] Sending bulk emails:', { leadsCount: leadsForSend.length, subject, sendMode: 'drip', dripConfig });
+      console.log('[BamLead] Sending bulk emails:', { leadsCount: leadsForSend.length, subject, sendMode, dripConfig });
 
       const result = await sendBulkEmails({
         leads: leadsForSend,
         custom_subject: subject,
         custom_body: body,
-        send_mode: 'drip',
-        drip_config: dripConfig,
+        send_mode: sendMode,
+        drip_config: sendMode === 'drip' ? dripConfig : undefined,
       });
 
       console.log('[BamLead] Bulk send result:', result);
@@ -357,19 +359,33 @@ export default function InlineComposePanel({
 
       setLaunchProgress(60);
 
-      // Trigger immediate processing of scheduled emails
-      try {
-        const processResult = await processMyScheduledEmails(10, 300);
-        console.log('[BamLead] Process scheduled result:', processResult);
-      } catch (procErr) {
-        console.warn('[BamLead] Could not trigger immediate processing:', procErr);
+      // For drip mode, trigger immediate processing of all scheduled emails
+      if (sendMode === 'drip') {
+        try {
+          // Use large lookahead to force-process all just-scheduled emails now
+          const totalToProcess = leadsForSend.length;
+          const processResult = await processMyScheduledEmails(totalToProcess, 86400);
+          console.log('[BamLead] Process scheduled result:', processResult);
+          // Add processed count to sent
+          if (processResult.success && processResult.processed) {
+            result.results = result.results || { total: 0, sent: 0, failed: 0, skipped: 0, details: [] };
+            result.results.sent = (result.results.sent || 0) + processResult.processed;
+            if (processResult.failed) {
+              result.results.failed = (result.results.failed || 0) + processResult.failed;
+            }
+          }
+        } catch (procErr) {
+          console.warn('[BamLead] Could not trigger immediate processing:', procErr);
+        }
       }
 
-      // Drip-feed visual progress — remove chips one by one, store to shared sent log
-      const sentCount = typeof result.results?.sent === 'number' ? result.results.sent : leadsForSend.length;
+      // Calculate real sent count from backend response
+      const actualSent = result.results?.sent || 0;
+      const actualScheduled = result.results?.scheduled || 0;
+      const sentCount = actualSent + actualScheduled; // scheduled = queued for delivery
       const failedCount = result.results?.failed || 0;
 
-      if (sentCount === 0 && leadsForSend.length > 0) {
+      if (sentCount === 0 && failedCount === 0 && leadsForSend.length > 0) {
         throw new Error(`Backend queued 0 of ${leadsForSend.length} emails. Check your SMTP credentials and try again.`);
       }
 
@@ -442,7 +458,10 @@ export default function InlineComposePanel({
       onAutomationChange({ ...automationSettings, doneForYouMode: true });
       await new Promise(r => setTimeout(r, 500));
       setIsLaunching(false);
-      toast.success(`🚀 Campaign launched! ${sentCount} emails ${sentCount > 0 ? 'sent/queued' : 'queued'} successfully.`);
+      const statusMsg = actualSent > 0 && actualScheduled > 0
+        ? `${actualSent} sent, ${actualScheduled} queued`
+        : actualSent > 0 ? `${actualSent} sent` : `${actualScheduled} queued`;
+      toast.success(`🚀 Campaign launched! ${statusMsg}${failedCount > 0 ? `, ${failedCount} failed` : ''}.`);
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Launch failed. Unknown error.';
       console.error('[BamLead] Send error:', msg, error);
