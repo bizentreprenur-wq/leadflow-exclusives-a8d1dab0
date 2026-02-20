@@ -593,22 +593,39 @@ function upsertHarvestJobFromCli(PDO $pdo, array $options)
         $ownerUserId = max(1, (int) $options['owner-user-id']);
     }
 
-    $findSql =
-        "SELECT id
-         FROM lead_harvest_jobs
-         WHERE keyword_norm = :keyword_norm
-           AND location_norm = :location_norm
-           AND category = :category
-           AND ((owner_user_id = :owner_user_id) OR (:owner_user_id IS NULL AND owner_user_id IS NULL))
-         LIMIT 1";
+    if ($ownerUserId === null) {
+        $findSql =
+            "SELECT id
+             FROM lead_harvest_jobs
+             WHERE keyword_norm = :keyword_norm
+               AND location_norm = :location_norm
+               AND category = :category
+               AND owner_user_id IS NULL
+             LIMIT 1";
+        $findParams = [
+            'keyword_norm' => $keywordNorm,
+            'location_norm' => $locationNorm,
+            'category' => $category,
+        ];
+    } else {
+        $findSql =
+            "SELECT id
+             FROM lead_harvest_jobs
+             WHERE keyword_norm = :keyword_norm
+               AND location_norm = :location_norm
+               AND category = :category
+               AND owner_user_id = :owner_user_id
+             LIMIT 1";
+        $findParams = [
+            'keyword_norm' => $keywordNorm,
+            'location_norm' => $locationNorm,
+            'category' => $category,
+            'owner_user_id' => $ownerUserId,
+        ];
+    }
 
     $findStmt = $pdo->prepare($findSql);
-    $findStmt->execute([
-        'keyword_norm' => $keywordNorm,
-        'location_norm' => $locationNorm,
-        'category' => $category,
-        'owner_user_id' => $ownerUserId,
-    ]);
+    $findStmt->execute($findParams);
 
     $existing = $findStmt->fetch(PDO::FETCH_ASSOC);
 
