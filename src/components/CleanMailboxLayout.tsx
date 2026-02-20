@@ -582,6 +582,29 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
     } catch { return []; }
   });
 
+  // Active drip campaign progress state
+  const [dripCampaignInfo, setDripCampaignInfo] = useState<{ active: boolean; totalLeads: number; sentCount: number; intervalSeconds: number; startedAt: string } | null>(null);
+
+  const syncDripInfo = () => {
+    try {
+      const raw = localStorage.getItem('bamlead_drip_active');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed.active) {
+          setDripCampaignInfo({
+            active: true,
+            totalLeads: parsed.leads?.length || 0,
+            sentCount: parsed.sentCount || 0,
+            intervalSeconds: parsed.interval || 12,
+            startedAt: parsed.startedAt || new Date().toISOString(),
+          });
+          return;
+        }
+      }
+      setDripCampaignInfo(null);
+    } catch { setDripCampaignInfo(null); }
+  };
+
   // Sync sent log from localStorage (updated by compose box or Step 3)
   useEffect(() => {
     const sync = () => {
@@ -589,14 +612,18 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
         const stored = localStorage.getItem(SENT_LOG_KEY);
         setSentEmailsLog(stored ? JSON.parse(stored) : []);
       } catch { /* ignore */ }
+      syncDripInfo();
     };
+    sync();
     window.addEventListener('storage', sync);
     window.addEventListener('bamlead_sent_update', sync);
     window.addEventListener('focus', sync);
+    const interval = setInterval(sync, 3000); // poll for drip progress
     return () => {
       window.removeEventListener('storage', sync);
       window.removeEventListener('bamlead_sent_update', sync);
       window.removeEventListener('focus', sync);
+      clearInterval(interval);
     };
   }, []);
 
@@ -1068,6 +1095,52 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                     </Button>
                   </div>
                 </div>
+
+                {/* Real-time drip progress bar */}
+                {(() => {
+                  const totalLeads = dripCampaignInfo?.totalLeads || campaignLeads.length || 0;
+                  const sentCount = sentEmailsLog.length;
+                  const isActive = dripCampaignInfo?.active && sentCount < totalLeads;
+                  const pct = totalLeads > 0 ? Math.round((sentCount / totalLeads) * 100) : 0;
+                  const remaining = Math.max(0, totalLeads - sentCount);
+                  const intervalSec = dripCampaignInfo?.intervalSeconds || 12;
+                  const etaSeconds = remaining * intervalSec;
+                  const etaMin = Math.floor(etaSeconds / 60);
+                  const etaSec = etaSeconds % 60;
+                  const etaStr = etaMin > 0 ? `${etaMin}m ${etaSec}s` : `${etaSec}s`;
+
+                  if (totalLeads === 0 && sentCount === 0) return null;
+
+                  return (
+                    <div className="rounded-lg border border-border/50 bg-card p-4 space-y-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground font-medium flex items-center gap-1.5">
+                          {isActive && <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />}
+                          {isActive ? 'Drip sending in progress…' : sentCount > 0 ? 'Campaign complete' : 'Ready'}
+                        </span>
+                        <span className="text-foreground font-semibold">{sentCount} / {totalLeads}</span>
+                      </div>
+                      <div className="relative h-3 w-full overflow-hidden rounded-full bg-secondary">
+                        <div
+                          className="h-full rounded-full bg-emerald-500 transition-all duration-700 ease-out"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                        <span>{pct}% complete</span>
+                        {isActive && remaining > 0 && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            ~{etaStr} remaining
+                          </span>
+                        )}
+                        {!isActive && sentCount > 0 && sentCount >= totalLeads && (
+                          <span className="text-emerald-400">✓ All emails sent</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {sentEmailsLog.length === 0 ? (
                   <div className="text-center py-16">
