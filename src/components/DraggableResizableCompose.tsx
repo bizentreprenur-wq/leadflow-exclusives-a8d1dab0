@@ -28,8 +28,8 @@ export default function DraggableResizableCompose({ children, onClose, tier = 'f
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Position & size state
-  const [pos, setPos] = useState({ x: 20, y: Math.max(20, window.innerHeight - 760) });
-  const [size, setSize] = useState({ w: Math.min(window.innerWidth - 40, 1400), h: 720 });
+  const [pos, setPos] = useState({ x: 20, y: Math.max(20, window.innerHeight - 620) });
+  const [size, setSize] = useState({ w: Math.min(window.innerWidth - 40, 1100), h: 580 });
   const [isMaximized, setIsMaximized] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [prevState, setPrevState] = useState<{ pos: typeof pos; size: typeof size } | null>(null);

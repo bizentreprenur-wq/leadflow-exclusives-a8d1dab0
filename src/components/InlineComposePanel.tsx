@@ -723,7 +723,7 @@ export default function InlineComposePanel({
                   contentEditable
                   suppressContentEditableWarning
                   onInput={handleEditableInput}
-                  className="min-h-[400px] outline-none text-sm leading-relaxed text-foreground [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg [&_a]:text-blue-400 [&_a]:underline [&_table]:border-collapse [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mb-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:mb-2 [&_h3]:text-lg [&_h3]:font-medium [&_h3]:mb-1 [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-1"
+                  className="min-h-[250px] outline-none text-sm leading-relaxed text-foreground [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg [&_a]:text-blue-400 [&_a]:underline [&_table]:border-collapse [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:mb-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:mb-2 [&_h3]:text-lg [&_h3]:font-medium [&_h3]:mb-1 [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-1"
                   style={{ wordBreak: 'break-word' }}
                 />
               ) : (
@@ -733,7 +733,7 @@ export default function InlineComposePanel({
                     setEmail(prev => ({ ...prev, body: e.target.value }));
                     if (bodyHtml !== null) setBodyHtml(e.target.value);
                   }}
-                  className="border-0 bg-transparent min-h-[400px] p-0 focus-visible:ring-0 shadow-none text-sm resize-none w-full"
+                  className="border-0 bg-transparent min-h-[250px] p-0 focus-visible:ring-0 shadow-none text-sm resize-none w-full"
                   placeholder="Compose your email here..."
                 />
               )}
