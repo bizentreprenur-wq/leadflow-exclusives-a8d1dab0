@@ -366,7 +366,16 @@ export default function InlineComposePanel({
       }
 
       // Drip-feed visual progress — remove chips one by one, store to shared sent log
-      const sentCount = result.results?.sent || leadsForSend.length;
+      const sentCount = typeof result.results?.sent === 'number' ? result.results.sent : leadsForSend.length;
+      const failedCount = result.results?.failed || 0;
+
+      if (sentCount === 0 && leadsForSend.length > 0) {
+        throw new Error(`Backend queued 0 of ${leadsForSend.length} emails. Check your SMTP credentials and try again.`);
+      }
+
+      if (failedCount > 0) {
+        toast.warning(`⚠️ ${failedCount} of ${leadsForSend.length} emails failed to send. Check SMTP settings.`);
+      }
       const sentItems: Array<{ email: string; name: string; sentAt: string }> = [];
       const dripDelayMs = Math.max(2000, dripInterval * 1000); // actual drip interval (min 2s for UX)
       
