@@ -275,27 +275,31 @@ export default function InlineComposePanel({
 
   // Auto-populate email from template (check for visual HTML template first)
   useEffect(() => {
-    if (email.subject || email.body || bodyHtml) return; // already populated
-
-    // Check for a visual HTML template from the template gallery/editor
+    // Always check localStorage for a visual HTML template with images FIRST
     try {
       const stored = localStorage.getItem('bamlead_selected_template');
       if (stored) {
         const template = JSON.parse(stored);
         if (template.body_html) {
-          setBodyHtml(template.body_html);
-          setEmail({ subject: template.subject || '', body: template.body_html });
+          // Only update if the stored template is different from current
+          if (bodyHtml !== template.body_html) {
+            setBodyHtml(template.body_html);
+            setEmail({ subject: template.subject || '', body: template.body_html });
+          }
           return;
         }
-        if (template.body) {
-          setEmail({ subject: template.subject || '', body: template.body || template.body_text || '' });
+        if (template.body || template.body_text) {
+          const body = template.body || template.body_text || '';
+          if (email.body !== body) {
+            setEmail({ subject: template.subject || '', body });
+          }
           return;
         }
       }
     } catch (e) {}
 
-    // Fallback to auto-suggested template
-    if (effectiveTemplate) {
+    // Only fall back to auto-suggested template if nothing is populated yet
+    if (!email.subject && !email.body && !bodyHtml && effectiveTemplate) {
       setEmail({ subject: effectiveTemplate.subject || '', body: effectiveTemplate.body || '' });
     }
   }, [effectiveTemplate]);
