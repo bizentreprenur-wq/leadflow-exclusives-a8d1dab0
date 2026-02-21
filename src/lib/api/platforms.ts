@@ -56,8 +56,7 @@ function isMockPlatformResult(r: PlatformResult): boolean {
 export type PlatformProgressCallback = (results: PlatformResult[], progress: number) => void;
 
 /**
- * Search platforms using legacy non-stream endpoint.
- * Option B rollback path: /api/platform-search.php (non custom one-shot).
+ * Search platforms using SSE streaming (preferred) with fallback to regular endpoint
  */
 export async function searchPlatforms(
   service: string,
@@ -69,7 +68,22 @@ export async function searchPlatforms(
   if (USE_MOCK_DATA) {
     throw new Error('Platform search backend is not configured. Set VITE_API_URL or deploy /api.');
   }
-  return await searchPlatformsRegular(service, location, platforms, onProgress, limit);
+
+  // Try SSE streaming first
+  try {
+    return await searchPlatformsStreaming(service, location, platforms, onProgress, limit);
+  } catch (streamError) {
+    const err = streamError instanceof Error ? streamError : new Error(String(streamError));
+    const message = (err.message || '').toLowerCase();
+    const streamMissing = message.includes('404') || message.includes('not found');
+
+    if (streamMissing) {
+      console.warn('[Platform API] Streaming endpoint not found, falling back to regular endpoint');
+      return await searchPlatformsRegular(service, location, platforms, onProgress, limit);
+    }
+
+    throw err;
+  }
 }
 
 /**
