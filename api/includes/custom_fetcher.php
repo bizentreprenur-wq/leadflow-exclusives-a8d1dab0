@@ -2225,7 +2225,7 @@ function customFetcherQuickProbeCacheKeyForUrl($url)
     return $scheme . '://' . $host;
 }
 
-function customFetcherQuickProbeApplySignals($lead, $emails, $phones)
+function customFetcherQuickProbeApplySignals($lead, $emails, $phones, $socials = [])
 {
     $emails = customFetcherUniqueCleanArray(array_filter((array) $emails, function ($email) {
         return trim((string) $email) !== '';
@@ -2233,6 +2233,7 @@ function customFetcherQuickProbeApplySignals($lead, $emails, $phones)
     $phones = customFetcherUniqueCleanArray(array_filter(array_map('customFetcherNormalizePrimaryPhone', (array) $phones), function ($phone) {
         return trim((string) $phone) !== '';
     }));
+    $socials = is_array($socials) ? $socials : [];
 
     $existingEmail = trim((string) ($lead['email'] ?? ''));
     $existingPhone = trim((string) ($lead['phone'] ?? ''));
@@ -2249,13 +2250,18 @@ function customFetcherQuickProbeApplySignals($lead, $emails, $phones)
 
     $baseEmails = isset($lead['enrichment']['emails']) && is_array($lead['enrichment']['emails']) ? $lead['enrichment']['emails'] : [];
     $basePhones = isset($lead['enrichment']['phones']) && is_array($lead['enrichment']['phones']) ? $lead['enrichment']['phones'] : [];
+    $baseSocials = isset($lead['enrichment']['socials']) && is_array($lead['enrichment']['socials']) ? $lead['enrichment']['socials'] : [];
     $mergedEmails = customFetcherUniqueCleanArray(array_merge($baseEmails, $emails));
     $mergedPhones = customFetcherUniqueCleanArray(array_merge($basePhones, $phones));
+    // Socials are keyed by platform — merge with new values overriding
+    $mergedSocials = array_merge($baseSocials, $socials);
 
     $lead['enrichment']['emails'] = array_slice($mergedEmails, 0, 5);
     $lead['enrichment']['phones'] = array_slice($mergedPhones, 0, 3);
+    $lead['enrichment']['socials'] = $mergedSocials;
     $lead['enrichment']['hasEmail'] = !empty($mergedEmails);
     $lead['enrichment']['hasPhone'] = !empty($mergedPhones);
+    $lead['enrichment']['hasSocials'] = !empty($mergedSocials);
     $lead['enrichment']['scrapedAt'] = gmdate('c');
 
     $sources = isset($lead['enrichment']['sources']) && is_array($lead['enrichment']['sources']) ? $lead['enrichment']['sources'] : [];
@@ -2263,6 +2269,44 @@ function customFetcherQuickProbeApplySignals($lead, $emails, $phones)
     $lead['enrichment']['sources'] = array_values(array_unique($sources));
 
     return $lead;
+}
+
+/**
+ * Extract social media profile URLs from HTML body.
+ * Returns associative array: ['facebook' => 'url', 'instagram' => 'url', ...]
+ * Zero-cost: runs regex on already-fetched HTML, no extra HTTP calls.
+ */
+function customFetcherExtractSocialLinks($html)
+{
+    $socials = [];
+    $patterns = [
+        'facebook'  => '/https?:\/\/(?:www\.)?facebook\.com\/[a-zA-Z0-9._\-]{2,}(?:\/)?/i',
+        'instagram' => '/https?:\/\/(?:www\.)?instagram\.com\/[a-zA-Z0-9._]{2,}(?:\/)?/i',
+        'linkedin'  => '/https?:\/\/(?:www\.)?linkedin\.com\/(?:in|company)\/[a-zA-Z0-9._\-]{2,}(?:\/)?/i',
+        'twitter'   => '/https?:\/\/(?:www\.)?(?:twitter\.com|x\.com)\/[a-zA-Z0-9_]{1,15}(?:\/)?/i',
+        'youtube'   => '/https?:\/\/(?:www\.)?youtube\.com\/(?:@|channel\/|c\/|user\/)[a-zA-Z0-9._\-]{2,}(?:\/)?/i',
+        'tiktok'    => '/https?:\/\/(?:www\.)?tiktok\.com\/@[a-zA-Z0-9._]{2,}(?:\/)?/i',
+        'yelp'      => '/https?:\/\/(?:www\.)?yelp\.com\/biz\/[a-zA-Z0-9._\-]{2,}(?:\/)?/i',
+    ];
+    $excludeFragments = ['/sharer', '/share', '/intent/', '/dialog/', '/plugins/', '/login', '/signup', '/help', '/about', '/policies', '/terms', '/privacy', '/legal'];
+
+    foreach ($patterns as $platform => $regex) {
+        if (isset($socials[$platform])) continue; // first match wins
+        if (preg_match_all($regex, $html, $matches)) {
+            foreach ($matches[0] as $url) {
+                $urlLower = strtolower($url);
+                $skip = false;
+                foreach ($excludeFragments as $frag) {
+                    if (strpos($urlLower, $frag) !== false) { $skip = true; break; }
+                }
+                if (!$skip) {
+                    $socials[$platform] = rtrim($url, '/');
+                    break; // one per platform
+                }
+            }
+        }
+    }
+    return $socials;
 }
 
 function customFetcherQuickEmailProbeLeads($leads, $timeout, $concurrency, $maxLeads)
@@ -2284,11 +2328,12 @@ function customFetcherQuickEmailProbeLeads($leads, $timeout, $concurrency, $maxL
         if ($cacheRoot !== '') {
             $cacheKey = 'custom_fetch_quick_probe_' . md5($cacheRoot);
             $cached = getCache($cacheKey);
-            if (is_array($cached) && (!empty($cached['emails']) || !empty($cached['phones']))) {
+            if (is_array($cached) && (!empty($cached['emails']) || !empty($cached['phones']) || !empty($cached['socials']))) {
                 $leads[$idx] = customFetcherQuickProbeApplySignals(
                     $lead,
                     $cached['emails'] ?? [],
-                    $cached['phones'] ?? []
+                    $cached['phones'] ?? [],
+                    $cached['socials'] ?? []
                 );
                 continue;
             }
@@ -2296,12 +2341,14 @@ function customFetcherQuickEmailProbeLeads($leads, $timeout, $concurrency, $maxL
                 'cacheKey' => $cacheKey,
                 'emails' => [],
                 'phones' => [],
+                'socials' => [],
             ];
         } else {
             $candidateMap[$idx] = [
                 'cacheKey' => '',
                 'emails' => [],
                 'phones' => [],
+                'socials' => [],
             ];
         }
 
@@ -2365,6 +2412,7 @@ function customFetcherQuickEmailProbeLeads($leads, $timeout, $concurrency, $maxL
             if ($httpCode >= 200 && $httpCode < 400 && $body !== '' && isset($candidateMap[$idx])) {
                 $candidateMap[$idx]['emails'] = array_merge($candidateMap[$idx]['emails'], extractEmails($body));
                 $candidateMap[$idx]['phones'] = array_merge($candidateMap[$idx]['phones'], extractPhoneNumbers($body));
+                $candidateMap[$idx]['socials'] = array_merge($candidateMap[$idx]['socials'], customFetcherExtractSocialLinks($body));
             }
 
             curl_multi_remove_handle($multi, $ch);
@@ -2384,15 +2432,17 @@ function customFetcherQuickEmailProbeLeads($leads, $timeout, $concurrency, $maxL
             continue;
         $emails = customFetcherUniqueCleanArray($signal['emails']);
         $phones = customFetcherUniqueCleanArray(array_map('customFetcherNormalizePrimaryPhone', $signal['phones']));
+        $socials = $signal['socials']; // already keyed by platform
 
-        if ($signal['cacheKey'] !== '' && (!empty($emails) || !empty($phones))) {
+        if ($signal['cacheKey'] !== '' && (!empty($emails) || !empty($phones) || !empty($socials))) {
             setCache($signal['cacheKey'], [
                 'emails' => array_slice($emails, 0, 5),
                 'phones' => array_slice($phones, 0, 3),
+                'socials' => $socials,
             ], 21600);
         }
 
-        $leads[$idx] = customFetcherQuickProbeApplySignals($leads[$idx], $emails, $phones);
+        $leads[$idx] = customFetcherQuickProbeApplySignals($leads[$idx], $emails, $phones, $socials);
     }
 
     return $leads;
