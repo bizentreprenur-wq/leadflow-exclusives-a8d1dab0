@@ -108,6 +108,18 @@ if (!defined('LEAD_HARVEST_TEXAS_CITY_SEED_LIMIT')) {
 if (!defined('LEAD_HARVEST_NON_TEXAS_SEED_LIMIT')) {
     define('LEAD_HARVEST_NON_TEXAS_SEED_LIMIT', 0); //120
 }
+if (!defined('LEAD_HARVEST_HOUSTON_FOCUS_MODE')) {
+    define('LEAD_HARVEST_HOUSTON_FOCUS_MODE', true);
+}
+if (!defined('LEAD_HARVEST_HOUSTON_ONLY_MODE')) {
+    define('LEAD_HARVEST_HOUSTON_ONLY_MODE', false);
+}
+if (!defined('LEAD_HARVEST_HOUSTON_PRIORITY_PERCENT')) {
+    define('LEAD_HARVEST_HOUSTON_PRIORITY_PERCENT', 65);
+}
+if (!defined('LEAD_HARVEST_HOUSTON_SEED_LIMIT')) {
+    define('LEAD_HARVEST_HOUSTON_SEED_LIMIT', 90);
+}
 
 $options = getopt('', [
     'once',
@@ -758,6 +770,67 @@ function autonomousKeywordSeeds()
 
 function autonomousLocationSeeds()
 {
+    $houstonAreaSeeds = [
+        'Houston, TX',
+        'Downtown Houston, TX',
+        'Midtown Houston, TX',
+        'Uptown Houston, TX',
+        'Galleria Houston, TX',
+        'Energy Corridor Houston, TX',
+        'Memorial Houston, TX',
+        'Westchase Houston, TX',
+        'River Oaks Houston, TX',
+        'Montrose Houston, TX',
+        'Museum District Houston, TX',
+        'Medical Center Houston, TX',
+        'Heights Houston, TX',
+        'Spring Branch Houston, TX',
+        'Garden Oaks Houston, TX',
+        'Oak Forest Houston, TX',
+        'Aldine Houston, TX',
+        'Greenspoint Houston, TX',
+        'Willowbrook Houston, TX',
+        'Katy Houston, TX',
+        'Meyerland Houston, TX',
+        'Bellaire Houston, TX',
+        'West University Houston, TX',
+        'Alief Houston, TX',
+        'Chinatown Houston, TX',
+        'Gulfton Houston, TX',
+        'Upper Kirby Houston, TX',
+        'East End Houston, TX',
+        'EaDo Houston, TX',
+        'Third Ward Houston, TX',
+        'Sunnyside Houston, TX',
+        'Southwest Houston, TX',
+        'West Houston, TX',
+        'Northwest Houston, TX',
+        'Northeast Houston, TX',
+        'Southeast Houston, TX',
+        'Clear Lake Houston, TX',
+        'Pearland Houston, TX',
+        'Pasadena Houston, TX',
+        'Channelview Houston, TX',
+        'Deer Park Houston, TX',
+        'Baytown Houston, TX',
+        'Humble Houston, TX',
+        'Kingwood Houston, TX',
+        'Spring Houston, TX',
+        'The Woodlands Houston, TX',
+        'Conroe Houston, TX',
+        'Tomball Houston, TX',
+        'Cypress Houston, TX',
+        'Missouri City Houston, TX',
+        'Sugar Land Houston, TX',
+        'Stafford Houston, TX',
+        'Richmond Houston, TX',
+        'Fulshear Houston, TX',
+        'League City Houston, TX',
+        'Texas City Houston, TX',
+        'Galveston Houston, TX',
+        'Piney Point Houston, TX',
+    ];
+
     $texasCities = [
         'Houston', 'San Antonio', 'Dallas', 'Austin', 'Fort Worth', 'El Paso', 'Arlington', 'Corpus Christi',
         'Plano', 'Lubbock', 'Laredo', 'Irving', 'Garland', 'Frisco', 'McKinney', 'Amarillo', 'Grand Prairie',
@@ -819,6 +892,17 @@ function autonomousLocationSeeds()
         'WY' => 'Wyoming',
     ];
 
+    $houstonSeeds = [];
+    foreach ($houstonAreaSeeds as $seed) {
+        $seed = trim((string) $seed);
+        if ($seed === '') {
+            continue;
+        }
+        $houstonSeeds[] = $seed;
+    }
+    $houstonSeeds[] = 'Houston Metro, TX';
+    $houstonSeeds[] = 'Houston Area, TX';
+
     $texasSeeds = [];
     foreach ($texasCities as $city) {
         $city = trim((string) $city);
@@ -866,8 +950,28 @@ function autonomousLocationSeeds()
         }
     }
 
-    $uniqueTexas = [];
+    $uniqueHouston = [];
     $seen = [];
+    foreach ($houstonSeeds as $seed) {
+        $normalized = normalizeIndexValue($seed);
+        if ($normalized === '' || isset($seen[$normalized])) {
+            continue;
+        }
+        $seen[$normalized] = true;
+        $uniqueHouston[] = $seed;
+    }
+    if (defined('LEAD_HARVEST_HOUSTON_SEED_LIMIT')) {
+        $maxHouston = max(1, (int) LEAD_HARVEST_HOUSTON_SEED_LIMIT);
+        if (count($uniqueHouston) > $maxHouston) {
+            $uniqueHouston = array_slice($uniqueHouston, 0, $maxHouston);
+        }
+    }
+
+    if (LEAD_HARVEST_HOUSTON_ONLY_MODE) {
+        return $uniqueHouston;
+    }
+
+    $uniqueTexas = [];
     foreach ($texasSeeds as $seed) {
         $normalized = normalizeIndexValue($seed);
         if ($normalized === '' || isset($seen[$normalized])) {
@@ -884,7 +988,7 @@ function autonomousLocationSeeds()
     }
 
     if (LEAD_HARVEST_TEXAS_ONLY_MODE) {
-        return $uniqueTexas;
+        return array_merge($uniqueHouston, $uniqueTexas);
     }
 
     $uniqueNonTexas = [];
@@ -906,10 +1010,10 @@ function autonomousLocationSeeds()
     }
 
     if (LEAD_HARVEST_TEXAS_FOCUS_MODE) {
-        return array_merge($uniqueTexas, $uniqueNonTexas);
+        return array_merge($uniqueHouston, $uniqueTexas, $uniqueNonTexas);
     }
 
-    return array_merge($uniqueNonTexas, $uniqueTexas);
+    return array_merge($uniqueNonTexas, $uniqueHouston, $uniqueTexas);
 }
 
 function isTexasLocationSeed($location)
@@ -924,21 +1028,52 @@ function isTexasLocationSeed($location)
     return $norm === 'tx us' || $norm === 'texas us';
 }
 
+function isHoustonLocationSeed($location)
+{
+    $norm = normalizeIndexValue($location);
+    if ($norm === '') {
+        return false;
+    }
+    return strpos($norm, 'houston') !== false;
+}
+
 function splitAutonomousLocationPools(array $locationPool)
 {
+    $houston = [];
     $texas = [];
     $other = [];
     foreach ($locationPool as $location) {
-        if (isTexasLocationSeed($location)) {
+        if (isHoustonLocationSeed($location)) {
+            $houston[] = $location;
+        } elseif (isTexasLocationSeed($location)) {
             $texas[] = $location;
         } else {
             $other[] = $location;
         }
     }
     return [
+        'houston' => $houston,
         'texas' => $texas,
         'other' => $other,
     ];
+}
+
+function shouldPreferHoustonLocation($tick)
+{
+    if (!LEAD_HARVEST_HOUSTON_FOCUS_MODE && !LEAD_HARVEST_HOUSTON_ONLY_MODE) {
+        return false;
+    }
+
+    $percent = clampInt((int) LEAD_HARVEST_HOUSTON_PRIORITY_PERCENT, 0, 100);
+    if (LEAD_HARVEST_HOUSTON_ONLY_MODE || $percent >= 100) {
+        return true;
+    }
+    if ($percent <= 0) {
+        return false;
+    }
+
+    $bucket = ((int) $tick) % 100;
+    return $bucket < $percent;
 }
 
 function shouldPreferTexasLocation($tick)
@@ -961,8 +1096,14 @@ function shouldPreferTexasLocation($tick)
 
 function pickAutonomousLocation(array $locationPools, $tick)
 {
+    $houstonPool = (array) ($locationPools['houston'] ?? []);
     $texasPool = (array) ($locationPools['texas'] ?? []);
     $otherPool = (array) ($locationPools['other'] ?? []);
+
+    $preferHouston = shouldPreferHoustonLocation($tick);
+    if ($preferHouston && !empty($houstonPool)) {
+        return $houstonPool[((int) $tick) % count($houstonPool)];
+    }
 
     $preferTexas = shouldPreferTexasLocation($tick);
     if ($preferTexas && !empty($texasPool)) {
@@ -973,6 +1114,9 @@ function pickAutonomousLocation(array $locationPools, $tick)
     }
     if (!empty($texasPool)) {
         return $texasPool[((int) $tick) % count($texasPool)];
+    }
+    if (!empty($houstonPool)) {
+        return $houstonPool[((int) $tick) % count($houstonPool)];
     }
 
     return '';
