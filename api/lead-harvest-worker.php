@@ -34,7 +34,7 @@ if (!defined('LEAD_HARVEST_WORKER_IDLE_SLEEP_SEC')) {
     define('LEAD_HARVEST_WORKER_IDLE_SLEEP_SEC', 20);
 }
 if (!defined('LEAD_HARVEST_MAX_LIMIT_PER_JOB')) {
-    define('LEAD_HARVEST_MAX_LIMIT_PER_JOB', 1500);
+    define('LEAD_HARVEST_MAX_LIMIT_PER_JOB', 3000);
 }
 if (!defined('LEAD_HARVEST_MIN_LIMIT_PER_JOB')) {
     define('LEAD_HARVEST_MIN_LIMIT_PER_JOB', 20);
@@ -55,31 +55,31 @@ if (!defined('LEAD_HARVEST_AUTONOMOUS_MAX_ACTIVE_JOBS')) {
     define('LEAD_HARVEST_AUTONOMOUS_MAX_ACTIVE_JOBS', 3000);
 }
 if (!defined('LEAD_HARVEST_AUTONOMOUS_INSERT_PER_IDLE')) {
-    define('LEAD_HARVEST_AUTONOMOUS_INSERT_PER_IDLE', 10);
+    define('LEAD_HARVEST_AUTONOMOUS_INSERT_PER_IDLE', 30);
 }
 if (!defined('LEAD_HARVEST_AUTONOMOUS_DEFAULT_LIMIT')) {
-    define('LEAD_HARVEST_AUTONOMOUS_DEFAULT_LIMIT', 120);
+    define('LEAD_HARVEST_AUTONOMOUS_DEFAULT_LIMIT', 250);
 }
 if (!defined('LEAD_HARVEST_AUTONOMOUS_INTERVAL_MINUTES')) {
-    define('LEAD_HARVEST_AUTONOMOUS_INTERVAL_MINUTES', 120);
+    define('LEAD_HARVEST_AUTONOMOUS_INTERVAL_MINUTES', 45);
 }
 if (!defined('LEAD_HARVEST_STALE_RUNNING_MINUTES')) {
     define('LEAD_HARVEST_STALE_RUNNING_MINUTES', 30);
 }
 if (!defined('LEAD_HARVEST_ONCE_BATCH_JOBS')) {
-    define('LEAD_HARVEST_ONCE_BATCH_JOBS', 6);
+    define('LEAD_HARVEST_ONCE_BATCH_JOBS', 12);
 }
 if (!defined('LEAD_HARVEST_FALLBACK_QUERY_MAX')) {
-    define('LEAD_HARVEST_FALLBACK_QUERY_MAX', 40);
+    define('LEAD_HARVEST_FALLBACK_QUERY_MAX', 80);
 }
 if (!defined('LEAD_HARVEST_AUTONOMOUS_MAX_DUE_JOBS')) {
-    define('LEAD_HARVEST_AUTONOMOUS_MAX_DUE_JOBS', 120);
+    define('LEAD_HARVEST_AUTONOMOUS_MAX_DUE_JOBS', 600);
 }
 if (!defined('LEAD_HARVEST_DIRECT_AUTONOMOUS_MODE')) {
     define('LEAD_HARVEST_DIRECT_AUTONOMOUS_MODE', true);
 }
 if (!defined('LEAD_HARVEST_DIRECT_BATCH_JOBS')) {
-    define('LEAD_HARVEST_DIRECT_BATCH_JOBS', 3);
+    define('LEAD_HARVEST_DIRECT_BATCH_JOBS', 8);
 }
 if (!defined('LEAD_HARVEST_DB_RECONNECT_RETRIES')) {
     define('LEAD_HARVEST_DB_RECONNECT_RETRIES', 2);
@@ -88,10 +88,25 @@ if (!defined('LEAD_HARVEST_NO_KEY_TIMEOUT_SEC')) {
     define('LEAD_HARVEST_NO_KEY_TIMEOUT_SEC', 8);
 }
 if (!defined('LEAD_HARVEST_NO_KEY_PER_QUERY_LIMIT')) {
-    define('LEAD_HARVEST_NO_KEY_PER_QUERY_LIMIT', 80);
+    define('LEAD_HARVEST_NO_KEY_PER_QUERY_LIMIT', 140);
 }
 if (!defined('LEAD_HARVEST_NO_KEY_MAX_QUERIES_PER_JOB')) {
-    define('LEAD_HARVEST_NO_KEY_MAX_QUERIES_PER_JOB', 36);
+    define('LEAD_HARVEST_NO_KEY_MAX_QUERIES_PER_JOB', 70);
+}
+if (!defined('LEAD_HARVEST_TEXAS_FOCUS_MODE')) {
+    define('LEAD_HARVEST_TEXAS_FOCUS_MODE', true);
+}
+if (!defined('LEAD_HARVEST_TEXAS_ONLY_MODE')) {
+    define('LEAD_HARVEST_TEXAS_ONLY_MODE', true); //false
+}
+if (!defined('LEAD_HARVEST_TEXAS_PRIORITY_PERCENT')) {
+    define('LEAD_HARVEST_TEXAS_PRIORITY_PERCENT', 100); //95
+}
+if (!defined('LEAD_HARVEST_TEXAS_CITY_SEED_LIMIT')) {
+    define('LEAD_HARVEST_TEXAS_CITY_SEED_LIMIT', 240);
+}
+if (!defined('LEAD_HARVEST_NON_TEXAS_SEED_LIMIT')) {
+    define('LEAD_HARVEST_NON_TEXAS_SEED_LIMIT', 0); //120
 }
 
 $options = getopt('', [
@@ -668,23 +683,64 @@ function autonomousKeywordSeeds()
 {
     return [
         ['keyword' => 'plumbers', 'category' => 'home_services'],
+        ['keyword' => 'plumbing companies', 'category' => 'home_services'],
         ['keyword' => 'electricians', 'category' => 'home_services'],
+        ['keyword' => 'electrical contractors', 'category' => 'home_services'],
         ['keyword' => 'hvac contractors', 'category' => 'home_services'],
+        ['keyword' => 'roofing contractors', 'category' => 'home_services'],
         ['keyword' => 'roofing companies', 'category' => 'home_services'],
+        ['keyword' => 'tree service companies', 'category' => 'home_services'],
+        ['keyword' => 'general contractors', 'category' => 'home_services'],
+        ['keyword' => 'concrete contractors', 'category' => 'home_services'],
+        ['keyword' => 'fence companies', 'category' => 'home_services'],
+        ['keyword' => 'landscaping companies', 'category' => 'home_services'],
         ['keyword' => 'landscaping services', 'category' => 'home_services'],
+        ['keyword' => 'lawn care services', 'category' => 'home_services'],
+        ['keyword' => 'pressure washing companies', 'category' => 'home_services'],
+        ['keyword' => 'gutter installation companies', 'category' => 'home_services'],
+        ['keyword' => 'solar installation companies', 'category' => 'home_services'],
+        ['keyword' => 'garage door repair companies', 'category' => 'home_services'],
         ['keyword' => 'pest control', 'category' => 'home_services'],
+        ['keyword' => 'security camera installation companies', 'category' => 'home_services'],
+        ['keyword' => 'pool cleaning services', 'category' => 'home_services'],
+        ['keyword' => 'pool builders', 'category' => 'home_services'],
+        ['keyword' => 'masons', 'category' => 'home_services'],
+        ['keyword' => 'carpenters', 'category' => 'home_services'],
         ['keyword' => 'auto repair shops', 'category' => 'automotive'],
+        ['keyword' => 'independent auto repair shops', 'category' => 'automotive'],
         ['keyword' => 'collision repair', 'category' => 'automotive'],
         ['keyword' => 'car detailing', 'category' => 'automotive'],
+        ['keyword' => 'mobile car detailers', 'category' => 'automotive'],
+        ['keyword' => 'mobile mechanics', 'category' => 'automotive'],
+        ['keyword' => 'towing companies', 'category' => 'automotive'],
+        ['keyword' => 'moving companies', 'category' => 'local_services'],
+        ['keyword' => 'dumpster rental companies', 'category' => 'local_services'],
+        ['keyword' => 'roll-off waste companies', 'category' => 'local_services'],
+        ['keyword' => 'commercial cleaning companies', 'category' => 'local_services'],
+        ['keyword' => 'photographers', 'category' => 'local_services'],
         ['keyword' => 'dentists', 'category' => 'healthcare'],
         ['keyword' => 'chiropractors', 'category' => 'healthcare'],
+        ['keyword' => 'home care agencies', 'category' => 'healthcare'],
+        ['keyword' => 'non-emergency medical transportation', 'category' => 'healthcare'],
+        ['keyword' => 'medical courier services', 'category' => 'healthcare'],
+        ['keyword' => 'assisted living facilities', 'category' => 'healthcare'],
+        ['keyword' => 'daycare centers', 'category' => 'education'],
+        ['keyword' => 'small private schools', 'category' => 'education'],
+        ['keyword' => 'churches', 'category' => 'community'],
+        ['keyword' => 'funeral homes', 'category' => 'community'],
         ['keyword' => 'physical therapy clinics', 'category' => 'healthcare'],
         ['keyword' => 'family law attorneys', 'category' => 'legal'],
         ['keyword' => 'personal injury attorneys', 'category' => 'legal'],
         ['keyword' => 'accounting firms', 'category' => 'finance'],
+        ['keyword' => 'local insurance agencies', 'category' => 'finance'],
+        ['keyword' => 'tax preparation services', 'category' => 'finance'],
+        ['keyword' => 'bail bond companies', 'category' => 'finance'],
         ['keyword' => 'bookkeeping services', 'category' => 'finance'],
         ['keyword' => 'real estate agents', 'category' => 'real_estate'],
         ['keyword' => 'property management companies', 'category' => 'real_estate'],
+        ['keyword' => 'mold remediation companies', 'category' => 'restoration'],
+        ['keyword' => 'water damage restoration companies', 'category' => 'restoration'],
+        ['keyword' => 'fire restoration companies', 'category' => 'restoration'],
         ['keyword' => 'restaurants', 'category' => 'food'],
         ['keyword' => 'coffee shops', 'category' => 'food'],
         ['keyword' => 'marketing agencies', 'category' => 'b2b_services'],
@@ -702,6 +758,39 @@ function autonomousKeywordSeeds()
 
 function autonomousLocationSeeds()
 {
+    $texasCities = [
+        'Houston', 'San Antonio', 'Dallas', 'Austin', 'Fort Worth', 'El Paso', 'Arlington', 'Corpus Christi',
+        'Plano', 'Lubbock', 'Laredo', 'Irving', 'Garland', 'Frisco', 'McKinney', 'Amarillo', 'Grand Prairie',
+        'Brownsville', 'Pasadena', 'Killeen', 'McAllen', 'Mesquite', 'Denton', 'Waco', 'Carrollton', 'Midland',
+        'Abilene', 'Beaumont', 'Round Rock', 'Odessa', 'Wichita Falls', 'Richardson', 'Lewisville', 'Tyler',
+        'College Station', 'Pearland', 'San Angelo', 'Allen', 'League City', 'Sugar Land', 'Longview',
+        'Edinburg', 'Mission', 'Bryan', 'Pharr', 'Baytown', 'Temple', 'Missouri City', 'Flower Mound',
+        'Harlingen', 'North Richland Hills', 'Victoria', 'Conroe', 'New Braunfels', 'Mansfield', 'Cedar Park',
+        'Rowlett', 'Georgetown', 'Pflugerville', 'Port Arthur', 'Euless', 'DeSoto', 'San Marcos', 'Grapevine',
+        'Bedford', 'Galveston', 'Coppell', 'Texas City', 'Katy', 'Cypress', 'The Woodlands', 'Huntsville',
+        'Sherman', 'Texarkana', 'Haltom City', 'Burleson', 'Keller', 'Rockwall', 'Lancaster', 'Harker Heights',
+        'Little Elm', 'Wylie', 'Duncanville', 'Cleburne', 'Friendswood', 'La Porte', 'Nacogdoches', 'Uvalde',
+        'Del Rio', 'Seguin', 'Schertz', 'Kyle', 'Leander', 'Bastrop', 'Buda', 'Forney', 'Waxahachie',
+        'Southlake', 'Colleyville', 'Farmers Branch', 'Addison', 'Balch Springs', 'Ennis', 'Corsicana',
+        'Greenville', 'Denison', 'Paris', 'Stephenville', 'Granbury', 'Weatherford', 'Aledo', 'Mineral Wells',
+        'Lake Jackson', 'Freeport', 'Rosenberg', 'Richmond', 'Kerrville', 'Boerne', 'New Caney', 'Spring',
+        'Atascocita', 'Humble', 'Kingwood', 'Canyon', 'Pampa', 'Borger', 'Hereford', 'Plainview', 'Levelland',
+        'Big Spring', 'Andrews', 'Fort Stockton', 'Eagle Pass', 'Rio Grande City', 'Weslaco', 'Mercedes',
+        'San Juan', 'Alamo', 'Donna', 'La Feria', 'Port Isabel', 'South Padre Island', 'Alice', 'Kingsville',
+        'Portland', 'Rockport', 'Aransas Pass', 'Fulshear', 'Mont Belvieu', 'Bellville', 'Sealy', 'Brenham',
+        'Navasota', 'Caldwell', 'Madisonville', 'Sulphur Springs', 'Mount Pleasant', 'Marshall', 'Kilgore',
+        'Henderson', 'Jacksonville', 'Palestine', 'Lufkin', 'Crockett', 'Livingston', 'Liberty', 'Dayton',
+        'Carthage', 'Center', 'Athens', 'Terrell', 'Canton', 'Mineola', 'Lindale', 'Whitehouse', 'Bowie',
+        'Decatur', 'Gainesville', 'Sanger', 'Prosper', 'Celina', 'Melissa', 'Princeton', 'Anna', 'Aubrey',
+        'Murphy', 'Sachse', 'Heath', 'Fate', 'Royse City', 'Benbrook', 'Saginaw', 'Azle', 'Midlothian',
+        'Crowley', 'Granite Shoals', 'Burnet', 'Marble Falls', 'Liberty Hill', 'Bee Cave', 'Lakeway', 'Dripping Springs',
+        'Fredericksburg', 'Hutto', 'Taylor', 'Elgin', 'Lockhart', 'Luling', 'Gonzales', 'Cuero', 'Beeville',
+        'Pleasanton', 'Floresville', 'Pearsall', 'Carrizo Springs', 'Crystal City', 'Brady', 'Brownwood',
+        'Lampasas', 'Killeen', 'Belton', 'Hewitt', 'Woodway', 'Mexia', 'Groesbeck', 'Robstown', 'Sinton',
+        'Yoakum', 'Wharton', 'El Campo', 'Bay City', 'Clute', 'Angleton', 'Needville', 'Willis', 'Magnolia',
+        'Tomball', 'Jersey Village', 'Stafford', 'Bellaire', 'West University Place', 'Channelview',
+    ];
+
     $stateToAnchorCity = [
         'AL' => 'Birmingham', 'AK' => 'Anchorage', 'AZ' => 'Phoenix', 'AR' => 'Little Rock', 'CA' => 'Los Angeles',
         'CO' => 'Denver', 'CT' => 'Bridgeport', 'DE' => 'Wilmington', 'DC' => 'Washington', 'FL' => 'Miami',
@@ -730,40 +819,163 @@ function autonomousLocationSeeds()
         'WY' => 'Wyoming',
     ];
 
-    $seeds = [];
+    $texasSeeds = [];
+    foreach ($texasCities as $city) {
+        $city = trim((string) $city);
+        if ($city === '') {
+            continue;
+        }
+        $texasSeeds[] = "{$city}, TX";
+    }
+    if (function_exists('getStateCityShards')) {
+        $txShards = getStateCityShards('TX');
+        foreach ((array) $txShards as $shard) {
+            $shard = trim((string) $shard);
+            if ($shard !== '') {
+                $texasSeeds[] = $shard;
+            }
+        }
+    }
+    $texasSeeds[] = 'Texas, US';
+    $texasSeeds[] = 'TX, US';
+
+    $nonTexasSeeds = [];
     foreach ($stateToAnchorCity as $stateCode => $city) {
-        $seeds[] = "{$city}, {$stateCode}";
+        if ($stateCode === 'TX') {
+            continue;
+        }
+        $nonTexasSeeds[] = "{$city}, {$stateCode}";
     }
 
-    // Add state-wide targets so every U.S. state can be covered even when city-level search is sparse.
+    // Add state-wide targets so every U.S. state can still be covered when needed.
     foreach ($stateNames as $stateCode => $stateName) {
-        $seeds[] = "{$stateName}, US";
-        $seeds[] = "{$stateCode}, US";
+        if ($stateCode === 'TX') {
+            continue;
+        }
+        $nonTexasSeeds[] = "{$stateName}, US";
+        $nonTexasSeeds[] = "{$stateCode}, US";
 
         if (function_exists('getStateCityShards')) {
             $shards = getStateCityShards($stateCode);
             foreach ((array) $shards as $shard) {
                 $shard = trim((string) $shard);
                 if ($shard !== '') {
-                    $seeds[] = $shard;
+                    $nonTexasSeeds[] = $shard;
                 }
             }
         }
     }
 
-    // Keep deterministic order while removing duplicates.
-    $unique = [];
+    $uniqueTexas = [];
     $seen = [];
-    foreach ($seeds as $seed) {
+    foreach ($texasSeeds as $seed) {
         $normalized = normalizeIndexValue($seed);
         if ($normalized === '' || isset($seen[$normalized])) {
             continue;
         }
         $seen[$normalized] = true;
-        $unique[] = $seed;
+        $uniqueTexas[] = $seed;
+    }
+    if (defined('LEAD_HARVEST_TEXAS_CITY_SEED_LIMIT')) {
+        $maxTexas = max(1, (int) LEAD_HARVEST_TEXAS_CITY_SEED_LIMIT);
+        if (count($uniqueTexas) > $maxTexas) {
+            $uniqueTexas = array_slice($uniqueTexas, 0, $maxTexas);
+        }
     }
 
-    return $unique;
+    if (LEAD_HARVEST_TEXAS_ONLY_MODE) {
+        return $uniqueTexas;
+    }
+
+    $uniqueNonTexas = [];
+    foreach ($nonTexasSeeds as $seed) {
+        $normalized = normalizeIndexValue($seed);
+        if ($normalized === '' || isset($seen[$normalized])) {
+            continue;
+        }
+        $seen[$normalized] = true;
+        $uniqueNonTexas[] = $seed;
+    }
+    if (defined('LEAD_HARVEST_NON_TEXAS_SEED_LIMIT')) {
+        $maxNonTexas = max(0, (int) LEAD_HARVEST_NON_TEXAS_SEED_LIMIT);
+        if ($maxNonTexas === 0) {
+            $uniqueNonTexas = [];
+        } elseif (count($uniqueNonTexas) > $maxNonTexas) {
+            $uniqueNonTexas = array_slice($uniqueNonTexas, 0, $maxNonTexas);
+        }
+    }
+
+    if (LEAD_HARVEST_TEXAS_FOCUS_MODE) {
+        return array_merge($uniqueTexas, $uniqueNonTexas);
+    }
+
+    return array_merge($uniqueNonTexas, $uniqueTexas);
+}
+
+function isTexasLocationSeed($location)
+{
+    $norm = normalizeIndexValue($location);
+    if ($norm === '') {
+        return false;
+    }
+    if (strpos($norm, ' tx') !== false || strpos($norm, ' texas') !== false) {
+        return true;
+    }
+    return $norm === 'tx us' || $norm === 'texas us';
+}
+
+function splitAutonomousLocationPools(array $locationPool)
+{
+    $texas = [];
+    $other = [];
+    foreach ($locationPool as $location) {
+        if (isTexasLocationSeed($location)) {
+            $texas[] = $location;
+        } else {
+            $other[] = $location;
+        }
+    }
+    return [
+        'texas' => $texas,
+        'other' => $other,
+    ];
+}
+
+function shouldPreferTexasLocation($tick)
+{
+    if (!LEAD_HARVEST_TEXAS_FOCUS_MODE && !LEAD_HARVEST_TEXAS_ONLY_MODE) {
+        return false;
+    }
+
+    $percent = clampInt((int) LEAD_HARVEST_TEXAS_PRIORITY_PERCENT, 0, 100);
+    if (LEAD_HARVEST_TEXAS_ONLY_MODE || $percent >= 100) {
+        return true;
+    }
+    if ($percent <= 0) {
+        return false;
+    }
+
+    $bucket = ((int) $tick) % 100;
+    return $bucket < $percent;
+}
+
+function pickAutonomousLocation(array $locationPools, $tick)
+{
+    $texasPool = (array) ($locationPools['texas'] ?? []);
+    $otherPool = (array) ($locationPools['other'] ?? []);
+
+    $preferTexas = shouldPreferTexasLocation($tick);
+    if ($preferTexas && !empty($texasPool)) {
+        return $texasPool[((int) $tick) % count($texasPool)];
+    }
+    if (!empty($otherPool)) {
+        return $otherPool[((int) $tick) % count($otherPool)];
+    }
+    if (!empty($texasPool)) {
+        return $texasPool[((int) $tick) % count($texasPool)];
+    }
+
+    return '';
 }
 
 function queueAutonomousJobsIfEnabled(PDO $pdo)
@@ -832,6 +1044,7 @@ function queueAutonomousJobsIfEnabled(PDO $pdo)
 
     // Balanced round-robin over keywords so inserted jobs are not skewed to a single keyword.
     $keywordCount = count($keywordPool);
+    $locationPools = splitAutonomousLocationPools($locationPool);
     $locationCount = count($locationPool);
     $seedTick = (int) floor(time() / 300);
     $maxCandidateSteps = min($keywordCount * $locationCount, max(200, $slots * 30));
@@ -874,11 +1087,15 @@ function queueAutonomousJobsIfEnabled(PDO $pdo)
         }
 
         $kwIdx = ($seedTick + $step) % $keywordCount;
-        $locIdx = ((int) floor($seedTick / max(1, $keywordCount)) + $step) % $locationCount;
+        $locationTick = ((int) floor($seedTick / max(1, $keywordCount)) + $step);
+        $pickedLocation = pickAutonomousLocation($locationPools, $locationTick);
+        if ($pickedLocation === '') {
+            continue;
+        }
         $combo = [
             'keyword' => $keywordPool[$kwIdx]['keyword'],
             'category' => $keywordPool[$kwIdx]['category'],
-            'location' => $locationPool[$locIdx],
+            'location' => $pickedLocation,
         ];
 
         $keywordNorm = normalizeIndexValue($combo['keyword']);
@@ -924,7 +1141,14 @@ function runDirectAutonomousBatch(PDO &$pdo, $batchSize)
 
     $processed = 0;
     $keywordCount = count($keywords);
-    $locationCount = count($locations);
+    $locationPool = [];
+    foreach ($locations as $location) {
+        $location = trim((string) $location);
+        if ($location !== '') {
+            $locationPool[] = $location;
+        }
+    }
+    $locationPools = splitAutonomousLocationPools($locationPool);
     $seedTick = (int) floor(time() / 300);
 
     for ($i = 0; $i < $batchSize; $i++) {
@@ -934,12 +1158,13 @@ function runDirectAutonomousBatch(PDO &$pdo, $batchSize)
         }
 
         $kwIdx = ($seedTick + $i) % $keywordCount;
-        $locIdx = (($seedTick * 7) + ($i * 13)) % $locationCount;
+        $locationTick = (($seedTick * 7) + ($i * 13));
+        $pickedLocation = pickAutonomousLocation($locationPools, $locationTick);
 
         $seed = $keywords[$kwIdx];
         $keyword = trim((string) ($seed['keyword'] ?? ''));
         $category = trim((string) ($seed['category'] ?? 'general'));
-        $location = trim((string) ($locations[$locIdx] ?? ''));
+        $location = trim((string) $pickedLocation);
         if ($keyword === '' || $location === '') {
             continue;
         }
@@ -1696,6 +1921,16 @@ function customFetcherSearchNoKey($query, $limit)
             'name' => 'bing',
             'url' => 'https://www.bing.com/search?q=' . urlencode((string) $query),
             'parser' => 'workerParseBingHtml',
+        ],
+        [
+            'name' => 'startpage',
+            'url' => 'https://www.startpage.com/do/dsearch?query=' . urlencode((string) $query) . '&cat=web&language=english',
+            'parser' => 'workerParseGenericSearchHtml',
+        ],
+        [
+            'name' => 'yahoo',
+            'url' => 'https://search.yahoo.com/search?p=' . urlencode((string) $query),
+            'parser' => 'workerParseGenericSearchHtml',
         ],
     ];
 
