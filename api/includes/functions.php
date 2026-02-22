@@ -1315,18 +1315,19 @@ function buildBusinessDedupeKey($business, $context = '') {
  * Minimum acceptable fill ratio for search results.
  */
 function getSearchFillTargetRatio() {
-    $ratio = defined('SEARCH_FILL_TARGET_RATIO') ? (float)SEARCH_FILL_TARGET_RATIO : 0.95;
+    $ratio = defined('SEARCH_FILL_TARGET_RATIO') ? (float)SEARCH_FILL_TARGET_RATIO : 1.25;
     if ($ratio < 0.5) {
         $ratio = 0.5;
     }
-    if ($ratio > 1.0) {
-        $ratio = 1.0;
+    if ($ratio > 2.0) {
+        $ratio = 2.0;
     }
     return $ratio;
 }
 
 /**
  * Minimum acceptable result count for a requested limit.
+ * Always targets MORE than what was requested to guarantee over-delivery.
  */
 function getSearchFillTargetCount($limit) {
     $limit = max(1, (int)$limit);
