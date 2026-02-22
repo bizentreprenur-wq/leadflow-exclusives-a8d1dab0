@@ -2394,7 +2394,7 @@ function customFetcherQuickEmailProbeLeads($leads, $timeout, $concurrency, $maxL
             ];
         }
 
-        $pages = customFetcherPageUrls($url, 8);
+        $pages = customFetcherPageUrls($url, 3); // Only homepage + /contact + /about for speed
         foreach ($pages as $pageUrl) {
             $networkTasks[] = [
                 'idx' => $idx,
@@ -3659,6 +3659,7 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
     }
 
     // === FINAL EMAIL SWEEP: re-probe leads still missing email ===
+    // Process in small chunks (25 leads) to avoid overwhelming shared hosting.
     $missingEmail = [];
     foreach ($allResults as $finalIdx => $finalLead) {
         $fe = trim((string) ($finalLead['email'] ?? ''));
@@ -3668,38 +3669,50 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
         }
     }
     if (!empty($missingEmail)) {
-        $sweepBudget = min(count($missingEmail), 300);
-        $sweepTimeout = max(($quickProbeEnabled ? $quickProbeTimeout : 5), 5);
-        $sweepConcurrency = $quickProbeEnabled ? $quickProbeConcurrency : 20;
+        $sweepChunkSize = 25; // Small batches to prevent server kill
+        $sweepMaxTotal = min(count($missingEmail), 200); // Cap total sweep
+        $sweepTimeout = 4;
+        $sweepConcurrency = 10; // Low concurrency for shared hosting
+        $sweepLeads = array_slice($missingEmail, 0, $sweepMaxTotal);
+        $sweepChunks = array_chunk($sweepLeads, $sweepChunkSize);
+        $sweepTotalChunks = count($sweepChunks);
+
         if (is_callable($onStatus)) {
             $onStatus([
-                'message' => 'Final email sweep: re-probing ' . $sweepBudget . ' leads...',
+                'message' => 'Final email sweep: re-probing ' . $sweepMaxTotal . ' leads in ' . $sweepTotalChunks . ' batches...',
                 'phase' => 'email_sweep',
                 'progress' => 97,
             ]);
         }
-        $sweepResults = customFetcherQuickEmailProbeLeads($missingEmail, $sweepTimeout, $sweepConcurrency, $sweepBudget);
-        $sweepUpdates = [];
-        foreach ($sweepResults as $sweepLead) {
-            $sweepId = (string) ($sweepLead['id'] ?? '');
-            if ($sweepId === '') continue;
-            foreach ($allResults as $srIdx => &$srLead) {
-                if (($srLead['id'] ?? '') === $sweepId) {
-                    $newEmail = trim((string) ($sweepLead['email'] ?? ''));
-                    if ($newEmail !== '' && trim((string) ($srLead['email'] ?? '')) === '') {
-                        $srLead['email'] = $newEmail;
-                        if (isset($sweepLead['enrichment'])) {
-                            $srLead['enrichment'] = $sweepLead['enrichment'];
+
+        foreach ($sweepChunks as $sweepChunkIdx => $sweepChunk) {
+            $sweepResults = customFetcherQuickEmailProbeLeads($sweepChunk, $sweepTimeout, $sweepConcurrency, count($sweepChunk));
+            $sweepUpdates = [];
+            foreach ($sweepResults as $sweepLead) {
+                $sweepId = (string) ($sweepLead['id'] ?? '');
+                if ($sweepId === '') continue;
+                foreach ($allResults as $srIdx => &$srLead) {
+                    if (($srLead['id'] ?? '') === $sweepId) {
+                        $newEmail = trim((string) ($sweepLead['email'] ?? ''));
+                        if ($newEmail !== '' && trim((string) ($srLead['email'] ?? '')) === '') {
+                            $srLead['email'] = $newEmail;
+                            if (isset($sweepLead['enrichment'])) {
+                                $srLead['enrichment'] = $sweepLead['enrichment'];
+                            }
+                            $sweepUpdates[] = $srLead;
                         }
-                        $sweepUpdates[] = $srLead;
+                        break;
                     }
-                    break;
                 }
+                unset($srLead);
             }
-            unset($srLead);
-        }
-        if (!empty($sweepUpdates) && is_callable($onBatch)) {
-            $onBatch($sweepUpdates, count($allResults), $limit);
+            if (!empty($sweepUpdates) && is_callable($onBatch)) {
+                $onBatch($sweepUpdates, count($allResults), $limit);
+            }
+            // Brief pause between chunks to avoid process kill
+            if ($sweepChunkIdx < $sweepTotalChunks - 1) {
+                usleep(100000); // 100ms
+            }
         }
     }
 
