@@ -89,19 +89,19 @@ if (!defined('CUSTOM_FETCH_ENABLE_QUICK_EMAIL_PROBE')) {
     define('CUSTOM_FETCH_ENABLE_QUICK_EMAIL_PROBE', true);
 }
 if (!defined('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC')) {
-    define('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC', 3);
+    define('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC', 5);
 }
 if (!defined('CUSTOM_FETCH_QUICK_EMAIL_CONCURRENCY')) {
     define('CUSTOM_FETCH_QUICK_EMAIL_CONCURRENCY', 20);
 }
 if (!defined('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_QUERY')) {
-    define('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_QUERY', 120);
+    define('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_QUERY', 500);
 }
 if (!defined('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_PASS')) {
-    define('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_PASS', 20);
+    define('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_PASS', 50);
 }
 if (!defined('CUSTOM_FETCH_DEFER_QUICK_EMAIL_PROBE')) {
-    define('CUSTOM_FETCH_DEFER_QUICK_EMAIL_PROBE', true);
+    define('CUSTOM_FETCH_DEFER_QUICK_EMAIL_PROBE', false);
 }
 if (!defined('CUSTOM_FETCH_TOPUP_USE_NO_KEY_FALLBACK')) {
     define('CUSTOM_FETCH_TOPUP_USE_NO_KEY_FALLBACK', false);
@@ -315,8 +315,8 @@ function customFetcherQuickEmailProbeEnabled()
 
 function customFetcherQuickEmailTimeout()
 {
-    $timeout = defined('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC') ? (int) CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC : 3;
-    return max(1, min(6, $timeout));
+    $timeout = defined('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC') ? (int) CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC : 5;
+    return max(1, min(10, $timeout));
 }
 
 function customFetcherQuickEmailConcurrency()
@@ -327,14 +327,14 @@ function customFetcherQuickEmailConcurrency()
 
 function customFetcherQuickEmailMaxPerQuery()
 {
-    $m = defined('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_QUERY') ? (int) CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_QUERY : 120;
-    return max(20, min(600, $m));
+    $m = defined('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_QUERY') ? (int) CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_QUERY : 500;
+    return max(20, min(2000, $m));
 }
 
 function customFetcherQuickEmailMaxPerPass()
 {
-    $m = defined('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_PASS') ? (int) CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_PASS : 16;
-    return max(1, min(100, $m));
+    $m = defined('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_PASS') ? (int) CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_PASS : 50;
+    return max(1, min(200, $m));
 }
 
 function customFetcherDeferQuickProbe()
@@ -2934,6 +2934,46 @@ function customFetcherSearchAndEnrichNoKeyOutscraperStyle($service, $location, $
         }
     }
 
+    // === FINAL EMAIL SWEEP: re-probe any leads still missing email ===
+    $missingEmail = [];
+    foreach ($allResults as $finalIdx => $finalLead) {
+        $fe = trim((string) ($finalLead['email'] ?? ''));
+        $fu = trim((string) ($finalLead['url'] ?? ''));
+        if ($fe === '' && $fu !== '') {
+            $missingEmail[] = $finalLead;
+        }
+    }
+    if (!empty($missingEmail)) {
+        $sweepBudget = min(count($missingEmail), 200);
+        $sweepTimeout = max($quickProbeTimeout, 5);
+        if (is_callable($onStatus)) {
+            $onStatus([
+                'message' => 'Final email sweep: re-probing ' . $sweepBudget . ' leads with extended timeout...',
+                'phase' => 'email_sweep',
+                'progress' => 96,
+            ]);
+        }
+        $sweepResults = customFetcherQuickEmailProbeLeads($missingEmail, $sweepTimeout, $quickProbeConcurrency, $sweepBudget);
+        $sweepUpdates = [];
+        foreach ($sweepResults as $sweepLead) {
+            $sweepId = (string) ($sweepLead['id'] ?? '');
+            if ($sweepId === '' || !isset($resultIndexById[$sweepId])) continue;
+            $sweepIdx = $resultIndexById[$sweepId];
+            if (!isset($allResults[$sweepIdx])) continue;
+            $newEmail = trim((string) ($sweepLead['email'] ?? ''));
+            if ($newEmail !== '' && trim((string) ($allResults[$sweepIdx]['email'] ?? '')) === '') {
+                $allResults[$sweepIdx]['email'] = $newEmail;
+                if (isset($sweepLead['enrichment'])) {
+                    $allResults[$sweepIdx]['enrichment'] = $sweepLead['enrichment'];
+                }
+                $sweepUpdates[] = $allResults[$sweepIdx];
+            }
+        }
+        if (!empty($sweepUpdates) && is_callable($onBatch)) {
+            $onBatch($sweepUpdates, count($allResults), $limit);
+        }
+    }
+
     if (!empty($batchToEmit) && is_callable($onBatch)) {
         $onBatch($batchToEmit, count($allResults), $limit);
     }
@@ -3616,6 +3656,51 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
 
     if ($deferQuickProbe) {
         $flushDeferredProbeUpdates(false);
+    }
+
+    // === FINAL EMAIL SWEEP: re-probe leads still missing email ===
+    $missingEmail = [];
+    foreach ($allResults as $finalIdx => $finalLead) {
+        $fe = trim((string) ($finalLead['email'] ?? ''));
+        $fu = trim((string) ($finalLead['url'] ?? ''));
+        if ($fe === '' && $fu !== '') {
+            $missingEmail[] = $finalLead;
+        }
+    }
+    if (!empty($missingEmail)) {
+        $sweepBudget = min(count($missingEmail), 300);
+        $sweepTimeout = max(($quickProbeEnabled ? $quickProbeTimeout : 5), 5);
+        $sweepConcurrency = $quickProbeEnabled ? $quickProbeConcurrency : 20;
+        if (is_callable($onStatus)) {
+            $onStatus([
+                'message' => 'Final email sweep: re-probing ' . $sweepBudget . ' leads...',
+                'phase' => 'email_sweep',
+                'progress' => 97,
+            ]);
+        }
+        $sweepResults = customFetcherQuickEmailProbeLeads($missingEmail, $sweepTimeout, $sweepConcurrency, $sweepBudget);
+        $sweepUpdates = [];
+        foreach ($sweepResults as $sweepLead) {
+            $sweepId = (string) ($sweepLead['id'] ?? '');
+            if ($sweepId === '') continue;
+            foreach ($allResults as $srIdx => &$srLead) {
+                if (($srLead['id'] ?? '') === $sweepId) {
+                    $newEmail = trim((string) ($sweepLead['email'] ?? ''));
+                    if ($newEmail !== '' && trim((string) ($srLead['email'] ?? '')) === '') {
+                        $srLead['email'] = $newEmail;
+                        if (isset($sweepLead['enrichment'])) {
+                            $srLead['enrichment'] = $sweepLead['enrichment'];
+                        }
+                        $sweepUpdates[] = $srLead;
+                    }
+                    break;
+                }
+            }
+            unset($srLead);
+        }
+        if (!empty($sweepUpdates) && is_callable($onBatch)) {
+            $onBatch($sweepUpdates, count($allResults), $limit);
+        }
     }
 
     if (!empty($batchToEmit) && is_callable($onBatch)) {
