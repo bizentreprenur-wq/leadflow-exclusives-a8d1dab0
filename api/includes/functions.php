@@ -2001,6 +2001,52 @@ function extractEmails($text) {
         }
     }
 
+    // Extract emails from JSON-LD / schema.org structured data
+    if (preg_match_all('/"email"\s*:\s*"([^"]+)"/i', $decodedText, $schemaEmails)) {
+        $emails = array_merge($emails, $schemaEmails[1]);
+    }
+    if (preg_match_all('/"contactPoint"\s*:\s*\{[^}]*"email"\s*:\s*"([^"]+)"/i', $decodedText, $cpEmails)) {
+        $emails = array_merge($emails, $cpEmails[1]);
+    }
+
+    // Extract from HTML meta tags (some sites put email in meta content)
+    if (preg_match_all('/<meta[^>]+content=["\']([^"\']*@[^"\']*)["\'][^>]*>/i', $decodedText, $metaEmails)) {
+        foreach ($metaEmails[1] as $metaVal) {
+            if (preg_match_all('/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/', $metaVal, $innerMatches)) {
+                $emails = array_merge($emails, $innerMatches[0]);
+            }
+        }
+    }
+
+    // Extract from href="mailto:" even when URL-encoded @ as %40
+    if (preg_match_all('/href=["\'][^"\']*%40[^"\']*["\']/i', $decodedText, $pctMatches)) {
+        foreach ($pctMatches[0] as $hrefChunk) {
+            $decoded2 = urldecode($hrefChunk);
+            if (preg_match_all('/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/', $decoded2, $innerMatches)) {
+                $emails = array_merge($emails, $innerMatches[0]);
+            }
+        }
+    }
+
+    // Wix-style unicode-encoded emails (\u0040 = @)
+    $unicodeDecoded = preg_replace_callback('/\\\\u([0-9a-fA-F]{4})/', function ($m) {
+        return mb_convert_encoding(pack('H*', $m[1]), 'UTF-8', 'UCS-2BE');
+    }, $text);
+    if ($unicodeDecoded !== $decodedText && is_string($unicodeDecoded)) {
+        if (preg_match_all('/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/', $unicodeDecoded, $wixMatches)) {
+            $emails = array_merge($emails, $wixMatches[0]);
+        }
+    }
+
+    // Extract from data attributes (data-email, data-mail, data-contact)
+    if (preg_match_all('/data-(?:email|mail|contact)=["\']([^"\']+)["\']/i', $decodedText, $dataAttrMatches)) {
+        foreach ($dataAttrMatches[1] as $attrVal) {
+            if (preg_match('/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/', $attrVal, $innerMatch)) {
+                $emails[] = $innerMatch[0];
+            }
+        }
+    }
+
     $emails = array_unique($emails);
 
     // Filter out invalid/spam emails
