@@ -1490,6 +1490,38 @@ export default function Step4AICallingHub({
                       ))}
                     </div>
 
+                    {/* Unlimited: Approve All Calls */}
+                    {tier === 'unlimited' && pendingCount > 0 && !isCallingActive && phoneSetup.hasPhone && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.97 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="rounded-2xl border-2 border-red-500/40 bg-gradient-to-r from-red-600/20 via-red-500/10 to-orange-500/10 p-6"
+                      >
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-4">
+                            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center shadow-lg shadow-red-500/25">
+                              <Crown className="w-7 h-7 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="font-bold text-lg text-foreground flex items-center gap-2">
+                                Done-For-You Calling
+                                <Badge className="bg-red-500/15 text-red-400 border-0 text-[10px]">UNLIMITED</Badge>
+                              </h3>
+                              <p className="text-sm text-muted-foreground">
+                                {pendingCount} leads are pre-configured and ready. AI will call each lead, handle objections, and log outcomes automatically.
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            onClick={handleStartCalling}
+                            className="gap-2 rounded-xl bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white px-8 py-4 text-base font-bold shadow-lg shadow-red-500/25 whitespace-nowrap"
+                          >
+                            <Rocket className="w-5 h-5" /> Approve All Calls ({pendingCount})
+                          </Button>
+                        </div>
+                      </motion.div>
+                    )}
+
                     {/* Queue list */}
                     {callQueue.length > 0 ? (
                       <ScrollArea className="h-[420px] rounded-2xl border bg-card/30">
