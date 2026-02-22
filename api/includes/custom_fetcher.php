@@ -86,16 +86,16 @@ if (!defined('CUSTOM_FETCH_ENABLE_QUICK_EMAIL_PROBE')) {
     define('CUSTOM_FETCH_ENABLE_QUICK_EMAIL_PROBE', true);
 }
 if (!defined('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC')) {
-    define('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC', 2);
+    define('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC', 1);
 }
 if (!defined('CUSTOM_FETCH_QUICK_EMAIL_CONCURRENCY')) {
-    define('CUSTOM_FETCH_QUICK_EMAIL_CONCURRENCY', 16);
+    define('CUSTOM_FETCH_QUICK_EMAIL_CONCURRENCY', 20);
 }
 if (!defined('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_QUERY')) {
     define('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_QUERY', 120);
 }
 if (!defined('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_PASS')) {
-    define('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_PASS', 16);
+    define('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_PASS', 20);
 }
 if (!defined('CUSTOM_FETCH_DEFER_QUICK_EMAIL_PROBE')) {
     define('CUSTOM_FETCH_DEFER_QUICK_EMAIL_PROBE', true);
@@ -312,7 +312,7 @@ function customFetcherQuickEmailProbeEnabled()
 
 function customFetcherQuickEmailTimeout()
 {
-    $timeout = defined('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC') ? (int) CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC : 2;
+    $timeout = defined('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC') ? (int) CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC : 1;
     return max(1, min(6, $timeout));
 }
 
@@ -957,7 +957,10 @@ function customFetcherNormalizeBusiness($item, $engine, $sourceName)
     $email = customFetcherExtractEmailFromText($snippet);
     $websiteAnalysis = customFetcherQuickWebsiteCheck($websiteUrl, ($snippet . ' ' . $name));
 
-    return [
+    // Zero-cost: extract social links from snippet text (Serper often includes them)
+    $snippetSocials = customFetcherExtractSocialLinks($snippet . ' ' . ($item['description'] ?? ''));
+
+    $lead = [
         'id' => generateId('cst_'),
         'name' => $name,
         'url' => $websiteUrl,
@@ -972,6 +975,23 @@ function customFetcherNormalizeBusiness($item, $engine, $sourceName)
         'sources' => [$sourceName],
         'websiteAnalysis' => $websiteAnalysis,
     ];
+
+    // Pre-populate enrichment with any socials found in snippets
+    if (!empty($snippetSocials)) {
+        $lead['enrichment'] = [
+            'emails' => $email ? [$email] : [],
+            'phones' => $phone ? [$phone] : [],
+            'socials' => $snippetSocials,
+            'hasEmail' => !empty($email),
+            'hasPhone' => !empty($phone),
+            'hasSocials' => true,
+            'sources' => ['snippet_extraction'],
+            'scrapedAt' => gmdate('c'),
+            'isCatchAll' => false,
+        ];
+    }
+
+    return $lead;
 }
 
 function customFetcherExtractEmailFromText($text)
@@ -2352,7 +2372,7 @@ function customFetcherQuickEmailProbeLeads($leads, $timeout, $concurrency, $maxL
             ];
         }
 
-        $pages = customFetcherPageUrls($url, 2);
+        $pages = customFetcherPageUrls($url, 1);
         foreach ($pages as $pageUrl) {
             $networkTasks[] = [
                 'idx' => $idx,
@@ -2380,7 +2400,7 @@ function customFetcherQuickEmailProbeLeads($leads, $timeout, $concurrency, $maxL
                 CURLOPT_URL => $task['url'],
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT => $timeout,
-                CURLOPT_CONNECTTIMEOUT => min(2, $timeout),
+                CURLOPT_CONNECTTIMEOUT => 1,
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_MAXREDIRS => 2,
                 CURLOPT_SSL_VERIFYPEER => false,
@@ -3439,9 +3459,12 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
                 }
             }
 
-            if ($deferQuickProbe) {
-                $flushDeferredProbeUpdates(false);
-            }
+    // Final aggressive flush — probe ALL remaining deferred leads
+    if ($deferQuickProbe) {
+        while (!empty($deferredProbeQueue) && $quickProbeRemaining > 0) {
+            $flushDeferredProbeUpdates(true);
+        }
+    }
 
             if (count($allResults) >= $targetCount && $topupChunkIndex > 1) {
                 break;
