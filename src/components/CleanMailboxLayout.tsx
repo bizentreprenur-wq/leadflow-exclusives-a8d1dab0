@@ -649,21 +649,21 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   const draftsCount = (() => { try { const d = localStorage.getItem('bamlead_drafts'); return d ? JSON.parse(d).length : 0; } catch { return 0; } })();
 
   const navTabs = [
-    { id: 'inbox' as MainTab, label: 'Inbox', icon: Inbox, count: replies.filter(r => !r.isRead).length, countColor: 'bg-red-500 text-white' },
-    { id: 'starred' as MainTab, label: 'Starred', icon: Star },
-    { id: 'sent' as MainTab, label: 'Sent', icon: Send, count: sentEmailsLog.length, countColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
-    { id: 'drafts' as MainTab, label: 'Drafts', icon: FileEdit, count: draftsCount },
-    { id: 'scheduled' as MainTab, label: 'Scheduled', icon: Calendar, count: scheduledCount },
-    { id: 'spam' as MainTab, label: 'Spam', icon: AlertCircle },
-    { id: 'archive' as MainTab, label: 'Archive', icon: Archive },
-    { id: 'trash' as MainTab, label: 'Trash', icon: Trash2 },
-    { id: 'campaigns' as MainTab, label: 'Campaigns', icon: Rocket },
-    ...(!isUnlimited ? [{ id: 'sequences' as MainTab, label: 'Sequences', icon: Layers }] : []),
-    ...(!isUnlimited ? [{ id: 'strategy' as MainTab, label: 'AI Strategy', icon: Brain, isBrain: true }] : []),
-    ...(!isUnlimited ? [{ id: 'automation' as MainTab, label: 'AI Autopilot', icon: Crown, isPro: true }] : []),
-    { id: 'analytics' as MainTab, label: 'Analytics', icon: BarChart3 },
-    { id: 'documents' as MainTab, label: 'PreDone Docs', icon: FolderOpen },
-    { id: 'settings' as MainTab, label: 'Settings', icon: Settings },
+    { id: 'inbox' as MainTab, label: 'Inbox', icon: Inbox, count: replies.filter(r => !r.isRead).length, countColor: 'bg-red-500 text-white', iconColor: 'text-blue-400' },
+    { id: 'starred' as MainTab, label: 'Starred', icon: Star, iconColor: 'text-yellow-400' },
+    { id: 'sent' as MainTab, label: 'Sent', icon: Send, count: sentEmailsLog.length, countColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', iconColor: 'text-emerald-400' },
+    { id: 'drafts' as MainTab, label: 'Drafts', icon: FileEdit, count: draftsCount, iconColor: 'text-orange-400' },
+    { id: 'scheduled' as MainTab, label: 'Scheduled', icon: Calendar, count: scheduledCount, iconColor: 'text-cyan-400' },
+    { id: 'spam' as MainTab, label: 'Spam', icon: AlertCircle, iconColor: 'text-red-400' },
+    { id: 'archive' as MainTab, label: 'Archive', icon: Archive, iconColor: 'text-slate-400' },
+    { id: 'trash' as MainTab, label: 'Trash', icon: Trash2, iconColor: 'text-rose-400' },
+    { id: 'campaigns' as MainTab, label: 'Campaigns', icon: Rocket, iconColor: 'text-violet-400' },
+    ...(!isUnlimited ? [{ id: 'sequences' as MainTab, label: 'Sequences', icon: Layers, iconColor: 'text-indigo-400' }] : []),
+    ...(!isUnlimited ? [{ id: 'strategy' as MainTab, label: 'AI Strategy', icon: Brain, isBrain: true, iconColor: 'text-purple-400' }] : []),
+    ...(!isUnlimited ? [{ id: 'automation' as MainTab, label: 'AI Autopilot', icon: Crown, isPro: true, iconColor: 'text-amber-400' }] : []),
+    { id: 'analytics' as MainTab, label: 'Analytics', icon: BarChart3, iconColor: 'text-teal-400' },
+    { id: 'documents' as MainTab, label: 'PreDone Docs', icon: FolderOpen, iconColor: 'text-sky-400' },
+    { id: 'settings' as MainTab, label: 'Settings', icon: Settings, iconColor: 'text-emerald-400' },
   ];
 
   return (
@@ -742,8 +742,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
                       )}
                     >
                       <tab.icon className={cn("w-4 h-4", 
-                        tab.id === 'automation' && mainTab !== 'automation' && "text-amber-400",
-                        tab.id === 'strategy' && mainTab !== 'strategy' && "text-purple-400"
+                        mainTab === tab.id ? "text-white" : ((tab as any).iconColor || "text-muted-foreground")
                       )} />
                       {tab.label}
                       {(tab as any).count > 0 && (
