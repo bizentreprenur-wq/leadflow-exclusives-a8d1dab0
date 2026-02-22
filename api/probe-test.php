@@ -18,6 +18,16 @@ set_error_handler(function($errno, $errstr, $errfile, $errline) use (&$phpErrors
 
 header('Content-Type: application/json');
 
+// Force clear OPcache for custom_fetcher.php
+$fetcherFile = __DIR__ . '/includes/custom_fetcher.php';
+if (function_exists('opcache_invalidate')) {
+    opcache_invalidate($fetcherFile, true);
+}
+if (function_exists('opcache_invalidate')) {
+    opcache_invalidate(__DIR__ . '/config.php', true);
+    opcache_invalidate(__DIR__ . '/includes/functions.php', true);
+}
+
 // Try loading dependencies one by one to find where it breaks
 $loadStatus = [];
 
@@ -39,7 +49,8 @@ if (function_exists('setCorsHeaders')) { setCorsHeaders(); }
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 try {
-    require_once __DIR__ . '/includes/custom_fetcher.php';
+    // Use include instead of require_once to bypass any cached state
+    include $fetcherFile;
     $loadStatus['custom_fetcher'] = 'ok';
 } catch (Throwable $e) {
     $loadStatus['custom_fetcher'] = 'FAIL: ' . $e->getMessage();
