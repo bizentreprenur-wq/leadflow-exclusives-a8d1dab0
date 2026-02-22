@@ -44,10 +44,10 @@ if (!defined('CUSTOM_FETCH_CONTACT_TIMEOUT_SEC')) {
     define('CUSTOM_FETCH_CONTACT_TIMEOUT_SEC', 7);
 }
 if (!defined('CUSTOM_FETCH_TARGET_RATIO')) {
-    define('CUSTOM_FETCH_TARGET_RATIO', 1.05);
+    define('CUSTOM_FETCH_TARGET_RATIO', 1.25);
 }
 if (!defined('CUSTOM_FETCH_OVER_DELIVER_BUFFER')) {
-    define('CUSTOM_FETCH_OVER_DELIVER_BUFFER', 0.10);
+    define('CUSTOM_FETCH_OVER_DELIVER_BUFFER', 0.25);
 }
 if (!defined('CUSTOM_FETCH_ENABLE_INLINE_ENRICHMENT')) {
     define('CUSTOM_FETCH_ENABLE_INLINE_ENRICHMENT', false);
@@ -3048,10 +3048,10 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
     $batchToEmit = [];
     $timeout = customFetcherContactTimeout();
     $concurrency = customFetcherEnrichConcurrency();
-    $overDeliverBuffer = defined('CUSTOM_FETCH_OVER_DELIVER_BUFFER') ? (float) CUSTOM_FETCH_OVER_DELIVER_BUFFER : 0.10;
-    $hardLimit = (int) ceil($limit * (1.0 + max(0, min(0.25, $overDeliverBuffer))));
+    $overDeliverBuffer = defined('CUSTOM_FETCH_OVER_DELIVER_BUFFER') ? (float) CUSTOM_FETCH_OVER_DELIVER_BUFFER : 0.25;
+    $hardLimit = (int) ceil($limit * (1.0 + max(0, min(0.50, $overDeliverBuffer))));
     $targetCount = $targetCount !== null ? (int) $targetCount : (int) ceil($limit * customFetcherTargetRatio());
-    $targetCount = min($hardLimit, max($targetCount, $limit));
+    $targetCount = max($targetCount, (int) ceil($limit * 1.15));
     $emitBatchSize = customFetcherStreamEmitBatchSize();
     $inlineEnrichment = customFetcherInlineEnrichmentEnabled();
     $quickProbeEnabled = !$inlineEnrichment && customFetcherQuickEmailProbeEnabled();
