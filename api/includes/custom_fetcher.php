@@ -2223,7 +2223,26 @@ function customFetcherPageUrls($url, $maxPages)
     $host = $parsed['host'];
     $root = $scheme . '://' . $host;
 
-    $paths = ['', '/contact', '/contact-us', '/contactus', '/about', '/team', '/support'];
+    $paths = [
+        '',              // homepage
+        '/contact',      // contact page
+        '/contact-us',
+        '/contactus',
+        '/connect',
+        '/about',
+        '/about-us',
+        '/aboutus',
+        '/about-me',
+        '/team',
+        '/our-team',
+        '/support',
+        '/get-in-touch',
+        '/reach-us',
+        '/locations',
+        '/footer',       // some SPAs expose footer content here
+        '/info',
+        '/help',
+    ];
     $paths = array_slice($paths, 0, max(1, $maxPages));
     foreach ($paths as $path) {
         $urls[] = $root . $path;
@@ -2375,7 +2394,7 @@ function customFetcherQuickEmailProbeLeads($leads, $timeout, $concurrency, $maxL
             ];
         }
 
-        $pages = customFetcherPageUrls($url, 3);
+        $pages = customFetcherPageUrls($url, 8);
         foreach ($pages as $pageUrl) {
             $networkTasks[] = [
                 'idx' => $idx,
