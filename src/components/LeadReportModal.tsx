@@ -315,7 +315,7 @@ export default function LeadReportModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[95vw] w-[1400px] h-[90vh] p-0 overflow-hidden flex flex-col duration-100" aria-describedby={undefined}>
+      <DialogContent className="max-w-[97vw] w-[1600px] h-[92vh] p-0 overflow-hidden flex flex-col duration-100" aria-describedby={undefined}>
         <VisuallyHidden>
           <DialogTitle>Lead Intelligence Report</DialogTitle>
         </VisuallyHidden>
