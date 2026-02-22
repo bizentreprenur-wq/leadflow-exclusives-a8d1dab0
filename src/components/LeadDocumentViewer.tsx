@@ -1001,58 +1001,179 @@ export default function LeadDocumentViewer({
     doc.setTextColor(59, 130, 246);
     doc.text(`COLD LEADS: ${coldLeads.length} - Nurture with content`, 14, 68);
 
-    let yPos = 80;
+    doc.setTextColor(0);
+    const leadsWithEmailCount = analyzedLeads.filter(l => l.email).length;
+    doc.text(`LEADS WITH EMAIL: ${leadsWithEmailCount}`, 14, 74);
+    doc.text(`Estimated Pipeline Value: $${totalEstimatedValue.toLocaleString()}`, 14, 80);
 
-    // Hot leads section
+    let yPos = 92;
+
+    // ========== SWOT ANALYSIS ==========
+    doc.setFontSize(14);
+    doc.setTextColor(75, 0, 130);
+    doc.text('SWOT Analysis - Market Intelligence', 14, yPos);
+    yPos += 8;
+
+    const noWebCount = analyzedLeads.filter(l => !l.website || l.websiteAnalysis?.hasWebsite === false).length;
+    const poorMobileCount = analyzedLeads.filter(l => l.websiteAnalysis?.mobileScore != null && l.websiteAnalysis.mobileScore < 50).length;
+    const highRatedCount = analyzedLeads.filter(l => (l.rating || 0) >= 4.5).length;
+    const lowRatedCount = analyzedLeads.filter(l => (l.rating || 0) > 0 && (l.rating || 0) < 3.5).length;
+
+    const swotData = [
+      ['Strengths', `${highRatedCount} businesses rated 4.5+; ${analyzedLeads.filter(l => l.website).length} have websites; Established market presence in ${location}`],
+      ['Weaknesses', `${noWebCount} have no website; ${poorMobileCount} have poor mobile experience; ${lowRatedCount} rated below 3.5; Many lack tracking/analytics`],
+      ['Opportunities', `${noWebCount} businesses need websites; ${issueSummary.categories.booking.count} need booking systems; ${issueSummary.categories.tracking.count} need analytics; High demand for digital services`],
+      ['Threats', `${highRatedCount} strong competitors in area; Market saturation risk; Price competition from established players`],
+    ];
+
+    autoTable(doc, {
+      head: [['Category', 'Analysis']],
+      body: swotData,
+      startY: yPos,
+      styles: { fontSize: 8, cellWidth: 'wrap' },
+      headStyles: { fillColor: [75, 0, 130] },
+      columnStyles: { 0: { cellWidth: 30, fontStyle: 'bold' }, 1: { cellWidth: 'auto' } },
+    });
+    yPos = (doc as any).lastAutoTable.finalY + 10;
+
+    // ========== COMPETITIVE INTELLIGENCE ==========
+    if (yPos > 240) { doc.addPage(); yPos = 20; }
+    doc.setFontSize(14);
+    doc.setTextColor(180, 83, 9);
+    doc.text('Competitive Intelligence & Business Improvement', 14, yPos);
+    yPos += 8;
+
+    const competitiveInsights = [
+      ['Why competitors may outperform', `${highRatedCount} competitors have 4.5+ ratings; better mobile experiences; active social media; online booking systems; review management strategies`],
+      ['What your business can improve', `Focus on mobile-first website design; implement online booking; set up Google Analytics & Facebook Pixel; build review generation system; create social media presence`],
+      ['Inner Competencies to Develop', `Customer follow-up automation; Review request workflows; SEO-optimized website content; Social proof through testimonials; Streamlined booking/contact funnel`],
+      ['Immediate Action Steps', `1. Audit your website mobile score; 2. Set up Google My Business; 3. Install analytics tracking; 4. Create a booking page; 5. Launch a review request campaign`],
+      ['30-Day Growth Plan', `Week 1: Fix website & mobile issues; Week 2: Set up tracking & analytics; Week 3: Launch social media profiles; Week 4: Start review generation campaign`],
+    ];
+
+    autoTable(doc, {
+      head: [['Area', 'Intelligence & Recommendations']],
+      body: competitiveInsights,
+      startY: yPos,
+      styles: { fontSize: 7, cellWidth: 'wrap' },
+      headStyles: { fillColor: [180, 83, 9] },
+      columnStyles: { 0: { cellWidth: 40, fontStyle: 'bold' }, 1: { cellWidth: 'auto' } },
+    });
+    yPos = (doc as any).lastAutoTable.finalY + 10;
+
+    // ========== HOT LEADS WITH EMAILS ==========
     if (hotLeads.length > 0) {
+      if (yPos > 220) { doc.addPage(); yPos = 20; }
       doc.setFontSize(12);
       doc.setTextColor(239, 68, 68);
       doc.text('HOT LEADS - Contact Today', 14, yPos);
       yPos += 8;
 
-      const hotData = hotLeads.slice(0, 20).map(l => [
-        l.name.substring(0, 20),
+      const hotData = hotLeads.slice(0, 30).map(l => [
+        l.name.substring(0, 22),
+        l.email || 'N/A',
         l.phone || 'N/A',
-        l.insight.optimalCallWindow.substring(0, 30),
-        l.insight.painPoints[0]?.substring(0, 30) || ''
+        l.insight.optimalCallWindow.substring(0, 28),
+        l.insight.painPoints[0]?.substring(0, 28) || '',
+        `${l.insight.conversionProbability}%`
       ]);
 
       autoTable(doc, {
-        head: [['Business', 'Phone', 'Best Time', 'Pain Point']],
+        head: [['Business', 'Email', 'Phone', 'Best Time', 'Pain Point', 'Conv.']],
         body: hotData,
         startY: yPos,
-        styles: { fontSize: 7 },
+        styles: { fontSize: 6 },
         headStyles: { fillColor: [239, 68, 68] },
       });
-
       yPos = (doc as any).lastAutoTable.finalY + 10;
     }
 
-    // Warm leads
-    if (warmLeads.length > 0 && yPos < 250) {
+    // ========== WARM LEADS WITH EMAILS ==========
+    if (warmLeads.length > 0) {
+      if (yPos > 220) { doc.addPage(); yPos = 20; }
       doc.setFontSize(12);
       doc.setTextColor(245, 158, 11);
       doc.text('WARM LEADS - Email First', 14, yPos);
       yPos += 8;
 
-      const warmData = warmLeads.slice(0, 15).map(l => [
-        l.name.substring(0, 20),
+      const warmData = warmLeads.slice(0, 30).map(l => [
+        l.name.substring(0, 22),
+        l.email || 'N/A',
         l.phone || 'N/A',
-        l.insight.optimalEmailWindow.substring(0, 30),
-        l.insight.painPoints[0]?.substring(0, 30) || ''
+        l.insight.optimalEmailWindow.substring(0, 28),
+        l.insight.painPoints[0]?.substring(0, 28) || '',
+        `${l.insight.conversionProbability}%`
       ]);
 
       autoTable(doc, {
-        head: [['Business', 'Phone', 'Best Time', 'Pain Point']],
+        head: [['Business', 'Email', 'Phone', 'Best Time', 'Pain Point', 'Conv.']],
         body: warmData,
         startY: yPos,
-        styles: { fontSize: 7 },
+        styles: { fontSize: 6 },
         headStyles: { fillColor: [245, 158, 11] },
+      });
+      yPos = (doc as any).lastAutoTable.finalY + 10;
+    }
+
+    // ========== COLD LEADS ==========
+    if (coldLeads.length > 0) {
+      if (yPos > 220) { doc.addPage(); yPos = 20; }
+      doc.setFontSize(12);
+      doc.setTextColor(59, 130, 246);
+      doc.text('COLD LEADS - Nurture Sequence', 14, yPos);
+      yPos += 8;
+
+      const coldData = coldLeads.slice(0, 20).map(l => [
+        l.name.substring(0, 22),
+        l.email || 'N/A',
+        l.phone || 'N/A',
+        l.insight.painPoints[0]?.substring(0, 35) || 'General opportunity'
+      ]);
+
+      autoTable(doc, {
+        head: [['Business', 'Email', 'Phone', 'Pain Point']],
+        body: coldData,
+        startY: yPos,
+        styles: { fontSize: 7 },
+        headStyles: { fillColor: [59, 130, 246] },
+      });
+      yPos = (doc as any).lastAutoTable.finalY + 10;
+    }
+
+    // ========== ISSUE BREAKDOWN ==========
+    if (issueSummary.totalIssueCount > 0) {
+      if (yPos > 220) { doc.addPage(); yPos = 20; }
+      doc.setFontSize(12);
+      doc.setTextColor(0);
+      doc.text('AI-Detected Issues Dashboard', 14, yPos);
+      yPos += 8;
+
+      const issueData = Object.entries(issueSummary.categories).map(([, cat]) => [
+        cat.label,
+        cat.count.toString(),
+        `${Math.round((cat.count / Math.max(issueSummary.totalIssueCount, 1)) * 100)}%`
+      ]);
+
+      autoTable(doc, {
+        head: [['Issue Category', 'Count', '% of Total']],
+        body: issueData,
+        startY: yPos,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [100, 100, 100] },
       });
     }
 
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.text(`BamLead Intelligence Report - Page ${i} of ${pageCount}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+    }
+
     doc.save(`bamlead-leads-${new Date().toISOString().split('T')[0]}.pdf`);
-    toast.success('PDF downloaded with grouped leads!');
+    toast.success('Full intelligence PDF downloaded with emails, SWOT & competitive analysis!');
   };
 
   const exportToExcel = () => {
@@ -1935,8 +2056,9 @@ export default function LeadDocumentViewer({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-[1100px] w-[98vw] h-[95vh] flex flex-col p-0 gap-0 bg-gray-950 rounded-xl shadow-2xl [&>button]:hidden"
+        className="max-w-[1100px] w-[98vw] h-[95vh] flex flex-col p-0 gap-0 bg-gray-950 rounded-xl shadow-2xl [&>button]:hidden overflow-hidden"
         aria-describedby={undefined}
+        onInteractOutside={(e) => e.preventDefault()}
       >
         <VisuallyHidden>
           <DialogTitle>Lead Intelligence Report</DialogTitle>
@@ -2059,8 +2181,12 @@ export default function LeadDocumentViewer({
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    onClick={() => onOpenChange(false)}
-                    className="bg-orange-500 hover:bg-orange-600 text-white rounded-full w-10 h-10 shadow-lg"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      onOpenChange(false);
+                    }}
+                    className="bg-orange-500 hover:bg-orange-600 text-white rounded-full w-10 h-10 shadow-lg z-50"
                   >
                     <X className="w-5 h-5" />
                   </Button>
@@ -2087,13 +2213,13 @@ export default function LeadDocumentViewer({
             )}
 
             {/* PDF-like Document Content with Zoom */}
-            <ScrollArea className="flex-1 p-4" ref={documentRef}>
+            <div className="flex-1 overflow-y-auto p-4" ref={documentRef}>
               <div 
-                className="bg-gray-900 rounded-xl shadow-sm border border-gray-700 p-8 mx-auto transition-transform origin-top"
+                className="bg-gray-900 rounded-xl shadow-sm border border-gray-700 p-8 mx-auto"
                 style={{ 
-                  transform: `scale(${zoomLevel / 100})`,
-                  maxWidth: `${800 * (100 / zoomLevel)}px`,
-                  width: '100%'
+                  maxWidth: `${Math.min(800, 800 * (zoomLevel / 100))}px`,
+                  width: '100%',
+                  fontSize: `${zoomLevel}%`
                 }}
               >
                 {/* Executive Summary */}
@@ -2471,7 +2597,7 @@ export default function LeadDocumentViewer({
                   <p className="text-xs text-gray-500">Lead scores and recommendations are based on website analysis, industry benchmarks, and conversion data. Results may vary.</p>
                 </div>
               </div>
-            </ScrollArea>
+            </div>
 
             {/* Footer Actions */}
             <div className="border-t border-gray-700 bg-gray-900 px-6 py-4 shrink-0 rounded-b-xl">
