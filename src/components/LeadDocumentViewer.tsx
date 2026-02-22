@@ -874,6 +874,10 @@ export default function LeadDocumentViewer({
   const [isLoading, setIsLoading] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(100); // Zoom percentage (50-150)
+  const [hotPage, setHotPage] = useState(1);
+  const [warmPage, setWarmPage] = useState(1);
+  const [coldPage, setColdPage] = useState(1);
+  const LEADS_PER_PAGE = 10;
   const documentRef = useRef<HTMLDivElement>(null);
   const analyzedReportKeysRef = useRef<Set<string>>(new Set());
 
@@ -2056,7 +2060,7 @@ export default function LeadDocumentViewer({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="max-w-[1100px] w-[98vw] h-[95vh] flex flex-col p-0 gap-0 bg-gray-950 rounded-xl shadow-2xl [&>button]:hidden overflow-hidden"
+        className="max-w-[97vw] w-[1800px] h-[95vh] flex flex-col p-0 gap-0 bg-gray-950 rounded-xl shadow-2xl [&>button]:hidden overflow-hidden"
         aria-describedby={undefined}
         onInteractOutside={(e) => e.preventDefault()}
       >
@@ -2217,7 +2221,7 @@ export default function LeadDocumentViewer({
               <div 
                 className="bg-gray-900 rounded-xl shadow-sm border border-gray-700 p-8 mx-auto"
                 style={{ 
-                  maxWidth: `${Math.min(800, 800 * (zoomLevel / 100))}px`,
+                  maxWidth: `${Math.min(1600, 1600 * (zoomLevel / 100))}px`,
                   width: '100%',
                   fontSize: `${zoomLevel}%`
                 }}
@@ -2545,10 +2549,15 @@ export default function LeadDocumentViewer({
                       aiExplanation="These leads show strong buying signals: missing websites, outdated platforms, or critical issues that are actively costing them customers. Our analysis indicates they're most receptive to outreach between 10-11 AM and 2-3 PM. Start with a phone call - email response rates are 40% lower for hot leads."
                     />
                     <div className="space-y-3">
-                      {hotLeads.map((lead, i) => (
+                      {hotLeads.slice(0, hotPage * LEADS_PER_PAGE).map((lead, i) => (
                         <LeadCard key={lead.id} lead={lead} index={i} />
                       ))}
                     </div>
+                    {hotLeads.length > hotPage * LEADS_PER_PAGE && (
+                      <Button variant="outline" className="w-full mt-3 border-red-700 text-red-400 hover:bg-red-950" onClick={() => setHotPage(p => p + 1)}>
+                        Show more hot leads ({hotLeads.length - hotPage * LEADS_PER_PAGE} remaining)
+                      </Button>
+                    )}
                   </div>
                 )}
 
@@ -2563,10 +2572,15 @@ export default function LeadDocumentViewer({
                       aiExplanation="These leads have moderate need indicators: websites that function but could be improved, or partial digital presence. Data shows the most effective approach is a value-first email followed by a call 48-72 hours later. Best email times are Tuesday 9 AM or Thursday 10 AM - avoid Mondays and Fridays."
                     />
                     <div className="space-y-3">
-                      {warmLeads.map((lead, i) => (
+                      {warmLeads.slice(0, warmPage * LEADS_PER_PAGE).map((lead, i) => (
                         <LeadCard key={lead.id} lead={lead} index={i} />
                       ))}
                     </div>
+                    {warmLeads.length > warmPage * LEADS_PER_PAGE && (
+                      <Button variant="outline" className="w-full mt-3 border-orange-700 text-orange-400 hover:bg-orange-950" onClick={() => setWarmPage(p => p + 1)}>
+                        Show more warm leads ({warmLeads.length - warmPage * LEADS_PER_PAGE} remaining)
+                      </Button>
+                    )}
                   </div>
                 )}
 
@@ -2581,10 +2595,15 @@ export default function LeadDocumentViewer({
                       aiExplanation="These leads have minimal immediate need but represent long-term opportunities. Add them to a 6-8 week email nurture sequence with educational content. 23% of cold leads convert within 6 months when properly nurtured. Focus on building trust before pitching services."
                     />
                     <div className="space-y-3">
-                      {coldLeads.map((lead, i) => (
+                      {coldLeads.slice(0, coldPage * LEADS_PER_PAGE).map((lead, i) => (
                         <LeadCard key={lead.id} lead={lead} index={i} />
                       ))}
                     </div>
+                    {coldLeads.length > coldPage * LEADS_PER_PAGE && (
+                      <Button variant="outline" className="w-full mt-3 border-blue-700 text-blue-400 hover:bg-blue-950" onClick={() => setColdPage(p => p + 1)}>
+                        Show more cold leads ({coldLeads.length - coldPage * LEADS_PER_PAGE} remaining)
+                      </Button>
+                    )}
                   </div>
                 )}
 
@@ -2616,7 +2635,7 @@ export default function LeadDocumentViewer({
                     <FileSpreadsheet className="w-4 h-4 mr-2" />
                     Download Excel
                   </Button>
-                  <Button onClick={handleProceedToVerify} size="lg" className="relative gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg animate-pulse">
+                  <Button onClick={handleProceedToVerify} size="lg" className="relative gap-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white shadow-lg">
                     <Zap className="w-5 h-5" />
                     AI Verify & Find Emails
                     <ChevronRight className="w-4 h-4" />
