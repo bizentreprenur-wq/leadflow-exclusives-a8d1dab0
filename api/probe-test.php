@@ -9,6 +9,17 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 
+// Force OPcache clear for custom_fetcher
+if (function_exists('opcache_reset')) {
+    opcache_reset();
+}
+$cfPath = __DIR__ . '/includes/custom_fetcher.php';
+if (function_exists('opcache_invalidate')) {
+    opcache_invalidate($cfPath, true);
+    opcache_invalidate(__DIR__ . '/config.php', true);
+    opcache_invalidate(__DIR__ . '/includes/functions.php', true);
+}
+
 // Capture any warnings/notices
 $phpErrors = [];
 set_error_handler(function($errno, $errstr, $errfile, $errline) use (&$phpErrors) {
