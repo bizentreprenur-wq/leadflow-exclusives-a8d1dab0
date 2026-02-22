@@ -233,8 +233,10 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
   const [automation, setAutomation] = useState<AutomationSettings>(() => {
     try {
       const saved = localStorage.getItem('bamlead_automation_settings');
-      return saved ? JSON.parse(saved) : { doneForYouMode: false, autoFollowUps: true, responseMode: 'manual' };
-    } catch { return { doneForYouMode: false, autoFollowUps: true, responseMode: 'manual' }; }
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    // Default to "Done for you" mode for Unlimited users
+    return { doneForYouMode: isUnlimited, autoFollowUps: true, responseMode: isUnlimited ? 'automatic' : 'manual' };
   });
 
   // Lead queue tracking for Compose modal display
@@ -308,7 +310,7 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-open compose modal when coming from AI verification
+  // Auto-open compose modal when coming from AI verification OR for Unlimited users with leads
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const autoOpen = sessionStorage.getItem('bamlead_auto_open_compose');
@@ -321,8 +323,17 @@ export default function CleanMailboxLayout({ searchType, campaignContext }: Clea
           setShowComposeModal(true);
         }
       }, 100);
+      return;
     }
-  }, []);
+    // For Unlimited users: auto-open compose when they have leads ready
+    if (isUnlimited && campaignLeads.length > 0 && !showInlineCompose) {
+      const alreadyAutoOpened = sessionStorage.getItem('bamlead_unlimited_compose_auto_opened');
+      if (!alreadyAutoOpened) {
+        sessionStorage.setItem('bamlead_unlimited_compose_auto_opened', 'true');
+        setTimeout(() => setShowInlineCompose(true), 300);
+      }
+    }
+  }, [isUnlimited, campaignLeads.length]);
 
   const activeLeadEmail = useMemo(() => {
     if (selectedReply?.from_email) return selectedReply.from_email;

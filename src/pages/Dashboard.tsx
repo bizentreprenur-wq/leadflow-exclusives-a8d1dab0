@@ -18,7 +18,7 @@ import {
   Trophy, Bot, Gift, Brain, Server, Building2,
   MapPin, Phone, ExternalLink, Star, Loader2,
   ArrowLeft, Users, ChevronRight, HelpCircle,
-  Smartphone, AlertTriangle, XCircle,
+  Smartphone, AlertTriangle, XCircle, Crown,
 } from 'lucide-react';
 import { SidebarProvider, SidebarTrigger, SidebarInset, SidebarRail } from '@/components/ui/sidebar';
 import DashboardSidebar from '@/components/DashboardSidebar';
@@ -3065,6 +3065,42 @@ export default function Dashboard() {
 
           {/* Main Content */}
           <main className="flex-1 p-6">
+            {/* Unlimited Onboarding Reminder Banner */}
+            {tier === 'unlimited' && !localStorage.getItem('bamlead_unlimited_setup_booked') && (
+              <div className="mb-6 p-4 rounded-xl border-2 border-red-500/30 bg-gradient-to-r from-red-500/10 to-red-900/5">
+                <div className="flex items-center justify-between gap-4 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-red-500/20">
+                      <Crown className="w-5 h-5 text-red-500" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground text-sm">Welcome, Unlimited Member! 🎉</p>
+                      <p className="text-xs text-muted-foreground">Book your setup call — we'll configure everything for you, or search leads yourself and AI handles the rest.</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Link to="/unlimited-onboarding">
+                      <Button size="sm" className="bg-red-500 hover:bg-red-600 text-white gap-1.5">
+                        <Phone className="w-3.5 h-3.5" />
+                        Book Setup Call
+                      </Button>
+                    </Link>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="border-red-500/30 text-red-400 hover:bg-red-500/10"
+                      onClick={() => {
+                        localStorage.setItem('bamlead_unlimited_setup_booked', 'true');
+                        toast.success('Got it! AI will auto-configure everything as you search.');
+                      }}
+                    >
+                      I'll do it myself
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {activeTab === 'workflow' ? (
               <>
                 <div className="mb-8">

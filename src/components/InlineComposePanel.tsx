@@ -31,6 +31,7 @@ import { saveAutopilotCampaign, updateAutopilotCampaign } from '@/lib/autopilotC
 import AIStrategySelector from './AIStrategySelector';
 import { AIStrategy, autoSelectStrategy, buildStrategyContext } from '@/lib/aiStrategyEngine';
 import LeadQueueIndicator from './LeadQueueIndicator';
+import { HIGH_CONVERTING_TEMPLATES, HERO_IMAGE_CHOICES, getHeroImageChoices } from '@/lib/highConvertingTemplates';
 
 interface Lead {
   id?: string | number;
@@ -115,6 +116,8 @@ export default function InlineComposePanel({
   const [removedLeadEmails, setRemovedLeadEmails] = useState<Set<string>>(new Set());
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
+  const [showImageSwap, setShowImageSwap] = useState(false);
+  const [currentHeroImage, setCurrentHeroImage] = useState<string | null>(null);
   const [ccInput, setCcInput] = useState('');
   const [bccInput, setBccInput] = useState('');
   const [ccRecipients, setCcRecipients] = useState<Array<{ email: string; label: string; initial: string }>>([]);
@@ -198,6 +201,7 @@ export default function InlineComposePanel({
   };
 
   const { status: trialStatus } = useAutopilotTrial();
+  const { isUnlimited: isUnlimitedTier } = usePlanFeatures();
 
   const safeLeads = useMemo(() => leads?.filter((l): l is Lead => l != null) ?? [], [leads]);
   const eligibleLeads = useMemo(
@@ -263,6 +267,17 @@ export default function InlineComposePanel({
 
   const effectiveSequence = selectedSequence || suggestedSequence;
 
+  // Unlimited auto-config: auto-select strategy on mount
+  useEffect(() => {
+    if (isUnlimitedTier && !selectedStrategy && safeLeads.length > 0) {
+      const context = buildStrategyContext(detectedSearchType, safeLeads);
+      const bestStrategy = autoSelectStrategy(context);
+      if (bestStrategy) {
+        setSelectedStrategy(bestStrategy);
+      }
+    }
+  }, [isUnlimitedTier, safeLeads.length, detectedSearchType]);
+
   // Drip settings
   const [dripRate, setDripRate] = useState(30);
   const [dripInterval, setDripInterval] = useState(60);
@@ -274,6 +289,8 @@ export default function InlineComposePanel({
   useEffect(() => { setDripInterval(Math.round(3600 / Math.max(1, dripRate))); }, [dripRate]);
 
   // Auto-populate email from template (check for visual HTML template first)
+  // For Unlimited users: auto-select a visual HTML template with hero image if none stored
+
   useEffect(() => {
     // Always check localStorage for a visual HTML template with images FIRST
     try {
@@ -285,6 +302,9 @@ export default function InlineComposePanel({
           if (bodyHtml !== template.body_html) {
             setBodyHtml(template.body_html);
             setEmail({ subject: template.subject || '', body: template.body_html });
+            // Extract hero image for swap feature
+            const imgMatch = template.body_html.match(/<img[^>]*src="([^"]+)"/);
+            if (imgMatch) setCurrentHeroImage(imgMatch[1]);
           }
           return;
         }
@@ -298,11 +318,41 @@ export default function InlineComposePanel({
       }
     } catch (e) {}
 
+    // For Unlimited users: auto-select a visual HTML template with hero image
+    if (isUnlimitedTier && !email.subject && !email.body && !bodyHtml) {
+      const visualTemplate = HIGH_CONVERTING_TEMPLATES.find(t => t.body_html && t.body_html.includes('<img'));
+      if (visualTemplate) {
+        // Personalize with representative lead data
+        let html = visualTemplate.body_html;
+        let subject = visualTemplate.subject;
+        if (representativeLead) {
+          const biz = representativeLead.business_name || representativeLead.name || '{{business_name}}';
+          const first = representativeLead.first_name || representativeLead.contact_name || '{{first_name}}';
+          html = html.replace(/\{\{business_name\}\}/g, biz).replace(/\{\{first_name\}\}/g, first);
+          subject = subject.replace(/\{\{business_name\}\}/g, biz).replace(/\{\{first_name\}\}/g, first);
+        }
+        html = html.replace(/\{\{sender_name\}\}/g, smtpSenderName);
+        setBodyHtml(html);
+        setEmail({ subject, body: html });
+        // Store so it persists
+        localStorage.setItem('bamlead_selected_template', JSON.stringify({
+          id: visualTemplate.id,
+          name: visualTemplate.name,
+          subject,
+          body_html: html,
+        }));
+        // Extract hero image
+        const imgMatch = html.match(/<img[^>]*src="([^"]+)"/);
+        if (imgMatch) setCurrentHeroImage(imgMatch[1]);
+        return;
+      }
+    }
+
     // Only fall back to auto-suggested template if nothing is populated yet
     if (!email.subject && !email.body && !bodyHtml && effectiveTemplate) {
       setEmail({ subject: effectiveTemplate.subject || '', body: effectiveTemplate.body || '' });
     }
-  }, [effectiveTemplate]);
+  }, [effectiveTemplate, isUnlimitedTier]);
 
   // Recipient chips
   const recipientChips = useMemo(() => {
@@ -1124,12 +1174,80 @@ export default function InlineComposePanel({
               <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-400 hover:brightness-125"
                 onMouseDown={(e) => {
                   e.preventDefault();
-                  const url = prompt('Enter image URL:');
-                  if (url) document.execCommand('insertImage', false, url);
+                  if (currentHeroImage) {
+                    setShowImageSwap(!showImageSwap);
+                  } else {
+                    const url = prompt('Enter image URL:');
+                    if (url) document.execCommand('insertImage', false, url);
+                  }
                 }}>
                 <Image className="w-3.5 h-3.5" />
               </Button>
             </div>
+
+            {/* Image Swap Panel for Unlimited users */}
+            {showImageSwap && currentHeroImage && (
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-muted/30 rounded-lg border border-border ml-1">
+                <span className="text-[9px] text-muted-foreground shrink-0">Swap Hero:</span>
+                {getHeroImageChoices('default').map((imgUrl, i) => (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      if (bodyHtml) {
+                        const updatedHtml = bodyHtml.replace(
+                          /<img([^>]*?)src="[^"]*"([^>]*?)\/?>/, 
+                          `<img$1src="${imgUrl}"$2/>`
+                        );
+                        setBodyHtml(updatedHtml);
+                        setEmail(prev => ({ ...prev, body: updatedHtml }));
+                        setCurrentHeroImage(imgUrl);
+                        if (editableRef.current) {
+                          editableRef.current.innerHTML = updatedHtml;
+                        }
+                        // Update stored template
+                        try {
+                          const stored = localStorage.getItem('bamlead_selected_template');
+                          if (stored) {
+                            const t = JSON.parse(stored);
+                            t.body_html = updatedHtml;
+                            localStorage.setItem('bamlead_selected_template', JSON.stringify(t));
+                          }
+                        } catch {}
+                        toast.success('Hero image updated!');
+                        setShowImageSwap(false);
+                      }
+                    }}
+                    className={cn(
+                      "w-10 h-6 rounded border overflow-hidden transition-all hover:ring-2 hover:ring-primary",
+                      currentHeroImage === imgUrl ? "ring-2 ring-primary" : "border-border"
+                    )}
+                  >
+                    <img src={imgUrl} alt={`Option ${i + 1}`} className="w-full h-full object-cover" />
+                  </button>
+                ))}
+                <button
+                  onClick={() => {
+                    const url = prompt('Enter custom image URL:');
+                    if (url && bodyHtml) {
+                      const updatedHtml = bodyHtml.replace(
+                        /<img([^>]*?)src="[^"]*"([^>]*?)\/?>/, 
+                        `<img$1src="${url}"$2/>`
+                      );
+                      setBodyHtml(updatedHtml);
+                      setEmail(prev => ({ ...prev, body: updatedHtml }));
+                      setCurrentHeroImage(url);
+                      if (editableRef.current) editableRef.current.innerHTML = updatedHtml;
+                      toast.success('Custom hero image set!');
+                      setShowImageSwap(false);
+                    }
+                  }}
+                  className="w-10 h-6 rounded border border-dashed border-muted-foreground/50 flex items-center justify-center text-[8px] text-muted-foreground hover:bg-muted transition-colors"
+                >
+                  URL
+                </button>
+                <X className="w-3 h-3 text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => setShowImageSwap(false)} />
+              </div>
+            )}
             <div className="flex-1" />
             <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground">
               <MoreHorizontal className="w-3.5 h-3.5" />
