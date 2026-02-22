@@ -89,7 +89,7 @@ if (!defined('CUSTOM_FETCH_ENABLE_QUICK_EMAIL_PROBE')) {
     define('CUSTOM_FETCH_ENABLE_QUICK_EMAIL_PROBE', true);
 }
 if (!defined('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC')) {
-    define('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC', 1);
+    define('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC', 3);
 }
 if (!defined('CUSTOM_FETCH_QUICK_EMAIL_CONCURRENCY')) {
     define('CUSTOM_FETCH_QUICK_EMAIL_CONCURRENCY', 20);
@@ -315,7 +315,7 @@ function customFetcherQuickEmailProbeEnabled()
 
 function customFetcherQuickEmailTimeout()
 {
-    $timeout = defined('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC') ? (int) CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC : 1;
+    $timeout = defined('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC') ? (int) CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC : 3;
     return max(1, min(6, $timeout));
 }
 
@@ -506,15 +506,15 @@ function customFetcherBuildLocations($location, $limit, $filtersActive)
     }
     $locations = customFetcherUniqueCleanArray($locations);
 
-    $maxLocations = 3;
+    $maxLocations = 6;
     if ($limit >= 250)
-        $maxLocations = 6;
-    if ($limit >= 500)
         $maxLocations = 10;
-    if ($limit >= 1000)
+    if ($limit >= 500)
         $maxLocations = 16;
+    if ($limit >= 1000)
+        $maxLocations = 24;
     if ($limit >= 2000)
-        $maxLocations = 36;
+        $maxLocations = 40;
     if ($filtersActive)
         $maxLocations = (int) ceil($maxLocations * 1.4);
 
@@ -531,15 +531,15 @@ function customFetcherBuildServiceVariants($service, $limit, $filtersActive)
     }
     $variants = customFetcherUniqueCleanArray($variants);
 
-    $maxVariants = 3;
+    $maxVariants = 5;
     if ($limit >= 250)
-        $maxVariants = 6;
+        $maxVariants = 8;
     if ($limit >= 500)
-        $maxVariants = 9;
-    if ($limit >= 1000)
         $maxVariants = 12;
+    if ($limit >= 1000)
+        $maxVariants = 16;
     if ($limit >= 2000)
-        $maxVariants = 22;
+        $maxVariants = 24;
     if ($filtersActive)
         $maxVariants = (int) ceil($maxVariants * 1.5);
 
@@ -570,17 +570,17 @@ function customFetcherBuildQueries($serviceVariants, $locations, $limit, $filter
         }
     }
 
-    $maxQueries = 14;
+    $maxQueries = 24;
     if ($limit >= 250)
-        $maxQueries = 36;
+        $maxQueries = 48;
     if ($limit >= 500)
-        $maxQueries = 72;
+        $maxQueries = 96;
     if ($limit >= 1000)
-        $maxQueries = 120;
+        $maxQueries = 160;
     if ($limit >= 2000)
-        $maxQueries = 180;
+        $maxQueries = 240;
     if ($filtersActive)
-        $maxQueries = min(320, (int) ceil($maxQueries * 1.35));
+        $maxQueries = min(400, (int) ceil($maxQueries * 1.35));
 
     return array_slice(array_values($map), 0, $maxQueries);
 }
@@ -2403,11 +2403,13 @@ function customFetcherQuickEmailProbeLeads($leads, $timeout, $concurrency, $maxL
                 CURLOPT_URL => $task['url'],
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT => $timeout,
-                CURLOPT_CONNECTTIMEOUT => 1,
+                CURLOPT_CONNECTTIMEOUT => 2,
                 CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_MAXREDIRS => 2,
+                CURLOPT_MAXREDIRS => 3,
                 CURLOPT_SSL_VERIFYPEER => false,
-                CURLOPT_USERAGENT => 'BamLead-QuickEmailProbe/1.0',
+                CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                CURLOPT_HTTPHEADER => ['Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'Accept-Language: en-US,en;q=0.9'],
+                CURLOPT_ENCODING => '',
             ]);
             curl_multi_add_handle($multi, $ch);
             $active[(int) $ch] = [
@@ -3276,8 +3278,7 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
     $coverageRatio = count($allResults) / max(1, $limit);
     if (
         $lowCoverageTopupEnabled &&
-        count($allResults) < $targetCount &&
-        $coverageRatio < $lowCoverageThreshold
+        count($allResults) < $targetCount
     ) {
         $topupQueries = customFetcherBuildLowCoverageTopupQueries($service, $location, $limit, $filtersActive, $queries);
         $topupSources = $primarySources;
@@ -3478,6 +3479,122 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
         }
     }
 
+    // === NEARBY CITY EXPANSION PASS ===
+    // If still below target after primary + topup, expand to all nearby cities
+    // and generate fresh queries with synonyms to fill the gap.
+    if (count($allResults) < $targetCount && count($allResults) < $hardLimit) {
+        $allExistingKeys = [];
+        foreach ($queries as $q) {
+            $allExistingKeys[strtolower($q['query'] ?? '')] = true;
+        }
+        // Get ALL nearby city expansions (not capped)
+        $allExpansions = buildLocationExpansions($location);
+        $expansionLocations = customFetcherUniqueCleanArray(array_merge($allExpansions));
+        $serviceVars = customFetcherBuildServiceVariants($service, max(250, $limit), $filtersActive);
+        $nearbyQueries = [];
+        $nearbyTemplates = ['%s in %s', '%s near %s', 'best %s in %s'];
+        foreach ($expansionLocations as $loc) {
+            foreach ($serviceVars as $sv) {
+                foreach ($nearbyTemplates as $tpl) {
+                    $q = preg_replace('/\s+/', ' ', trim(sprintf($tpl, $sv, $loc)));
+                    $key = strtolower($q);
+                    if (isset($allExistingKeys[$key]) || isset($seen[$key])) continue;
+                    $allExistingKeys[$key] = true;
+                    $nearbyQueries[] = ['query' => $q, 'location' => $loc];
+                }
+            }
+        }
+        $nearbyQueries = array_slice($nearbyQueries, 0, 80);
+
+        if (!empty($nearbyQueries)) {
+            if (is_callable($onStatus)) {
+                $onStatus([
+                    'message' => 'Expanding to nearby cities to meet target...',
+                    'phase' => 'nearby_expansion',
+                    'progress' => min(97, max(1, (int) round((count($allResults) / max(1, $limit)) * 100))),
+                ]);
+            }
+
+            $nearbyChunks = array_chunk($nearbyQueries, $queryConcurrency);
+            foreach ($nearbyChunks as $ncIdx => $queryChunk) {
+                if (count($allResults) >= $hardLimit) break;
+                $remaining = $hardLimit - count($allResults);
+                $perQueryDiscoveryLimit = min(120, max(20, (int) ceil(($remaining * 1.3) / max(1, count($queryChunk)))));
+
+                $chunkDiscoveries = [];
+                if (count($primarySources) === 1 && $primarySources[0] === 'serper') {
+                    $chunkDiscoveries = customFetcherDiscoverSerperPlacesChunk($queryChunk, $perQueryDiscoveryLimit);
+                } elseif (count($primarySources) === 1 && $primarySources[0] === 'no_key') {
+                    $chunkDiscoveries = customFetcherDiscoverNoKeyChunk($queryChunk, $perQueryDiscoveryLimit, customFetcherNoKeyProviderTimeout(), customFetcherNoKeyProviderRetries(), customFetcherNoKeyBlockBackoffMs());
+                } else {
+                    foreach ($queryChunk as $queryData) {
+                        $discovered = customFetcherDiscoverBySources($queryData['query'] ?? '', $perQueryDiscoveryLimit, $primarySources);
+                        $chunkDiscoveries[] = ['query' => $queryData, 'discovered' => $discovered];
+                    }
+                }
+
+                foreach ($chunkDiscoveries as $queryResult) {
+                    if (count($allResults) >= $hardLimit) break;
+                    $queryLocation = $queryResult['query']['location'] ?? $location;
+                    $discovered = $queryResult['discovered'] ?? [];
+                    if (empty($discovered)) continue;
+
+                    $fresh = [];
+                    foreach ($discovered as $lead) {
+                        if (!is_array($lead) || empty($lead['name'])) continue;
+                        $dedupeKey = buildBusinessDedupeKey($lead, $queryLocation);
+                        if (isset($seen[$dedupeKey])) continue;
+                        $seen[$dedupeKey] = true;
+                        $fresh[] = $lead;
+                    }
+                    if (empty($fresh)) continue;
+
+                    if ($quickProbeEnabled && $quickProbeRemaining > 0) {
+                        $probeCandidates = 0;
+                        foreach ($fresh as $pl) {
+                            if (trim((string) ($pl['email'] ?? '')) === '' && trim((string) ($pl['url'] ?? '')) !== '') $probeCandidates++;
+                        }
+                        if ($probeCandidates > 0) {
+                            $probeBudget = min($quickProbeRemaining, $probeCandidates, $quickProbePerPass);
+                            $fresh = customFetcherQuickEmailProbeLeads($fresh, $quickProbeTimeout, $quickProbeConcurrency, $probeBudget);
+                            $quickProbeRemaining -= $probeBudget;
+                        }
+                    }
+
+                    $fresh = customFetcherPrepareDiscoveredLeads($fresh, $service, $location, (string) $queryLocation, (string) ($queryResult['query']['query'] ?? ''), $filtersActive, count($allResults), $targetCount, $hardLimit);
+                    if (empty($fresh)) continue;
+
+                    foreach ($fresh as $lead) {
+                        if (!customFetcherMatchesWithOptionalPlatformRelaxation($lead, $filters, $relaxPlatformFiltering)) continue;
+                        if (!isset($lead['enrichment']) || !is_array($lead['enrichment'])) {
+                            $lead['enrichment'] = customFetcherBuildPendingEnrichment($lead);
+                        }
+                        $lead['enrichmentStatus'] = 'pending';
+                        $allResults[] = $lead;
+                        $idx = count($allResults) - 1;
+                        $leadId = (string) ($lead['id'] ?? '');
+                        if ($leadId !== '') $resultIndexById[$leadId] = $idx;
+                        $batchToEmit[] = $lead;
+                        if ($quickProbeEnabled && $deferQuickProbe && trim((string) ($lead['email'] ?? '')) === '' && trim((string) ($lead['url'] ?? '')) !== '') {
+                            $deferredProbeQueue[] = $lead;
+                        }
+                        if (count($batchToEmit) >= $emitBatchSize && is_callable($onBatch)) {
+                            $onBatch($batchToEmit, count($allResults), $limit);
+                            $batchToEmit = [];
+                        }
+                        if (count($allResults) >= $hardLimit) break;
+                    }
+                }
+
+                if (count($allResults) >= $targetCount && $ncIdx > 0) break;
+            }
+
+            if ($deferQuickProbe) {
+                $flushDeferredProbeUpdates(true);
+            }
+        }
+    }
+
     if ($deferQuickProbe) {
         $flushDeferredProbeUpdates(false);
     }
@@ -3486,7 +3603,7 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
         $onBatch($batchToEmit, count($allResults), $limit);
     }
 
-    return array_slice($allResults, 0, $limit);
+    return array_slice($allResults, 0, $hardLimit);
 }
 
 function streamCustomOneShotSearch($service, $location, $limit, $filters, $filtersActive, $targetCount)
