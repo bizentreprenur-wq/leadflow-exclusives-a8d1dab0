@@ -2518,7 +2518,9 @@ function customFetcherEnrichLeadChunk($leads, $timeout)
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_MAXREDIRS => 3,
                 CURLOPT_SSL_VERIFYPEER => false,
-                CURLOPT_USERAGENT => 'BamLead-CustomFetcher/1.0',
+                CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                CURLOPT_HTTPHEADER => ['Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', 'Accept-Language: en-US,en;q=0.9'],
+                CURLOPT_ENCODING => '',
             ]);
             curl_multi_add_handle($multi, $ch);
             $key = (string) $idx . '|' . $pageUrl;
