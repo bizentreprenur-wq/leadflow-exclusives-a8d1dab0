@@ -2055,7 +2055,18 @@ function extractEmails($text) {
     $excludePatterns = ['example.com', 'test.com', 'domain.com', 'email.com', 'sample.', 'noreply', 'no-reply', 
                         'wixpress', 'sentry.io', 'cloudflare', 'google.com', 'facebook.com', 'twitter.com', 
                         'instagram.com', 'linkedin.com', 'youtube.com', 'placeholder', 'yoursite', 'yourdomain',
-                        'webpack', 'localhost', 'jquery', 'bootstrap', '.png', '.jpg', '.gif', '.svg', '.css', '.js'];
+                        'webpack', 'localhost', 'jquery', 'bootstrap', '.png', '.jpg', '.gif', '.svg', '.css', '.js',
+                        // Junk from CSS/JS/font code artifacts
+                        'fonts.gst', 'alayer.push', 'woff', 'eot', 'ttf', 'otf',
+                        'googleusercontent', 'gstatic', 'googleapis', 'schema.org',
+                        'w3.org', 'mozilla.org', 'apple.com', 'microsoft.com',
+                        'github.com', 'npmjs', 'jsdelivr', 'cdnjs', 'unpkg',
+                        'sentry-next', 'polyfill', 'tracker', 'analytics',
+                        'mailchimp', 'hubspot', 'sendgrid', 'mailgun'];
+    
+    // Additional junk TLD patterns (not real business emails)
+    $junkTlds = ['.push', '.woff', '.eot', '.ttf', '.map', '.min', '.bundle', '.chunk',
+                 '.webpack', '.module', '.local', '.internal', '.invalid', '.test'];
     
     foreach ($emails as $email) {
         $emailLower = strtolower($email);
@@ -2064,6 +2075,28 @@ function extractEmails($text) {
             if (strpos($emailLower, $pattern) !== false) {
                 $isValid = false;
                 break;
+            }
+        }
+        // Check junk TLDs
+        if ($isValid) {
+            foreach ($junkTlds as $junkTld) {
+                if (str_ends_with($emailLower, $junkTld)) {
+                    $isValid = false;
+                    break;
+                }
+            }
+        }
+        // Filter emails with local part too short (likely code artifacts)
+        if ($isValid && strlen(explode('@', $emailLower)[0]) < 2) {
+            $isValid = false;
+        }
+        // Filter emails where domain has no valid TLD (e.g. d@alayer.push)
+        if ($isValid) {
+            $domain = explode('@', $emailLower)[1] ?? '';
+            $tld = pathinfo($domain, PATHINFO_EXTENSION);
+            $validTlds = ['com','net','org','edu','gov','io','co','us','uk','ca','au','de','fr','es','it','nl','be','at','ch','se','no','dk','fi','pt','pl','cz','ie','nz','za','mx','br','ar','cl','in','jp','kr','cn','sg','hk','tw','my','ph','th','id','vn','ru','ua','il','ae','sa','qa','biz','info','pro','me','tv','cc','ly','fm','am','gg','to','xyz','app','dev','tech','agency','digital','studio','design','media','marketing','consulting','solutions','services','group','team','works','systems','cloud','online','store','shop','site','website','blog','email','support','help','contact'];
+            if (!in_array($tld, $validTlds)) {
+                $isValid = false;
             }
         }
         if ($isValid && strlen($email) < 100 && filter_var($emailLower, FILTER_VALIDATE_EMAIL)) {
