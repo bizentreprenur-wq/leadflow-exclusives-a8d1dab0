@@ -67,6 +67,17 @@ $configChecks = [
 
 $url = $_GET['url'] ?? '';
 
+// File diagnostics to verify correct version is deployed
+$fetcherPath = __DIR__ . '/includes/custom_fetcher.php';
+$fileDiag = [
+    'file_exists' => file_exists($fetcherPath),
+    'file_size' => file_exists($fetcherPath) ? filesize($fetcherPath) : 0,
+    'file_md5' => file_exists($fetcherPath) ? md5_file($fetcherPath) : 'N/A',
+    'first_100_chars' => file_exists($fetcherPath) ? substr(file_get_contents($fetcherPath), 0, 200) : 'N/A',
+    'contains_customFetcherEnabled' => file_exists($fetcherPath) ? (strpos(file_get_contents($fetcherPath), 'function customFetcherEnabled') !== false) : false,
+    'opcache_enabled' => function_exists('opcache_get_status') ? (opcache_get_status(false)['opcache_enabled'] ?? 'unknown') : 'N/A',
+];
+
 if (empty($url)) {
     echo json_encode([
         'success' => true,
@@ -74,6 +85,7 @@ if (empty($url)) {
         'load_status' => $loadStatus,
         'functions_available' => $functionChecks,
         'config_values' => $configChecks,
+        'file_diagnostics' => $fileDiag,
         'php_errors' => $phpErrors,
         'php_version' => phpversion(),
         'curl_available' => function_exists('curl_init'),
