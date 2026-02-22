@@ -44,7 +44,10 @@ if (!defined('CUSTOM_FETCH_CONTACT_TIMEOUT_SEC')) {
     define('CUSTOM_FETCH_CONTACT_TIMEOUT_SEC', 7);
 }
 if (!defined('CUSTOM_FETCH_TARGET_RATIO')) {
-    define('CUSTOM_FETCH_TARGET_RATIO', 0.95);
+    define('CUSTOM_FETCH_TARGET_RATIO', 1.05);
+}
+if (!defined('CUSTOM_FETCH_OVER_DELIVER_BUFFER')) {
+    define('CUSTOM_FETCH_OVER_DELIVER_BUFFER', 0.10);
 }
 if (!defined('CUSTOM_FETCH_ENABLE_INLINE_ENRICHMENT')) {
     define('CUSTOM_FETCH_ENABLE_INLINE_ENRICHMENT', false);
@@ -2372,7 +2375,7 @@ function customFetcherQuickEmailProbeLeads($leads, $timeout, $concurrency, $maxL
             ];
         }
 
-        $pages = customFetcherPageUrls($url, 1);
+        $pages = customFetcherPageUrls($url, 3);
         foreach ($pages as $pageUrl) {
             $networkTasks[] = [
                 'idx' => $idx,
@@ -2982,7 +2985,10 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
     $batchToEmit = [];
     $timeout = customFetcherContactTimeout();
     $concurrency = customFetcherEnrichConcurrency();
+    $overDeliverBuffer = defined('CUSTOM_FETCH_OVER_DELIVER_BUFFER') ? (float) CUSTOM_FETCH_OVER_DELIVER_BUFFER : 0.10;
+    $hardLimit = (int) ceil($limit * (1.0 + max(0, min(0.25, $overDeliverBuffer))));
     $targetCount = $targetCount !== null ? (int) $targetCount : (int) ceil($limit * customFetcherTargetRatio());
+    $targetCount = min($hardLimit, max($targetCount, $limit));
     $emitBatchSize = customFetcherStreamEmitBatchSize();
     $inlineEnrichment = customFetcherInlineEnrichmentEnabled();
     $quickProbeEnabled = !$inlineEnrichment && customFetcherQuickEmailProbeEnabled();
@@ -3072,9 +3078,9 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
     $totalQueryChunks = count($queryChunks);
     $processedQueryCount = 0;
     foreach ($queryChunks as $chunkIndex => $queryChunk) {
-        if (count($allResults) >= $limit)
+        if (count($allResults) >= $hardLimit)
             break;
-        $remaining = $limit - count($allResults);
+        $remaining = $hardLimit - count($allResults);
         $perQueryDiscoveryLimit = min(120, max(20, (int) ceil(($remaining * ($filtersActive ? 1.6 : 1.2)) / max(1, count($queryChunk)))));
 
         if (is_callable($onStatus)) {
@@ -3110,7 +3116,7 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
         }
 
         foreach ($chunkDiscoveries as $queryResult) {
-            if (count($allResults) >= $limit)
+            if (count($allResults) >= $hardLimit)
                 break;
             $processedQueryCount++;
             $queryLocation = $queryResult['query']['location'] ?? $location;
@@ -3190,7 +3196,7 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
                         $onBatch($batchToEmit, count($allResults), $limit);
                         $batchToEmit = [];
                     }
-                    if (count($allResults) >= $limit)
+                    if (count($allResults) >= $hardLimit)
                         break;
                 }
             } else {
@@ -3209,7 +3215,7 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
                     continue;
                 }
                 // Do not enrich more than needed for the remaining target window.
-                $remainingNeed = $limit - count($allResults);
+                $remainingNeed = $hardLimit - count($allResults);
                 $maxFreshToEnrich = max(20, (int) ceil($remainingNeed * ($filtersActive ? 2.0 : 1.3)));
                 if (count($fresh) > $maxFreshToEnrich) {
                     $fresh = array_slice($fresh, 0, $maxFreshToEnrich);
@@ -3229,10 +3235,10 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
                             $onBatch($batchToEmit, count($allResults), $limit);
                             $batchToEmit = [];
                         }
-                        if (count($allResults) >= $limit)
+                        if (count($allResults) >= $hardLimit)
                             break;
                     }
-                    if (count($allResults) >= $limit)
+                    if (count($allResults) >= $hardLimit)
                         break;
                 }
             }
@@ -3285,10 +3291,10 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
         $topupChunks = array_chunk($topupQueries, $queryConcurrency);
         $topupChunkTotal = count($topupChunks);
         foreach ($topupChunks as $topupChunkIndex => $queryChunk) {
-            if (count($allResults) >= $limit) {
+            if (count($allResults) >= $hardLimit) {
                 break;
             }
-            $remaining = $limit - count($allResults);
+            $remaining = $hardLimit - count($allResults);
             $discoveryLimit = min(120, max(25, (int) ceil(($remaining * ($filtersActive ? 1.7 : 1.35)) / max(1, count($queryChunk)))));
 
             if (is_callable($onStatus)) {
@@ -3325,7 +3331,7 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
             }
 
             foreach ($chunkDiscoveries as $queryResult) {
-                if (count($allResults) >= $limit) {
+                if (count($allResults) >= $hardLimit) {
                     break;
                 }
                 $queryLocation = $queryResult['query']['location'] ?? $location;
@@ -3409,7 +3415,7 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
                             $onBatch($batchToEmit, count($allResults), $limit);
                             $batchToEmit = [];
                         }
-                        if (count($allResults) >= $limit) {
+                        if (count($allResults) >= $hardLimit) {
                             break;
                         }
                     }
@@ -3428,7 +3434,7 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
                     if (empty($fresh)) {
                         continue;
                     }
-                    $remainingNeed = $limit - count($allResults);
+                    $remainingNeed = $hardLimit - count($allResults);
                     $maxFreshToEnrich = max(20, (int) ceil($remainingNeed * ($filtersActive ? 2.0 : 1.3)));
                     if (count($fresh) > $maxFreshToEnrich) {
                         $fresh = array_slice($fresh, 0, $maxFreshToEnrich);
@@ -3448,11 +3454,11 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
                                 $onBatch($batchToEmit, count($allResults), $limit);
                                 $batchToEmit = [];
                             }
-                            if (count($allResults) >= $limit) {
+                            if (count($allResults) >= $hardLimit) {
                                 break;
                             }
                         }
-                        if (count($allResults) >= $limit) {
+                        if (count($allResults) >= $hardLimit) {
                             break;
                         }
                     }
