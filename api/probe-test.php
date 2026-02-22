@@ -116,10 +116,19 @@ if (empty($url)) {
     exit;
 }
 
-// Run actual probe
+// Run actual probe — always bust cache for diagnostic calls
 try {
     if (!function_exists('customFetcherEnrichSingle')) {
         throw new Exception('customFetcherEnrichSingle() not found — custom_fetcher.php is outdated or failed to load');
+    }
+
+    // Delete cached result so we get a fresh fetch
+    $cacheKey = 'custom_manual_enrich_' . md5($url . '||');
+    if (defined('CACHE_DIR') && defined('ENABLE_CACHE') && ENABLE_CACHE) {
+        $cacheFile = CACHE_DIR . '/' . md5($cacheKey) . '.cache';
+        if (file_exists($cacheFile)) {
+            @unlink($cacheFile);
+        }
     }
 
     $start = microtime(true);
