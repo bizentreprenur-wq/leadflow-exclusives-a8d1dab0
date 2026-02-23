@@ -30,6 +30,13 @@ export interface CompetitiveIntelligence {
   socialMediaBenchmark?: SocialMediaBenchmark;
   productServiceGap?: ProductServiceGap;
   aiSuccessPlan?: AISuccessPlan;
+  
+  // NEW: 5 additional competitive research dimensions
+  marketGapsWhiteSpace?: MarketGapsWhiteSpace;
+  strategicDeepDives?: StrategicDeepDives;
+  indirectThreats?: IndirectThreats;
+  customerSentiment?: CustomerSentiment;
+  benchmarkPerformance?: BenchmarkPerformance;
 }
 
 // ============================================================================
@@ -592,6 +599,177 @@ export interface CostOptimization {
   currentApproach: string;
   competitorApproach: string;
   savings: string;
+  recommendation: string;
+}
+
+// ============================================================================
+// 1. Market Gaps & White Space
+// ============================================================================
+
+export interface MarketGapsWhiteSpace {
+  underservedSegments: UnderservedSegment[];
+  featureGaps: FeatureGap[];
+  topicGaps: TopicGap[];
+  summary: string;
+}
+
+export interface UnderservedSegment {
+  segment: string;
+  description: string;
+  currentlyServedBy: string;
+  opportunitySize: 'large' | 'medium' | 'small';
+  entryDifficulty: 'easy' | 'moderate' | 'hard';
+}
+
+export interface FeatureGap {
+  feature: string;
+  customerDemand: 'high' | 'medium' | 'low';
+  competitorsOffering: number;
+  recommendation: string;
+}
+
+export interface TopicGap {
+  topic: string;
+  searchVolume: 'high' | 'medium' | 'low';
+  competitorsCovering: number;
+  contentType: string;
+  potentialTraffic: string;
+}
+
+// ============================================================================
+// 2. Strategic Deep Dives
+// ============================================================================
+
+export interface StrategicDeepDives {
+  operationalIntelligence: OperationalIntel[];
+  fourPsBreakdown: FourPsAnalysis;
+  contentStrategy: ContentStrategyAnalysis[];
+}
+
+export interface OperationalIntel {
+  competitorName: string;
+  techStack: string[];
+  hiringSignals: string[];
+  partnerships: string[];
+  strategicImplication: string;
+}
+
+export interface FourPsAnalysis {
+  product: FourPsItem[];
+  pricing: FourPsItem[];
+  promotion: FourPsItem[];
+  place: FourPsItem[];
+}
+
+export interface FourPsItem {
+  competitorName: string;
+  details: string;
+  yourPosition: 'ahead' | 'on-par' | 'behind' | 'unknown';
+  recommendation: string;
+}
+
+export interface ContentStrategyAnalysis {
+  competitorName: string;
+  topTopics: string[];
+  contentTypes: string[];
+  publishingFrequency: string;
+  engagement: 'high' | 'medium' | 'low';
+  gaps: string[];
+}
+
+// ============================================================================
+// 3. Indirect & Replacement Threats
+// ============================================================================
+
+export interface IndirectThreats {
+  indirectCompetitorsList: IndirectCompetitor[];
+  replacementThreats: ReplacementThreat[];
+  disruptionRisks: string[];
+  defensiveStrategies: string[];
+}
+
+export interface IndirectCompetitor {
+  name: string;
+  type: 'indirect' | 'replacement';
+  description: string;
+  howTheyCompete: string;
+  threatLevel: 'high' | 'medium' | 'low';
+  customerOverlap: string;
+}
+
+export interface ReplacementThreat {
+  alternative: string;
+  description: string;
+  customerReasoning: string;
+  preventionStrategy: string;
+}
+
+// ============================================================================
+// 4. Customer Sentiment & Brand Perception
+// ============================================================================
+
+export interface CustomerSentiment {
+  competitorSentiment: CompetitorSentimentItem[];
+  aiShareOfVoice: AIShareOfVoice[];
+  reviewPlatforms: ReviewPlatformAnalysis[];
+  overallInsight: string;
+}
+
+export interface CompetitorSentimentItem {
+  competitorName: string;
+  overallSentiment: 'positive' | 'mixed' | 'negative';
+  positiveThemes: string[];
+  negativeThemes: string[];
+  notableQuotes: string[];
+  exploitableWeakness: string;
+}
+
+export interface AIShareOfVoice {
+  brand: string;
+  mentionFrequency: 'frequent' | 'occasional' | 'rare' | 'none';
+  context: string;
+  sentiment: 'positive' | 'neutral' | 'negative';
+}
+
+export interface ReviewPlatformAnalysis {
+  platform: string;
+  avgRating: number;
+  totalReviews: number;
+  trend: 'improving' | 'stable' | 'declining';
+  keyInsight: string;
+}
+
+// ============================================================================
+// 5. Benchmark Performance Metrics
+// ============================================================================
+
+export interface BenchmarkPerformance {
+  technicalHealth: TechnicalHealthBenchmark[];
+  marketingSpend: MarketingSpendEstimate[];
+  keywordBidding: KeywordBiddingInsight[];
+  performanceSummary: string;
+}
+
+export interface TechnicalHealthBenchmark {
+  competitorName: string;
+  pageSpeed: string;
+  mobileScore: string;
+  sslStatus: boolean;
+  assessment: 'excellent' | 'good' | 'average' | 'poor';
+}
+
+export interface MarketingSpendEstimate {
+  competitorName: string;
+  estimatedMonthlySpend: string;
+  primaryChannels: string[];
+  spendTrend: 'increasing' | 'stable' | 'decreasing';
+}
+
+export interface KeywordBiddingInsight {
+  keyword: string;
+  estimatedCPC: string;
+  topBidders: string[];
+  competitionLevel: 'high' | 'medium' | 'low';
   recommendation: string;
 }
 

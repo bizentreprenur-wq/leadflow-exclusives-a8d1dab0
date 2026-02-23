@@ -16,7 +16,7 @@ import {
   PieChart, Compass, Flag, Swords, Heart, DollarSign,
   Globe, Share2, Package, Map, Calendar, TrendingUp as Growth,
   Layout, MessageSquare, ShoppingBag, Wrench, Megaphone,
-  Clock, ArrowRight
+  Clock, ArrowRight, Search, Hash, MapPin, Layers, Activity
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { 
@@ -201,7 +201,7 @@ export default function CompetitiveAnalysisPanel({
     );
   }
 
-  const { swotAnalysis, coreCompetencies, competitorComparison, marketPositioning, aiStrategicInsights, marketOverview, buyerMatching, websiteComparison, socialMediaBenchmark, productServiceGap, aiSuccessPlan } = data;
+  const { swotAnalysis, coreCompetencies, competitorComparison, marketPositioning, aiStrategicInsights, marketOverview, buyerMatching, websiteComparison, socialMediaBenchmark, productServiceGap, aiSuccessPlan, marketGapsWhiteSpace, strategicDeepDives, indirectThreats, customerSentiment, benchmarkPerformance } = data;
 
   return (
     <div className="space-y-6">
@@ -268,6 +268,31 @@ export default function CompetitiveAnalysisPanel({
             {aiSuccessPlan && (
               <TabsTrigger value="success-plan" className="text-xs text-amber-400">
                 <Brain className="w-3.5 h-3.5 mr-1 hidden sm:inline" />AI Plan
+              </TabsTrigger>
+            )}
+            {marketGapsWhiteSpace && (
+              <TabsTrigger value="gaps" className="text-xs">
+                <Layers className="w-3.5 h-3.5 mr-1 hidden sm:inline" />Gaps
+              </TabsTrigger>
+            )}
+            {strategicDeepDives && (
+              <TabsTrigger value="deep-dives" className="text-xs">
+                <Search className="w-3.5 h-3.5 mr-1 hidden sm:inline" />Deep Dive
+              </TabsTrigger>
+            )}
+            {indirectThreats && (
+              <TabsTrigger value="indirect" className="text-xs">
+                <AlertTriangle className="w-3.5 h-3.5 mr-1 hidden sm:inline" />Threats
+              </TabsTrigger>
+            )}
+            {customerSentiment && (
+              <TabsTrigger value="sentiment" className="text-xs">
+                <Heart className="w-3.5 h-3.5 mr-1 hidden sm:inline" />Sentiment
+              </TabsTrigger>
+            )}
+            {benchmarkPerformance && (
+              <TabsTrigger value="benchmarks" className="text-xs">
+                <Activity className="w-3.5 h-3.5 mr-1 hidden sm:inline" />Benchmarks
               </TabsTrigger>
             )}
           </TabsList>
