@@ -1147,32 +1147,33 @@ export default function Dashboard() {
           throw new Error(response.error);
         }
       } else if (searchType === 'platform') {
-        // Agency Lead Finder now uses GMB search as primary (Google Maps + Yelp + Bing)
-        // then filters for platform-specific opportunities
-        console.log('[BamLead] Agency Lead Finder: Using GMB search with platform filtering, limit:', effectiveLimit);
-        const response = await searchGMB(query, location, effectiveLimit, handleProgress, backendFilters, undefined, handleEnrichment);
-        console.log('[BamLead] Agency Lead Finder GMB response:', response);
+        // Agency Lead Finder uses platform-search-stream.php with proper site: modifiers
+        // for faster, more targeted results than generic GMB search
+        console.log('[BamLead] Agency Lead Finder: Using platform search with SSE streaming, limit:', effectiveLimit);
+        const platformProgressAdapter = (partialResults: PlatformResult[], progress: number) => {
+          handleProgress(partialResults, progress);
+        };
+        const response = await searchPlatforms(query, location, selectedPlatforms, platformProgressAdapter, effectiveLimit);
+        console.log('[BamLead] Agency Lead Finder platform response:', response);
         if (response.success && response.data) {
-          const resultsToUse = backendFiltersActive ? response.data : response.data;
-          
-          finalResults = resultsToUse.map((r: GMBResult, index: number) => ({
+          finalResults = response.data.map((r: PlatformResult, index: number) => ({
             id: r.id || `agency-${index}`,
             name: r.name || 'Unknown Business',
             email: r.email,
             address: r.address,
             phone: r.phone,
             website: r.url,
-            rating: r.rating,
+            rating: undefined,
             source: 'platform' as const,
             platform: r.websiteAnalysis?.platform || undefined,
             websiteAnalysis: r.websiteAnalysis,
-            enrichment: r.enrichment,
-            enrichmentStatus: r.enrichmentStatus,
-            facebookUrl: r.enrichment?.socials?.facebook,
-            linkedinUrl: r.enrichment?.socials?.linkedin,
-            instagramUrl: r.enrichment?.socials?.instagram,
-            youtubeUrl: r.enrichment?.socials?.youtube,
-            tiktokUrl: r.enrichment?.socials?.tiktok,
+            enrichment: (r as any).enrichment,
+            enrichmentStatus: (r as any).enrichmentStatus,
+            facebookUrl: (r as any).enrichment?.socials?.facebook,
+            linkedinUrl: (r as any).enrichment?.socials?.linkedin,
+            instagramUrl: (r as any).enrichment?.socials?.instagram,
+            youtubeUrl: (r as any).enrichment?.socials?.youtube,
+            tiktokUrl: (r as any).enrichment?.socials?.tiktok,
           }));
         } else if (response.error) {
           throw new Error(response.error);

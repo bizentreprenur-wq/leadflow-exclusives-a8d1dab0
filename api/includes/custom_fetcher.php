@@ -38,10 +38,10 @@ if (!defined('ENABLE_NO_KEY_OUTSCRAPER_STYLE')) {
     define('ENABLE_NO_KEY_OUTSCRAPER_STYLE', false);
 }
 if (!defined('CUSTOM_FETCH_ENRICH_CONCURRENCY')) {
-    define('CUSTOM_FETCH_ENRICH_CONCURRENCY', 5);
+    define('CUSTOM_FETCH_ENRICH_CONCURRENCY', 8);
 }
 if (!defined('CUSTOM_FETCH_CONTACT_TIMEOUT_SEC')) {
-    define('CUSTOM_FETCH_CONTACT_TIMEOUT_SEC', 7);
+    define('CUSTOM_FETCH_CONTACT_TIMEOUT_SEC', 5);
 }
 if (!defined('CUSTOM_FETCH_TARGET_RATIO')) {
     define('CUSTOM_FETCH_TARGET_RATIO', 1.25);
@@ -68,13 +68,13 @@ if (!defined('CUSTOM_FETCH_MAX_TOPUP_QUERIES')) {
     define('CUSTOM_FETCH_MAX_TOPUP_QUERIES', 18);
 }
 if (!defined('CUSTOM_FETCH_DISCOVERY_TIMEOUT_SEC')) {
-    define('CUSTOM_FETCH_DISCOVERY_TIMEOUT_SEC', 6);
+    define('CUSTOM_FETCH_DISCOVERY_TIMEOUT_SEC', 4);
 }
 if (!defined('CUSTOM_FETCH_STREAM_EMIT_BATCH_SIZE')) {
-    define('CUSTOM_FETCH_STREAM_EMIT_BATCH_SIZE', 6);
+    define('CUSTOM_FETCH_STREAM_EMIT_BATCH_SIZE', 15);
 }
 if (!defined('CUSTOM_FETCH_QUERY_CONCURRENCY')) {
-    define('CUSTOM_FETCH_QUERY_CONCURRENCY', 3);
+    define('CUSTOM_FETCH_QUERY_CONCURRENCY', 5);
 }
 if (!defined('CUSTOM_FETCH_ENABLE_PLATFORM_RELAXATION')) {
     define('CUSTOM_FETCH_ENABLE_PLATFORM_RELAXATION', true);
@@ -89,7 +89,7 @@ if (!defined('CUSTOM_FETCH_ENABLE_QUICK_EMAIL_PROBE')) {
     define('CUSTOM_FETCH_ENABLE_QUICK_EMAIL_PROBE', true);
 }
 if (!defined('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC')) {
-    define('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC', 5);
+    define('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC', 3);
 }
 if (!defined('CUSTOM_FETCH_QUICK_EMAIL_CONCURRENCY')) {
     define('CUSTOM_FETCH_QUICK_EMAIL_CONCURRENCY', 20);
@@ -98,7 +98,7 @@ if (!defined('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_QUERY')) {
     define('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_QUERY', 500);
 }
 if (!defined('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_PASS')) {
-    define('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_PASS', 50);
+    define('CUSTOM_FETCH_QUICK_EMAIL_MAX_PER_PASS', 30);
 }
 if (!defined('CUSTOM_FETCH_DEFER_QUICK_EMAIL_PROBE')) {
     define('CUSTOM_FETCH_DEFER_QUICK_EMAIL_PROBE', false);
@@ -2394,7 +2394,7 @@ function customFetcherQuickEmailProbeLeads($leads, $timeout, $concurrency, $maxL
             ];
         }
 
-        $pages = customFetcherPageUrls($url, 3); // Only homepage + /contact + /about for speed
+        $pages = customFetcherPageUrls($url, 2); // Homepage + /contact only for speed
         foreach ($pages as $pageUrl) {
             $networkTasks[] = [
                 'idx' => $idx,
@@ -3671,10 +3671,10 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
         }
     }
     if (!empty($missingEmail)) {
-        $sweepChunkSize = 25; // Small batches to prevent server kill
-        $sweepMaxTotal = min(count($missingEmail), 200); // Cap total sweep
-        $sweepTimeout = 4;
-        $sweepConcurrency = 10; // Low concurrency for shared hosting
+        $sweepChunkSize = 20; // Faster batches
+        $sweepMaxTotal = min(count($missingEmail), 100); // Reduced cap for speed
+        $sweepTimeout = 3;
+        $sweepConcurrency = 15; // Higher concurrency, shorter timeout
         $sweepLeads = array_slice($missingEmail, 0, $sweepMaxTotal);
         $sweepChunks = array_chunk($sweepLeads, $sweepChunkSize);
         $sweepTotalChunks = count($sweepChunks);
@@ -3713,7 +3713,7 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
             }
             // Brief pause between chunks to avoid process kill
             if ($sweepChunkIdx < $sweepTotalChunks - 1) {
-                usleep(100000); // 100ms
+                usleep(50000); // 50ms between chunks
             }
         }
     }
