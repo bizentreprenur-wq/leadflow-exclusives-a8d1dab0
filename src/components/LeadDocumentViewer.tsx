@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, lazy, Suspense } from 'react';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { VisuallyHidden } from '@/components/ui/visually-hidden';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,12 @@ import {
   Copy, Check, ZoomIn, ZoomOut, RotateCcw, Trophy, Swords
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
+import NicheIntelligencePanel from '@/components/NicheIntelligencePanel';
+import CompetitiveAnalysisPanel from '@/components/CompetitiveAnalysisPanel';
+import { getCachedNicheIntelligence } from '@/lib/api/nicheIntelligence';
+import { getCachedCompetitiveIntelligence } from '@/lib/api/competitiveIntelligence';
+import { NicheIntelligence } from '@/lib/types/nicheIntelligence';
+import { CompetitiveIntelligence } from '@/lib/types/competitiveIntelligence';
 
 interface SearchResult {
   id: string;
@@ -880,6 +886,17 @@ export default function LeadDocumentViewer({
   const LEADS_PER_PAGE = 10;
   const documentRef = useRef<HTMLDivElement>(null);
   const analyzedReportKeysRef = useRef<Set<string>>(new Set());
+
+  // Load research intelligence from cache
+  const nicheIntelligence = useMemo<NicheIntelligence | null>(() => {
+    if (researchMode !== 'niche' || !searchQuery) return null;
+    return getCachedNicheIntelligence(searchQuery);
+  }, [searchQuery, researchMode]);
+
+  const competitiveIntelligence = useMemo<CompetitiveIntelligence | null>(() => {
+    if (researchMode !== 'competitive' || !searchQuery) return null;
+    return getCachedCompetitiveIntelligence(searchQuery);
+  }, [searchQuery, researchMode]);
 
   const reportAnalysisKey = useMemo(() => {
     const stableLeadKeys = leads
@@ -2535,6 +2552,36 @@ export default function LeadDocumentViewer({
                         </div>
                       </div>
                     </div>
+                  </div>
+                )}
+
+                {/* ============================================================ */}
+                {/* RESEARCH INTELLIGENCE — Niche or Competitive panels */}
+                {/* ============================================================ */}
+                {researchMode === 'niche' && nicheIntelligence && (
+                  <div className="mb-8">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-primary/20 rounded-lg">
+                        <BarChart3 className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-white">Niche Market Intelligence</h2>
+                        <p className="text-sm text-gray-400">Complete market research for "{searchQuery}"</p>
+                      </div>
+                    </div>
+                    <NicheIntelligencePanel
+                      nicheIntelligence={nicheIntelligence}
+                      searchQuery={searchQuery}
+                    />
+                  </div>
+                )}
+
+                {researchMode === 'competitive' && competitiveIntelligence && (
+                  <div className="mb-8">
+                    <CompetitiveAnalysisPanel
+                      data={competitiveIntelligence}
+                      searchQuery={searchQuery}
+                    />
                   </div>
                 )}
 
