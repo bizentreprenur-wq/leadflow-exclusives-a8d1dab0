@@ -13,10 +13,11 @@ import {
   BarChart3, Calendar, Zap, AlertTriangle, CheckCircle2,
   Building2, ShoppingBag, LineChart, Award, MessageSquare,
   ArrowUpRight, Clock, Star, Briefcase, FileText, RefreshCw,
-  Globe, Monitor, Wifi, PieChart, Eye
+  Globe, Monitor, Wifi, PieChart, Eye, Search,
+  Shield, Hash, UserCheck, MapPin, Heart, MessagesSquare
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { NicheIntelligence, NicheTrend, ServiceOffering, CustomerSegment, BusinessSampleEntry, IntelligenceTag } from '@/lib/types/nicheIntelligence';
+import { NicheIntelligence, NicheTrend, ServiceOffering, CustomerSegment, BusinessSampleEntry, IntelligenceTag, AudienceClarity, MarketViability, CompetitiveLandscapeDeep, AccessibilityAndCommunity } from '@/lib/types/nicheIntelligence';
 
 interface NicheIntelligencePanelProps {
   nicheIntelligence: NicheIntelligence | null;
@@ -37,6 +38,10 @@ export default function NicheIntelligencePanel({
     services: true,
     competitive: false,
     insights: true,
+    audienceClarity: true,
+    marketViability: true,
+    competitiveLandscapeDeep: false,
+    accessibility: false,
   });
 
   const toggleSection = (section: string) => {
@@ -79,6 +84,10 @@ export default function NicheIntelligencePanel({
     marketOverview,
     marketPatterns,
     businessSample,
+    audienceClarity,
+    marketViability,
+    competitiveLandscapeDeep,
+    accessibilityAndCommunity,
   } = nicheIntelligence;
 
   const getTrendIcon = (trend: 'growing' | 'stable' | 'declining') => {
@@ -375,6 +384,473 @@ export default function NicheIntelligencePanel({
           )}
         </CardContent>
       </Card>
+
+      {/* ================================================================ */}
+      {/* 1. AUDIENCE CLARITY — Who are they? */}
+      {/* ================================================================ */}
+      {audienceClarity && (
+        <Collapsible open={expandedSections.audienceClarity} onOpenChange={() => toggleSection('audienceClarity')}>
+          <Card className="border-2 border-violet-500/20 bg-gradient-to-br from-violet-500/5 to-fuchsia-500/5">
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center">
+                      <UserCheck className="w-5 h-5 text-violet-400" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Audience Clarity</CardTitle>
+                      <CardDescription>Who are they? Demographics, psychographics & pain points</CardDescription>
+                    </div>
+                  </div>
+                  {expandedSections.audienceClarity ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="pt-0 space-y-6">
+                {/* Demographics */}
+                {audienceClarity.demographics.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider flex items-center gap-2">
+                      <Users className="w-4 h-4" /> Demographics
+                    </h4>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {audienceClarity.demographics.map((d, idx) => (
+                        <div key={idx} className="p-3 rounded-lg bg-muted/30 border border-border">
+                          <p className="text-xs text-muted-foreground">{d.label}</p>
+                          <p className="font-medium text-foreground">{d.value}</p>
+                          {d.notes && <p className="text-xs text-muted-foreground mt-1">{d.notes}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Psychographics */}
+                {audienceClarity.psychographics.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider flex items-center gap-2">
+                      <Heart className="w-4 h-4" /> Psychographics
+                    </h4>
+                    <div className="grid gap-2">
+                      {audienceClarity.psychographics.map((p, idx) => (
+                        <div key={idx} className="p-3 rounded-lg bg-muted/20 border border-border flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-medium text-foreground">{p.trait}</p>
+                            <p className="text-sm text-muted-foreground mt-1">{p.description}</p>
+                          </div>
+                          <Badge variant="outline" className={cn("text-xs shrink-0",
+                            p.relevance === 'high' ? "border-emerald-400/50 text-emerald-400" :
+                            p.relevance === 'medium' ? "border-amber-400/50 text-amber-400" :
+                            "border-slate-400/50 text-slate-400"
+                          )}>{p.relevance}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Pain Points */}
+                {audienceClarity.painPoints.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-red-400" /> Unmet Pain Points
+                    </h4>
+                    <div className="grid gap-3">
+                      {audienceClarity.painPoints.map((pp, idx) => (
+                        <div key={idx} className={cn(
+                          "p-3 rounded-lg border",
+                          pp.severity === 'critical' ? "bg-red-500/5 border-red-500/20" :
+                          pp.severity === 'high' ? "bg-amber-500/5 border-amber-500/20" :
+                          "bg-muted/30 border-border"
+                        )}>
+                          <p className="font-medium text-foreground">{pp.painPoint}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            <span className="text-red-400">Unmet by:</span> {pp.unmetBy}
+                          </p>
+                          <p className="text-xs text-emerald-400 mt-1">💡 {pp.opportunity}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Buyer Personas */}
+                {audienceClarity.buyerPersonas.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider flex items-center gap-2">
+                      <Target className="w-4 h-4" /> Buyer Personas
+                    </h4>
+                    <div className="grid gap-4">
+                      {audienceClarity.buyerPersonas.map((persona, idx) => (
+                        <div key={idx} className="p-4 rounded-lg bg-muted/30 border border-border">
+                          <p className="font-semibold text-foreground text-base">{persona.name}</p>
+                          <p className="text-sm text-muted-foreground">{persona.description}</p>
+                          <div className="flex gap-3 mt-2 text-xs text-muted-foreground">
+                            {persona.age && <span>Age: {persona.age}</span>}
+                            {persona.income && <span>Income: {persona.income}</span>}
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {persona.shoppingHabits.map((h, i) => (
+                              <Badge key={i} variant="outline" className="text-xs">{h}</Badge>
+                            ))}
+                          </div>
+                          <p className="text-xs text-primary mt-2 font-medium">🎯 {persona.keyMotivation}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+      )}
+
+      {/* ================================================================ */}
+      {/* 2. MARKET VIABILITY — Is it worth it? */}
+      {/* ================================================================ */}
+      {marketViability && (
+        <Collapsible open={expandedSections.marketViability} onOpenChange={() => toggleSection('marketViability')}>
+          <Card className="border-2 border-emerald-500/20 bg-gradient-to-br from-emerald-500/5 to-teal-500/5">
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                      <Search className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Market Viability</CardTitle>
+                      <CardDescription>Is it worth it? Keywords, profitability & scalability</CardDescription>
+                    </div>
+                  </div>
+                  {expandedSections.marketViability ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="pt-0 space-y-6">
+                {/* Long-Tail Keywords */}
+                {marketViability.longTailKeywords.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider flex items-center gap-2">
+                      <Hash className="w-4 h-4" /> Long-Tail Keywords
+                    </h4>
+                    <div className="grid gap-2">
+                      {marketViability.longTailKeywords.map((kw, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border">
+                          <span className="font-medium text-foreground text-sm">"{kw.keyword}"</span>
+                          <div className="flex gap-2">
+                            {kw.transactionalIntent && (
+                              <Badge variant="outline" className="text-xs border-emerald-400/50 text-emerald-400">💰 Transactional</Badge>
+                            )}
+                            <Badge variant="outline" className={cn("text-xs capitalize",
+                              kw.estimatedVolume === 'high' ? "border-emerald-400/50 text-emerald-400" :
+                              kw.estimatedVolume === 'medium' ? "border-amber-400/50 text-amber-400" :
+                              "border-slate-400/50 text-slate-400"
+                            )}>{kw.estimatedVolume} vol</Badge>
+                            <Badge variant="outline" className={cn("text-xs capitalize",
+                              kw.competition === 'low' ? "border-emerald-400/50 text-emerald-400" :
+                              kw.competition === 'high' ? "border-red-400/50 text-red-400" :
+                              "border-amber-400/50 text-amber-400"
+                            )}>{kw.competition} comp</Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Search Volume Indicators */}
+                {marketViability.searchVolumeIndicators.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4" /> Search Volume Trends
+                    </h4>
+                    <div className="grid gap-2">
+                      {marketViability.searchVolumeIndicators.map((sv, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-muted/20">
+                          <span className="font-medium text-foreground text-sm">{sv.term}</span>
+                          <Badge variant="outline" className={cn("text-xs capitalize",
+                            sv.trendDirection === 'rising' ? "border-emerald-400/50 text-emerald-400 bg-emerald-400/10" :
+                            sv.trendDirection === 'declining' ? "border-red-400/50 text-red-400 bg-red-400/10" :
+                            "border-slate-400/50 text-slate-400"
+                          )}>
+                            {sv.trendDirection === 'rising' ? '📈' : sv.trendDirection === 'declining' ? '📉' : '➡️'} {sv.trendDirection}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Profitability Signals */}
+                {marketViability.profitabilitySignals.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-emerald-400" /> Profitability Signals
+                    </h4>
+                    <div className="grid gap-2">
+                      {marketViability.profitabilitySignals.map((sig, idx) => (
+                        <div key={idx} className="p-3 rounded-lg bg-muted/30 border border-border">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="font-medium text-foreground">{sig.signal}</p>
+                              <p className="text-sm text-muted-foreground mt-1">{sig.description}</p>
+                            </div>
+                            <Badge variant="outline" className={cn("text-xs shrink-0",
+                              sig.strength === 'strong' ? "border-emerald-400/50 text-emerald-400" :
+                              sig.strength === 'moderate' ? "border-amber-400/50 text-amber-400" :
+                              "border-slate-400/50 text-slate-400"
+                            )}>{sig.strength}</Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Scalability Assessment */}
+                {marketViability.scalabilityAssessment && (
+                  <div className="p-4 rounded-lg bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20">
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-2 uppercase tracking-wider flex items-center gap-2">
+                      <BarChart3 className="w-4 h-4" /> Scalability Assessment
+                    </h4>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      <Badge variant="outline" className={cn(
+                        marketViability.scalabilityAssessment.isEvergreen 
+                          ? "border-emerald-400/50 text-emerald-400 bg-emerald-400/10" 
+                          : "border-amber-400/50 text-amber-400 bg-amber-400/10"
+                      )}>
+                        {marketViability.scalabilityAssessment.isEvergreen ? '🌲 Evergreen' : '📊 Trend-dependent'}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs capitalize">{marketViability.scalabilityAssessment.longevityRating}</Badge>
+                      <Badge variant="outline" className={cn("text-xs capitalize",
+                        marketViability.scalabilityAssessment.growthPotential === 'high' ? "border-emerald-400/50 text-emerald-400" : ""
+                      )}>Growth: {marketViability.scalabilityAssessment.growthPotential}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{marketViability.scalabilityAssessment.reasoning}</p>
+                  </div>
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+      )}
+
+      {/* ================================================================ */}
+      {/* 3. COMPETITIVE LANDSCAPE DEEP — What are you up against? */}
+      {/* ================================================================ */}
+      {competitiveLandscapeDeep && (
+        <Collapsible open={expandedSections.competitiveLandscapeDeep} onOpenChange={() => toggleSection('competitiveLandscapeDeep')}>
+          <Card className="border-2 border-orange-500/20 bg-gradient-to-br from-orange-500/5 to-red-500/5">
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center">
+                      <Shield className="w-5 h-5 text-orange-400" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Competitive Deep Dive</CardTitle>
+                      <CardDescription>Competitor strength, saturation & USP opportunities</CardDescription>
+                    </div>
+                  </div>
+                  {expandedSections.competitiveLandscapeDeep ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="pt-0 space-y-6">
+                {/* Saturation Assessment */}
+                {competitiveLandscapeDeep.saturationLevel && (
+                  <div className={cn(
+                    "p-4 rounded-lg border",
+                    competitiveLandscapeDeep.saturationLevel.level === 'oversaturated' ? "bg-red-500/5 border-red-500/20" :
+                    competitiveLandscapeDeep.saturationLevel.level === 'saturated' ? "bg-amber-500/5 border-amber-500/20" :
+                    competitiveLandscapeDeep.saturationLevel.level === 'underserved' ? "bg-emerald-500/5 border-emerald-500/20" :
+                    "bg-muted/30 border-border"
+                  )}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge variant="outline" className={cn("text-sm capitalize font-semibold",
+                        competitiveLandscapeDeep.saturationLevel.level === 'underserved' ? "border-emerald-400/50 text-emerald-400" :
+                        competitiveLandscapeDeep.saturationLevel.level === 'oversaturated' ? "border-red-400/50 text-red-400" :
+                        "border-amber-400/50 text-amber-400"
+                      )}>
+                        {competitiveLandscapeDeep.saturationLevel.level}
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">({competitiveLandscapeDeep.saturationLevel.totalPlayers} players)</span>
+                    </div>
+                    <p className="text-sm text-foreground">{competitiveLandscapeDeep.saturationLevel.description}</p>
+                    <p className="text-sm text-primary mt-2 font-medium">📋 {competitiveLandscapeDeep.saturationLevel.recommendation}</p>
+                  </div>
+                )}
+
+                {/* Competitor Strength */}
+                {competitiveLandscapeDeep.competitorStrength.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider flex items-center gap-2">
+                      <Building2 className="w-4 h-4" /> Competitor Strength Analysis
+                    </h4>
+                    <div className="grid gap-2">
+                      {competitiveLandscapeDeep.competitorStrength.map((comp, idx) => (
+                        <div key={idx} className="p-3 rounded-lg bg-muted/20 border border-border flex items-center justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-foreground truncate">{comp.name}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{comp.gapIdentified}</p>
+                          </div>
+                          <Badge variant="outline" className={cn("text-xs capitalize shrink-0",
+                            comp.contentQuality === 'excellent' ? "border-emerald-400/50 text-emerald-400" :
+                            comp.contentQuality === 'good' ? "border-blue-400/50 text-blue-400" :
+                            comp.contentQuality === 'poor' ? "border-red-400/50 text-red-400" :
+                            "border-slate-400/50 text-slate-400"
+                          )}>{comp.contentQuality}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* USP Opportunities */}
+                {competitiveLandscapeDeep.uspOpportunities.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider flex items-center gap-2">
+                      <Lightbulb className="w-4 h-4 text-amber-400" /> USP Opportunities
+                    </h4>
+                    <div className="grid gap-3">
+                      {competitiveLandscapeDeep.uspOpportunities.map((usp, idx) => (
+                        <div key={idx} className="p-3 rounded-lg bg-muted/30 border border-border">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="font-medium text-foreground">{usp.usp}</p>
+                              <p className="text-sm text-muted-foreground mt-1">{usp.description}</p>
+                            </div>
+                            <div className="flex flex-col gap-1 shrink-0">
+                              <Badge variant="outline" className={cn("text-xs capitalize",
+                                usp.potentialImpact === 'high' ? "border-emerald-400/50 text-emerald-400" : ""
+                              )}>{usp.potentialImpact} impact</Badge>
+                              <Badge variant="outline" className="text-xs capitalize">{usp.difficultyToExecute}</Badge>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+      )}
+
+      {/* ================================================================ */}
+      {/* 4. ACCESSIBILITY & COMMUNITY — How do you reach them? */}
+      {/* ================================================================ */}
+      {accessibilityAndCommunity && (
+        <Collapsible open={expandedSections.accessibility} onOpenChange={() => toggleSection('accessibility')}>
+          <Card className="border-2 border-sky-500/20 bg-gradient-to-br from-sky-500/5 to-blue-500/5">
+            <CollapsibleTrigger asChild>
+              <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-sky-500/20 flex items-center justify-center">
+                      <MessagesSquare className="w-5 h-5 text-sky-400" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Accessibility & Community</CardTitle>
+                      <CardDescription>Where they hang out and how to reach them</CardDescription>
+                    </div>
+                  </div>
+                  {expandedSections.accessibility ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                </div>
+              </CardHeader>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="pt-0 space-y-6">
+                {/* Community Hangouts */}
+                {accessibilityAndCommunity.hangouts.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider flex items-center gap-2">
+                      <MapPin className="w-4 h-4" /> Community Hangouts
+                    </h4>
+                    <div className="grid gap-2">
+                      {accessibilityAndCommunity.hangouts.map((hangout, idx) => (
+                        <div key={idx} className="p-3 rounded-lg bg-muted/20 border border-border flex items-center justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-xs">{hangout.platform}</Badge>
+                              <p className="font-medium text-foreground text-sm truncate">{hangout.name}</p>
+                            </div>
+                            {hangout.memberCount && (
+                              <p className="text-xs text-muted-foreground mt-1">Members: {hangout.memberCount}</p>
+                            )}
+                          </div>
+                          <Badge variant="outline" className={cn("text-xs capitalize shrink-0",
+                            hangout.activityLevel === 'very-active' ? "border-emerald-400/50 text-emerald-400 bg-emerald-400/10" :
+                            hangout.activityLevel === 'active' ? "border-blue-400/50 text-blue-400 bg-blue-400/10" :
+                            hangout.activityLevel === 'moderate' ? "border-amber-400/50 text-amber-400" :
+                            "border-slate-400/50 text-slate-400"
+                          )}>{hangout.activityLevel}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Engagement Signals */}
+                {accessibilityAndCommunity.engagementSignals.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider flex items-center gap-2">
+                      <Zap className="w-4 h-4" /> Engagement Signals
+                    </h4>
+                    <div className="grid gap-2">
+                      {accessibilityAndCommunity.engagementSignals.map((sig, idx) => (
+                        <div key={idx} className="p-3 rounded-lg bg-muted/20 border border-border flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-medium text-foreground text-sm">{sig.signal}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{sig.description}</p>
+                          </div>
+                          <Badge variant="outline" className={cn("text-xs capitalize shrink-0",
+                            sig.quality === 'excellent' ? "border-emerald-400/50 text-emerald-400" :
+                            sig.quality === 'good' ? "border-blue-400/50 text-blue-400" :
+                            "border-red-400/50 text-red-400"
+                          )}>{sig.quality}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Outreach Channels */}
+                {accessibilityAndCommunity.outreachChannels.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-3 uppercase tracking-wider flex items-center gap-2">
+                      <Globe className="w-4 h-4" /> Best Outreach Channels
+                    </h4>
+                    <div className="grid gap-3">
+                      {accessibilityAndCommunity.outreachChannels.map((ch, idx) => (
+                        <div key={idx} className="p-3 rounded-lg bg-muted/30 border border-border">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="font-medium text-foreground">{ch.channel}</p>
+                            <Badge variant="outline" className={cn("text-xs capitalize",
+                              ch.effectiveness === 'very-effective' ? "border-emerald-400/50 text-emerald-400 bg-emerald-400/10" :
+                              ch.effectiveness === 'effective' ? "border-blue-400/50 text-blue-400" :
+                              "border-slate-400/50 text-slate-400"
+                            )}>{ch.effectiveness}</Badge>
+                          </div>
+                          <p className="text-xs text-muted-foreground">{ch.recommendation}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </CollapsibleContent>
+          </Card>
+        </Collapsible>
+      )}
 
       {/* Trend Analysis Section */}
       <Collapsible open={expandedSections.trends} onOpenChange={() => toggleSection('trends')}>

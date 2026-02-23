@@ -23,6 +23,12 @@ export interface NicheIntelligence {
   competitiveLandscape: CompetitiveLandscape;
   aiNicheInsights: AINicheInsights;
   
+  // NEW: 4 additional research dimensions
+  audienceClarity?: AudienceClarity;
+  marketViability?: MarketViability;
+  competitiveLandscapeDeep?: CompetitiveLandscapeDeep;
+  accessibilityAndCommunity?: AccessibilityAndCommunity;
+  
   // Business sample with intelligence tags (NOT leads)
   businessSample?: BusinessSampleEntry[];
 }
@@ -355,6 +361,143 @@ export interface SuccessFactor {
   factor: string;
   importance: 'critical' | 'important' | 'helpful';
   currentStatus: 'strong' | 'moderate' | 'weak' | 'unknown';
+}
+
+// ============================================================================
+// 1. Audience Clarity (Who are they?)
+// ============================================================================
+
+export interface AudienceClarity {
+  demographics: AudienceDemographic[];
+  psychographics: AudiencePsychographic[];
+  painPoints: AudiencePainPoint[];
+  buyerPersonas: BuyerPersona[];
+}
+
+export interface AudienceDemographic {
+  label: string;
+  value: string;
+  notes?: string;
+}
+
+export interface AudiencePsychographic {
+  trait: string;
+  description: string;
+  relevance: 'high' | 'medium' | 'low';
+}
+
+export interface AudiencePainPoint {
+  painPoint: string;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  unmetBy: string; // Who is NOT solving this
+  opportunity: string;
+}
+
+export interface BuyerPersona {
+  name: string;
+  description: string;
+  age?: string;
+  income?: string;
+  shoppingHabits: string[];
+  keyMotivation: string;
+}
+
+// ============================================================================
+// 2. Market Viability (Is it worth it?)
+// ============================================================================
+
+export interface MarketViability {
+  longTailKeywords: LongTailKeyword[];
+  profitabilitySignals: ProfitabilitySignal[];
+  scalabilityAssessment: ScalabilityAssessment;
+  searchVolumeIndicators: SearchVolumeIndicator[];
+}
+
+export interface LongTailKeyword {
+  keyword: string;
+  estimatedVolume: 'high' | 'medium' | 'low';
+  transactionalIntent: boolean;
+  competition: 'high' | 'medium' | 'low';
+}
+
+export interface ProfitabilitySignal {
+  signal: string;
+  description: string;
+  strength: 'strong' | 'moderate' | 'weak';
+}
+
+export interface ScalabilityAssessment {
+  isEvergreen: boolean;
+  longevityRating: 'long-term' | 'medium-term' | 'short-term';
+  growthPotential: 'high' | 'medium' | 'low';
+  reasoning: string;
+}
+
+export interface SearchVolumeIndicator {
+  term: string;
+  trendDirection: 'rising' | 'stable' | 'declining';
+  notes?: string;
+}
+
+// ============================================================================
+// 3. Competitive Landscape Deep (What are you up against?)
+// ============================================================================
+
+export interface CompetitiveLandscapeDeep {
+  competitorStrength: CompetitorStrengthAnalysis[];
+  saturationLevel: SaturationAssessment;
+  uspOpportunities: USPOpportunity[];
+}
+
+export interface CompetitorStrengthAnalysis {
+  name: string;
+  domainRating?: number;
+  contentQuality: 'excellent' | 'good' | 'average' | 'poor';
+  gapIdentified: string;
+}
+
+export interface SaturationAssessment {
+  level: 'oversaturated' | 'saturated' | 'moderate' | 'underserved';
+  totalPlayers: number;
+  description: string;
+  recommendation: string;
+}
+
+export interface USPOpportunity {
+  usp: string;
+  description: string;
+  difficultyToExecute: 'easy' | 'moderate' | 'hard';
+  potentialImpact: 'high' | 'medium' | 'low';
+}
+
+// ============================================================================
+// 4. Accessibility & Community (How do you reach them?)
+// ============================================================================
+
+export interface AccessibilityAndCommunity {
+  hangouts: CommunityHangout[];
+  engagementSignals: EngagementSignal[];
+  outreachChannels: OutreachChannel[];
+}
+
+export interface CommunityHangout {
+  platform: string;
+  name: string;
+  url?: string;
+  memberCount?: string;
+  activityLevel: 'very-active' | 'active' | 'moderate' | 'low';
+}
+
+export interface EngagementSignal {
+  signal: string;
+  description: string;
+  quality: 'excellent' | 'good' | 'poor';
+}
+
+export interface OutreachChannel {
+  channel: string;
+  effectiveness: 'very-effective' | 'effective' | 'moderate' | 'low';
+  recommendation: string;
 }
 
 // ============================================================================
