@@ -18,7 +18,11 @@ export interface PlatformResult {
   email?: string;
   phone?: string;
   address?: string;
+  rating?: number;
+  reviews?: number;
   contactCompleteness?: 'full' | 'partial';
+  enrichment?: any;
+  enrichmentStatus?: string;
   websiteAnalysis: {
     hasWebsite: boolean;
     platform: string | null;
@@ -116,7 +120,7 @@ async function searchPlatformsStreaming(
       reject(error);
     };
 
-    const timeoutMs = limit <= 100 ? 180000 : limit <= 500 ? 480000 : 900000;
+    const timeoutMs = limit <= 100 ? 120000 : limit <= 500 ? 300000 : 600000;
     const timeoutId = setTimeout(() => {
       controller.abort();
       fail(new Error(`Platform search timed out after ${Math.round(timeoutMs / 60000)} minutes.`));
@@ -141,7 +145,7 @@ async function searchPlatformsStreaming(
         let buffer = '';
         let currentEvent: string | null = null;
         
-        // Throttle onProgress to batch UI updates (fire at most every 300ms)
+        // Throttle onProgress to batch UI updates (fire at most every 200ms)
         let progressTimer: ReturnType<typeof setTimeout> | null = null;
         let lastProgress = 0;
         const flushProgress = () => {
@@ -151,7 +155,7 @@ async function searchPlatformsStreaming(
         const throttledProgress = (progress: number) => {
           lastProgress = progress;
           if (!progressTimer) {
-            progressTimer = setTimeout(flushProgress, 100);
+            progressTimer = setTimeout(flushProgress, 80);
           }
         };
 
@@ -212,7 +216,11 @@ async function searchPlatformsStreaming(
                       email: lead.email || undefined,
                       phone: lead.phone || undefined,
                       address: lead.address || undefined,
+                      rating: lead.rating,
+                      reviews: lead.reviews,
                       contactCompleteness: lead.contactCompleteness,
+                      enrichment: lead.enrichment,
+                      enrichmentStatus: lead.enrichmentStatus,
                       websiteAnalysis: lead.websiteAnalysis || {
                         hasWebsite: !!lead.url,
                         platform: null,
