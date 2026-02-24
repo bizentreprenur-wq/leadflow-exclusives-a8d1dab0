@@ -27,6 +27,7 @@ const platforms = [
   { id: "oscommerce", label: "osCommerce", category: "E-commerce" },
   { id: "customhtml", label: "Custom HTML", category: "Custom" },
   { id: "customphp", label: "Custom PHP (outdated)", category: "Custom" },
+  { id: "linkedin", label: "LinkedIn", category: "Social" },
 ];
 
 const PlatformSearchModule = () => {
