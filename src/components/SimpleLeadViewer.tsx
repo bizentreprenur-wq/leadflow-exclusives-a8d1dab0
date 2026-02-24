@@ -197,6 +197,13 @@ export default function SimpleLeadViewer({
     return enriched;
   };
 
+  const getPrimaryPhone = (lead: SearchResult): string => {
+    const direct = (lead.phone || '').trim();
+    if (direct) return direct;
+    const enriched = (lead.enrichment?.phones?.[0] || '').trim();
+    return enriched;
+  };
+
   // Load version history from localStorage
   useEffect(() => {
     try {
@@ -333,9 +340,9 @@ export default function SimpleLeadViewer({
     hot: leads.filter(l => l.aiClassification === 'hot').length,
     warm: leads.filter(l => l.aiClassification === 'warm').length,
     cold: leads.filter(l => l.aiClassification === 'cold').length,
-    ready: leads.filter(l => l.readyToCall || l.phone).length,
+    ready: leads.filter(l => l.readyToCall || getPrimaryPhone(l)).length,
     nosite: leads.filter(l => !l.website || l.websiteAnalysis?.hasWebsite === false).length,
-    phoneOnly: leads.filter(l => l.phone && !getPrimaryEmail(l)).length,
+    phoneOnly: leads.filter(l => getPrimaryPhone(l) && !getPrimaryEmail(l)).length,
     withEmail: leads.filter(l => !!getPrimaryEmail(l)).length,
   }), [leads]);
 
@@ -394,11 +401,11 @@ export default function SimpleLeadViewer({
     if (activeFilter === 'hot' || activeFilter === 'warm' || activeFilter === 'cold') {
       result = result.filter(l => l.aiClassification === activeFilter);
     } else if (activeFilter === 'ready') {
-      result = result.filter(l => l.readyToCall || l.phone);
+      result = result.filter(l => l.readyToCall || getPrimaryPhone(l));
     } else if (activeFilter === 'nosite') {
       result = result.filter(l => !l.website || l.websiteAnalysis?.hasWebsite === false);
     } else if (activeFilter === 'phoneOnly') {
-      result = result.filter(l => l.phone && !getPrimaryEmail(l));
+      result = result.filter(l => getPrimaryPhone(l) && !getPrimaryEmail(l));
     } else if (activeFilter === 'withEmail') {
       result = result.filter(l => !!getPrimaryEmail(l));
     }
@@ -407,7 +414,7 @@ export default function SimpleLeadViewer({
       const q = searchQuery.toLowerCase();
       result = result.filter(l => 
         l.name?.toLowerCase().includes(q) ||
-        l.phone?.includes(q) ||
+        getPrimaryPhone(l)?.includes(q) ||
         getPrimaryEmail(l).toLowerCase().includes(q)
       );
     }
@@ -462,7 +469,7 @@ export default function SimpleLeadViewer({
       const headers = ['Name', 'Phone', 'Email', 'Address', 'Website', 'Rating', 'Classification', 'Score'];
       const rows = dataToExport.map(r => [
         `"${r.name || ''}"`,
-        `"${r.phone || ''}"`,
+        `"${getPrimaryPhone(r) || ''}"`,
         `"${getPrimaryEmail(r) || ''}"`,
         `"${r.address || ''}"`,
         `"${r.website || ''}"`,
@@ -483,7 +490,7 @@ export default function SimpleLeadViewer({
     } else {
       const worksheetData = dataToExport.map(r => ({
         'Business Name': r.name || '',
-        'Phone': r.phone || '',
+        'Phone': getPrimaryPhone(r) || '',
         'Email': getPrimaryEmail(r) || '',
         'Address': r.address || '',
         'Website': r.website || '',
@@ -528,7 +535,7 @@ export default function SimpleLeadViewer({
 
   const handleProceedToCall = () => {
     const leadsToUse = selectedIds.size > 0 ? selectedLeads : leads;
-    const withPhone = leadsToUse.filter(l => l.phone);
+    const withPhone = leadsToUse.filter(l => getPrimaryPhone(l));
     if (withPhone.length === 0) {
       toast.error('No leads with phone numbers');
       return;
@@ -566,7 +573,7 @@ export default function SimpleLeadViewer({
 
   const confirmProceedWithoutVerify = () => {
     const leadsToUse = selectedIds.size > 0 ? selectedLeads : leads;
-    const withPhone = leadsToUse.filter(l => l.phone);
+    const withPhone = leadsToUse.filter(l => getPrimaryPhone(l));
     
     if (showVerifyPrompt === 'email') {
       onProceedToEmail(leadsToUse);
@@ -1401,17 +1408,17 @@ export default function SimpleLeadViewer({
                           )}
                         </TableCell>
                         <TableCell onClick={(e) => e.stopPropagation()}>
-                          {lead.phone ? (
+                          {getPrimaryPhone(lead) ? (
                             <a 
-                              href={`tel:${lead.phone.replace(/[^+\d]/g, '')}`}
+                              href={`tel:${getPrimaryPhone(lead).replace(/[^+\d]/g, '')}`}
                               className="text-sm text-green-500 hover:text-green-400 hover:underline flex items-center gap-1 transition-colors"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                toast.success(`Calling ${lead.name}...`, { description: lead.phone });
+                                toast.success(`Calling ${lead.name}...`, { description: getPrimaryPhone(lead) });
                               }}
                             >
                               <Phone className="w-3 h-3" />
-                              {lead.phone}
+                              {getPrimaryPhone(lead)}
                             </a>
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>

@@ -35,6 +35,7 @@ interface SearchResult {
   platform?: string;
   enrichment?: {
     emails?: string[];
+    phones?: string[];
     contactName?: string;
     [key: string]: any;
   };
@@ -85,7 +86,7 @@ function classifyLead(lead: SearchResult): { classification: Classification; sco
     score += 20;
     reasons.push('Poor mobile');
   }
-  if (lead.phone) score += 5;
+  if (lead.phone || lead.enrichment?.phones?.length) score += 5;
   if (lead.rating && lead.rating >= 4.5) score += 10;
 
   const legacyPlatforms = ['joomla', 'drupal', 'weebly', 'godaddy'];
@@ -140,6 +141,11 @@ export default function LeadReportModal({
   // Helper to get email for a lead
   const getLeadEmail = (lead: SearchResult): string => {
     return lead.email || lead.enrichment?.emails?.[0] || '';
+  };
+
+  // Helper to get phone for a lead (check enrichment too)
+  const getLeadPhone = (lead: SearchResult): string => {
+    return lead.phone || lead.enrichment?.phones?.[0] || '';
   };
 
   // Helper to get contact/owner name for a lead
@@ -280,7 +286,7 @@ export default function LeadReportModal({
       `"${getLeadContact(l)}"`,
       `"${getLeadEmail(l)}"`,
       `"${l.address || ''}"`,
-      `"${l.phone || ''}"`,
+      `"${getLeadPhone(l)}"`,
       `"${l.website || ''}"`,
       l.rating || '',
       `"${l.websiteAnalysis?.platform || ''}"`,
@@ -301,9 +307,9 @@ export default function LeadReportModal({
   };
 
   const copyAllPhones = () => {
-    const phones = leads.filter(l => l.phone).map(l => l.phone).join('\n');
-    navigator.clipboard.writeText(phones);
-    toast.success(`Copied ${leads.filter(l => l.phone).length} phone numbers!`);
+    const phones = leads.map(l => getLeadPhone(l)).filter(p => p);
+    navigator.clipboard.writeText(phones.join('\n'));
+    toast.success(`Copied ${phones.length} phone numbers!`);
   };
 
   const reportDate = new Date().toLocaleDateString('en-US', {
@@ -452,7 +458,7 @@ export default function LeadReportModal({
                   <Card className="border-2 border-green-500/30 bg-green-500/5">
                     <CardContent className="p-4 text-center">
                       <Phone className="w-8 h-8 mx-auto text-green-500 mb-2" />
-                      <div className="text-3xl font-bold text-green-600">{leads.filter(l => l.phone).length}</div>
+                      <div className="text-3xl font-bold text-green-600">{leads.filter(l => getLeadPhone(l)).length}</div>
                       <div className="text-sm text-muted-foreground">With Phone</div>
                       <div className="text-xs text-green-600 mt-1">Ready to call</div>
                     </CardContent>
@@ -561,7 +567,7 @@ export default function LeadReportModal({
                             {needsUpgradeLeads.length} need an upgrade
                           </Badge>
                           <Badge className="bg-green-500/10 text-green-600 border-green-500/30">
-                            {leads.filter(l => l.phone).length} can be called today
+                            {leads.filter(l => getLeadPhone(l)).length} can be called today
                           </Badge>
                         </div>
                       </div>
@@ -648,7 +654,7 @@ export default function LeadReportModal({
                                 </span>
                               ) : '—'}
                             </td>
-                            <td className="p-3">{lead.phone || '—'}</td>
+                            <td className="p-3">{getLeadPhone(lead) || '—'}</td>
                             <td className="p-3">
                               {lead.website ? (
                                 <CheckCircle2 className="w-4 h-4 text-green-500" />
