@@ -2159,6 +2159,7 @@ export default function Dashboard() {
                             { id: 'shopify', label: 'Shopify', icon: '🛒' },
                             { id: 'weebly', label: 'Weebly', icon: '🌐' },
                             { id: 'godaddy', label: 'GoDaddy', icon: '🟢' },
+                            { id: 'linkedin', label: 'LinkedIn', icon: '💼' },
                           ].map((platform) => (
                             <label
                               key={platform.id}
