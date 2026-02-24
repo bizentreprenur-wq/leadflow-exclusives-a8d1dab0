@@ -88,6 +88,9 @@ if (!defined('CUSTOM_FETCH_PLATFORM_RELAX_AFTER_QUERY_RATIO')) {
 if (!defined('CUSTOM_FETCH_ENABLE_QUICK_EMAIL_PROBE')) {
     define('CUSTOM_FETCH_ENABLE_QUICK_EMAIL_PROBE', true);
 }
+if (!defined('CUSTOM_FETCH_SEARCH_ENRICHMENT_ENABLED')) {
+    define('CUSTOM_FETCH_SEARCH_ENRICHMENT_ENABLED', false);
+}
 if (!defined('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC')) {
     define('CUSTOM_FETCH_QUICK_EMAIL_TIMEOUT_SEC', 3);
 }
@@ -220,7 +223,14 @@ function customFetcherTargetRatio()
 
 function customFetcherInlineEnrichmentEnabled()
 {
-    return defined('CUSTOM_FETCH_ENABLE_INLINE_ENRICHMENT') && CUSTOM_FETCH_ENABLE_INLINE_ENRICHMENT;
+    return customFetcherSearchEnrichmentEnabled()
+        && defined('CUSTOM_FETCH_ENABLE_INLINE_ENRICHMENT')
+        && CUSTOM_FETCH_ENABLE_INLINE_ENRICHMENT;
+}
+
+function customFetcherSearchEnrichmentEnabled()
+{
+    return defined('CUSTOM_FETCH_SEARCH_ENRICHMENT_ENABLED') && CUSTOM_FETCH_SEARCH_ENRICHMENT_ENABLED;
 }
 
 function customFetcherSerperOrganicTopupEnabled()
@@ -310,7 +320,9 @@ function customFetcherMatchesWithOptionalPlatformRelaxation($lead, $filters, $re
 
 function customFetcherQuickEmailProbeEnabled()
 {
-    return defined('CUSTOM_FETCH_ENABLE_QUICK_EMAIL_PROBE') && CUSTOM_FETCH_ENABLE_QUICK_EMAIL_PROBE;
+    return customFetcherSearchEnrichmentEnabled()
+        && defined('CUSTOM_FETCH_ENABLE_QUICK_EMAIL_PROBE')
+        && CUSTOM_FETCH_ENABLE_QUICK_EMAIL_PROBE;
 }
 
 function customFetcherQuickEmailTimeout()
@@ -2646,6 +2658,7 @@ function customFetcherSearchAndEnrichNoKeyOutscraperStyle($service, $location, $
     $noKeyTargetCount = $targetCount;
 
     $emitBatchSize = customFetcherNoKeyStreamEmitBatchSize();
+    $searchEnrichmentEnabled = customFetcherSearchEnrichmentEnabled();
     $quickProbeEnabled = customFetcherQuickEmailProbeEnabled();
     $quickProbeRemaining = $quickProbeEnabled ? min($limit, customFetcherQuickEmailMaxPerQuery()) : 0;
     $quickProbePerPass = customFetcherQuickEmailMaxPerPass();
@@ -2741,7 +2754,7 @@ function customFetcherSearchAndEnrichNoKeyOutscraperStyle($service, $location, $
         }
     };
 
-    $ingestDiscovered = function ($discovered, $queryLocation, $queryText = '') use (&$allResults, &$seen, &$resultIndexById, &$batchToEmit, &$deferredProbeQueue, $filters, $limit, $emitBatchSize, $onBatch, $quickProbeEnabled, $deferQuickProbe, &$quickProbeRemaining, $quickProbePerPass, $quickProbeTimeout, $quickProbeConcurrency, $recordMilestones, $service, $location, $filtersActive, $targetCount) {
+    $ingestDiscovered = function ($discovered, $queryLocation, $queryText = '') use (&$allResults, &$seen, &$resultIndexById, &$batchToEmit, &$deferredProbeQueue, $filters, $limit, $emitBatchSize, $onBatch, $quickProbeEnabled, $deferQuickProbe, &$quickProbeRemaining, $quickProbePerPass, $quickProbeTimeout, $quickProbeConcurrency, $recordMilestones, $service, $location, $filtersActive, $targetCount, $searchEnrichmentEnabled) {
         if (empty($discovered))
             return;
         $fresh = [];
@@ -2791,10 +2804,14 @@ function customFetcherSearchAndEnrichNoKeyOutscraperStyle($service, $location, $
         foreach ($fresh as $lead) {
             if (!matchesSearchFilters($lead, $filters))
                 continue;
-            if (!isset($lead['enrichment']) || !is_array($lead['enrichment'])) {
-                $lead['enrichment'] = customFetcherBuildPendingEnrichment($lead);
+            if ($searchEnrichmentEnabled) {
+                if (!isset($lead['enrichment']) || !is_array($lead['enrichment'])) {
+                    $lead['enrichment'] = customFetcherBuildPendingEnrichment($lead);
+                }
+                $lead['enrichmentStatus'] = 'pending';
+            } else {
+                unset($lead['enrichment'], $lead['enrichmentStatus']);
             }
-            $lead['enrichmentStatus'] = 'pending';
             $allResults[] = $lead;
             $idx = count($allResults) - 1;
             $leadId = (string) ($lead['id'] ?? '');
@@ -2936,16 +2953,18 @@ function customFetcherSearchAndEnrichNoKeyOutscraperStyle($service, $location, $
         }
     }
 
-    // === FINAL EMAIL SWEEP: re-probe any leads still missing email ===
+    // Optional enrichment-only final email sweep.
     $missingEmail = [];
-    foreach ($allResults as $finalIdx => $finalLead) {
-        $fe = trim((string) ($finalLead['email'] ?? ''));
-        $fu = trim((string) ($finalLead['url'] ?? ''));
-        if ($fe === '' && $fu !== '') {
-            $missingEmail[] = $finalLead;
+    if ($quickProbeEnabled) {
+        foreach ($allResults as $finalIdx => $finalLead) {
+            $fe = trim((string) ($finalLead['email'] ?? ''));
+            $fu = trim((string) ($finalLead['url'] ?? ''));
+            if ($fe === '' && $fu !== '') {
+                $missingEmail[] = $finalLead;
+            }
         }
     }
-    if (!empty($missingEmail)) {
+    if ($quickProbeEnabled && !empty($missingEmail)) {
         $sweepBudget = min(count($missingEmail), 200);
         $sweepTimeout = max($quickProbeTimeout, 5);
         if (is_callable($onStatus)) {
@@ -3053,6 +3072,7 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
     $targetCount = $targetCount !== null ? (int) $targetCount : (int) ceil($limit * customFetcherTargetRatio());
     $targetCount = max($targetCount, (int) ceil($limit * 1.15));
     $emitBatchSize = customFetcherStreamEmitBatchSize();
+    $searchEnrichmentEnabled = customFetcherSearchEnrichmentEnabled();
     $inlineEnrichment = customFetcherInlineEnrichmentEnabled();
     $quickProbeEnabled = !$inlineEnrichment && customFetcherQuickEmailProbeEnabled();
     $quickProbeRemaining = $quickProbeEnabled ? min($limit, customFetcherQuickEmailMaxPerQuery()) : 0;
@@ -3235,10 +3255,14 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
                 foreach ($fresh as $lead) {
                     if (!customFetcherMatchesWithOptionalPlatformRelaxation($lead, $filters, $relaxPlatformFiltering))
                         continue;
-                    if (!isset($lead['enrichment']) || !is_array($lead['enrichment'])) {
-                        $lead['enrichment'] = customFetcherBuildPendingEnrichment($lead);
+                    if ($searchEnrichmentEnabled) {
+                        if (!isset($lead['enrichment']) || !is_array($lead['enrichment'])) {
+                            $lead['enrichment'] = customFetcherBuildPendingEnrichment($lead);
+                        }
+                        $lead['enrichmentStatus'] = 'pending';
+                    } else {
+                        unset($lead['enrichment'], $lead['enrichmentStatus']);
                     }
-                    $lead['enrichmentStatus'] = 'pending';
                     $allResults[] = $lead;
                     $idx = count($allResults) - 1;
                     $leadId = (string) ($lead['id'] ?? '');
@@ -3453,10 +3477,14 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
                         if (!customFetcherMatchesWithOptionalPlatformRelaxation($lead, $filters, $relaxPlatformFiltering)) {
                             continue;
                         }
-                        if (!isset($lead['enrichment']) || !is_array($lead['enrichment'])) {
-                            $lead['enrichment'] = customFetcherBuildPendingEnrichment($lead);
+                        if ($searchEnrichmentEnabled) {
+                            if (!isset($lead['enrichment']) || !is_array($lead['enrichment'])) {
+                                $lead['enrichment'] = customFetcherBuildPendingEnrichment($lead);
+                            }
+                            $lead['enrichmentStatus'] = 'pending';
+                        } else {
+                            unset($lead['enrichment'], $lead['enrichmentStatus']);
                         }
-                        $lead['enrichmentStatus'] = 'pending';
                         $allResults[] = $lead;
                         $idx = count($allResults) - 1;
                         $leadId = (string) ($lead['id'] ?? '');
@@ -3627,10 +3655,14 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
 
                     foreach ($fresh as $lead) {
                         if (!customFetcherMatchesWithOptionalPlatformRelaxation($lead, $filters, $relaxPlatformFiltering)) continue;
-                        if (!isset($lead['enrichment']) || !is_array($lead['enrichment'])) {
-                            $lead['enrichment'] = customFetcherBuildPendingEnrichment($lead);
+                        if ($searchEnrichmentEnabled) {
+                            if (!isset($lead['enrichment']) || !is_array($lead['enrichment'])) {
+                                $lead['enrichment'] = customFetcherBuildPendingEnrichment($lead);
+                            }
+                            $lead['enrichmentStatus'] = 'pending';
+                        } else {
+                            unset($lead['enrichment'], $lead['enrichmentStatus']);
                         }
-                        $lead['enrichmentStatus'] = 'pending';
                         $allResults[] = $lead;
                         $idx = count($allResults) - 1;
                         $leadId = (string) ($lead['id'] ?? '');
@@ -3660,17 +3692,18 @@ function customFetcherSearchAndEnrich($service, $location, $limit, $filters, $fi
         $flushDeferredProbeUpdates(false);
     }
 
-    // === FINAL EMAIL SWEEP: re-probe leads still missing email ===
-    // Process in small chunks (25 leads) to avoid overwhelming shared hosting.
+    // Optional enrichment-only final email sweep.
     $missingEmail = [];
-    foreach ($allResults as $finalIdx => $finalLead) {
-        $fe = trim((string) ($finalLead['email'] ?? ''));
-        $fu = trim((string) ($finalLead['url'] ?? ''));
-        if ($fe === '' && $fu !== '') {
-            $missingEmail[] = $finalLead;
+    if ($quickProbeEnabled) {
+        foreach ($allResults as $finalIdx => $finalLead) {
+            $fe = trim((string) ($finalLead['email'] ?? ''));
+            $fu = trim((string) ($finalLead['url'] ?? ''));
+            if ($fe === '' && $fu !== '') {
+                $missingEmail[] = $finalLead;
+            }
         }
     }
-    if (!empty($missingEmail)) {
+    if ($quickProbeEnabled && !empty($missingEmail)) {
         $sweepChunkSize = 20; // Faster batches
         $sweepMaxTotal = min(count($missingEmail), 100); // Reduced cap for speed
         $sweepTimeout = 3;

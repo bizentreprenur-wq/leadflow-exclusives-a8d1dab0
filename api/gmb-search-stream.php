@@ -123,10 +123,8 @@ if (!$legacySerperAllowed) {
 
 // Legacy mode (kept for rollback only)
 $enrichmentSessionId = 'enrich_' . uniqid() . '_' . time();
-$enableEnrichment = (defined('ENABLE_LEGACY_FIRECRAWL_ENRICHMENT') && ENABLE_LEGACY_FIRECRAWL_ENRICHMENT)
-    && defined('FIRECRAWL_API_KEY')
-    && !empty(FIRECRAWL_API_KEY)
-    && FIRECRAWL_API_KEY !== 'YOUR_FIRECRAWL_API_KEY_HERE';
+// Search-time enrichment is force-disabled for speed and faster lead appearance.
+$enableEnrichment = false;
 
 streamGMBSearch($service, $location, $limit, $filters, $filtersActive, $filterMultiplier, $targetCount, $enrichmentSessionId, $enableEnrichment);
 
