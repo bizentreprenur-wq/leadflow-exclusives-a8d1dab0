@@ -31,6 +31,7 @@ const platforms = [
   { id: "magento", label: "Magento", category: "E-commerce" },
   { id: "customhtml", label: "Custom HTML", category: "Custom" },
   { id: "customphp", label: "Custom PHP", category: "Custom" },
+  { id: "linkedin", label: "LinkedIn", category: "Social" },
 ];
 
 const SearchModule = () => {

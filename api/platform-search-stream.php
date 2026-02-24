@@ -184,6 +184,8 @@ function buildPlatformQueries($platforms)
         // Food directories
         'tripadvisor' => 'site:tripadvisor.com',
         'opentable' => 'site:opentable.com',
+        // Social platforms
+        'linkedin' => 'site:linkedin.com/company OR site:linkedin.com/in',
     ];
     foreach ($platforms as $platform) {
         $key = strtolower($platform);

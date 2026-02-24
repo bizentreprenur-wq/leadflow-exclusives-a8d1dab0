@@ -555,6 +555,8 @@ function buildPlatformQueries($platforms) {
         'customphp' => 'inurl:".php"',
         // GMB/Google Maps - searches for local business listings
         'gmb' => 'site:google.com/maps OR site:maps.google.com OR "google.com/maps/place"',
+        // Social platforms
+        'linkedin' => 'site:linkedin.com/company OR site:linkedin.com/in',
     ];
     
     foreach ($platforms as $platform) {
