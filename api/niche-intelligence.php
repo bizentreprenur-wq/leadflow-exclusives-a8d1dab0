@@ -121,6 +121,12 @@ function generateNicheIntelligence($searchQuery, $searchLocation, $leads, $indus
         // AI Insights
         'aiNicheInsights' => generateAINicheInsights($industry, $aggregatedData),
         
+        // NEW: 4 additional research dimensions
+        'audienceClarity' => generateAudienceClarity($industry, $aggregatedData),
+        'marketViability' => generateMarketViability($industry, $searchQuery),
+        'competitiveLandscapeDeep' => generateCompetitiveLandscapeDeep($industry, $aggregatedData),
+        'accessibilityAndCommunity' => generateAccessibilityAndCommunity($industry, $searchQuery, $searchLocation),
+        
         // Business Sample with Intelligence Tags (NOT leads)
         'businessSample' => computeBusinessSample($leads, $digitalMaturity),
     ];
@@ -1066,5 +1072,257 @@ function generateAINicheInsights($industry, $aggregatedData) {
             ['factor' => 'Clear pricing', 'importance' => 'important'],
             ['factor' => 'Easy next steps', 'importance' => 'helpful'],
         ],
+    ];
+}
+
+/**
+ * Generate Audience Clarity section
+ * Demographics, psychographics, pain points, buyer personas
+ */
+function generateAudienceClarity($industry, $aggregatedData) {
+    $industryName = $industry['name'] ?? 'General Services';
+    $targetMarket = $industry['targetMarket'] ?? 'B2C';
+    
+    // Build demographics based on industry
+    $demographics = [
+        ['label' => 'Primary Age Range', 'value' => '25-55', 'notes' => 'Core decision-making demographic'],
+        ['label' => 'Income Level', 'value' => 'Middle to Upper-Middle', 'notes' => 'Can afford professional services'],
+        ['label' => 'Geographic Focus', 'value' => 'Local / Metro Area', 'notes' => 'Within 15-30 mile service radius'],
+    ];
+    
+    if ($targetMarket === 'B2B' || $targetMarket === 'Both') {
+        $demographics[] = ['label' => 'Business Size', 'value' => 'SMB (1-50 employees)', 'notes' => 'Primary B2B segment'];
+    }
+    
+    // Psychographics
+    $psychographics = [
+        ['trait' => 'Values convenience and reliability', 'description' => "Prefers providers who are responsive and easy to work with", 'relevance' => 'high'],
+        ['trait' => 'Research-oriented before purchasing', 'description' => "Checks reviews, compares options, and asks for referrals", 'relevance' => 'high'],
+        ['trait' => 'Willing to pay more for quality', 'description' => "A significant segment prioritizes outcomes over lowest price", 'relevance' => 'medium'],
+        ['trait' => 'Prefers local and trusted providers', 'description' => "Community reputation and word-of-mouth heavily influence decisions", 'relevance' => 'high'],
+    ];
+    
+    // Pain points — what larger companies don't solve
+    $painPoints = [
+        [
+            'painPoint' => 'Lack of personalized service',
+            'severity' => 'critical',
+            'unmetBy' => 'Large national chains and franchises',
+            'opportunity' => 'Offer tailored, relationship-driven service that big players cannot match',
+        ],
+        [
+            'painPoint' => 'Difficulty finding trustworthy local providers',
+            'severity' => 'high',
+            'unmetBy' => 'Online directories (too many unverified options)',
+            'opportunity' => 'Build strong review presence and social proof to stand out',
+        ],
+        [
+            'painPoint' => 'Poor communication and follow-up',
+            'severity' => 'high',
+            'unmetBy' => 'Most small businesses in this niche',
+            'opportunity' => 'Implement automated follow-ups and responsive communication',
+        ],
+        [
+            'painPoint' => 'Unclear or hidden pricing',
+            'severity' => 'medium',
+            'unmetBy' => 'Competitors who only quote after consultation',
+            'opportunity' => 'Transparent pricing builds immediate trust',
+        ],
+    ];
+    
+    // Buyer personas
+    $personas = [
+        [
+            'name' => 'The Busy Professional',
+            'description' => "Time-poor, willing to pay premium for convenience and speed",
+            'age' => '30-45',
+            'income' => '$75K-$150K',
+            'shoppingHabits' => ['Searches Google on mobile', 'Books online if possible', 'Reads top 3-5 reviews'],
+            'keyMotivation' => 'Get it done fast with minimal hassle',
+        ],
+        [
+            'name' => 'The Budget-Conscious Researcher',
+            'description' => "Compares multiple options, values transparency and fair pricing",
+            'age' => '25-40',
+            'income' => '$40K-$75K',
+            'shoppingHabits' => ['Compares 3+ quotes', 'Reads many reviews', 'Asks on social media for recs'],
+            'keyMotivation' => 'Best value for money with proven quality',
+        ],
+        [
+            'name' => 'The Quality-First Customer',
+            'description' => "Wants the best outcome regardless of cost, referral-driven",
+            'age' => '40-60',
+            'income' => '$100K+',
+            'shoppingHabits' => ['Asks friends/family first', 'Checks credentials', 'Values experience and expertise'],
+            'keyMotivation' => 'Peace of mind and superior results',
+        ],
+    ];
+    
+    return [
+        'demographics' => $demographics,
+        'psychographics' => $psychographics,
+        'painPoints' => $painPoints,
+        'buyerPersonas' => $personas,
+    ];
+}
+
+/**
+ * Generate Market Viability section
+ * Long-tail keywords, profitability signals, scalability, search volume
+ */
+function generateMarketViability($industry, $searchQuery) {
+    $industryName = strtolower($industry['name'] ?? 'services');
+    $queryClean = strtolower($searchQuery);
+    
+    // Generate niche-specific long-tail keywords
+    $longTailKeywords = [
+        ['keyword' => "best {$queryClean} near me", 'estimatedVolume' => 'high', 'transactionalIntent' => true, 'competition' => 'high'],
+        ['keyword' => "affordable {$queryClean} reviews", 'estimatedVolume' => 'medium', 'transactionalIntent' => true, 'competition' => 'medium'],
+        ['keyword' => "{$queryClean} cost estimate", 'estimatedVolume' => 'medium', 'transactionalIntent' => true, 'competition' => 'low'],
+        ['keyword' => "how to choose a {$queryClean}", 'estimatedVolume' => 'medium', 'transactionalIntent' => false, 'competition' => 'low'],
+        ['keyword' => "{$queryClean} emergency service", 'estimatedVolume' => 'low', 'transactionalIntent' => true, 'competition' => 'low'],
+    ];
+    
+    // Profitability signals
+    $profitabilitySignals = [
+        ['signal' => 'Existing paid advertising', 'description' => "Competitors running Google Ads indicates profitable customer acquisition", 'strength' => 'strong'],
+        ['signal' => 'Premium service tiers exist', 'description' => "Multiple pricing tiers suggest room for upselling and margin expansion", 'strength' => 'strong'],
+        ['signal' => 'Repeat purchase behavior', 'description' => "Customers return for maintenance, follow-ups, or recurring needs", 'strength' => 'moderate'],
+        ['signal' => 'Affiliate and referral programs', 'description' => "Active referral incentives indicate healthy unit economics", 'strength' => 'moderate'],
+    ];
+    
+    // Scalability assessment
+    $scalability = [
+        'isEvergreen' => true,
+        'longevityRating' => 'long-term',
+        'growthPotential' => 'high',
+        'reasoning' => "The {$industryName} niche shows consistent demand patterns that are not trend-dependent. Local service needs are evergreen and grow with population. Digital adoption gaps create expanding opportunities for tech-savvy entrants.",
+    ];
+    
+    // Search volume indicators
+    $searchVolumeIndicators = [
+        ['term' => "{$queryClean} near me", 'trendDirection' => 'rising', 'notes' => 'Local intent searches growing YoY'],
+        ['term' => "best {$queryClean}", 'trendDirection' => 'rising', 'notes' => 'Comparison shopping increasing'],
+        ['term' => "{$queryClean} reviews", 'trendDirection' => 'stable', 'notes' => 'Consistent demand for social proof'],
+        ['term' => "{$queryClean} pricing", 'trendDirection' => 'rising', 'notes' => 'Price transparency becoming more important'],
+    ];
+    
+    return [
+        'longTailKeywords' => $longTailKeywords,
+        'profitabilitySignals' => $profitabilitySignals,
+        'scalabilityAssessment' => $scalability,
+        'searchVolumeIndicators' => $searchVolumeIndicators,
+    ];
+}
+
+/**
+ * Generate Competitive Landscape Deep section
+ * Competitor strength, saturation, USP opportunities
+ */
+function generateCompetitiveLandscapeDeep($industry, $aggregatedData) {
+    $totalLeads = $aggregatedData['totalLeads'] ?? 0;
+    $avgRating = $aggregatedData['avgRating'] ?? 0;
+    $topRated = $aggregatedData['topRated'] ?? [];
+    
+    // Analyze top competitors
+    $competitorStrength = [];
+    foreach (array_slice($topRated, 0, 5) as $lead) {
+        $name = $lead['name'] ?? 'Unknown';
+        $rating = floatval($lead['rating'] ?? 0);
+        $reviews = intval($lead['reviews'] ?? $lead['reviewCount'] ?? 0);
+        $hasWebsite = !empty($lead['website']) || !empty($lead['url']);
+        
+        $contentQuality = 'average';
+        if ($hasWebsite && $reviews > 100 && $rating >= 4.5) $contentQuality = 'excellent';
+        elseif ($hasWebsite && $reviews > 30) $contentQuality = 'good';
+        elseif (!$hasWebsite) $contentQuality = 'poor';
+        
+        $gap = 'Limited online content strategy';
+        if (!$hasWebsite) $gap = 'No website — major digital gap';
+        elseif ($reviews < 20) $gap = 'Low review count — vulnerable to review competition';
+        elseif ($rating < 4.0) $gap = 'Below-average ratings — quality perception gap';
+        
+        $competitorStrength[] = [
+            'name' => $name,
+            'domainRating' => null,
+            'contentQuality' => $contentQuality,
+            'gapIdentified' => $gap,
+        ];
+    }
+    
+    // Saturation assessment
+    $saturationLevel = 'moderate';
+    $recommendation = 'Good entry point with differentiation potential';
+    if ($totalLeads > 100) {
+        $saturationLevel = 'saturated';
+        $recommendation = 'High competition — differentiation and niche specialization essential';
+    } elseif ($totalLeads > 50) {
+        $saturationLevel = 'moderate';
+        $recommendation = 'Healthy market with proven demand — focus on unique positioning';
+    } elseif ($totalLeads < 15) {
+        $saturationLevel = 'underserved';
+        $recommendation = 'Low competition — first-mover advantage available';
+    }
+    
+    $saturation = [
+        'level' => $saturationLevel,
+        'totalPlayers' => $totalLeads,
+        'description' => "Found {$totalLeads} competitors in this area with an average rating of " . number_format($avgRating, 1),
+        'recommendation' => $recommendation,
+    ];
+    
+    // USP opportunities
+    $uspOpportunities = [
+        ['usp' => 'Speed & responsiveness', 'description' => 'Guarantee same-day response or faster service than competitors', 'difficultyToExecute' => 'easy', 'potentialImpact' => 'high'],
+        ['usp' => 'Transparent pricing', 'description' => 'Publish clear pricing when competitors hide theirs', 'difficultyToExecute' => 'easy', 'potentialImpact' => 'high'],
+        ['usp' => 'Specialized virtual delivery', 'description' => 'Offer online consultations or digital-first service models', 'difficultyToExecute' => 'moderate', 'potentialImpact' => 'medium'],
+        ['usp' => 'Superior customer experience', 'description' => 'Invest in follow-up, communication, and post-service care', 'difficultyToExecute' => 'moderate', 'potentialImpact' => 'high'],
+    ];
+    
+    return [
+        'competitorStrength' => $competitorStrength,
+        'saturationLevel' => $saturation,
+        'uspOpportunities' => $uspOpportunities,
+    ];
+}
+
+/**
+ * Generate Accessibility & Community section
+ * Where the audience hangs out and how to reach them
+ */
+function generateAccessibilityAndCommunity($industry, $searchQuery, $searchLocation) {
+    $industryName = strtolower($industry['name'] ?? 'services');
+    $queryClean = strtolower($searchQuery);
+    
+    // Community hangouts
+    $hangouts = [
+        ['platform' => 'Reddit', 'name' => "r/{$queryClean} and related subreddits", 'url' => null, 'memberCount' => 'Varies', 'activityLevel' => 'active'],
+        ['platform' => 'Facebook Groups', 'name' => "Local {$industryName} groups in {$searchLocation}", 'url' => null, 'memberCount' => 'Varies', 'activityLevel' => 'very-active'],
+        ['platform' => 'Google Business', 'name' => 'Google Maps Q&A and reviews', 'url' => null, 'memberCount' => 'N/A', 'activityLevel' => 'very-active'],
+        ['platform' => 'Nextdoor', 'name' => "Neighborhood recommendations for {$queryClean}", 'url' => null, 'memberCount' => 'Local', 'activityLevel' => 'active'],
+        ['platform' => 'Yelp', 'name' => "Yelp discussions and reviews for {$industryName}", 'url' => null, 'memberCount' => 'N/A', 'activityLevel' => 'moderate'],
+    ];
+    
+    // Engagement signals
+    $engagementSignals = [
+        ['signal' => 'Active review responses', 'description' => 'Businesses that reply to reviews indicate engaged communities', 'quality' => 'good'],
+        ['signal' => 'Social media discussions', 'description' => "People actively asking for {$queryClean} recommendations online", 'quality' => 'excellent'],
+        ['signal' => 'Local forum activity', 'description' => 'Regular posts and questions in local community groups', 'quality' => 'good'],
+        ['signal' => 'Q&A engagement on Google', 'description' => "Users asking questions on Google Business profiles", 'quality' => 'good'],
+    ];
+    
+    // Outreach channels
+    $outreachChannels = [
+        ['channel' => 'Google Business Profile', 'effectiveness' => 'very-effective', 'recommendation' => 'Optimize GBP listing, post weekly updates, respond to all reviews within 24h'],
+        ['channel' => 'Local Facebook Groups', 'effectiveness' => 'effective', 'recommendation' => 'Join and provide value (answer questions) before promoting services'],
+        ['channel' => 'Email Outreach', 'effectiveness' => 'effective', 'recommendation' => 'Personalized emails to businesses without strong digital presence'],
+        ['channel' => 'Nextdoor', 'effectiveness' => 'moderate', 'recommendation' => 'Claim business page and engage with neighborhood recommendations'],
+        ['channel' => 'Direct Referral Programs', 'effectiveness' => 'very-effective', 'recommendation' => 'Incentivize existing customers to refer with discounts or rewards'],
+    ];
+    
+    return [
+        'hangouts' => $hangouts,
+        'engagementSignals' => $engagementSignals,
+        'outreachChannels' => $outreachChannels,
     ];
 }

@@ -6,6 +6,27 @@
 require_once __DIR__ . '/../config.php';
 
 /**
+ * Send SSE (Server-Sent Events) message — globally available for streaming endpoints.
+ */
+if (!function_exists('sendSSE')) {
+    function sendSSE($event, $data) {
+        echo "event: {$event}\n";
+        echo "data: " . json_encode($data) . "\n\n";
+        if (ob_get_level()) ob_flush();
+        flush();
+    }
+}
+
+/**
+ * Send SSE error helper
+ */
+if (!function_exists('sendSSEError')) {
+    function sendSSEError($message) {
+        sendSSE('error', ['error' => $message]);
+    }
+}
+
+/**
  * Check if origin is a Lovable preview/project domain
  */
 function isLovableOrigin($origin) {

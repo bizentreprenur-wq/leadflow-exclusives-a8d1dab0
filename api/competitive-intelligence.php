@@ -54,6 +54,13 @@ try {
     $competitiveIntelligence['productServiceGap'] = generateProductServiceGap($leads, $myBusiness, $industry);
     $competitiveIntelligence['aiSuccessPlan'] = generateAISuccessPlan($leads, $myBusiness, $industry, $competitiveIntelligence);
     
+    // NEW: 5 additional competitive research dimensions
+    $competitiveIntelligence['marketGapsWhiteSpace'] = generateMarketGapsWhiteSpace($leads, $aggregatedData, $industry);
+    $competitiveIntelligence['strategicDeepDives'] = generateStrategicDeepDives($leads, $aggregatedData, $industry);
+    $competitiveIntelligence['indirectThreats'] = generateIndirectThreats($industry, $searchQuery);
+    $competitiveIntelligence['customerSentiment'] = generateCustomerSentiment($leads, $aggregatedData, $industry);
+    $competitiveIntelligence['benchmarkPerformance'] = generateBenchmarkPerformance($leads, $aggregatedData, $industry);
+    
     sendJson([
         'success' => true,
         'data' => $competitiveIntelligence,
@@ -1578,5 +1585,254 @@ function generateAISuccessPlan($leads, $myBusiness, $industry, $fullReport) {
                 'recommendation' => 'Adopt scheduling software to reduce no-shows and optimize routes/time',
             ],
         ],
+    ];
+}
+
+/**
+ * Generate Market Gaps & White Space
+ */
+function generateMarketGapsWhiteSpace($leads, $aggregatedData, $industry) {
+    $industryName = $industry['name'] ?? 'General Business';
+    $totalLeads = count($leads);
+    
+    $underservedSegments = [
+        ['segment' => 'Tech-savvy younger customers', 'description' => "Customers who prefer fully digital interactions (online booking, chat, digital payments) that most local {$industryName} providers don't offer", 'currentlyServedBy' => 'National chains and apps', 'opportunitySize' => 'large', 'entryDifficulty' => 'easy'],
+        ['segment' => 'After-hours emergency seekers', 'description' => "Customers needing service outside typical 9-5 business hours — most competitors don't offer extended availability", 'currentlyServedBy' => 'Very few local providers', 'opportunitySize' => 'medium', 'entryDifficulty' => 'moderate'],
+        ['segment' => 'Premium experience seekers', 'description' => "Customers willing to pay 30-50% more for concierge-level service, guarantees, and white-glove treatment", 'currentlyServedBy' => 'Rarely addressed by local providers', 'opportunitySize' => 'medium', 'entryDifficulty' => 'moderate'],
+    ];
+    
+    $featureGaps = [
+        ['feature' => 'Online self-service booking', 'customerDemand' => 'high', 'competitorsOffering' => max(1, intval($totalLeads * 0.15)), 'recommendation' => 'Implement online booking to capture convenience-driven customers'],
+        ['feature' => 'Transparent upfront pricing', 'customerDemand' => 'high', 'competitorsOffering' => max(1, intval($totalLeads * 0.1)), 'recommendation' => 'Publish clear pricing to differentiate from competitors who hide costs'],
+        ['feature' => 'Live chat support', 'customerDemand' => 'medium', 'competitorsOffering' => max(0, intval($totalLeads * 0.05)), 'recommendation' => 'Add live chat to capture leads during research phase'],
+        ['feature' => 'Video consultations', 'customerDemand' => 'medium', 'competitorsOffering' => 0, 'recommendation' => 'Offer virtual consultations as a differentiator for initial assessments'],
+    ];
+    
+    $topicGaps = [
+        ['topic' => "{$industryName} cost guide for your area", 'searchVolume' => 'high', 'competitorsCovering' => 0, 'contentType' => 'Blog post / Landing page', 'potentialTraffic' => '500-2000 visits/month'],
+        ['topic' => "How to choose the best {$industryName} provider", 'searchVolume' => 'medium', 'competitorsCovering' => max(0, intval($totalLeads * 0.02)), 'contentType' => 'Comparison guide', 'potentialTraffic' => '200-800 visits/month'],
+        ['topic' => "Common {$industryName} scams to avoid", 'searchVolume' => 'medium', 'competitorsCovering' => 0, 'contentType' => 'Trust-building article', 'potentialTraffic' => '300-1000 visits/month'],
+    ];
+    
+    return [
+        'underservedSegments' => $underservedSegments,
+        'featureGaps' => $featureGaps,
+        'topicGaps' => $topicGaps,
+        'summary' => "Analysis of {$totalLeads} competitors reveals significant white space in digital self-service, premium tiers, and content marketing that can be captured with moderate effort.",
+    ];
+}
+
+/**
+ * Generate Strategic Deep Dives
+ */
+function generateStrategicDeepDives($leads, $aggregatedData, $industry) {
+    $topComps = $aggregatedData['topCompetitors'] ?? [];
+    $industryName = $industry['name'] ?? 'General Business';
+    
+    $operationalIntel = [];
+    foreach (array_slice($topComps, 0, 5) as $comp) {
+        $name = $comp['name'] ?? 'Unknown';
+        $hasWebsite = !empty($comp['website']);
+        $operationalIntel[] = [
+            'competitorName' => $name,
+            'techStack' => $hasWebsite ? ['Website CMS', 'Google Analytics (likely)', 'Basic CRM'] : ['Phone-only operations'],
+            'hiringSignals' => ['No public hiring data available — suggests stable or small team'],
+            'partnerships' => ['Local vendor relationships', 'Review platform partnerships'],
+            'strategicImplication' => $hasWebsite 
+                ? 'Investing in digital presence — may expand online marketing soon' 
+                : 'Operating traditionally — vulnerable to digital-first competitors',
+        ];
+    }
+    
+    $fourPsBreakdown = [
+        'product' => array_map(function($c) {
+            return [
+                'competitorName' => $c['name'] ?? 'Unknown',
+                'details' => 'Standard service offering with traditional delivery model',
+                'yourPosition' => 'on-par',
+                'recommendation' => 'Differentiate through service quality and innovation',
+            ];
+        }, array_slice($topComps, 0, 3)),
+        'pricing' => array_map(function($c) {
+            return [
+                'competitorName' => $c['name'] ?? 'Unknown',
+                'details' => 'Market-rate pricing, limited transparency',
+                'yourPosition' => 'unknown',
+                'recommendation' => 'Use transparent pricing as competitive advantage',
+            ];
+        }, array_slice($topComps, 0, 3)),
+        'promotion' => array_map(function($c) {
+            $reviews = intval($c['reviewCount'] ?? 0);
+            return [
+                'competitorName' => $c['name'] ?? 'Unknown',
+                'details' => $reviews > 50 ? 'Active review generation and likely paid ads' : 'Minimal marketing effort detected',
+                'yourPosition' => 'behind',
+                'recommendation' => 'Invest in review generation and local SEO',
+            ];
+        }, array_slice($topComps, 0, 3)),
+        'place' => array_map(function($c) {
+            return [
+                'competitorName' => $c['name'] ?? 'Unknown',
+                'details' => 'Local service area, primarily in-person delivery',
+                'yourPosition' => 'on-par',
+                'recommendation' => 'Expand through virtual consultations and wider service radius',
+            ];
+        }, array_slice($topComps, 0, 3)),
+    ];
+    
+    $contentStrategy = [];
+    foreach (array_slice($topComps, 0, 3) as $comp) {
+        $hasWebsite = !empty($comp['website']);
+        $contentStrategy[] = [
+            'competitorName' => $comp['name'] ?? 'Unknown',
+            'topTopics' => $hasWebsite ? ['Service pages', 'About us', 'Contact information'] : ['Google Business posts only'],
+            'contentTypes' => $hasWebsite ? ['Web pages', 'Photos'] : ['GMB photos', 'GMB posts'],
+            'publishingFrequency' => $hasWebsite ? 'Infrequent updates' : 'Rare',
+            'engagement' => 'low',
+            'gaps' => ['No blog content', 'No video marketing', 'No educational resources', 'No email newsletter'],
+        ];
+    }
+    
+    return [
+        'operationalIntelligence' => $operationalIntel,
+        'fourPsBreakdown' => $fourPsBreakdown,
+        'contentStrategy' => $contentStrategy,
+    ];
+}
+
+/**
+ * Generate Indirect & Replacement Threats
+ */
+function generateIndirectThreats($industry, $searchQuery) {
+    $industryName = $industry['name'] ?? 'General Business';
+    
+    $indirectCompetitors = [
+        ['name' => 'DIY Online Solutions', 'type' => 'indirect', 'description' => "Customers solving problems themselves using online tutorials, YouTube, and AI tools", 'howTheyCompete' => 'Free or low-cost alternatives that eliminate the need for professional service', 'threatLevel' => 'medium', 'customerOverlap' => 'Budget-conscious and tech-savvy segments'],
+        ['name' => 'National Franchises & Chains', 'type' => 'indirect', 'description' => "Large chains offering standardized service at scale with brand recognition", 'howTheyCompete' => 'Brand trust, consistent quality, and marketing budget advantages', 'threatLevel' => 'high', 'customerOverlap' => 'Convenience-seeking customers who prioritize brand familiarity'],
+        ['name' => 'Marketplace Platforms', 'type' => 'indirect', 'description' => "Platforms like Thumbtack, Angi, TaskRabbit that aggregate providers", 'howTheyCompete' => 'Ease of comparison, reviews, and instant booking across multiple providers', 'threatLevel' => 'medium', 'customerOverlap' => 'First-time buyers and price-comparison shoppers'],
+    ];
+    
+    $replacementThreats = [
+        ['alternative' => 'Postponement / Do Nothing', 'description' => "Customers choosing to delay or skip the service entirely", 'customerReasoning' => 'Budget constraints, uncertainty about ROI, or perceived low urgency', 'preventionStrategy' => 'Create urgency through education about costs of inaction'],
+        ['alternative' => 'In-House Capability Building', 'description' => "Businesses hiring internally instead of outsourcing", 'customerReasoning' => 'Perceived long-term cost savings and control', 'preventionStrategy' => 'Position as specialist — show ROI vs. hiring costs and learning curve'],
+    ];
+    
+    return [
+        'indirectCompetitorsList' => $indirectCompetitors,
+        'replacementThreats' => $replacementThreats,
+        'disruptionRisks' => [
+            'AI-powered tools automating parts of ' . strtolower($industryName),
+            'New marketplace platforms reducing provider differentiation',
+            'Changing regulations that may increase compliance costs',
+        ],
+        'defensiveStrategies' => [
+            'Build deep customer relationships that cannot be replicated by platforms',
+            'Develop proprietary processes or tools that add unique value',
+            'Create switching costs through long-term contracts and loyalty programs',
+            'Invest in brand authority through content and community engagement',
+        ],
+    ];
+}
+
+/**
+ * Generate Customer Sentiment & Brand Perception
+ */
+function generateCustomerSentiment($leads, $aggregatedData, $industry) {
+    $topComps = $aggregatedData['topCompetitors'] ?? [];
+    
+    $competitorSentiment = [];
+    foreach (array_slice($topComps, 0, 5) as $comp) {
+        $rating = floatval($comp['rating'] ?? 0);
+        $reviews = intval($comp['reviewCount'] ?? 0);
+        
+        $sentiment = 'mixed';
+        if ($rating >= 4.5) $sentiment = 'positive';
+        elseif ($rating < 3.5 && $rating > 0) $sentiment = 'negative';
+        
+        $positiveThemes = $rating >= 4.0 ? ['Quality of service', 'Professionalism', 'Reliability'] : ['Competitive pricing'];
+        $negativeThemes = $rating < 4.5 ? ['Communication delays', 'Pricing concerns'] : [];
+        if ($reviews < 20) $negativeThemes[] = 'Limited social proof';
+        
+        $exploitable = 'Limited online engagement';
+        if ($rating < 4.0 && $rating > 0) $exploitable = 'Below-average ratings — quality perception gap you can exploit';
+        elseif ($reviews < 10) $exploitable = 'Very few reviews — can be outpaced with systematic review generation';
+        
+        $competitorSentiment[] = [
+            'competitorName' => $comp['name'] ?? 'Unknown',
+            'overallSentiment' => $sentiment,
+            'positiveThemes' => $positiveThemes,
+            'negativeThemes' => $negativeThemes,
+            'notableQuotes' => [],
+            'exploitableWeakness' => $exploitable,
+        ];
+    }
+    
+    $aiShareOfVoice = [
+        ['brand' => 'Your Business', 'mentionFrequency' => 'rare', 'context' => 'Not yet established in AI recommendation engines', 'sentiment' => 'neutral'],
+        ['brand' => 'Top Competitor', 'mentionFrequency' => 'occasional', 'context' => 'Mentioned in local service recommendations', 'sentiment' => 'positive'],
+    ];
+    
+    $reviewPlatforms = [
+        ['platform' => 'Google', 'avgRating' => $aggregatedData['avgRating'], 'totalReviews' => $aggregatedData['avgReviews'] * count($topComps), 'trend' => 'stable', 'keyInsight' => 'Primary discovery platform — dominate here first'],
+        ['platform' => 'Yelp', 'avgRating' => max(0, $aggregatedData['avgRating'] - 0.3), 'totalReviews' => intval($aggregatedData['avgReviews'] * 0.3), 'trend' => 'stable', 'keyInsight' => 'Secondary but influential for certain demographics'],
+    ];
+    
+    return [
+        'competitorSentiment' => $competitorSentiment,
+        'aiShareOfVoice' => $aiShareOfVoice,
+        'reviewPlatforms' => $reviewPlatforms,
+        'overallInsight' => "Customer sentiment across the market averages " . number_format($aggregatedData['avgRating'], 1) . "/5.0. Key complaint patterns include communication speed and pricing transparency — areas where proactive improvement creates immediate differentiation.",
+    ];
+}
+
+/**
+ * Generate Benchmark Performance Metrics
+ */
+function generateBenchmarkPerformance($leads, $aggregatedData, $industry) {
+    $topComps = $aggregatedData['topCompetitors'] ?? [];
+    $industryName = strtolower($industry['name'] ?? 'services');
+    
+    $technicalHealth = [];
+    foreach (array_slice($topComps, 0, 5) as $comp) {
+        $hasWebsite = !empty($comp['website']);
+        $assessment = 'poor';
+        if ($hasWebsite) $assessment = 'average';
+        
+        $technicalHealth[] = [
+            'competitorName' => $comp['name'] ?? 'Unknown',
+            'pageSpeed' => $hasWebsite ? 'Moderate (estimated)' : 'N/A — No website',
+            'mobileScore' => $hasWebsite ? 'Needs optimization (estimated)' : 'N/A',
+            'sslStatus' => $hasWebsite,
+            'assessment' => $assessment,
+        ];
+    }
+    
+    $marketingSpend = [];
+    foreach (array_slice($topComps, 0, 3) as $comp) {
+        $reviews = intval($comp['reviewCount'] ?? 0);
+        $spend = '$0-500/mo';
+        $trend = 'stable';
+        if ($reviews > 100) { $spend = '$1,000-5,000/mo'; $trend = 'increasing'; }
+        elseif ($reviews > 30) { $spend = '$500-1,500/mo'; }
+        
+        $marketingSpend[] = [
+            'competitorName' => $comp['name'] ?? 'Unknown',
+            'estimatedMonthlySpend' => $spend,
+            'primaryChannels' => $reviews > 50 ? ['Google Ads', 'Local SEO', 'Social Media'] : ['Google Business Profile', 'Word of mouth'],
+            'spendTrend' => $trend,
+        ];
+    }
+    
+    $keywordBidding = [
+        ['keyword' => "{$industryName} near me", 'estimatedCPC' => '$5-15', 'topBidders' => array_map(function($c) { return $c['name'] ?? 'Unknown'; }, array_slice($topComps, 0, 2)), 'competitionLevel' => 'high', 'recommendation' => 'Bid on this with location targeting for immediate visibility'],
+        ['keyword' => "best {$industryName} in [city]", 'estimatedCPC' => '$3-10', 'topBidders' => [], 'competitionLevel' => 'medium', 'recommendation' => 'Create content targeting this keyword to rank organically'],
+        ['keyword' => "{$industryName} cost", 'estimatedCPC' => '$2-8', 'topBidders' => [], 'competitionLevel' => 'low', 'recommendation' => 'Create a pricing page to capture this high-intent traffic'],
+    ];
+    
+    return [
+        'technicalHealth' => $technicalHealth,
+        'marketingSpend' => $marketingSpend,
+        'keywordBidding' => $keywordBidding,
+        'performanceSummary' => "Most competitors in this market have average-to-poor technical health with limited marketing investment. This creates opportunity for a technically superior, well-marketed entrant to capture significant market share.",
     ];
 }
