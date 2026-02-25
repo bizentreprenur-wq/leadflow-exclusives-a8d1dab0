@@ -5,7 +5,6 @@
  */
 
 import { API_BASE_URL, USE_MOCK_AUTH, getAuthHeaders } from './config';
-import { getEnrichmentStatus, triggerProcessing } from './firecrawl';
 
 const USE_MOCK_DATA = !API_BASE_URL;
 
@@ -81,19 +80,6 @@ export interface GMBResult {
   analyzedAt?: string;
   dataQualityScore?: number;
   
-  // Firecrawl enrichment data
-  enrichment?: {
-    emails?: string[];
-    phones?: string[];
-    socials?: Record<string, string>;
-    hasEmail?: boolean;
-    hasPhone?: boolean;
-    hasSocials?: boolean;
-    scrapedAt?: string;
-    isCatchAll?: boolean;
-    sources?: string[];
-  };
-  enrichmentStatus?: 'pending' | 'processing' | 'completed' | 'failed';
 }
 
 export interface GMBSearchResponse {
@@ -104,8 +90,6 @@ export interface GMBSearchResponse {
     service: string;
     location: string;
   };
-  enrichmentSessionId?: string;
-  enrichmentEnabled?: boolean;
 }
 
 function isMockLeadId(id: string | undefined): boolean {
@@ -181,35 +165,13 @@ function uniqueStrings(values: string[] = []): string[] {
 }
 
 function mergeLeadRecords(existing: GMBResult, incoming: GMBResult): GMBResult {
-  const mergedEnrichment =
-    existing.enrichment || incoming.enrichment
-      ? {
-          ...(existing.enrichment || {}),
-          ...(incoming.enrichment || {}),
-          emails: uniqueStrings([
-            ...((existing.enrichment?.emails || []) as string[]),
-            ...((incoming.enrichment?.emails || []) as string[]),
-          ]),
-          phones: uniqueStrings([
-            ...((existing.enrichment?.phones || []) as string[]),
-            ...((incoming.enrichment?.phones || []) as string[]),
-          ]),
-          socials: {
-            ...(existing.enrichment?.socials || {}),
-            ...(incoming.enrichment?.socials || {}),
-          },
-        }
-      : undefined;
-
   const bestEmail =
     existing.email ||
-    incoming.email ||
-    mergedEnrichment?.emails?.[0];
+    incoming.email;
 
   const bestPhone =
     existing.phone ||
-    incoming.phone ||
-    mergedEnrichment?.phones?.[0];
+    incoming.phone;
 
   return {
     ...existing,
@@ -225,11 +187,6 @@ function mergeLeadRecords(existing: GMBResult, incoming: GMBResult): GMBResult {
     email: bestEmail,
     phone: bestPhone,
     sources: uniqueStrings([...(existing.sources || []), ...(incoming.sources || [])]),
-    enrichment: mergedEnrichment,
-    enrichmentStatus:
-      existing.enrichmentStatus === 'completed' || incoming.enrichmentStatus === 'completed'
-        ? 'completed'
-        : existing.enrichmentStatus || incoming.enrichmentStatus,
     websiteAnalysis: existing.websiteAnalysis || incoming.websiteAnalysis,
   };
 }
@@ -359,8 +316,6 @@ function isNetworkError(error: unknown): boolean {
 // Callback for network status updates during retries
 export type NetworkStatusCallback = (status: 'verifying' | 'retrying' | 'connected' | 'failed', attempt?: number) => void;
 
-// Callback for enrichment updates
-export type EnrichmentCallback = (leadId: string, enrichmentData: GMBResult['enrichment']) => void;
 
 /**
  * Search GMB using Server-Sent Events for true streaming
@@ -372,7 +327,6 @@ export async function searchGMB(
   onProgress?: ProgressCallback,
   filters?: GMBSearchFilters,
   onNetworkStatus?: NetworkStatusCallback,
-  onEnrichment?: EnrichmentCallback
 ): Promise<GMBSearchResponse> {
   // If there's no backend configured, do not fabricate dummy leads.
   if (USE_MOCK_DATA) {
@@ -396,7 +350,7 @@ export async function searchGMB(
       // We only fall back to the regular endpoint in a very narrow case
       // (streaming endpoint missing + small limits).
       try {
-        return await searchGMBStreaming(service, location, limit, progressWrapper, filters, onEnrichment);
+        return await searchGMBStreaming(service, location, limit, progressWrapper, filters);
       } catch (streamError) {
         const err = streamError instanceof Error ? streamError : new Error(String(streamError));
         console.warn('[GMB API] Streaming failed:', err);
@@ -474,15 +428,12 @@ async function searchGMBStreaming(
   limit: number,
   onProgress?: ProgressCallback,
   filters?: GMBSearchFilters,
-  onEnrichment?: EnrichmentCallback
 ): Promise<GMBSearchResponse> {
   console.log('[GMB API] Starting SSE streaming search');
   
   const allResults: GMBResult[] = [];
   const idIndex = new Map<string, number>();
   const businessKeyIndex = new Map<string, number>();
-  let enrichmentSessionId: string | undefined;
-  let enrichmentEnabled = false;
   
   return new Promise((resolve, reject) => {
     let settled = false;
@@ -663,14 +614,12 @@ async function searchGMBStreaming(
                     url: lead.url,
                     snippet: lead.snippet,
                     displayLink: lead.displayLink,
-                    email: lead.email || lead.enrichment?.emails?.[0] || undefined,
-                    phone: lead.phone || lead.enrichment?.phones?.[0],
+                    email: lead.email || undefined,
+                    phone: lead.phone,
                     address: lead.address,
                     rating: lead.rating,
                     reviewCount: lead.reviews,
                     sources: lead.sources || [],
-                    enrichment: lead.enrichment,
-                    enrichmentStatus: lead.enrichmentStatus,
                     websiteAnalysis: lead.websiteAnalysis || {
                       hasWebsite: !!lead.url,
                       platform: null,
@@ -721,9 +670,7 @@ async function searchGMBStreaming(
               } else if (eventType === 'start') {
                 // Capture enrichment session info from start event
                 if (data.enrichmentEnabled) {
-                  enrichmentEnabled = true;
-                  enrichmentSessionId = data.enrichmentSessionId;
-                  console.log(`[GMB API] Enrichment enabled, session: ${enrichmentSessionId}`);
+                  console.log(`[GMB API] Enrichment info from backend (ignored on frontend)`);
                 }
                 const sourceLabel = Array.isArray(data.sources) && data.sources.length > 0
                   ? data.sources.join(' + ')
@@ -752,27 +699,22 @@ async function searchGMBStreaming(
                   sourceLabel: data.source || data.provider || progressMeta?.sourceLabel,
                 });
               } else if (eventType === 'enrichment') {
-                // Handle enrichment results streaming in
-                if (data.results && Array.isArray(data.results) && onEnrichment) {
+                // Enrichment events from backend - merge email/phone into leads
+                if (data.results && Array.isArray(data.results)) {
                   for (const result of data.results) {
                     const leadId = result.leadId;
                     const enrichmentData = result.data;
                     
-                    // Update the lead in allResults
                     const leadIndex = idIndex.get(leadId);
                     if (leadIndex !== undefined) {
                       const enrichedLead = {
                         ...allResults[leadIndex],
-                        enrichment: enrichmentData,
-                        enrichmentStatus: 'completed' as const,
-                        // Also merge primary email/phone for easier access
                         email: enrichmentData?.emails?.[0] || allResults[leadIndex].email,
                         phone: enrichmentData?.phones?.[0] || allResults[leadIndex].phone,
                       };
                       allResults[leadIndex] = enrichedLead;
                       indexLead(enrichedLead, leadIndex);
 
-                      // Backfill matching duplicates if one source has email/phone and another doesn't.
                       const relatedIndexes = new Set<number>();
                       for (const key of buildBusinessMatchKeys(enrichedLead)) {
                         const idx = businessKeyIndex.get(key);
@@ -784,28 +726,20 @@ async function searchGMBStreaming(
                         indexLead(allResults[idx], idx);
                       }
                     }
-                    
-                    // Call the enrichment callback
-                    onEnrichment(leadId, enrichmentData);
                   }
                   
-                  // Throttled progress for enrichment updates too
-                throttledProgress(data.progress || 0, {
-                  sourceLabel: data.source || progressMeta?.sourceLabel,
-                  statusMessage: data.message || progressMeta?.statusMessage,
-                  phase: data.phase || progressMeta?.phase,
-                });
+                  throttledProgress(data.progress || 0, {
+                    sourceLabel: data.source || progressMeta?.sourceLabel,
+                    statusMessage: data.message || progressMeta?.statusMessage,
+                    phase: data.phase || progressMeta?.phase,
+                  });
                   
                   console.log(`[GMB API] Enrichment: ${data.results.length} leads enriched`);
                 }
               } else if (eventType === 'complete') {
                 receivedComplete = true;
                 
-                // Capture final enrichment session info
-                if (data.enrichmentSessionId) {
-                  enrichmentSessionId = data.enrichmentSessionId;
-                  enrichmentEnabled = data.enrichmentEnabled ?? enrichmentEnabled;
-                }
+                // Stream complete
                 
                 // Flush any pending throttled progress, then send final 100%
                 if (progressTimer) { clearTimeout(progressTimer); progressTimer = null; }
@@ -824,18 +758,11 @@ async function searchGMBStreaming(
                 clearTimeout(timeoutId);
                 clearTimeout(initialTimeoutId);
 
-                // Start post-stream enrichment polling to keep triggering the backend
-                // processor and merging new email/phone results into leads.
-                if (enrichmentEnabled && enrichmentSessionId && onEnrichment) {
-                  startEnrichmentPolling(enrichmentSessionId, allResults, onEnrichment, onProgress);
-                }
 
                 finish({
                   success: true,
                   data: allResults,
                   query: { service, location },
-                  enrichmentSessionId,
-                  enrichmentEnabled
                 });
                 return;
               }
@@ -859,8 +786,6 @@ async function searchGMBStreaming(
           success: true,
           data: allResults,
           query: { service, location },
-          enrichmentSessionId,
-          enrichmentEnabled
         });
       })
       .catch((error) => {
@@ -877,88 +802,6 @@ async function searchGMBStreaming(
   });
 }
 
-/**
- * Post-stream enrichment polling.
- * After the SSE stream ends, the backend enrichment queue may still have
- * pending items. This function keeps triggering the processor and dispatches
- * a custom event with status updates so the UI can show progress.
- */
-function startEnrichmentPolling(
-  sessionId: string,
-  allResults: GMBResult[],
-  onEnrichment: EnrichmentCallback,
-  onProgress?: ProgressCallback
-) {
-  let stopped = false;
-  const POLL_MS = 3000;
-  const MAX_DURATION_MS = 10 * 60 * 1000; // 10 minutes max
-  const start = Date.now();
-
-  const poll = async () => {
-    if (stopped) return;
-    if (Date.now() - start > MAX_DURATION_MS) {
-      stopped = true;
-      window.dispatchEvent(new CustomEvent('enrichment-status', { detail: { isComplete: true, sessionId } }));
-      return;
-    }
-
-    try {
-      // Trigger the processor
-      triggerProcessing(sessionId);
-
-      // Fetch status
-      const status = await getEnrichmentStatus(sessionId);
-      if (!status) {
-        setTimeout(poll, POLL_MS);
-        return;
-      }
-
-      // Dispatch status event for the UI panel
-      window.dispatchEvent(new CustomEvent('enrichment-status', {
-        detail: {
-          sessionId,
-          ...status.status,
-          progress: status.progress,
-          isComplete: status.isComplete,
-          emailsFound: Object.values(status.results).filter(r => r.hasEmail).length,
-          phonesFound: Object.values(status.results).filter(r => r.hasPhone).length,
-          socialsFound: Object.values(status.results).filter(r => r.hasSocials).length,
-        }
-      }));
-
-      // Merge new results into allResults & call callbacks
-      for (const [leadId, enrichmentData] of Object.entries(status.results)) {
-        const idx = allResults.findIndex(l => l.id === leadId);
-        if (idx !== -1 && allResults[idx].enrichmentStatus !== 'completed') {
-          allResults[idx] = {
-            ...allResults[idx],
-            enrichment: enrichmentData,
-            enrichmentStatus: 'completed',
-            email: enrichmentData.emails?.[0] || allResults[idx].email,
-            phone: enrichmentData.phones?.[0] || allResults[idx].phone,
-          };
-          onEnrichment(leadId, enrichmentData);
-        }
-      }
-
-      if (Object.keys(status.results).length > 0 && onProgress) {
-        onProgress([...allResults], 100);
-      }
-
-      if (status.isComplete) {
-        stopped = true;
-        return;
-      }
-    } catch (e) {
-      console.warn('[GMB API] Enrichment poll error:', e);
-    }
-
-    setTimeout(poll, POLL_MS);
-  };
-
-  // Start after a short delay
-  setTimeout(poll, 2000);
-}
 
 /**
  * Regular non-streaming search (fallback)

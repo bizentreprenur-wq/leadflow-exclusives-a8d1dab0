@@ -66,18 +66,6 @@ interface SearchResult {
     issues: string[];
     mobileScore: number | null;
   };
-  // Firecrawl enrichment data
-  enrichment?: {
-    emails?: string[];
-    phones?: string[];
-    socials?: Record<string, string>;
-    hasEmail?: boolean;
-    hasPhone?: boolean;
-    hasSocials?: boolean;
-    scrapedAt?: string;
-    isCatchAll?: boolean;
-    sources?: string[];
-  };
   enrichmentStatus?: 'pending' | 'processing' | 'completed' | 'failed';
 }
 
@@ -193,15 +181,13 @@ export default function SimpleLeadViewer({
   const getPrimaryEmail = (lead: SearchResult): string => {
     const direct = (lead.email || '').trim();
     if (direct) return direct;
-    const enriched = (lead.enrichment?.emails?.[0] || '').trim();
-    return enriched;
+    return '';
   };
 
   const getPrimaryPhone = (lead: SearchResult): string => {
     const direct = (lead.phone || '').trim();
     if (direct) return direct;
-    const enriched = (lead.enrichment?.phones?.[0] || '').trim();
-    return enriched;
+    return '';
   };
 
   // Load version history from localStorage
@@ -354,9 +340,8 @@ export default function SimpleLeadViewer({
       const hasEmail = !!getPrimaryEmail(lead);
       if (!hasEmail) return;
       totalWithEmail++;
-      const sources = lead.enrichment?.sources || [];
+      const sources: string[] = [];
       if (sources.length === 0) {
-        // Email came from discovery (GMB/Places snippet)
         breakdown['Discovery'] = (breakdown['Discovery'] || 0) + 1;
       }
       sources.forEach(src => {
@@ -1378,7 +1363,7 @@ export default function SimpleLeadViewer({
                               businessName={lead.name}
                               location={lead.address}
                               size="md"
-                              enrichment={lead.enrichment}
+                              enrichment={undefined}
                             />
                           </div>
                         </TableCell>
@@ -1386,22 +1371,6 @@ export default function SimpleLeadViewer({
                           {getPrimaryEmail(lead) ? (
                             <div className="flex items-center gap-1">
                               <span className="text-sm truncate max-w-[160px]">{getPrimaryEmail(lead)}</span>
-                              {lead.enrichment?.isCatchAll && (
-                                <span 
-                                  className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-semibold bg-amber-500/20 text-amber-400 shrink-0"
-                                  title="Catch-all domain — this server accepts all email addresses. Email may not reach a real person."
-                                >
-                                  ⚠️ catch-all
-                                </span>
-                              )}
-                              {lead.enrichment?.sources?.some(s => s.includes('Email Pattern Engine')) && !lead.enrichment?.isCatchAll && (
-                                <span 
-                                  className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-semibold bg-emerald-500/20 text-emerald-400 shrink-0"
-                                  title="Email discovered by BamLead's Pattern Engine and SMTP-verified"
-                                >
-                                  ✓ verified
-                                </span>
-                              )}
                             </div>
                           ) : (
                             <span className="text-xs text-muted-foreground">—</span>
