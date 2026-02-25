@@ -49,7 +49,7 @@ import bamMascot from '@/assets/bamlead-mascot.png';
 import { LeadForEmail, clearQueuedEmails } from '@/lib/api/email';
 import { searchGMB, GMBResult } from '@/lib/api/gmb';
 import type { StreamProgressMeta } from '@/lib/api/gmb';
-import type { EnrichmentCallback } from '@/lib/api/gmb';
+
 import { useSMTPConfig } from '@/hooks/useSMTPConfig';
 import { searchPlatforms, PlatformResult } from '@/lib/api/platforms';
 import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } from '@/lib/api/leadAnalysis';
@@ -113,19 +113,6 @@ interface SearchResult {
     mobileScore: number | null;
     loadTime?: number | null;
   };
-  // Firecrawl enrichment data
-  enrichment?: {
-    emails?: string[];
-    phones?: string[];
-    socials?: Record<string, string>;
-    hasEmail?: boolean;
-    hasPhone?: boolean;
-    hasSocials?: boolean;
-    scrapedAt?: string;
-    isCatchAll?: boolean;
-    sources?: string[];
-  };
-  enrichmentStatus?: 'pending' | 'processing' | 'completed' | 'failed';
   // Social profiles
   facebookUrl?: string;
   linkedinUrl?: string;
@@ -1062,52 +1049,6 @@ export default function Dashboard() {
         scheduleProgressFlush();
       };
       
-      // Handle real-time enrichment updates from Firecrawl
-      const handleEnrichment: EnrichmentCallback = (leadId, enrichmentData) => {
-        console.log('[BamLead] Enrichment received for lead:', leadId, enrichmentData);
-        
-        if (!enrichmentData) return;
-        
-        // Update the lead in search results with enrichment data
-        setSearchResults(prev => prev.map(lead => {
-          if (lead.id !== leadId) return lead;
-          
-          // Merge enrichment data into lead
-          const updatedLead = {
-            ...lead,
-            email: enrichmentData.emails?.[0] || lead.email,
-            phone: enrichmentData.phones?.[0] || lead.phone,
-            enrichment: enrichmentData,
-            enrichmentStatus: 'completed' as const,
-          };
-          
-          // Cache social contacts in sessionStorage for SocialMediaLookup component
-          if (enrichmentData.socials && Object.keys(enrichmentData.socials).length > 0) {
-            const cacheKey = `social_contacts_${lead.name}_${lead.address || ''}`;
-            // Convert socials to profiles format matching SocialContactsResult
-            const profiles: Record<string, { url: string }> = {};
-            Object.entries(enrichmentData.socials).forEach(([platform, url]) => {
-              profiles[platform] = { url };
-            });
-            
-            const socialData = {
-              success: true,
-              cached: true,
-              business_name: lead.name,
-              location: lead.address || '',
-              contacts: {
-                emails: enrichmentData.emails || [],
-                phones: enrichmentData.phones || [],
-                sources: Object.keys(enrichmentData.socials),
-                profiles,
-              },
-            };
-            sessionStorage.setItem(cacheKey, JSON.stringify(socialData));
-          }
-          
-          return updatedLead;
-        }));
-      };
       
       if (searchType === 'gmb') {
         console.log('[BamLead] Calling searchGMB API...');
@@ -1122,7 +1063,7 @@ export default function Dashboard() {
             setNetworkStatus('failed');
           }
         };
-        const response = await searchGMB(query, location, effectiveLimit, handleProgress, backendFilters, handleNetworkStatus, handleEnrichment);
+        const response = await searchGMB(query, location, effectiveLimit, handleProgress, backendFilters, handleNetworkStatus);
         console.log('[BamLead] GMB response:', response);
         if (response.success && response.data) {
           finalResults = response.data.map((r: GMBResult, index: number) => ({
@@ -1135,13 +1076,11 @@ export default function Dashboard() {
             rating: r.rating,
             source: 'gmb' as const,
             websiteAnalysis: r.websiteAnalysis,
-            enrichment: r.enrichment,
-            enrichmentStatus: r.enrichmentStatus,
-            facebookUrl: r.enrichment?.socials?.facebook,
-            linkedinUrl: r.enrichment?.socials?.linkedin,
-            instagramUrl: r.enrichment?.socials?.instagram,
-            youtubeUrl: r.enrichment?.socials?.youtube,
-            tiktokUrl: r.enrichment?.socials?.tiktok,
+            facebookUrl: undefined,
+            linkedinUrl: undefined,
+            instagramUrl: undefined,
+            youtubeUrl: undefined,
+            tiktokUrl: undefined,
           }));
         } else if (response.error) {
           throw new Error(response.error);
@@ -1391,20 +1330,10 @@ export default function Dashboard() {
       ...existing,
       ...candidate,
       id: existing.id,
-      email: existing.email || candidate.email || candidate.enrichment?.emails?.[0],
-      phone: existing.phone || candidate.phone || candidate.enrichment?.phones?.[0],
+      email: existing.email || candidate.email,
+      phone: existing.phone || candidate.phone,
       website: existing.website || candidate.website,
       address: existing.address || candidate.address,
-      enrichment: {
-        ...(existing.enrichment || {}),
-        ...(candidate.enrichment || {}),
-        emails: Array.from(new Set([...(existing.enrichment?.emails || []), ...(candidate.enrichment?.emails || [])])),
-        phones: Array.from(new Set([...(existing.enrichment?.phones || []), ...(candidate.enrichment?.phones || [])])),
-        socials: {
-          ...(existing.enrichment?.socials || {}),
-          ...(candidate.enrichment?.socials || {}),
-        },
-      },
     });
     for (const lead of base) {
       seen.set(keyFor(lead), lead);
@@ -2590,7 +2519,7 @@ export default function Dashboard() {
               : searchResults
             ).map((lead) => ({
               ...lead,
-              email: lead.email || lead.enrichment?.emails?.[0] || '',
+              email: lead.email || '',
             }))}
             onBack={() => setCurrentStep(2)}
             onComplete={() => {
