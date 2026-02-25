@@ -78,7 +78,7 @@ import UserManualDownload from '@/components/UserManualDownload';
 import { VideoTutorialSection } from '@/components/VideoTutorialSection';
 import AIProcessingPipeline from '@/components/AIProcessingPipeline';
 import StreamingLeadsIndicator from '@/components/StreamingLeadsIndicator';
-import EnrichmentStatusPanel from '@/components/EnrichmentStatusPanel';
+
 import WorkflowOnboardingTour, { startWorkflowTour } from '@/components/WorkflowOnboardingTour';
 import SearchTypeOnboarding, { shouldShowSearchOnboarding, trackLoginForOnboarding } from '@/components/SearchTypeOnboarding';
 import AutopilotOnboardingWizard from '@/components/AutopilotOnboardingWizard';
@@ -2346,9 +2346,6 @@ export default function Dashboard() {
                             />
                           </div>
                         )}
-
-                        {/* Enrichment Status Panel - live email/phone discovery progress */}
-                        <EnrichmentStatusPanel className="mt-4" />
                       </div>
                     )}
 
