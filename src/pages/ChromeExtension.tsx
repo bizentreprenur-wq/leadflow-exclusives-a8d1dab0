@@ -84,11 +84,12 @@ const ChromeExtension = () => {
             if (fileName.endsWith('.png')) {
               const header = new Uint8Array(buf.slice(0, 4));
               if (header[0] !== 0x89 || header[1] !== 0x50) continue;
-              folder!.file(fileName, buf);
+              folder!.file(fileName, new Uint8Array(buf), { binary: true });
             } else {
+              const text = new TextDecoder().decode(buf);
               // Reject HTML fallback for non-HTML files
               if (!fileName.endsWith('.html') && looksLikeHtml(buf)) continue;
-              folder!.file(fileName, buf);
+              folder!.file(fileName, text);
             }
             filesLoaded++;
             fetched = true;
