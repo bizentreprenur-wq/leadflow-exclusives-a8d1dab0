@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/table';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx-js-style';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import {
   ArrowLeft, Download, ChevronDown,
   Globe, Phone, PhoneCall, MapPin,
@@ -327,12 +329,16 @@ export default function SimpleLeadViewer({
       if (lead.aiClassification) return lead;
       let score = lead.leadScore || 0;
       if (!score) {
-        if (!lead.website || lead.websiteAnalysis?.hasWebsite === false) score += 40;
-        if (lead.email) score += 25;
-        if (lead.phone) score += 15;
+        // Score based on actionable contact data
+        if (lead.email) score += 30;
+        if (lead.phone) score += 20;
+        if (!lead.website || lead.websiteAnalysis?.hasWebsite === false) score += 20;
         if (lead.rating && lead.rating >= 4) score += 10;
+        if (lead.address) score += 5;
+        if (lead.websiteAnalysis?.needsUpgrade) score += 10;
+        if (lead.websiteAnalysis?.issues?.length) score += 5;
       }
-      const classification: 'hot' | 'warm' | 'cold' = score >= 60 ? 'hot' : score >= 30 ? 'warm' : 'cold';
+      const classification: 'hot' | 'warm' | 'cold' = score >= 45 ? 'hot' : score >= 20 ? 'warm' : 'cold';
       return { ...lead, aiClassification: classification, leadScore: score || lead.leadScore };
     });
   }, [leads]);
@@ -478,16 +484,19 @@ export default function SimpleLeadViewer({
     const filename = `${categoryLabel}-leads-${dateStr}`;
     
     if (format === 'csv') {
-      const headers = ['Name', 'Phone', 'Email', 'Address', 'Website', 'Rating', 'Classification', 'Score'];
-      const rows = dataToExport.map(r => [
+      const headers = ['#', 'Priority', 'Score', 'Business Name', 'Phone', 'Email', 'Address', 'Website', 'Rating', 'Recommended Action', 'Win Probability'];
+      const rows = dataToExport.map((r, i) => [
+        i + 1,
+        `"${(r.aiClassification || 'unclassified').toUpperCase()}"`,
+        r.leadScore || '',
         `"${r.name || ''}"`,
         `"${getPrimaryPhone(r) || ''}"`,
         `"${getPrimaryEmail(r) || ''}"`,
         `"${r.address || ''}"`,
         `"${r.website || ''}"`,
         r.rating || '',
-        r.aiClassification?.toUpperCase() || '',
-        r.leadScore || '',
+        `"${r.recommendedAction === 'call' ? 'Call' : r.recommendedAction === 'both' ? 'Call + Email' : 'Email'}"`,
+        r.successProbability ? `${r.successProbability}%` : '',
       ].join(','));
       
       const csv = [headers.join(','), ...rows].join('\n');
@@ -499,25 +508,213 @@ export default function SimpleLeadViewer({
       a.click();
       URL.revokeObjectURL(url);
       toast.success(`Downloaded ${dataToExport.length} ${categoryLabel} leads as CSV`);
-    } else {
-      const worksheetData = dataToExport.map(r => ({
-        'Business Name': r.name || '',
-        'Phone': getPrimaryPhone(r) || '',
-        'Email': getPrimaryEmail(r) || '',
-        'Address': r.address || '',
-        'Website': r.website || '',
-        'Rating': r.rating || '',
-        'Classification': r.aiClassification?.toUpperCase() || '',
-        'Score': r.leadScore || '',
-        'Win Probability': r.successProbability ? `${r.successProbability}%` : '',
-      }));
-      
-      const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+    } else if (format === 'excel') {
+      // Professional Excel with BamLead branding and styled rows
       const workbook = XLSX.utils.book_new();
+      
+      // Title rows
+      const titleRows: (string | number)[][] = [
+        ['BamLead Intelligence Report'],
+        [`Generated: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })} | Category: ${categoryLabel.toUpperCase()} | Total: ${dataToExport.length} leads`],
+        [],
+        ['#', 'PRIORITY', 'SCORE', 'BUSINESS NAME', 'PHONE', 'EMAIL', 'ADDRESS', 'WEBSITE', 'RATING', 'ACTION', 'WIN %'],
+      ];
+      
+      const dataRows = dataToExport.map((r, i) => [
+        i + 1,
+        (r.aiClassification || 'N/A').toUpperCase(),
+        r.leadScore || 0,
+        r.name || '',
+        getPrimaryPhone(r) || '',
+        getPrimaryEmail(r) || '',
+        r.address || '',
+        r.website || '',
+        r.rating || '',
+        r.recommendedAction === 'call' ? 'Call' : r.recommendedAction === 'both' ? 'Call + Email' : 'Email',
+        r.successProbability ? `${r.successProbability}%` : '',
+      ]);
+      
+      const allRows = [...titleRows, ...dataRows];
+      const worksheet = XLSX.utils.aoa_to_sheet(allRows);
+      
+      // Column widths
+      worksheet['!cols'] = [
+        { wch: 5 }, { wch: 10 }, { wch: 8 }, { wch: 30 }, { wch: 18 },
+        { wch: 28 }, { wch: 35 }, { wch: 30 }, { wch: 8 }, { wch: 14 }, { wch: 8 },
+      ];
+      
+      // Merge title row
+      worksheet['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 10 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 10 } },
+      ];
+      
+      // Style title
+      const titleStyle = { font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '1a1a2e' } }, alignment: { horizontal: 'center' } };
+      const subtitleStyle = { font: { sz: 10, color: { rgb: 'AAAAAA' } }, fill: { fgColor: { rgb: '1a1a2e' } }, alignment: { horizontal: 'center' } };
+      const headerStyle = { font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '0f4c75' } }, alignment: { horizontal: 'center' }, border: { bottom: { style: 'thin', color: { rgb: '3282b8' } } } };
+      
+      if (worksheet['A1']) worksheet['A1'].s = titleStyle;
+      if (worksheet['A2']) worksheet['A2'].s = subtitleStyle;
+      
+      // Style header row (row 4, index 3)
+      const cols = 'ABCDEFGHIJK';
+      for (const col of cols) {
+        const cell = worksheet[`${col}4`];
+        if (cell) cell.s = headerStyle;
+      }
+      
+      // Style data rows by classification
+      const classColors: Record<string, string> = { HOT: 'FFEBEE', WARM: 'FFF3E0', COLD: 'E3F2FD', 'N/A': 'F5F5F5' };
+      const classTextColors: Record<string, string> = { HOT: 'C62828', WARM: 'E65100', COLD: '1565C0', 'N/A': '424242' };
+      
+      dataRows.forEach((row, rowIdx) => {
+        const excelRow = rowIdx + 5; // offset for title rows
+        const classification = String(row[1]);
+        const bgColor = classColors[classification] || 'FFFFFF';
+        const textColor = classTextColors[classification] || '000000';
+        
+        for (let colIdx = 0; colIdx < cols.length; colIdx++) {
+          const cellRef = `${cols[colIdx]}${excelRow}`;
+          const cell = worksheet[cellRef];
+          if (cell) {
+            cell.s = {
+              fill: { fgColor: { rgb: bgColor } },
+              font: { sz: 10, color: { rgb: colIdx === 1 ? textColor : '333333' } },
+              border: { bottom: { style: 'hair', color: { rgb: 'DDDDDD' } } },
+            };
+            if (colIdx === 1) cell.s.font!.bold = true;
+          }
+        }
+      });
+      
       XLSX.utils.book_append_sheet(workbook, worksheet, `${categoryLabel.charAt(0).toUpperCase() + categoryLabel.slice(1)} Leads`);
       XLSX.writeFile(workbook, `${filename}.xlsx`);
       toast.success(`Downloaded ${dataToExport.length} ${categoryLabel} leads as Excel`);
     }
+  };
+
+  // Professional PDF export using jsPDF
+  const downloadLeadsPDF = (category: 'hot' | 'warm' | 'cold' | 'nosite' | 'all') => {
+    let dataToExport: SearchResult[];
+    let categoryLabel: string;
+    
+    if (category === 'all') {
+      const base = selectedIds.size > 0 ? selectedLeads : classifiedLeads;
+      dataToExport = [...base].sort(sortByClassification);
+      categoryLabel = 'All Leads';
+    } else if (category === 'nosite') {
+      dataToExport = classifiedLeads.filter(l => !l.website || l.websiteAnalysis?.hasWebsite === false).sort(sortByClassification);
+      categoryLabel = 'Leads Without Website';
+    } else {
+      dataToExport = classifiedLeads.filter(l => l.aiClassification === category).sort(sortByClassification);
+      categoryLabel = `${category.charAt(0).toUpperCase() + category.slice(1)} Leads`;
+    }
+    
+    if (dataToExport.length === 0) {
+      toast.error(`No ${categoryLabel.toLowerCase()} to export`);
+      return;
+    }
+    
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    
+    // Header
+    pdf.setFillColor(26, 26, 46);
+    pdf.rect(0, 0, pageWidth, 28, 'F');
+    pdf.setFontSize(18);
+    pdf.setTextColor(255, 255, 255);
+    pdf.text('BamLead Intelligence Report', 14, 13);
+    pdf.setFontSize(9);
+    pdf.setTextColor(180, 180, 200);
+    pdf.text(`${categoryLabel} | ${dateStr} | ${dataToExport.length} leads | bamlead.com`, 14, 22);
+    
+    // Summary bar
+    const hotCount = dataToExport.filter(l => l.aiClassification === 'hot').length;
+    const warmCount = dataToExport.filter(l => l.aiClassification === 'warm').length;
+    const coldCount = dataToExport.filter(l => l.aiClassification === 'cold').length;
+    const withEmail = dataToExport.filter(l => !!getPrimaryEmail(l)).length;
+    const withPhone = dataToExport.filter(l => !!getPrimaryPhone(l)).length;
+    
+    pdf.setFillColor(240, 245, 255);
+    pdf.rect(0, 28, pageWidth, 10, 'F');
+    pdf.setFontSize(8);
+    pdf.setTextColor(80, 80, 100);
+    pdf.text(`Summary:  🔥 Hot: ${hotCount}   ⚡ Warm: ${warmCount}   ❄ Cold: ${coldCount}   ✉ With Email: ${withEmail}   📞 With Phone: ${withPhone}`, 14, 34);
+    
+    // Table
+    const tableData = dataToExport.map((r, i) => [
+      String(i + 1),
+      (r.aiClassification || 'N/A').toUpperCase(),
+      String(r.leadScore || ''),
+      r.name || '',
+      getPrimaryPhone(r) || '—',
+      getPrimaryEmail(r) || '—',
+      r.address || '—',
+      r.website || '—',
+      r.rating ? `${r.rating}★` : '—',
+      r.recommendedAction === 'call' ? 'Call' : r.recommendedAction === 'both' ? 'Call + Email' : 'Email',
+    ]);
+    
+    const classRowColors: Record<string, [number, number, number]> = {
+      HOT: [255, 235, 238],
+      WARM: [255, 243, 224],
+      COLD: [227, 242, 253],
+    };
+    
+    autoTable(pdf, {
+      startY: 40,
+      head: [['#', 'Priority', 'Score', 'Business Name', 'Phone', 'Email', 'Address', 'Website', 'Rating', 'Action']],
+      body: tableData,
+      headStyles: { fillColor: [15, 76, 117], textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold', halign: 'center' },
+      styles: { fontSize: 7, cellPadding: 2 },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 8 },
+        1: { halign: 'center', cellWidth: 16, fontStyle: 'bold' },
+        2: { halign: 'center', cellWidth: 12 },
+        3: { cellWidth: 40 },
+        4: { cellWidth: 28 },
+        5: { cellWidth: 40 },
+        6: { cellWidth: 45 },
+        7: { cellWidth: 35 },
+        8: { halign: 'center', cellWidth: 14 },
+        9: { halign: 'center', cellWidth: 22 },
+      },
+      didParseCell: (data: any) => {
+        if (data.section === 'body' && data.column.index === 1) {
+          const val = String(data.cell.raw);
+          const color = classRowColors[val];
+          if (color) {
+            data.cell.styles.fillColor = color;
+          }
+          if (val === 'HOT') data.cell.styles.textColor = [198, 40, 40];
+          else if (val === 'WARM') data.cell.styles.textColor = [230, 81, 0];
+          else if (val === 'COLD') data.cell.styles.textColor = [21, 101, 192];
+        }
+      },
+      margin: { top: 40 },
+      didDrawPage: (data: any) => {
+        // Footer on each page
+        const pageCount = (pdf as any).internal.getNumberOfPages();
+        pdf.setFontSize(7);
+        pdf.setTextColor(150, 150, 150);
+        pdf.text(
+          `BamLead.com — Confidential Business Intelligence — Page ${data.pageNumber} of ${pageCount}`,
+          pageWidth / 2, pdf.internal.pageSize.getHeight() - 6, { align: 'center' }
+        );
+      },
+    });
+    
+    pdf.save(`bamlead-${category}-leads-${new Date().toISOString().split('T')[0]}.pdf`);
+    toast.success(`Downloaded ${dataToExport.length} ${categoryLabel} as PDF`);
+  };
+
+  // Print specific category
+  const printLeadsByCategory = (category: 'hot' | 'warm' | 'cold' | 'nosite' | 'all') => {
+    // Generate PDF and open in new window for printing
+    downloadLeadsPDF(category);
+    toast.success('PDF generated — open the file and press Ctrl+P to print');
   };
 
   const handleDownloadCSV = () => {
@@ -936,16 +1133,20 @@ export default function SimpleLeadViewer({
                   <ChevronDown className="w-3 h-3" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56">
+              <DropdownMenuContent className="w-64 max-h-[500px] overflow-y-auto">
                 {/* All Leads */}
-                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">All Leads</div>
+                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">All Leads ({groupedCounts.all})</div>
                 <DropdownMenuItem onClick={handleDownloadCSV}>
                   <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  Download All CSV
+                  All Leads — CSV
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleDownloadExcel}>
                   <FileSpreadsheet className="w-4 h-4 mr-2" />
-                  Download All Excel
+                  All Leads — Excel (Styled)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => downloadLeadsPDF('all')}>
+                  <FileText className="w-4 h-4 mr-2" />
+                  All Leads — PDF Report
                 </DropdownMenuItem>
                 
                 {/* Hot Leads */}
@@ -956,11 +1157,15 @@ export default function SimpleLeadViewer({
                     </div>
                     <DropdownMenuItem onClick={() => downloadLeadsByCategory('hot', 'csv')}>
                       <FileSpreadsheet className="w-4 h-4 mr-2 text-red-500" />
-                      Download Hot CSV
+                      Hot — CSV
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => downloadLeadsByCategory('hot', 'excel')}>
                       <FileSpreadsheet className="w-4 h-4 mr-2 text-red-500" />
-                      Download Hot Excel
+                      Hot — Excel
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => downloadLeadsPDF('hot')}>
+                      <FileText className="w-4 h-4 mr-2 text-red-500" />
+                      Hot — PDF Report
                     </DropdownMenuItem>
                   </>
                 )}
@@ -973,11 +1178,15 @@ export default function SimpleLeadViewer({
                     </div>
                     <DropdownMenuItem onClick={() => downloadLeadsByCategory('warm', 'csv')}>
                       <FileSpreadsheet className="w-4 h-4 mr-2 text-orange-500" />
-                      Download Warm CSV
+                      Warm — CSV
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => downloadLeadsByCategory('warm', 'excel')}>
                       <FileSpreadsheet className="w-4 h-4 mr-2 text-orange-500" />
-                      Download Warm Excel
+                      Warm — Excel
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => downloadLeadsPDF('warm')}>
+                      <FileText className="w-4 h-4 mr-2 text-orange-500" />
+                      Warm — PDF Report
                     </DropdownMenuItem>
                   </>
                 )}
@@ -990,20 +1199,61 @@ export default function SimpleLeadViewer({
                     </div>
                     <DropdownMenuItem onClick={() => downloadLeadsByCategory('cold', 'csv')}>
                       <FileSpreadsheet className="w-4 h-4 mr-2 text-blue-500" />
-                      Download Cold CSV
+                      Cold — CSV
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => downloadLeadsByCategory('cold', 'excel')}>
                       <FileSpreadsheet className="w-4 h-4 mr-2 text-blue-500" />
-                      Download Cold Excel
+                      Cold — Excel
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => downloadLeadsPDF('cold')}>
+                      <FileText className="w-4 h-4 mr-2 text-blue-500" />
+                      Cold — PDF Report
+                    </DropdownMenuItem>
+                  </>
+                )}
+
+                {/* No Website Leads */}
+                {groupedCounts.nosite > 0 && (
+                  <>
+                    <div className="px-2 py-1.5 text-xs font-semibold text-purple-500 border-t mt-1 pt-2 flex items-center gap-1">
+                      <Globe className="w-3 h-3" /> No Website ({groupedCounts.nosite})
+                    </div>
+                    <DropdownMenuItem onClick={() => downloadLeadsPDF('nosite')}>
+                      <FileText className="w-4 h-4 mr-2 text-purple-500" />
+                      No Website — PDF Report
                     </DropdownMenuItem>
                   </>
                 )}
                 
                 <div className="border-t mt-1 pt-1">
-                  <DropdownMenuItem onClick={() => { window.print(); toast.success('Printing...'); }}>
+                  <DropdownMenuItem onClick={() => printLeadsByCategory('all')}>
                     <Printer className="w-4 h-4 mr-2" />
-                    Print
+                    Print All Leads (PDF)
                   </DropdownMenuItem>
+                  {groupedCounts.hot > 0 && (
+                    <DropdownMenuItem onClick={() => printLeadsByCategory('hot')}>
+                      <Printer className="w-4 h-4 mr-2 text-red-500" />
+                      Print Hot Leads
+                    </DropdownMenuItem>
+                  )}
+                  {groupedCounts.warm > 0 && (
+                    <DropdownMenuItem onClick={() => printLeadsByCategory('warm')}>
+                      <Printer className="w-4 h-4 mr-2 text-orange-500" />
+                      Print Warm Leads
+                    </DropdownMenuItem>
+                  )}
+                  {groupedCounts.cold > 0 && (
+                    <DropdownMenuItem onClick={() => printLeadsByCategory('cold')}>
+                      <Printer className="w-4 h-4 mr-2 text-blue-500" />
+                      Print Cold Leads
+                    </DropdownMenuItem>
+                  )}
+                  {groupedCounts.nosite > 0 && (
+                    <DropdownMenuItem onClick={() => printLeadsByCategory('nosite')}>
+                      <Printer className="w-4 h-4 mr-2 text-purple-500" />
+                      Print No-Website Leads
+                    </DropdownMenuItem>
+                  )}
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
