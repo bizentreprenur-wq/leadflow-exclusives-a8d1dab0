@@ -508,7 +508,7 @@ async function searchGMBStreaming(
               finish({
                 success: true,
                 data: allResults,
-                error: 'Stream stalled — showing partial results. Try searching again for more.',
+                error: 'Recalibrating connection… showing results collected so far.',
                 query: { service, location },
               });
             }
