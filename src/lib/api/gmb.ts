@@ -437,6 +437,7 @@ async function searchGMBStreaming(
   
   return new Promise((resolve, reject) => {
     let settled = false;
+    let stallTimer: ReturnType<typeof setTimeout> | null = null;
     const controller = new AbortController();
     const finish = (response: GMBSearchResponse) => {
       if (settled) return;
@@ -494,6 +495,28 @@ async function searchGMBStreaming(
         let receivedAnyEvent = false;
         let receivedComplete = false;
         
+        // Stall detector: if no data arrives for 30s after stream started, auto-recover
+        const STALL_TIMEOUT_MS = 30000;
+        const resetStallTimer = () => {
+          if (stallTimer) clearTimeout(stallTimer);
+          stallTimer = setTimeout(() => {
+            console.warn('[GMB API] ⚠️ Stream stalled (no data for 30s). Auto-recovering with', allResults.length, 'partial results.');
+            controller.abort();
+            if (allResults.length > 0) {
+              clearTimeout(timeoutId);
+              clearTimeout(initialTimeoutId);
+              finish({
+                success: true,
+                data: allResults,
+                error: 'Stream stalled — showing partial results. Try searching again for more.',
+                query: { service, location },
+              });
+            }
+            // If 0 results, let the .catch handler deal with the AbortError
+          }, STALL_TIMEOUT_MS);
+        };
+        resetStallTimer();
+
         // Throttle onProgress to batch UI updates (fire at most every 300ms)
         let progressTimer: ReturnType<typeof setTimeout> | null = null;
         let lastProgress = 0;
@@ -522,8 +545,8 @@ async function searchGMBStreaming(
           }
           
           buffer += decoder.decode(value, { stream: true });
+          resetStallTimer(); // Got data — reset stall detector
           
-          // Process complete SSE messages
           const lines = buffer.split('\n');
           buffer = lines.pop() || ''; // Keep incomplete line in buffer
           
@@ -569,6 +592,7 @@ async function searchGMBStreaming(
               if (eventType === 'error') {
                 clearTimeout(timeoutId);
                 clearTimeout(initialTimeoutId);
+                if (stallTimer) clearTimeout(stallTimer);
                 const message = data.error || 'Search failed.';
                 try {
                   await reader.cancel();
@@ -757,6 +781,7 @@ async function searchGMBStreaming(
                 }
                 clearTimeout(timeoutId);
                 clearTimeout(initialTimeoutId);
+                if (stallTimer) clearTimeout(stallTimer);
 
 
                 finish({
@@ -773,6 +798,7 @@ async function searchGMBStreaming(
         
         clearTimeout(timeoutId);
         clearTimeout(initialTimeoutId);
+        if (stallTimer) clearTimeout(stallTimer);
         
         if (allResults.length === 0 && !receivedComplete) {
           throw new Error(
@@ -797,8 +823,11 @@ async function searchGMBStreaming(
       .catch((error) => {
         clearTimeout(timeoutId);
         clearTimeout(initialTimeoutId);
+        if (stallTimer) clearTimeout(stallTimer);
 
         if (error?.name === 'AbortError') {
+          // If stall detector already resolved with partial results, do nothing
+          if (settled) return;
           fail(new Error('Search timed out — server did not start streaming.'));
           return;
         }
