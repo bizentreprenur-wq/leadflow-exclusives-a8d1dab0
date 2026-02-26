@@ -35,8 +35,11 @@ const REQUIRED_FILES = [
   "icon128.png",
 ];
 
-const EXTENSION_BASE_PATH = "/chrome-extension";
-const ZIP_CANDIDATES = ["/chrome-extension.zip", "/chrome-extension/bamlead-extension.zip"];
+const EXTENSION_BASES = [
+  '/chrome-extension',
+  'https://bamlead.com/chrome-extension',
+];
+const ZIP_CANDIDATES = ["/chrome-extension.zip", "/chrome-extension/bamlead-extension.zip", "https://bamlead.com/chrome-extension.zip"];
 
 const INSTALL_STEPS = [
   "1) Open chrome://extensions (or edge://extensions / brave://extensions).",
@@ -89,32 +92,38 @@ export default function ChromeExtensionPanel() {
     try {
       const checks = await Promise.all(
         REQUIRED_FILES.map(async (filename): Promise<FileCheck> => {
-          try {
-            const response = await fetch(
-              `${EXTENSION_BASE_PATH}/${filename}?v=${Date.now()}`,
-              { method: "GET", cache: "no-store" }
-            );
-            return { name: filename, available: response.ok };
-          } catch {
-            return { name: filename, available: false };
+          for (const base of EXTENSION_BASES) {
+            try {
+              const response = await fetch(
+                `${base}/${filename}?v=${Date.now()}`,
+                { method: "GET", cache: "no-store" }
+              );
+              if (response.ok) {
+                const ct = response.headers.get('content-type') || '';
+                if (ct.includes('text/html') && !filename.endsWith('.html')) continue;
+                return { name: filename, available: true };
+              }
+            } catch { /* try next */ }
           }
+          return { name: filename, available: false };
         })
       );
       setFileChecks(checks);
 
       const manifest = checks.find((item) => item.name === "manifest.json");
       if (manifest?.available) {
-        try {
-          const response = await fetch(
-            `${EXTENSION_BASE_PATH}/manifest.json?v=${Date.now()}`,
-            { method: "GET", cache: "no-store" }
-          );
-          if (response.ok) {
-            const data = (await response.json()) as { version?: string };
-            setManifestVersion(data.version ?? null);
-          }
-        } catch {
-          setManifestVersion(null);
+        for (const base of EXTENSION_BASES) {
+          try {
+            const response = await fetch(
+              `${base}/manifest.json?v=${Date.now()}`,
+              { method: "GET", cache: "no-store" }
+            );
+            if (response.ok) {
+              const data = (await response.json()) as { version?: string };
+              setManifestVersion(data.version ?? null);
+              break;
+            }
+          } catch { /* try next */ }
         }
       } else {
         setManifestVersion(null);
@@ -176,7 +185,7 @@ export default function ChromeExtensionPanel() {
 
   const openGuide = () => {
     const popup = window.open(
-      `${EXTENSION_BASE_PATH}/INSTALLATION.md`,
+      `${EXTENSION_BASES[0]}/INSTALLATION.md`,
       "_blank",
       "noopener,noreferrer"
     );
@@ -226,7 +235,7 @@ export default function ChromeExtensionPanel() {
             </CardTitle>
             <CardDescription>
               {availableCount}/{REQUIRED_FILES.length} required files available from web path{" "}
-              <code className="text-xs">{EXTENSION_BASE_PATH}</code>.
+              <code className="text-xs">{EXTENSION_BASES[0]}</code>.
             </CardDescription>
           </CardHeader>
           <CardContent>

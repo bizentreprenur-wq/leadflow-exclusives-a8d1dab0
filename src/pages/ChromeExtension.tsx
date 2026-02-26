@@ -51,29 +51,48 @@ const ChromeExtension = () => {
   const handleDownloadZip = async () => {
     setDownloading(true);
     try {
-      // Dynamically import JSZip
       const JSZip = (await import("jszip")).default;
       const zip = new JSZip();
       const folder = zip.folder("chrome-extension");
 
-      // Fetch each extension file from the public directory
-      
-      // Fetch each file
+      // Try multiple base URLs so the download works from any environment
+      const bases = [
+        `${window.location.origin}/chrome-extension`,
+        'https://bamlead.com/chrome-extension',
+        '/chrome-extension',
+      ];
+
+      let filesLoaded = 0;
+
       for (const fileName of EXTENSION_FILES) {
-        try {
-          const resp = await fetch(`/chrome-extension/${fileName}`);
-          if (resp.ok) {
+        let fetched = false;
+        for (const base of bases) {
+          try {
+            const resp = await fetch(`${base}/${fileName}`, { cache: 'no-cache' });
+            if (!resp.ok) continue;
+            // Verify we got real content, not an SPA HTML fallback
+            const ct = resp.headers.get('content-type') || '';
+            if (ct.includes('text/html') && !fileName.endsWith('.html')) continue;
+
             if (fileName.endsWith('.png')) {
-              const blob = await resp.blob();
-              folder!.file(fileName, blob);
+              folder!.file(fileName, await resp.blob());
             } else {
-              const text = await resp.text();
-              folder!.file(fileName, text);
+              folder!.file(fileName, await resp.text());
             }
+            filesLoaded++;
+            fetched = true;
+            break;
+          } catch {
+            // try next base
           }
-        } catch {
-          console.warn(`Could not fetch ${fileName}`);
         }
+        if (!fetched) console.warn(`Could not fetch ${fileName} from any source`);
+      }
+
+      if (filesLoaded < 5) {
+        toast.error("Could not fetch enough extension files. Please download from bamlead.com/extension instead.");
+        setDownloading(false);
+        return;
       }
 
       const blob = await zip.generateAsync({ type: "blob" });
@@ -86,7 +105,7 @@ const ChromeExtension = () => {
       toast.success("Extension downloaded! Follow the installation steps below.");
     } catch (error) {
       console.error("Download error:", error);
-      toast.error("Download failed. Try the GitHub method instead.");
+      toast.error("Download failed. Try downloading from bamlead.com/extension instead.");
     }
     setDownloading(false);
   };
