@@ -1713,17 +1713,98 @@ export default function SimpleLeadViewer({
             </Table>
           </DualScrollbar>
 
-          {/* Bottom Action Bar - Next Step */}
+          {/* Bottom Action Bar - Downloads + Next Step */}
           {leads.length > 0 && (
-            <div className="px-4 py-4 border-t border-border bg-muted/20 flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
+            <div className="px-4 py-4 border-t border-border bg-muted/20 flex items-center justify-between gap-2">
+              <p className="text-sm text-muted-foreground whitespace-nowrap">
                 {selectedIds.size > 0 
-                  ? `${selectedIds.size} leads selected` 
-                  : `Ready to proceed with ${leads.length} leads`}
+                  ? `${selectedIds.size} selected` 
+                  : `${leads.length} leads`}
               </p>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {/* All */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1 text-xs h-8 border-muted-foreground/30">
+                      <Download className="w-3 h-3" /> All
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => downloadLeadsByCategory('all', 'csv')}>CSV</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => downloadLeadsByCategory('all', 'excel')}>Excel</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => downloadLeadsPDF('all')}>PDF</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                {/* Hot */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1 text-xs h-8 border-red-500/40 text-red-400 hover:bg-red-500/10">
+                      <Flame className="w-3 h-3" /> Hot
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => downloadLeadsByCategory('hot', 'csv')}><FileSpreadsheet className="w-3 h-3 mr-2 text-red-500" />CSV</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => downloadLeadsByCategory('hot', 'excel')}><FileSpreadsheet className="w-3 h-3 mr-2 text-red-500" />Excel</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => downloadLeadsPDF('hot')}><FileText className="w-3 h-3 mr-2 text-red-500" />PDF</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                {/* Warm */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1 text-xs h-8 border-orange-500/40 text-orange-400 hover:bg-orange-500/10">
+                      <Thermometer className="w-3 h-3" /> Warm
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => downloadLeadsByCategory('warm', 'csv')}><FileSpreadsheet className="w-3 h-3 mr-2 text-orange-500" />CSV</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => downloadLeadsByCategory('warm', 'excel')}><FileSpreadsheet className="w-3 h-3 mr-2 text-orange-500" />Excel</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => downloadLeadsPDF('warm')}><FileText className="w-3 h-3 mr-2 text-orange-500" />PDF</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                {/* Cold */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1 text-xs h-8 border-blue-500/40 text-blue-400 hover:bg-blue-500/10">
+                      <Snowflake className="w-3 h-3" /> Cold
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => downloadLeadsByCategory('cold', 'csv')}><FileSpreadsheet className="w-3 h-3 mr-2 text-blue-500" />CSV</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => downloadLeadsByCategory('cold', 'excel')}><FileSpreadsheet className="w-3 h-3 mr-2 text-blue-500" />Excel</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => downloadLeadsPDF('cold')}><FileText className="w-3 h-3 mr-2 text-blue-500" />PDF</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                {/* Has Email */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1 text-xs h-8 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10">
+                      <Mail className="w-3 h-3" /> Email
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => {
+                      const emailLeads = classifiedLeads.filter(l => !!(l.email || (l as any).enrichment?.emails?.[0]));
+                      if (emailLeads.length === 0) { toast.error('No leads with email found'); return; }
+                      downloadLeadsByCategory('all', 'csv');
+                    }}>CSV</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => downloadLeadsPDF('all')}>PDF</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                {/* No Site */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-1 text-xs h-8 border-purple-500/40 text-purple-400 hover:bg-purple-500/10">
+                      <Globe className="w-3 h-3" /> No Site
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => downloadLeadsPDF('nosite')}><FileText className="w-3 h-3 mr-2 text-purple-500" />PDF</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
               <Button 
                 onClick={handleProceedToEmail} 
-                className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6"
+                className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-6 ml-2"
               >
                 Next: Email Outreach
                 <ChevronRight className="w-4 h-4" />
