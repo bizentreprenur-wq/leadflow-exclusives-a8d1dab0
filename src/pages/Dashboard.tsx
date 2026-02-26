@@ -1253,7 +1253,14 @@ export default function Dashboard() {
           });
         }
       } else {
-        toast.info('No businesses found. Try a different search.');
+        // Fail-safe: surface zero-results clearly so it's never silent
+        console.error('[BamLead] ⚠️ Search completed with 0 results. Params:', {
+          searchType, query, location, requestedLimit, backendFilters
+        });
+        setSearchError(
+          'Search completed but returned 0 results. This may be an API issue — check browser console for details.'
+        );
+        toast.error('No results found. Check your search terms or try a different location.');
         setShowReportModal(false);
       }
 
