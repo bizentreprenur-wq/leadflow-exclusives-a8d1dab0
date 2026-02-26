@@ -5,9 +5,9 @@ import {
   Search, MapPin, Briefcase, Building2, Loader2, AlertCircle, 
   Globe, CheckCircle, XCircle, ChevronLeft, ChevronRight, Filter,
   ArrowUpDown, ArrowUp, ArrowDown, Download, Copy, FileSpreadsheet, FileText,
-  ShieldCheck, ShieldQuestion, PartyPopper, Wifi, WifiOff
+  ShieldCheck, ShieldQuestion, PartyPopper, Wifi, WifiOff, Pause
 } from "lucide-react";
-import { searchGMB, GMBResult, NetworkStatusCallback } from "@/lib/api/gmb";
+import { searchGMB, pauseCurrentSearch, GMBResult, NetworkStatusCallback } from "@/lib/api/gmb";
 import { toast } from "sonner";
 import {
   Select,
@@ -575,15 +575,18 @@ const GMBSearchModule = forwardRef<HTMLDivElement>((_, ref) => {
               />
             </div>
 
-            {/* Search button */}
-            <Button type="submit" className="md:w-auto w-full h-12 px-6" disabled={isLoading}>
-              {isLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
+            {/* Search / Pause button */}
+            {isLoading ? (
+              <Button type="button" variant="destructive" className="md:w-auto w-full h-12 px-6" onClick={() => pauseCurrentSearch()}>
+                <Pause className="w-5 h-5" />
+                <span className="ml-2">Pause</span>
+              </Button>
+            ) : (
+              <Button type="submit" className="md:w-auto w-full h-12 px-6">
                 <Search className="w-5 h-5" />
-              )}
-              <span className="ml-2">{isLoading ? "Searching..." : "Search"}</span>
-            </Button>
+                <span className="ml-2">Search</span>
+              </Button>
+            )}
           </div>
         </div>
       </form>

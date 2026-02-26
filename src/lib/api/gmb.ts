@@ -8,6 +8,16 @@ import { API_BASE_URL, USE_MOCK_AUTH, getAuthHeaders } from './config';
 
 const USE_MOCK_DATA = !API_BASE_URL;
 
+// Module-level ref so the UI can pause/cancel the active search
+let _activeSearchController: AbortController | null = null;
+let _pauseReason: 'user' | null = null;
+
+/** Pause (abort) the current search and return partial results. */
+export function pauseCurrentSearch() {
+  _pauseReason = 'user';
+  _activeSearchController?.abort();
+}
+
 console.log('[GMB API] Config:', { API_BASE_URL, USE_MOCK_AUTH, USE_MOCK_DATA });
 
 function summarizeHtmlError(text: string): string {
@@ -370,7 +380,7 @@ export async function searchGMB(
           return {
             success: true,
             data: lastPartialResults,
-            error: 'Stream interrupted before completion. Showing partial results.',
+            error: 'Reconnecting… showing results collected so far.',
             query: { service, location },
           };
         }
@@ -404,7 +414,7 @@ export async function searchGMB(
         return {
           success: true,
           data: lastPartialResults,
-          error: 'Network issue interrupted the search. Showing partial results.',
+          error: 'Reconnecting… showing results collected so far.',
           query: { service, location },
         };
       }
@@ -439,6 +449,9 @@ async function searchGMBStreaming(
     let settled = false;
     let stallTimer: ReturnType<typeof setTimeout> | null = null;
     const controller = new AbortController();
+
+    // Expose controller so external callers can pause/cancel
+    _activeSearchController = controller;
     const finish = (response: GMBSearchResponse) => {
       if (settled) return;
       settled = true;
@@ -828,6 +841,24 @@ async function searchGMBStreaming(
         if (error?.name === 'AbortError') {
           // If stall detector already resolved with partial results, do nothing
           if (settled) return;
+
+          // User pressed Pause → return partial results gracefully
+          if (_pauseReason === 'user') {
+            _pauseReason = null;
+            _activeSearchController = null;
+            if (allResults.length > 0) {
+              finish({
+                success: true,
+                data: allResults,
+                error: 'Search paused — showing results collected so far.',
+                query: { service, location },
+              });
+            } else {
+              fail(new Error('Search paused before any results arrived.'));
+            }
+            return;
+          }
+
           fail(new Error('Search timed out — server did not start streaming.'));
           return;
         }
