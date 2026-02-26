@@ -64,6 +64,13 @@ const ChromeExtension = () => {
       let filesLoaded = 0;
       const failedFiles: string[] = [];
 
+      // Helper: check if arraybuffer starts with HTML doctype/tag
+      const looksLikeHtml = (buf: ArrayBuffer): boolean => {
+        const bytes = new Uint8Array(buf.slice(0, 50));
+        const str = new TextDecoder().decode(bytes).trim().toLowerCase();
+        return str.startsWith('<!doctype') || str.startsWith('<html') || str.startsWith('<!');
+      };
+
       for (const fileName of EXTENSION_FILES) {
         let fetched = false;
         for (const base of bases) {
@@ -71,21 +78,17 @@ const ChromeExtension = () => {
             const resp = await fetch(`${base}/${fileName}`, { cache: 'no-cache' });
             if (!resp.ok) continue;
 
-            const ct = resp.headers.get('content-type') || '';
-            // Reject HTML responses for non-HTML files (SPA fallback detection)
-            if (ct.includes('text/html') && !fileName.endsWith('.html')) continue;
+            const buf = await resp.arrayBuffer();
+            if (buf.byteLength < 10) continue; // Too small to be valid
 
             if (fileName.endsWith('.png')) {
-              const buf = await resp.arrayBuffer();
-              // Validate PNG magic bytes (89 50 4E 47)
               const header = new Uint8Array(buf.slice(0, 4));
               if (header[0] !== 0x89 || header[1] !== 0x50) continue;
               folder!.file(fileName, buf);
             } else {
-              const text = await resp.text();
-              // Reject if we got HTML for a JS/CSS/JSON file
-              if (!fileName.endsWith('.html') && text.trimStart().startsWith('<!')) continue;
-              folder!.file(fileName, text);
+              // Reject HTML fallback for non-HTML files
+              if (!fileName.endsWith('.html') && looksLikeHtml(buf)) continue;
+              folder!.file(fileName, buf);
             }
             filesLoaded++;
             fetched = true;
