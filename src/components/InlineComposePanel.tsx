@@ -13,7 +13,7 @@ import {
   CheckCircle2, RefreshCw, Bot, Sparkles, BarChart3, Mail, Clock,
   TrendingUp, X, Flame, ThermometerSun, Snowflake, Bold, Italic,
   Underline, AlignLeft, List, Link2, Image, Paperclip, Smile, MoreHorizontal,
-  Trash2, ChevronDown, Code, Eye
+  Trash2, ChevronDown, Code, Eye, Pause, Play
 } from 'lucide-react';
 import { usePlanFeatures } from '@/hooks/usePlanFeatures';
 import { useAutopilotTrial } from '@/hooks/useAutopilotTrial';
@@ -114,6 +114,8 @@ export default function InlineComposePanel({
   const [sentRecipientIndices, setSentRecipientIndices] = useState<Set<number>>(new Set());
   const [sentManualIndices, setSentManualIndices] = useState<Set<number>>(new Set());
   const [removedLeadEmails, setRemovedLeadEmails] = useState<Set<string>>(new Set());
+  const [isSendingPaused, setIsSendingPaused] = useState(false);
+  const pauseRef = useRef(false);
   const [showCc, setShowCc] = useState(false);
   const [showBcc, setShowBcc] = useState(false);
   const [showImageSwap, setShowImageSwap] = useState(false);
@@ -517,9 +519,17 @@ export default function InlineComposePanel({
       } else {
         // Drip mode: show live feed with delays
         setShowSendingFeed(true);
+        pauseRef.current = false;
+        setIsSendingPaused(false);
         const dripDelayMs = Math.max(2000, dripInterval * 1000);
         
         for (let i = 0; i < Math.min(sentCount, allRecipients.length); i++) {
+          if (pauseRef.current) {
+            toast.info(`Campaign paused after ${i} of ${sentCount} emails.`);
+            setIsLaunching(false);
+            setLocalSendingIndex(-1);
+            break;
+          }
           setLocalSendingIndex(i);
           setLocalLastSentIndex(i - 1);
           
@@ -1116,14 +1126,29 @@ export default function InlineComposePanel({
 
           {/* Bottom Toolbar - Gmail style */}
           <div className="border-t border-border px-3 py-1.5 flex items-center gap-1 shrink-0 bg-card">
-            <Button
-              onClick={handleLaunch}
-              disabled={(eligibleLeads.length === 0 && manualRecipients.length === 0) || isLaunching}
-              className="bg-amber-600 hover:bg-amber-700 text-white rounded-full px-7 h-10 text-sm font-semibold gap-2 shadow-[0_0_16px_hsl(38_92%_50%_/_0.3)] animate-pulse-slow"
-            >
-              {isLaunching ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              Send
-            </Button>
+            {isLaunching ? (
+              <Button
+                onClick={() => { pauseRef.current = true; setIsSendingPaused(true); toast.info('Pausing campaign…'); }}
+                className="bg-red-600 hover:bg-red-700 text-white rounded-full px-6 h-10 text-sm font-semibold gap-2"
+              >
+                <Pause className="w-4 h-4" /> Pause
+              </Button>
+            ) : isSendingPaused ? (
+              <Button
+                onClick={() => { setIsSendingPaused(false); pauseRef.current = false; handleLaunch(); }}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full px-6 h-10 text-sm font-semibold gap-2"
+              >
+                <Play className="w-4 h-4" /> Resume
+              </Button>
+            ) : (
+              <Button
+                onClick={handleLaunch}
+                disabled={(eligibleLeads.length === 0 && manualRecipients.length === 0)}
+                className="bg-amber-600 hover:bg-amber-700 text-white rounded-full px-7 h-10 text-sm font-semibold gap-2 shadow-[0_0_16px_hsl(38_92%_50%_/_0.3)] animate-pulse-slow"
+              >
+                <Send className="w-4 h-4" /> Send
+              </Button>
+            )}
             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
               <ChevronDown className="w-3 h-3" />
             </Button>
