@@ -217,7 +217,7 @@ export default function VisualTemplateEditor({
         <table width="100%">
           <tr>
             <td>
-              <a href="#" style="display:inline-block;background:linear-gradient(135deg,${ctaColor} 0%,${ctaColor}dd 100%);color:white;text-decoration:none;padding:16px 32px;border-radius:8px;font-weight:600;font-size:16px;">
+              <a href="#" style="display:inline-block;background:linear-gradient(135deg,${ctaColor} 0%,${ctaColor}cc 100%);color:#ffffff;text-decoration:none;padding:16px 40px;border-radius:8px;font-weight:700;font-size:16px;border:2px solid rgba(255,255,255,0.15);box-shadow:0 4px 14px rgba(0,0,0,0.4);letter-spacing:0.3px;">
                 ${editedCTA}
               </a>
             </td>
