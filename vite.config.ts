@@ -15,12 +15,17 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.png", "chrome-extension/**/*"],
+      includeAssets: ["favicon.png"],
       workbox: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
-        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        globPatterns: ["**/*.{css,html,ico,png,svg,woff2}"],
+        maximumFileSizeToCacheInBytes: 10 * 1024 * 1024,
         navigateFallbackDenylist: [/^\/api/, /^\/~oauth/],
         runtimeCaching: [
+          {
+            urlPattern: /\.js$/,
+            handler: "StaleWhileRevalidate",
+            options: { cacheName: "js-cache" },
+          },
           {
             urlPattern: /^https:\/\/bamlead\.com\/api\/.*/i,
             handler: "NetworkOnly",
@@ -39,22 +44,9 @@ export default defineConfig(({ mode }) => ({
         orientation: "any",
         categories: ["business", "productivity"],
         icons: [
-          {
-            src: "/pwa-192x192.png",
-            sizes: "192x192",
-            type: "image/png",
-          },
-          {
-            src: "/pwa-512x512.png",
-            sizes: "512x512",
-            type: "image/png",
-          },
-          {
-            src: "/pwa-512x512.png",
-            sizes: "512x512",
-            type: "image/png",
-            purpose: "maskable",
-          },
+          { src: "/pwa-192x192.png", sizes: "192x192", type: "image/png" },
+          { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png" },
+          { src: "/pwa-512x512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
     }),
