@@ -630,20 +630,14 @@ export default function SimpleLeadViewer({
     pdf.setTextColor(180, 180, 200);
     pdf.text(`${categoryLabel} | ${dateStr} | ${dataToExport.length} leads | bamlead.com`, 14, 22);
     
-    // Summary bar
+    // Count totals for footer
     const hotCount = dataToExport.filter(l => l.aiClassification === 'hot').length;
     const warmCount = dataToExport.filter(l => l.aiClassification === 'warm').length;
     const coldCount = dataToExport.filter(l => l.aiClassification === 'cold').length;
     const withEmail = dataToExport.filter(l => !!getPrimaryEmail(l)).length;
     const withPhone = dataToExport.filter(l => !!getPrimaryPhone(l)).length;
     
-    pdf.setFillColor(240, 245, 255);
-    pdf.rect(0, 28, pageWidth, 10, 'F');
-    pdf.setFontSize(8);
-    pdf.setTextColor(80, 80, 100);
-    pdf.text(`Summary:  🔥 Hot: ${hotCount}   ⚡ Warm: ${warmCount}   ❄ Cold: ${coldCount}   ✉ With Email: ${withEmail}   📞 With Phone: ${withPhone}`, 14, 34);
-    
-    // Table
+    // Table starts right after header
     const tableData = dataToExport.map((r, i) => [
       String(i + 1),
       (r.aiClassification || 'N/A').toUpperCase(),
@@ -664,7 +658,7 @@ export default function SimpleLeadViewer({
     };
     
     autoTable(pdf, {
-      startY: 40,
+      startY: 30,
       head: [['#', 'Priority', 'Score', 'Business Name', 'Phone', 'Email', 'Address', 'Website', 'Rating', 'Action']],
       body: tableData,
       headStyles: { fillColor: [15, 76, 117], textColor: [255, 255, 255], fontSize: 8, fontStyle: 'bold', halign: 'center' },
@@ -693,7 +687,7 @@ export default function SimpleLeadViewer({
           else if (val === 'COLD') data.cell.styles.textColor = [21, 101, 192];
         }
       },
-      margin: { top: 40 },
+      margin: { top: 30 },
       didDrawPage: (data: any) => {
         // Footer on each page
         const pageCount = (pdf as any).internal.getNumberOfPages();
@@ -705,6 +699,20 @@ export default function SimpleLeadViewer({
         );
       },
     });
+
+    // Totals summary at the bottom of the last page
+    const finalY = (pdf as any).lastAutoTable?.finalY || 50;
+    const pageH = pdf.internal.pageSize.getHeight();
+    let totalsY = finalY + 8;
+    if (totalsY > pageH - 25) {
+      pdf.addPage();
+      totalsY = 14;
+    }
+    pdf.setFillColor(26, 26, 46);
+    pdf.rect(14, totalsY, pageWidth - 28, 14, 'F');
+    pdf.setFontSize(9);
+    pdf.setTextColor(255, 255, 255);
+    pdf.text(`Totals:   Hot: ${hotCount}   |   Warm: ${warmCount}   |   Cold: ${coldCount}   |   With Email: ${withEmail}   |   With Phone: ${withPhone}`, 20, totalsY + 9);
     
     pdf.save(`bamlead-${category}-leads-${new Date().toISOString().split('T')[0]}.pdf`);
     toast.success(`Downloaded ${dataToExport.length} ${categoryLabel} as PDF`);
