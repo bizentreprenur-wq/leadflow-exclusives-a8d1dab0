@@ -321,16 +321,32 @@ export default function SimpleLeadViewer({
     localStorage.setItem('bamlead_selected_leads', JSON.stringify([...selectedIds]));
   }, [selectedIds]);
 
+  // Auto-classify leads that are missing aiClassification
+  const classifiedLeads = useMemo(() => {
+    return leads.map(lead => {
+      if (lead.aiClassification) return lead;
+      let score = lead.leadScore || 0;
+      if (!score) {
+        if (!lead.website || lead.websiteAnalysis?.hasWebsite === false) score += 40;
+        if (lead.email) score += 25;
+        if (lead.phone) score += 15;
+        if (lead.rating && lead.rating >= 4) score += 10;
+      }
+      const classification: 'hot' | 'warm' | 'cold' = score >= 60 ? 'hot' : score >= 30 ? 'warm' : 'cold';
+      return { ...lead, aiClassification: classification, leadScore: score || lead.leadScore };
+    });
+  }, [leads]);
+
   const groupedCounts = useMemo(() => ({
-    all: leads.length,
-    hot: leads.filter(l => l.aiClassification === 'hot').length,
-    warm: leads.filter(l => l.aiClassification === 'warm').length,
-    cold: leads.filter(l => l.aiClassification === 'cold').length,
-    ready: leads.filter(l => l.readyToCall || getPrimaryPhone(l)).length,
-    nosite: leads.filter(l => !l.website || l.websiteAnalysis?.hasWebsite === false).length,
-    phoneOnly: leads.filter(l => getPrimaryPhone(l) && !getPrimaryEmail(l)).length,
-    withEmail: leads.filter(l => !!getPrimaryEmail(l)).length,
-  }), [leads]);
+    all: classifiedLeads.length,
+    hot: classifiedLeads.filter(l => l.aiClassification === 'hot').length,
+    warm: classifiedLeads.filter(l => l.aiClassification === 'warm').length,
+    cold: classifiedLeads.filter(l => l.aiClassification === 'cold').length,
+    ready: classifiedLeads.filter(l => l.readyToCall || getPrimaryPhone(l)).length,
+    nosite: classifiedLeads.filter(l => !l.website || l.websiteAnalysis?.hasWebsite === false).length,
+    phoneOnly: classifiedLeads.filter(l => getPrimaryPhone(l) && !getPrimaryEmail(l)).length,
+    withEmail: classifiedLeads.filter(l => !!getPrimaryEmail(l)).length,
+  }), [classifiedLeads]);
 
   // Email source breakdown: count how many leads got emails from each extraction method
   const emailSourceBreakdown = useMemo(() => {
@@ -380,8 +396,17 @@ export default function SimpleLeadViewer({
     return { breakdown, totalWithEmail };
   }, [leads]);
 
+  // Sort helper: hot first, then warm, then cold, then unclassified
+  const classificationOrder: Record<string, number> = { hot: 0, warm: 1, cold: 2 };
+  const sortByClassification = (a: SearchResult, b: SearchResult) => {
+    const aOrder = classificationOrder[a.aiClassification || ''] ?? 3;
+    const bOrder = classificationOrder[b.aiClassification || ''] ?? 3;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    return (b.leadScore || 0) - (a.leadScore || 0);
+  };
+
   const filteredLeads = useMemo(() => {
-    let result = leads;
+    let result = classifiedLeads;
     
     if (activeFilter === 'hot' || activeFilter === 'warm' || activeFilter === 'cold') {
       result = result.filter(l => l.aiClassification === activeFilter);
@@ -404,12 +429,13 @@ export default function SimpleLeadViewer({
       );
     }
     
-    return result;
-  }, [leads, activeFilter, searchQuery]);
+    // Always sort by classification: hot → warm → cold
+    return [...result].sort(sortByClassification);
+  }, [classifiedLeads, activeFilter, searchQuery]);
 
   const selectedLeads = useMemo(() => 
-    leads.filter(l => selectedIds.has(l.id)),
-    [leads, selectedIds]
+    classifiedLeads.filter(l => selectedIds.has(l.id)),
+    [classifiedLeads, selectedIds]
   );
 
   const toggleSelect = (id: string) => {
@@ -435,10 +461,11 @@ export default function SimpleLeadViewer({
     let categoryLabel: string;
     
     if (category === 'all') {
-      dataToExport = selectedIds.size > 0 ? selectedLeads : leads;
+      const base = selectedIds.size > 0 ? selectedLeads : classifiedLeads;
+      dataToExport = [...base].sort(sortByClassification);
       categoryLabel = 'all';
     } else {
-      dataToExport = leads.filter(l => l.aiClassification === category);
+      dataToExport = classifiedLeads.filter(l => l.aiClassification === category).sort(sortByClassification);
       categoryLabel = category;
     }
     
