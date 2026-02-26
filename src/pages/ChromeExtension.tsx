@@ -53,16 +53,16 @@ const ChromeExtension = () => {
     try {
       const JSZip = (await import("jszip")).default;
       const zip = new JSZip();
-      const folder = zip.folder("chrome-extension");
+      const folder = zip.folder("bamlead-chrome-extension");
 
       // Try multiple base URLs so the download works from any environment
       const bases = [
         `${window.location.origin}/chrome-extension`,
         'https://bamlead.com/chrome-extension',
-        '/chrome-extension',
       ];
 
       let filesLoaded = 0;
+      const failedFiles: string[] = [];
 
       for (const fileName of EXTENSION_FILES) {
         let fetched = false;
@@ -70,14 +70,22 @@ const ChromeExtension = () => {
           try {
             const resp = await fetch(`${base}/${fileName}`, { cache: 'no-cache' });
             if (!resp.ok) continue;
-            // Verify we got real content, not an SPA HTML fallback
+
             const ct = resp.headers.get('content-type') || '';
+            // Reject HTML responses for non-HTML files (SPA fallback detection)
             if (ct.includes('text/html') && !fileName.endsWith('.html')) continue;
 
             if (fileName.endsWith('.png')) {
-              folder!.file(fileName, await resp.blob());
+              const buf = await resp.arrayBuffer();
+              // Validate PNG magic bytes (89 50 4E 47)
+              const header = new Uint8Array(buf.slice(0, 4));
+              if (header[0] !== 0x89 || header[1] !== 0x50) continue;
+              folder!.file(fileName, buf);
             } else {
-              folder!.file(fileName, await resp.text());
+              const text = await resp.text();
+              // Reject if we got HTML for a JS/CSS/JSON file
+              if (!fileName.endsWith('.html') && text.trimStart().startsWith('<!')) continue;
+              folder!.file(fileName, text);
             }
             filesLoaded++;
             fetched = true;
@@ -86,26 +94,39 @@ const ChromeExtension = () => {
             // try next base
           }
         }
-        if (!fetched) console.warn(`Could not fetch ${fileName} from any source`);
+        if (!fetched) failedFiles.push(fileName);
       }
 
       if (filesLoaded < 5) {
-        toast.error("Could not fetch enough extension files. Please download from bamlead.com/extension instead.");
+        toast.error(`Could not fetch extension files: ${failedFiles.join(', ')}. Try again or contact support.`);
         setDownloading(false);
         return;
       }
 
-      const blob = await zip.generateAsync({ type: "blob" });
+      if (failedFiles.length > 0) {
+        console.warn('Missing extension files:', failedFiles);
+      }
+
+      const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
+
+      // Use a more reliable download method
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
+      a.style.display = "none";
       a.href = url;
       a.download = "bamlead-chrome-extension.zip";
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
-      toast.success("Extension downloaded! Follow the installation steps below.");
+      // Delay cleanup to ensure download starts
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 1000);
+
+      toast.success(`Extension downloaded (${filesLoaded} files)! Follow the installation steps below.`);
     } catch (error) {
       console.error("Download error:", error);
-      toast.error("Download failed. Try downloading from bamlead.com/extension instead.");
+      toast.error("Download failed. Please try again.");
     }
     setDownloading(false);
   };
