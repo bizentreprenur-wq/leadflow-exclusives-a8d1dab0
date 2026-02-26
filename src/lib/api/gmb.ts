@@ -782,6 +782,12 @@ async function searchGMBStreaming(
           );
         }
         
+        // Fail-safe: warn loudly if stream ended with 0 results but no error event
+        if (allResults.length === 0) {
+          console.error('[GMB API] ⚠️ Stream ended with 0 results. receivedAnyEvent:', receivedAnyEvent, 'receivedComplete:', receivedComplete);
+          console.error('[GMB API] Search params:', { service, location, limit });
+        }
+
         finish({
           success: true,
           data: allResults,

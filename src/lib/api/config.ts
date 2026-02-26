@@ -69,6 +69,9 @@ const normalizeApiBaseUrl = (value: string): string => {
 
 export const API_BASE_URL = normalizeApiBaseUrl(getProxyFriendlyBaseUrl(resolvedApiBaseUrl));
 
+// Log resolved API base URL on init so devs can quickly verify which backend they're hitting
+console.log('[BamLead] API_BASE_URL resolved to:', API_BASE_URL);
+
 // Auth endpoints
 export const AUTH_ENDPOINTS = {
   register: `${API_BASE_URL}/auth.php?action=register`,
