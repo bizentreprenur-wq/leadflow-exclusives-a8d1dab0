@@ -1726,7 +1726,7 @@ export default function SimpleLeadViewer({
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className={`gap-1.5 h-8 text-xs font-semibold transition-all duration-300 ${
+                    className={`gap-1.5 h-8 text-xs font-semibold transition-all duration-300 ml-4 ${
                       activeFilter === 'hot' ? 'border-red-500/60 text-red-400 hover:bg-red-500/10' :
                       activeFilter === 'warm' ? 'border-orange-500/60 text-orange-400 hover:bg-orange-500/10' :
                       activeFilter === 'cold' ? 'border-blue-500/60 text-blue-400 hover:bg-blue-500/10' :
@@ -1735,7 +1735,14 @@ export default function SimpleLeadViewer({
                       'border-muted-foreground/30 text-foreground'
                     }`}
                   >
-                    <Download className="w-3.5 h-3.5" /> Download
+                    <Download className="w-3.5 h-3.5" /> {
+                      activeFilter === 'hot' ? 'Download Hot Leads' :
+                      activeFilter === 'warm' ? 'Download Warm Leads' :
+                      activeFilter === 'cold' ? 'Download Cold Leads' :
+                      activeFilter === 'withEmail' ? 'Download Email Leads' :
+                      activeFilter === 'nosite' ? 'Download No-Site Leads' :
+                      'Download All Leads'
+                    }
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
