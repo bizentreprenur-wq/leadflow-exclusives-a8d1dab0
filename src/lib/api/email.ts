@@ -138,6 +138,7 @@ const EMAIL_ENDPOINTS = {
   campaign: `${API_BASE_URL}/email-outreach.php?action=campaign`,
   send: `${API_BASE_URL}/email-outreach.php?action=send`,
   sendBulk: `${API_BASE_URL}/email-outreach.php?action=send-bulk`,
+  sendBulkAlt: `${API_BASE_URL}/email-outreach.php?action=send_bulk`,
   sends: `${API_BASE_URL}/email-outreach.php?action=sends`,
   scheduled: `${API_BASE_URL}/email-outreach.php?action=scheduled`,
   queueScheduled: `${API_BASE_URL}/email-outreach.php?action=send`,
@@ -254,25 +255,48 @@ export async function sendEmail(params: {
 }
 
 export async function sendBulkEmails(params: BulkSendParams): Promise<{ success: boolean; results?: BulkSendResult; error?: string }> {
+  const smtpOverride = getSMTPConfig();
+  const payload = JSON.stringify({
+    ...params,
+    smtp_override: smtpOverride ? {
+      host: smtpOverride.host,
+      port: smtpOverride.port,
+      username: smtpOverride.username,
+      password: smtpOverride.password,
+      secure: smtpOverride.secure,
+      from_email: smtpOverride.fromEmail || smtpOverride.username,
+      from_name: smtpOverride.fromName || 'BamLead',
+    } : undefined,
+  });
+
   try {
-    const smtpOverride = getSMTPConfig();
     return await apiRequest(EMAIL_ENDPOINTS.sendBulk, {
       method: 'POST',
-      body: JSON.stringify({
-        ...params,
-        smtp_override: smtpOverride ? {
-          host: smtpOverride.host,
-          port: smtpOverride.port,
-          username: smtpOverride.username,
-          password: smtpOverride.password,
-          secure: smtpOverride.secure,
-          from_email: smtpOverride.fromEmail || smtpOverride.username,
-          from_name: smtpOverride.fromName || 'BamLead',
-        } : undefined,
-      }),
+      body: payload,
     });
   } catch (error: any) {
-    return { success: false, error: error.message };
+    const message = String(error?.message || '');
+    const shouldRetryWithAlias =
+      message.includes('send-bulk') &&
+      (
+        message.includes('(403)') ||
+        message.includes('(405)') ||
+        message.includes('Not Allowed') ||
+        message.includes('not valid JSON')
+      );
+
+    if (shouldRetryWithAlias) {
+      try {
+        return await apiRequest(EMAIL_ENDPOINTS.sendBulkAlt, {
+          method: 'POST',
+          body: payload,
+        });
+      } catch (aliasError: any) {
+        return { success: false, error: String(aliasError?.message || aliasError) };
+      }
+    }
+
+    return { success: false, error: message };
   }
 }
 

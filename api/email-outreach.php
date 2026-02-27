@@ -60,6 +60,7 @@ try {
             break;
             
         case 'send-bulk':
+        case 'send_bulk':
             handleSendBulk($db, $user);
             break;
             
