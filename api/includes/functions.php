@@ -1436,7 +1436,12 @@ function matchesSearchFilters($business, $filters) {
     }
 
     $analysis = is_array($business['websiteAnalysis'] ?? null) ? $business['websiteAnalysis'] : [];
-    $hasWebsite = array_key_exists('hasWebsite', $analysis) ? (bool)$analysis['hasWebsite'] : true;
+    $rawWebsite = trim((string)($business['url'] ?? ($business['website'] ?? '')));
+    $normalizedWebsite = strtolower($rawWebsite);
+    $placeholderWebsiteValues = ['-', '—', 'n/a', 'na', 'none', 'null'];
+    $hasWebsiteByUrl = $rawWebsite !== '' && !in_array($normalizedWebsite, $placeholderWebsiteValues, true);
+    $hasWebsiteFromAnalysis = array_key_exists('hasWebsite', $analysis) ? (bool)$analysis['hasWebsite'] : false;
+    $hasWebsite = $hasWebsiteByUrl || $hasWebsiteFromAnalysis;
     $needsUpgrade = array_key_exists('needsUpgrade', $analysis) ? (bool)$analysis['needsUpgrade'] : false;
     $issues = isset($analysis['issues']) && is_array($analysis['issues']) ? $analysis['issues'] : [];
     $platform = strtolower(trim((string)($analysis['platform'] ?? '')));
@@ -1444,28 +1449,52 @@ function matchesSearchFilters($business, $filters) {
 
     if (!empty($filters['phoneOnly'])) {
         $phone = trim((string)($business['phone'] ?? ''));
+        if ($phone === '' && isset($business['enrichment']) && is_array($business['enrichment'])) {
+            $enrichmentPhones = $business['enrichment']['phones'] ?? [];
+            if (is_array($enrichmentPhones)) {
+                foreach ($enrichmentPhones as $enrichmentPhone) {
+                    $candidate = trim((string)$enrichmentPhone);
+                    if ($candidate !== '') {
+                        $phone = $candidate;
+                        break;
+                    }
+                }
+            }
+        }
         if ($phone === '') return false;
+    }
+
+    // "No website" should be strict: if selected, exclude any lead that has a usable website URL.
+    if (!empty($filters['noWebsite']) && $hasWebsiteByUrl) {
+        return false;
     }
 
     $qualityFiltersSelected = !empty($filters['noWebsite']) || !empty($filters['notMobile']) || !empty($filters['outdated']);
     if ($qualityFiltersSelected) {
         $qualityMatch = false;
 
-        if (!empty($filters['noWebsite']) && !$hasWebsite) {
+        if (!empty($filters['noWebsite']) && !$hasWebsiteByUrl) {
             $qualityMatch = true;
         }
 
         if (!empty($filters['notMobile'])) {
-            $notMobile = true;
+            $notMobile = false;
             if ($mobileScore !== null && $mobileScore !== '') {
                 $notMobile = ((float)$mobileScore) < 60; // Catches weak mobile experience (was 50)
+            } elseif (!empty($issues)) {
+                $issueText = strtolower(implode(' ', array_map(function ($issue) {
+                    return (string)$issue;
+                }, $issues)));
+                $notMobile = strpos($issueText, 'mobile') !== false ||
+                    strpos($issueText, 'responsive') !== false ||
+                    strpos($issueText, 'viewport') !== false;
             }
-            if ($notMobile) {
+            if ($hasWebsite && $notMobile) {
                 $qualityMatch = true;
             }
         }
 
-        if (!empty($filters['outdated']) && ($needsUpgrade || !empty($issues))) {
+        if (!empty($filters['outdated']) && $hasWebsite && ($needsUpgrade || !empty($issues))) {
             $qualityMatch = true;
         }
 
@@ -1497,7 +1526,7 @@ function matchesSearchFilters($business, $filters) {
             }
         }
         if (!empty($filters['platformMode'])) {
-            $url = trim((string)($business['url'] ?? ''));
+            $url = $rawWebsite;
             $include = !$hasWebsite || $needsUpgrade || !empty($issues) || $matchesPlatform || $url === '';
             if (!$include) return false;
         } else {
