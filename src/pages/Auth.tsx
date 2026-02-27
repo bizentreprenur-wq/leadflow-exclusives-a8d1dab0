@@ -157,7 +157,7 @@ export default function Auth() {
     }
     
     try {
-      await login(trimmedEmail, loginPassword);
+      await login(trimmedEmail, loginPassword.trim());
       toast.success('Welcome back!');
       await handlePostAuthRedirect();
     } catch (error) {
