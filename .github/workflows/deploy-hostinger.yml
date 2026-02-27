@@ -54,20 +54,28 @@ jobs:
             .git*
             node_modules/**
 
-      - name: 🚀 Deploy Chrome Extension Assets
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: 21
-          local-dir: ./dist/chrome-extension/
-          server-dir: /home/u497238762/domains/bamlead.com/public_html/chrome-extension/
-          state-name: ftp-deploy-chrome-extension-state.json
-          dangerous-clean-slate: false
-          exclude: |
-            .git*
-            node_modules/**
+      - name: 🚀 Deploy Chrome Extension Assets (Hostinger-safe)
+        env:
+          FTP_HOST: ${{ secrets.FTP_SERVER }}
+          FTP_USER: ${{ secrets.FTP_USERNAME }}
+          FTP_PASS: ${{ secrets.FTP_PASSWORD }}
+          REMOTE_DIR: /home/u497238762/domains/bamlead.com/public_html/chrome-extension
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lftp
+
+          # Hostinger FTP can fail with hidden temp-file renames (.in.*).
+          # Use lftp mirror to upload files directly.
+          lftp -c "
+            set ftp:ssl-allow false;
+            set net:max-retries 3;
+            set net:timeout 30;
+            set net:reconnect-interval-base 5;
+            open -u \"$FTP_USER\",\"$FTP_PASS\" \"$FTP_HOST\";
+            mkdir -p \"$REMOTE_DIR\";
+            mirror -R --delete --verbose ./dist/chrome-extension \"$REMOTE_DIR\";
+            bye
+          "
 
       - name: 🚀 Deploy Backend
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
