@@ -69,9 +69,12 @@ try {
     // Check cache
     $cached = getCache($cacheKey);
     if ($cached !== null) {
+        $cachedLeads = is_array($cached) && array_key_exists('leads', $cached) ? ($cached['leads'] ?? []) : $cached;
+        $cachedDiagnostics = is_array($cached) && array_key_exists('diagnostics', $cached) ? ($cached['diagnostics'] ?? null) : null;
         sendJson([
             'success' => true,
-            'data' => $cached,
+            'data' => $cachedLeads,
+            'diagnostics' => $cachedDiagnostics,
             'query' => [
                 'service' => $service,
                 'location' => $location,
@@ -81,14 +84,20 @@ try {
         ]);
     }
     
-    $results = searchPlatformsFunc($service, $location, $platforms, $limit, $filters, $rawSerperOnly);
+    $searchOutput = searchPlatformsFunc($service, $location, $platforms, $limit, $filters, $rawSerperOnly);
+    $results = is_array($searchOutput) && array_key_exists('leads', $searchOutput) ? ($searchOutput['leads'] ?? []) : $searchOutput;
+    $diagnostics = is_array($searchOutput) && array_key_exists('diagnostics', $searchOutput) ? ($searchOutput['diagnostics'] ?? null) : null;
     
     // Cache results
-    setCache($cacheKey, $results);
+    setCache($cacheKey, [
+        'leads' => $results,
+        'diagnostics' => $diagnostics,
+    ]);
     
     sendJson([
         'success' => true,
         'data' => $results,
+        'diagnostics' => $diagnostics,
         'query' => [
             'service' => $service,
             'location' => $location,
@@ -112,6 +121,24 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50, $filt
     $filters = normalizeSearchFilters($filters);
     $filters['platformMode'] = true;
     $filters['platforms'] = $platforms;
+    $diagnostics = [
+        'rawCandidates' => 0,
+        'invalidDomainCandidates' => 0,
+        'dedupedCandidates' => 0,
+        'preFilterCandidates' => 0,
+        'filterMatchedCandidates' => 0,
+        'filterRejectedCandidates' => 0,
+        'filterRejections' => [
+            'phoneOnly' => 0,
+            'noWebsite' => 0,
+            'notMobile' => 0,
+            'outdated' => 0,
+            'platforms' => 0,
+            'combined' => 0,
+        ],
+        'queriesExecuted' => 0,
+        'finalResults' => 0,
+    ];
     
     // Build platform query modifiers and search in chunks so every platform is represented.
     $platformQueries = buildPlatformQueries($platforms);
@@ -124,10 +151,16 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50, $filt
     $hasGoogleApi = !$rawSerperOnly && !empty(GOOGLE_API_KEY) && !empty(GOOGLE_SEARCH_ENGINE_ID);
     $hasBingApi = !$rawSerperOnly && !empty(BING_API_KEY);
 
-    $addResults = function($results) use (&$unique, &$seen) {
+    $addResults = function($results) use (&$unique, &$seen, &$diagnostics) {
         foreach ($results as $result) {
+            $diagnostics['rawCandidates']++;
             $domain = parse_url($result['url'], PHP_URL_HOST);
-            if (!$domain || isset($seen[$domain])) {
+            if (!$domain) {
+                $diagnostics['invalidDomainCandidates']++;
+                continue;
+            }
+            if (isset($seen[$domain])) {
+                $diagnostics['dedupedCandidates']++;
                 continue;
             }
             $seen[$domain] = true;
@@ -177,6 +210,7 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50, $filt
             if (count($unique) >= $limit) {
                 break 2;
             }
+            $diagnostics['queriesExecuted']++;
             $remaining = $limit - count($unique);
             $comboService = $combo['service'];
             $comboLocation = $combo['location'];
@@ -231,12 +265,31 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50, $filt
     }, array_slice($unique, 0, $limit));
 
     // Enforce selected Option B filters on Serper/SerpAPI results
-    $enriched = array_values(array_filter($enriched, function ($lead) use ($filters) {
-        return matchesSearchFilters($lead, $filters);
-    }));
+    $diagnostics['preFilterCandidates'] = count($enriched);
+    $filteredLeads = [];
+    foreach ($enriched as $lead) {
+        if (matchesSearchFilters($lead, $filters)) {
+            $diagnostics['filterMatchedCandidates']++;
+            $filteredLeads[] = $lead;
+            continue;
+        }
+        $diagnostics['filterRejectedCandidates']++;
+        $reasons = getSearchFilterFailureReasons($lead, $filters);
+        foreach ($reasons as $reason) {
+            if (!isset($diagnostics['filterRejections'][$reason])) {
+                $reason = 'combined';
+            }
+            $diagnostics['filterRejections'][$reason]++;
+        }
+    }
     
     // Return raw filtered Serper-derived lead rows (no enrichment prioritization reshuffle).
-    return array_slice($enriched, 0, $limit);
+    $final = array_slice($filteredLeads, 0, $limit);
+    $diagnostics['finalResults'] = count($final);
+    return [
+        'leads' => $final,
+        'diagnostics' => $diagnostics,
+    ];
 }
 
 /**

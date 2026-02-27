@@ -1264,10 +1264,15 @@ export default function Dashboard() {
         console.error('[BamLead] ⚠️ Search completed with 0 results. Params:', {
           searchType, query, location, requestedLimit, backendFilters
         });
-        setSearchError(
-          'Search completed but returned 0 results. This may be an API issue — check browser console for details.'
-        );
-        toast.error('No results found. Check your search terms or try a different location.');
+        const hasFilters = activeFilters.length > 0;
+        const filterHint = hasFilters
+          ? `No leads matched your selected filters (${activeFilters.join(', ')}).`
+          : 'No results found for this search.';
+        const nextStepHint = hasFilters
+          ? 'Try turning off one or more filters or broadening your service/location.'
+          : 'Try different keywords, platforms, or location.';
+        setSearchError(`${filterHint} ${nextStepHint}`);
+        toast.error(`${filterHint} ${nextStepHint}`);
         setShowReportModal(false);
       }
 

@@ -1395,6 +1395,31 @@ function isTransientNetworkErrorMessage($message) {
 function normalizeSearchFilters($input) {
     $filters = is_array($input) ? $input : [];
     $platforms = [];
+    $toBool = static function ($value) {
+        if (is_bool($value)) {
+            return $value;
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return (int)$value === 1;
+        }
+
+        if (is_string($value)) {
+            $normalized = strtolower(trim($value));
+            if ($normalized === '') {
+                return false;
+            }
+            if (in_array($normalized, ['1', 'true', 'yes', 'on'], true)) {
+                return true;
+            }
+            if (in_array($normalized, ['0', 'false', 'no', 'off', 'null', 'undefined'], true)) {
+                return false;
+            }
+        }
+
+        return false;
+    };
+
     if (!empty($filters['platforms']) && is_array($filters['platforms'])) {
         foreach ($filters['platforms'] as $platform) {
             if (!is_string($platform)) continue;
@@ -1406,12 +1431,12 @@ function normalizeSearchFilters($input) {
     }
 
     return [
-        'phoneOnly' => !empty($filters['phoneOnly']),
-        'noWebsite' => !empty($filters['noWebsite']),
-        'notMobile' => !empty($filters['notMobile']),
-        'outdated' => !empty($filters['outdated']),
+        'phoneOnly' => $toBool($filters['phoneOnly'] ?? false),
+        'noWebsite' => $toBool($filters['noWebsite'] ?? false),
+        'notMobile' => $toBool($filters['notMobile'] ?? false),
+        'outdated' => $toBool($filters['outdated'] ?? false),
         'platforms' => array_values(array_unique($platforms)),
-        'platformMode' => !empty($filters['platformMode']),
+        'platformMode' => $toBool($filters['platformMode'] ?? false),
     ];
 }
 
@@ -1543,6 +1568,56 @@ function matchesSearchFilters($business, $filters) {
     }
 
     return true;
+}
+
+/**
+ * Return which active filters a lead failed (for diagnostics/debugging).
+ * Reasons can include: phoneOnly, noWebsite, notMobile, outdated, platforms, combined.
+ */
+function getSearchFilterFailureReasons($business, $filters) {
+    $normalized = normalizeSearchFilters($filters);
+    if (!hasAnySearchFilter($normalized)) {
+        return [];
+    }
+    if (matchesSearchFilters($business, $normalized)) {
+        return [];
+    }
+
+    $reasons = [];
+    $emptyFilter = [
+        'phoneOnly' => false,
+        'noWebsite' => false,
+        'notMobile' => false,
+        'outdated' => false,
+        'platforms' => [],
+        'platformMode' => false,
+    ];
+
+    foreach (['phoneOnly', 'noWebsite', 'notMobile', 'outdated'] as $key) {
+        if (empty($normalized[$key])) {
+            continue;
+        }
+        $single = $emptyFilter;
+        $single[$key] = true;
+        if (!matchesSearchFilters($business, $single)) {
+            $reasons[] = $key;
+        }
+    }
+
+    if (!empty($normalized['platforms']) && is_array($normalized['platforms'])) {
+        $single = $emptyFilter;
+        $single['platformMode'] = !empty($normalized['platformMode']);
+        $single['platforms'] = $normalized['platforms'];
+        if (!matchesSearchFilters($business, $single)) {
+            $reasons[] = 'platforms';
+        }
+    }
+
+    if (empty($reasons)) {
+        $reasons[] = 'combined';
+    }
+
+    return array_values(array_unique($reasons));
 }
 
 /**

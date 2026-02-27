@@ -135,6 +135,26 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
         'filtersActive' => hasAnySearchFilter($filters),
     ]);
 
+    $diagnostics = [
+        'rawCandidates' => 0,
+        'invalidDomainCandidates' => 0,
+        'dedupedCandidates' => 0,
+        'preFilterCandidates' => 0,
+        'filterMatchedCandidates' => 0,
+        'filterRejectedCandidates' => 0,
+        'filterRejections' => [
+            'phoneOnly' => 0,
+            'noWebsite' => 0,
+            'notMobile' => 0,
+            'outdated' => 0,
+            'platforms' => 0,
+            'combined' => 0,
+        ],
+        'queriesPlanned' => 0,
+        'queriesExecuted' => 0,
+        'finalResults' => 0,
+    ];
+
     $allResults = [];
     $seenDomains = [];
     $totalResults = 0;
@@ -146,9 +166,11 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
     }
     // Also add a generic query
     $queries[] = "$service in $location";
+    $diagnostics['queriesPlanned'] = count($queries);
 
     foreach ($queries as $queryIdx => $query) {
         if ($totalResults >= $limit) break;
+        $diagnostics['queriesExecuted']++;
 
         // Serper organic search
         $url = 'https://google.serper.dev/search';
@@ -181,10 +203,18 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
         $leadBuffer = [];
         foreach ($organic as $item) {
             if ($totalResults >= $limit) break;
+            $diagnostics['rawCandidates']++;
 
             $link = $item['link'] ?? '';
             $domain = parse_url($link, PHP_URL_HOST) ?: '';
-            if (empty($domain) || isset($seenDomains[$domain])) continue;
+            if (empty($domain)) {
+                $diagnostics['invalidDomainCandidates']++;
+                continue;
+            }
+            if (isset($seenDomains[$domain])) {
+                $diagnostics['dedupedCandidates']++;
+                continue;
+            }
             $seenDomains[$domain] = true;
 
             $business = [
@@ -199,10 +229,20 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
                 'sources' => ['Serper Organic'],
                 'websiteAnalysis' => quickWebsiteCheck($link, ($item['snippet'] ?? '') . ' ' . ($item['title'] ?? '')),
             ];
+            $diagnostics['preFilterCandidates']++;
 
             if (!matchesSearchFilters($business, $filters)) {
+                $diagnostics['filterRejectedCandidates']++;
+                $reasons = getSearchFilterFailureReasons($business, $filters);
+                foreach ($reasons as $reason) {
+                    if (!isset($diagnostics['filterRejections'][$reason])) {
+                        $reason = 'combined';
+                    }
+                    $diagnostics['filterRejections'][$reason]++;
+                }
                 continue;
             }
+            $diagnostics['filterMatchedCandidates']++;
 
             $allResults[] = $business;
             $leadBuffer[] = $business;
@@ -234,9 +274,12 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
         ]);
     }
 
+    $diagnostics['finalResults'] = $totalResults;
+
     sendSSE('complete', [
         'total' => $totalResults,
         'leads' => $allResults,
+        'diagnostics' => $diagnostics,
     ]);
 }
 

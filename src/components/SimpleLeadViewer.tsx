@@ -192,6 +192,13 @@ export default function SimpleLeadViewer({
     return '';
   };
 
+  const hasUsableWebsite = (lead: SearchResult): boolean => {
+    const website = (lead.website || '').trim();
+    if (!website) return false;
+    const normalized = website.toLowerCase();
+    return !['-', '—', 'n/a', 'na', 'none', 'null'].includes(normalized);
+  };
+
   // Load version history from localStorage
   useEffect(() => {
     try {
@@ -332,7 +339,7 @@ export default function SimpleLeadViewer({
         // Score based on actionable contact data
         if (lead.email) score += 30;
         if (lead.phone) score += 20;
-        if (!lead.website || lead.websiteAnalysis?.hasWebsite === false) score += 20;
+        if (!hasUsableWebsite(lead)) score += 20;
         if (lead.rating && lead.rating >= 4) score += 10;
         if (lead.address) score += 5;
         if (lead.websiteAnalysis?.needsUpgrade) score += 10;
@@ -349,7 +356,7 @@ export default function SimpleLeadViewer({
     warm: classifiedLeads.filter(l => l.aiClassification === 'warm').length,
     cold: classifiedLeads.filter(l => l.aiClassification === 'cold').length,
     ready: classifiedLeads.filter(l => l.readyToCall || getPrimaryPhone(l)).length,
-    nosite: classifiedLeads.filter(l => !l.website || l.websiteAnalysis?.hasWebsite === false).length,
+    nosite: classifiedLeads.filter(l => !hasUsableWebsite(l)).length,
     phoneOnly: classifiedLeads.filter(l => getPrimaryPhone(l) && !getPrimaryEmail(l)).length,
     withEmail: classifiedLeads.filter(l => !!getPrimaryEmail(l)).length,
   }), [classifiedLeads]);
@@ -419,7 +426,7 @@ export default function SimpleLeadViewer({
     } else if (activeFilter === 'ready') {
       result = result.filter(l => l.readyToCall || getPrimaryPhone(l));
     } else if (activeFilter === 'nosite') {
-      result = result.filter(l => !l.website || l.websiteAnalysis?.hasWebsite === false);
+      result = result.filter(l => !hasUsableWebsite(l));
     } else if (activeFilter === 'phoneOnly') {
       result = result.filter(l => getPrimaryPhone(l) && !getPrimaryEmail(l));
     } else if (activeFilter === 'withEmail') {
@@ -604,7 +611,7 @@ export default function SimpleLeadViewer({
       dataToExport = [...base].sort(sortByClassification);
       categoryLabel = 'All Leads';
     } else if (category === 'nosite') {
-      dataToExport = classifiedLeads.filter(l => !l.website || l.websiteAnalysis?.hasWebsite === false).sort(sortByClassification);
+      dataToExport = classifiedLeads.filter(l => !hasUsableWebsite(l)).sort(sortByClassification);
       categoryLabel = 'Leads Without Website';
     } else {
       dataToExport = classifiedLeads.filter(l => l.aiClassification === category).sort(sortByClassification);
@@ -1631,7 +1638,7 @@ export default function SimpleLeadViewer({
                         </TableCell>
                         <TableCell className="w-[140px]" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-1">
-                            {lead.website ? (
+                            {hasUsableWebsite(lead) ? (
                               <WebsitePreviewIcon
                                 website={lead.website}
                                 businessName={lead.name}

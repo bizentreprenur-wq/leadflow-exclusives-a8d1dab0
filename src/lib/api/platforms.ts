@@ -90,9 +90,10 @@ export async function searchPlatforms(
     const err = streamError instanceof Error ? streamError : new Error(String(streamError));
     const message = (err.message || '').toLowerCase();
     const streamMissing = message.includes('404') || message.includes('not found');
+    const streamZeroResults = message.includes('0 results');
 
-    if (streamMissing) {
-      console.warn('[Platform API] Streaming endpoint not found, falling back to regular endpoint');
+    if (streamMissing || streamZeroResults) {
+      console.warn('[Platform API] Streaming unavailable/empty, falling back to regular endpoint');
       return await searchPlatformsRegular(service, location, platforms, onProgress, limit, filters);
     }
 
@@ -333,8 +334,9 @@ async function searchPlatformsRegular(
     throw new Error('Backend returned mock/demo platform results.');
   }
 
-  if (data.success && (!data.data || data.data.length === 0)) {
-    throw new Error('Platform search returned 0 results.');
+  // Zero-result queries are valid; callers can decide UX messaging.
+  if (data.success && !Array.isArray(data.data)) {
+    data.data = [];
   }
 
   // Progressive reveal
