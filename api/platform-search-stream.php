@@ -181,6 +181,15 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
     // Also add a generic query
     $queries[] = "$service in $location";
     $diagnostics['queriesPlanned'] = count($queries);
+    sendSSE('status', [
+        'message' => 'Initializing platform search...',
+        'progress' => 1,
+        'source' => 'Serper Organic',
+        'locationCount' => 1,
+        'variantCount' => max(1, count($platformQueries)),
+        'estimatedQueries' => count($queries),
+        'phase' => 'searching',
+    ]);
 
     foreach ($queries as $queryIdx => $query) {
         if ($totalResults >= $limit) break;
@@ -293,6 +302,8 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
         sendSSE('status', [
             'message' => "Query " . ($queryIdx + 1) . "/" . count($queries) . " ({$totalResults}/{$limit} found)",
             'progress' => min(95, round(($totalResults / max(1, $limit)) * 100)),
+            'source' => 'Serper Organic',
+            'phase' => 'searching',
         ]);
     }
 

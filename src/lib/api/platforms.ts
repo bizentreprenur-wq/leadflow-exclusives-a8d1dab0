@@ -57,6 +57,15 @@ export interface PlatformSearchFilters {
   platforms?: string[];
 }
 
+export interface PlatformProgressMeta {
+  locationCount?: number;
+  variantCount?: number;
+  estimatedQueries?: number;
+  sourceLabel?: string;
+  statusMessage?: string;
+  phase?: string;
+}
+
 function isMockPlatformResult(r: PlatformResult): boolean {
   return (
     r.source === 'mock' ||
@@ -67,7 +76,11 @@ function isMockPlatformResult(r: PlatformResult): boolean {
 }
 
 // Callback for progressive loading
-export type PlatformProgressCallback = (results: PlatformResult[], progress: number) => void;
+export type PlatformProgressCallback = (
+  results: PlatformResult[],
+  progress: number,
+  meta?: PlatformProgressMeta
+) => void;
 
 /**
  * Search platforms using SSE streaming (preferred) with fallback to regular endpoint
@@ -130,6 +143,7 @@ async function searchPlatformsStreaming(
 
   const allResults: PlatformResult[] = [];
   let synonymsUsed: string[] = [];
+  let progressMeta: PlatformProgressMeta | undefined;
 
   return new Promise((resolve, reject) => {
     let settled = false;
@@ -176,10 +190,13 @@ async function searchPlatformsStreaming(
         let lastProgress = 0;
         const flushProgress = () => {
           progressTimer = null;
-          if (onProgress) onProgress([...allResults], lastProgress);
+          if (onProgress) onProgress([...allResults], lastProgress, progressMeta);
         };
-        const throttledProgress = (progress: number) => {
+        const throttledProgress = (progress: number, meta?: PlatformProgressMeta) => {
           lastProgress = progress;
+          if (meta) {
+            progressMeta = { ...(progressMeta || {}), ...meta };
+          }
           if (!progressTimer) {
             progressTimer = setTimeout(flushProgress, 80);
           }
@@ -219,6 +236,29 @@ async function searchPlatformsStreaming(
 
               if (eventType === 'start') {
                 synonymsUsed = data.synonymsUsed || [];
+                const sourceLabel = Array.isArray(data.sources) && data.sources.length > 0
+                  ? data.sources.join(' + ')
+                  : undefined;
+                progressMeta = {
+                  ...(progressMeta || {}),
+                  sourceLabel,
+                  statusMessage: data.query ? `Starting search: ${data.query}` : 'Starting search...',
+                  phase: 'start',
+                };
+                if (onProgress) {
+                  onProgress([...allResults], 0, progressMeta);
+                }
+              }
+
+              if (eventType === 'status') {
+                throttledProgress(data.progress ?? lastProgress, {
+                  statusMessage: data.message || progressMeta?.statusMessage,
+                  phase: data.phase || progressMeta?.phase,
+                  sourceLabel: data.source || data.provider || progressMeta?.sourceLabel,
+                  locationCount: data.locationCount ?? progressMeta?.locationCount,
+                  variantCount: data.variantCount ?? progressMeta?.variantCount,
+                  estimatedQueries: data.estimatedQueries ?? progressMeta?.estimatedQueries,
+                });
               }
 
               if (eventType === 'results' || data.leads) {
@@ -260,13 +300,24 @@ async function searchPlatformsStreaming(
                 }
 
                 // Throttled — UI updates in bulk
-                throttledProgress(data.progress || 0);
+                throttledProgress(data.progress || 0, {
+                  sourceLabel: data.source || progressMeta?.sourceLabel,
+                  statusMessage: data.message || progressMeta?.statusMessage,
+                  phase: data.phase || progressMeta?.phase,
+                });
               }
 
               if (eventType === 'complete') {
                 clearTimeout(timeoutId);
                 if (progressTimer) { clearTimeout(progressTimer); progressTimer = null; }
-                if (onProgress) onProgress([...allResults], 100);
+                if (onProgress) {
+                  onProgress([...allResults], 100, {
+                    ...(progressMeta || {}),
+                    statusMessage: data.message || 'Search complete',
+                    phase: 'complete',
+                    sourceLabel: data.source || progressMeta?.sourceLabel,
+                  });
+                }
                 try { await reader.cancel(); } catch {}
                 if (allResults.length === 0) {
                   fail(new Error('Platform search returned 0 results. Try different platforms/keywords or verify API keys.'));
@@ -318,6 +369,13 @@ async function searchPlatformsRegular(
   const timeoutMs = limit <= 100 ? 180000 : limit <= 500 ? 480000 : 900000;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  if (onProgress) {
+    onProgress([], 2, {
+      sourceLabel: 'Platform API',
+      statusMessage: 'Starting fallback search...',
+      phase: 'fallback',
+    });
+  }
 
   let response: Response;
   try {
@@ -357,6 +415,13 @@ async function searchPlatformsRegular(
   if (data.success && !Array.isArray(data.data)) {
     data.data = [];
   }
+  if (onProgress && data.success && Array.isArray(data.data) && data.data.length === 0) {
+    onProgress([], 100, {
+      sourceLabel: 'Platform API',
+      statusMessage: 'Search complete (no leads found)',
+      phase: 'complete',
+    });
+  }
 
   // Progressive reveal
   if (onProgress && data.success && data.data) {
@@ -365,7 +430,11 @@ async function searchPlatformsRegular(
     let loaded = 0;
     while (loaded < allResults.length) {
       loaded = Math.min(loaded + batchSize, allResults.length);
-      onProgress(allResults.slice(0, loaded), (loaded / allResults.length) * 100);
+      onProgress(allResults.slice(0, loaded), (loaded / allResults.length) * 100, {
+        sourceLabel: 'Platform API',
+        statusMessage: 'Loading search results...',
+        phase: 'results',
+      });
       if (loaded < allResults.length) {
         await new Promise(resolve => setTimeout(resolve, 25));
       }

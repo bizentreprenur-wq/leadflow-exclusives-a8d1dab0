@@ -1089,8 +1089,8 @@ export default function Dashboard() {
         // Agency Lead Finder uses platform-search-stream.php with proper site: modifiers
         // for faster, more targeted results than generic GMB search
         console.log('[BamLead] Agency Lead Finder: Using platform search with SSE streaming, limit:', effectiveLimit);
-        const platformProgressAdapter = (partialResults: PlatformResult[], progress: number) => {
-          handleProgress(partialResults, progress);
+        const platformProgressAdapter = (partialResults: PlatformResult[], progress: number, meta?: StreamProgressMeta) => {
+          handleProgress(partialResults, progress, meta);
         };
         const response = await searchPlatforms(
           query,
