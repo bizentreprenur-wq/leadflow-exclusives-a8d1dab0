@@ -47,6 +47,15 @@ export interface PlatformSearchResponse {
   synonymsUsed?: string[];
 }
 
+export interface PlatformSearchFilters {
+  phoneOnly?: boolean;
+  noWebsite?: boolean;
+  notMobile?: boolean;
+  outdated?: boolean;
+  platformMode?: boolean;
+  platforms?: string[];
+}
+
 function isMockPlatformResult(r: PlatformResult): boolean {
   return (
     r.source === 'mock' ||
@@ -67,7 +76,8 @@ export async function searchPlatforms(
   location: string,
   platforms: string[],
   onProgress?: PlatformProgressCallback,
-  limit: number = 100
+  limit: number = 100,
+  filters?: PlatformSearchFilters
 ): Promise<PlatformSearchResponse> {
   if (USE_MOCK_DATA) {
     throw new Error('Platform search backend is not configured. Set VITE_API_URL or deploy /api.');
@@ -75,7 +85,7 @@ export async function searchPlatforms(
 
   // Try SSE streaming first
   try {
-    return await searchPlatformsStreaming(service, location, platforms, onProgress, limit);
+    return await searchPlatformsStreaming(service, location, platforms, onProgress, limit, filters);
   } catch (streamError) {
     const err = streamError instanceof Error ? streamError : new Error(String(streamError));
     const message = (err.message || '').toLowerCase();
@@ -83,7 +93,7 @@ export async function searchPlatforms(
 
     if (streamMissing) {
       console.warn('[Platform API] Streaming endpoint not found, falling back to regular endpoint');
-      return await searchPlatformsRegular(service, location, platforms, onProgress, limit);
+      return await searchPlatformsRegular(service, location, platforms, onProgress, limit, filters);
     }
 
     throw err;
@@ -98,7 +108,8 @@ async function searchPlatformsStreaming(
   location: string,
   platforms: string[],
   onProgress?: PlatformProgressCallback,
-  limit: number = 100
+  limit: number = 100,
+  filters?: PlatformSearchFilters
 ): Promise<PlatformSearchResponse> {
   console.log('[Platform API] Starting SSE streaming search');
 
@@ -129,7 +140,7 @@ async function searchPlatformsStreaming(
     fetch(`${API_BASE_URL}/platform-search-stream.php`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ service, location, platforms, limit }),
+      body: JSON.stringify({ service, location, platforms, limit, filters }),
       signal: controller.signal,
     })
       .then(async (response) => {
@@ -280,7 +291,8 @@ async function searchPlatformsRegular(
   location: string,
   platforms: string[],
   onProgress?: PlatformProgressCallback,
-  limit: number = 100
+  limit: number = 100,
+  filters?: PlatformSearchFilters
 ): Promise<PlatformSearchResponse> {
   const endpoint = `${API_BASE_URL}/platform-search.php`;
   const timeoutMs = limit <= 100 ? 180000 : limit <= 500 ? 480000 : 900000;
@@ -292,7 +304,7 @@ async function searchPlatformsRegular(
     response = await fetch(endpoint, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ service, location, platforms, limit }),
+      body: JSON.stringify({ service, location, platforms, limit, filters }),
       signal: controller.signal,
     });
     clearTimeout(timeoutId);

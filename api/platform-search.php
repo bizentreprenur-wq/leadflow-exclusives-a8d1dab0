@@ -38,6 +38,7 @@ $service = sanitizeInput($input['service'] ?? '');
 $location = sanitizeInput($input['location'] ?? '');
 $platforms = isset($input['platforms']) && is_array($input['platforms']) ? $input['platforms'] : [];
 $limit = isset($input['limit']) ? min(2000, max(10, intval($input['limit']))) : 100; // Default 100, max 2000
+$filters = normalizeSearchFilters($input['filters'] ?? null);
 
 if (empty($service)) {
     sendError('Service type is required');
@@ -56,8 +57,12 @@ $platforms = array_map(function($p) {
     return sanitizeInput($p, 50);
 }, array_slice($platforms, 0, 20));
 
+$filters['platformMode'] = true;
+$filters['platforms'] = $platforms;
+
 try {
-    $cacheKey = "platform_search_{$service}_{$location}_" . implode(',', $platforms) . "_{$limit}";
+    $filtersKey = md5(json_encode($filters));
+    $cacheKey = "platform_search_{$service}_{$location}_" . implode(',', $platforms) . "_{$limit}_{$filtersKey}";
     
     // Check cache
     $cached = getCache($cacheKey);
@@ -74,7 +79,7 @@ try {
         ]);
     }
     
-    $results = searchPlatformsFunc($service, $location, $platforms, $limit);
+    $results = searchPlatformsFunc($service, $location, $platforms, $limit, $filters);
     
     // Cache results
     setCache($cacheKey, $results);
@@ -99,9 +104,12 @@ try {
 /**
  * Search for businesses using specific platforms
  */
-function searchPlatformsFunc($service, $location, $platforms, $limit = 50) {
+function searchPlatformsFunc($service, $location, $platforms, $limit = 50, $filters = []) {
     // Increase PHP time limit for large searches
     set_time_limit(300); // 5 minutes max
+    $filters = normalizeSearchFilters($filters);
+    $filters['platformMode'] = true;
+    $filters['platforms'] = $platforms;
     
     // Build platform query modifiers and search in chunks so every platform is represented.
     $platformQueries = buildPlatformQueries($platforms);
@@ -216,6 +224,11 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50) {
         }
         return $result;
     }, array_slice($unique, 0, $limit));
+
+    // Enforce selected Option B filters on Serper/SerpAPI results
+    $enriched = array_values(array_filter($enriched, function ($lead) use ($filters) {
+        return matchesSearchFilters($lead, $filters);
+    }));
     
     // For Agency Lead Finder, prioritize leads with both email and phone,
     // then backfill with partial-contact leads to hit the requested volume.

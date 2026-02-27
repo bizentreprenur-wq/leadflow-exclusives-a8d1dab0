@@ -1092,7 +1092,14 @@ export default function Dashboard() {
         const platformProgressAdapter = (partialResults: PlatformResult[], progress: number) => {
           handleProgress(partialResults, progress);
         };
-        const response = await searchPlatforms(query, location, selectedPlatforms, platformProgressAdapter, effectiveLimit);
+        const response = await searchPlatforms(
+          query,
+          location,
+          selectedPlatforms,
+          platformProgressAdapter,
+          effectiveLimit,
+          backendFilters
+        );
         console.log('[BamLead] Agency Lead Finder platform response:', response);
         if (response.success && response.data) {
           finalResults = response.data.map((r: PlatformResult, index: number) => ({

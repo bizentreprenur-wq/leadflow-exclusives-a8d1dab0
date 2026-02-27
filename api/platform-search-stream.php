@@ -53,6 +53,7 @@ $service = sanitizeInput($input['service'] ?? '');
 $location = sanitizeInput($input['location'] ?? '');
 $platforms = isset($input['platforms']) && is_array($input['platforms']) ? $input['platforms'] : [];
 $limit = isset($input['limit']) ? min(2000, max(10, intval($input['limit']))) : 100;
+$filters = normalizeSearchFilters($input['filters'] ?? null);
 
 if (empty($service)) {
     sendSSE('error', ['error' => 'Service type is required']);
@@ -71,19 +72,23 @@ $platforms = array_map(function ($p) {
     return sanitizeInput($p, 50);
 }, array_slice($platforms, 0, 20));
 
+// Always force Option B context to selected platforms
+$filters['platformMode'] = true;
+$filters['platforms'] = $platforms;
+
 // Check if custom fetcher is available
 $useCustomPipeline = function_exists('customFetcherEnabled') && customFetcherEnabled();
 
 if ($useCustomPipeline) {
-    streamPlatformSearchCustom($service, $location, $platforms, $limit);
+    streamPlatformSearchCustom($service, $location, $platforms, $limit, $filters);
 } else {
-    streamPlatformSearchLegacy($service, $location, $platforms, $limit);
+    streamPlatformSearchLegacy($service, $location, $platforms, $limit, $filters);
 }
 
 /**
  * Stream platform search using the custom fetcher pipeline (original).
  */
-function streamPlatformSearchCustom($service, $location, $platforms, $limit)
+function streamPlatformSearchCustom($service, $location, $platforms, $limit, $filters = [])
 {
     $platformQueries = buildPlatformQueries($platforms);
     $platformModifier = '';
@@ -94,11 +99,10 @@ function streamPlatformSearchCustom($service, $location, $platforms, $limit)
     if ($platformModifier !== '') {
         $effectiveService = $service . ' ' . $platformModifier;
     }
-    $filters = [
-        'platformMode' => true,
-        'platforms' => $platforms,
-        'platformQueries' => $platformQueries,
-    ];
+    $filters = normalizeSearchFilters($filters);
+    $filters['platformMode'] = true;
+    $filters['platforms'] = $platforms;
+    $filters['platformQueries'] = $platformQueries;
     $filtersActive = true;
     $targetCount = getSearchFillTargetCount($limit);
     streamCustomOneShotSearch($effectiveService, $location, $limit, $filters, $filtersActive, $targetCount);
@@ -108,13 +112,17 @@ function streamPlatformSearchCustom($service, $location, $platforms, $limit)
  * Legacy platform search — uses Serper organic directly without enrichment.
  * Returns raw results as-is from search snippets.
  */
-function streamPlatformSearchLegacy($service, $location, $platforms, $limit)
+function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $filters = [])
 {
     $hasSerper = defined('SERPER_API_KEY') && !empty(SERPER_API_KEY);
     if (!$hasSerper) {
         sendSSE('error', ['error' => 'No search API configured. Please add SERPER_API_KEY to config.php']);
         return;
     }
+
+    $filters = normalizeSearchFilters($filters);
+    $filters['platformMode'] = true;
+    $filters['platforms'] = $platforms;
 
     $platformQueries = buildPlatformQueries($platforms);
 
@@ -123,6 +131,7 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit)
         'limit' => $limit,
         'sources' => ['Serper Organic'],
         'platforms' => $platforms,
+        'filtersActive' => hasAnySearchFilter($filters),
     ]);
 
     $allResults = [];
@@ -189,6 +198,10 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit)
                 'sources' => ['Serper Organic'],
                 'websiteAnalysis' => quickWebsiteCheck($link, ($item['snippet'] ?? '') . ' ' . ($item['title'] ?? '')),
             ];
+
+            if (!matchesSearchFilters($business, $filters)) {
+                continue;
+            }
 
             $allResults[] = $business;
             $leadBuffer[] = $business;
