@@ -96,7 +96,6 @@ export const SEARCH_ENDPOINTS = {
   verify: `${API_BASE_URL}/verify-lead.php`,
   analyze: `${API_BASE_URL}/analyze-website.php`,
   bamleadScraper: `${API_BASE_URL}/bamlead-scraper.php`,
-  customFetcherEnrich: `${API_BASE_URL}/custom-fetcher-enrich.php`,
   socialSearchPreview: `${API_BASE_URL}/social-search-preview.php`,
 };
 
