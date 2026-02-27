@@ -1092,6 +1092,12 @@ export default function Dashboard() {
         const platformProgressAdapter = (partialResults: PlatformResult[], progress: number, meta?: StreamProgressMeta) => {
           handleProgress(partialResults, progress, meta);
         };
+        // Force immediate UI activation for Option B live counter/status
+        handleProgress([], 1, {
+          sourceLabel: 'Platform API',
+          statusMessage: 'Starting platform search...',
+          phase: 'start',
+        });
         const response = await searchPlatforms(
           query,
           location,
