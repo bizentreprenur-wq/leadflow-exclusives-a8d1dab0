@@ -1,6 +1,8 @@
 import { API_BASE_URL, apiRequest, USE_MOCK_AUTH } from './config';
 
 const PASSWORD_ENDPOINTS = {
+  forgotPasswordAuth: `${API_BASE_URL}/auth.php?action=forgot-password`,
+  resetPasswordAuth: `${API_BASE_URL}/auth.php?action=reset-password`,
   base: `${API_BASE_URL}/password.php`,
   forgotPassword: `${API_BASE_URL}/password.php?action=forgot-password`,
   resetPassword: `${API_BASE_URL}/password.php?action=reset-password`,
@@ -37,15 +39,15 @@ export async function forgotPassword(email: string): Promise<{ success: boolean;
   }
 
   try {
-    return await requestWithBodyAction<{ success: boolean; message: string }>('forgot-password', { email });
+    return await apiRequest<{ success: boolean; message: string }>(PASSWORD_ENDPOINTS.forgotPasswordAuth, {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
   } catch (error) {
     if (!shouldFallbackToBodyAction(error)) {
       throw error;
     }
-    return apiRequest(PASSWORD_ENDPOINTS.forgotPassword, {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-    });
+    return requestWithBodyAction<{ success: boolean; message: string }>('forgot-password', { email });
   }
 }
 
@@ -62,15 +64,15 @@ export async function resetPassword(token: string, password: string): Promise<{ 
   }
 
   try {
-    return await requestWithBodyAction<{ success: boolean; message: string }>('reset-password', { token, password });
+    return await apiRequest<{ success: boolean; message: string }>(PASSWORD_ENDPOINTS.resetPasswordAuth, {
+      method: 'POST',
+      body: JSON.stringify({ token, password }),
+    });
   } catch (error) {
     if (!shouldFallbackToBodyAction(error)) {
       throw error;
     }
-    return apiRequest(PASSWORD_ENDPOINTS.resetPassword, {
-      method: 'POST',
-      body: JSON.stringify({ token, password }),
-    });
+    return requestWithBodyAction<{ success: boolean; message: string }>('reset-password', { token, password });
   }
 }
 

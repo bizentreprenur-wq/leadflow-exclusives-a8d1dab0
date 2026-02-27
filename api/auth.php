@@ -7,6 +7,7 @@
 require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/audit.php';
+require_once __DIR__ . '/includes/email.php';
 
 // Handle CORS
 setCorsHeaders();
@@ -30,6 +31,12 @@ switch ($action) {
         break;
     case 'refresh':
         handleRefreshSession();
+        break;
+    case 'forgot-password':
+        handleForgotPassword();
+        break;
+    case 'reset-password':
+        handleResetPassword();
         break;
     default:
         auditFailure('invalid_action', 'auth', null, 'Invalid action requested: ' . $action);
@@ -234,5 +241,73 @@ function handleRefreshSession() {
         'success' => true,
         'token' => $newToken,
         'expires_at' => $expiresAt
+    ]);
+}
+
+/**
+ * Request password reset (auth endpoint compatibility route).
+ */
+function handleForgotPassword() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        sendError('Method not allowed', 405);
+    }
+
+    $input = getJsonInput();
+    $email = sanitizeInput($input['email'] ?? '', 255);
+
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        sendError('Invalid email address');
+    }
+
+    $db = getDB();
+    $user = $db->fetchOne("SELECT id, name, email FROM users WHERE email = ?", [strtolower($email)]);
+
+    // Always return success to prevent email enumeration
+    if ($user) {
+        sendPasswordResetEmail($user['id'], $user['email'], $user['name']);
+    }
+
+    sendJson([
+        'success' => true,
+        'message' => 'If an account exists with that email, you will receive a password reset link.'
+    ]);
+}
+
+/**
+ * Reset password with token (auth endpoint compatibility route).
+ */
+function handleResetPassword() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        sendError('Method not allowed', 405);
+    }
+
+    $input = getJsonInput();
+    $token = sanitizeInput($input['token'] ?? '', 64);
+    $password = $input['password'] ?? '';
+
+    if (!$token) {
+        sendError('Token is required');
+    }
+    if (strlen($password) < 8) {
+        sendError('Password must be at least 8 characters');
+    }
+
+    $tokenData = validateToken($token, 'password_reset');
+    if (!$tokenData) {
+        sendError('Invalid or expired reset link', 400);
+    }
+
+    $db = getDB();
+    $db->update(
+        "UPDATE users SET password_hash = ? WHERE id = ?",
+        [hashPassword($password), $tokenData['user_id']]
+    );
+    markTokenUsed($token);
+    $db->delete("DELETE FROM sessions WHERE user_id = ?", [$tokenData['user_id']]);
+    $db->delete("DELETE FROM login_attempts WHERE user_id = ? AND success = 0", [$tokenData['user_id']]);
+
+    sendJson([
+        'success' => true,
+        'message' => 'Password reset successfully. Please sign in with your new password.'
     ]);
 }
