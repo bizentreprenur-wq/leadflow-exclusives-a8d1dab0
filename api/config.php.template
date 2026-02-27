@@ -174,13 +174,13 @@ if (!defined('ENABLE_NO_KEY_OUTSCRAPER_STYLE')) {
     define('ENABLE_NO_KEY_OUTSCRAPER_STYLE', false);
 }
 if (!defined('CUSTOM_FETCH_ENRICH_CONCURRENCY')) {
-    define('CUSTOM_FETCH_ENRICH_CONCURRENCY', 5);
+    define('CUSTOM_FETCH_ENRICH_CONCURRENCY', 8);
 }
 if (!defined('CUSTOM_FETCH_CONTACT_TIMEOUT_SEC')) {
-    define('CUSTOM_FETCH_CONTACT_TIMEOUT_SEC', 7);
+    define('CUSTOM_FETCH_CONTACT_TIMEOUT_SEC', 4);
 }
 if (!defined('CUSTOM_FETCH_TARGET_RATIO')) {
-    define('CUSTOM_FETCH_TARGET_RATIO', 0.90);
+    define('CUSTOM_FETCH_TARGET_RATIO', 1.25);
 }
 if (!defined('CUSTOM_FETCH_SEARCH_ENRICHMENT_ENABLED')) {
     define('CUSTOM_FETCH_SEARCH_ENRICHMENT_ENABLED', false);
@@ -204,10 +204,10 @@ if (!defined('CUSTOM_FETCH_MAX_TOPUP_QUERIES')) {
     define('CUSTOM_FETCH_MAX_TOPUP_QUERIES', 48);
 }
 if (!defined('CUSTOM_FETCH_DISCOVERY_TIMEOUT_SEC')) {
-    define('CUSTOM_FETCH_DISCOVERY_TIMEOUT_SEC', 6);
+    define('CUSTOM_FETCH_DISCOVERY_TIMEOUT_SEC', 4);
 }
 if (!defined('CUSTOM_FETCH_STREAM_EMIT_BATCH_SIZE')) {
-    define('CUSTOM_FETCH_STREAM_EMIT_BATCH_SIZE', 8);
+    define('CUSTOM_FETCH_STREAM_EMIT_BATCH_SIZE', 15);
 }
 if (!defined('CUSTOM_FETCH_QUERY_CONCURRENCY')) {
     define('CUSTOM_FETCH_QUERY_CONCURRENCY', 8);
@@ -330,7 +330,7 @@ if (!defined('FILTER_OVERFETCH_MULTIPLIER')) {
 }
 // Minimum acceptable ratio of requested leads before fallback broadening kicks in
 if (!defined('SEARCH_FILL_TARGET_RATIO')) {
-    define('SEARCH_FILL_TARGET_RATIO', 0.95);
+    define('SEARCH_FILL_TARGET_RATIO', 1.25);
 }
 // Max number of supplemental query variants used for top-up passes
 if (!defined('SEARCH_QUERY_VARIANT_MAX')) {
