@@ -76,8 +76,9 @@ $platforms = array_map(function ($p) {
 $filters['platformMode'] = true;
 $filters['platforms'] = $platforms;
 
-// Check if custom fetcher is available
-$useCustomPipeline = function_exists('customFetcherEnabled') && customFetcherEnabled();
+// Raw Serper-only mode (default) bypasses custom fetcher completely.
+$rawSerperOnly = forceRawSerperOnlyMode();
+$useCustomPipeline = !$rawSerperOnly && function_exists('customFetcherEnabled') && customFetcherEnabled();
 
 if ($useCustomPipeline) {
     streamPlatformSearchCustom($service, $location, $platforms, $limit, $filters);

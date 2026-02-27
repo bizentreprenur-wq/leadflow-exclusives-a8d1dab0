@@ -86,8 +86,9 @@ if (empty($location)) {
 }
 
 try {
-    $useCustomPipeline = function_exists('customFetcherEnabled') && customFetcherEnabled();
-    $legacySerperAllowed = defined('ENABLE_LEGACY_SERPER_PIPELINE') && ENABLE_LEGACY_SERPER_PIPELINE;
+    $rawSerperOnly = forceRawSerperOnlyMode();
+    $useCustomPipeline = !$rawSerperOnly && function_exists('customFetcherEnabled') && customFetcherEnabled();
+    $legacySerperAllowed = $rawSerperOnly || (defined('ENABLE_LEGACY_SERPER_PIPELINE') && ENABLE_LEGACY_SERPER_PIPELINE);
 
     if ($useCustomPipeline) {
         $filtersKey = $filtersActive ? md5(json_encode($filters)) : 'none';
@@ -128,7 +129,8 @@ try {
     }
 
     $filtersKey = $filtersActive ? md5(json_encode($filters)) : 'none';
-    $cacheKey = "gmb_search_{$service}_{$location}_{$limit}_{$filtersKey}";
+    $cacheMode = $rawSerperOnly ? 'rawserper' : 'normal';
+    $cacheKey = "gmb_search_{$cacheMode}_{$service}_{$location}_{$limit}_{$filtersKey}";
     
     // Check cache
     $cached = getCache($cacheKey);

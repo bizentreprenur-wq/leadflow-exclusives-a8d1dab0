@@ -61,8 +61,10 @@ $filters['platformMode'] = true;
 $filters['platforms'] = $platforms;
 
 try {
+    $rawSerperOnly = forceRawSerperOnlyMode();
     $filtersKey = md5(json_encode($filters));
-    $cacheKey = "platform_search_{$service}_{$location}_" . implode(',', $platforms) . "_{$limit}_{$filtersKey}";
+    $cacheMode = $rawSerperOnly ? 'rawserper' : 'normal';
+    $cacheKey = "platform_search_{$cacheMode}_{$service}_{$location}_" . implode(',', $platforms) . "_{$limit}_{$filtersKey}";
     
     // Check cache
     $cached = getCache($cacheKey);
@@ -79,7 +81,7 @@ try {
         ]);
     }
     
-    $results = searchPlatformsFunc($service, $location, $platforms, $limit, $filters);
+    $results = searchPlatformsFunc($service, $location, $platforms, $limit, $filters, $rawSerperOnly);
     
     // Cache results
     setCache($cacheKey, $results);
@@ -104,7 +106,7 @@ try {
 /**
  * Search for businesses using specific platforms
  */
-function searchPlatformsFunc($service, $location, $platforms, $limit = 50, $filters = []) {
+function searchPlatformsFunc($service, $location, $platforms, $limit = 50, $filters = [], $rawSerperOnly = false) {
     // Increase PHP time limit for large searches
     set_time_limit(300); // 5 minutes max
     $filters = normalizeSearchFilters($filters);
@@ -118,9 +120,9 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50, $filt
     $unique = [];
     $seen = [];
     $hasSerper = defined('SERPER_API_KEY') && !empty(SERPER_API_KEY);
-    $hasSerpApi = defined('SERPAPI_KEY') && !empty(SERPAPI_KEY);
-    $hasGoogleApi = !empty(GOOGLE_API_KEY) && !empty(GOOGLE_SEARCH_ENGINE_ID);
-    $hasBingApi = !empty(BING_API_KEY);
+    $hasSerpApi = !$rawSerperOnly && defined('SERPAPI_KEY') && !empty(SERPAPI_KEY);
+    $hasGoogleApi = !$rawSerperOnly && !empty(GOOGLE_API_KEY) && !empty(GOOGLE_SEARCH_ENGINE_ID);
+    $hasBingApi = !$rawSerperOnly && !empty(BING_API_KEY);
 
     $addResults = function($results) use (&$unique, &$seen) {
         foreach ($results as $result) {
@@ -204,6 +206,9 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50, $filt
     }
 
     if (empty($unique)) {
+        if ($rawSerperOnly && !$hasSerper) {
+            throw new Exception('Raw Serper-only mode requires SERPER_API_KEY in config.php');
+        }
         if (!$hasSerper && !$hasSerpApi && !$hasGoogleApi && !$hasBingApi) {
             throw new Exception('No search API configured. Please set SERPER_API_KEY, SERPAPI_KEY, GOOGLE_API_KEY, or BING_API_KEY in config.php');
         }
@@ -230,45 +235,8 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50, $filt
         return matchesSearchFilters($lead, $filters);
     }));
     
-    // For Agency Lead Finder, prioritize leads with both email and phone,
-    // then backfill with partial-contact leads to hit the requested volume.
-    $filtered = array_values(array_filter($enriched, function($result) {
-        return !empty($result['email']) && !empty($result['phone']);
-    }));
-
-    if (count($filtered) >= $limit) {
-        return array_slice($filtered, 0, $limit);
-    }
-
-    $prioritized = [];
-    $seen = [];
-    $addLead = function ($lead) use (&$prioritized, &$seen, $limit) {
-        if (count($prioritized) >= $limit) {
-            return;
-        }
-        $key = strtolower(trim((string)($lead['id'] ?? '')));
-        if ($key === '') {
-            $key = strtolower(trim((string)($lead['url'] ?? '')));
-        }
-        if ($key === '') {
-            $key = strtolower(trim((string)($lead['name'] ?? ''))) . '|' . strtolower(trim((string)($lead['displayLink'] ?? '')));
-        }
-        if ($key === '' || isset($seen[$key])) {
-            return;
-        }
-        $seen[$key] = true;
-        $lead['contactCompleteness'] = (!empty($lead['email']) && !empty($lead['phone'])) ? 'full' : 'partial';
-        $prioritized[] = $lead;
-    };
-
-    foreach ($filtered as $lead) {
-        $addLead($lead);
-    }
-    foreach ($enriched as $lead) {
-        $addLead($lead);
-    }
-
-    return array_values($prioritized);
+    // Return raw filtered Serper-derived lead rows (no enrichment prioritization reshuffle).
+    return array_slice($enriched, 0, $limit);
 }
 
 /**

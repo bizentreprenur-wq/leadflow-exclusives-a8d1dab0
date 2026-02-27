@@ -106,10 +106,11 @@ if (empty($location)) {
 }
 
 // Start streaming search:
-// - New custom one-shot pipeline is default
-// - Legacy Serper/Firecrawl pipeline is explicitly gated
-$useCustomPipeline = function_exists('customFetcherEnabled') && customFetcherEnabled();
-$legacySerperAllowed = defined('ENABLE_LEGACY_SERPER_PIPELINE') && ENABLE_LEGACY_SERPER_PIPELINE;
+// - Raw Serper-only mode (default) bypasses custom fetcher and enrichment.
+// - Legacy Serper pipeline remains the execution path in this mode.
+$rawSerperOnly = forceRawSerperOnlyMode();
+$useCustomPipeline = !$rawSerperOnly && function_exists('customFetcherEnabled') && customFetcherEnabled();
+$legacySerperAllowed = $rawSerperOnly || (defined('ENABLE_LEGACY_SERPER_PIPELINE') && ENABLE_LEGACY_SERPER_PIPELINE);
 
 if ($useCustomPipeline) {
     streamCustomOneShotSearch($service, $location, $limit, $filters, $filtersActive, $targetCount);

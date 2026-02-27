@@ -1428,6 +1428,14 @@ function hasAnySearchFilter($filters) {
 }
 
 /**
+ * Force strict raw Serper search mode.
+ * Default ON unless explicitly disabled in config.
+ */
+function forceRawSerperOnlyMode() {
+    return !defined('FORCE_RAW_SERPER_ONLY') || (bool)FORCE_RAW_SERPER_ONLY;
+}
+
+/**
  * Apply normalized search filters to a business result.
  */
 function matchesSearchFilters($business, $filters) {

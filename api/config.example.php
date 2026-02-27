@@ -139,6 +139,9 @@ define('RATE_LIMIT', 30);
 // =====================================
 // CUSTOM ONE-SHOT FETCHER (Primary Search Pipeline)
 // =====================================
+if (!defined('FORCE_RAW_SERPER_ONLY')) {
+    define('FORCE_RAW_SERPER_ONLY', true);
+}
 if (!defined('ENABLE_CUSTOM_ONE_SHOT_FETCHER')) {
     define('ENABLE_CUSTOM_ONE_SHOT_FETCHER', false);
 }
