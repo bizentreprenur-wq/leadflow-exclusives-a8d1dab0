@@ -87,8 +87,16 @@ const ChromeExtension = () => {
               folder!.file(fileName, new Uint8Array(buf), { binary: true });
             } else {
               const text = new TextDecoder().decode(buf);
-              // Reject HTML fallback for non-HTML files
-              if (!fileName.endsWith('.html') && looksLikeHtml(buf)) continue;
+              // Reject any SPA/React HTML fallback (even for .html files)
+              if (looksLikeHtml(buf)) {
+                // For popup.html, verify it's the real extension file, not SPA index.html
+                if (fileName.endsWith('.html')) {
+                  const isRealExtensionHtml = text.includes('bamlead') && !text.includes('id="root"') && !text.includes('src="/src/main');
+                  if (!isRealExtensionHtml) continue;
+                } else {
+                  continue;
+                }
+              }
               folder!.file(fileName, text);
             }
             filesLoaded++;
