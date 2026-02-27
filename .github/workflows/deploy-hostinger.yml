@@ -26,10 +26,12 @@ jobs:
           tools: composer
 
       - name: 🏗️ Install and Build (Fixes ERESOLVE error)
+        env:
+          npm_config_onnxruntime_node_install: skip
+          ONNXRUNTIME_NODE_INSTALL: skip
         run: |
-          # The next line uses --legacy-peer-deps to bypass the conflict
-          # Skip onnxruntime-node binary download in CI; frontend uses web runtime
-          npm ci --legacy-peer-deps --onnxruntime-node-install=skip
+          # Use legacy peer resolution and force skip of onnxruntime-node binary install in CI.
+          npm ci --legacy-peer-deps
           npm run build
 
       - name: 📦 Install API dependencies
