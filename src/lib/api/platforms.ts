@@ -96,6 +96,13 @@ export async function searchPlatforms(
   if (USE_MOCK_DATA) {
     throw new Error('Platform search backend is not configured. Set VITE_API_URL or deploy /api.');
   }
+  if (onProgress) {
+    onProgress([], 1, {
+      sourceLabel: 'Platform API',
+      statusMessage: 'Starting platform search...',
+      phase: 'start',
+    });
+  }
 
   // Try SSE streaming first
   try {

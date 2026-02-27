@@ -172,6 +172,7 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
     $totalResults = 0;
     $queryErrorCount = 0;
     $lastQueryError = '';
+    $emitBatchSize = 5;
 
     // Build search queries: service + each platform modifier + location
     $queries = [];
@@ -279,7 +280,7 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
             $leadBuffer[] = $business;
             $totalResults++;
 
-            if (count($leadBuffer) >= 20) {
+            if (count($leadBuffer) >= $emitBatchSize) {
                 sendSSE('results', [
                     'leads' => $leadBuffer,
                     'total' => $totalResults,
