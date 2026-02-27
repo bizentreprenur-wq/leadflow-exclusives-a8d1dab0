@@ -139,16 +139,35 @@ export default function ChromeExtensionPanel() {
       for (const candidate of ZIP_CANDIDATES) {
         try {
           const response = await fetch(`${candidate}?v=${Date.now()}`, {
-            method: "HEAD",
+            method: "GET",
             cache: "no-store",
           });
-          if (response.ok) {
+          if (!response.ok) {
+            continue;
+          }
+
+          const contentType = response.headers.get("content-type") || "";
+          const contentLength = Number(response.headers.get("content-length") || "0");
+          const payload = await response.arrayBuffer();
+          const bytes = new Uint8Array(payload);
+          const hasZipMagic = bytes.length >= 4 &&
+            bytes[0] === 0x50 &&
+            bytes[1] === 0x4b &&
+            (bytes[2] === 0x03 || bytes[2] === 0x05 || bytes[2] === 0x07) &&
+            (bytes[3] === 0x04 || bytes[3] === 0x06 || bytes[3] === 0x08);
+          const looksHtml = contentType.includes("text/html");
+          const tooSmall = (contentLength > 0 ? contentLength : bytes.length) < 4096;
+
+          if (hasZipMagic && !looksHtml && !tooSmall) {
+            const blob = new Blob([payload], { type: "application/zip" });
+            const objectUrl = URL.createObjectURL(blob);
             const link = document.createElement("a");
-            link.href = candidate;
-            link.download = "";
+            link.href = objectUrl;
+            link.download = "bamlead-chrome-extension.zip";
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+            URL.revokeObjectURL(objectUrl);
             toast.success("Extension download started.");
             return;
           }
@@ -157,9 +176,71 @@ export default function ChromeExtensionPanel() {
         }
       }
 
-      toast.info(
-        "No packaged ZIP found in web assets. Use Load unpacked and select the local chrome-extension folder."
-      );
+      // Fallback: package a valid ZIP directly from extension files hosted under /chrome-extension.
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+      const folder = zip.folder("chrome-extension");
+      if (!folder) {
+        throw new Error("Failed to initialize ZIP folder");
+      }
+
+      const filesToPack = Array.from(new Set([...REQUIRED_FILES, "README.md", "INSTALLATION.md"]));
+      let successCount = 0;
+
+      for (const filename of filesToPack) {
+        let fetched = false;
+        for (const base of EXTENSION_BASES) {
+          try {
+            const res = await fetch(`${base}/${filename}?v=${Date.now()}`, {
+              method: "GET",
+              cache: "no-store",
+            });
+            if (!res.ok) {
+              continue;
+            }
+            const body = await res.arrayBuffer();
+            if (body.byteLength === 0) {
+              continue;
+            }
+            const ct = res.headers.get("content-type") || "";
+            const isText = ct.includes("text/") || filename.endsWith(".md") || filename.endsWith(".json") || filename.endsWith(".js") || filename.endsWith(".css") || filename.endsWith(".html");
+            if (isText) {
+              folder.file(filename, new TextDecoder().decode(body));
+            } else {
+              folder.file(filename, body);
+            }
+            successCount++;
+            fetched = true;
+            break;
+          } catch {
+            // try next base
+          }
+        }
+        if (!fetched && REQUIRED_FILES.includes(filename)) {
+          throw new Error(`Missing required file: ${filename}`);
+        }
+      }
+
+      if (successCount < REQUIRED_FILES.length) {
+        throw new Error("Not enough extension files available to build ZIP");
+      }
+
+      const rawZip = await zip.generateAsync({
+        type: "blob",
+        compression: "DEFLATE",
+        compressionOptions: { level: 6 },
+      });
+
+      const objectUrl = URL.createObjectURL(new Blob([rawZip], { type: "application/zip" }));
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = "bamlead-chrome-extension.zip";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(objectUrl);
+
+      toast.success("Packaged and downloaded extension ZIP.");
     } finally {
       setIsDownloading(false);
     }
