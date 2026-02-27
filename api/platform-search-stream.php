@@ -71,44 +71,159 @@ $platforms = array_map(function ($p) {
     return sanitizeInput($p, 50);
 }, array_slice($platforms, 0, 20));
 
-streamPlatformSearch($service, $location, $platforms, $limit);
+// Check if custom fetcher is available
+$useCustomPipeline = function_exists('customFetcherEnabled') && customFetcherEnabled();
+
+if ($useCustomPipeline) {
+    streamPlatformSearchCustom($service, $location, $platforms, $limit);
+} else {
+    streamPlatformSearchLegacy($service, $location, $platforms, $limit);
+}
 
 /**
- * Stream platform search results using the unified custom fetcher pipeline.
- * Platform query modifiers are passed via filters and integrated into query building.
+ * Stream platform search using the custom fetcher pipeline (original).
  */
-function streamPlatformSearch($service, $location, $platforms, $limit)
+function streamPlatformSearchCustom($service, $location, $platforms, $limit)
 {
-    // Build platform query modifiers
     $platformQueries = buildPlatformQueries($platforms);
-
-    // Build a composite service query that includes platform modifiers.
-    // The custom fetcher's query expansion will handle location and synonym variants.
-    // We append platform modifiers directly to the service for query building.
     $platformModifier = '';
     if (!empty($platformQueries)) {
-        // Combine platform modifiers with OR to find businesses on any selected platform
         $platformModifier = '(' . implode(' OR ', array_slice($platformQueries, 0, 5)) . ')';
     }
-
-    // Build the effective service query with platform context
     $effectiveService = $service;
     if ($platformModifier !== '') {
         $effectiveService = $service . ' ' . $platformModifier;
     }
-
-    // Set up filters with platform metadata
     $filters = [
         'platformMode' => true,
         'platforms' => $platforms,
         'platformQueries' => $platformQueries,
     ];
     $filtersActive = true;
-
     $targetCount = getSearchFillTargetCount($limit);
-
-    // Delegate to the custom fetcher streaming pipeline
     streamCustomOneShotSearch($effectiveService, $location, $limit, $filters, $filtersActive, $targetCount);
+}
+
+/**
+ * Legacy platform search — uses Serper organic directly without enrichment.
+ * Returns raw results as-is from search snippets.
+ */
+function streamPlatformSearchLegacy($service, $location, $platforms, $limit)
+{
+    $hasSerper = defined('SERPER_API_KEY') && !empty(SERPER_API_KEY);
+    if (!$hasSerper) {
+        sendSSE('error', ['error' => 'No search API configured. Please add SERPER_API_KEY to config.php']);
+        return;
+    }
+
+    $platformQueries = buildPlatformQueries($platforms);
+
+    sendSSE('start', [
+        'query' => "$service in $location",
+        'limit' => $limit,
+        'sources' => ['Serper Organic'],
+        'platforms' => $platforms,
+    ]);
+
+    $allResults = [];
+    $seenDomains = [];
+    $totalResults = 0;
+
+    // Build search queries: service + each platform modifier + location
+    $queries = [];
+    foreach ($platformQueries as $modifier) {
+        $queries[] = "$service $modifier $location";
+    }
+    // Also add a generic query
+    $queries[] = "$service in $location";
+
+    foreach ($queries as $queryIdx => $query) {
+        if ($totalResults >= $limit) break;
+
+        // Serper organic search
+        $url = 'https://google.serper.dev/search';
+        $payload = json_encode([
+            'q' => $query,
+            'num' => min(100, $limit - $totalResults),
+        ]);
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $payload,
+            CURLOPT_HTTPHEADER => [
+                'X-API-KEY: ' . SERPER_API_KEY,
+                'Content-Type: application/json',
+            ],
+            CURLOPT_TIMEOUT => 15,
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode !== 200 || !$response) continue;
+
+        $data = json_decode($response, true);
+        $organic = $data['organic'] ?? [];
+
+        $leadBuffer = [];
+        foreach ($organic as $item) {
+            if ($totalResults >= $limit) break;
+
+            $link = $item['link'] ?? '';
+            $domain = parse_url($link, PHP_URL_HOST) ?: '';
+            if (empty($domain) || isset($seenDomains[$domain])) continue;
+            $seenDomains[$domain] = true;
+
+            $business = [
+                'id' => 'plat_' . substr(md5($link . time()), 0, 12),
+                'name' => $item['title'] ?? $domain,
+                'url' => $link,
+                'snippet' => $item['snippet'] ?? '',
+                'displayLink' => $domain,
+                'phone' => extractPhoneFromSnippet($item['snippet'] ?? ''),
+                'email' => extractEmailFromSnippet($item['snippet'] ?? ''),
+                'source' => 'Serper Organic',
+                'sources' => ['Serper Organic'],
+                'websiteAnalysis' => quickWebsiteCheck($link, ($item['snippet'] ?? '') . ' ' . ($item['title'] ?? '')),
+            ];
+
+            $allResults[] = $business;
+            $leadBuffer[] = $business;
+            $totalResults++;
+
+            if (count($leadBuffer) >= 20) {
+                sendSSE('results', [
+                    'leads' => $leadBuffer,
+                    'total' => $totalResults,
+                    'progress' => min(95, round(($totalResults / max(1, $limit)) * 100)),
+                    'source' => 'Serper Organic',
+                ]);
+                $leadBuffer = [];
+            }
+        }
+
+        if (!empty($leadBuffer)) {
+            sendSSE('results', [
+                'leads' => $leadBuffer,
+                'total' => $totalResults,
+                'progress' => min(95, round(($totalResults / max(1, $limit)) * 100)),
+                'source' => 'Serper Organic',
+            ]);
+        }
+
+        sendSSE('status', [
+            'message' => "Query " . ($queryIdx + 1) . "/" . count($queries) . " ({$totalResults}/{$limit} found)",
+            'progress' => min(95, round(($totalResults / max(1, $limit)) * 100)),
+        ]);
+    }
+
+    sendSSE('complete', [
+        'total' => $totalResults,
+        'leads' => $allResults,
+    ]);
 }
 
 /**

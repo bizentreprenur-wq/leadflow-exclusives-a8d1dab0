@@ -17,10 +17,10 @@
 require_once __DIR__ . '/functions.php';
 
 if (!defined('ENABLE_CUSTOM_ONE_SHOT_FETCHER')) {
-    define('ENABLE_CUSTOM_ONE_SHOT_FETCHER', true);
+    define('ENABLE_CUSTOM_ONE_SHOT_FETCHER', false);
 }
 if (!defined('ENABLE_LEGACY_SERPER_PIPELINE')) {
-    define('ENABLE_LEGACY_SERPER_PIPELINE', false);
+    define('ENABLE_LEGACY_SERPER_PIPELINE', true);
 }
 if (!defined('ENABLE_LEGACY_BAMLEAD_SCRAPER')) {
     define('ENABLE_LEGACY_BAMLEAD_SCRAPER', false);

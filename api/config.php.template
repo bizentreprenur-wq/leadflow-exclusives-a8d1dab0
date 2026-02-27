@@ -153,10 +153,10 @@ define('ALLOWED_ORIGINS', [
 // =====================================
 // New one-shot custom fetcher pipeline (replaces legacy Serper/BamLead/Firecrawl search-time flow)
 if (!defined('ENABLE_CUSTOM_ONE_SHOT_FETCHER')) {
-    define('ENABLE_CUSTOM_ONE_SHOT_FETCHER', true);
+    define('ENABLE_CUSTOM_ONE_SHOT_FETCHER', false);
 }
 if (!defined('ENABLE_LEGACY_SERPER_PIPELINE')) {
-    define('ENABLE_LEGACY_SERPER_PIPELINE', false);
+    define('ENABLE_LEGACY_SERPER_PIPELINE', true);
 }
 if (!defined('ENABLE_LEGACY_BAMLEAD_SCRAPER')) {
     define('ENABLE_LEGACY_BAMLEAD_SCRAPER', false);
