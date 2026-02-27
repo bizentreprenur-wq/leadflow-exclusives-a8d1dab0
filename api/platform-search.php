@@ -161,16 +161,17 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50, $filt
     $addResults = function($results) use (&$unique, &$seen, &$diagnostics) {
         foreach ($results as $result) {
             $diagnostics['rawCandidates']++;
-            $domain = parse_url($result['url'], PHP_URL_HOST);
-            if (!$domain) {
+            $url = $result['url'] ?? '';
+            $dedupeKey = buildSearchResultDedupKey($url);
+            if ($dedupeKey === '') {
                 $diagnostics['invalidDomainCandidates']++;
                 continue;
             }
-            if (isset($seen[$domain])) {
+            if (isset($seen[$dedupeKey])) {
                 $diagnostics['dedupedCandidates']++;
                 continue;
             }
-            $seen[$domain] = true;
+            $seen[$dedupeKey] = true;
             $unique[] = $result;
         }
     };
@@ -259,6 +260,7 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50, $filt
     // Use QUICK website analysis (URL-based only) to avoid timeouts
     // Also extract contact info from snippet text
     $enriched = array_map(function($result) {
+        $result['website'] = $result['website'] ?? inferBusinessWebsiteFromSearchResultUrl($result['url'] ?? '');
         $result['websiteAnalysis'] = quickWebsiteCheck($result['url']);
         // Extract email from snippet if not already present
         if (empty($result['email'])) {
@@ -306,6 +308,7 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50, $filt
 function quickWebsiteCheck($url) {
     $host = parse_url($url, PHP_URL_HOST) ?? '';
     $hostLower = strtolower($host);
+    $businessWebsite = inferBusinessWebsiteFromSearchResultUrl($url);
     
     // Detect platform from URL
     $platform = null;
@@ -345,7 +348,7 @@ function quickWebsiteCheck($url) {
     }
     
     return [
-        'hasWebsite' => true,
+        'hasWebsite' => $businessWebsite !== '',
         'platform' => $platform,
         'needsUpgrade' => $needsUpgrade,
         'issues' => $issues,

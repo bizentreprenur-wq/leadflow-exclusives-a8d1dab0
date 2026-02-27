@@ -1461,6 +1461,78 @@ function forceRawSerperOnlyMode() {
 }
 
 /**
+ * True for directory/profile/listing hosts that are not a business-owned website.
+ */
+function isDirectoryOrProfileHost($host) {
+    $hostLower = strtolower(trim((string)$host));
+    if ($hostLower === '') {
+        return true;
+    }
+
+    $directoryHosts = [
+        'google.com', 'maps.google.com',
+        'yelp.com', 'bbb.org', 'yellowpages.com', 'manta.com', 'angi.com', 'angieslist.com',
+        'thumbtack.com', 'homeadvisor.com', 'mapquest.com', 'foursquare.com', 'superpages.com',
+        'citysearch.com', 'whitepages.com', 'dexknows.com', 'local.com', 'chamberofcommerce.com',
+        'merchantcircle.com', 'brownbook.net', 'hotfrog.com', 'spoke.com', 'buzzfile.com',
+        'dandb.com', 'dnb.com', 'bark.com', 'expertise.com', 'thervo.com', 'porch.com',
+        'networx.com', 'houzz.com', 'buildzoom.com', 'searchusa.com', 'showmelocal.com',
+        'cylex-usa.com', 'americantowns.com', 'healthgrades.com', 'zocdoc.com', 'vitals.com',
+        'avvo.com', 'justia.com', 'findlaw.com', 'tripadvisor.com', 'opentable.com',
+        'linkedin.com', 'facebook.com', 'instagram.com', 'youtube.com', 'tiktok.com',
+        'x.com', 'twitter.com',
+    ];
+
+    foreach ($directoryHosts as $directoryHost) {
+        if ($hostLower === $directoryHost || substr($hostLower, -strlen('.' . $directoryHost)) === '.' . $directoryHost) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * Infer likely business-owned website URL from a search result URL.
+ * Returns empty string when URL points to a directory/profile page.
+ */
+function inferBusinessWebsiteFromSearchResultUrl($url) {
+    $rawUrl = trim((string)$url);
+    if ($rawUrl === '') {
+        return '';
+    }
+    $host = parse_url($rawUrl, PHP_URL_HOST);
+    if (empty($host) || isDirectoryOrProfileHost($host)) {
+        return '';
+    }
+    return $rawUrl;
+}
+
+/**
+ * Dedupe key for search results. Uses host+path to avoid collapsing whole directories into one row.
+ */
+function buildSearchResultDedupKey($url) {
+    $rawUrl = trim((string)$url);
+    if ($rawUrl === '') {
+        return '';
+    }
+    $parts = parse_url($rawUrl);
+    $host = strtolower((string)($parts['host'] ?? ''));
+    if ($host === '') {
+        return '';
+    }
+    $path = strtolower(trim((string)($parts['path'] ?? '/')));
+    if ($path === '') {
+        $path = '/';
+    }
+    $path = rtrim($path, '/');
+    if ($path === '') {
+        $path = '/';
+    }
+    return $host . $path;
+}
+
+/**
  * Apply normalized search filters to a business result.
  */
 function matchesSearchFilters($business, $filters) {
@@ -1469,7 +1541,15 @@ function matchesSearchFilters($business, $filters) {
     }
 
     $analysis = is_array($business['websiteAnalysis'] ?? null) ? $business['websiteAnalysis'] : [];
-    $rawWebsite = trim((string)($business['url'] ?? ($business['website'] ?? '')));
+    $rawWebsite = '';
+    if (array_key_exists('website', (array)$business)) {
+        $rawWebsite = trim((string)($business['website'] ?? ''));
+    } else {
+        $rawWebsite = trim((string)($business['url'] ?? ''));
+    }
+    if ($rawWebsite === '' && !empty($filters['platformMode'])) {
+        $rawWebsite = inferBusinessWebsiteFromSearchResultUrl($business['url'] ?? '');
+    }
     $normalizedWebsite = strtolower($rawWebsite);
     $placeholderWebsiteValues = ['-', '—', 'n/a', 'na', 'none', 'null'];
     $hasWebsiteByUrl = $rawWebsite !== '' && !in_array($normalizedWebsite, $placeholderWebsiteValues, true);

@@ -12,6 +12,7 @@ export interface PlatformResult {
   id: string;
   name: string;
   url: string;
+  website?: string;
   snippet: string;
   displayLink: string;
   source: string;
@@ -86,9 +87,17 @@ export async function searchPlatforms(
   // Try SSE streaming first
   try {
     const streamResponse = await searchPlatformsStreaming(service, location, platforms, onProgress, limit, filters);
-    if (streamResponse.success && Array.isArray(streamResponse.data) && streamResponse.data.length === 0) {
-      console.warn('[Platform API] Streaming returned 0 leads; falling back to regular endpoint');
-      return await searchPlatformsRegular(service, location, platforms, onProgress, limit, filters);
+    if (streamResponse.success && Array.isArray(streamResponse.data)) {
+      const streamCount = streamResponse.data.length;
+      const minAcceptableCoverage = Math.max(20, Math.floor(limit * 0.4));
+      if (streamCount === 0 || streamCount < minAcceptableCoverage) {
+        console.warn(`[Platform API] Streaming returned ${streamCount}/${limit}; trying regular endpoint for better coverage`);
+        const regularResponse = await searchPlatformsRegular(service, location, platforms, onProgress, limit, filters);
+        const regularCount = regularResponse.success && Array.isArray(regularResponse.data) ? regularResponse.data.length : 0;
+        if (regularCount > streamCount) {
+          return regularResponse;
+        }
+      }
     }
     return streamResponse;
   } catch (streamError) {
@@ -227,6 +236,7 @@ async function searchPlatformsStreaming(
                       id: lead.id,
                       name: lead.name,
                       url: lead.url,
+                      website: lead.website || undefined,
                       snippet: lead.snippet,
                       displayLink: lead.displayLink,
                       source: lead.source,

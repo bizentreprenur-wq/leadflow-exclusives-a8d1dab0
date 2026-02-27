@@ -160,7 +160,7 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
     ];
 
     $allResults = [];
-    $seenDomains = [];
+    $seenResults = [];
     $totalResults = 0;
     $queryErrorCount = 0;
     $lastQueryError = '';
@@ -219,20 +219,22 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
 
             $link = $item['link'] ?? '';
             $domain = parse_url($link, PHP_URL_HOST) ?: '';
-            if (empty($domain)) {
+            $dedupeKey = buildSearchResultDedupKey($link);
+            if ($dedupeKey === '') {
                 $diagnostics['invalidDomainCandidates']++;
                 continue;
             }
-            if (isset($seenDomains[$domain])) {
+            if (isset($seenResults[$dedupeKey])) {
                 $diagnostics['dedupedCandidates']++;
                 continue;
             }
-            $seenDomains[$domain] = true;
+            $seenResults[$dedupeKey] = true;
 
             $business = [
                 'id' => 'plat_' . substr(md5($link . time()), 0, 12),
                 'name' => $item['title'] ?? $domain,
                 'url' => $link,
+                'website' => inferBusinessWebsiteFromSearchResultUrl($link),
                 'snippet' => $item['snippet'] ?? '',
                 'displayLink' => $domain,
                 'phone' => extractPhoneFromSnippet($item['snippet'] ?? ''),
@@ -312,6 +314,7 @@ function quickWebsiteCheck($url, $contextText = '')
     $host = parse_url($url, PHP_URL_HOST) ?? '';
     $hostLower = strtolower($host);
     $context = strtolower((string)$contextText);
+    $businessWebsite = inferBusinessWebsiteFromSearchResultUrl($url);
 
     $platform = null;
     $needsUpgrade = false;
@@ -348,7 +351,7 @@ function quickWebsiteCheck($url, $contextText = '')
     }
 
     return [
-        'hasWebsite' => !empty($url),
+        'hasWebsite' => $businessWebsite !== '',
         'platform' => $platform,
         'needsUpgrade' => $needsUpgrade,
         'issues' => $issues,
