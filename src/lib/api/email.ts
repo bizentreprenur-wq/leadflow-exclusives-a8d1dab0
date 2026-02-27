@@ -139,6 +139,7 @@ const EMAIL_ENDPOINTS = {
   send: `${API_BASE_URL}/email-outreach.php?action=send`,
   sendBulk: `${API_BASE_URL}/email-outreach.php?action=send-bulk`,
   sendBulkAlt: `${API_BASE_URL}/email-outreach.php?action=send_bulk`,
+  sendBulkAlt2: `${API_BASE_URL}/email-outreach.php?action=sendBulk`,
   sends: `${API_BASE_URL}/email-outreach.php?action=sends`,
   scheduled: `${API_BASE_URL}/email-outreach.php?action=scheduled`,
   queueScheduled: `${API_BASE_URL}/email-outreach.php?action=send`,
@@ -269,35 +270,140 @@ export async function sendBulkEmails(params: BulkSendParams): Promise<{ success:
     } : undefined,
   });
 
-  try {
-    return await apiRequest(EMAIL_ENDPOINTS.sendBulk, {
-      method: 'POST',
-      body: payload,
-    });
-  } catch (error: any) {
-    const message = String(error?.message || '');
-    const shouldRetryWithAlias =
-      message.includes('send-bulk') &&
-      (
-        message.includes('(403)') ||
-        message.includes('(405)') ||
-        message.includes('Not Allowed') ||
-        message.includes('not valid JSON')
-      );
+  const bulkEndpoints = [
+    EMAIL_ENDPOINTS.sendBulk,
+    EMAIL_ENDPOINTS.sendBulkAlt,
+    EMAIL_ENDPOINTS.sendBulkAlt2,
+  ];
 
-    if (shouldRetryWithAlias) {
-      try {
-        return await apiRequest(EMAIL_ENDPOINTS.sendBulkAlt, {
-          method: 'POST',
-          body: payload,
-        });
-      } catch (aliasError: any) {
-        return { success: false, error: String(aliasError?.message || aliasError) };
+  let lastError = '';
+
+  for (const endpoint of bulkEndpoints) {
+    try {
+      return await apiRequest(endpoint, {
+        method: 'POST',
+        body: payload,
+      });
+    } catch (error: any) {
+      lastError = String(error?.message || error);
+      const lowered = lastError.toLowerCase();
+      const isBlockedAtServerLayer =
+        lowered.includes('(403)') ||
+        lowered.includes('(405)') ||
+        lowered.includes('not allowed') ||
+        lowered.includes('not valid json') ||
+        lowered.includes('nginx');
+
+      if (!isBlockedAtServerLayer) {
+        return { success: false, error: lastError };
       }
     }
-
-    return { success: false, error: message };
   }
+
+  const sendMode = params.send_mode ?? 'instant';
+  let fallbackSubject = params.custom_subject || '';
+  let fallbackBody = params.custom_body || '';
+
+  if ((!fallbackSubject || !fallbackBody) && params.template_id) {
+    const templateResponse = await getTemplate(params.template_id);
+    if (templateResponse.success && templateResponse.template) {
+      fallbackSubject = fallbackSubject || templateResponse.template.subject || '';
+      fallbackBody = fallbackBody || templateResponse.template.body_html || '';
+    }
+  }
+
+  const canFallbackToSingleSend =
+    sendMode === 'instant' &&
+    !!fallbackSubject &&
+    !!fallbackBody &&
+    Array.isArray(params.leads) &&
+    params.leads.length > 0;
+
+  if (!canFallbackToSingleSend) {
+    return { success: false, error: lastError || 'Bulk send endpoint is blocked by the server.' };
+  }
+
+  const leadsForFallback = params.leads.slice(0, 50);
+  const fallbackResults: BulkSendResult = {
+    total: params.leads.length,
+    sent: 0,
+    failed: 0,
+    skipped: 0,
+    details: [],
+  };
+
+  if (params.leads.length > leadsForFallback.length) {
+    const skippedCount = params.leads.length - leadsForFallback.length;
+    fallbackResults.skipped += skippedCount;
+    fallbackResults.details.push({
+      business: 'Batch limit',
+      status: 'skipped',
+      reason: `Processed first ${leadsForFallback.length} recipients via fallback.`,
+    });
+  }
+
+  for (const lead of leadsForFallback) {
+    const to = (lead.email || '').trim();
+    if (!to) {
+      fallbackResults.skipped++;
+      fallbackResults.details.push({
+        business: lead.business_name || lead.contact_name || 'Unknown',
+        status: 'skipped',
+        reason: 'Missing email address',
+      });
+      continue;
+    }
+
+    const personalization: Record<string, string> = {
+      business_name: lead.business_name || '',
+      first_name: (lead.contact_name || '').split(/\s+/)[0] || '',
+      website: lead.website || '',
+      platform: lead.platform || '',
+      issues: Array.isArray(lead.issues) ? lead.issues.join(', ') : (lead.issues || ''),
+      phone: lead.phone || '',
+      email: to,
+    };
+
+    const sendResult = await sendEmail({
+      to,
+      subject: fallbackSubject,
+      body_html: fallbackBody,
+      template_id: params.template_id,
+      campaign_id: params.campaign_id,
+      lead_id: lead.id,
+      recipient_name: lead.contact_name,
+      business_name: lead.business_name,
+      personalization,
+      track_opens: true,
+    });
+
+    if (sendResult.success) {
+      fallbackResults.sent++;
+      fallbackResults.details.push({
+        business: lead.business_name || lead.contact_name || to,
+        email: to,
+        status: 'sent',
+      });
+    } else {
+      fallbackResults.failed++;
+      fallbackResults.details.push({
+        business: lead.business_name || lead.contact_name || to,
+        email: to,
+        status: 'failed',
+        reason: sendResult.error || 'Send failed',
+      });
+    }
+  }
+
+  if (fallbackResults.sent > 0) {
+    return { success: true, results: fallbackResults };
+  }
+
+  return {
+    success: false,
+    results: fallbackResults,
+    error: fallbackResults.details.find((item) => item.status === 'failed')?.reason || lastError || 'Failed to send emails.',
+  };
 }
 
 export async function getSendHealth(params: { leads?: Array<{ email?: string }>; total_leads?: number }): Promise<{ success: boolean; health?: SendHealth; error?: string }> {
