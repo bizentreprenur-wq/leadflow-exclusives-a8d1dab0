@@ -2862,22 +2862,43 @@ export default function Dashboard() {
     }
   };
 
+  const handleTabNavigation = useCallback((tab: string) => {
+    switch (tab) {
+      case 'search':
+        setActiveTab('workflow');
+        setCurrentStep(1);
+        setSearchType('gmb');
+        return;
+      case 'platform':
+        setActiveTab('workflow');
+        setCurrentStep(1);
+        setSearchType('platform');
+        return;
+      case 'verify':
+        setActiveTab('workflow');
+        setCurrentStep(2);
+        return;
+      case 'email':
+        setActiveTab('workflow');
+        setCurrentStep(3);
+        return;
+      default:
+        setActiveTab(tab);
+        return;
+    }
+  }, []);
+
   const activeTool = getActiveToolConfig();
 
   return (
     <SidebarProvider defaultOpen={true}>
-      <CommandPalette onNavigate={setActiveTab} onLogout={handleLogout} />
+      <CommandPalette onNavigate={handleTabNavigation} onLogout={handleLogout} />
       <ConfettiCelebration />
       
       <div className="min-h-screen flex w-full bg-background">
         <DashboardSidebar
           activeTab={activeTab}
-          onTabChange={(tab) => {
-            setActiveTab(tab);
-            if (tab === 'workflow') {
-              // Reset to step 1 when going to workflow
-            }
-          }}
+          onTabChange={handleTabNavigation}
           onLogout={handleLogout}
         />
 

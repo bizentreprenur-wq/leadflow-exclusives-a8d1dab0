@@ -278,9 +278,9 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton
-                isActive={location.pathname === '/dashboard' && activeTab === 'search'}
+                isActive={location.pathname === '/dashboard' && activeTab === 'workflow'}
                 tooltip="Dashboard"
-                onClick={() => onTabChange('search')}
+                onClick={() => onTabChange('workflow')}
               >
                 <LayoutDashboard className="w-4 h-4" />
                 <span>Dashboard</span>
