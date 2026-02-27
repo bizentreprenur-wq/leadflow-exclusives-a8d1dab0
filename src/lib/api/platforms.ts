@@ -85,7 +85,12 @@ export async function searchPlatforms(
 
   // Try SSE streaming first
   try {
-    return await searchPlatformsStreaming(service, location, platforms, onProgress, limit, filters);
+    const streamResponse = await searchPlatformsStreaming(service, location, platforms, onProgress, limit, filters);
+    if (streamResponse.success && Array.isArray(streamResponse.data) && streamResponse.data.length === 0) {
+      console.warn('[Platform API] Streaming returned 0 leads; falling back to regular endpoint');
+      return await searchPlatformsRegular(service, location, platforms, onProgress, limit, filters);
+    }
+    return streamResponse;
   } catch (streamError) {
     const err = streamError instanceof Error ? streamError : new Error(String(streamError));
     const message = (err.message || '').toLowerCase();
@@ -253,6 +258,10 @@ async function searchPlatformsStreaming(
                 if (progressTimer) { clearTimeout(progressTimer); progressTimer = null; }
                 if (onProgress) onProgress([...allResults], 100);
                 try { await reader.cancel(); } catch {}
+                if (allResults.length === 0) {
+                  fail(new Error('Platform search returned 0 results. Try different platforms/keywords or verify API keys.'));
+                  return;
+                }
                 finish({
                   success: true,
                   data: allResults,

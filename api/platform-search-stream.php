@@ -162,6 +162,8 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
     $allResults = [];
     $seenDomains = [];
     $totalResults = 0;
+    $queryErrorCount = 0;
+    $lastQueryError = '';
 
     // Build search queries: service + each platform modifier + location
     $queries = [];
@@ -199,7 +201,13 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        if ($httpCode !== 200 || !$response) continue;
+        if ($httpCode !== 200 || !$response) {
+            $queryErrorCount++;
+            $decodedError = is_string($response) ? json_decode($response, true) : null;
+            $apiError = is_array($decodedError) ? ($decodedError['message'] ?? $decodedError['error'] ?? '') : '';
+            $lastQueryError = trim("HTTP {$httpCode} {$apiError}");
+            continue;
+        }
 
         $data = json_decode($response, true);
         $organic = $data['organic'] ?? [];
@@ -279,6 +287,15 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
     }
 
     $diagnostics['finalResults'] = $totalResults;
+    $diagnostics['queryErrors'] = $queryErrorCount;
+    if ($totalResults === 0 && $queryErrorCount > 0) {
+        $errorMessage = 'Platform search upstream failed for all queries.';
+        if ($lastQueryError !== '') {
+            $errorMessage .= ' Last error: ' . $lastQueryError;
+        }
+        sendSSE('error', ['error' => $errorMessage, 'diagnostics' => $diagnostics]);
+        return;
+    }
 
     sendSSE('complete', [
         'total' => $totalResults,

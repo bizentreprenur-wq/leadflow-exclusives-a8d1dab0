@@ -64,7 +64,7 @@ try {
     $rawSerperOnly = forceRawSerperOnlyMode();
     $filtersKey = md5(json_encode($filters));
     $cacheMode = $rawSerperOnly ? 'rawserper' : 'normal';
-    $cacheKey = "platform_search_{$cacheMode}_{$service}_{$location}_" . implode(',', $platforms) . "_{$limit}_{$filtersKey}";
+    $cacheKey = "platform_search_v2_{$cacheMode}_{$service}_{$location}_" . implode(',', $platforms) . "_{$limit}_{$filtersKey}";
     
     // Check cache
     $cached = getCache($cacheKey);
@@ -88,11 +88,13 @@ try {
     $results = is_array($searchOutput) && array_key_exists('leads', $searchOutput) ? ($searchOutput['leads'] ?? []) : $searchOutput;
     $diagnostics = is_array($searchOutput) && array_key_exists('diagnostics', $searchOutput) ? ($searchOutput['diagnostics'] ?? null) : null;
     
-    // Cache results
-    setCache($cacheKey, [
-        'leads' => $results,
-        'diagnostics' => $diagnostics,
-    ]);
+    // Cache only non-empty result sets to avoid sticky empty-cache regressions.
+    if (!empty($results)) {
+        setCache($cacheKey, [
+            'leads' => $results,
+            'diagnostics' => $diagnostics,
+        ]);
+    }
     
     sendJson([
         'success' => true,
