@@ -11,17 +11,24 @@ require_once __DIR__ . '/includes/email.php';
 setCorsHeaders();
 handlePreflight();
 
-$action = $_GET['action'] ?? '';
+$input = getJsonInput();
+if (!is_array($input)) {
+    $input = [];
+}
+$GLOBALS['_password_input'] = $input;
+
+$actionRaw = $_GET['action'] ?? ($input['action'] ?? ($_POST['action'] ?? ''));
+$action = normalizePasswordAction($actionRaw);
 
 switch ($action) {
     case 'forgot-password':
-        handleForgotPassword();
+        handleForgotPassword($input);
         break;
     case 'reset-password':
-        handleResetPassword();
+        handleResetPassword($input);
         break;
     case 'verify-email':
-        handleVerifyEmail();
+        handleVerifyEmail($input);
         break;
     case 'resend-verification':
         handleResendVerification();
@@ -31,14 +38,39 @@ switch ($action) {
 }
 
 /**
+ * Accept both hyphen and underscore action names.
+ */
+function normalizePasswordAction($action) {
+    $action = strtolower(trim((string)$action));
+    if ($action === '') {
+        return '';
+    }
+
+    $map = [
+        'forgot-password' => 'forgot-password',
+        'forgot_password' => 'forgot-password',
+        'reset-password' => 'reset-password',
+        'reset_password' => 'reset-password',
+        'verify-email' => 'verify-email',
+        'verify_email' => 'verify-email',
+        'resend-verification' => 'resend-verification',
+        'resend_verification' => 'resend-verification',
+    ];
+
+    return $map[$action] ?? $action;
+}
+
+/**
  * Request password reset
  */
-function handleForgotPassword() {
+function handleForgotPassword($input = null) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         sendError('Method not allowed', 405);
     }
-    
-    $input = getJsonInput();
+
+    if (!is_array($input)) {
+        $input = is_array($GLOBALS['_password_input'] ?? null) ? $GLOBALS['_password_input'] : [];
+    }
     $email = sanitizeInput($input['email'] ?? '', 255);
     
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -62,12 +94,14 @@ function handleForgotPassword() {
 /**
  * Reset password with token
  */
-function handleResetPassword() {
+function handleResetPassword($input = null) {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         sendError('Method not allowed', 405);
     }
-    
-    $input = getJsonInput();
+
+    if (!is_array($input)) {
+        $input = is_array($GLOBALS['_password_input'] ?? null) ? $GLOBALS['_password_input'] : [];
+    }
     $token = sanitizeInput($input['token'] ?? '', 64);
     $password = $input['password'] ?? '';
     
@@ -111,8 +145,12 @@ function handleResetPassword() {
 /**
  * Verify email with token
  */
-function handleVerifyEmail() {
-    $token = sanitizeInput($_GET['token'] ?? '', 64);
+function handleVerifyEmail($input = null) {
+    if (!is_array($input)) {
+        $input = is_array($GLOBALS['_password_input'] ?? null) ? $GLOBALS['_password_input'] : [];
+    }
+
+    $token = sanitizeInput($_GET['token'] ?? ($input['token'] ?? ''), 64);
     
     if (!$token) {
         sendError('Token is required');
