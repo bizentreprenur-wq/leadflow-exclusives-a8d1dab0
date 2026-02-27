@@ -28,10 +28,13 @@ jobs:
       - name: 🏗️ Install and Build (Fixes ERESOLVE error)
         env:
           npm_config_onnxruntime_node_install: skip
+          npm_config_onnxruntime_node_install_cuda: skip
           ONNXRUNTIME_NODE_INSTALL: skip
+          ONNXRUNTIME_NODE_INSTALL_CUDA: skip
+          ONNXRUNTIME_PREFER_CPU: "1"
         run: |
-          # Use legacy peer resolution and force skip of onnxruntime-node binary install in CI.
-          npm ci --legacy-peer-deps
+          # Use legacy peer resolution and skip onnxruntime-node CUDA payload in CI.
+          npm ci --legacy-peer-deps --onnxruntime-node-install-cuda=skip
           npm run build
 
       - name: 📦 Install API dependencies

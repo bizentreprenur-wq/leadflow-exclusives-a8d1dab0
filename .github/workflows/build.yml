@@ -22,8 +22,11 @@ jobs:
       - name: Install dependencies
         env:
           npm_config_onnxruntime_node_install: skip
+          npm_config_onnxruntime_node_install_cuda: skip
           ONNXRUNTIME_NODE_INSTALL: skip
-        run: npm ci --legacy-peer-deps
+          ONNXRUNTIME_NODE_INSTALL_CUDA: skip
+          ONNXRUNTIME_PREFER_CPU: "1"
+        run: npm ci --legacy-peer-deps --onnxruntime-node-install-cuda=skip
       
       - name: Build project
         run: npm run build
