@@ -45,10 +45,27 @@ jobs:
           port: 21
           local-dir: ./dist/
           server-dir: /home/u497238762/domains/bamlead.com/public_html/
+          state-name: ftp-deploy-frontend-state.json
           dangerous-clean-slate: false
           exclude: |
             **/api/**
+            **/chrome-extension/**
             **/config.php
+            .git*
+            node_modules/**
+
+      - name: 🚀 Deploy Chrome Extension Assets
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          local-dir: ./dist/chrome-extension/
+          server-dir: /home/u497238762/domains/bamlead.com/public_html/chrome-extension/
+          state-name: ftp-deploy-chrome-extension-state.json
+          dangerous-clean-slate: false
+          exclude: |
             .git*
             node_modules/**
 
@@ -61,6 +78,7 @@ jobs:
           port: 21
           local-dir: ./api/
           server-dir: /home/u497238762/domains/bamlead.com/public_html/api/
+          state-name: ftp-deploy-backend-state.json
           dangerous-clean-slate: false
           exclude: |
             **/config.php
