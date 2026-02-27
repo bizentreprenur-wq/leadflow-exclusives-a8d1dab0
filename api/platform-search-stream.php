@@ -129,7 +129,15 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
     $filtersForMatching = $filters;
     $filtersForMatching['platforms'] = [];
 
-    $platformQueries = buildPlatformQueries($platforms);
+    $queryPlatforms = $platforms;
+    if (!empty($filtersForMatching['noWebsite'])) {
+        $queryPlatforms = array_values(array_unique(array_merge($queryPlatforms, [
+            'gmb', 'yelp', 'yellowpages', 'manta', 'bbb', 'angi', 'thumbtack', 'homeadvisor',
+            'mapquest', 'foursquare', 'superpages', 'citysearch', 'chamberofcommerce',
+            'merchantcircle', 'local'
+        ])));
+    }
+    $platformQueries = buildPlatformQueries($queryPlatforms);
 
     sendSSE('start', [
         'query' => "$service in $location",

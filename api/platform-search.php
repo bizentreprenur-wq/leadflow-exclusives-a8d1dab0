@@ -148,7 +148,15 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50, $filt
     ];
     
     // Build platform query modifiers and search in chunks so every platform is represented.
-    $platformQueries = buildPlatformQueries($platforms);
+    $queryPlatforms = $platforms;
+    if (!empty($filtersForMatching['noWebsite'])) {
+        $queryPlatforms = array_values(array_unique(array_merge($queryPlatforms, [
+            'gmb', 'yelp', 'yellowpages', 'manta', 'bbb', 'angi', 'thumbtack', 'homeadvisor',
+            'mapquest', 'foursquare', 'superpages', 'citysearch', 'chamberofcommerce',
+            'merchantcircle', 'local'
+        ])));
+    }
+    $platformQueries = buildPlatformQueries($queryPlatforms);
     $queryGroups = array_chunk($platformQueries, 3);
 
     $unique = [];
@@ -599,6 +607,22 @@ function buildPlatformQueries($platforms) {
         'customphp' => 'inurl:".php"',
         // GMB/Google Maps - searches for local business listings
         'gmb' => 'site:google.com/maps OR site:maps.google.com OR "google.com/maps/place"',
+        // Free business directories
+        'yelp' => 'site:yelp.com',
+        'bbb' => 'site:bbb.org',
+        'yellowpages' => 'site:yellowpages.com',
+        'manta' => 'site:manta.com',
+        'angi' => 'site:angi.com OR site:angieslist.com',
+        'thumbtack' => 'site:thumbtack.com',
+        'homeadvisor' => 'site:homeadvisor.com',
+        // Map/local directories
+        'mapquest' => 'site:mapquest.com',
+        'foursquare' => 'site:foursquare.com',
+        'superpages' => 'site:superpages.com',
+        'citysearch' => 'site:citysearch.com',
+        'local' => 'site:local.com',
+        'chamberofcommerce' => 'site:chamberofcommerce.com',
+        'merchantcircle' => 'site:merchantcircle.com',
         // Social platforms
         'linkedin' => 'site:linkedin.com/company OR site:linkedin.com/in',
     ];

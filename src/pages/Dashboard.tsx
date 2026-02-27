@@ -2349,22 +2349,20 @@ export default function Dashboard() {
                           }}
                         />
                         
-                        {/* Streaming Leads Indicator - Shows count below AI Pipeline */}
-                        {searchResults.length > 0 && (
-                          <div className="mt-4">
-                            <StreamingLeadsIndicator
-                              currentCount={searchResults.length}
-                              isStreaming={isSearching}
-                              progress={searchProgress}
-                              requestedCount={lastRequestedLimit ?? searchLimit}
-                              locationCount={searchCoverageMeta?.locationCount}
-                              variantCount={searchCoverageMeta?.variantCount}
-                              estimatedQueries={searchCoverageMeta?.estimatedQueries}
-                              sourceLabel={searchCoverageMeta?.sourceLabel}
-                              statusMessage={searchCoverageMeta?.statusMessage}
-                            />
-                          </div>
-                        )}
+                        {/* Streaming Leads Indicator - always visible during search */}
+                        <div className="mt-4">
+                          <StreamingLeadsIndicator
+                            currentCount={searchResults.length}
+                            isStreaming={isSearching}
+                            progress={searchProgress}
+                            requestedCount={lastRequestedLimit ?? searchLimit}
+                            locationCount={searchCoverageMeta?.locationCount}
+                            variantCount={searchCoverageMeta?.variantCount}
+                            estimatedQueries={searchCoverageMeta?.estimatedQueries}
+                            sourceLabel={searchCoverageMeta?.sourceLabel}
+                            statusMessage={searchCoverageMeta?.statusMessage}
+                          />
+                        </div>
                       </div>
                     )}
 
