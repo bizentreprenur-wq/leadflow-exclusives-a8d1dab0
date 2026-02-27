@@ -119,7 +119,9 @@ const ChromeExtension = () => {
         console.warn('Missing extension files:', failedFiles);
       }
 
-      const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
+      const rawBlob = await zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } });
+      // Explicitly set MIME type for Windows compatibility
+      const blob = new Blob([rawBlob], { type: "application/zip" });
 
       // Use a more reliable download method
       const url = URL.createObjectURL(blob);
