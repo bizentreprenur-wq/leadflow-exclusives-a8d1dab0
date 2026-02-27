@@ -121,6 +121,11 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50, $filt
     $filters = normalizeSearchFilters($filters);
     $filters['platformMode'] = true;
     $filters['platforms'] = $platforms;
+    // Platform selection is already enforced by query construction (site/powered-by modifiers).
+    // Do not hard-filter results again by detected platform token in legacy/raw mode.
+    // That detection is heuristic and can be empty for valid leads, causing false zero-results.
+    $filtersForMatching = $filters;
+    $filtersForMatching['platforms'] = [];
     $diagnostics = [
         'rawCandidates' => 0,
         'invalidDomainCandidates' => 0,
@@ -268,13 +273,13 @@ function searchPlatformsFunc($service, $location, $platforms, $limit = 50, $filt
     $diagnostics['preFilterCandidates'] = count($enriched);
     $filteredLeads = [];
     foreach ($enriched as $lead) {
-        if (matchesSearchFilters($lead, $filters)) {
+        if (matchesSearchFilters($lead, $filtersForMatching)) {
             $diagnostics['filterMatchedCandidates']++;
             $filteredLeads[] = $lead;
             continue;
         }
         $diagnostics['filterRejectedCandidates']++;
-        $reasons = getSearchFilterFailureReasons($lead, $filters);
+        $reasons = getSearchFilterFailureReasons($lead, $filtersForMatching);
         foreach ($reasons as $reason) {
             if (!isset($diagnostics['filterRejections'][$reason])) {
                 $reason = 'combined';

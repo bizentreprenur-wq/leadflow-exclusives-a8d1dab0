@@ -124,6 +124,10 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
     $filters = normalizeSearchFilters($filters);
     $filters['platformMode'] = true;
     $filters['platforms'] = $platforms;
+    // Platform selection is already encoded in search queries.
+    // Avoid strict post-filtering by detected platform token in legacy/raw mode.
+    $filtersForMatching = $filters;
+    $filtersForMatching['platforms'] = [];
 
     $platformQueries = buildPlatformQueries($platforms);
 
@@ -231,9 +235,9 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
             ];
             $diagnostics['preFilterCandidates']++;
 
-            if (!matchesSearchFilters($business, $filters)) {
+            if (!matchesSearchFilters($business, $filtersForMatching)) {
                 $diagnostics['filterRejectedCandidates']++;
-                $reasons = getSearchFilterFailureReasons($business, $filters);
+                $reasons = getSearchFilterFailureReasons($business, $filtersForMatching);
                 foreach ($reasons as $reason) {
                     if (!isset($diagnostics['filterRejections'][$reason])) {
                         $reason = 'combined';
@@ -281,6 +285,59 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
         'leads' => $allResults,
         'diagnostics' => $diagnostics,
     ]);
+}
+
+/**
+ * Quick website check from URL/snippet only (no network calls).
+ */
+function quickWebsiteCheck($url, $contextText = '')
+{
+    $host = parse_url($url, PHP_URL_HOST) ?? '';
+    $hostLower = strtolower($host);
+    $context = strtolower((string)$contextText);
+
+    $platform = null;
+    $needsUpgrade = false;
+    $issues = [];
+
+    if (strpos($hostLower, 'wix') !== false || strpos($hostLower, 'wixsite') !== false || strpos($context, 'built with wix') !== false) {
+        $platform = 'wix';
+        $needsUpgrade = true;
+        $issues[] = 'Using Wix template';
+    } elseif (strpos($hostLower, 'squarespace') !== false || strpos($context, 'powered by squarespace') !== false) {
+        $platform = 'squarespace';
+        $needsUpgrade = true;
+        $issues[] = 'Using Squarespace template';
+    } elseif (strpos($hostLower, 'weebly') !== false || strpos($context, 'powered by weebly') !== false) {
+        $platform = 'weebly';
+        $needsUpgrade = true;
+        $issues[] = 'Using Weebly template';
+    } elseif (strpos($hostLower, 'godaddy') !== false || strpos($hostLower, 'godaddysites') !== false || strpos($context, 'godaddy website') !== false) {
+        $platform = 'godaddy';
+        $needsUpgrade = true;
+        $issues[] = 'Using GoDaddy builder';
+    } elseif (strpos($hostLower, 'wordpress.com') !== false || strpos($context, 'powered by wordpress') !== false || strpos($context, 'wp-content') !== false) {
+        $platform = 'wordpress';
+    } elseif (strpos($hostLower, 'shopify') !== false) {
+        $platform = 'shopify';
+    } elseif (strpos($hostLower, 'blogger') !== false || strpos($hostLower, 'blogspot') !== false) {
+        $platform = 'blogger';
+        $needsUpgrade = true;
+        $issues[] = 'Using Blogger';
+    } elseif (strpos($hostLower, 'facebook.com') !== false) {
+        $platform = 'facebook';
+        $needsUpgrade = true;
+        $issues[] = 'Only Facebook presence';
+    }
+
+    return [
+        'hasWebsite' => !empty($url),
+        'platform' => $platform,
+        'needsUpgrade' => $needsUpgrade,
+        'issues' => $issues,
+        'mobileScore' => null,
+        'loadTime' => null,
+    ];
 }
 
 /**
