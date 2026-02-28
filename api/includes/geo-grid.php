@@ -596,24 +596,74 @@ function getMetroSubAreas(string $city): array {
 
 /**
  * Dynamic geo-expansion for cities NOT in the hardcoded metro list.
- * Uses Serper to discover nearby cities, neighborhoods, and suburbs.
- * Falls back to directional/generic patterns if Serper is unavailable.
+ * Uses AI (OpenAI) to find surrounding cities within 20-25 miles,
+ * with Serper fallback and programmatic patterns.
+ * Results cached to file for 7 days.
  */
 function dynamicGeoExpansion(string $city): array {
     if (empty($city)) return [];
 
-    $cacheKey = "geo_expand_" . md5($city);
-    if (function_exists('getCache')) {
-        $cached = getCache($cacheKey);
-        if ($cached !== null && is_array($cached)) {
-            return $cached;
+    // File-based cache (7-day TTL) — more reliable than in-memory
+    $cacheDir = defined('CACHE_DIR') ? CACHE_DIR : __DIR__ . '/cache';
+    if (!is_dir($cacheDir)) @mkdir($cacheDir, 0755, true);
+    $cacheFile = $cacheDir . '/geo_expand_' . md5(strtolower($city)) . '.json';
+
+    if (file_exists($cacheFile)) {
+        $cached = json_decode(file_get_contents($cacheFile), true);
+        if ($cached && isset($cached['expires']) && $cached['expires'] > time()) {
+            error_log("[Geo Expansion] Cache hit for '$city' (" . count($cached['areas'] ?? []) . " areas)");
+            return $cached['areas'] ?? [];
         }
     }
 
     $subAreas = [];
 
-    // Method 1: Use Serper to find "cities near [city]"
-    if (defined('SERPER_API_KEY') && !empty(SERPER_API_KEY)) {
+    // ========== METHOD 1: AI-powered city expansion (most accurate) ==========
+    if (defined('OPENAI_API_KEY') && !empty(OPENAI_API_KEY) && strpos(OPENAI_API_KEY, 'YOUR_') === false) {
+        $prompt = "List exactly 25 real cities, towns, and neighborhoods within a 20-25 mile radius of \"$city\", United States. Include surrounding suburbs, adjacent cities, and well-known neighborhoods. Format each with the state abbreviation (e.g., 'Sugar Land TX', 'Katy TX', 'Midtown Houston'). Return ONLY a JSON object with key \"areas\" containing an array of strings. No explanations.";
+
+        $ch = curl_init('https://api.openai.com/v1/chat/completions');
+        $data = [
+            'model' => 'gpt-4o-mini',
+            'messages' => [['role' => 'user', 'content' => $prompt]],
+            'temperature' => 0.3,
+            'max_tokens' => 500,
+            'response_format' => ['type' => 'json_object']
+        ];
+
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($data),
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . OPENAI_API_KEY,
+                'Content-Type: application/json'
+            ],
+            CURLOPT_TIMEOUT => 15,
+        ]);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode === 200 && $response) {
+            $result = json_decode($response, true);
+            $content = $result['choices'][0]['message']['content'] ?? null;
+            if ($content) {
+                $parsed = json_decode($content, true);
+                $aiAreas = $parsed['areas'] ?? [];
+                if (is_array($aiAreas) && !empty($aiAreas)) {
+                    $subAreas = array_map('trim', $aiAreas);
+                    error_log("[Geo Expansion] AI generated " . count($subAreas) . " areas for '$city'");
+                }
+            }
+        } else {
+            error_log("[Geo Expansion] AI call failed for '$city' (HTTP $httpCode)");
+        }
+    }
+
+    // ========== METHOD 2: Serper fallback (if AI didn't produce enough) ==========
+    if (count($subAreas) < 10 && defined('SERPER_API_KEY') && !empty(SERPER_API_KEY)) {
         $queries = [
             "cities and towns near $city",
             "neighborhoods in $city",
@@ -641,16 +691,12 @@ function dynamicGeoExpansion(string $city): array {
 
             if ($httpCode === 200 && !empty($response)) {
                 $data = json_decode($response, true);
-
-                // Extract location names from organic snippets
                 if (!empty($data['organic'])) {
                     foreach ($data['organic'] as $result) {
                         $snippet = ($result['snippet'] ?? '') . ' ' . ($result['title'] ?? '');
-                        // Extract comma-separated place names
                         if (preg_match_all('/\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)*)\b/', $snippet, $matches)) {
                             foreach ($matches[1] as $place) {
                                 $placeLower = strtolower($place);
-                                // Skip generic words
                                 if (in_array($placeLower, ['the', 'and', 'for', 'with', 'from', 'near', 'city', 'town', 'village', 'county', 'state', 'area', 'region', 'district', 'north', 'south', 'east', 'west', 'northeast', 'northwest', 'southeast', 'southwest', 'downtown', 'uptown', 'midtown', 'united', 'states', 'america', 'miles', 'population', 'located', 'including'])) {
                                     continue;
                                 }
@@ -661,8 +707,6 @@ function dynamicGeoExpansion(string $city): array {
                         }
                     }
                 }
-
-                // Also extract from Places/Knowledge Graph if available
                 if (!empty($data['relatedSearches'])) {
                     foreach ($data['relatedSearches'] as $rs) {
                         $q = $rs['query'] ?? '';
@@ -675,12 +719,11 @@ function dynamicGeoExpansion(string $city): array {
                     }
                 }
             }
-
-            usleep(50000); // 50ms between Serper calls
+            usleep(50000);
         }
     }
 
-    // Method 2: Generate programmatic nearby patterns (always runs as supplement)
+    // ========== METHOD 3: Programmatic patterns (always as supplement) ==========
     $programmaticAreas = [
         "Downtown $city",
         "North $city",
@@ -693,18 +736,22 @@ function dynamicGeoExpansion(string $city): array {
         "$city Valley",
         "$city Hills",
     ];
-
     $subAreas = array_merge($subAreas, $programmaticAreas);
 
-    // Deduplicate and limit
-    $subAreas = array_values(array_unique($subAreas));
+    // Deduplicate, clean, and limit
+    $subAreas = array_values(array_unique(array_filter($subAreas, function($a) { return strlen(trim($a)) > 2; })));
     $subAreas = array_slice($subAreas, 0, 30);
 
-    // Cache for 24 hours
-    if (function_exists('setCache') && !empty($subAreas)) {
-        setCache($cacheKey, $subAreas, 86400);
-    }
+    // Cache for 7 days
+    @file_put_contents($cacheFile, json_encode([
+        'city' => $city,
+        'areas' => $subAreas,
+        'expires' => time() + (7 * 86400),
+        'generated' => date('Y-m-d H:i:s'),
+        'source' => count($subAreas) > 10 ? 'ai+serper' : 'serper+programmatic',
+    ]));
 
+    error_log("[Geo Expansion] Final: " . count($subAreas) . " areas for '$city' (cached 7 days)");
     return $subAreas;
 }
 
