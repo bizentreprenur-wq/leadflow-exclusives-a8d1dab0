@@ -13,167 +13,243 @@
         <span class="logo-icon">🎯</span>
         <span class="logo-text">BamLead</span>
       </div>
-      <div class="status" id="status">
-        <span class="status-dot"></span>
-        <span class="status-text">Ready</span>
+      <div class="header-right">
+        <div class="auth-status" id="authStatus">
+          <span class="auth-dot offline"></span>
+          <span class="auth-email" id="authEmail">Not logged in</span>
+        </div>
       </div>
     </header>
 
-    <main class="main">
-      <!-- Current Page Info -->
-      <section class="section">
-        <h3 class="section-title">Current Page</h3>
-        <div class="page-info" id="pageInfo">
-          <div class="page-url" id="pageUrl">Loading...</div>
+    <!-- Login Screen -->
+    <div class="login-screen" id="loginScreen">
+      <div class="login-card">
+        <div class="login-icon">🔐</div>
+        <h2 class="login-title">Sign in to BamLead</h2>
+        <p class="login-subtitle">Use your bamlead.com account</p>
+        <div class="login-form">
+          <input type="email" id="loginEmail" class="login-input" placeholder="Email address" />
+          <input type="password" id="loginPassword" class="login-input" placeholder="Password" />
+          <button class="action-btn primary full-width" id="loginBtn">
+            <span class="btn-icon">🚀</span> Sign In
+          </button>
+          <div class="login-error" id="loginError" style="display:none;"></div>
+          <a href="https://bamlead.com/auth" target="_blank" class="login-link">Don't have an account? Sign up →</a>
         </div>
-      </section>
+      </div>
+    </div>
 
-      <!-- Lead Search -->
-      <section class="section">
-        <h3 class="section-title">🔎 Search for Leads</h3>
-        <div class="search-module">
+    <!-- Main App (hidden until logged in) -->
+    <main class="main" id="mainApp" style="display:none;">
+
+      <!-- Tab Navigation -->
+      <div class="tab-nav">
+        <button class="tab-btn active" data-tab="search">🔎 Search</button>
+        <button class="tab-btn" data-tab="extract">🔍 Extract</button>
+        <button class="tab-btn" data-tab="leads">📋 Leads</button>
+        <button class="tab-btn" data-tab="tools">⚡ Tools</button>
+      </div>
+
+      <!-- TAB: Search -->
+      <div class="tab-content active" id="tab-search">
+        <!-- Search Mode Toggle -->
+        <div class="search-mode-toggle">
+          <button class="mode-btn active" data-mode="a">
+            <span>🗺️</span> Google Maps
+          </button>
+          <button class="mode-btn" data-mode="b">
+            <span>🏢</span> Agency Finder
+          </button>
+        </div>
+
+        <div class="search-form">
           <input type="text" id="searchService" class="search-input" placeholder="Service (e.g. Plumber, Dentist)" />
           <input type="text" id="searchLocation" class="search-input" placeholder="City or ZIP (e.g. Miami, FL)" />
+          
+          <!-- Option B filters -->
+          <div class="optionb-filters" id="optionBFilters" style="display:none;">
+            <label class="filter-check"><input type="checkbox" id="filterNoWebsite" /> No website</label>
+            <label class="filter-check"><input type="checkbox" id="filterNeedsUpgrade" /> Needs upgrade</label>
+            <label class="filter-check"><input type="checkbox" id="filterWeakMobile" /> Weak mobile</label>
+          </div>
+
           <div class="search-options">
-            <label class="search-checkbox-label">
-              <input type="checkbox" id="searchNoWebsite" /> No website only
-            </label>
             <select id="searchLimit" class="search-select">
               <option value="25">25 leads</option>
               <option value="50">50 leads</option>
               <option value="100" selected>100 leads</option>
               <option value="200">200 leads</option>
             </select>
-          </div>
-          <button class="action-btn primary" id="searchLeadsBtn">
-            <span class="btn-icon">🚀</span>
-            Search Leads
-          </button>
-          <div class="search-status" id="searchStatus" style="display:none;">
-            <div class="search-progress-bar"><div class="search-progress-fill" id="searchProgressFill"></div></div>
-            <span class="search-progress-text" id="searchProgressText">Searching...</span>
-          </div>
-          <div class="search-results-summary" id="searchResultsSummary" style="display:none;"></div>
-        </div>
-      </section>
-
-      <!-- Quick Actions -->
-      <section class="section">
-        <h3 class="section-title">Quick Actions</h3>
-        <div class="actions">
-          <button class="action-btn primary" id="extractBtn">
-            <span class="btn-icon">🔍</span>
-            Extract Contacts
-          </button>
-          <button class="action-btn" id="analyzeBtn">
-            <span class="btn-icon">📊</span>
-            Analyze Website
-          </button>
-          <button class="action-btn" id="highlightBtn">
-            <span class="btn-icon">🖍️</span>
-            Highlight Contacts on Page
-          </button>
-          <button class="action-btn" id="saveBtn">
-            <span class="btn-icon">💾</span>
-            Save as Lead
-          </button>
-        </div>
-      </section>
-
-      <!-- Bulk Import -->
-      <section class="section">
-        <h3 class="section-title">Bulk Import</h3>
-        <div class="bulk-import-area">
-          <textarea id="bulkUrlsInput" class="bulk-textarea" placeholder="Paste URLs here (one per line)&#10;https://example.com&#10;https://another-site.com" rows="4"></textarea>
-          <div class="bulk-controls">
-            <span class="bulk-count" id="bulkCount">0 URLs</span>
-            <button class="action-btn primary" id="bulkExtractBtn">
-              <span class="btn-icon">⚡</span>
-              Bulk Extract
+            <button class="action-btn primary" id="searchBtn">
+              <span class="btn-icon">🚀</span> Search
             </button>
           </div>
-          <div class="bulk-progress" id="bulkProgress" style="display:none;">
-            <div class="bulk-progress-bar"><div class="bulk-progress-fill" id="bulkProgressFill"></div></div>
-            <span class="bulk-progress-text" id="bulkProgressText">0/0</span>
+        </div>
+
+        <div class="search-status" id="searchStatus" style="display:none;">
+          <div class="search-progress-bar"><div class="search-progress-fill" id="searchProgressFill"></div></div>
+          <span class="search-progress-text" id="searchProgressText">Searching...</span>
+        </div>
+
+        <div class="search-results" id="searchResults" style="display:none;"></div>
+      </div>
+
+      <!-- TAB: Extract -->
+      <div class="tab-content" id="tab-extract">
+        <section class="section">
+          <h3 class="section-title">Current Page</h3>
+          <div class="page-url" id="pageUrl">Loading...</div>
+        </section>
+
+        <section class="section">
+          <h3 class="section-title">Quick Actions</h3>
+          <div class="actions">
+            <button class="action-btn primary" id="extractBtn">
+              <span class="btn-icon">🔍</span> Extract Contacts
+            </button>
+            <button class="action-btn" id="analyzeBtn">
+              <span class="btn-icon">📊</span> Analyze Website
+            </button>
+            <button class="action-btn" id="highlightBtn">
+              <span class="btn-icon">🖍️</span> Highlight Contacts
+            </button>
+            <button class="action-btn" id="saveBtn">
+              <span class="btn-icon">💾</span> Save as Lead
+            </button>
           </div>
-      <div class="bulk-results" id="bulkResults" style="display:none;"></div>
-        </div>
-      </section>
+        </section>
 
-      <!-- Extracted Data -->
-      <section class="section" id="dataSection" style="display: none;">
-        <h3 class="section-title">Extracted Data</h3>
-        <div class="data-list" id="dataList"></div>
-        <button class="action-btn success" id="sendToBamLead">
-          <span class="btn-icon">🚀</span>
-          Send to BamLead
-        </button>
-      </section>
-
-      <!-- Website Analysis -->
-      <section class="section" id="analysisSection" style="display: none;">
-        <h3 class="section-title">Website Analysis</h3>
-        <div class="data-list" id="analysisList"></div>
-      </section>
-
-      <!-- Saved Leads Viewer -->
-      <section class="section">
-        <h3 class="section-title">Saved Leads (<span id="leadsCount">0</span>)</h3>
-        <div class="leads-search-bar">
-          <input type="text" id="leadsSearchInput" class="leads-search-input" placeholder="🔍 Search leads..." />
-        </div>
-        <div class="leads-viewer" id="leadsViewer">
-          <div class="leads-empty" id="leadsEmpty">No leads saved yet</div>
-        </div>
-        <div class="leads-pagination" id="leadsPagination" style="display:none;">
-          <button class="page-btn" id="prevPageBtn">‹</button>
-          <span class="page-info" id="pageInfo2">1/1</span>
-          <button class="page-btn" id="nextPageBtn">›</button>
-        </div>
-      </section>
-
-      <!-- Export & Manage -->
-      <section class="section">
-        <h3 class="section-title">Export & Manage</h3>
-        <div class="actions">
-          <button class="action-btn export" id="exportCsvBtn">
-            <span class="btn-icon">📄</span>
-            Download as CSV
-          </button>
-          <button class="action-btn export" id="exportPdfBtn">
-            <span class="btn-icon">📕</span>
-            Download as PDF
-          </button>
-          <button class="action-btn" id="clearLeadsBtn">
-            <span class="btn-icon">🗑️</span>
-            Clear All Leads
-          </button>
-        </div>
-      </section>
-
-      <!-- Stats -->
-      <section class="section">
-        <div class="stats">
-          <div class="stat">
-            <span class="stat-value" id="totalLeadsCount">0</span>
-            <span class="stat-label">Total Leads</span>
+        <section class="section" id="dataSection" style="display:none;">
+          <h3 class="section-title">Extracted Data</h3>
+          <div class="data-list" id="dataList"></div>
+          <div class="extract-actions">
+            <button class="action-btn success" id="sendToBamLead">
+              <span class="btn-icon">🚀</span> Send to Dashboard
+            </button>
+            <button class="action-btn email-btn" id="quickEmailBtn" style="display:none;">
+              <span class="btn-icon">✉️</span> Send Email
+            </button>
           </div>
-          <div class="stat">
-            <span class="stat-value" id="todayCount">0</span>
-            <span class="stat-label">Today</span>
+        </section>
+
+        <section class="section" id="analysisSection" style="display:none;">
+          <h3 class="section-title">Website Analysis</h3>
+          <div class="data-list" id="analysisList"></div>
+        </section>
+
+        <!-- Bulk Import -->
+        <section class="section">
+          <h3 class="section-title">Bulk Import</h3>
+          <div class="bulk-import-area">
+            <textarea id="bulkUrlsInput" class="bulk-textarea" placeholder="Paste URLs (one per line)" rows="3"></textarea>
+            <div class="bulk-controls">
+              <span class="bulk-count" id="bulkCount">0 URLs</span>
+              <button class="action-btn primary" id="bulkExtractBtn">
+                <span class="btn-icon">⚡</span> Bulk Extract
+              </button>
+            </div>
+            <div class="bulk-progress" id="bulkProgress" style="display:none;">
+              <div class="bulk-progress-bar"><div class="bulk-progress-fill" id="bulkProgressFill"></div></div>
+              <span class="bulk-progress-text" id="bulkProgressText">0/0</span>
+            </div>
+            <div class="bulk-results" id="bulkResults" style="display:none;"></div>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
+
+      <!-- TAB: Leads -->
+      <div class="tab-content" id="tab-leads">
+        <section class="section">
+          <h3 class="section-title">Saved Leads (<span id="leadsCount">0</span>)</h3>
+          <div class="leads-search-bar">
+            <input type="text" id="leadsSearchInput" class="leads-search-input" placeholder="🔍 Search leads..." />
+          </div>
+          <div class="leads-viewer" id="leadsViewer">
+            <div class="leads-empty">No leads saved yet</div>
+          </div>
+          <div class="leads-pagination" id="leadsPagination" style="display:none;">
+            <button class="page-btn" id="prevPageBtn">‹</button>
+            <span class="page-info" id="pageInfo2">1/1</span>
+            <button class="page-btn" id="nextPageBtn">›</button>
+          </div>
+        </section>
+
+        <section class="section">
+          <h3 class="section-title">Export & Manage</h3>
+          <div class="actions">
+            <button class="action-btn export" id="exportCsvBtn">
+              <span class="btn-icon">📄</span> CSV
+            </button>
+            <button class="action-btn export" id="exportPdfBtn">
+              <span class="btn-icon">📕</span> PDF
+            </button>
+            <button class="action-btn" id="clearLeadsBtn">
+              <span class="btn-icon">🗑️</span> Clear All
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <!-- TAB: Tools -->
+      <div class="tab-content" id="tab-tools">
+        <!-- Quick Email -->
+        <section class="section">
+          <h3 class="section-title">✉️ Quick Email Outreach</h3>
+          <div class="email-compose">
+            <input type="email" id="emailTo" class="search-input" placeholder="Recipient email" />
+            <input type="text" id="emailSubject" class="search-input" placeholder="Subject line" />
+            <textarea id="emailBody" class="bulk-textarea" rows="4" placeholder="Your message..."></textarea>
+            <button class="action-btn primary" id="sendEmailBtn">
+              <span class="btn-icon">📤</span> Send via BamLead
+            </button>
+          </div>
+        </section>
+
+        <!-- CRM Push -->
+        <section class="section">
+          <h3 class="section-title">🔗 CRM Quick-Add</h3>
+          <div class="crm-options">
+            <button class="action-btn crm-btn" id="pushGoogleSheets">
+              <span class="btn-icon">📊</span> Google Sheets
+            </button>
+            <button class="action-btn crm-btn" id="pushHubspot">
+              <span class="btn-icon">🟠</span> HubSpot
+            </button>
+            <button class="action-btn crm-btn" id="pushSalesforce">
+              <span class="btn-icon">☁️</span> Salesforce
+            </button>
+          </div>
+          <div class="crm-status" id="crmStatus" style="display:none;"></div>
+        </section>
+
+        <!-- Stats -->
+        <section class="section">
+          <div class="stats">
+            <div class="stat">
+              <span class="stat-value" id="totalLeadsCount">0</span>
+              <span class="stat-label">Total</span>
+            </div>
+            <div class="stat">
+              <span class="stat-value" id="todayCount">0</span>
+              <span class="stat-label">Today</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Logout -->
+        <section class="section">
+          <button class="action-btn danger full-width" id="logoutBtn">
+            <span class="btn-icon">🚪</span> Logout
+          </button>
+        </section>
+      </div>
+
     </main>
 
     <footer class="footer">
-      <a href="https://bamlead.com/dashboard" target="_blank" class="footer-link">
-        Open Dashboard →
-      </a>
+      <a href="https://bamlead.com/dashboard" target="_blank" class="footer-link">Dashboard →</a>
       <span class="footer-sep">|</span>
-      <a id="storeLink" href="https://chromewebstore.google.com/search/BamLead" target="_blank" class="footer-link store-link">
-        ⭐ Rate Extension
-      </a>
+      <a id="storeLink" href="https://chromewebstore.google.com/search/BamLead" target="_blank" class="footer-link store-link">⭐ Rate</a>
     </footer>
   </div>
 
