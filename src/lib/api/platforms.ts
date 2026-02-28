@@ -104,22 +104,9 @@ export async function searchPlatforms(
     });
   }
 
-  // Try SSE streaming first
+  // Try SSE streaming first — no double-search fallback
   try {
-    const streamResponse = await searchPlatformsStreaming(service, location, platforms, onProgress, limit, filters);
-    if (streamResponse.success && Array.isArray(streamResponse.data)) {
-      const streamCount = streamResponse.data.length;
-      const minAcceptableCoverage = Math.max(20, Math.floor(limit * 0.4));
-      if (streamCount === 0 || streamCount < minAcceptableCoverage) {
-        console.warn(`[Platform API] Streaming returned ${streamCount}/${limit}; trying regular endpoint for better coverage`);
-        const regularResponse = await searchPlatformsRegular(service, location, platforms, onProgress, limit, filters);
-        const regularCount = regularResponse.success && Array.isArray(regularResponse.data) ? regularResponse.data.length : 0;
-        if (regularCount > streamCount) {
-          return regularResponse;
-        }
-      }
-    }
-    return streamResponse;
+    return await searchPlatformsStreaming(service, location, platforms, onProgress, limit, filters);
   } catch (streamError) {
     const err = streamError instanceof Error ? streamError : new Error(String(streamError));
     const message = (err.message || '').toLowerCase();
