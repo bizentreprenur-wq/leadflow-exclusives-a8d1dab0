@@ -158,12 +158,12 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
     if (function_exists('getMetroSubAreas')) {
         $subAreas = getMetroSubAreas(strtolower(trim($cityClean)));
         if (!empty($subAreas)) {
-            // Scale expansion based on requested limit
+            // Scale expansion based on requested limit — aggressive for high volumes
             $expansionCount = 8;
             if ($limit >= 50) $expansionCount = 15;
             if ($limit >= 100) $expansionCount = 25;
             if ($limit >= 250) $expansionCount = 40;
-            if ($limit >= 500) $expansionCount = 60;
+            if ($limit >= 500) $expansionCount = count($subAreas); // Use ALL sub-areas
             $expansionCount = min($expansionCount, count($subAreas));
             $expandedLocations = array_slice($subAreas, 0, $expansionCount);
             foreach ($expandedLocations as $area) {
@@ -185,11 +185,12 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
     if (function_exists('expandServiceSynonyms')) {
         $synonyms = expandServiceSynonyms($service);
         if (!empty($synonyms)) {
-            // Scale synonyms based on limit
+            // Scale synonyms aggressively based on limit
             $synCount = 3;
-            if ($limit >= 50) $synCount = 5;
-            if ($limit >= 100) $synCount = 8;
-            if ($limit >= 250) $synCount = 12;
+            if ($limit >= 50) $synCount = 6;
+            if ($limit >= 100) $synCount = 10;
+            if ($limit >= 250) $synCount = 15;
+            if ($limit >= 500) $synCount = 25; // Max synonyms for high volume
             $serviceVariants = array_merge($serviceVariants, array_slice($synonyms, 0, $synCount));
             $serviceVariants = array_unique($serviceVariants);
         }
@@ -199,7 +200,7 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
         'query' => "$service in $location",
         'limit' => $limit,
         'targetCount' => $targetCount,
-        'sources' => $noWebsiteFilter ? ['Serper Places', 'Serper Organic'] : ['Serper Organic'],
+        'sources' => ['Serper Places', 'Serper Organic'],
         'platforms' => $platforms,
         'filtersActive' => $filtersActive,
         'locationCount' => count($locationsToSearch),
@@ -235,35 +236,142 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
     $totalResults = 0;
     $queryErrorCount = 0;
     $lastQueryError = '';
-    $emitBatchSize = 5;
 
     // ================================================================
-    // PASS 1: PLACES (Google Maps) — When "No website" filter is active
-    // ⚡ Uses parallelSerperSearch() for batch execution
+    // PASS 1: PLACES (Google Maps) — ALWAYS RUN for volume
+    // This is the #1 source of real business leads with phone/address
     // ================================================================
-    if ($noWebsiteFilter) {
-        $placesQueries = [];
-        foreach (array_slice($locationsToSearch, 0, 20) as $loc) {
-            foreach (array_slice($serviceVariants, 0, 4) as $svc) {
-                $placesQueries[] = "$svc in $loc";
+    $placesLocations = array_slice($locationsToSearch, 0, min(30, count($locationsToSearch)));
+    // Scale service variants for places based on limit
+    $placesServiceCount = 2;
+    if ($limit >= 100) $placesServiceCount = 4;
+    if ($limit >= 250) $placesServiceCount = 6;
+    if ($limit >= 500) $placesServiceCount = 10;
+    $placesServices = array_slice($serviceVariants, 0, min($placesServiceCount, count($serviceVariants)));
+
+    $placesQueries = [];
+    foreach ($placesLocations as $loc) {
+        foreach ($placesServices as $svc) {
+            $placesQueries[] = "$svc in $loc";
+        }
+    }
+
+    $diagnostics['queriesPlanned'] += count($placesQueries);
+
+    sendSSE('status', [
+        'message' => 'Searching Google Maps across ' . count($placesLocations) . ' locations with ' . count($placesServices) . ' service terms...',
+        'progress' => 2,
+        'source' => 'Serper Places',
+        'phase' => 'places_search',
+    ]);
+
+    // ⚡ Fire all places queries in parallel batches of 10
+    $placesBatchSize = 10;
+    $placesBatches = array_chunk($placesQueries, $placesBatchSize);
+
+    foreach ($placesBatches as $pbIdx => $batch) {
+        if ($totalResults >= $targetCount) break;
+
+        $batchResults = parallelSerperSearch($batch, 'places', $placesBatchSize);
+        $diagnostics['queriesExecuted'] += count($batch);
+
+        $leadBuffer = [];
+        foreach ($batchResults as $resultIdx => $places) {
+            if ($totalResults >= $targetCount) break;
+            if (empty($places)) continue;
+
+            foreach ($places as $place) {
+                if ($totalResults >= $targetCount) break;
+                $diagnostics['rawCandidates']++;
+
+                $placeWebsite = trim($place['website'] ?? '');
+                $placeName = $place['title'] ?? ($place['name'] ?? '');
+                $placePhone = $place['phoneNumber'] ?? ($place['phone'] ?? '');
+                $placeAddress = $place['address'] ?? '';
+
+                $dedupeKey = strtolower(preg_replace('/[^a-z0-9]/', '', $placeName));
+                if (isset($seenResults[$dedupeKey])) {
+                    $diagnostics['dedupedCandidates']++;
+                    continue;
+                }
+                $seenResults[$dedupeKey] = true;
+
+                $business = [
+                    'id' => 'plat_places_' . substr(md5($placeName . $placeAddress . $resultIdx), 0, 12),
+                    'name' => $placeName,
+                    'url' => '',
+                    'website' => $placeWebsite,
+                    'address' => $placeAddress,
+                    'phone' => $placePhone,
+                    'email' => '',
+                    'rating' => $place['rating'] ?? null,
+                    'reviewCount' => $place['reviews'] ?? ($place['reviewsCount'] ?? null),
+                    'source' => 'Serper Places',
+                    'sources' => ['Serper Places'],
+                    'websiteAnalysis' => [
+                        'hasWebsite' => $placeWebsite !== '',
+                        'platform' => null,
+                        'needsUpgrade' => false,
+                        'issues' => $placeWebsite === '' ? ['No website detected'] : [],
+                        'mobileScore' => null,
+                        'loadTime' => null,
+                    ],
+                ];
+
+                $diagnostics['preFilterCandidates']++;
+                if (!matchesSearchFilters($business, $filtersForMatching)) {
+                    $diagnostics['filterRejectedCandidates']++;
+                    $reasons = getSearchFilterFailureReasons($business, $filtersForMatching);
+                    foreach ($reasons as $reason) {
+                        if (!isset($diagnostics['filterRejections'][$reason])) $reason = 'combined';
+                        $diagnostics['filterRejections'][$reason]++;
+                    }
+                    continue;
+                }
+
+                $diagnostics['filterMatchedCandidates']++;
+                $diagnostics['placesResults']++;
+                $allResults[] = $business;
+                $leadBuffer[] = $business;
+                $totalResults++;
             }
         }
 
+        // Emit entire batch at once for fast jumps
+        if (!empty($leadBuffer)) {
+            sendSSE('results', [
+                'leads' => $leadBuffer,
+                'total' => $totalResults,
+                'progress' => min(45, round(($totalResults / max(1, $targetCount)) * 100)),
+                'source' => 'Serper Places',
+            ]);
+        }
+
         sendSSE('status', [
-            'message' => 'Searching Google Maps for businesses without websites...',
-            'progress' => 2,
+            'message' => "Maps batch " . ($pbIdx + 1) . "/" . count($placesBatches) . " ({$totalResults} leads)",
+            'progress' => min(45, round(($totalResults / max(1, $targetCount)) * 100)),
             'source' => 'Serper Places',
             'phase' => 'places_search',
         ]);
+    }
 
-        // ⚡ Fire all places queries in parallel batches of 10
-        $placesBatchSize = 10;
-        $placesBatches = array_chunk($placesQueries, $placesBatchSize);
+    // ---- PLACES PAGINATION: If still under target, fetch page 2 ----
+    if ($totalResults < $targetCount && count($placesQueries) > 0) {
+        sendSSE('status', [
+            'message' => "Fetching additional Maps results (page 2)...",
+            'progress' => min(50, round(($totalResults / max(1, $targetCount)) * 100)),
+            'source' => 'Serper Places',
+            'phase' => 'places_page2',
+        ]);
 
-        foreach ($placesBatches as $pbIdx => $batch) {
+        // Re-query top locations with page 2
+        $page2Queries = array_slice($placesQueries, 0, min(40, count($placesQueries)));
+        $page2Batches = array_chunk($page2Queries, $placesBatchSize);
+
+        foreach ($page2Batches as $pbIdx => $batch) {
             if ($totalResults >= $targetCount) break;
 
-            $batchResults = parallelSerperSearch($batch, 'places', $placesBatchSize);
+            $batchResults = parallelSerperSearch($batch, 'places', $placesBatchSize, 2);
             $diagnostics['queriesExecuted'] += count($batch);
 
             $leadBuffer = [];
@@ -288,7 +396,7 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
                     $seenResults[$dedupeKey] = true;
 
                     $business = [
-                        'id' => 'plat_places_' . substr(md5($placeName . $placeAddress . $resultIdx), 0, 12),
+                        'id' => 'plat_places_p2_' . substr(md5($placeName . $placeAddress . $resultIdx), 0, 12),
                         'name' => $placeName,
                         'url' => '',
                         'website' => $placeWebsite,
@@ -312,11 +420,6 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
                     $diagnostics['preFilterCandidates']++;
                     if (!matchesSearchFilters($business, $filtersForMatching)) {
                         $diagnostics['filterRejectedCandidates']++;
-                        $reasons = getSearchFilterFailureReasons($business, $filtersForMatching);
-                        foreach ($reasons as $reason) {
-                            if (!isset($diagnostics['filterRejections'][$reason])) $reason = 'combined';
-                            $diagnostics['filterRejections'][$reason]++;
-                        }
                         continue;
                     }
 
@@ -328,73 +431,74 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
                 }
             }
 
-            // Emit entire batch at once for fast jumps
             if (!empty($leadBuffer)) {
                 sendSSE('results', [
                     'leads' => $leadBuffer,
                     'total' => $totalResults,
-                    'progress' => min(45, round(($totalResults / max(1, $targetCount)) * 100)),
+                    'progress' => min(50, round(($totalResults / max(1, $targetCount)) * 100)),
                     'source' => 'Serper Places',
                 ]);
             }
-
-            sendSSE('status', [
-                'message' => "Maps batch " . ($pbIdx + 1) . "/" . count($placesBatches) . " ({$totalResults} leads)",
-                'progress' => min(45, round(($totalResults / max(1, $targetCount)) * 100)),
-                'source' => 'Serper Places',
-                'phase' => 'places_search',
-            ]);
-        }
-
-        if ($totalResults > 0) {
-            sendSSE('status', [
-                'message' => "Found {$totalResults} from Google Maps, expanding organic search...",
-                'progress' => min(50, round(($totalResults / max(1, $targetCount)) * 100)),
-                'source' => 'Serper Organic',
-                'phase' => 'searching',
-            ]);
         }
     }
 
+    if ($totalResults > 0) {
+        sendSSE('status', [
+            'message' => "Found {$totalResults} from Google Maps, expanding organic search...",
+            'progress' => min(55, round(($totalResults / max(1, $targetCount)) * 100)),
+            'source' => 'Serper Organic',
+            'phase' => 'searching',
+        ]);
+    }
+
     // ================================================================
-    // PASS 2: ORGANIC SEARCH — Platform queries across all locations + synonyms
+    // PASS 2: ORGANIC SEARCH — Generic + Platform queries across locations + synonyms
     // ================================================================
-    // Build all organic queries: (service variants) × (platform modifiers) × (locations)
     $queries = [];
 
-    // Phase A: Primary service + all platform modifiers + primary location
+    // Phase A: GENERIC organic queries (no platform modifier) — highest volume
+    $queries[] = ['q' => "$service in $location", 'phase' => 'primary'];
+    $queries[] = ['q' => "$service near $location", 'phase' => 'primary'];
+    $queries[] = ['q' => "best $service in $location", 'phase' => 'primary'];
+    $queries[] = ['q' => "top $service in $location", 'phase' => 'primary'];
+    $queries[] = ['q' => "$service companies in $location", 'phase' => 'primary'];
+    $queries[] = ['q' => "$service services in $location", 'phase' => 'primary'];
+
+    // Phase A2: Platform-specific queries for primary location
     foreach ($platformQueries as $modifier) {
         $queries[] = ['q' => "$service $modifier $location", 'phase' => 'primary'];
     }
-    $queries[] = ['q' => "$service in $location", 'phase' => 'primary'];
 
-    // Phase B: Primary service + expanded locations (geo expansion)
+    // Phase B: Generic + platform queries across expanded locations (geo expansion)
     if (count($locationsToSearch) > 1) {
         foreach (array_slice($locationsToSearch, 1) as $expandedLoc) {
-            // Use top platform modifiers for expanded locations
-            $topModifiers = array_slice($platformQueries, 0, min(5, count($platformQueries)));
+            // Generic queries first — these return the most results
+            $queries[] = ['q' => "$service in $expandedLoc", 'phase' => 'geo_expansion'];
+            $queries[] = ['q' => "$service near $expandedLoc", 'phase' => 'geo_expansion'];
+            // Top platform modifiers for expanded locations
+            $topModifiers = array_slice($platformQueries, 0, min(3, count($platformQueries)));
             foreach ($topModifiers as $modifier) {
                 $queries[] = ['q' => "$service $modifier $expandedLoc", 'phase' => 'geo_expansion'];
             }
-            $queries[] = ['q' => "$service in $expandedLoc", 'phase' => 'geo_expansion'];
         }
     }
 
     // Phase C: Synonym variants + primary location (synonym expansion)
     if (count($serviceVariants) > 1) {
         foreach (array_slice($serviceVariants, 1) as $synonym) {
-            $topModifiers = array_slice($platformQueries, 0, min(3, count($platformQueries)));
+            $queries[] = ['q' => "$synonym in $location", 'phase' => 'synonym_expansion'];
+            $queries[] = ['q' => "$synonym near $location", 'phase' => 'synonym_expansion'];
+            $topModifiers = array_slice($platformQueries, 0, min(2, count($platformQueries)));
             foreach ($topModifiers as $modifier) {
                 $queries[] = ['q' => "$synonym $modifier $location", 'phase' => 'synonym_expansion'];
             }
-            $queries[] = ['q' => "$synonym in $location", 'phase' => 'synonym_expansion'];
         }
     }
 
-    // Phase D: Synonyms + expanded locations (deep expansion — only if still short)
+    // Phase D: Synonyms + expanded locations (deep expansion — max volume)
     if (count($serviceVariants) > 1 && count($locationsToSearch) > 1) {
-        $topSynonyms = array_slice($serviceVariants, 1, 3);
-        $topLocations = array_slice($locationsToSearch, 1, 10);
+        $topSynonyms = array_slice($serviceVariants, 1, 5);
+        $topLocations = array_slice($locationsToSearch, 1, 15);
         foreach ($topSynonyms as $synonym) {
             foreach ($topLocations as $expandedLoc) {
                 $queries[] = ['q' => "$synonym in $expandedLoc", 'phase' => 'deep_expansion'];
@@ -406,10 +510,8 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
     $totalQueries = count($queries);
 
     sendSSE('status', [
-        'message' => $noWebsiteFilter
-            ? "Searching directories across " . count($locationsToSearch) . " locations..."
-            : "Searching " . count($locationsToSearch) . " locations with " . count($serviceVariants) . " service variants...",
-        'progress' => $noWebsiteFilter ? 50 : 1,
+        'message' => "Searching " . count($locationsToSearch) . " locations with " . count($serviceVariants) . " service variants ({$totalQueries} queries)...",
+        'progress' => $totalResults > 0 ? 55 : 1,
         'source' => 'Serper Organic',
         'locationCount' => count($locationsToSearch),
         'variantCount' => count($serviceVariants),
@@ -418,7 +520,6 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
     ]);
 
     // ⚡ PARALLEL ORGANIC SEARCH: Group queries by phase and fire in batches
-    // Group queries by phase for progress reporting
     $phaseGroups = [];
     foreach ($queries as $queryItem) {
         $phase = $queryItem['phase'];
@@ -436,6 +537,7 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
     $globalQueryIdx = 0;
 
     foreach ($phaseGroups as $phase => $phaseQueries) {
+        // NEVER short-circuit — always run ALL phases to maximize volume
         if ($totalResults >= $targetCount) break;
 
         $diagnostics['locationsSearched']++;
@@ -451,12 +553,12 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
         foreach ($batches as $batchIdx => $batch) {
             if ($totalResults >= $targetCount) break;
 
-            // Build payloads with num parameter
+            // Build payloads with num parameter — always request max results
             $payloads = [];
             foreach ($batch as $q) {
                 $payloads[] = [
                     'q' => $q,
-                    'num' => min(100, max(20, $targetCount - $totalResults)),
+                    'num' => 100,
                 ];
             }
 
