@@ -264,50 +264,10 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         'estimatedQueries' => $estimatedQueries
     ]);
 
-    $enrichmentLastPolled = 0;
-    $enrichmentLastId = 0;
-    $enrichmentLastTrigger = 0;
-    $enrichmentPollInterval = 0; // Poll every cycle for max speed
-    $enrichmentTriggerInterval = 4; // Re-trigger enrichment more frequently
-
-    if ($enableEnrichment && function_exists('triggerBackgroundEnrichmentProcessing')) {
-        triggerBackgroundEnrichmentProcessing($enrichmentSessionId);
-        $enrichmentLastTrigger = time();
-    }
-
-    $emitEnrichment = function () use (
-        &$enrichmentLastPolled,
-        &$enrichmentLastId,
-        &$enrichmentLastTrigger,
-        $enrichmentPollInterval,
-        $enrichmentTriggerInterval,
-        $enrichmentSessionId,
-        $enableEnrichment
-    ) {
-        if (!$enableEnrichment || empty($enrichmentSessionId)) {
-            return;
-        }
-
-        $now = time();
-        if (($now - $enrichmentLastPolled) < $enrichmentPollInterval) {
-            return;
-        }
-        $enrichmentLastPolled = $now;
-
-        if (function_exists('triggerBackgroundEnrichmentProcessing') && ($now - $enrichmentLastTrigger) >= $enrichmentTriggerInterval) {
-            $enrichmentLastTrigger = $now;
-            triggerBackgroundEnrichmentProcessing($enrichmentSessionId);
-        }
-
-        $completed = getCompletedEnrichments($enrichmentSessionId, $enrichmentLastId);
-        if (!empty($completed['results'])) {
-            sendSSE('enrichment', [
-                'results' => $completed['results'],
-                'processed' => count($completed['results'])
-            ]);
-        }
-        $enrichmentLastId = $completed['lastId'] ?? $enrichmentLastId;
-    };
+    // Enrichment plumbing removed — enrichment is permanently disabled.
+    // The $emitEnrichment closure is kept as a no-op so call-sites don't need
+    // to be touched (they are guarded by $enableEnrichment = false anyway).
+    $emitEnrichment = function () { /* no-op */ };
 
     // ---- PRIMARY SEARCH LOOP ----
     // ⚡ SPEED: Fire Places queries for ALL locations in parallel via curl_multi
@@ -427,6 +387,22 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         ]);
     }
 
+    // ---- SHORT-CIRCUIT: Skip remaining passes for small searches ----
+    if ($limit <= 100 && $totalResults >= $limit) {
+        sendSSE('complete', [
+            'total' => $totalResults,
+            'requested' => $limit,
+            'targetCount' => $targetCount,
+            'coverage' => round(($totalResults / max(1, $limit)) * 100, 2),
+            'sources' => ['Serper Places'],
+            'query' => ['service' => $service, 'location' => $location, 'limit' => $limit],
+            'searchedLocations' => $searchedLocations,
+            'enrichmentSessionId' => $enrichmentSessionId,
+            'enrichmentEnabled' => $enableEnrichment
+        ]);
+        return;
+    }
+
     // ---- MULTI-PAGE PLACES PAGINATION (Pages 2-5) ----
     // Serper Places supports pagination — fetch additional pages for more unique results
     $maxPlacesPages = 2;
@@ -485,10 +461,6 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                     $totalResults++;
                     $leadBuffer[] = $business;
 
-                    if ($enableEnrichment && !empty($business['url'])) {
-                        queueFirecrawlEnrichment($business['id'], $business['url'], $enrichmentSessionId, $enrichmentSearchType);
-                    }
-
                     if (count($leadBuffer) >= 25) {
                         $progress = min(100, round(($totalResults / max(1, $limit)) * 100));
                         sendSSE('results', [
@@ -511,8 +483,6 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
                     'source' => 'Serper Places (p' . $placesPage . ')'
                 ]);
             }
-
-            $emitEnrichment();
         }
     }
 
@@ -886,13 +856,7 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         }
     }
 
-    if ($enableEnrichment) {
-        $flushStart = time();
-        $flushSeconds = $limit >= 1000 ? 2 : 3; // Minimal flush — enrichment continues in background
-        while ((time() - $flushStart) < $flushSeconds) {
-            $emitEnrichment();
-            usleep(25000); // 25ms poll — maximum speed
-        }
+    // Enrichment flush removed — enrichment is permanently disabled.
     }
 
     sendSSE('complete', [
