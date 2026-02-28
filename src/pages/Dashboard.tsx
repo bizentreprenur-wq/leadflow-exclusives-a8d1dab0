@@ -325,6 +325,9 @@ export default function Dashboard() {
   const [outdatedOnly, setOutdatedOnly] = useState(() => {
     try { return localStorage.getItem('bamlead_filter_outdated') === 'true'; } catch { return false; }
   });
+  const [maxVolumeMode, setMaxVolumeMode] = useState(() => {
+    try { return localStorage.getItem('bamlead_filter_max_volume') === 'true'; } catch { return false; }
+  });
   const [phoneLeadsOnly, setPhoneLeadsOnly] = useState(() => {
     try { return localStorage.getItem('bamlead_filter_phone_only') === 'true'; } catch { return false; }
   });
@@ -334,8 +337,9 @@ export default function Dashboard() {
     localStorage.setItem('bamlead_filter_no_website', noWebsiteOnly.toString());
     localStorage.setItem('bamlead_filter_not_mobile', notMobileOnly.toString());
     localStorage.setItem('bamlead_filter_outdated', outdatedOnly.toString());
+    localStorage.setItem('bamlead_filter_max_volume', maxVolumeMode.toString());
     localStorage.setItem('bamlead_filter_phone_only', phoneLeadsOnly.toString());
-  }, [noWebsiteOnly, notMobileOnly, outdatedOnly, phoneLeadsOnly]);
+  }, [noWebsiteOnly, notMobileOnly, outdatedOnly, maxVolumeMode, phoneLeadsOnly]);
 
   // Ensure search type picker shows after a new login (token change)
   useEffect(() => {
@@ -972,6 +976,7 @@ export default function Dashboard() {
       noWebsite: optionBSearch ? noWebsiteOnly : false,
       notMobile: optionBSearch ? notMobileOnly : false,
       outdated: optionBSearch ? outdatedOnly : false,
+      maxVolume: optionBSearch ? maxVolumeMode : false,
       platforms: searchType === 'platform' ? selectedPlatforms : [],
       platformMode: searchType === 'platform',
     };
@@ -1544,6 +1549,7 @@ export default function Dashboard() {
     setNoWebsiteOnly(false);
     setNotMobileOnly(false);
     setOutdatedOnly(false);
+    setMaxVolumeMode(false);
     setPhoneLeadsOnly(false);
     
     // Clear restored indicator
@@ -2196,6 +2202,21 @@ export default function Dashboard() {
                           <div>
                             <span className="text-sm font-medium text-foreground">⚡ Needs website upgrade</span>
                             <p className="text-xs text-muted-foreground">Sites with outdated tech, no SSL, or legacy design</p>
+                          </div>
+                        </label>
+
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <Checkbox
+                            checked={maxVolumeMode}
+                            onCheckedChange={(checked) => {
+                              const on = checked === true;
+                              setMaxVolumeMode(on);
+                              if (on) { setNoWebsiteOnly(false); setNotMobileOnly(false); setOutdatedOnly(false); }
+                            }}
+                          />
+                          <div>
+                            <span className="text-sm font-medium text-foreground">🚀 Maximum volume</span>
+                            <p className="text-xs text-muted-foreground">Get every lead in this niche — no filtering, maximum results</p>
                           </div>
                         </label>
                       </div>
