@@ -1835,12 +1835,29 @@ function quickWebsiteCheck($url, $hintText = '') {
         $issues[] = 'Social-only web presence';
     }
     
+    // Estimate mobileScore from platform heuristics (no HTTP calls)
+    $estimatedMobile = null;
+    if ($platform !== null) {
+        $weakMobilePlatforms = ['joomla', 'drupal', 'opencart', 'prestashop', 'zencart', 'oscommerce', 'blogger'];
+        $mediumMobilePlatforms = ['wix', 'weebly', 'godaddy', 'wordpress.com', 'jimdo', 'facebook', 'instagram', 'tiktok', 'linktree'];
+        $goodMobilePlatforms = ['shopify', 'webflow', 'squarespace'];
+        if (in_array($platform, $weakMobilePlatforms, true)) {
+            $estimatedMobile = 35;
+        } elseif (in_array($platform, $mediumMobilePlatforms, true)) {
+            $estimatedMobile = 52;
+        } elseif (in_array($platform, $goodMobilePlatforms, true)) {
+            $estimatedMobile = 72;
+        } else {
+            $estimatedMobile = 55;
+        }
+    }
+
     return [
         'hasWebsite' => true,
         'platform' => $platform,
         'needsUpgrade' => $needsUpgrade,
         'issues' => $issues,
-        'mobileScore' => null,
+        'mobileScore' => $estimatedMobile,
         'loadTime' => null
     ];
 }
