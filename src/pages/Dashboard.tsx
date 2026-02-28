@@ -2528,6 +2528,7 @@ export default function Dashboard() {
         return (
           <SimpleLeadViewer
             leads={searchResults}
+            nicheQuery={query}
             onBack={() => setCurrentStep(1)}
             onProceedToEmail={(selectedLeadsToEmail) => {
               // Set selected leads if any

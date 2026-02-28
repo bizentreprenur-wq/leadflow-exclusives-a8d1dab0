@@ -138,6 +138,7 @@ interface SimpleLeadViewerProps {
   onRestoreVersion?: (version: LeadVersionSnapshot) => void;
   isSaving?: boolean;
   lastSavedAt?: string | null;
+  nicheQuery?: string;
 }
 
 interface SearchHistoryItem {
@@ -170,7 +171,11 @@ export default function SimpleLeadViewer({
   onRestoreVersion,
   isSaving = false,
   lastSavedAt,
+  nicheQuery = '',
 }: SimpleLeadViewerProps) {
+  const nicheSlug = nicheQuery.trim().replace(/\s+/g, '-') || 'leads';
+  const buildFilename = (prefix: string, ext: string) =>
+    `Bamlead-${nicheSlug}-${prefix}-${new Date().toISOString().split('T')[0]}.${ext}`;
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeFilter, setActiveFilter] = useState<'all' | 'hot' | 'warm' | 'cold' | 'ready' | 'nosite' | 'phoneOnly' | 'withEmail'>('all');
   const [showSaved, setShowSaved] = useState(false);
@@ -721,7 +726,7 @@ export default function SimpleLeadViewer({
     pdf.setTextColor(255, 255, 255);
     pdf.text(`Totals:   Hot: ${hotCount}   |   Warm: ${warmCount}   |   Cold: ${coldCount}   |   With Email: ${withEmail}   |   With Phone: ${withPhone}`, 20, totalsY + 9);
     
-    pdf.save(`bamlead-${category}-leads-${new Date().toISOString().split('T')[0]}.pdf`);
+    pdf.save(buildFilename(`${category}-Leads`, 'pdf'));
     toast.success(`Downloaded ${dataToExport.length} ${categoryLabel} as PDF`);
   };
 

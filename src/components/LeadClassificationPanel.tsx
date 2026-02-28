@@ -234,7 +234,7 @@ export default function LeadClassificationPanel({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${label}-leads-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `Bamlead-${label}-Leads-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success(`Exported ${leadsToExport.length} ${label} leads`);

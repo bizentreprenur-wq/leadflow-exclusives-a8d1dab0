@@ -133,6 +133,7 @@ interface EmbeddedSpreadsheetViewProps {
   onOpenEmailSettings?: () => void;
   isLoading?: boolean;
   loadingProgress?: number;
+  nicheQuery?: string;
 }
 
 export default function EmbeddedSpreadsheetView({
@@ -145,7 +146,11 @@ export default function EmbeddedSpreadsheetView({
   onOpenEmailSettings,
   isLoading = false,
   loadingProgress = 0,
+  nicheQuery = '',
 }: EmbeddedSpreadsheetViewProps) {
+  const nicheSlug = nicheQuery.trim().replace(/\s+/g, '-') || 'Leads';
+  const buildFilename = (suffix: string, ext: string) =>
+    `Bamlead-${nicheSlug}-${suffix}-${new Date().toISOString().split('T')[0]}.${ext}`;
   // Use external leads directly - no fake data generation
   const leads = externalLeads;
   // Initialize selectedIds from localStorage for session persistence
@@ -499,7 +504,7 @@ export default function EmbeddedSpreadsheetView({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `website-design-leads-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = buildFilename('Leads', 'csv');
     a.click();
     URL.revokeObjectURL(url);
     toast.success(`Exported ${dataToExport.length} leads as CSV`);
@@ -667,7 +672,7 @@ export default function EmbeddedSpreadsheetView({
       setPdfDataUrl(url);
       setShowPDFPreview(true);
     } else {
-      doc.save(`bamlead-leads-${new Date().toISOString().split('T')[0]}.pdf`);
+      doc.save(buildFilename('Leads', 'pdf'));
       toast.success(`Exported ${dataToExport.length} leads as PDF`);
     }
   };
