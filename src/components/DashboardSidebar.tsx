@@ -132,13 +132,14 @@ const generalTools = [
   },
 ];
 
-const resourceTools = [
+const resourceGuides = [
   {
     id: 'search-guide',
     title: 'Search Options Guide',
     icon: HelpCircle,
     description: 'Compare search methods',
     badge: 'Guide',
+    iconColor: 'text-blue-400',
   },
   {
     id: 'video-tutorials',
@@ -146,6 +147,7 @@ const resourceTools = [
     icon: Video,
     description: 'SMTP & campaign guides',
     badge: 'New',
+    iconColor: 'text-blue-400',
   },
   {
     id: 'user-manual',
@@ -153,6 +155,7 @@ const resourceTools = [
     icon: FileText,
     description: 'Download PDF guide',
     badge: 'PDF',
+    iconColor: 'text-blue-400',
   },
   {
     id: 'ai-journey',
@@ -160,12 +163,17 @@ const resourceTools = [
     icon: Brain,
     description: 'How AI works',
     badge: 'Learn',
+    iconColor: 'text-blue-400',
   },
+];
+
+const resourceSystem = [
   {
     id: 'scalability',
     title: 'System Status',
     icon: Server,
     description: 'Performance & scaling',
+    iconColor: 'text-orange-400',
   },
   {
     id: 'diagnostics',
@@ -173,6 +181,7 @@ const resourceTools = [
     icon: Wrench,
     description: 'Test all APIs',
     badge: 'Admin',
+    iconColor: 'text-orange-400',
   },
   {
     id: 'mentor',
@@ -180,24 +189,31 @@ const resourceTools = [
     icon: Bot,
     description: 'Practice & improve',
     badge: 'Exclusive',
+    iconColor: 'text-orange-400',
   },
+];
+
+const resourceCommunity = [
   {
     id: 'leaderboard',
     title: 'Leaderboard',
     icon: Trophy,
     description: 'Top affiliates',
+    iconColor: 'text-purple-400',
   },
   {
     id: 'affiliate',
     title: 'Affiliate Program',
     icon: Gift,
     description: 'Earn money',
+    iconColor: 'text-purple-400',
   },
   {
     id: 'extension',
     title: 'Chrome Extension',
     icon: Chrome,
     description: 'Prospect from any site',
+    iconColor: 'text-purple-400',
   },
 ];
 
@@ -423,22 +439,84 @@ export default function DashboardSidebar({ activeTab, onTabChange, onLogout }: D
 
         <SidebarSeparator />
 
-        {/* Resources */}
+        {/* Resources - Guides */}
         <SidebarGroup>
-          <SidebarGroupLabel>
-            <Sparkles className="w-3 h-3 mr-2" />
-            Resources
+          <SidebarGroupLabel className="text-blue-400">
+            <Sparkles className="w-3 h-3 mr-2 text-blue-400" />
+            Guides & Learning
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {resourceTools.map((tool) => (
+              {resourceGuides.map((tool) => (
                 <SidebarMenuItem key={tool.id}>
                   <SidebarMenuButton
                     isActive={activeTab === tool.id}
                     tooltip={tool.title}
                     onClick={() => onTabChange(tool.id)}
                   >
-                    <tool.icon className="w-4 h-4" />
+                    <tool.icon className={`w-4 h-4 ${tool.iconColor}`} />
+                    <span>{tool.title}</span>
+                    {'badge' in tool && tool.badge && (
+                      <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0 bg-blue-500/10 text-blue-400 border-blue-500/30">
+                        {tool.badge}
+                      </Badge>
+                    )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        {/* Resources - System & Tools */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-orange-400">
+            <Server className="w-3 h-3 mr-2 text-orange-400" />
+            System & Tools
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {resourceSystem.map((tool) => (
+                <SidebarMenuItem key={tool.id}>
+                  <SidebarMenuButton
+                    isActive={activeTab === tool.id}
+                    tooltip={tool.title}
+                    onClick={() => onTabChange(tool.id)}
+                  >
+                    <tool.icon className={`w-4 h-4 ${tool.iconColor}`} />
+                    <span>{tool.title}</span>
+                    {'badge' in tool && tool.badge && (
+                      <Badge variant="secondary" className="ml-auto text-[10px] px-1.5 py-0 bg-orange-500/10 text-orange-400 border-orange-500/30">
+                        {tool.badge}
+                      </Badge>
+                    )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarSeparator />
+
+        {/* Resources - Community & Extras */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="text-purple-400">
+            <Gift className="w-3 h-3 mr-2 text-purple-400" />
+            Community & Extras
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {resourceCommunity.map((tool) => (
+                <SidebarMenuItem key={tool.id}>
+                  <SidebarMenuButton
+                    isActive={activeTab === tool.id}
+                    tooltip={tool.title}
+                    onClick={() => onTabChange(tool.id)}
+                  >
+                    <tool.icon className={`w-4 h-4 ${tool.iconColor}`} />
                     <span>{tool.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
