@@ -1,41 +1,56 @@
 // BamLead Chrome Extension - Popup Script
-// Version 1.3.0 - All services in-browser, bulk import, CSV/PDF export, no external API calls
+// Version 2.0.0 - Auth + Search A/B + Email + CRM
+
+const BAMLEAD_API = 'https://bamlead.com/api';
+let _leadsPage = 0;
+const LEADS_PER_PAGE = 5;
+let _searchMode = 'a'; // 'a' = GMB, 'b' = Agency
+let _authToken = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    // Check auth
+    const auth = await chrome.runtime.sendMessage({ type: 'GET_AUTH' });
+    if (auth.authToken) {
+      _authToken = auth.authToken;
+      showApp(auth.userEmail);
+    } else {
+      showLogin();
+    }
 
-    // Update page URL display
+    // Tab navigation
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    // Search mode toggle
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchSearchMode(btn.dataset.mode));
+    });
+
+    // Login
+    const loginBtn = document.getElementById('loginBtn');
+    if (loginBtn) loginBtn.addEventListener('click', handleLogin);
+    const loginPassword = document.getElementById('loginPassword');
+    if (loginPassword) loginPassword.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleLogin(); });
+
+    // Logout
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
+
+    // Search
+    const searchBtn = document.getElementById('searchBtn');
+    if (searchBtn) searchBtn.addEventListener('click', handleSearch);
+
+    // Page info
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const pageUrl = document.getElementById('pageUrl');
     if (tab && tab.url) {
-      try {
-        const url = new URL(tab.url);
-        pageUrl.textContent = url.hostname + url.pathname;
-      } catch (e) {
-        pageUrl.textContent = tab.url.substring(0, 40) + '...';
-      }
-    } else {
-      pageUrl.textContent = 'No page detected';
+      try { pageUrl.textContent = new URL(tab.url).hostname + new URL(tab.url).pathname; }
+      catch(e) { pageUrl.textContent = tab.url.substring(0, 40) + '...'; }
     }
 
-    await loadStats();
-    await renderLeadsViewer();
-
-    // Detect browser and update store link
-    const storeLink = document.getElementById('storeLink');
-    if (storeLink) {
-      const ua = navigator.userAgent;
-      if (ua.includes('Edg/')) {
-        storeLink.href = 'https://microsoftedge.microsoft.com/addons/search/BamLead';
-        storeLink.textContent = '⭐ Rate on Edge Add-ons';
-      } else if (ua.includes('OPR/') || ua.includes('Opera')) {
-        storeLink.href = 'https://addons.opera.com/search/?query=BamLead';
-        storeLink.textContent = '⭐ Rate on Opera Add-ons';
-      } else {
-        storeLink.textContent = '⭐ Rate on Chrome Web Store';
-      }
-    }
-
+    // Extract actions
     const extractBtn = document.getElementById('extractBtn');
     const analyzeBtn = document.getElementById('analyzeBtn');
     const highlightBtn = document.getElementById('highlightBtn');
@@ -47,6 +62,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const leadsSearchInput = document.getElementById('leadsSearchInput');
     const prevPageBtn = document.getElementById('prevPageBtn');
     const nextPageBtn = document.getElementById('nextPageBtn');
+    const bulkUrlsInput = document.getElementById('bulkUrlsInput');
+    const bulkExtractBtn = document.getElementById('bulkExtractBtn');
 
     if (extractBtn) extractBtn.addEventListener('click', () => extractContactInfo(tab));
     if (analyzeBtn) analyzeBtn.addEventListener('click', () => analyzeWebsite(tab));
@@ -59,29 +76,346 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (leadsSearchInput) leadsSearchInput.addEventListener('input', () => renderLeadsViewer());
     if (prevPageBtn) prevPageBtn.addEventListener('click', () => { _leadsPage--; renderLeadsViewer(); });
     if (nextPageBtn) nextPageBtn.addEventListener('click', () => { _leadsPage++; renderLeadsViewer(); });
-
-    // Bulk import
-    const bulkUrlsInput = document.getElementById('bulkUrlsInput');
-    const bulkExtractBtn = document.getElementById('bulkExtractBtn');
     if (bulkUrlsInput) bulkUrlsInput.addEventListener('input', updateBulkCount);
     if (bulkExtractBtn) bulkExtractBtn.addEventListener('click', bulkExtract);
 
-    // Lead Search
-    const searchLeadsBtn = document.getElementById('searchLeadsBtn');
-    if (searchLeadsBtn) searchLeadsBtn.addEventListener('click', searchForLeads);
+    // Email
+    const sendEmailBtn = document.getElementById('sendEmailBtn');
+    if (sendEmailBtn) sendEmailBtn.addEventListener('click', handleSendEmail);
+    const quickEmailBtn = document.getElementById('quickEmailBtn');
+    if (quickEmailBtn) quickEmailBtn.addEventListener('click', handleQuickEmail);
 
-    // Disable on chrome:// pages
-    if (tab && tab.url && (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:') || tab.url.startsWith('brave://') || tab.url.startsWith('opera://'))) {
-      showToast('Cannot access browser internal pages');
+    // CRM
+    document.getElementById('pushGoogleSheets')?.addEventListener('click', () => pushToCRM('google-sheets'));
+    document.getElementById('pushHubspot')?.addEventListener('click', () => pushToCRM('hubspot'));
+    document.getElementById('pushSalesforce')?.addEventListener('click', () => pushToCRM('salesforce'));
+
+    // Browser store link
+    const storeLink = document.getElementById('storeLink');
+    if (storeLink) {
+      const ua = navigator.userAgent;
+      if (ua.includes('Edg/')) { storeLink.href = 'https://microsoftedge.microsoft.com/addons/search/BamLead'; storeLink.textContent = '⭐ Edge'; }
+      else if (ua.includes('OPR/')) { storeLink.href = 'https://addons.opera.com/search/?query=BamLead'; storeLink.textContent = '⭐ Opera'; }
+    }
+
+    // Disable on internal pages
+    if (tab?.url?.match(/^(chrome|edge|brave|opera|about|chrome-extension):\/\//)) {
       if (extractBtn) extractBtn.disabled = true;
       if (analyzeBtn) analyzeBtn.disabled = true;
       if (highlightBtn) highlightBtn.disabled = true;
     }
+
+    await loadStats();
+    await renderLeadsViewer();
   } catch (error) {
     console.error('Popup init error:', error);
-    showToast('Extension error - please reload');
+    showToast('Extension error - reload');
   }
 });
+
+// ─── Auth ────────────────────────────────────────────────
+
+function showLogin() {
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('mainApp').style.display = 'none';
+}
+
+function showApp(email) {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'flex';
+  const authDot = document.querySelector('.auth-dot');
+  const authEmail = document.getElementById('authEmail');
+  if (authDot) { authDot.classList.remove('offline'); authDot.classList.add('online'); }
+  if (authEmail) authEmail.textContent = email || 'Connected';
+}
+
+async function handleLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errorEl = document.getElementById('loginError');
+  const btn = document.getElementById('loginBtn');
+
+  if (!email || !password) { errorEl.textContent = 'Enter email and password'; errorEl.style.display = 'block'; return; }
+
+  btn.classList.add('loading');
+  btn.innerHTML = '<span class="btn-icon">⏳</span> Signing in...';
+  errorEl.style.display = 'none';
+
+  try {
+    const result = await chrome.runtime.sendMessage({ type: 'LOGIN', email, password });
+    if (result.success) {
+      _authToken = (await chrome.runtime.sendMessage({ type: 'GET_AUTH' })).authToken;
+      showApp(email);
+      showToast('✅ Logged in!');
+    } else {
+      errorEl.textContent = result.error || 'Login failed';
+      errorEl.style.display = 'block';
+    }
+  } catch (e) {
+    errorEl.textContent = 'Connection error. Is bamlead.com reachable?';
+    errorEl.style.display = 'block';
+  }
+
+  btn.classList.remove('loading');
+  btn.innerHTML = '<span class="btn-icon">🚀</span> Sign In';
+}
+
+async function handleLogout() {
+  await chrome.runtime.sendMessage({ type: 'LOGOUT' });
+  _authToken = null;
+  showLogin();
+  showToast('Logged out');
+}
+
+// ─── Tabs ────────────────────────────────────────────────
+
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tabId));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tabId));
+}
+
+function switchSearchMode(mode) {
+  _searchMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  document.getElementById('optionBFilters').style.display = mode === 'b' ? 'flex' : 'none';
+}
+
+// ─── Search ──────────────────────────────────────────────
+
+async function handleSearch() {
+  const service = document.getElementById('searchService').value.trim();
+  const location = document.getElementById('searchLocation').value.trim();
+  const limit = parseInt(document.getElementById('searchLimit').value, 10);
+  const btn = document.getElementById('searchBtn');
+  const statusEl = document.getElementById('searchStatus');
+  const progressFill = document.getElementById('searchProgressFill');
+  const progressText = document.getElementById('searchProgressText');
+  const resultsEl = document.getElementById('searchResults');
+
+  if (!service || !location) { showToast('Enter service and location'); return; }
+
+  btn.classList.add('loading');
+  btn.innerHTML = '<span class="btn-icon">⏳</span> Searching...';
+  statusEl.style.display = 'flex';
+  resultsEl.style.display = 'none';
+  progressFill.style.width = '0%';
+  progressText.textContent = 'Connecting...';
+
+  const allResults = [];
+  const endpoint = _searchMode === 'a' ? '/gmb-search-stream.php' : '/platform-search-stream.php';
+
+  // Build filters for Option B
+  const filters = {};
+  if (_searchMode === 'b') {
+    if (document.getElementById('filterNoWebsite')?.checked) filters.noWebsite = true;
+    if (document.getElementById('filterNeedsUpgrade')?.checked) filters.needsUpgrade = true;
+    if (document.getElementById('filterWeakMobile')?.checked) filters.weakMobile = true;
+  }
+
+  try {
+    const params = new URLSearchParams({ service, location, limit: limit.toString() });
+    Object.keys(filters).forEach(k => params.append(k, '1'));
+
+    const response = await fetch(BAMLEAD_API + endpoint + '?' + params.toString(), {
+      headers: {
+        'Accept': 'text/event-stream',
+        'Authorization': 'Bearer ' + _authToken
+      }
+    });
+
+    if (!response.ok) throw new Error('Search failed (' + response.status + ')');
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const event = JSON.parse(line.substring(6));
+          if (event.type === 'results' && event.leads) {
+            for (const lead of event.leads) {
+              if (!allResults.find(r => r.name === lead.name && r.phone === lead.phone)) {
+                allResults.push(lead);
+              }
+            }
+            progressFill.style.width = Math.min(95, Math.round((allResults.length / limit) * 100)) + '%';
+            progressText.textContent = allResults.length + ' leads...';
+          } else if (event.type === 'complete') {
+            progressFill.style.width = '100%';
+            progressText.textContent = 'Done!';
+          } else if (event.type === 'status') {
+            progressText.textContent = event.message || 'Searching...';
+          }
+        } catch(e) {}
+      }
+    }
+
+    // Save results
+    if (allResults.length > 0) {
+      const storage = await chrome.storage.local.get(['savedLeads', 'leadsCount', 'todayCount']);
+      const savedLeads = storage.savedLeads || [];
+      let leadsCount = storage.leadsCount || 0;
+      let todayCount = storage.todayCount || 0;
+
+      for (const lead of allResults) {
+        savedLeads.push({
+          companyName: lead.name || lead.businessName || '',
+          url: lead.website || '', website: lead.website || '',
+          emails: lead.email ? [lead.email] : [],
+          phones: lead.phone ? [lead.phone] : [],
+          address: lead.address || '',
+          rating: lead.rating, reviews: lead.reviews,
+          socialLinks: [], savedAt: new Date().toISOString(),
+          source: _searchMode === 'a' ? 'search-a' : 'search-b'
+        });
+        leadsCount++; todayCount++;
+      }
+      await chrome.storage.local.set({ savedLeads, leadsCount, todayCount });
+      await loadStats();
+      await renderLeadsViewer();
+    }
+
+    // Show results summary
+    resultsEl.style.display = 'block';
+    if (allResults.length === 0) {
+      resultsEl.innerHTML = '<div class="no-results">No leads found. Try different terms.</div>';
+    } else {
+      const top = allResults.slice(0, 15);
+      resultsEl.innerHTML = `
+        <div class="results-header">✅ ${allResults.length} leads found & saved!</div>
+        ${top.map(r => `
+          <div class="result-row">
+            <div class="result-info">
+              <span class="result-name">${esc(r.name || 'Unknown')}</span>
+              <span class="result-detail">${esc(r.phone || r.email || r.address || '')}</span>
+            </div>
+            ${r.email ? `<button class="mini-email-btn" onclick="prefillEmail('${esc(r.email)}', '${esc(r.name || '')}')">✉️</button>` : ''}
+          </div>
+        `).join('')}
+        ${allResults.length > 15 ? `<div class="results-more">+ ${allResults.length - 15} more in Leads tab</div>` : ''}
+      `;
+    }
+
+    showToast(`🎯 ${allResults.length} leads found!`);
+  } catch (error) {
+    resultsEl.style.display = 'block';
+    resultsEl.innerHTML = `<div class="no-results error">❌ ${error.message}</div>`;
+  }
+
+  btn.classList.remove('loading');
+  btn.innerHTML = '<span class="btn-icon">🚀</span> Search';
+  setTimeout(() => { statusEl.style.display = 'none'; }, 3000);
+}
+
+// ─── Email Outreach ──────────────────────────────────────
+
+function prefillEmail(email, name) {
+  switchTab('tools');
+  document.getElementById('emailTo').value = email;
+  document.getElementById('emailSubject').value = `Quick question for ${name}`;
+  document.getElementById('emailBody').focus();
+}
+
+function handleQuickEmail() {
+  const dataList = document.getElementById('dataList');
+  if (!dataList) return;
+  const emailEl = dataList.querySelector('[data-type="email"]');
+  if (emailEl) {
+    const email = emailEl.dataset.value;
+    prefillEmail(email, '');
+  } else {
+    showToast('No email found to send to');
+  }
+}
+
+async function handleSendEmail() {
+  const to = document.getElementById('emailTo').value.trim();
+  const subject = document.getElementById('emailSubject').value.trim();
+  const body = document.getElementById('emailBody').value.trim();
+  const btn = document.getElementById('sendEmailBtn');
+
+  if (!to || !subject || !body) { showToast('Fill in all fields'); return; }
+
+  btn.classList.add('loading');
+  btn.innerHTML = '<span class="btn-icon">⏳</span> Sending...';
+
+  try {
+    const response = await fetch(BAMLEAD_API + '/email-outreach.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _authToken },
+      body: JSON.stringify({
+        action: 'send_single',
+        to: to,
+        subject: subject,
+        body: body
+      })
+    });
+    const data = await response.json();
+    if (data.success || data.sent) {
+      showToast('✅ Email sent!');
+      document.getElementById('emailBody').value = '';
+    } else {
+      showToast('❌ ' + (data.error || 'Send failed'));
+    }
+  } catch (e) {
+    showToast('❌ Network error');
+  }
+
+  btn.classList.remove('loading');
+  btn.innerHTML = '<span class="btn-icon">📤</span> Send via BamLead';
+}
+
+// ─── CRM Push ────────────────────────────────────────────
+
+async function pushToCRM(platform) {
+  const statusEl = document.getElementById('crmStatus');
+  statusEl.style.display = 'block';
+  statusEl.textContent = 'Preparing...';
+
+  const storage = await chrome.storage.local.get(['savedLeads']);
+  const leads = storage.savedLeads || [];
+
+  if (leads.length === 0) {
+    statusEl.innerHTML = '<span class="crm-error">No leads to push. Search or extract first.</span>';
+    return;
+  }
+
+  if (platform === 'google-sheets') {
+    // Open Google Drive export in dashboard
+    const leadsJson = encodeURIComponent(JSON.stringify(leads.slice(0, 200)));
+    window.open('https://bamlead.com/dashboard?action=export-sheets&leads=' + leadsJson.substring(0, 2000), '_blank');
+    statusEl.innerHTML = '<span class="crm-success">✅ Opening Google Sheets export...</span>';
+  } else if (platform === 'hubspot' || platform === 'salesforce') {
+    try {
+      const response = await fetch(BAMLEAD_API + '/crm-oauth.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _authToken },
+        body: JSON.stringify({ action: 'push_leads', platform, leads: leads.slice(0, 100) })
+      });
+      const data = await response.json();
+      if (data.success) {
+        statusEl.innerHTML = `<span class="crm-success">✅ ${data.count || leads.length} leads pushed to ${platform}!</span>`;
+      } else if (data.authUrl) {
+        window.open(data.authUrl, '_blank');
+        statusEl.innerHTML = '<span class="crm-info">🔗 Connect your CRM in the new tab, then try again.</span>';
+      } else {
+        statusEl.innerHTML = `<span class="crm-error">❌ ${data.error || 'Push failed'}</span>`;
+      }
+    } catch (e) {
+      statusEl.innerHTML = '<span class="crm-error">❌ Network error</span>';
+    }
+  }
+
+  setTimeout(() => { statusEl.style.display = 'none'; }, 5000);
+}
 
 // ─── Stats ───────────────────────────────────────────────
 
@@ -89,55 +423,40 @@ async function loadStats() {
   try {
     const stats = await chrome.storage.local.get(['leadsCount', 'todayCount', 'lastDate']);
     const today = new Date().toDateString();
-
     if (stats.lastDate !== today) {
       await chrome.storage.local.set({ todayCount: 0, lastDate: today });
       stats.todayCount = 0;
     }
-
-    const leadsCountEl = document.getElementById('leadsCount');
-    const totalLeadsCountEl = document.getElementById('totalLeadsCount');
-    const todayCountEl = document.getElementById('todayCount');
-
-    if (leadsCountEl) leadsCountEl.textContent = stats.leadsCount || 0;
-    if (totalLeadsCountEl) totalLeadsCountEl.textContent = stats.leadsCount || 0;
-    if (todayCountEl) todayCountEl.textContent = stats.todayCount || 0;
-  } catch (error) {
-    console.error('Load stats error:', error);
-  }
+    const el1 = document.getElementById('leadsCount');
+    const el2 = document.getElementById('totalLeadsCount');
+    const el3 = document.getElementById('todayCount');
+    if (el1) el1.textContent = stats.leadsCount || 0;
+    if (el2) el2.textContent = stats.leadsCount || 0;
+    if (el3) el3.textContent = stats.todayCount || 0;
+  } catch (e) {}
 }
 
-// ─── Saved Leads Viewer ─────────────────────────────────
-
-let _leadsPage = 0;
-const LEADS_PER_PAGE = 5;
+// ─── Leads Viewer ────────────────────────────────────────
 
 async function renderLeadsViewer() {
   const viewer = document.getElementById('leadsViewer');
-  const emptyEl = document.getElementById('leadsEmpty');
   const pagination = document.getElementById('leadsPagination');
   const searchInput = document.getElementById('leadsSearchInput');
   const query = (searchInput?.value || '').toLowerCase().trim();
 
   const storage = await chrome.storage.local.get(['savedLeads']);
-  let leads = (storage.savedLeads || []).slice().reverse(); // newest first
+  let leads = (storage.savedLeads || []).slice().reverse();
 
-  // Filter
   if (query) {
     leads = leads.filter(l => {
-      const text = [
-        l.companyName, l.title, l.url, l.website,
-        ...(l.emails || []), ...(l.phones || []),
-        l.address, l.analysis?.platform
-      ].filter(Boolean).join(' ').toLowerCase();
+      const text = [l.companyName, l.title, l.url, l.website, ...(l.emails||[]), ...(l.phones||[]), l.address].filter(Boolean).join(' ').toLowerCase();
       return text.includes(query);
     });
   }
 
   viewer.innerHTML = '';
-
   if (leads.length === 0) {
-    viewer.innerHTML = `<div class="leads-empty">${query ? 'No leads match your search' : 'No leads saved yet'}</div>`;
+    viewer.innerHTML = `<div class="leads-empty">${query ? 'No matches' : 'No leads yet'}</div>`;
     pagination.style.display = 'none';
     return;
   }
@@ -148,45 +467,38 @@ async function renderLeadsViewer() {
   const pageLeads = leads.slice(start, start + LEADS_PER_PAGE);
 
   pageLeads.forEach((lead, idx) => {
-    const globalIdx = leads.length - 1 - (start + idx); // reverse index back to original
     const card = document.createElement('div');
     card.className = 'lead-card';
-    const name = lead.companyName || lead.title || new URL(lead.url || lead.website || 'https://unknown').hostname;
+    const name = lead.companyName || lead.title || 'Unknown';
     const date = lead.savedAt ? new Date(lead.savedAt).toLocaleDateString() : '';
     const emails = (lead.emails || []).slice(0, 2);
     const phones = (lead.phones || []).slice(0, 1);
+    const source = lead.source === 'search-a' ? '🗺️' : lead.source === 'search-b' ? '🏢' : '🔍';
 
     card.innerHTML = `
       <div class="lead-card-header">
-        <span class="lead-card-name" title="${esc(name)}">${esc(name)}</span>
+        <span class="lead-card-name" title="${esc(name)}">${source} ${esc(name)}</span>
         <span class="lead-card-date">${date}</span>
       </div>
       <div class="lead-card-details">
         ${emails.map(e => `<span class="lead-card-tag">✉️ ${esc(e)}</span>`).join('')}
         ${phones.map(p => `<span class="lead-card-tag">📞 ${esc(p)}</span>`).join('')}
-        ${lead.analysis?.platform ? `<span class="lead-card-tag">🖥️ ${esc(lead.analysis.platform)}</span>` : ''}
       </div>
       <div class="lead-card-expanded">
-        ${lead.url ? `<div class="lead-detail-row"><span>URL</span><span class="val" title="${esc(lead.url)}">${esc(lead.url)}</span></div>` : ''}
+        ${lead.url ? `<div class="lead-detail-row"><span>URL</span><span class="val">${esc(lead.url)}</span></div>` : ''}
         ${lead.address ? `<div class="lead-detail-row"><span>Address</span><span class="val">${esc(lead.address)}</span></div>` : ''}
-        ${(lead.socialLinks || []).map(s => `<div class="lead-detail-row"><span>${esc(s.platform || 'Social')}</span><span class="val">${esc(s.url)}</span></div>`).join('')}
-        ${lead.analysis?.seoScore != null ? `<div class="lead-detail-row"><span>SEO</span><span class="val">${lead.analysis.seoScore}/100</span></div>` : ''}
+        ${lead.rating ? `<div class="lead-detail-row"><span>Rating</span><span class="val">⭐ ${lead.rating}</span></div>` : ''}
         <div class="lead-card-actions">
           <button onclick="copyLeadData(${start + idx})">📋 Copy</button>
-          <button class="delete-btn" onclick="deleteLead(${start + idx})">🗑️ Delete</button>
+          ${emails.length ? `<button class="email-action" onclick="prefillEmail('${esc(emails[0])}', '${esc(name)}')">✉️ Email</button>` : ''}
+          <button class="delete-btn" onclick="deleteLead(${start + idx})">🗑️</button>
         </div>
       </div>
     `;
-
-    card.addEventListener('click', (e) => {
-      if (e.target.tagName === 'BUTTON') return;
-      card.classList.toggle('expanded');
-    });
-
+    card.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') return; card.classList.toggle('expanded'); });
     viewer.appendChild(card);
   });
 
-  // Pagination
   if (totalPages > 1) {
     pagination.style.display = 'flex';
     document.getElementById('pageInfo2').textContent = `${_leadsPage + 1}/${totalPages}`;
@@ -202,15 +514,9 @@ async function copyLeadData(reversedIdx) {
   const leads = (storage.savedLeads || []).slice().reverse();
   const lead = leads[reversedIdx];
   if (!lead) return;
-  const text = [
-    lead.companyName || lead.title,
-    lead.url || lead.website,
-    ...(lead.emails || []),
-    ...(lead.phones || []),
-    lead.address
-  ].filter(Boolean).join('\n');
+  const text = [lead.companyName || lead.title, lead.url || lead.website, ...(lead.emails || []), ...(lead.phones || []), lead.address].filter(Boolean).join('\n');
   navigator.clipboard.writeText(text);
-  showToast('Lead copied to clipboard');
+  showToast('Copied!');
 }
 
 async function deleteLead(reversedIdx) {
@@ -220,725 +526,229 @@ async function deleteLead(reversedIdx) {
   const restored = leads.reverse();
   const newCount = Math.max((storage.leadsCount || 1) - 1, 0);
   await chrome.storage.local.set({ savedLeads: restored, leadsCount: newCount });
-  document.getElementById('leadsCount').textContent = newCount;
-  const totalEl = document.getElementById('totalLeadsCount');
-  if (totalEl) totalEl.textContent = newCount;
+  const el = document.getElementById('leadsCount'); if (el) el.textContent = newCount;
+  const el2 = document.getElementById('totalLeadsCount'); if (el2) el2.textContent = newCount;
   await renderLeadsViewer();
-  showToast('Lead deleted');
+  showToast('Deleted');
 }
 
-// ─── Lead Search (searches BamLead API) ─────────────────
-
-const BAMLEAD_API = 'https://bamlead.com/api';
-
-async function searchForLeads() {
-  const serviceInput = document.getElementById('searchService');
-  const locationInput = document.getElementById('searchLocation');
-  const noWebsiteCheckbox = document.getElementById('searchNoWebsite');
-  const limitSelect = document.getElementById('searchLimit');
-  const btn = document.getElementById('searchLeadsBtn');
-  const statusEl = document.getElementById('searchStatus');
-  const progressFill = document.getElementById('searchProgressFill');
-  const progressText = document.getElementById('searchProgressText');
-  const summaryEl = document.getElementById('searchResultsSummary');
-
-  const service = (serviceInput?.value || '').trim();
-  const location = (locationInput?.value || '').trim();
-  const noWebsite = noWebsiteCheckbox?.checked || false;
-  const limit = parseInt(limitSelect?.value || '100', 10);
-
-  if (!service || !location) {
-    showToast('Enter both service and location');
-    return;
-  }
-
-  btn.classList.add('loading');
-  btn.innerHTML = '<span class="btn-icon">⏳</span> Searching...';
-  statusEl.style.display = 'flex';
-  summaryEl.style.display = 'none';
-  progressFill.style.width = '0%';
-  progressText.textContent = 'Connecting...';
-
-  const allResults = [];
-
-  try {
-    // Use SSE streaming endpoint
-    const params = new URLSearchParams({
-      service: service,
-      location: location,
-      limit: limit.toString()
-    });
-    if (noWebsite) params.append('noWebsite', '1');
-
-    const response = await fetch(`${BAMLEAD_API}/platform-search-stream.php?${params.toString()}`, {
-      method: 'GET',
-      headers: { 'Accept': 'text/event-stream' }
-    });
-
-    if (!response.ok) {
-      // Fallback to POST
-      const postResponse = await fetch(`${BAMLEAD_API}/platform-search.php`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          service,
-          location,
-          platforms: [],
-          limit,
-          filters: noWebsite ? { noWebsite: true } : {}
-        })
-      });
-      const json = await postResponse.json();
-      if (json.leads) allResults.push(...json.leads);
-    } else {
-      // Parse SSE stream
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
-          try {
-            const event = JSON.parse(line.substring(6));
-            if (event.type === 'results' && event.leads) {
-              for (const lead of event.leads) {
-                if (!allResults.find(r => r.name === lead.name && r.phone === lead.phone)) {
-                  allResults.push(lead);
-                }
-              }
-              const pct = Math.min(95, Math.round((allResults.length / limit) * 100));
-              progressFill.style.width = pct + '%';
-              progressText.textContent = allResults.length + ' leads found...';
-            } else if (event.type === 'complete') {
-              progressFill.style.width = '100%';
-              progressText.textContent = 'Complete!';
-            } else if (event.type === 'status') {
-              progressText.textContent = event.message || 'Searching...';
-            }
-          } catch (e) { /* skip malformed */ }
-        }
-      }
-    }
-
-    // Display results
-    if (allResults.length === 0) {
-      summaryEl.style.display = 'block';
-      summaryEl.innerHTML = '<div style="text-align:center;color:#f59e0b;padding:12px;">No leads found. Try a different service or location.</div>';
-    } else {
-      // Save all to storage automatically
-      const storage = await chrome.storage.local.get(['savedLeads', 'leadsCount', 'todayCount']);
-      const savedLeads = storage.savedLeads || [];
-      let leadsCount = storage.leadsCount || 0;
-      let todayCount = storage.todayCount || 0;
-
-      for (const lead of allResults) {
-        savedLeads.push({
-          companyName: lead.name || lead.businessName || '',
-          url: lead.website || '',
-          website: lead.website || '',
-          emails: lead.email ? [lead.email] : [],
-          phones: lead.phone ? [lead.phone] : [],
-          address: lead.address || '',
-          socialLinks: [],
-          savedAt: new Date().toISOString(),
-          source: 'bamlead-search'
-        });
-        leadsCount++;
-        todayCount++;
-      }
-
-      await chrome.storage.local.set({ savedLeads, leadsCount, todayCount });
-      await loadStats();
-      await renderLeadsViewer();
-
-      // Show summary
-      summaryEl.style.display = 'block';
-      const topResults = allResults.slice(0, 20);
-      summaryEl.innerHTML = `
-        <div class="search-results-header">✅ ${allResults.length} leads saved!</div>
-        ${topResults.map((r, i) => `
-          <div class="search-result-item">
-            <div>
-              <div class="search-result-name">${esc(r.name || r.businessName || 'Unknown')}</div>
-              <div class="search-result-contact">${esc(r.phone || r.email || r.address || '')}</div>
-            </div>
-          </div>
-        `).join('')}
-        ${allResults.length > 20 ? `<div style="text-align:center;color:#64748b;padding:6px;font-size:11px;">+ ${allResults.length - 20} more in Saved Leads</div>` : ''}
-      `;
-
-      showToast(`🎯 ${allResults.length} leads found & saved!`);
-    }
-  } catch (error) {
-    console.error('Search error:', error);
-    summaryEl.style.display = 'block';
-    summaryEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:12px;">Search failed: ${error.message}. Try again or use <a href="https://bamlead.com/dashboard" target="_blank" style="color:#14b8a6;">the dashboard</a>.</div>`;
-  }
-
-  btn.classList.remove('loading');
-  btn.innerHTML = '<span class="btn-icon">🚀</span> Search Leads';
-  setTimeout(() => { statusEl.style.display = 'none'; }, 2000);
-}
-
-// ─── Extract Contact Info (runs in page context) ────────
+// ─── Extract ─────────────────────────────────────────────
 
 async function extractContactInfo(tab) {
   const btn = document.getElementById('extractBtn');
   btn.classList.add('loading');
   btn.innerHTML = '<span class="btn-icon">⏳</span> Extracting...';
-
   try {
-    const results = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: _scrapeContacts
-    });
-
+    const results = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: _scrapeContacts });
     const data = results[0].result;
     displayExtractedData(data);
-    showToast('Contact info extracted!');
-  } catch (error) {
-    console.error('Extraction error:', error);
-    showToast('Could not extract data from this page');
+    showToast('Contacts extracted!');
+  } catch (e) {
+    showToast('Cannot extract from this page');
   }
-
   btn.classList.remove('loading');
   btn.innerHTML = '<span class="btn-icon">🔍</span> Extract Contacts';
 }
 
-// Injected into the page — extracts emails, phones, socials, company name, address
 function _scrapeContacts() {
-  const data = {
-    emails: [],
-    phones: [],
-    socialLinks: [],
-    companyName: '',
-    website: window.location.href,
-    pageTitle: document.title
-  };
-
+  const data = { emails: [], phones: [], socialLinks: [], companyName: '', website: window.location.href, pageTitle: document.title };
   const bodyText = document.body.innerText;
   const html = document.body.innerHTML;
-
-  // Emails
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-  const emails = bodyText.match(emailRegex) || [];
-  data.emails = [...new Set(emails)]
-    .filter(e => !e.includes('.png') && !e.includes('.jpg') && !e.includes('.gif'))
-    .slice(0, 10);
-
-  // Phone numbers (US / international)
+  data.emails = [...new Set(bodyText.match(emailRegex) || [])].filter(e => !e.match(/\.(png|jpg|gif)$/i)).slice(0, 10);
   const phoneRegex = /(?:\+?1[-.\s]?)?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}/g;
-  const phones = bodyText.match(phoneRegex) || [];
-  data.phones = [...new Set(phones)].slice(0, 5);
-
-  // Social media links
-  const socialPatterns = {
-    linkedin: /https?:\/\/(www\.)?linkedin\.com\/(?:company|in)\/[^\s"'<>)]+/gi,
-    twitter: /https?:\/\/(www\.)?(twitter|x)\.com\/[^\s"'<>)]+/gi,
-    facebook: /https?:\/\/(www\.)?facebook\.com\/[^\s"'<>)]+/gi,
-    instagram: /https?:\/\/(www\.)?instagram\.com\/[^\s"'<>)]+/gi
-  };
-
-  Object.entries(socialPatterns).forEach(([platform, pattern]) => {
-    const matches = html.match(pattern) || [];
-    matches.slice(0, 2).forEach(url => {
-      data.socialLinks.push({ platform, url: url.replace(/[)"'].*$/, '') });
-    });
-  });
-
-  // Company name
+  data.phones = [...new Set(bodyText.match(phoneRegex) || [])].slice(0, 5);
+  const socialPatterns = { linkedin: /https?:\/\/(www\.)?linkedin\.com\/(?:company|in)\/[^\s"'<>)]+/gi, twitter: /https?:\/\/(www\.)?(twitter|x)\.com\/[^\s"'<>)]+/gi, facebook: /https?:\/\/(www\.)?facebook\.com\/[^\s"'<>)]+/gi, instagram: /https?:\/\/(www\.)?instagram\.com\/[^\s"'<>)]+/gi };
+  Object.entries(socialPatterns).forEach(([platform, pattern]) => { (html.match(pattern) || []).slice(0, 2).forEach(url => { data.socialLinks.push({ platform, url: url.replace(/[)"'].*$/, '') }); }); });
   const ogSiteName = document.querySelector('meta[property="og:site_name"]');
-  const ogTitle = document.querySelector('meta[property="og:title"]');
-  const schemaOrg = document.querySelector('script[type="application/ld+json"]');
-
-  if (ogSiteName) {
-    data.companyName = ogSiteName.content;
-  } else if (ogTitle) {
-    data.companyName = ogTitle.content.split('|')[0].split('-')[0].trim();
-  } else if (schemaOrg) {
-    try {
-      const schema = JSON.parse(schemaOrg.textContent);
-      data.companyName = schema.name || schema.organization?.name || '';
-    } catch (e) { /* ignore */ }
-  } else {
-    data.companyName = document.title.split('|')[0].split('-')[0].trim();
-  }
-
-  // Address
-  const addressPattern = /\d{1,5}\s[\w\s]+(?:street|st|avenue|ave|road|rd|boulevard|blvd|drive|dr|lane|ln|way|court|ct)[,.\s]+[\w\s]+,?\s*[A-Z]{2}\s*\d{5}/gi;
-  const addrMatches = bodyText.match(addressPattern);
-  if (addrMatches && addrMatches.length > 0) {
-    data.address = addrMatches[0];
-  }
-
+  data.companyName = ogSiteName ? ogSiteName.content : document.title.split('|')[0].split('-')[0].trim();
+  const addrMatches = bodyText.match(/\d{1,5}\s[\w\s]+(?:street|st|avenue|ave|road|rd|boulevard|blvd|drive|dr|lane|ln|way|court|ct)[,.\s]+[\w\s]+,?\s*[A-Z]{2}\s*\d{5}/gi);
+  if (addrMatches) data.address = addrMatches[0];
   return data;
 }
 
-// ─── Analyze Website (runs in page context) ─────────────
+function displayExtractedData(data) {
+  const section = document.getElementById('dataSection');
+  const list = document.getElementById('dataList');
+  const quickEmailBtn = document.getElementById('quickEmailBtn');
+  section.style.display = 'block';
+  list.innerHTML = '';
+
+  const items = [];
+  if (data.companyName) items.push({ label: 'Company', value: data.companyName });
+  if (data.website) items.push({ label: 'Website', value: data.website });
+  data.emails.forEach(e => items.push({ label: '✉️ Email', value: e, type: 'email' }));
+  data.phones.forEach(p => items.push({ label: '📞 Phone', value: p }));
+  data.socialLinks.forEach(s => items.push({ label: '🔗 ' + s.platform, value: s.url }));
+  if (data.address) items.push({ label: '📍 Address', value: data.address });
+
+  items.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'data-item';
+    el.innerHTML = `<span class="data-label">${item.label}</span><span class="data-value" title="${esc(item.value)}">${esc(item.value)}</span>`;
+    if (item.type) { el.dataset.type = item.type; el.dataset.value = item.value; }
+    el.addEventListener('click', () => { navigator.clipboard.writeText(item.value); showToast('Copied!'); });
+    list.appendChild(el);
+  });
+
+  if (data.emails.length > 0 && quickEmailBtn) quickEmailBtn.style.display = 'flex';
+}
+
+// ─── Analyze ─────────────────────────────────────────────
 
 async function analyzeWebsite(tab) {
   const btn = document.getElementById('analyzeBtn');
   btn.classList.add('loading');
   btn.innerHTML = '<span class="btn-icon">⏳</span> Analyzing...';
-
   try {
-    const results = await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: _analyzePageInBrowser
-    });
-
+    const results = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: _analyzePageInBrowser });
     const analysis = results[0].result;
-    await chrome.storage.local.set({ pageAnalysis: analysis });
     displayAnalysis(analysis);
-    showToast(`Platform: ${analysis.platform}`);
-  } catch (error) {
-    console.error('Analysis error:', error);
-    showToast('Could not analyze this page');
+    showToast('Platform: ' + analysis.platform);
+  } catch (e) {
+    showToast('Cannot analyze this page');
   }
-
   btn.classList.remove('loading');
   btn.innerHTML = '<span class="btn-icon">📊</span> Analyze Website';
 }
 
-// Injected into the page — full website analysis done entirely in the browser
 function _analyzePageInBrowser() {
   const html = document.documentElement.outerHTML.toLowerCase();
-
-  // Platform detection
-  const platformIndicators = {
-    'WordPress': ['wp-content', 'wp-includes', 'wordpress'],
-    'Shopify': ['shopify', 'cdn.shopify.com'],
-    'Wix': ['wix.com', 'wixsite.com', '_wix'],
-    'Squarespace': ['squarespace', 'static1.squarespace'],
-    'Webflow': ['webflow', 'assets.website-files.com'],
-    'Joomla': ['joomla', '/components/com_'],
-    'Drupal': ['drupal', 'sites/default/files'],
-    'Magento': ['magento', 'mage/cookies'],
-    'GoDaddy': ['godaddy', 'secureserver.net'],
-    'Weebly': ['weebly', 'weeblycloud.com']
-  };
-
+  const platformIndicators = { 'WordPress': ['wp-content', 'wp-includes'], 'Shopify': ['shopify', 'cdn.shopify.com'], 'Wix': ['wix.com', '_wix'], 'Squarespace': ['squarespace'], 'Webflow': ['webflow'], 'Joomla': ['joomla'], 'Drupal': ['drupal'], 'GoDaddy': ['godaddy', 'secureserver.net'], 'Weebly': ['weebly'] };
   let platform = 'Custom / Unknown';
-  for (const [name, patterns] of Object.entries(platformIndicators)) {
-    if (patterns.some(p => html.includes(p))) {
-      platform = name;
-      break;
-    }
-  }
-
-  // Analytics detection
-  const analytics = {
-    googleAnalytics: html.includes('google-analytics.com') || html.includes('gtag') || html.includes('ga.js'),
-    facebookPixel: html.includes('facebook.com/tr') || html.includes('fbq('),
-    hotjar: html.includes('hotjar.com'),
-    mixpanel: html.includes('mixpanel.com')
-  };
-
-  // Load time via modern API
+  for (const [name, patterns] of Object.entries(platformIndicators)) { if (patterns.some(p => html.includes(p))) { platform = name; break; } }
   let loadTime = 0;
-  try {
-    const navEntries = performance.getEntriesByType('navigation');
-    if (navEntries.length > 0) {
-      loadTime = Math.round(navEntries[0].loadEventEnd - navEntries[0].startTime);
-    }
-  } catch (e) { /* ignore */ }
-
-  // SEO score
+  try { const nav = performance.getEntriesByType('navigation'); if (nav.length) loadTime = Math.round(nav[0].loadEventEnd - nav[0].startTime); } catch(e) {}
   let seoScore = 0;
   const title = document.querySelector('title');
   if (title && title.textContent.length > 10 && title.textContent.length < 60) seoScore += 15;
-  const metaDesc = document.querySelector('meta[name="description"]');
-  if (metaDesc && metaDesc.content.length > 50 && metaDesc.content.length < 160) seoScore += 15;
+  if (document.querySelector('meta[name="description"]')) seoScore += 15;
   if (document.querySelector('h1')) seoScore += 10;
-  const imgs = document.querySelectorAll('img');
-  const imgsAlt = document.querySelectorAll('img[alt]:not([alt=""])');
-  seoScore += imgs.length > 0 ? Math.round((imgsAlt.length / imgs.length) * 15) : 15;
   if (window.location.protocol === 'https:') seoScore += 15;
   if (document.querySelector('meta[name="viewport"]')) seoScore += 10;
   if (document.querySelector('link[rel="canonical"]')) seoScore += 10;
   if (document.querySelector('meta[property="og:title"]')) seoScore += 10;
-  seoScore = Math.min(seoScore, 100);
-
-  // Issues
   const issues = [];
-  if (window.location.protocol !== 'https:') issues.push('Missing SSL certificate');
-  if (!document.querySelector('meta[name="viewport"]')) issues.push('Not mobile optimized');
-  if (loadTime > 3000) issues.push('Slow page load (' + loadTime + 'ms)');
-  if (seoScore < 50) issues.push('Poor SEO optimization');
-  if (!metaDesc) issues.push('Missing meta description');
-  if (!document.querySelector('h1')) issues.push('Missing H1 tag');
-
-  return {
-    platform,
-    hasSSL: window.location.protocol === 'https:',
-    hasMobileOptimization: !!document.querySelector('meta[name="viewport"]'),
-    hasAnalytics: analytics,
-    loadTime,
-    seoScore,
-    issues
-  };
-}
-
-// ─── Highlight Contacts on Page (runs in page context) ──
-
-async function highlightContacts(tab) {
-  try {
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: _highlightContactsOnPage
-    });
-    await chrome.scripting.insertCSS({
-      target: { tabId: tab.id },
-      css: `
-        .bamlead-highlight {
-          background: linear-gradient(135deg, rgba(20, 184, 166, 0.3) 0%, rgba(13, 148, 136, 0.3) 100%) !important;
-          border-radius: 2px;
-          padding: 1px 3px;
-          transition: all 0.3s ease;
-          cursor: pointer;
-        }
-        .bamlead-highlight:hover {
-          background: linear-gradient(135deg, rgba(20, 184, 166, 0.5) 0%, rgba(13, 148, 136, 0.5) 100%) !important;
-        }
-      `
-    });
-    showToast('Contacts highlighted on page!');
-  } catch (error) {
-    console.error('Highlight error:', error);
-    showToast('Could not highlight contacts');
-  }
-}
-
-function _highlightContactsOnPage() {
-  if (window._bamleadHighlighted) return;
-  window._bamleadHighlighted = true;
-
-  function highlightMatches(regex) {
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
-    const nodes = [];
-    let n;
-    while (n = walker.nextNode()) {
-      if (regex.test(n.textContent)) nodes.push(n);
-      regex.lastIndex = 0;
-    }
-
-    nodes.forEach(textNode => {
-      const text = textNode.textContent;
-      const fragment = document.createDocumentFragment();
-      let lastIndex = 0;
-      let match;
-      regex.lastIndex = 0;
-
-      while ((match = regex.exec(text)) !== null) {
-        if (match.index > lastIndex) {
-          fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
-        }
-        const span = document.createElement('span');
-        span.className = 'bamlead-highlight';
-        span.textContent = match[0];
-        span.title = 'Click to copy';
-        const val = match[0];
-        span.addEventListener('click', (e) => {
-          e.preventDefault();
-          navigator.clipboard.writeText(val);
-          span.style.background = 'rgba(34, 197, 94, 0.5)';
-          setTimeout(() => { span.style.background = ''; }, 500);
-        });
-        fragment.appendChild(span);
-        lastIndex = regex.lastIndex;
-      }
-
-      if (lastIndex < text.length) {
-        fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
-      }
-      textNode.parentNode.replaceChild(fragment, textNode);
-    });
-  }
-
-  highlightMatches(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g);
-  highlightMatches(/(?:\+?1[-.\s]?)?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}/g);
-}
-
-// ─── Display helpers ─────────────────────────────────────
-
-function displayExtractedData(data) {
-  const dataSection = document.getElementById('dataSection');
-  const dataList = document.getElementById('dataList');
-  dataList.innerHTML = '';
-
-  if (data.companyName) addDataItem(dataList, '🏢 Company', data.companyName);
-  if (data.address) addDataItem(dataList, '📍 Address', data.address);
-  data.emails.forEach(email => addDataItem(dataList, '✉️ Email', email));
-  data.phones.forEach(phone => addDataItem(dataList, '📞 Phone', phone));
-  data.socialLinks.forEach(link => {
-    const icons = { linkedin: '💼', twitter: '🐦', facebook: '📘', instagram: '📸' };
-    addDataItem(dataList, `${icons[link.platform] || '🔗'} ${link.platform}`, link.url);
-  });
-
-  if (dataList.children.length > 0) {
-    dataSection.style.display = 'block';
-    chrome.storage.local.set({ extractedData: data });
-  } else {
-    showToast('No contact info found on this page');
-  }
+  if (window.location.protocol !== 'https:') issues.push('No SSL');
+  if (!document.querySelector('meta[name="viewport"]')) issues.push('Not mobile-friendly');
+  if (loadTime > 3000) issues.push('Slow (' + loadTime + 'ms)');
+  if (seoScore < 50) issues.push('Poor SEO');
+  return { platform, hasSSL: window.location.protocol === 'https:', loadTime, seoScore: Math.min(seoScore, 100), issues };
 }
 
 function displayAnalysis(analysis) {
-  const analysisSection = document.getElementById('analysisSection');
-  const analysisList = document.getElementById('analysisList');
-  analysisList.innerHTML = '';
-
-  addDataItem(analysisList, '🖥️ Platform', analysis.platform);
-  addDataItem(analysisList, '🔒 SSL', analysis.hasSSL ? '✅ Yes' : '❌ No');
-  addDataItem(analysisList, '📱 Mobile', analysis.hasMobileOptimization ? '✅ Yes' : '❌ No');
-  addDataItem(analysisList, '⏱️ Load Time', analysis.loadTime + 'ms');
-  addDataItem(analysisList, '📈 SEO Score', analysis.seoScore + '/100');
-
-  // Analytics
-  const activeAnalytics = Object.entries(analysis.hasAnalytics || {})
-    .filter(([, v]) => v).map(([k]) => k);
-  addDataItem(analysisList, '📊 Analytics', activeAnalytics.length > 0 ? activeAnalytics.join(', ') : 'None detected');
-
-  // Issues
-  if (analysis.issues && analysis.issues.length > 0) {
-    analysis.issues.forEach(issue => addDataItem(analysisList, '⚠️ Issue', issue));
-  }
-
-  analysisSection.style.display = 'block';
-}
-
-function addDataItem(container, label, value) {
-  const item = document.createElement('div');
-  item.className = 'data-item';
-  item.innerHTML = `
-    <span class="data-label">${label}</span>
-    <span class="data-value" title="${value}">${value}</span>
-  `;
-  // Click to copy
-  item.style.cursor = 'pointer';
-  item.addEventListener('click', () => {
-    navigator.clipboard.writeText(String(value)).then(() => {
-      item.style.background = '#0d9488';
-      setTimeout(() => { item.style.background = ''; }, 400);
-    });
+  const section = document.getElementById('analysisSection');
+  const list = document.getElementById('analysisList');
+  section.style.display = 'block';
+  list.innerHTML = '';
+  const items = [
+    { label: 'Platform', value: analysis.platform },
+    { label: 'SSL', value: analysis.hasSSL ? '✅ Yes' : '❌ No' },
+    { label: 'Load Time', value: analysis.loadTime + 'ms' },
+    { label: 'SEO Score', value: analysis.seoScore + '/100' }
+  ];
+  if (analysis.issues.length) items.push({ label: '⚠️ Issues', value: analysis.issues.join(', ') });
+  items.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'data-item';
+    el.innerHTML = `<span class="data-label">${item.label}</span><span class="data-value">${esc(item.value)}</span>`;
+    list.appendChild(el);
   });
-  container.appendChild(item);
 }
 
-// ─── Save & Send ─────────────────────────────────────────
+// ─── Highlight ───────────────────────────────────────────
+
+async function highlightContacts(tab) {
+  try {
+    await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: _highlightContactsOnPage });
+    await chrome.scripting.insertCSS({ target: { tabId: tab.id }, css: `.bamlead-highlight { background: linear-gradient(135deg, rgba(20,184,166,0.3) 0%, rgba(13,148,136,0.3) 100%) !important; border-radius: 2px; padding: 1px 3px; cursor: pointer; } .bamlead-highlight:hover { background: linear-gradient(135deg, rgba(20,184,166,0.5) 0%, rgba(13,148,136,0.5) 100%) !important; }` });
+    showToast('Contacts highlighted!');
+  } catch(e) { showToast('Cannot highlight on this page'); }
+}
+
+function _highlightContactsOnPage() {
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+  const phoneRegex = /(?:\+?1[-.\s]?)?\(?[0-9]{3}\)?[-.\s]?[0-9]{3}[-.\s]?[0-9]{4}/g;
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(node => {
+    const text = node.textContent;
+    if (emailRegex.test(text) || phoneRegex.test(text)) {
+      const span = document.createElement('span');
+      span.className = 'bamlead-highlight';
+      span.textContent = text;
+      span.title = 'Click to copy';
+      span.addEventListener('click', () => { navigator.clipboard.writeText(text.trim()); });
+      if (node.parentNode) node.parentNode.replaceChild(span, node);
+    }
+    emailRegex.lastIndex = 0;
+    phoneRegex.lastIndex = 0;
+  });
+}
+
+// ─── Save / Send ─────────────────────────────────────────
 
 async function saveLead(tab) {
-  const data = await chrome.storage.local.get(['extractedData', 'pageAnalysis']);
-
-  const lead = {
-    url: tab.url,
-    title: tab.title,
-    ...data.extractedData,
-    analysis: data.pageAnalysis,
-    savedAt: new Date().toISOString()
-  };
-
-  const storage = await chrome.storage.local.get(['savedLeads', 'leadsCount', 'todayCount']);
-  const savedLeads = storage.savedLeads || [];
-  savedLeads.push(lead);
-
-  const newLeadsCount = (storage.leadsCount || 0) + 1;
-  const newTodayCount = (storage.todayCount || 0) + 1;
-
-  await chrome.storage.local.set({
-    savedLeads,
-    leadsCount: newLeadsCount,
-    todayCount: newTodayCount,
-    lastDate: new Date().toDateString()
-  });
-
-  document.getElementById('leadsCount').textContent = newLeadsCount;
-  const totalEl = document.getElementById('totalLeadsCount');
-  if (totalEl) totalEl.textContent = newLeadsCount;
-  document.getElementById('todayCount').textContent = newTodayCount;
-
-  await renderLeadsViewer();
-  showToast('Lead saved locally!');
-}
-
-async function sendToBamLead() {
-  const btn = document.getElementById('sendToBamLead');
-  btn.classList.add('loading');
-  btn.innerHTML = '<span class="btn-icon">⏳</span> Sending...';
-
   try {
-    const data = await chrome.storage.local.get(['extractedData', 'pageAnalysis']);
-
-    const params = new URLSearchParams({
-      source: 'extension',
-      company: data.extractedData?.companyName || '',
-      email: data.extractedData?.emails?.[0] || '',
-      phone: data.extractedData?.phones?.[0] || '',
-      website: data.extractedData?.website || ''
+    const results = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: _scrapeContacts });
+    const data = results[0].result;
+    await chrome.runtime.sendMessage({
+      type: 'SAVE_LEAD',
+      lead: { url: data.website, title: data.pageTitle, companyName: data.companyName, emails: data.emails, phones: data.phones, socialLinks: data.socialLinks, website: data.website, address: data.address }
     });
-
-    chrome.tabs.create({
-      url: `https://bamlead.com/dashboard?${params.toString()}`
-    });
-
-    showToast('Opening BamLead dashboard...');
-  } catch (error) {
-    console.error('Send error:', error);
-    showToast('Could not send to BamLead');
-  }
-
-  btn.classList.remove('loading');
-  btn.innerHTML = '<span class="btn-icon">🚀</span> Send to BamLead';
+    await loadStats();
+    await renderLeadsViewer();
+    showToast('Lead saved!');
+  } catch(e) { showToast('Could not save lead'); }
 }
 
-// ─── Toast ───────────────────────────────────────────────
-
-function showToast(message) {
-  const existing = document.querySelector('.toast');
-  if (existing) existing.remove();
-
-  const toast = document.createElement('div');
-  toast.className = 'toast';
-  toast.textContent = message;
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 3000);
+function sendToBamLead() {
+  window.open('https://bamlead.com/dashboard', '_blank');
 }
 
-// ─── CSV Export (in-browser) ─────────────────────────────
+// ─── Export ──────────────────────────────────────────────
 
 async function exportAsCSV() {
   const storage = await chrome.storage.local.get(['savedLeads']);
   const leads = storage.savedLeads || [];
-
-  if (leads.length === 0) {
-    showToast('No saved leads to export');
-    return;
-  }
-
-  const headers = ['Company', 'Website', 'Emails', 'Phones', 'Social Links', 'Address', 'Platform', 'SEO Score', 'SSL', 'Saved At'];
-  const rows = leads.map(lead => [
-    csvEscape(lead.companyName || lead.title || ''),
-    csvEscape(lead.url || lead.website || ''),
-    csvEscape((lead.emails || []).join('; ')),
-    csvEscape((lead.phones || []).join('; ')),
-    csvEscape((lead.socialLinks || []).map(l => typeof l === 'string' ? l : l.url).join('; ')),
-    csvEscape(lead.address || ''),
-    csvEscape(lead.analysis?.platform || ''),
-    lead.analysis?.seoScore ?? '',
-    lead.analysis?.hasSSL ? 'Yes' : 'No',
-    csvEscape(lead.savedAt || '')
-  ]);
-
-  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  if (!leads.length) { showToast('No leads to export'); return; }
+  let csv = 'Company,Website,Email,Phone,Address,Source,Date\n';
+  leads.forEach(l => {
+    csv += `"${(l.companyName||'').replace(/"/g,'""')}","${l.website||''}","${(l.emails||[]).join('; ')}","${(l.phones||[]).join('; ')}","${(l.address||'').replace(/"/g,'""')}","${l.source||'manual'}","${l.savedAt||''}"\n`;
+  });
   downloadFile(csv, 'bamlead-leads.csv', 'text/csv');
-  showToast(`Exported ${leads.length} leads as CSV`);
+  showToast('CSV downloaded!');
 }
-
-function csvEscape(val) {
-  const s = String(val).replace(/"/g, '""');
-  return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s}"` : s;
-}
-
-// ─── PDF Export (in-browser, no library) ─────────────────
 
 async function exportAsPDF() {
   const storage = await chrome.storage.local.get(['savedLeads']);
   const leads = storage.savedLeads || [];
-
-  if (leads.length === 0) {
-    showToast('No saved leads to export');
-    return;
-  }
-
-  // Build a printable HTML document and trigger browser print-to-PDF
-  const htmlContent = `<!DOCTYPE html>
-<html><head><meta charset="UTF-8">
-<title>BamLead - Exported Leads</title>
-<style>
-  body { font-family: Arial, sans-serif; padding: 24px; color: #1e293b; }
-  h1 { color: #0d9488; font-size: 22px; margin-bottom: 4px; }
-  .subtitle { color: #64748b; font-size: 12px; margin-bottom: 20px; }
-  table { width: 100%; border-collapse: collapse; font-size: 11px; }
-  th { background: #0d9488; color: #fff; padding: 8px 6px; text-align: left; }
-  td { padding: 6px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
-  tr:nth-child(even) { background: #f8fafc; }
-  .footer { margin-top: 20px; font-size: 10px; color: #94a3b8; text-align: center; }
-</style></head><body>
-<h1>🎯 BamLead Lead Report</h1>
-<p class="subtitle">Generated ${new Date().toLocaleDateString()} — ${leads.length} leads</p>
-<table>
-  <tr><th>#</th><th>Company</th><th>Website</th><th>Emails</th><th>Phones</th><th>Platform</th><th>SEO</th><th>Saved</th></tr>
-  ${leads.map((lead, i) => `<tr>
-    <td>${i + 1}</td>
-    <td>${esc(lead.companyName || lead.title || '-')}</td>
-    <td>${esc(lead.url || lead.website || '-')}</td>
-    <td>${esc((lead.emails || []).join(', ') || '-')}</td>
-    <td>${esc((lead.phones || []).join(', ') || '-')}</td>
-    <td>${esc(lead.analysis?.platform || '-')}</td>
-    <td>${lead.analysis?.seoScore ?? '-'}</td>
-    <td>${lead.savedAt ? new Date(lead.savedAt).toLocaleDateString() : '-'}</td>
-  </tr>`).join('')}
-</table>
-<p class="footer">BamLead Lead Prospecting — bamlead.com</p>
-</body></html>`;
-
-  // Open as a new tab and trigger print (user can Save as PDF)
-  const blob = new Blob([htmlContent], { type: 'text/html' });
+  if (!leads.length) { showToast('No leads'); return; }
+  let html = '<html><head><title>BamLead Leads</title><style>body{font-family:sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{border:1px solid #ddd;padding:8px;text-align:left;font-size:12px;}th{background:#14b8a6;color:white;}</style></head><body><h1>BamLead Leads Export</h1><table><tr><th>Company</th><th>Website</th><th>Email</th><th>Phone</th><th>Source</th></tr>';
+  leads.forEach(l => { html += `<tr><td>${esc(l.companyName||'')}</td><td>${esc(l.website||'')}</td><td>${(l.emails||[]).join(', ')}</td><td>${(l.phones||[]).join(', ')}</td><td>${l.source||'manual'}</td></tr>`; });
+  html += '</table></body></html>';
+  const blob = new Blob([html], { type: 'text/html' });
   const url = URL.createObjectURL(blob);
-  const printTab = await chrome.tabs.create({ url });
-
-  // Give tab time to load, then trigger print
-  chrome.scripting.executeScript({
-    target: { tabId: printTab.id },
-    func: () => { setTimeout(() => window.print(), 500); }
-  });
-
-  showToast('PDF print dialog opening...');
+  chrome.tabs.create({ url: url });
+  showToast('PDF view opened');
 }
-
-function esc(val) {
-  return String(val).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-// ─── Clear All Leads ─────────────────────────────────────
 
 async function clearAllLeads() {
-  const storage = await chrome.storage.local.get(['savedLeads']);
-  const count = (storage.savedLeads || []).length;
-
-  if (count === 0) {
-    showToast('No leads to clear');
-    return;
-  }
-
-  if (!confirm(`Delete all ${count} saved leads? This cannot be undone.`)) return;
-
-  await chrome.storage.local.set({ savedLeads: [], leadsCount: 0, todayCount: 0 });
-  document.getElementById('leadsCount').textContent = '0';
-  const totalEl = document.getElementById('totalLeadsCount');
-  if (totalEl) totalEl.textContent = '0';
-  document.getElementById('todayCount').textContent = '0';
+  if (!confirm('Delete all saved leads?')) return;
+  await chrome.storage.local.set({ savedLeads: [], leadsCount: 0 });
+  await loadStats();
   await renderLeadsViewer();
-  showToast(`Cleared ${count} leads`);
+  showToast('All leads cleared');
 }
-
-// ─── Download helper ─────────────────────────────────────
 
 function downloadFile(content, filename, mimeType) {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.click();
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 
@@ -946,130 +756,79 @@ function downloadFile(content, filename, mimeType) {
 
 function updateBulkCount() {
   const input = document.getElementById('bulkUrlsInput');
-  const countEl = document.getElementById('bulkCount');
+  const count = document.getElementById('bulkCount');
   const urls = parseUrls(input.value);
-  countEl.textContent = `${urls.length} URL${urls.length !== 1 ? 's' : ''}`;
+  count.textContent = urls.length + ' URL' + (urls.length !== 1 ? 's' : '');
 }
 
 function parseUrls(text) {
-  return text.split(/[\n,]+/)
-    .map(u => u.trim())
-    .filter(u => u.length > 3)
-    .map(u => {
-      if (!u.startsWith('http://') && !u.startsWith('https://')) return 'https://' + u;
-      return u;
-    })
-    .filter(u => {
-      try { new URL(u); return true; } catch { return false; }
-    });
+  return text.split('\n').map(l => l.trim()).filter(l => l.match(/^https?:\/\//i)).slice(0, 50);
 }
 
 async function bulkExtract() {
-  const input = document.getElementById('bulkUrlsInput');
-  const btn = document.getElementById('bulkExtractBtn');
-  const progressContainer = document.getElementById('bulkProgress');
-  const progressFill = document.getElementById('bulkProgressFill');
-  const progressText = document.getElementById('bulkProgressText');
-  const resultsDiv = document.getElementById('bulkResults');
+  const urls = parseUrls(document.getElementById('bulkUrlsInput').value);
+  if (!urls.length) { showToast('No valid URLs'); return; }
+  const progress = document.getElementById('bulkProgress');
+  const fill = document.getElementById('bulkProgressFill');
+  const text = document.getElementById('bulkProgressText');
+  const results = document.getElementById('bulkResults');
+  progress.style.display = 'flex';
+  results.style.display = 'flex';
+  results.innerHTML = '';
 
-  const urls = parseUrls(input.value);
-  if (urls.length === 0) { showToast('Paste at least one URL'); return; }
-  if (urls.length > 50) { showToast('Max 50 URLs at a time'); return; }
-
-  btn.disabled = true;
-  btn.innerHTML = '<span class="btn-icon">⏳</span> Extracting...';
-  progressContainer.style.display = 'flex';
-  resultsDiv.style.display = 'block';
-  resultsDiv.innerHTML = '';
-
-  let completed = 0;
-  let successCount = 0;
-  let failCount = 0;
-
-  for (const url of urls) {
-    completed++;
-    const pct = Math.round((completed / urls.length) * 100);
-    progressFill.style.width = pct + '%';
-    progressText.textContent = `${completed}/${urls.length}`;
-
+  for (let i = 0; i < urls.length; i++) {
+    fill.style.width = ((i + 1) / urls.length * 100) + '%';
+    text.textContent = `${i + 1}/${urls.length}`;
     try {
-      // Open tab in background, wait for load, scrape, then close
-      const tab = await chrome.tabs.create({ url, active: false });
-      await waitForTabLoad(tab.id, 15000);
-
-      const results = await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: _scrapeContacts
-      });
-
-      const data = results[0].result;
-      await chrome.tabs.remove(tab.id);
-
-      // Auto-save as lead
-      const lead = {
-        url,
-        title: data.pageTitle || url,
-        companyName: data.companyName,
-        emails: data.emails,
-        phones: data.phones,
-        socialLinks: data.socialLinks,
-        address: data.address,
-        website: data.website,
-        savedAt: new Date().toISOString(),
-        source: 'bulk-import'
-      };
-
-      const storage = await chrome.storage.local.get(['savedLeads', 'leadsCount', 'todayCount']);
-      const savedLeads = storage.savedLeads || [];
-      savedLeads.push(lead);
-      const newCount = (storage.leadsCount || 0) + 1;
-      const newToday = (storage.todayCount || 0) + 1;
-      await chrome.storage.local.set({ savedLeads, leadsCount: newCount, todayCount: newToday, lastDate: new Date().toDateString() });
-
-      const emailCount = (data.emails || []).length;
-      const phoneCount = (data.phones || []).length;
-      addBulkResult(resultsDiv, '✅', data.companyName || new URL(url).hostname, `${emailCount} emails, ${phoneCount} phones`);
-      successCount++;
-    } catch (err) {
-      console.error('Bulk extract error for', url, err);
-      try { /* try to get hostname for display */ 
-        addBulkResult(resultsDiv, '❌', new URL(url).hostname, 'Failed');
-      } catch { addBulkResult(resultsDiv, '❌', url.substring(0, 30), 'Failed'); }
-      failCount++;
+      const tab = await chrome.tabs.create({ url: urls[i], active: false });
+      await waitForTabLoad(tab.id, 10000);
+      const res = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: _scrapeContacts });
+      const data = res[0].result;
+      const count = (data.emails?.length || 0) + (data.phones?.length || 0);
+      if (count > 0) {
+        await chrome.runtime.sendMessage({ type: 'SAVE_LEAD', lead: { url: urls[i], companyName: data.companyName, emails: data.emails, phones: data.phones, socialLinks: data.socialLinks, website: urls[i] } });
+      }
+      addBulkResult(results, count > 0 ? '✅' : '⚠️', data.companyName || new URL(urls[i]).hostname, count + ' contacts');
+      chrome.tabs.remove(tab.id);
+    } catch(e) {
+      addBulkResult(results, '❌', new URL(urls[i]).hostname, 'Failed');
     }
   }
-
-  // Refresh stats & viewer
   await loadStats();
   await renderLeadsViewer();
-
-  btn.disabled = false;
-  btn.innerHTML = '<span class="btn-icon">⚡</span> Bulk Extract';
-  showToast(`Done! ${successCount} extracted, ${failCount} failed`);
+  showToast(`Bulk extract done!`);
 }
 
 function waitForTabLoad(tabId, timeout) {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      chrome.tabs.onUpdated.removeListener(listener);
-      resolve(); // resolve anyway, try to scrape whatever loaded
-    }, timeout);
-
-    function listener(id, info) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(), timeout);
+    chrome.tabs.onUpdated.addListener(function listener(id, info) {
       if (id === tabId && info.status === 'complete') {
         clearTimeout(timer);
         chrome.tabs.onUpdated.removeListener(listener);
-        setTimeout(resolve, 500); // small grace period
+        setTimeout(resolve, 500);
       }
-    }
-    chrome.tabs.onUpdated.addListener(listener);
+    });
   });
 }
 
 function addBulkResult(container, icon, name, detail) {
   const row = document.createElement('div');
   row.className = 'bulk-result-row';
-  row.innerHTML = `<span>${icon}</span><span class="bulk-result-name">${esc(name)}</span><span class="bulk-result-detail">${esc(detail)}</span>`;
+  row.innerHTML = `<span>${icon}</span><span class="bulk-result-name">${esc(name)}</span><span class="bulk-result-detail">${detail}</span>`;
   container.appendChild(row);
-  container.scrollTop = container.scrollHeight;
+}
+
+// ─── Helpers ─────────────────────────────────────────────
+
+function esc(str) { const d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
+
+function showToast(msg) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => { if (t.parentNode) t.remove(); }, 3000);
 }
