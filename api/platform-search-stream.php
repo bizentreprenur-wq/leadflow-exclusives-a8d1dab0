@@ -239,9 +239,9 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
 
     // ================================================================
     // PASS 1: PLACES (Google Maps) — When "No website" filter is active
+    // ⚡ Uses parallelSerperSearch() for batch execution
     // ================================================================
     if ($noWebsiteFilter) {
-        // Build places queries across ALL locations and synonyms
         $placesQueries = [];
         foreach (array_slice($locationsToSearch, 0, 20) as $loc) {
             foreach (array_slice($serviceVariants, 0, 4) as $svc) {
@@ -256,104 +256,79 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
             'phase' => 'places_search',
         ]);
 
-        foreach ($placesQueries as $pqIdx => $pq) {
+        // ⚡ Fire all places queries in parallel batches of 10
+        $placesBatchSize = 10;
+        $placesBatches = array_chunk($placesQueries, $placesBatchSize);
+
+        foreach ($placesBatches as $pbIdx => $batch) {
             if ($totalResults >= $targetCount) break;
-            $diagnostics['queriesExecuted']++;
 
-            $placesUrl = 'https://google.serper.dev/places';
-            $placesPayload = json_encode(['q' => $pq, 'num' => 40]);
-
-            $ch = curl_init($placesUrl);
-            curl_setopt_array($ch, [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_POST => true,
-                CURLOPT_POSTFIELDS => $placesPayload,
-                CURLOPT_HTTPHEADER => [
-                    'X-API-KEY: ' . SERPER_API_KEY,
-                    'Content-Type: application/json',
-                ],
-                CURLOPT_TIMEOUT => 15,
-            ]);
-
-            $response = curl_exec($ch);
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-
-            if ($httpCode !== 200 || !$response) {
-                $queryErrorCount++;
-                continue;
-            }
-
-            $data = json_decode($response, true);
-            $places = $data['places'] ?? [];
+            $batchResults = parallelSerperSearch($batch, 'places', $placesBatchSize);
+            $diagnostics['queriesExecuted'] += count($batch);
 
             $leadBuffer = [];
-            foreach ($places as $place) {
+            foreach ($batchResults as $resultIdx => $places) {
                 if ($totalResults >= $targetCount) break;
-                $diagnostics['rawCandidates']++;
+                if (empty($places)) continue;
 
-                $placeWebsite = trim($place['website'] ?? '');
-                $placeName = $place['title'] ?? ($place['name'] ?? '');
-                $placePhone = $place['phoneNumber'] ?? ($place['phone'] ?? '');
-                $placeAddress = $place['address'] ?? '';
+                foreach ($places as $place) {
+                    if ($totalResults >= $targetCount) break;
+                    $diagnostics['rawCandidates']++;
 
-                $dedupeKey = strtolower(preg_replace('/[^a-z0-9]/', '', $placeName));
-                if (isset($seenResults[$dedupeKey])) {
-                    $diagnostics['dedupedCandidates']++;
-                    continue;
-                }
-                $seenResults[$dedupeKey] = true;
+                    $placeWebsite = trim($place['website'] ?? '');
+                    $placeName = $place['title'] ?? ($place['name'] ?? '');
+                    $placePhone = $place['phoneNumber'] ?? ($place['phone'] ?? '');
+                    $placeAddress = $place['address'] ?? '';
 
-                $business = [
-                    'id' => 'plat_places_' . substr(md5($placeName . $placeAddress . $pqIdx), 0, 12),
-                    'name' => $placeName,
-                    'url' => '',
-                    'website' => $placeWebsite,
-                    'address' => $placeAddress,
-                    'phone' => $placePhone,
-                    'email' => '',
-                    'rating' => $place['rating'] ?? null,
-                    'reviewCount' => $place['reviews'] ?? ($place['reviewsCount'] ?? null),
-                    'source' => 'Serper Places',
-                    'sources' => ['Serper Places'],
-                    'websiteAnalysis' => [
-                        'hasWebsite' => $placeWebsite !== '',
-                        'platform' => null,
-                        'needsUpgrade' => false,
-                        'issues' => $placeWebsite === '' ? ['No website detected'] : [],
-                        'mobileScore' => null,
-                        'loadTime' => null,
-                    ],
-                ];
-
-                $diagnostics['preFilterCandidates']++;
-                if (!matchesSearchFilters($business, $filtersForMatching)) {
-                    $diagnostics['filterRejectedCandidates']++;
-                    $reasons = getSearchFilterFailureReasons($business, $filtersForMatching);
-                    foreach ($reasons as $reason) {
-                        if (!isset($diagnostics['filterRejections'][$reason])) $reason = 'combined';
-                        $diagnostics['filterRejections'][$reason]++;
+                    $dedupeKey = strtolower(preg_replace('/[^a-z0-9]/', '', $placeName));
+                    if (isset($seenResults[$dedupeKey])) {
+                        $diagnostics['dedupedCandidates']++;
+                        continue;
                     }
-                    continue;
-                }
+                    $seenResults[$dedupeKey] = true;
 
-                $diagnostics['filterMatchedCandidates']++;
-                $diagnostics['placesResults']++;
-                $allResults[] = $business;
-                $leadBuffer[] = $business;
-                $totalResults++;
-
-                if (count($leadBuffer) >= $emitBatchSize) {
-                    sendSSE('results', [
-                        'leads' => $leadBuffer,
-                        'total' => $totalResults,
-                        'progress' => min(45, round(($totalResults / max(1, $targetCount)) * 100)),
+                    $business = [
+                        'id' => 'plat_places_' . substr(md5($placeName . $placeAddress . $resultIdx), 0, 12),
+                        'name' => $placeName,
+                        'url' => '',
+                        'website' => $placeWebsite,
+                        'address' => $placeAddress,
+                        'phone' => $placePhone,
+                        'email' => '',
+                        'rating' => $place['rating'] ?? null,
+                        'reviewCount' => $place['reviews'] ?? ($place['reviewsCount'] ?? null),
                         'source' => 'Serper Places',
-                    ]);
-                    $leadBuffer = [];
+                        'sources' => ['Serper Places'],
+                        'websiteAnalysis' => [
+                            'hasWebsite' => $placeWebsite !== '',
+                            'platform' => null,
+                            'needsUpgrade' => false,
+                            'issues' => $placeWebsite === '' ? ['No website detected'] : [],
+                            'mobileScore' => null,
+                            'loadTime' => null,
+                        ],
+                    ];
+
+                    $diagnostics['preFilterCandidates']++;
+                    if (!matchesSearchFilters($business, $filtersForMatching)) {
+                        $diagnostics['filterRejectedCandidates']++;
+                        $reasons = getSearchFilterFailureReasons($business, $filtersForMatching);
+                        foreach ($reasons as $reason) {
+                            if (!isset($diagnostics['filterRejections'][$reason])) $reason = 'combined';
+                            $diagnostics['filterRejections'][$reason]++;
+                        }
+                        continue;
+                    }
+
+                    $diagnostics['filterMatchedCandidates']++;
+                    $diagnostics['placesResults']++;
+                    $allResults[] = $business;
+                    $leadBuffer[] = $business;
+                    $totalResults++;
                 }
             }
 
+            // Emit entire batch at once for fast jumps
             if (!empty($leadBuffer)) {
                 sendSSE('results', [
                     'leads' => $leadBuffer,
@@ -363,15 +338,12 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
                 ]);
             }
 
-            // Progress update every 5 queries
-            if ($pqIdx % 5 === 4) {
-                sendSSE('status', [
-                    'message' => "Maps search: {$totalResults} leads found so far...",
-                    'progress' => min(45, round(($totalResults / max(1, $targetCount)) * 100)),
-                    'source' => 'Serper Places',
-                    'phase' => 'places_search',
-                ]);
-            }
+            sendSSE('status', [
+                'message' => "Maps batch " . ($pbIdx + 1) . "/" . count($placesBatches) . " ({$totalResults} leads)",
+                'progress' => min(45, round(($totalResults / max(1, $targetCount)) * 100)),
+                'source' => 'Serper Places',
+                'phase' => 'places_search',
+            ]);
         }
 
         if ($totalResults > 0) {
@@ -445,149 +417,120 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
         'phase' => 'searching',
     ]);
 
-    $currentPhase = '';
-    foreach ($queries as $queryIdx => $queryItem) {
+    // ⚡ PARALLEL ORGANIC SEARCH: Group queries by phase and fire in batches
+    // Group queries by phase for progress reporting
+    $phaseGroups = [];
+    foreach ($queries as $queryItem) {
+        $phase = $queryItem['phase'];
+        $phaseGroups[$phase][] = $queryItem['q'];
+    }
+
+    $phaseLabels = [
+        'primary' => 'Primary search',
+        'geo_expansion' => 'Expanding to surrounding cities',
+        'synonym_expansion' => 'Trying related search terms',
+        'deep_expansion' => 'Deep expansion: related terms + nearby cities',
+    ];
+
+    $organicBatchSize = 10; // Fire 10 queries simultaneously
+    $globalQueryIdx = 0;
+
+    foreach ($phaseGroups as $phase => $phaseQueries) {
         if ($totalResults >= $targetCount) break;
 
-        $query = $queryItem['q'];
-        $phase = $queryItem['phase'];
-        $diagnostics['queriesExecuted']++;
-
-        // Track phase transitions
-        if ($phase !== $currentPhase) {
-            $currentPhase = $phase;
-            if ($phase === 'geo_expansion') {
-                $diagnostics['locationsSearched']++;
-                sendSSE('status', [
-                    'message' => "Expanding to surrounding cities ({$totalResults}/{$limit} leads)...",
-                    'progress' => min(90, round(($totalResults / max(1, $targetCount)) * 100)),
-                    'source' => 'Serper Organic',
-                    'phase' => 'geo_expansion',
-                ]);
-            } elseif ($phase === 'synonym_expansion') {
-                $diagnostics['synonymsUsed']++;
-                sendSSE('status', [
-                    'message' => "Trying related search terms ({$totalResults}/{$limit} leads)...",
-                    'progress' => min(90, round(($totalResults / max(1, $targetCount)) * 100)),
-                    'source' => 'Serper Organic',
-                    'phase' => 'synonym_expansion',
-                ]);
-            } elseif ($phase === 'deep_expansion') {
-                sendSSE('status', [
-                    'message' => "Deep expansion: related terms + nearby cities ({$totalResults}/{$limit} leads)...",
-                    'progress' => min(90, round(($totalResults / max(1, $targetCount)) * 100)),
-                    'source' => 'Serper Organic',
-                    'phase' => 'deep_expansion',
-                ]);
-            }
-        }
-
-        // Serper organic search
-        $url = 'https://google.serper.dev/search';
-        $payload = json_encode([
-            'q' => $query,
-            'num' => min(100, max(20, $targetCount - $totalResults)),
+        $diagnostics['locationsSearched']++;
+        sendSSE('status', [
+            'message' => ($phaseLabels[$phase] ?? $phase) . " ({$totalResults}/{$limit} leads)...",
+            'progress' => min(90, round(($totalResults / max(1, $targetCount)) * 100)),
+            'source' => 'Serper Organic',
+            'phase' => $phase,
         ]);
 
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $payload,
-            CURLOPT_HTTPHEADER => [
-                'X-API-KEY: ' . SERPER_API_KEY,
-                'Content-Type: application/json',
-            ],
-            CURLOPT_TIMEOUT => 15,
-        ]);
+        $batches = array_chunk($phaseQueries, $organicBatchSize);
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-
-        if ($httpCode !== 200 || !$response) {
-            $queryErrorCount++;
-            $decodedError = is_string($response) ? json_decode($response, true) : null;
-            $apiError = is_array($decodedError) ? ($decodedError['message'] ?? $decodedError['error'] ?? '') : '';
-            $lastQueryError = trim("HTTP {$httpCode} {$apiError}");
-            continue;
-        }
-
-        $data = json_decode($response, true);
-        $organic = $data['organic'] ?? [];
-
-        $leadBuffer = [];
-        foreach ($organic as $item) {
+        foreach ($batches as $batchIdx => $batch) {
             if ($totalResults >= $targetCount) break;
-            $diagnostics['rawCandidates']++;
 
-            $link = $item['link'] ?? '';
-            $domain = parse_url($link, PHP_URL_HOST) ?: '';
-            $dedupeKey = buildSearchResultDedupKey($link);
-            if ($dedupeKey === '') {
-                $diagnostics['invalidDomainCandidates']++;
-                continue;
+            // Build payloads with num parameter
+            $payloads = [];
+            foreach ($batch as $q) {
+                $payloads[] = [
+                    'q' => $q,
+                    'num' => min(100, max(20, $targetCount - $totalResults)),
+                ];
             }
-            if (isset($seenResults[$dedupeKey])) {
-                $diagnostics['dedupedCandidates']++;
-                continue;
-            }
-            $seenResults[$dedupeKey] = true;
 
-            $business = [
-                'id' => 'plat_' . substr(md5($link . $queryIdx), 0, 12),
-                'name' => $item['title'] ?? $domain,
-                'url' => $link,
-                'website' => inferBusinessWebsiteFromSearchResultUrl($link),
-                'snippet' => $item['snippet'] ?? '',
-                'displayLink' => $domain,
-                'phone' => extractPhoneFromSnippet($item['snippet'] ?? ''),
-                'email' => extractEmailFromSnippet($item['snippet'] ?? ''),
-                'source' => 'Serper Organic',
-                'sources' => ['Serper Organic'],
-                'websiteAnalysis' => quickWebsiteCheck($link, ($item['snippet'] ?? '') . ' ' . ($item['title'] ?? '')),
-            ];
-            $diagnostics['preFilterCandidates']++;
+            $batchResults = parallelSerperSearch($payloads, 'search', $organicBatchSize);
+            $diagnostics['queriesExecuted'] += count($batch);
 
-            if (!matchesSearchFilters($business, $filtersForMatching)) {
-                $diagnostics['filterRejectedCandidates']++;
-                $reasons = getSearchFilterFailureReasons($business, $filtersForMatching);
-                foreach ($reasons as $reason) {
-                    if (!isset($diagnostics['filterRejections'][$reason])) $reason = 'combined';
-                    $diagnostics['filterRejections'][$reason]++;
+            $leadBuffer = [];
+            foreach ($batchResults as $resultIdx => $organic) {
+                if ($totalResults >= $targetCount) break;
+                if (empty($organic)) continue;
+
+                foreach ($organic as $item) {
+                    if ($totalResults >= $targetCount) break;
+                    $diagnostics['rawCandidates']++;
+
+                    $link = $item['link'] ?? '';
+                    $domain = parse_url($link, PHP_URL_HOST) ?: '';
+                    $dedupeKey = buildSearchResultDedupKey($link);
+                    if ($dedupeKey === '') {
+                        $diagnostics['invalidDomainCandidates']++;
+                        continue;
+                    }
+                    if (isset($seenResults[$dedupeKey])) {
+                        $diagnostics['dedupedCandidates']++;
+                        continue;
+                    }
+                    $seenResults[$dedupeKey] = true;
+
+                    $business = [
+                        'id' => 'plat_' . substr(md5($link . $globalQueryIdx), 0, 12),
+                        'name' => $item['title'] ?? $domain,
+                        'url' => $link,
+                        'website' => inferBusinessWebsiteFromSearchResultUrl($link),
+                        'snippet' => $item['snippet'] ?? '',
+                        'displayLink' => $domain,
+                        'phone' => extractPhoneFromSnippet($item['snippet'] ?? ''),
+                        'email' => extractEmailFromSnippet($item['snippet'] ?? ''),
+                        'source' => 'Serper Organic',
+                        'sources' => ['Serper Organic'],
+                        'websiteAnalysis' => quickWebsiteCheck($link, ($item['snippet'] ?? '') . ' ' . ($item['title'] ?? '')),
+                    ];
+                    $diagnostics['preFilterCandidates']++;
+
+                    if (!matchesSearchFilters($business, $filtersForMatching)) {
+                        $diagnostics['filterRejectedCandidates']++;
+                        $reasons = getSearchFilterFailureReasons($business, $filtersForMatching);
+                        foreach ($reasons as $reason) {
+                            if (!isset($diagnostics['filterRejections'][$reason])) $reason = 'combined';
+                            $diagnostics['filterRejections'][$reason]++;
+                        }
+                        continue;
+                    }
+                    $diagnostics['filterMatchedCandidates']++;
+
+                    $allResults[] = $business;
+                    $leadBuffer[] = $business;
+                    $totalResults++;
                 }
-                continue;
+                $globalQueryIdx++;
             }
-            $diagnostics['filterMatchedCandidates']++;
 
-            $allResults[] = $business;
-            $leadBuffer[] = $business;
-            $totalResults++;
-
-            if (count($leadBuffer) >= $emitBatchSize) {
+            // Emit entire batch at once — this creates the "jump" effect (50 → 120 → 200)
+            if (!empty($leadBuffer)) {
                 sendSSE('results', [
                     'leads' => $leadBuffer,
                     'total' => $totalResults,
                     'progress' => min(95, round(($totalResults / max(1, $targetCount)) * 100)),
                     'source' => 'Serper Organic',
                 ]);
-                $leadBuffer = [];
             }
-        }
 
-        if (!empty($leadBuffer)) {
-            sendSSE('results', [
-                'leads' => $leadBuffer,
-                'total' => $totalResults,
-                'progress' => min(95, round(($totalResults / max(1, $targetCount)) * 100)),
-                'source' => 'Serper Organic',
-            ]);
-        }
-
-        // Progress update every 5 queries
-        if ($queryIdx % 5 === 4) {
+            // Progress update per batch
             sendSSE('status', [
-                'message' => "Query " . ($queryIdx + 1) . "/$totalQueries ({$totalResults}/{$limit} leads)",
+                'message' => ($phaseLabels[$phase] ?? $phase) . " batch " . ($batchIdx + 1) . "/" . count($batches) . " ({$totalResults}/{$limit} leads)",
                 'progress' => min(95, round(($totalResults / max(1, $targetCount)) * 100)),
                 'source' => 'Serper Organic',
                 'phase' => $phase,
