@@ -214,7 +214,7 @@ export default function LeadResultsPanel({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `leads-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `Bamlead-Leads-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success(`Exported ${selected.length} leads`);

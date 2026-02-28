@@ -329,7 +329,7 @@ Best regards`;
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `verified-leads-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `Bamlead-Verified-Leads-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
 

@@ -275,7 +275,8 @@ export default function LeadReportModal({
       headStyles: { fillColor: [59, 130, 246] },
     });
 
-    doc.save(`bamlead-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    const nicheSlug = searchQuery.trim().replace(/\s+/g, '-') || 'Leads';
+    doc.save(`Bamlead-${nicheSlug}-Report-${new Date().toISOString().split('T')[0]}.pdf`);
     toast.success('PDF report downloaded!');
   };
 

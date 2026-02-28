@@ -1197,7 +1197,8 @@ export default function LeadDocumentViewer({
       doc.text(`BamLead Intelligence Report - Page ${i} of ${pageCount}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
     }
 
-    doc.save(`bamlead-leads-${new Date().toISOString().split('T')[0]}.pdf`);
+    const nicheSlug = searchQuery.trim().replace(/\s+/g, '-') || 'Leads';
+    doc.save(`Bamlead-${nicheSlug}-Leads-${new Date().toISOString().split('T')[0]}.pdf`);
     toast.success('Full intelligence PDF downloaded with emails, SWOT & competitive analysis!');
   };
 
@@ -1257,7 +1258,8 @@ export default function LeadDocumentViewer({
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(warmData), 'Warm Leads');
     }
 
-    XLSX.writeFile(wb, `bamlead-grouped-leads-${new Date().toISOString().split('T')[0]}.xlsx`);
+    const excelNicheSlug = searchQuery.trim().replace(/\s+/g, '-') || 'Leads';
+    XLSX.writeFile(wb, `Bamlead-${excelNicheSlug}-Leads-${new Date().toISOString().split('T')[0]}.xlsx`);
     toast.success('Excel file downloaded with separate sheets for Hot/Warm/Cold!');
   };
 

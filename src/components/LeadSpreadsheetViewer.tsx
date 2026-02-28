@@ -375,7 +375,7 @@ export default function LeadSpreadsheetViewer({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `website-design-leads-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `Bamlead-Leads-${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success(`Exported ${dataToExport.length} leads as CSV`);
