@@ -142,7 +142,7 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
     sendSSE('start', [
         'query' => "$service in $location",
         'limit' => $limit,
-        'sources' => ['Serper Organic'],
+        'sources' => !empty($filtersForMatching['noWebsite']) ? ['Serper Places', 'Serper Organic'] : ['Serper Organic'],
         'platforms' => $platforms,
         'filtersActive' => hasAnySearchFilter($filters),
     ]);
@@ -164,6 +164,7 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
         ],
         'queriesPlanned' => 0,
         'queriesExecuted' => 0,
+        'placesResults' => 0,
         'finalResults' => 0,
     ];
 
@@ -174,6 +175,151 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
     $lastQueryError = '';
     $emitBatchSize = 5;
 
+    // ---- PLACES PASS: When "No website" is active, search Google Maps first ----
+    // Google Maps lists businesses that often have NO website — this is the best source.
+    if (!empty($filtersForMatching['noWebsite'])) {
+        $placesQueries = [
+            "$service in $location",
+            "$service near $location",
+        ];
+        // Add service variants for broader coverage
+        $serviceWords = explode(' ', trim($service));
+        if (count($serviceWords) > 1) {
+            $placesQueries[] = $serviceWords[0] . " services $location";
+        }
+
+        sendSSE('status', [
+            'message' => 'Searching Google Maps for businesses without websites...',
+            'progress' => 2,
+            'source' => 'Serper Places',
+            'phase' => 'places_search',
+        ]);
+
+        foreach ($placesQueries as $pq) {
+            if ($totalResults >= $limit) break;
+            $diagnostics['queriesExecuted']++;
+
+            $placesUrl = 'https://google.serper.dev/places';
+            $placesPayload = json_encode([
+                'q' => $pq,
+                'num' => 40,
+            ]);
+
+            $ch = curl_init($placesUrl);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => $placesPayload,
+                CURLOPT_HTTPHEADER => [
+                    'X-API-KEY: ' . SERPER_API_KEY,
+                    'Content-Type: application/json',
+                ],
+                CURLOPT_TIMEOUT => 15,
+            ]);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($httpCode !== 200 || !$response) {
+                $queryErrorCount++;
+                continue;
+            }
+
+            $data = json_decode($response, true);
+            $places = $data['places'] ?? [];
+
+            $leadBuffer = [];
+            foreach ($places as $place) {
+                if ($totalResults >= $limit) break;
+                $diagnostics['rawCandidates']++;
+
+                $placeWebsite = trim($place['website'] ?? '');
+                $placeName = $place['title'] ?? ($place['name'] ?? '');
+                $placePhone = $place['phoneNumber'] ?? ($place['phone'] ?? '');
+                $placeAddress = $place['address'] ?? '';
+
+                // Dedupe by name+address
+                $dedupeKey = strtolower($placeName . '|' . $placeAddress);
+                if (isset($seenResults[$dedupeKey])) {
+                    $diagnostics['dedupedCandidates']++;
+                    continue;
+                }
+                $seenResults[$dedupeKey] = true;
+
+                // Build business record — Places results without a website are exactly what we want
+                $business = [
+                    'id' => 'plat_places_' . substr(md5($placeName . $placeAddress . time()), 0, 12),
+                    'name' => $placeName,
+                    'url' => '',
+                    'website' => $placeWebsite,
+                    'address' => $placeAddress,
+                    'phone' => $placePhone,
+                    'email' => '',
+                    'rating' => $place['rating'] ?? null,
+                    'reviewCount' => $place['reviews'] ?? ($place['reviewsCount'] ?? null),
+                    'source' => 'Serper Places',
+                    'sources' => ['Serper Places'],
+                    'websiteAnalysis' => [
+                        'hasWebsite' => $placeWebsite !== '',
+                        'platform' => null,
+                        'needsUpgrade' => false,
+                        'issues' => $placeWebsite === '' ? ['No website detected'] : [],
+                        'mobileScore' => null,
+                        'loadTime' => null,
+                    ],
+                ];
+
+                $diagnostics['preFilterCandidates']++;
+
+                if (!matchesSearchFilters($business, $filtersForMatching)) {
+                    $diagnostics['filterRejectedCandidates']++;
+                    $reasons = getSearchFilterFailureReasons($business, $filtersForMatching);
+                    foreach ($reasons as $reason) {
+                        if (!isset($diagnostics['filterRejections'][$reason])) {
+                            $reason = 'combined';
+                        }
+                        $diagnostics['filterRejections'][$reason]++;
+                    }
+                    continue;
+                }
+
+                $diagnostics['filterMatchedCandidates']++;
+                $diagnostics['placesResults']++;
+
+                $allResults[] = $business;
+                $leadBuffer[] = $business;
+                $totalResults++;
+
+                if (count($leadBuffer) >= $emitBatchSize) {
+                    sendSSE('results', [
+                        'leads' => $leadBuffer,
+                        'total' => $totalResults,
+                        'progress' => min(50, round(($totalResults / max(1, $limit)) * 100)),
+                        'source' => 'Serper Places',
+                    ]);
+                    $leadBuffer = [];
+                }
+            }
+
+            if (!empty($leadBuffer)) {
+                sendSSE('results', [
+                    'leads' => $leadBuffer,
+                    'total' => $totalResults,
+                    'progress' => min(50, round(($totalResults / max(1, $limit)) * 100)),
+                    'source' => 'Serper Places',
+                ]);
+            }
+        }
+
+        sendSSE('status', [
+            'message' => "Found {$totalResults} businesses from Google Maps, searching directories...",
+            'progress' => min(55, round(($totalResults / max(1, $limit)) * 100)),
+            'source' => 'Serper Organic',
+            'phase' => 'searching',
+        ]);
+    }
+
     // Build search queries: service + each platform modifier + location
     $queries = [];
     foreach ($platformQueries as $modifier) {
@@ -181,10 +327,12 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
     }
     // Also add a generic query
     $queries[] = "$service in $location";
-    $diagnostics['queriesPlanned'] = count($queries);
+    $diagnostics['queriesPlanned'] += count($queries);
     sendSSE('status', [
-        'message' => 'Initializing platform search...',
-        'progress' => 1,
+        'message' => !empty($filtersForMatching['noWebsite'])
+            ? "Searching directories for more businesses without websites..."
+            : 'Initializing platform search...',
+        'progress' => !empty($filtersForMatching['noWebsite']) ? 55 : 1,
         'source' => 'Serper Organic',
         'locationCount' => 1,
         'variantCount' => max(1, count($platformQueries)),
