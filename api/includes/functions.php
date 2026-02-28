@@ -833,6 +833,23 @@ function expandServiceSynonyms($service) {
             'waxing salon', 'threading salon', 'tanning salon', 'spray tan',
             'med spa', 'facial treatment', 'chemical peel', 'Botox provider',
         ],
+        // Spa / Wellness (dedicated entry so "spa" alone triggers expansion)
+        '/\bspa\b|\bmed spa\b|\bday spa\b|\bwellness\b|\bmassage\b|\bfacial\b/' => [
+            'day spa', 'med spa', 'medical spa', 'massage spa', 'wellness spa',
+            'spa and wellness', 'luxury spa', 'resort spa', 'spa near me',
+            'spa services', 'spa treatments', 'facial spa', 'body spa',
+            'couples spa', 'relaxation spa', 'therapeutic spa', 'mineral spa',
+            'hot springs spa', 'aromatherapy spa', 'hydrotherapy spa',
+            'massage therapy', 'massage therapist', 'deep tissue massage',
+            'Swedish massage', 'hot stone massage', 'prenatal massage',
+            'sports massage', 'reflexology', 'acupuncture spa',
+            'facial treatment', 'chemical peel', 'microdermabrasion',
+            'Botox provider', 'dermal filler', 'laser hair removal',
+            'body wrap', 'body scrub', 'detox spa', 'infrared sauna',
+            'float therapy', 'cryotherapy', 'salt room', 'halotherapy',
+            'nail salon and spa', 'beauty spa', 'skin care spa', 'anti aging spa',
+            'hair removal spa', 'waxing spa', 'tanning spa',
+        ],
         // Towing
         '/\btow\b|\btowing\b/' => [
             'towing service', 'tow truck', 'roadside assistance', 'emergency towing',

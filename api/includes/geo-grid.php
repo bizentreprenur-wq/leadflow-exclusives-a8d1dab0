@@ -345,6 +345,13 @@ function getGridServiceSynonyms(string $service): array {
         'tire'        => ['tire shop', 'tire service', 'tire dealer', 'tire repair'],
     ];
 
+    // Spa / Wellness
+    $synonymMap['spa'] = ['day spa', 'med spa', 'medical spa', 'massage spa', 'wellness spa', 'massage therapy', 'facial spa', 'beauty spa', 'luxury spa', 'spa and wellness'];
+    $synonymMap['day spa'] = ['spa', 'med spa', 'massage spa', 'wellness spa', 'relaxation spa', 'beauty spa'];
+    $synonymMap['med spa'] = ['medical spa', 'spa', 'medspa', 'aesthetic clinic', 'cosmetic spa', 'Botox provider', 'laser spa'];
+    $synonymMap['massage'] = ['massage therapy', 'massage therapist', 'spa', 'deep tissue massage', 'Swedish massage', 'sports massage'];
+    $synonymMap['wellness'] = ['wellness spa', 'wellness center', 'holistic wellness', 'spa and wellness', 'health spa'];
+
     return $synonymMap[$service] ?? [];
 }
 
