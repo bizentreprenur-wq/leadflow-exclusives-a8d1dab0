@@ -352,7 +352,17 @@ function getGridServiceSynonyms(string $service): array {
     $synonymMap['massage'] = ['massage therapy', 'massage therapist', 'spa', 'deep tissue massage', 'Swedish massage', 'sports massage'];
     $synonymMap['wellness'] = ['wellness spa', 'wellness center', 'holistic wellness', 'spa and wellness', 'health spa'];
 
-    return $synonymMap[$service] ?? [];
+    if (isset($synonymMap[$service])) {
+        return $synonymMap[$service];
+    }
+
+    // AI fallback: dynamically generate synonyms for unknown niches
+    $aiSynonyms = generateAISynonyms($service);
+    if (!empty($aiSynonyms)) {
+        return array_slice($aiSynonyms, 0, 10); // Top 10 for grid
+    }
+
+    return [];
 }
 
 /**
