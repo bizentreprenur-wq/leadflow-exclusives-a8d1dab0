@@ -2215,7 +2215,7 @@ export default function Dashboard() {
                             }}
                           />
                           <div>
-                            <span className="text-sm font-medium text-foreground">🚀 Maximum volume</span>
+                            <span className="text-sm font-medium text-foreground">🚀 Maximum Leads In Niche</span>
                             <p className="text-xs text-muted-foreground">Get every lead in this niche — no filtering, maximum results</p>
                           </div>
                         </label>
