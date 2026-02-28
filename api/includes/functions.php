@@ -1039,6 +1039,180 @@ function expandServiceSynonyms($service) {
             'pickup and delivery laundry', 'same day dry cleaning',
             'eco friendly dry cleaner', 'organic dry cleaning',
         ],
+        // Handyman / Home Repair
+        '/\bhandyman\b|\bhome repair\b|\bfix it\b|\bodd job\b/' => [
+            'handyman', 'handyman service', 'home repair', 'general repair',
+            'maintenance man', 'home maintenance', 'property maintenance',
+            'furniture assembly', 'drywall patch', 'door repair', 'window repair',
+            'caulking service', 'weatherstripping', 'honey do list',
+            'minor plumbing repair', 'minor electrical repair', 'hanging shelves',
+            'TV mounting service', 'gutter cleaning', 'power washing',
+            'fence repair', 'deck repair', 'screen repair', 'tile repair',
+            'grout repair', 'trim carpentry', 'odd jobs', 'home improvement',
+        ],
+        // Pressure Washing
+        '/\bpressure wash\b|\bpower wash\b/' => [
+            'pressure washing', 'power washing', 'exterior cleaning', 'house washing',
+            'driveway cleaning', 'deck washing', 'fence washing', 'roof washing',
+            'soft washing', 'concrete cleaning', 'patio cleaning', 'sidewalk cleaning',
+            'commercial pressure washing', 'graffiti removal', 'gutter cleaning',
+            'building washing', 'fleet washing', 'parking lot cleaning',
+        ],
+        // Fencing
+        '/\bfence\b|\bfencing\b/' => [
+            'fence company', 'fence contractor', 'fence installation', 'fence repair',
+            'wood fence', 'vinyl fence', 'chain link fence', 'aluminum fence',
+            'wrought iron fence', 'privacy fence', 'commercial fencing',
+            'residential fencing', 'gate installation', 'automatic gate',
+            'pool fence', 'farm fence', 'ranch fence', 'fence staining',
+            'fence painting', 'fence post repair', 'custom fence builder',
+        ],
+        // Solar Energy
+        '/\bsolar\b/' => [
+            'solar company', 'solar installation', 'solar panel installer',
+            'solar energy company', 'solar contractor', 'residential solar',
+            'commercial solar', 'solar farm', 'solar battery', 'solar inverter',
+            'solar roof', 'Tesla solar', 'off grid solar', 'grid tied solar',
+            'solar maintenance', 'solar panel cleaning', 'solar financing',
+            'solar lease', 'solar PPA', 'community solar', 'solar consultant',
+        ],
+        // Interior Design
+        '/\binterior design\b|\binterior decorat\b|\bhome stag\b/' => [
+            'interior designer', 'interior decorator', 'home staging',
+            'residential interior design', 'commercial interior design',
+            'kitchen designer', 'bathroom designer', 'space planning',
+            'color consultant', 'furniture designer', 'lighting designer',
+            'window treatment designer', 'custom drapery', 'blinds installer',
+            'wallpaper installer', 'home organizer', 'closet designer',
+            'feng shui consultant', 'sustainable interior design', 'model home staging',
+        ],
+        // Event Planning / Wedding
+        '/\bevent plan\b|\bwedding plan\b|\bparty plan\b|\bcater\b/' => [
+            'event planner', 'wedding planner', 'party planner', 'event coordinator',
+            'catering company', 'catering service', 'wedding caterer',
+            'corporate event planner', 'event venue', 'wedding venue',
+            'banquet hall', 'reception venue', 'event decorator', 'balloon decorator',
+            'DJ service', 'wedding DJ', 'photo booth rental', 'event rentals',
+            'tent rental', 'chair rental', 'table rental', 'linen rental',
+            'wedding florist', 'event lighting', 'wedding cake baker',
+        ],
+        // Car Wash / Detailing
+        '/\bcar wash\b|\bdetail\b|\bauto detail\b/' => [
+            'car wash', 'auto detailing', 'car detailing', 'mobile detailing',
+            'hand car wash', 'full service car wash', 'express car wash',
+            'interior detailing', 'exterior detailing', 'ceramic coating',
+            'paint correction', 'paint protection film', 'window tinting',
+            'headlight restoration', 'upholstery cleaning auto', 'engine cleaning',
+            'fleet washing', 'boat detailing', 'motorcycle detailing',
+            'RV detailing', 'aircraft detailing', 'scratch removal',
+        ],
+        // Home Inspection
+        '/\bhome inspect\b|\binspect\b/' => [
+            'home inspector', 'home inspection', 'property inspection',
+            'building inspection', 'pre purchase inspection', 'pre listing inspection',
+            'radon testing', 'mold inspection', 'termite inspection',
+            'sewer scope inspection', 'foundation inspection', 'roof inspection',
+            'electrical inspection', 'plumbing inspection', 'HVAC inspection',
+            'commercial building inspection', 'new construction inspection',
+            'four point inspection', 'wind mitigation inspection',
+        ],
+        // Mortgage / Lending
+        '/\bmortgage\b|\bloan officer\b/' => [
+            'mortgage broker', 'mortgage lender', 'loan officer', 'mortgage company',
+            'home loan', 'refinance', 'FHA loan', 'VA loan', 'USDA loan',
+            'conventional loan', 'jumbo loan', 'first time home buyer loan',
+            'reverse mortgage', 'hard money lender', 'commercial lender',
+            'construction loan', 'bridge loan', 'mortgage advisor',
+        ],
+        // Staffing / Recruiting
+        '/\bstaffing\b|\brecruit\b|\btemp agency\b/' => [
+            'staffing agency', 'temp agency', 'recruiting firm', 'employment agency',
+            'headhunter', 'executive recruiter', 'IT staffing', 'medical staffing',
+            'industrial staffing', 'warehouse staffing', 'construction staffing',
+            'administrative staffing', 'accounting staffing', 'legal staffing',
+            'contract staffing', 'direct hire', 'temp to perm', 'RPO provider',
+            'PEO company', 'HR consulting', 'payroll company',
+        ],
+        // Concrete / Masonry
+        '/\bconcrete\b|\bmason\b|\bbrick\b|\bstone work\b/' => [
+            'concrete contractor', 'masonry contractor', 'bricklayer', 'stone mason',
+            'concrete company', 'concrete foundation', 'concrete driveway',
+            'concrete patio', 'stamped concrete', 'decorative concrete',
+            'concrete repair', 'concrete leveling', 'mudjacking',
+            'retaining wall contractor', 'block wall builder', 'stone veneer installer',
+            'chimney mason', 'fireplace builder', 'paver installer',
+            'concrete polishing', 'concrete staining', 'shotcrete contractor',
+        ],
+        // Septic / Sewer
+        '/\bseptic\b|\bsewer\b/' => [
+            'septic tank service', 'septic pumping', 'septic installation',
+            'septic repair', 'sewer line repair', 'sewer cleaning',
+            'drain cleaning', 'sewer camera inspection', 'trenchless sewer repair',
+            'grease trap cleaning', 'cesspool service', 'septic inspection',
+            'drain field repair', 'sewer line replacement', 'hydro jetting',
+            'rooter service', 'clogged drain service', 'emergency drain service',
+        ],
+        // Tree Service
+        '/\btree\b|\barborist\b/' => [
+            'tree service', 'tree removal', 'tree trimming', 'tree cutting',
+            'arborist', 'tree surgeon', 'stump grinding', 'stump removal',
+            'emergency tree removal', 'storm damage tree', 'tree pruning',
+            'tree health assessment', 'tree planting', 'land clearing',
+            'brush removal', 'tree cabling', 'tree bracing', 'lot clearing',
+            'commercial tree service', 'residential tree service', 'certified arborist',
+        ],
+        // Window / Glass
+        '/\bwindow\b|\bglass\b/' => [
+            'window company', 'window installation', 'window replacement',
+            'window repair', 'glass company', 'glass repair', 'glass replacement',
+            'auto glass', 'windshield replacement', 'storefront glass',
+            'shower door installation', 'mirror installation', 'custom glass',
+            'stained glass', 'window tinting', 'energy efficient windows',
+            'vinyl windows', 'wood windows', 'bay window installation',
+            'skylight installation', 'glass block installation', 'emergency glass repair',
+        ],
+        // Notary
+        '/\bnotary\b/' => [
+            'notary public', 'mobile notary', 'notary signing agent',
+            'remote online notary', 'loan signing agent', 'traveling notary',
+            'notary service', 'apostille service', 'document notarization',
+            'real estate notary', 'hospital notary', 'jail notary',
+            'after hours notary', '24 hour notary', 'bilingual notary',
+        ],
+        // Junk Removal
+        '/\bjunk\b|\bhauling\b|\bdemolition\b|\bcleanout\b/' => [
+            'junk removal', 'junk hauling', 'trash removal', 'debris removal',
+            'estate cleanout', 'foreclosure cleanout', 'hoarding cleanout',
+            'construction debris removal', 'furniture removal', 'appliance removal',
+            'yard waste removal', 'demolition contractor', 'interior demolition',
+            'garage cleanout', 'attic cleanout', 'basement cleanout',
+            'dumpster rental', 'roll off dumpster', 'same day junk removal',
+        ],
+        // Courier / Delivery
+        '/\bcourier\b|\bfreight\b|\btrucking\b/' => [
+            'courier service', 'delivery service', 'same day delivery',
+            'local delivery', 'medical courier', 'legal courier',
+            'freight company', 'shipping company', 'trucking company',
+            'LTL freight', 'full truckload', 'hot shot delivery',
+            'last mile delivery', 'white glove delivery', 'furniture delivery',
+            'package delivery', 'express courier', 'overnight delivery',
+        ],
+        // Jewelry / Watch
+        '/\bjewel\b|\bwatch\b|\bgold\b|\bdiamond\b/' => [
+            'jewelry store', 'jeweler', 'jewelry repair', 'watch repair',
+            'custom jewelry', 'engagement rings', 'wedding bands',
+            'gold buyer', 'diamond dealer', 'estate jewelry', 'antique jewelry',
+            'jewelry appraisal', 'gemologist', 'pearl jewelry',
+            'jewelry cleaning', 'ring sizing', 'engraving service',
+        ],
+        // Carpet Cleaning
+        '/\bcarpet clean\b|\brug clean\b/' => [
+            'carpet cleaning', 'carpet cleaner', 'rug cleaning', 'upholstery cleaning',
+            'steam cleaning', 'carpet shampoo', 'commercial carpet cleaning',
+            'residential carpet cleaning', 'area rug cleaning', 'oriental rug cleaning',
+            'pet stain removal', 'carpet repair', 'carpet stretching',
+            'tile and grout cleaning', 'hardwood floor cleaning', 'mattress cleaning',
+        ],
     ];
 
     foreach ($synonymMap as $pattern => $terms) {
@@ -1047,10 +1221,12 @@ function expandServiceSynonyms($service) {
         }
     }
 
-    // If no specific match, add generic business-type variants
+    // If no specific match, add comprehensive generic business-type variants
     if (empty($synonyms)) {
         $synonyms[] = "$clean service";
+        $synonyms[] = "$clean services";
         $synonyms[] = "$clean company";
+        $synonyms[] = "$clean companies";
         $synonyms[] = "$clean provider";
         $synonyms[] = "$clean specialist";
         $synonyms[] = "$clean contractor";
@@ -1058,6 +1234,20 @@ function expandServiceSynonyms($service) {
         $synonyms[] = "$clean agency";
         $synonyms[] = "$clean firm";
         $synonyms[] = "$clean solutions";
+        $synonyms[] = "$clean professional";
+        $synonyms[] = "$clean expert";
+        $synonyms[] = "$clean business";
+        $synonyms[] = "$clean shop";
+        $synonyms[] = "$clean center";
+        $synonyms[] = "$clean clinic";
+        $synonyms[] = "$clean repair";
+        $synonyms[] = "$clean installation";
+        $synonyms[] = "$clean maintenance";
+        $synonyms[] = "$clean supply";
+        $synonyms[] = "$clean store";
+        $synonyms[] = "$clean dealer";
+        $synonyms[] = "$clean technician";
+        $synonyms[] = "$clean pro";
     }
 
     // UNIVERSAL INTENT MODIFIERS — these mirror how real customers search
