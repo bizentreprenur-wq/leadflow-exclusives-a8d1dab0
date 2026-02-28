@@ -490,9 +490,97 @@ function getNearbyCityShards($cityInput, $stateInput, $radiusMiles = 40) {
 }
 
 /**
- * Expand common service synonyms to increase query coverage.
- * Comprehensive synonym map for 25+ industries to maximize lead volume.
+ * AI-powered synonym generator using OpenAI.
+ * Generates niche-specific search terms for ANY industry/service type.
+ * Results are cached to file for 7 days to avoid repeated API calls.
  */
+function generateAISynonyms(string $service): array {
+    $service = strtolower(trim($service));
+    if ($service === '') return [];
+
+    // Check file cache first (7-day TTL)
+    $cacheDir = defined('CACHE_DIR') ? CACHE_DIR : __DIR__ . '/cache';
+    if (!is_dir($cacheDir)) @mkdir($cacheDir, 0755, true);
+    $cacheFile = $cacheDir . '/ai_synonyms_' . md5($service) . '.json';
+
+    if (file_exists($cacheFile)) {
+        $cached = json_decode(file_get_contents($cacheFile), true);
+        if ($cached && isset($cached['expires']) && $cached['expires'] > time()) {
+            return $cached['synonyms'] ?? [];
+        }
+    }
+
+    // Require OpenAI key
+    if (!defined('OPENAI_API_KEY') || empty(OPENAI_API_KEY) || strpos(OPENAI_API_KEY, 'YOUR_') !== false) {
+        return [];
+    }
+
+    $prompt = "You are a local business search expert. Generate exactly 30 search term variations for the business niche: \"$service\". 
+Include:
+- Direct synonyms and alternate names (e.g., 'auto mechanic' → 'car repair shop')
+- Sub-specialties within this niche
+- Common consumer search phrases
+- Related service types customers might also search for
+- Industry-specific job titles
+
+Return ONLY a JSON object with key \"synonyms\" containing an array of strings. No explanations.";
+
+    $ch = curl_init('https://api.openai.com/v1/chat/completions');
+    $data = [
+        'model' => 'gpt-4o-mini',
+        'messages' => [['role' => 'user', 'content' => $prompt]],
+        'temperature' => 0.7,
+        'max_tokens' => 500,
+        'response_format' => ['type' => 'json_object']
+    ];
+
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode($data),
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . OPENAI_API_KEY,
+            'Content-Type: application/json'
+        ],
+        CURLOPT_TIMEOUT => 15,
+    ]);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    if ($httpCode !== 200 || !$response) {
+        error_log("[AI Synonyms] OpenAI call failed for '$service' (HTTP $httpCode)");
+        return [];
+    }
+
+    $result = json_decode($response, true);
+    $content = $result['choices'][0]['message']['content'] ?? null;
+    if (!$content) return [];
+
+    $parsed = json_decode($content, true);
+    $synonyms = $parsed['synonyms'] ?? [];
+
+    if (!is_array($synonyms) || empty($synonyms)) return [];
+
+    // Sanitize: lowercase, trim, unique, max 35
+    $synonyms = array_values(array_unique(array_map(function($s) {
+        return strtolower(trim((string)$s));
+    }, $synonyms)));
+    $synonyms = array_slice($synonyms, 0, 35);
+
+    // Cache for 7 days
+    @file_put_contents($cacheFile, json_encode([
+        'service' => $service,
+        'synonyms' => $synonyms,
+        'expires' => time() + (7 * 86400),
+        'generated' => date('Y-m-d H:i:s'),
+    ]));
+
+    error_log("[AI Synonyms] Generated " . count($synonyms) . " synonyms for '$service' (cached 7 days)");
+    return $synonyms;
+}
+
 function expandServiceSynonyms($service) {
     $clean = preg_replace('/\s+/', ' ', trim((string)$service));
     if ($clean === '') {
@@ -1238,33 +1326,22 @@ function expandServiceSynonyms($service) {
         }
     }
 
-    // If no specific match, add comprehensive generic business-type variants
+    // If no specific match, use AI to generate niche-specific synonyms
     if (empty($synonyms)) {
-        $synonyms[] = "$clean service";
-        $synonyms[] = "$clean services";
-        $synonyms[] = "$clean company";
-        $synonyms[] = "$clean companies";
-        $synonyms[] = "$clean provider";
-        $synonyms[] = "$clean specialist";
-        $synonyms[] = "$clean contractor";
-        $synonyms[] = "$clean consultant";
-        $synonyms[] = "$clean agency";
-        $synonyms[] = "$clean firm";
-        $synonyms[] = "$clean solutions";
-        $synonyms[] = "$clean professional";
-        $synonyms[] = "$clean expert";
-        $synonyms[] = "$clean business";
-        $synonyms[] = "$clean shop";
-        $synonyms[] = "$clean center";
-        $synonyms[] = "$clean clinic";
-        $synonyms[] = "$clean repair";
-        $synonyms[] = "$clean installation";
-        $synonyms[] = "$clean maintenance";
-        $synonyms[] = "$clean supply";
-        $synonyms[] = "$clean store";
-        $synonyms[] = "$clean dealer";
-        $synonyms[] = "$clean technician";
-        $synonyms[] = "$clean pro";
+        $aiSynonyms = generateAISynonyms($clean);
+        if (!empty($aiSynonyms)) {
+            $synonyms = array_merge($synonyms, $aiSynonyms);
+        } else {
+            // Ultimate fallback: generic variants if AI is unavailable
+            $genericSuffixes = ['service', 'services', 'company', 'companies', 'provider',
+                'specialist', 'contractor', 'consultant', 'agency', 'firm', 'solutions',
+                'professional', 'expert', 'business', 'shop', 'center', 'clinic',
+                'repair', 'installation', 'maintenance', 'supply', 'store', 'dealer',
+                'technician', 'pro'];
+            foreach ($genericSuffixes as $suffix) {
+                $synonyms[] = "$clean $suffix";
+            }
+        }
     }
 
     // UNIVERSAL INTENT MODIFIERS — these mirror how real customers search
