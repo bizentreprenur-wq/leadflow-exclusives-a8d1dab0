@@ -2,7 +2,7 @@
 /**
  * Platform Search API Endpoint - STREAMING VERSION
  * SSE streaming for Agency Lead Finder (Option B)
- * Now uses the unified custom fetcher pipeline (no-key discovery)
+ * With geo expansion, synonym expansion, and volume fulfillment
  */
 
 require_once __DIR__ . '/config.php';
@@ -10,6 +10,7 @@ require_once __DIR__ . '/includes/functions.php';
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/ratelimit.php';
 require_once __DIR__ . '/includes/custom_fetcher.php';
+require_once __DIR__ . '/includes/geo-grid.php';
 
 // SSE headers
 header('Content-Type: text/event-stream');
@@ -124,13 +125,17 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
     $filters = normalizeSearchFilters($filters);
     $filters['platformMode'] = true;
     $filters['platforms'] = $platforms;
-    // Platform selection is already encoded in search queries.
-    // Avoid strict post-filtering by detected platform token in legacy/raw mode.
     $filtersForMatching = $filters;
     $filtersForMatching['platforms'] = [];
+    $filtersActive = hasAnySearchFilter($filters);
+    $noWebsiteFilter = !empty($filtersForMatching['noWebsite']);
 
+    // ---- OVER-DELIVERY: Aim for 125% of requested leads ----
+    $targetCount = (int) ceil($limit * 1.25);
+
+    // ---- PLATFORM QUERIES ----
     $queryPlatforms = $platforms;
-    if (!empty($filtersForMatching['noWebsite'])) {
+    if ($noWebsiteFilter) {
         $queryPlatforms = array_values(array_unique(array_merge($queryPlatforms, [
             'gmb', 'yelp', 'yellowpages', 'manta', 'bbb', 'angi', 'thumbtack', 'homeadvisor',
             'mapquest', 'foursquare', 'superpages', 'citysearch', 'chamberofcommerce',
@@ -139,12 +144,67 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
     }
     $platformQueries = buildPlatformQueries($queryPlatforms);
 
+    // ---- GEO EXPANSION: Build list of locations to search ----
+    $locationsToSearch = [$location];
+    $expandedLocations = [];
+    $cityClean = $location;
+    $stateSuffix = '';
+    if (strpos($location, ',') !== false) {
+        [$cityClean, $stateSuffix] = array_map('trim', explode(',', $location, 2));
+        $stateSuffix = ", $stateSuffix";
+    }
+
+    // Always expand to surrounding areas for volume fulfillment
+    if (function_exists('getMetroSubAreas')) {
+        $subAreas = getMetroSubAreas(strtolower(trim($cityClean)));
+        if (!empty($subAreas)) {
+            // Scale expansion based on requested limit
+            $expansionCount = 8;
+            if ($limit >= 50) $expansionCount = 15;
+            if ($limit >= 100) $expansionCount = 25;
+            if ($limit >= 250) $expansionCount = 40;
+            if ($limit >= 500) $expansionCount = 60;
+            $expansionCount = min($expansionCount, count($subAreas));
+            $expandedLocations = array_slice($subAreas, 0, $expansionCount);
+            foreach ($expandedLocations as $area) {
+                $locationsToSearch[] = $area . $stateSuffix;
+            }
+        }
+    }
+
+    // Add directional expansions for broader geographic coverage
+    $directions = ['North', 'South', 'East', 'West'];
+    foreach ($directions as $dir) {
+        $locationsToSearch[] = "$dir $cityClean" . $stateSuffix;
+    }
+    $locationsToSearch[] = "near $cityClean" . $stateSuffix;
+    $locationsToSearch[] = "greater $cityClean" . $stateSuffix;
+
+    // ---- SYNONYM EXPANSION: Build service variants ----
+    $serviceVariants = [$service];
+    if (function_exists('expandServiceSynonyms')) {
+        $synonyms = expandServiceSynonyms($service);
+        if (!empty($synonyms)) {
+            // Scale synonyms based on limit
+            $synCount = 3;
+            if ($limit >= 50) $synCount = 5;
+            if ($limit >= 100) $synCount = 8;
+            if ($limit >= 250) $synCount = 12;
+            $serviceVariants = array_merge($serviceVariants, array_slice($synonyms, 0, $synCount));
+            $serviceVariants = array_unique($serviceVariants);
+        }
+    }
+
     sendSSE('start', [
         'query' => "$service in $location",
         'limit' => $limit,
-        'sources' => !empty($filtersForMatching['noWebsite']) ? ['Serper Places', 'Serper Organic'] : ['Serper Organic'],
+        'targetCount' => $targetCount,
+        'sources' => $noWebsiteFilter ? ['Serper Places', 'Serper Organic'] : ['Serper Organic'],
         'platforms' => $platforms,
-        'filtersActive' => hasAnySearchFilter($filters),
+        'filtersActive' => $filtersActive,
+        'locationCount' => count($locationsToSearch),
+        'synonymCount' => count($serviceVariants),
+        'expandedLocations' => array_slice($expandedLocations, 0, 10),
     ]);
 
     $diagnostics = [
@@ -165,6 +225,8 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
         'queriesPlanned' => 0,
         'queriesExecuted' => 0,
         'placesResults' => 0,
+        'locationsSearched' => 0,
+        'synonymsUsed' => 0,
         'finalResults' => 0,
     ];
 
@@ -175,17 +237,16 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
     $lastQueryError = '';
     $emitBatchSize = 5;
 
-    // ---- PLACES PASS: When "No website" is active, search Google Maps first ----
-    // Google Maps lists businesses that often have NO website — this is the best source.
-    if (!empty($filtersForMatching['noWebsite'])) {
-        $placesQueries = [
-            "$service in $location",
-            "$service near $location",
-        ];
-        // Add service variants for broader coverage
-        $serviceWords = explode(' ', trim($service));
-        if (count($serviceWords) > 1) {
-            $placesQueries[] = $serviceWords[0] . " services $location";
+    // ================================================================
+    // PASS 1: PLACES (Google Maps) — When "No website" filter is active
+    // ================================================================
+    if ($noWebsiteFilter) {
+        // Build places queries across ALL locations and synonyms
+        $placesQueries = [];
+        foreach (array_slice($locationsToSearch, 0, 20) as $loc) {
+            foreach (array_slice($serviceVariants, 0, 4) as $svc) {
+                $placesQueries[] = "$svc in $loc";
+            }
         }
 
         sendSSE('status', [
@@ -195,15 +256,12 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
             'phase' => 'places_search',
         ]);
 
-        foreach ($placesQueries as $pq) {
-            if ($totalResults >= $limit) break;
+        foreach ($placesQueries as $pqIdx => $pq) {
+            if ($totalResults >= $targetCount) break;
             $diagnostics['queriesExecuted']++;
 
             $placesUrl = 'https://google.serper.dev/places';
-            $placesPayload = json_encode([
-                'q' => $pq,
-                'num' => 40,
-            ]);
+            $placesPayload = json_encode(['q' => $pq, 'num' => 40]);
 
             $ch = curl_init($placesUrl);
             curl_setopt_array($ch, [
@@ -231,7 +289,7 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
 
             $leadBuffer = [];
             foreach ($places as $place) {
-                if ($totalResults >= $limit) break;
+                if ($totalResults >= $targetCount) break;
                 $diagnostics['rawCandidates']++;
 
                 $placeWebsite = trim($place['website'] ?? '');
@@ -239,17 +297,15 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
                 $placePhone = $place['phoneNumber'] ?? ($place['phone'] ?? '');
                 $placeAddress = $place['address'] ?? '';
 
-                // Dedupe by name+address
-                $dedupeKey = strtolower($placeName . '|' . $placeAddress);
+                $dedupeKey = strtolower(preg_replace('/[^a-z0-9]/', '', $placeName));
                 if (isset($seenResults[$dedupeKey])) {
                     $diagnostics['dedupedCandidates']++;
                     continue;
                 }
                 $seenResults[$dedupeKey] = true;
 
-                // Build business record — Places results without a website are exactly what we want
                 $business = [
-                    'id' => 'plat_places_' . substr(md5($placeName . $placeAddress . time()), 0, 12),
+                    'id' => 'plat_places_' . substr(md5($placeName . $placeAddress . $pqIdx), 0, 12),
                     'name' => $placeName,
                     'url' => '',
                     'website' => $placeWebsite,
@@ -271,14 +327,11 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
                 ];
 
                 $diagnostics['preFilterCandidates']++;
-
                 if (!matchesSearchFilters($business, $filtersForMatching)) {
                     $diagnostics['filterRejectedCandidates']++;
                     $reasons = getSearchFilterFailureReasons($business, $filtersForMatching);
                     foreach ($reasons as $reason) {
-                        if (!isset($diagnostics['filterRejections'][$reason])) {
-                            $reason = 'combined';
-                        }
+                        if (!isset($diagnostics['filterRejections'][$reason])) $reason = 'combined';
                         $diagnostics['filterRejections'][$reason]++;
                     }
                     continue;
@@ -286,7 +339,6 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
 
                 $diagnostics['filterMatchedCandidates']++;
                 $diagnostics['placesResults']++;
-
                 $allResults[] = $business;
                 $leadBuffer[] = $business;
                 $totalResults++;
@@ -295,7 +347,7 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
                     sendSSE('results', [
                         'leads' => $leadBuffer,
                         'total' => $totalResults,
-                        'progress' => min(50, round(($totalResults / max(1, $limit)) * 100)),
+                        'progress' => min(45, round(($totalResults / max(1, $targetCount)) * 100)),
                         'source' => 'Serper Places',
                     ]);
                     $leadBuffer = [];
@@ -306,49 +358,135 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
                 sendSSE('results', [
                     'leads' => $leadBuffer,
                     'total' => $totalResults,
-                    'progress' => min(50, round(($totalResults / max(1, $limit)) * 100)),
+                    'progress' => min(45, round(($totalResults / max(1, $targetCount)) * 100)),
                     'source' => 'Serper Places',
+                ]);
+            }
+
+            // Progress update every 5 queries
+            if ($pqIdx % 5 === 4) {
+                sendSSE('status', [
+                    'message' => "Maps search: {$totalResults} leads found so far...",
+                    'progress' => min(45, round(($totalResults / max(1, $targetCount)) * 100)),
+                    'source' => 'Serper Places',
+                    'phase' => 'places_search',
                 ]);
             }
         }
 
-        sendSSE('status', [
-            'message' => "Found {$totalResults} businesses from Google Maps, searching directories...",
-            'progress' => min(55, round(($totalResults / max(1, $limit)) * 100)),
-            'source' => 'Serper Organic',
-            'phase' => 'searching',
-        ]);
+        if ($totalResults > 0) {
+            sendSSE('status', [
+                'message' => "Found {$totalResults} from Google Maps, expanding organic search...",
+                'progress' => min(50, round(($totalResults / max(1, $targetCount)) * 100)),
+                'source' => 'Serper Organic',
+                'phase' => 'searching',
+            ]);
+        }
     }
 
-    // Build search queries: service + each platform modifier + location
+    // ================================================================
+    // PASS 2: ORGANIC SEARCH — Platform queries across all locations + synonyms
+    // ================================================================
+    // Build all organic queries: (service variants) × (platform modifiers) × (locations)
     $queries = [];
+
+    // Phase A: Primary service + all platform modifiers + primary location
     foreach ($platformQueries as $modifier) {
-        $queries[] = "$service $modifier $location";
+        $queries[] = ['q' => "$service $modifier $location", 'phase' => 'primary'];
     }
-    // Also add a generic query
-    $queries[] = "$service in $location";
+    $queries[] = ['q' => "$service in $location", 'phase' => 'primary'];
+
+    // Phase B: Primary service + expanded locations (geo expansion)
+    if (count($locationsToSearch) > 1) {
+        foreach (array_slice($locationsToSearch, 1) as $expandedLoc) {
+            // Use top platform modifiers for expanded locations
+            $topModifiers = array_slice($platformQueries, 0, min(5, count($platformQueries)));
+            foreach ($topModifiers as $modifier) {
+                $queries[] = ['q' => "$service $modifier $expandedLoc", 'phase' => 'geo_expansion'];
+            }
+            $queries[] = ['q' => "$service in $expandedLoc", 'phase' => 'geo_expansion'];
+        }
+    }
+
+    // Phase C: Synonym variants + primary location (synonym expansion)
+    if (count($serviceVariants) > 1) {
+        foreach (array_slice($serviceVariants, 1) as $synonym) {
+            $topModifiers = array_slice($platformQueries, 0, min(3, count($platformQueries)));
+            foreach ($topModifiers as $modifier) {
+                $queries[] = ['q' => "$synonym $modifier $location", 'phase' => 'synonym_expansion'];
+            }
+            $queries[] = ['q' => "$synonym in $location", 'phase' => 'synonym_expansion'];
+        }
+    }
+
+    // Phase D: Synonyms + expanded locations (deep expansion — only if still short)
+    if (count($serviceVariants) > 1 && count($locationsToSearch) > 1) {
+        $topSynonyms = array_slice($serviceVariants, 1, 3);
+        $topLocations = array_slice($locationsToSearch, 1, 10);
+        foreach ($topSynonyms as $synonym) {
+            foreach ($topLocations as $expandedLoc) {
+                $queries[] = ['q' => "$synonym in $expandedLoc", 'phase' => 'deep_expansion'];
+            }
+        }
+    }
+
     $diagnostics['queriesPlanned'] += count($queries);
+    $totalQueries = count($queries);
+
     sendSSE('status', [
-        'message' => !empty($filtersForMatching['noWebsite'])
-            ? "Searching directories for more businesses without websites..."
-            : 'Initializing platform search...',
-        'progress' => !empty($filtersForMatching['noWebsite']) ? 55 : 1,
+        'message' => $noWebsiteFilter
+            ? "Searching directories across " . count($locationsToSearch) . " locations..."
+            : "Searching " . count($locationsToSearch) . " locations with " . count($serviceVariants) . " service variants...",
+        'progress' => $noWebsiteFilter ? 50 : 1,
         'source' => 'Serper Organic',
-        'locationCount' => 1,
-        'variantCount' => max(1, count($platformQueries)),
-        'estimatedQueries' => count($queries),
+        'locationCount' => count($locationsToSearch),
+        'variantCount' => count($serviceVariants),
+        'estimatedQueries' => $totalQueries,
         'phase' => 'searching',
     ]);
 
-    foreach ($queries as $queryIdx => $query) {
-        if ($totalResults >= $limit) break;
+    $currentPhase = '';
+    foreach ($queries as $queryIdx => $queryItem) {
+        if ($totalResults >= $targetCount) break;
+
+        $query = $queryItem['q'];
+        $phase = $queryItem['phase'];
         $diagnostics['queriesExecuted']++;
+
+        // Track phase transitions
+        if ($phase !== $currentPhase) {
+            $currentPhase = $phase;
+            if ($phase === 'geo_expansion') {
+                $diagnostics['locationsSearched']++;
+                sendSSE('status', [
+                    'message' => "Expanding to surrounding cities ({$totalResults}/{$limit} leads)...",
+                    'progress' => min(90, round(($totalResults / max(1, $targetCount)) * 100)),
+                    'source' => 'Serper Organic',
+                    'phase' => 'geo_expansion',
+                ]);
+            } elseif ($phase === 'synonym_expansion') {
+                $diagnostics['synonymsUsed']++;
+                sendSSE('status', [
+                    'message' => "Trying related search terms ({$totalResults}/{$limit} leads)...",
+                    'progress' => min(90, round(($totalResults / max(1, $targetCount)) * 100)),
+                    'source' => 'Serper Organic',
+                    'phase' => 'synonym_expansion',
+                ]);
+            } elseif ($phase === 'deep_expansion') {
+                sendSSE('status', [
+                    'message' => "Deep expansion: related terms + nearby cities ({$totalResults}/{$limit} leads)...",
+                    'progress' => min(90, round(($totalResults / max(1, $targetCount)) * 100)),
+                    'source' => 'Serper Organic',
+                    'phase' => 'deep_expansion',
+                ]);
+            }
+        }
 
         // Serper organic search
         $url = 'https://google.serper.dev/search';
         $payload = json_encode([
             'q' => $query,
-            'num' => min(100, $limit - $totalResults),
+            'num' => min(100, max(20, $targetCount - $totalResults)),
         ]);
 
         $ch = curl_init($url);
@@ -380,7 +518,7 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
 
         $leadBuffer = [];
         foreach ($organic as $item) {
-            if ($totalResults >= $limit) break;
+            if ($totalResults >= $targetCount) break;
             $diagnostics['rawCandidates']++;
 
             $link = $item['link'] ?? '';
@@ -397,7 +535,7 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
             $seenResults[$dedupeKey] = true;
 
             $business = [
-                'id' => 'plat_' . substr(md5($link . time()), 0, 12),
+                'id' => 'plat_' . substr(md5($link . $queryIdx), 0, 12),
                 'name' => $item['title'] ?? $domain,
                 'url' => $link,
                 'website' => inferBusinessWebsiteFromSearchResultUrl($link),
@@ -415,9 +553,7 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
                 $diagnostics['filterRejectedCandidates']++;
                 $reasons = getSearchFilterFailureReasons($business, $filtersForMatching);
                 foreach ($reasons as $reason) {
-                    if (!isset($diagnostics['filterRejections'][$reason])) {
-                        $reason = 'combined';
-                    }
+                    if (!isset($diagnostics['filterRejections'][$reason])) $reason = 'combined';
                     $diagnostics['filterRejections'][$reason]++;
                 }
                 continue;
@@ -432,7 +568,7 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
                 sendSSE('results', [
                     'leads' => $leadBuffer,
                     'total' => $totalResults,
-                    'progress' => min(95, round(($totalResults / max(1, $limit)) * 100)),
+                    'progress' => min(95, round(($totalResults / max(1, $targetCount)) * 100)),
                     'source' => 'Serper Organic',
                 ]);
                 $leadBuffer = [];
@@ -443,21 +579,27 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
             sendSSE('results', [
                 'leads' => $leadBuffer,
                 'total' => $totalResults,
-                'progress' => min(95, round(($totalResults / max(1, $limit)) * 100)),
+                'progress' => min(95, round(($totalResults / max(1, $targetCount)) * 100)),
                 'source' => 'Serper Organic',
             ]);
         }
 
-        sendSSE('status', [
-            'message' => "Query " . ($queryIdx + 1) . "/" . count($queries) . " ({$totalResults}/{$limit} found)",
-            'progress' => min(95, round(($totalResults / max(1, $limit)) * 100)),
-            'source' => 'Serper Organic',
-            'phase' => 'searching',
-        ]);
+        // Progress update every 5 queries
+        if ($queryIdx % 5 === 4) {
+            sendSSE('status', [
+                'message' => "Query " . ($queryIdx + 1) . "/$totalQueries ({$totalResults}/{$limit} leads)",
+                'progress' => min(95, round(($totalResults / max(1, $targetCount)) * 100)),
+                'source' => 'Serper Organic',
+                'phase' => $phase,
+            ]);
+        }
     }
 
     $diagnostics['finalResults'] = $totalResults;
+    $diagnostics['locationsSearched'] = count($locationsToSearch);
+    $diagnostics['synonymsUsed'] = count($serviceVariants);
     $diagnostics['queryErrors'] = $queryErrorCount;
+
     if ($totalResults === 0 && $queryErrorCount > 0) {
         $errorMessage = 'Platform search upstream failed for all queries.';
         if ($lastQueryError !== '') {
@@ -469,6 +611,8 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
 
     sendSSE('complete', [
         'total' => $totalResults,
+        'requested' => $limit,
+        'overDelivered' => $totalResults > $limit,
         'leads' => $allResults,
         'diagnostics' => $diagnostics,
     ]);
