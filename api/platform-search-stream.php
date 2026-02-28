@@ -538,8 +538,10 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
     $globalQueryIdx = 0;
 
     foreach ($phaseGroups as $phase => $phaseQueries) {
-        // NEVER short-circuit — always run ALL phases to maximize volume
-        if ($totalResults >= $targetCount) break;
+        // Only stop after ALL expansion phases have been attempted
+        // Allow geo_expansion and synonym_expansion to always run
+        $isExpansionPhase = in_array($phase, ['geo_expansion', 'synonym_expansion', 'deep_expansion']);
+        if ($totalResults >= $targetCount && !$isExpansionPhase) continue;
 
         $diagnostics['locationsSearched']++;
         sendSSE('status', [
@@ -552,7 +554,8 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
         $batches = array_chunk($phaseQueries, $organicBatchSize);
 
         foreach ($batches as $batchIdx => $batch) {
-            if ($totalResults >= $targetCount) break;
+            // For expansion phases, keep going even past target to maximize volume
+            if ($totalResults >= $targetCount && !$isExpansionPhase) break;
 
             // Build payloads with num parameter — always request max results
             $payloads = [];
