@@ -66,6 +66,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (bulkUrlsInput) bulkUrlsInput.addEventListener('input', updateBulkCount);
     if (bulkExtractBtn) bulkExtractBtn.addEventListener('click', bulkExtract);
 
+    // Lead Search
+    const searchLeadsBtn = document.getElementById('searchLeadsBtn');
+    if (searchLeadsBtn) searchLeadsBtn.addEventListener('click', searchForLeads);
+
     // Disable on chrome:// pages
     if (tab && tab.url && (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:') || tab.url.startsWith('brave://') || tab.url.startsWith('opera://'))) {
       showToast('Cannot access browser internal pages');
@@ -221,6 +225,167 @@ async function deleteLead(reversedIdx) {
   if (totalEl) totalEl.textContent = newCount;
   await renderLeadsViewer();
   showToast('Lead deleted');
+}
+
+// ─── Lead Search (searches BamLead API) ─────────────────
+
+const BAMLEAD_API = 'https://bamlead.com/api';
+
+async function searchForLeads() {
+  const serviceInput = document.getElementById('searchService');
+  const locationInput = document.getElementById('searchLocation');
+  const noWebsiteCheckbox = document.getElementById('searchNoWebsite');
+  const limitSelect = document.getElementById('searchLimit');
+  const btn = document.getElementById('searchLeadsBtn');
+  const statusEl = document.getElementById('searchStatus');
+  const progressFill = document.getElementById('searchProgressFill');
+  const progressText = document.getElementById('searchProgressText');
+  const summaryEl = document.getElementById('searchResultsSummary');
+
+  const service = (serviceInput?.value || '').trim();
+  const location = (locationInput?.value || '').trim();
+  const noWebsite = noWebsiteCheckbox?.checked || false;
+  const limit = parseInt(limitSelect?.value || '100', 10);
+
+  if (!service || !location) {
+    showToast('Enter both service and location');
+    return;
+  }
+
+  btn.classList.add('loading');
+  btn.innerHTML = '<span class="btn-icon">⏳</span> Searching...';
+  statusEl.style.display = 'flex';
+  summaryEl.style.display = 'none';
+  progressFill.style.width = '0%';
+  progressText.textContent = 'Connecting...';
+
+  const allResults = [];
+
+  try {
+    // Use SSE streaming endpoint
+    const params = new URLSearchParams({
+      service: service,
+      location: location,
+      limit: limit.toString()
+    });
+    if (noWebsite) params.append('noWebsite', '1');
+
+    const response = await fetch(`${BAMLEAD_API}/platform-search-stream.php?${params.toString()}`, {
+      method: 'GET',
+      headers: { 'Accept': 'text/event-stream' }
+    });
+
+    if (!response.ok) {
+      // Fallback to POST
+      const postResponse = await fetch(`${BAMLEAD_API}/platform-search.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          service,
+          location,
+          platforms: [],
+          limit,
+          filters: noWebsite ? { noWebsite: true } : {}
+        })
+      });
+      const json = await postResponse.json();
+      if (json.leads) allResults.push(...json.leads);
+    } else {
+      // Parse SSE stream
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const event = JSON.parse(line.substring(6));
+            if (event.type === 'results' && event.leads) {
+              for (const lead of event.leads) {
+                if (!allResults.find(r => r.name === lead.name && r.phone === lead.phone)) {
+                  allResults.push(lead);
+                }
+              }
+              const pct = Math.min(95, Math.round((allResults.length / limit) * 100));
+              progressFill.style.width = pct + '%';
+              progressText.textContent = allResults.length + ' leads found...';
+            } else if (event.type === 'complete') {
+              progressFill.style.width = '100%';
+              progressText.textContent = 'Complete!';
+            } else if (event.type === 'status') {
+              progressText.textContent = event.message || 'Searching...';
+            }
+          } catch (e) { /* skip malformed */ }
+        }
+      }
+    }
+
+    // Display results
+    if (allResults.length === 0) {
+      summaryEl.style.display = 'block';
+      summaryEl.innerHTML = '<div style="text-align:center;color:#f59e0b;padding:12px;">No leads found. Try a different service or location.</div>';
+    } else {
+      // Save all to storage automatically
+      const storage = await chrome.storage.local.get(['savedLeads', 'leadsCount', 'todayCount']);
+      const savedLeads = storage.savedLeads || [];
+      let leadsCount = storage.leadsCount || 0;
+      let todayCount = storage.todayCount || 0;
+
+      for (const lead of allResults) {
+        savedLeads.push({
+          companyName: lead.name || lead.businessName || '',
+          url: lead.website || '',
+          website: lead.website || '',
+          emails: lead.email ? [lead.email] : [],
+          phones: lead.phone ? [lead.phone] : [],
+          address: lead.address || '',
+          socialLinks: [],
+          savedAt: new Date().toISOString(),
+          source: 'bamlead-search'
+        });
+        leadsCount++;
+        todayCount++;
+      }
+
+      await chrome.storage.local.set({ savedLeads, leadsCount, todayCount });
+      await loadStats();
+      await renderLeadsViewer();
+
+      // Show summary
+      summaryEl.style.display = 'block';
+      const topResults = allResults.slice(0, 20);
+      summaryEl.innerHTML = `
+        <div class="search-results-header">✅ ${allResults.length} leads saved!</div>
+        ${topResults.map((r, i) => `
+          <div class="search-result-item">
+            <div>
+              <div class="search-result-name">${esc(r.name || r.businessName || 'Unknown')}</div>
+              <div class="search-result-contact">${esc(r.phone || r.email || r.address || '')}</div>
+            </div>
+          </div>
+        `).join('')}
+        ${allResults.length > 20 ? `<div style="text-align:center;color:#64748b;padding:6px;font-size:11px;">+ ${allResults.length - 20} more in Saved Leads</div>` : ''}
+      `;
+
+      showToast(`🎯 ${allResults.length} leads found & saved!`);
+    }
+  } catch (error) {
+    console.error('Search error:', error);
+    summaryEl.style.display = 'block';
+    summaryEl.innerHTML = `<div style="text-align:center;color:#ef4444;padding:12px;">Search failed: ${error.message}. Try again or use <a href="https://bamlead.com/dashboard" target="_blank" style="color:#14b8a6;">the dashboard</a>.</div>`;
+  }
+
+  btn.classList.remove('loading');
+  btn.innerHTML = '<span class="btn-icon">🚀</span> Search Leads';
+  setTimeout(() => { statusEl.style.display = 'none'; }, 2000);
 }
 
 // ─── Extract Contact Info (runs in page context) ────────

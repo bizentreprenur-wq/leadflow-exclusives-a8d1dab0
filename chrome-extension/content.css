@@ -25,10 +25,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
+  cursor: grab;
   z-index: 999999;
   transition: all 0.3s ease;
   border: none;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
 }
 
 .bamlead-fab:hover {
@@ -36,10 +39,18 @@
   box-shadow: 0 6px 20px rgba(20, 184, 166, 0.5);
 }
 
+.bamlead-fab.bamlead-fab-dragging {
+  cursor: grabbing;
+  transform: scale(1.15);
+  box-shadow: 0 8px 28px rgba(20, 184, 166, 0.6);
+  opacity: 0.9;
+}
+
 .bamlead-fab svg {
   width: 24px;
   height: 24px;
   fill: white;
+  pointer-events: none;
 }
 
 /* Tooltip */
