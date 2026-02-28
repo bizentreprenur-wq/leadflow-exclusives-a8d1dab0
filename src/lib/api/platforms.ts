@@ -46,6 +46,7 @@ export interface PlatformSearchResponse {
   };
   cached?: boolean;
   synonymsUsed?: string[];
+  citiesSearched?: string[];
 }
 
 export interface PlatformSearchFilters {
@@ -137,6 +138,7 @@ async function searchPlatformsStreaming(
 
   const allResults: PlatformResult[] = [];
   let synonymsUsed: string[] = [];
+  let citiesSearched: string[] = [];
   let progressMeta: PlatformProgressMeta | undefined;
 
   return new Promise((resolve, reject) => {
@@ -230,6 +232,7 @@ async function searchPlatformsStreaming(
 
               if (eventType === 'start') {
                 synonymsUsed = data.synonymsUsed || [];
+                citiesSearched = data.citiesSearched || [];
                 const sourceLabel = Array.isArray(data.sources) && data.sources.length > 0
                   ? data.sources.join(' + ')
                   : undefined;
@@ -304,6 +307,9 @@ async function searchPlatformsStreaming(
               if (eventType === 'complete') {
                 clearTimeout(timeoutId);
                 if (progressTimer) { clearTimeout(progressTimer); progressTimer = null; }
+                // Capture cities from complete event if available
+                if (data.citiesSearched) citiesSearched = data.citiesSearched;
+                if (data.synonymsUsed) synonymsUsed = data.synonymsUsed;
                 if (onProgress) {
                   onProgress([...allResults], 100, {
                     ...(progressMeta || {}),
@@ -322,6 +328,7 @@ async function searchPlatformsStreaming(
                   data: allResults,
                   query: { service, location, platforms },
                   synonymsUsed,
+                  citiesSearched,
                 });
                 return;
               }
@@ -335,7 +342,7 @@ async function searchPlatformsStreaming(
         if (allResults.length === 0) {
           throw new Error('Platform search returned 0 results. Try different platforms/keywords or verify API keys.');
         }
-        finish({ success: true, data: allResults, query: { service, location, platforms }, synonymsUsed });
+        finish({ success: true, data: allResults, query: { service, location, platforms }, synonymsUsed, citiesSearched });
       })
       .catch((error) => {
         clearTimeout(timeoutId);

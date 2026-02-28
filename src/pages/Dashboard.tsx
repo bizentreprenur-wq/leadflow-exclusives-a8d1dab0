@@ -235,6 +235,10 @@ export default function Dashboard() {
     } catch { return []; }
   });
   
+  // Search metadata — cities/synonyms from platform search
+  const [searchCitiesSearched, setSearchCitiesSearched] = useState<string[]>([]);
+  const [searchSynonymsUsed, setSearchSynonymsUsed] = useState<string[]>([]);
+  
   // Platform selection for scanner
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['gmb', 'wordpress', 'wix', 'squarespace', 'joomla']);
   const [searchLimit, setSearchLimit] = useState<number>(100); // Default 100 results
@@ -1108,6 +1112,10 @@ export default function Dashboard() {
         );
         console.log('[BamLead] Agency Lead Finder platform response:', response);
         if (response.success && response.data) {
+          // Capture search metadata
+          if (response.citiesSearched) setSearchCitiesSearched(response.citiesSearched);
+          if (response.synonymsUsed) setSearchSynonymsUsed(response.synonymsUsed);
+          
           finalResults = response.data.map((r: PlatformResult, index: number) => ({
             id: r.id || `agency-${index}`,
             name: r.name || 'Unknown Business',
@@ -3301,6 +3309,8 @@ export default function Dashboard() {
         onProceedToVerify={handleResultsPanelProceed}
         researchMode={researchMode}
         myBusinessInfo={myBusinessInfo}
+        citiesSearched={searchCitiesSearched}
+        synonymsUsed={searchSynonymsUsed}
       />
 
       {/* AI Lead Scoring Dashboard Modal */}

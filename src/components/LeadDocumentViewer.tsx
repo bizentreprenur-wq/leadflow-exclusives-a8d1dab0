@@ -58,6 +58,8 @@ interface LeadDocumentViewerProps {
   onProceedToEmail?: (leads: SearchResult[]) => void;
   // Research mode support
   researchMode?: 'niche' | 'competitive';
+  citiesSearched?: string[];
+  synonymsUsed?: string[];
   myBusinessInfo?: { name: string; url: string } | null;
 }
 
@@ -871,6 +873,8 @@ export default function LeadDocumentViewer({
   onProceedToEmail,
   researchMode = 'niche',
   myBusinessInfo,
+  citiesSearched = [],
+  synonymsUsed = [],
 }: LeadDocumentViewerProps) {
   const [selectedFields, setSelectedFields] = useState<string[]>(
     EXPORT_FIELDS.filter(f => f.default).map(f => f.id)
@@ -2281,6 +2285,53 @@ export default function LeadDocumentViewer({
                     </div>
                   </div>
                 </div>
+
+                {/* Cities & Areas Searched */}
+                {citiesSearched.length > 0 && (
+                  <div className="border-b border-gray-700 pb-6 mb-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <MapPin className="w-5 h-5 text-emerald-400" />
+                      <h2 className="text-lg font-bold text-white">Areas Searched</h2>
+                      <Badge className="bg-emerald-900/50 text-emerald-300 border-emerald-700/50 ml-2">
+                        {citiesSearched.length} locations
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-gray-400 mb-3">
+                      BamLead searched {citiesSearched.length} cities and neighborhoods within a 20-25 mile radius of <span className="text-emerald-400 font-semibold">{location}</span>
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {citiesSearched.map((city, idx) => (
+                        <Badge
+                          key={idx}
+                          variant="outline"
+                          className={idx === 0 
+                            ? "bg-emerald-900/50 text-emerald-300 border-emerald-600/50 font-semibold" 
+                            : "bg-gray-800/50 text-gray-300 border-gray-600/50"
+                          }
+                        >
+                          {city}
+                        </Badge>
+                      ))}
+                    </div>
+                    {synonymsUsed.length > 1 && (
+                      <div className="mt-3">
+                        <p className="text-xs text-gray-500 mb-2">Search terms used ({synonymsUsed.length}):</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {synonymsUsed.slice(0, 20).map((syn, idx) => (
+                            <Badge key={idx} variant="outline" className="bg-violet-900/30 text-violet-300 border-violet-700/30 text-xs">
+                              {syn}
+                            </Badge>
+                          ))}
+                          {synonymsUsed.length > 20 && (
+                            <Badge variant="outline" className="bg-gray-800/30 text-gray-400 border-gray-700/30 text-xs">
+                              +{synonymsUsed.length - 20} more
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Competitive Analysis Overview - Only show in competitive mode */}
                 {researchMode === 'competitive' && (

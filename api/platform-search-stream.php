@@ -206,6 +206,8 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
         'locationCount' => count($locationsToSearch),
         'synonymCount' => count($serviceVariants),
         'expandedLocations' => array_slice($expandedLocations, 0, 10),
+        'citiesSearched' => $locationsToSearch,
+        'synonymsUsed' => array_slice($serviceVariants, 0, 30),
     ]);
 
     $diagnostics = [
@@ -664,6 +666,8 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
         'overDelivered' => $totalResults > $limit,
         'leads' => $allResults,
         'diagnostics' => $diagnostics,
+        'citiesSearched' => $locationsToSearch,
+        'synonymsUsed' => array_slice($serviceVariants, 0, 30),
         'searchConfig' => [
             'locationsSearched' => count($locationsToSearch),
             'synonymsUsed' => count($serviceVariants),
@@ -671,6 +675,7 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
             'organicQueriesPlanned' => $totalQueries,
             'targetCount' => $targetCount,
             'batchSize' => ['places' => $placesBatchSize, 'organic' => $organicBatchSize],
+            'citiesSearched' => $locationsToSearch,
         ],
     ]);
 }
