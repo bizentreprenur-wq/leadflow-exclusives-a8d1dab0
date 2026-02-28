@@ -8,6 +8,16 @@ import { API_BASE_URL, getAuthHeaders } from './config';
 
 const USE_MOCK_DATA = !API_BASE_URL;
 
+// Module-level ref so the UI can pause/cancel the active search
+let _activePlatformController: AbortController | null = null;
+let _platformPauseReason: 'user' | null = null;
+
+/** Pause (abort) the current platform search and return partial results. */
+export function pauseCurrentPlatformSearch() {
+  _platformPauseReason = 'user';
+  _activePlatformController?.abort();
+}
+
 export interface PlatformResult {
   id: string;
   name: string;
@@ -144,8 +154,11 @@ async function searchPlatformsStreaming(
   return new Promise((resolve, reject) => {
     let settled = false;
     const controller = new AbortController();
+    _activePlatformController = controller;
+    _platformPauseReason = null;
 
     const finish = (response: PlatformSearchResponse) => {
+      _activePlatformController = null;
       if (settled) return;
       settled = true;
       resolve(response);
@@ -347,6 +360,18 @@ async function searchPlatformsStreaming(
       .catch((error) => {
         clearTimeout(timeoutId);
         if (error?.name === 'AbortError') {
+          if (settled) return;
+          // User pressed Pause → return partial results gracefully
+          if (_platformPauseReason === 'user') {
+            _platformPauseReason = null;
+            _activePlatformController = null;
+            if (allResults.length > 0) {
+              finish({ success: true, data: allResults, query: { service, location, platforms }, synonymsUsed, citiesSearched });
+            } else {
+              fail(new Error('Search paused before any results arrived.'));
+            }
+            return;
+          }
           fail(new Error('Search timed out.'));
           return;
         }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Download, Sparkles, Zap, MapPin, Search } from 'lucide-react';
+import { Download, Sparkles, Zap, MapPin, Search, Pause, Play } from 'lucide-react';
 
 interface StreamingLeadsIndicatorProps {
   currentCount: number;
@@ -11,6 +11,7 @@ interface StreamingLeadsIndicatorProps {
   estimatedQueries?: number;
   sourceLabel?: string;
   statusMessage?: string;
+  onPause?: () => void;
 }
 
 export default function StreamingLeadsIndicator({
@@ -23,6 +24,7 @@ export default function StreamingLeadsIndicator({
   estimatedQueries,
   sourceLabel,
   statusMessage,
+  onPause,
 }: StreamingLeadsIndicatorProps) {
   const [displayCount, setDisplayCount] = useState(0);
   const [prevCount, setPrevCount] = useState(0);
@@ -143,13 +145,25 @@ export default function StreamingLeadsIndicator({
 
         <div className="flex items-center gap-3">
           {isStreaming ? (
-            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/20 border border-emerald-500/40">
-              <div className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            <>
+              <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/20 border border-emerald-500/40">
+                <div className="relative flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                </div>
+                <span className="text-sm font-semibold text-emerald-400">STREAMING</span>
               </div>
-              <span className="text-sm font-semibold text-emerald-400">STREAMING</span>
-            </div>
+              {onPause && (
+                <button
+                  onClick={onPause}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-destructive/20 border border-destructive/40 hover:bg-destructive/30 transition-colors cursor-pointer"
+                  title="Pause search and keep results found so far"
+                >
+                  <Pause className="w-4 h-4 text-destructive" />
+                  <span className="text-sm font-semibold text-destructive">PAUSE</span>
+                </button>
+              )}
+            </>
           ) : (
             <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary/20 border border-primary/40">
               <div className="w-3 h-3 rounded-full bg-primary" />
