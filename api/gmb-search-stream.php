@@ -83,6 +83,10 @@ if ($filtersActive) {
     if (!empty($filters['noWebsite']) && (!empty($filters['notMobile']) || !empty($filters['outdated']))) {
         $strictnessBoost += 0.25;
     }
+    // "No website" leads are rare in web results — need aggressive overfetch
+    if (!empty($filters['noWebsite'])) {
+        $strictnessBoost += 1.5;
+    }
 
     $filterMultiplier = (int)ceil($filterMultiplier * $strictnessBoost);
     if ($limit >= 500) {
@@ -231,8 +235,11 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
     $synonymSubset = array_slice($serviceVariants, 1, $synonymsPerLocation);
 
     // For high-volume, also prepare directory-specific queries
+    // Always enable directories when "noWebsite" filter is active — directories list businesses
+    // that often lack their own website (Yelp, BBB, YellowPages profiles)
+    $noWebsiteFilter = !empty($filters['noWebsite']);
     $directoryQueries = [];
-    if ($limit >= 500 || ($filtersActive && $limit >= 250)) {
+    if ($limit >= 500 || ($filtersActive && $limit >= 250) || $noWebsiteFilter) {
         $topDirectories = [
             'site:yelp.com', 'site:bbb.org', 'site:yellowpages.com',
             'site:manta.com', 'site:angi.com', 'site:thumbtack.com',
@@ -240,7 +247,9 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
             'site:superpages.com', 'site:chamberofcommerce.com',
             'site:expertise.com', 'site:porch.com', 'site:bark.com',
         ];
-        $dirCount = $limit >= 2000 ? count($topDirectories) : ($limit >= 1000 ? 8 : ($filtersActive ? 7 : 5));
+        $dirCount = $noWebsiteFilter
+            ? count($topDirectories) // Use ALL directories for no-website searches
+            : ($limit >= 2000 ? count($topDirectories) : ($limit >= 1000 ? 8 : ($filtersActive ? 7 : 5)));
         $directoryQueries = array_slice($topDirectories, 0, $dirCount);
     }
 
@@ -387,8 +396,9 @@ function streamGMBSearch($service, $location, $limit, $filters, $filtersActive, 
         ]);
     }
 
-    // ---- SHORT-CIRCUIT: Skip remaining passes for small searches ----
-    if ($limit <= 100 && $totalResults >= $limit) {
+    // ---- SHORT-CIRCUIT: Skip remaining passes for small unfiltered searches ----
+    // When filters (especially noWebsite) are active, we need all passes to find enough matches
+    if ($limit <= 100 && $totalResults >= $limit && !$filtersActive) {
         sendSSE('complete', [
             'total' => $totalResults,
             'requested' => $limit,
