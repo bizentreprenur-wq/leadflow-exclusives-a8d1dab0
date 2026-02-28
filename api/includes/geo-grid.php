@@ -95,7 +95,7 @@ function parallelSerperSearch(array $queries, string $type = 'places', int $conc
             }
         } while ($running > 0 && $status === CURLM_OK);
 
-        // Collect results — retry failed queries sequentially
+        // Collect results — retry failed/rate-limited queries sequentially
         $failedQueries = [];
         foreach ($handles as $idx => $ch) {
             $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -107,8 +107,8 @@ function parallelSerperSearch(array $queries, string $type = 'places', int $conc
                 if (is_array($data)) {
                     $items = $data[$resultKey] ?? [];
                 }
-            } elseif ($httpCode === 0 || $httpCode >= 500) {
-                // Connection failed or server error — queue for sequential retry
+            } elseif ($httpCode === 429 || $httpCode === 0 || $httpCode >= 500) {
+                // Rate limited (429), connection failed (0), or server error (500+) — queue for retry
                 $failedQueries[$idx] = $batch[$idx];
             }
 
@@ -119,42 +119,72 @@ function parallelSerperSearch(array $queries, string $type = 'places', int $conc
 
         curl_multi_close($mh);
 
-        // Sequential retry for failed queries (shared hosting often drops connections)
-        foreach ($failedQueries as $idx => $query) {
-            $payload = is_array($query)
-                ? $query
-                : ['q' => $query, 'gl' => 'us', 'hl' => 'en'];
-            if ($page > 1) $payload['page'] = (int)$page;
+        // Sequential retry for failed/rate-limited queries with exponential backoff
+        if (!empty($failedQueries)) {
+            $retryDelay = 300000; // Start at 300ms for rate-limited queries
+            foreach ($failedQueries as $idx => $query) {
+                usleep($retryDelay);
+                $retryDelay = min($retryDelay + 200000, 1000000); // Increase up to 1s
 
-            $ch = curl_init($endpoint);
-            curl_setopt_array($ch, [
-                CURLOPT_POST => true,
-                CURLOPT_POSTFIELDS => json_encode($payload),
-                CURLOPT_HTTPHEADER => [
-                    'X-API-KEY: ' . SERPER_API_KEY,
-                    'Content-Type: application/json',
-                ],
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT => 15,
-                CURLOPT_CONNECTTIMEOUT => 5,
-                CURLOPT_SSL_VERIFYPEER => true,
-            ]);
-            $response = curl_exec($ch);
-            $retryCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
+                $payload = is_array($query)
+                    ? $query
+                    : ['q' => $query, 'gl' => 'us', 'hl' => 'en'];
+                if ($page > 1) $payload['page'] = (int)$page;
 
-            if ($retryCode === 200 && $response) {
-                $data = json_decode($response, true);
-                if (is_array($data)) {
-                    $allResults[$idx] = $data[$resultKey] ?? [];
+                $ch = curl_init($endpoint);
+                curl_setopt_array($ch, [
+                    CURLOPT_POST => true,
+                    CURLOPT_POSTFIELDS => json_encode($payload),
+                    CURLOPT_HTTPHEADER => [
+                        'X-API-KEY: ' . SERPER_API_KEY,
+                        'Content-Type: application/json',
+                    ],
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_TIMEOUT => 20,
+                    CURLOPT_CONNECTTIMEOUT => 8,
+                    CURLOPT_SSL_VERIFYPEER => true,
+                ]);
+                $response = curl_exec($ch);
+                $retryCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+
+                if ($retryCode === 200 && $response) {
+                    $data = json_decode($response, true);
+                    if (is_array($data)) {
+                        $allResults[$idx] = $data[$resultKey] ?? [];
+                    }
+                } elseif ($retryCode === 429) {
+                    // Still rate limited — wait longer and retry once more
+                    usleep(1500000); // 1.5s backoff
+                    $ch = curl_init($endpoint);
+                    curl_setopt_array($ch, [
+                        CURLOPT_POST => true,
+                        CURLOPT_POSTFIELDS => json_encode($payload),
+                        CURLOPT_HTTPHEADER => [
+                            'X-API-KEY: ' . SERPER_API_KEY,
+                            'Content-Type: application/json',
+                        ],
+                        CURLOPT_RETURNTRANSFER => true,
+                        CURLOPT_TIMEOUT => 20,
+                        CURLOPT_CONNECTTIMEOUT => 8,
+                        CURLOPT_SSL_VERIFYPEER => true,
+                    ]);
+                    $response = curl_exec($ch);
+                    $retryCode2 = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                    curl_close($ch);
+                    if ($retryCode2 === 200 && $response) {
+                        $data = json_decode($response, true);
+                        if (is_array($data)) {
+                            $allResults[$idx] = $data[$resultKey] ?? [];
+                        }
+                    }
                 }
             }
-            usleep(100000); // 100ms between sequential retries
         }
 
-        // ⚡ Pause between batches — Hostinger shared hosting needs breathing room
+        // ⚡ Pause between batches — prevent Serper rate limiting on shared hosting
         if ($batchIndex < count($batches) - 1) {
-            usleep(150000); // 150ms between batches for shared hosting resilience
+            usleep(350000); // 350ms between batches to avoid 429s
         }
     }
 

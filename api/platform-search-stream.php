@@ -252,7 +252,8 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
     $placesQueries = [];
     foreach ($placesLocations as $loc) {
         foreach ($placesServices as $svc) {
-            $placesQueries[] = "$svc in $loc";
+            // Include num parameter to maximize results per query
+            $placesQueries[] = ['q' => "$svc in $loc", 'gl' => 'us', 'hl' => 'en', 'num' => 40];
         }
     }
 
@@ -265,8 +266,8 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
         'phase' => 'places_search',
     ]);
 
-    // ⚡ Fire all places queries in parallel batches of 10
-    $placesBatchSize = 10;
+    // ⚡ Fire places queries in parallel batches of 5 (lower concurrency to avoid 429s)
+    $placesBatchSize = 5;
     $placesBatches = array_chunk($placesQueries, $placesBatchSize);
 
     foreach ($placesBatches as $pbIdx => $batch) {
@@ -533,7 +534,7 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
         'deep_expansion' => 'Deep expansion: related terms + nearby cities',
     ];
 
-    $organicBatchSize = 10; // Fire 10 queries simultaneously
+    $organicBatchSize = 5; // Lower concurrency to prevent Serper 429 rate limits
     $globalQueryIdx = 0;
 
     foreach ($phaseGroups as $phase => $phaseQueries) {
@@ -660,6 +661,14 @@ function streamPlatformSearchLegacy($service, $location, $platforms, $limit, $fi
         'overDelivered' => $totalResults > $limit,
         'leads' => $allResults,
         'diagnostics' => $diagnostics,
+        'searchConfig' => [
+            'locationsSearched' => count($locationsToSearch),
+            'synonymsUsed' => count($serviceVariants),
+            'placesQueriesPlanned' => count($placesQueries),
+            'organicQueriesPlanned' => $totalQueries,
+            'targetCount' => $targetCount,
+            'batchSize' => ['places' => $placesBatchSize, 'organic' => $organicBatchSize],
+        ],
     ]);
 }
 
