@@ -47,11 +47,11 @@ import PaymentMethodModal from '@/components/PaymentMethodModal';
 import EmailVerificationRequired from '@/components/EmailVerificationRequired';
 import bamMascot from '@/assets/bamlead-mascot.png';
 import { LeadForEmail, clearQueuedEmails } from '@/lib/api/email';
-import { searchGMB, GMBResult } from '@/lib/api/gmb';
+import { searchGMB, GMBResult, pauseCurrentSearch } from '@/lib/api/gmb';
 import type { StreamProgressMeta } from '@/lib/api/gmb';
 
 import { useSMTPConfig } from '@/hooks/useSMTPConfig';
-import { searchPlatforms, PlatformResult } from '@/lib/api/platforms';
+import { searchPlatforms, PlatformResult, pauseCurrentPlatformSearch } from '@/lib/api/platforms';
 import { analyzeLeads, LeadGroup, LeadSummary, EmailStrategy, LeadAnalysis } from '@/lib/api/leadAnalysis';
 import { quickScoreLeads } from '@/lib/api/aiLeadScoring';
 import { HIGH_CONVERTING_TEMPLATES } from '@/lib/highConvertingTemplates';
@@ -2396,6 +2396,13 @@ export default function Dashboard() {
                             estimatedQueries={searchCoverageMeta?.estimatedQueries}
                             sourceLabel={searchCoverageMeta?.sourceLabel}
                             statusMessage={searchCoverageMeta?.statusMessage}
+                            onPause={() => {
+                              if (searchType === 'gmb') {
+                                pauseCurrentSearch();
+                              } else {
+                                pauseCurrentPlatformSearch();
+                              }
+                            }}
                           />
                         </div>
                       </div>
